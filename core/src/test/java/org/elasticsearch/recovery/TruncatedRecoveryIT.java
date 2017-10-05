@@ -59,6 +59,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 @ESIntegTestCase.ClusterScope(numDataNodes = 2, numClientNodes = 0, scope = ESIntegTestCase.Scope.TEST)
 @SuppressCodecs("*") // test relies on exact file extensions
+@TestLogging("_root:INFO,org.elasticsearch.cluster.service.MasterService:TRACE")
 public class TruncatedRecoveryIT extends ESIntegTestCase {
 
     @Override
