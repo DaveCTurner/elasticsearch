@@ -460,6 +460,13 @@ public class ShardStateAction extends AbstractComponent {
         String message;
         Exception failure;
 
+        // TODO make a toString() variant without the exception message - shortSummary()?
+        // TODO join #elasticsearch-build and #elasticsearch-github (also #education?)
+        // "received shard failed for..."
+        // RecoveryFailedException -> ... -> ExecutionCancelledException
+        // deepest ES exception?
+        // ExceptionsHelper
+
         public ShardEntry() {
         }
 
