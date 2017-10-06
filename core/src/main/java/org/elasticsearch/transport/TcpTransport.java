@@ -20,6 +20,7 @@ package org.elasticsearch.transport;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.Supplier;
 import org.apache.lucene.util.IOUtils;
@@ -48,6 +49,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.metrics.CounterMetric;
 import org.elasticsearch.common.metrics.MeanMetric;
 import org.elasticsearch.common.network.NetworkAddress;
@@ -184,6 +186,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
 
     private static final long NINETY_PER_HEAP_SIZE = (long) (JvmInfo.jvmInfo().getMem().getHeapMax().getBytes() * 0.9);
     private static final int PING_DATA_SIZE = -1;
+    private static Logger staticLogger = Loggers.getLogger(TcpTransport.class);
     private final CircuitBreakerService circuitBreakerService;
     // package visibility for tests
     protected final ScheduledPing scheduledPing;
@@ -1227,7 +1230,9 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
      */
     public static boolean validateMessageHeader(BytesReference buffer) throws IOException {
         final int sizeHeaderLength = TcpHeader.MARKER_BYTES_SIZE + TcpHeader.MESSAGE_LENGTH_SIZE;
+        staticLogger.trace("validateMessageHeader: buffer.length() = {}", buffer.length());
         if (buffer.length() < sizeHeaderLength) {
+            staticLogger.trace("validateMessageHeader: not got a header yet");
             throw new IllegalStateException("message size must be >= to the header size");
         }
         int offset = 0;
@@ -1242,9 +1247,11 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
                     bufferStartsWith(buffer, offset, "PATCH ") ||
                     bufferStartsWith(buffer, offset, "TRACE ")) {
 
+                staticLogger.trace("validateMessageHeader: HttpOnTransportException");
                 throw new HttpOnTransportException("This is not a HTTP port");
             }
 
+            staticLogger.trace("validateMessageHeader: StreamCorruptedException");
             // we have 6 readable bytes, show 4 (should be enough)
             throw new StreamCorruptedException("invalid internal transport message format, got ("
                     + Integer.toHexString(buffer.get(offset) & 0xFF) + ","
@@ -1260,22 +1267,29 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
             if (dataLen == PING_DATA_SIZE) {
                 // discard the messages we read and continue, this is achieved by skipping the bytes
                 // and returning null
+                staticLogger.trace("validateMessageHeader: ping");
                 return false;
             }
         }
+        staticLogger.trace("validateMessageHeader: dataLen = {}", dataLen);
 
         if (dataLen <= 0) {
+            staticLogger.trace("validateMessageHeader: negative dataLen");
             throw new StreamCorruptedException("invalid data length: " + dataLen);
         }
         // safety against too large frames being sent
         if (dataLen > NINETY_PER_HEAP_SIZE) {
+            staticLogger.trace("validateMessageHeader: dataLen too large");
             throw new IllegalArgumentException("transport content length received [" + new ByteSizeValue(dataLen) + "] exceeded ["
                 + new ByteSizeValue(NINETY_PER_HEAP_SIZE) + "]");
         }
 
         if (buffer.length() < dataLen + sizeHeaderLength) {
+            staticLogger.trace("validateMessageHeader: buffer.length() = {} < dataLen + sizeHeaderLength = {} + {}", buffer.length(), dataLen, sizeHeaderLength);
             throw new IllegalStateException("buffer must be >= to the message size but wasn't");
         }
+
+        staticLogger.trace("validateMessageHeader: success");
         return true;
     }
 
