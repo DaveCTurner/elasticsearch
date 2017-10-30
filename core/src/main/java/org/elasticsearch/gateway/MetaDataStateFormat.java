@@ -25,11 +25,7 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexFormatTooNewException;
 import org.apache.lucene.index.IndexFormatTooOldException;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.OutputStreamIndexOutput;
-import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.store.*;
 import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -52,6 +48,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -114,14 +111,11 @@ public abstract class MetaDataStateFormat<T> {
         final long maxStateId = findMaxStateId(prefix, locations)+1;
         assert maxStateId >= 0 : "maxStateId must be positive but was: [" + maxStateId + "]";
         final String fileName = prefix + maxStateId + STATE_FILE_EXTENSION;
+        final String tmpFileName = fileName + ".tmp";
         Path stateLocation = locations[0].resolve(STATE_DIR_NAME);
         Files.createDirectories(stateLocation);
-        final Path tmpStatePath = stateLocation.resolve(fileName + ".tmp");
-        final Path finalStatePath = stateLocation.resolve(fileName);
-        try {
-            final String resourceDesc = "MetaDataStateFormat.write(path=\"" + tmpStatePath + "\")";
-            try (OutputStreamIndexOutput out =
-                     new OutputStreamIndexOutput(resourceDesc, fileName, Files.newOutputStream(tmpStatePath), BUFFER_SIZE)) {
+        try (Directory dir = newDirectory(stateLocation)) {
+            try (IndexOutput out = dir.createOutput(tmpFileName, IOContext.DEFAULT)) {
                 CodecUtil.writeHeader(out, STATE_FILE_CODEC, STATE_FILE_VERSION);
                 out.writeInt(format.index());
                 try (XContentBuilder builder = newXContentBuilder(format, new IndexOutputOutputStream(out) {
@@ -139,27 +133,33 @@ public abstract class MetaDataStateFormat<T> {
                 }
                 CodecUtil.writeFooter(out);
             }
-            IOUtils.fsync(tmpStatePath, false); // fsync the state file
-            Files.move(tmpStatePath, finalStatePath, StandardCopyOption.ATOMIC_MOVE);
-            IOUtils.fsync(stateLocation, true);
+            dir.sync(Collections.singleton(tmpFileName)); // fsync the state file
+            dir.rename(tmpFileName, fileName);
+            dir.syncMetaData();
             for (int i = 1; i < locations.length; i++) {
-                stateLocation = locations[i].resolve(STATE_DIR_NAME);
-                Files.createDirectories(stateLocation);
-                Path tmpPath = stateLocation.resolve(fileName + ".tmp");
-                Path finalPath = stateLocation.resolve(fileName);
-                try {
-                    Files.copy(finalStatePath, tmpPath);
-                    // we are on the same FileSystem / Partition here we can do an atomic move
-                    Files.move(tmpPath, finalPath, StandardCopyOption.ATOMIC_MOVE);
-                    IOUtils.fsync(stateLocation, true); // we just fsync the dir here..
+                Path alternativeStateLocation = locations[i].resolve(STATE_DIR_NAME);
+                Files.createDirectories(alternativeStateLocation);
+                try (Directory alternativeDir = newDirectory(alternativeStateLocation)) {
+                    alternativeDir.copyFrom(dir, fileName, tmpFileName, IOContext.DEFAULT);
+                    alternativeDir.sync(Collections.singleton(tmpFileName));
+                    alternativeDir.rename(tmpFileName, fileName);
+                    alternativeDir.syncMetaData();
                 } finally {
-                    Files.deleteIfExists(tmpPath);
+                    deleteIfExists(alternativeStateLocation, tmpFileName);
                 }
             }
         } finally {
-            Files.deleteIfExists(tmpStatePath);
+            deleteIfExists(stateLocation, tmpFileName);
         }
         cleanupOldFiles(prefix, fileName, locations);
+    }
+
+    private void deleteIfExists(Path location, String filename) throws IOException {
+        try (Directory dir = newDirectory(location)) {
+            dir.deleteFile(filename);
+        } catch (NoSuchFileException ignore) {
+            // the file already doesn't exist, which was what we wanted.
+        }
     }
 
     protected XContentBuilder newXContentBuilder(XContentType type, OutputStream stream ) throws IOException {
