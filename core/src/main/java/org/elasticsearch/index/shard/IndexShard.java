@@ -642,6 +642,13 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     private IndexShardState changeState(IndexShardState newState, String reason) {
         assert Thread.holdsLock(mutex);
+
+        try {
+            Thread.sleep(250);
+        } catch (InterruptedException e) {
+            assert false;
+        }
+
         logger.debug("state: [{}]->[{}], reason [{}]", state, newState, reason);
         IndexShardState previousState = state;
         state = newState;
