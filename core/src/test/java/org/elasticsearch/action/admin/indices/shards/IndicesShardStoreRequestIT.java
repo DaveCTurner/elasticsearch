@@ -188,20 +188,26 @@ public class IndicesShardStoreRequestIT extends ESIntegTestCase {
                 }
             }
         }
+        logger.info("--> finished corrupting random shard copies");
 
+        logger.info("--> getting cluster state");
         IndicesShardStoresResponse rsp = client().admin().indices().prepareShardStores(index).setShardStatuses("all").get();
         ImmutableOpenIntMap<List<IndicesShardStoresResponse.StoreStatus>> shardStatuses = rsp.getStoreStatuses().get(index);
         assertNotNull(shardStatuses);
         assertThat(shardStatuses.size(), greaterThan(0));
         for (IntObjectCursor<List<IndicesShardStoresResponse.StoreStatus>> shardStatus : shardStatuses) {
+            logger.trace("checking shard " + shardStatus.key + " statuses");
             for (IndicesShardStoresResponse.StoreStatus status : shardStatus.value) {
+                logger.trace("checking shard " + shardStatus.key + " status on node " + status.getNode().getName());
                 if (corruptedShardIDMap.containsKey(shardStatus.key)
                         && corruptedShardIDMap.get(shardStatus.key).contains(status.getNode().getName())) {
                     assertThat("shard [" + shardStatus.key + "] is failed on node [" + status.getNode().getName() + "]",
                         status.getStoreException(), notNullValue());
+                    logger.trace("checking shard " + shardStatus.key + " status on node " + status.getNode().getName() + " - found exception as expected: " + status.getStoreException().getMessage());
                 } else {
                     assertNull("shard [" + shardStatus.key + "] is not failed on node [" + status.getNode().getName() + "]",
                         status.getStoreException());
+                    logger.trace("checking shard " + shardStatus.key + " status on node " + status.getNode().getName() + " - found no exception as expected");
                 }
             }
         }
