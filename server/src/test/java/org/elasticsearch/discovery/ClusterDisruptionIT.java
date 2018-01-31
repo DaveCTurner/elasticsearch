@@ -336,7 +336,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         logger.trace("primaryNode = {}", primaryNode);
         assertThat(primaryNode.getName(), isIn(nodeNames));
 
-        NetworkLinkDisruptionType disruptionType = new NetworkDisconnect();
+        NetworkLinkDisruptionType disruptionType = new NetworkDisruption.NetworkDelay(TimeValue.timeValueSeconds(1));
 
     }
 

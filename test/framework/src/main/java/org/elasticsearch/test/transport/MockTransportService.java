@@ -76,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * A mock transport service that allows to simulate different network topology failures.
@@ -341,11 +342,11 @@ public final class MockTransportService extends TransportService {
      * Adds a rule that will cause ignores each send request, simulating an unresponsive node
      * and failing to connect once the rule was added.
      *
-     * @param duration the amount of time to delay sending and connecting.
+     * @param durationInMillisSupplier the amount of time to delay sending and connecting.
      */
-    public void addUnresponsiveRule(TransportService transportService, final TimeValue duration) {
+    public void addUnresponsiveRule(TransportService transportService, final LongSupplier durationInMillisSupplier) {
         for (TransportAddress transportAddress : extractTransportAddresses(transportService)) {
-            addUnresponsiveRule(transportAddress, duration);
+            addUnresponsiveRule(transportAddress, durationInMillisSupplier);
         }
     }
 
@@ -353,9 +354,9 @@ public final class MockTransportService extends TransportService {
      * Adds a rule that will cause ignores each send request, simulating an unresponsive node
      * and failing to connect once the rule was added.
      *
-     * @param duration the amount of time to delay sending and connecting.
+     * @param durationInMillisSupplier the amount of time to delay sending and connecting.
      */
-    public void addUnresponsiveRule(TransportAddress transportAddress, final TimeValue duration) {
+    public void addUnresponsiveRule(TransportAddress transportAddress, final LongSupplier durationInMillisSupplier) {
         final long startTime = System.currentTimeMillis();
 
         addDelegate(transportAddress, new ClearableTransport(original) {
@@ -363,7 +364,7 @@ public final class MockTransportService extends TransportService {
             private boolean cleared = false;
 
             TimeValue getDelay() {
-                return new TimeValue(duration.millis() - (System.currentTimeMillis() - startTime));
+                return new TimeValue(durationInMillisSupplier.getAsLong() - (System.currentTimeMillis() - startTime));
             }
 
             @Override

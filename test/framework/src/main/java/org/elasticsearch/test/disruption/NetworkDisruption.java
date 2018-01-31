@@ -489,7 +489,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
 
         @Override
         public void applyDisruption(MockTransportService sourceTransportService, MockTransportService targetTransportService) {
-            sourceTransportService.addUnresponsiveRule(targetTransportService, delay);
+            sourceTransportService.addUnresponsiveRule(targetTransportService, () -> delay.millis());
         }
 
         @Override
