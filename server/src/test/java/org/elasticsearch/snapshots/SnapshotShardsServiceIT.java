@@ -81,7 +81,7 @@ public class SnapshotShardsServiceIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> start disrupting cluster");
         final NetworkDisruption networkDisruption = new NetworkDisruption(new NetworkDisruption.TwoPartitions(masterNode, dataNode),
-            NetworkDisruption.NetworkDelay.random(random()));
+            NetworkDisruption.NetworkDelay.randomFixedDelay(random()));
         internalCluster().setDisruptionScheme(networkDisruption);
         networkDisruption.startDisrupting();
 
