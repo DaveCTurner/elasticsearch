@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 
 import static org.junit.Assert.assertFalse;
@@ -456,12 +457,10 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         public static TimeValue DEFAULT_DELAY_MIN = TimeValue.timeValueSeconds(10);
         public static TimeValue DEFAULT_DELAY_MAX = TimeValue.timeValueSeconds(90);
 
-        private final Random random;
         private final long minDelayMillis;
         private final long maxDelayMillis;
 
-        public NetworkDelay(Random random, TimeValue minDelay, TimeValue maxDelay) {
-            this.random = random;
+        public NetworkDelay(TimeValue minDelay, TimeValue maxDelay) {
             this.minDelayMillis = minDelay.millis();
             this.maxDelayMillis = maxDelay.millis();
             assert 0 <= minDelayMillis && minDelayMillis <= maxDelayMillis;
@@ -473,17 +472,18 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         }
 
         private long getDelayMillis() {
-            return RandomNumbers.randomLongBetween(random, minDelayMillis, maxDelayMillis);
+            // NOCOMMIT Gone all-in on the nondeterminism, using ThreadLocalRandom.current(), ugh.
+            return RandomNumbers.randomLongBetween(ThreadLocalRandom.current(), minDelayMillis, maxDelayMillis);
         }
 
         public static NetworkDelay randomFixedDelay(Random random) {
             TimeValue delay = TimeValue.timeValueMillis(RandomNumbers.randomLongBetween(
                 random, DEFAULT_DELAY_MIN.millis(), DEFAULT_DELAY_MAX.millis()));
-            return new NetworkDelay(random, delay, delay);
+            return new NetworkDelay(delay, delay);
         }
 
-        public static NetworkDelay randomVariableDelay(Random random) {
-            return new NetworkDelay(random, DEFAULT_DELAY_MIN, DEFAULT_DELAY_MAX);
+        public static NetworkDelay randomVariableDelay() {
+            return new NetworkDelay(DEFAULT_DELAY_MIN, DEFAULT_DELAY_MAX);
         }
 
         @Override

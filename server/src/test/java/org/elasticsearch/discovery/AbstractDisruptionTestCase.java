@@ -253,7 +253,7 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
                 disruptionType = new NetworkDisconnect();
                 break;
             case 2:
-                disruptionType = NetworkDisruption.NetworkDelay.randomVariableDelay(random());
+                disruptionType = NetworkDisruption.NetworkDelay.randomVariableDelay();
                 break;
             default:
                 throw new IllegalArgumentException();
