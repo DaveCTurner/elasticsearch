@@ -32,12 +32,16 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.Murmur3HashFunction;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.indices.store.IndicesStoreIntegrationIT;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
@@ -64,9 +68,11 @@ import java.util.stream.Collectors;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.collection.IsIn.isIn;
 
 /**
  * Tests various cluster operations (e.g., indexing) during disruptions.
@@ -74,6 +80,7 @@ import static org.hamcrest.Matchers.not;
 @ClusterScope(scope = Scope.TEST, numDataNodes = 0, transportClientRatio = 0, autoMinMasterNodes = false)
 @TestLogging("_root:DEBUG,org.elasticsearch.cluster.service:TRACE")
 public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
+
 
     /**
      * Test that we do not loose document whose indexing request was successful, under a randomly selected disruption scheme
@@ -128,17 +135,26 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
                             }
                             logger.info("[{}] Acquired semaphore and it has {} permits left", name, semaphore.availablePermits());
                             try {
-                                id = Integer.toString(idGenerator.incrementAndGet());
-                                int shard = Math.floorMod(Murmur3HashFunction.hash(id), numPrimaries);
-                                logger.trace("[{}] indexing id [{}] through node [{}] targeting shard [{}]", name, id, node, shard);
-                                IndexResponse response =
+                                if (randomBoolean()) {
+                                    id = Integer.toString(idGenerator.incrementAndGet());
+                                    int shard = Math.floorMod(Murmur3HashFunction.hash(id), numPrimaries);
+                                    logger.trace("[{}] indexing id [{}] through node [{}] targeting shard [{}]", name, id, node, shard);
+                                    IndexResponse response =
                                         client.prepareIndex("test", "type", id)
-                                                .setSource("{}", XContentType.JSON)
-                                                .setTimeout(timeout)
-                                                .get(timeout);
-                                assertEquals(DocWriteResponse.Result.CREATED, response.getResult());
-                                ackedDocs.put(id, node);
-                                logger.trace("[{}] indexed id [{}] through node [{}], response [{}]", name, id, node, response);
+                                            .setSource("{}", XContentType.JSON)
+                                            .setTimeout(timeout)
+                                            .get(timeout);
+                                    assertEquals(DocWriteResponse.Result.CREATED, response.getResult());
+                                    ackedDocs.put(id, node);
+                                    logger.trace("[{}] indexed id [{}] through node [{}], response [{}]", name, id, node, response);
+                                } else {
+                                    logger.trace("[{}] deleting all documents", name);
+                                    BulkByScrollResponse deleteByQueryResponse = DeleteByQueryAction.INSTANCE.newRequestBuilder(client)
+                                        .filter(QueryBuilders.matchAllQuery())
+                                        .source("test").get();
+                                    logger.trace("[{}] delete-all-documents deleted {}: [{}]", name, deleteByQueryResponse.getDeleted(), deleteByQueryResponse);
+                                }
+
                             } catch (ElasticsearchException e) {
                                 exceptedExceptions.add(e);
                                 final String docId = id;
@@ -288,6 +304,40 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
             assertThat(getResponse.getVersion(), equalTo(1L));
             assertThat(getResponse.getId(), equalTo(indexResponse.getId()));
         }
+    }
+
+    @TestLogging("_root:DEBUG,org.elasticsearch.action.bulk:TRACE,org.elasticsearch.action.get:TRACE," +
+        "org.elasticsearch.discovery:TRACE,org.elasticsearch.action.support.replication:TRACE," +
+        "org.elasticsearch.cluster.service:TRACE,org.elasticsearch.indices.recovery:TRACE," +
+        "org.elasticsearch.indices.cluster:TRACE,org.elasticsearch.index.shard:TRACE")
+    public void testIndexingWithConcurrentDeleteByQuery() throws Exception {
+        logger.trace("calling startCluster()");
+        List<String> nodeNames = startCluster(2, 2);
+        logger.trace("startCluster() returned {}", nodeNames);
+        assertThat(nodeNames.size(), is(2));
+
+        logger.trace("creating index");
+        assertAcked(prepareCreate("test").setSettings(Settings.builder()
+            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)));
+        logger.trace("create index acked, waiting for GREEN");
+        ensureGreen();
+        logger.trace("ensureGreen() returned");
+
+        logger.trace("finding primary shard");
+        ShardRouting primaryShardRouting = clusterService().state().getRoutingTable().index("test").shard(0).primaryShard();
+        logger.trace("primaryShardRouting = {}", primaryShardRouting);
+        assertThat(primaryShardRouting.state(), equalTo(ShardRoutingState.STARTED));
+
+        logger.trace("finding primary node");
+        String primaryNodeId = primaryShardRouting.currentNodeId();
+        logger.trace("primaryNodeId = {}", primaryNodeId);
+        DiscoveryNode primaryNode = clusterService().state().nodes().get(primaryNodeId);
+        logger.trace("primaryNode = {}", primaryNode);
+        assertThat(primaryNode.getName(), isIn(nodeNames));
+
+        NetworkLinkDisruptionType disruptionType = new NetworkDisconnect();
+
     }
 
     // simulate handling of sending shard failure during an isolation
