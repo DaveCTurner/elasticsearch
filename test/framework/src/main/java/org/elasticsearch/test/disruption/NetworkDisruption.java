@@ -19,6 +19,7 @@
 
 package org.elasticsearch.test.disruption;
 
+import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import com.carrotsearch.randomizedtesting.generators.RandomPicks;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
@@ -445,62 +446,54 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         }
     }
 
+
     /**
-     * Simulates slow or congested network. Delivery of requests that are sent from source to target node are delayed by a configurable
-     * time amount.
+     * Simulates slow or congested network. Delivery of requests that are sent from source to target node are delayed by randomised
+     * amounts.
      */
     public static class NetworkDelay extends NetworkLinkDisruptionType {
 
         public static TimeValue DEFAULT_DELAY_MIN = TimeValue.timeValueSeconds(10);
         public static TimeValue DEFAULT_DELAY_MAX = TimeValue.timeValueSeconds(90);
 
-        private final TimeValue delay;
+        private final Random random;
+        private final long minDelayMillis;
+        private final long maxDelayMillis;
 
-        /**
-         * Delays requests by a fixed time value.
-         *
-         * @param delay time to delay requests
-         */
-        public NetworkDelay(TimeValue delay) {
-            this.delay = delay;
-        }
-
-        /**
-         * Delays requests by a random but fixed time value between {@link #DEFAULT_DELAY_MIN} and {@link #DEFAULT_DELAY_MAX}.
-         *
-         * @param random instance to use for randomization of delay
-         */
-        public static NetworkDelay random(Random random) {
-            return random(random, DEFAULT_DELAY_MIN, DEFAULT_DELAY_MAX);
-        }
-
-        /**
-         * Delays requests by a random but fixed time value between delayMin and delayMax.
-         *
-         * @param random   instance to use for randomization of delay
-         * @param delayMin minimum delay
-         * @param delayMax maximum delay
-         */
-        public static NetworkDelay random(Random random, TimeValue delayMin, TimeValue delayMax) {
-            return new NetworkDelay(TimeValue.timeValueMillis(delayMin.millis() == delayMax.millis() ?
-                    delayMin.millis() :
-                    delayMin.millis() + random.nextInt((int) (delayMax.millis() - delayMin.millis()))));
+        public NetworkDelay(Random random, TimeValue minDelay, TimeValue maxDelay) {
+            this.random = random;
+            this.minDelayMillis = minDelay.millis();
+            this.maxDelayMillis = maxDelay.millis();
+            assert 0 <= minDelayMillis && minDelayMillis <= maxDelayMillis;
         }
 
         @Override
         public void applyDisruption(MockTransportService sourceTransportService, MockTransportService targetTransportService) {
-            sourceTransportService.addUnresponsiveRule(targetTransportService, () -> delay.millis());
+            sourceTransportService.addUnresponsiveRule(targetTransportService, this::getDelayMillis);
+        }
+
+        private long getDelayMillis() {
+            return RandomNumbers.randomLongBetween(random, minDelayMillis, maxDelayMillis);
+        }
+
+        public static NetworkDelay randomFixedDelay(Random random) {
+            TimeValue delay = TimeValue.timeValueMillis(RandomNumbers.randomLongBetween(
+                random, DEFAULT_DELAY_MIN.millis(), DEFAULT_DELAY_MAX.millis()));
+            return new NetworkDelay(random, delay, delay);
+        }
+
+        public static NetworkDelay randomVariableDelay(Random random) {
+            return new NetworkDelay(random, DEFAULT_DELAY_MIN, DEFAULT_DELAY_MAX);
         }
 
         @Override
         public TimeValue expectedTimeToHeal() {
-            return delay;
+            return new TimeValue(maxDelayMillis);
         }
 
         @Override
         public String toString() {
-            return "network delays for [" + delay + "]";
+            return "network delays for between " + minDelayMillis + "ms and " + maxDelayMillis + "ms";
         }
     }
-
 }
