@@ -245,7 +245,7 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
             disruptedLinks = Bridge.random(random(), internalCluster().getNodeNames());
         }
         final NetworkLinkDisruptionType disruptionType;
-        switch (randomInt(2)) {
+        switch (2) { // NOCOMMIT we only want to test the new disruption, but set this back before merging
             case 0:
                 disruptionType = new NetworkDisruption.NetworkUnresponsive();
                 break;
