@@ -472,8 +472,14 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         }
 
         private long getDelayMillis() {
-            // NOCOMMIT Gone all-in on the nondeterminism, using ThreadLocalRandom.current(), ugh.
-            return RandomNumbers.randomLongBetween(ThreadLocalRandom.current(), minDelayMillis, maxDelayMillis);
+            if (minDelayMillis == maxDelayMillis)
+            {
+                return minDelayMillis;
+            } else {
+                // NB use of ThreadLocalRandom.current() gives nondeterministic results, but these tests are already
+                // nondeterministic due to the use of threading, so we may as well go all-in.
+                return RandomNumbers.randomLongBetween(ThreadLocalRandom.current(), minDelayMillis, maxDelayMillis);
+            }
         }
 
         public static NetworkDelay randomFixedDelay(Random random) {
