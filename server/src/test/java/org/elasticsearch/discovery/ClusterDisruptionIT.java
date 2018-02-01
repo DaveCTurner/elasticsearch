@@ -25,19 +25,26 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.NoShardAvailableActionException;
+import org.elasticsearch.action.delete.DeleteRequestBuilder;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.Murmur3HashFunction;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.indices.store.IndicesStoreIntegrationIT;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
@@ -52,6 +59,7 @@ import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -66,6 +74,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 
 /**
@@ -450,4 +459,63 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         assertFalse(client().admin().indices().prepareExists(idxName).get().isExists());
     }
 
+    public void testConcurrentIndexingAndDelete() throws Exception {
+        List<String> allNodes = startCluster(2, 2);
+        assertAcked(prepareCreate("test")
+            .setSettings(Settings.builder()
+                .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+                .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
+            ));
+        ensureGreen();
+
+        ClusterState clusterState = internalCluster().clusterService().state();
+        IndexShardRoutingTable indexShardRoutingTable = clusterState.routingTable().index("test").shard(0);
+        String primaryNode = clusterState.nodes().get(indexShardRoutingTable.primaryShard().currentNodeId()).getName();
+        String replicaNode = clusterState.nodes().get(indexShardRoutingTable.replicaShards().get(0).currentNodeId()).getName();
+
+        NetworkDisruption networkDisruption = new NetworkDisruption(new NetworkDisruption.IsolateAllNodes(new HashSet<>(allNodes)),
+            new NetworkDisruption.NetworkDelay(TimeValue.ZERO, TimeValue.timeValueMillis(2000)));
+
+        internalCluster().setDisruptionScheme(networkDisruption);
+        networkDisruption.startDisrupting();
+
+        Client primaryClient = internalCluster().client(primaryNode);
+        Client replicaClient = internalCluster().client(replicaNode);
+
+        AtomicReference<IndexResponse> indexResponseReference = new AtomicReference<>();
+        Thread indexThread = new Thread(() -> {
+            logger.info("About to index document");
+            IndexResponse indexResponse = primaryClient.prepareIndex("test", "type").setSource("field", "origValue").setRefreshPolicy("true").get();
+            indexResponseReference.set(indexResponse);
+            logger.info("Indexed document {}", indexResponse.getId());
+        });
+
+        AtomicReference<DeleteResponse> deleteResponseReference = new AtomicReference<>();
+        Thread updateThread = new Thread(() -> {
+            while (true) {
+                SearchResponse primarySearchResponse = primaryClient.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).setPreference("primary").get();
+                if (primarySearchResponse.getHits().totalHits > 0) {
+                    String docId = primarySearchResponse.getHits().getAt(0).getId();
+                    logger.info("About to delete document {}", docId);
+                    deleteResponseReference.set(primaryClient.prepareDelete("test", "type", docId).get());
+                    logger.info("Deleted document {}", docId);
+                    return;
+                }
+            }
+        });
+
+        indexThread.start();
+        updateThread.start();
+
+        indexThread.join();
+        updateThread.join();
+
+        networkDisruption.stopDisrupting();
+
+        SearchResponse primarySearchResponse = primaryClient.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).setPreference("primary").get();
+        SearchResponse replicaSearchResponse = replicaClient.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).setPreference("replica").get();
+
+        assertThat(primarySearchResponse.getHits().totalHits, is(0L));
+        assertThat(replicaSearchResponse.getHits().totalHits, is(0L));
+    }
 }
