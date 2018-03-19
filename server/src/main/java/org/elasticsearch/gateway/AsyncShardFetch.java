@@ -22,6 +22,7 @@ import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.Supplier;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
@@ -285,7 +286,11 @@ public abstract class AsyncShardFetch<T extends BaseNodeResponse> implements Rel
      */
     // visible for testing
     void asyncFetch(final DiscoveryNode[] nodes, long fetchingRound) {
-        logger.trace("{} fetching [{}] from {}", shardId, type, nodes);
+        try {
+            throw new ElasticsearchException("stack trace probe");
+        } catch (ElasticsearchException e) {
+            logger.trace(new ParameterizedMessage("{} fetching [{}] from {}", shardId, type, nodes), e);
+        }
         action.list(shardId, nodes, new ActionListener<BaseNodesResponse<T>>() {
             @Override
             public void onResponse(BaseNodesResponse<T> response) {
