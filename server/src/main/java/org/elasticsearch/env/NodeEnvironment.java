@@ -644,7 +644,7 @@ public final class NodeEnvironment  implements Closeable {
             try {
                 throw new ElasticsearchException("stack trace probe");
             } catch (ElasticsearchException e) {
-                logger.trace("InternalShardLock[{}]/{}: creating: {}", shardId, thisCall, e.toString());
+                logger.trace(new ParameterizedMessage("InternalShardLock[{}]/{}: creating", shardId, thisCall), e);
             }
             this.shardId = shardId;
             mutex.acquireUninterruptibly();
@@ -686,7 +686,7 @@ public final class NodeEnvironment  implements Closeable {
             try {
                 throw new ElasticsearchException("stack trace probe");
             } catch (ElasticsearchException e) {
-                logger.trace("InternalShardLock[{}]/{}: acquire({}): {}", shardId, thisCall, timeoutInMillis, e.toString());
+                logger.trace(new ParameterizedMessage("InternalShardLock[{}]/{}: acquire({})", shardId, thisCall, timeoutInMillis), e);
             }
             try {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS) == false) {
