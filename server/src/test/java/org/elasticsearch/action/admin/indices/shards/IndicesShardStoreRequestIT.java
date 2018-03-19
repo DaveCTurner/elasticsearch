@@ -61,7 +61,8 @@ import static org.hamcrest.Matchers.nullValue;
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
 @TestLogging("_root:DEBUG,org.elasticsearch.action.admin.indices.shards:TRACE,org.elasticsearch.cluster.service:TRACE," +
     "org.elasticsearch.gateway.TransportNodesListGatewayStartedShards:TRACE,org.elasticsearch.env.NodeEnvironment:TRACE," +
-    "org.elasticsearch.action.admin.indices.shards.TransportIndicesShardStoresAction:TRACE")
+    "org.elasticsearch.action.admin.indices.shards.TransportIndicesShardStoresAction:TRACE," +
+    "org.elasticsearch.index.IndexService:TRACE")
 public class IndicesShardStoreRequestIT extends ESIntegTestCase {
 
     @Override

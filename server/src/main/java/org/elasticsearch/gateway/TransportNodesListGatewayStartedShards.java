@@ -43,13 +43,14 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.ShardLock;
+import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
+import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
 import org.elasticsearch.index.shard.ShardStateMetaData;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -115,13 +116,29 @@ public class TransportNodesListGatewayStartedShards extends
         return new NodesGatewayStartedShards(clusterService.getClusterName(), responses, failures);
     }
 
+    private AutoCloseable shardStoreReference(ShardId shardId) {
+        final IndexService indexService = indicesService.indexService(shardId.getIndex());
+        if (indexService != null) {
+            final IndexShard indexShard = indexService.getShardOrNull(shardId.getId());
+            if (indexShard != null) {
+                final Store store = indexShard.store();
+                if (store.tryIncRef()) {
+                    return store::decRef;
+                }
+            }
+        }
+
+        return nodeEnv.shardLock(shardId, TimeUnit.SECONDS.toMillis(5));
+    }
+
     @Override
     protected NodeGatewayStartedShards nodeOperation(NodeRequest request) {
         try {
             final ShardId shardId = request.getShardId();
             logger.trace("{} loading local shard state info", shardId);
+
             ShardStateMetaData shardStateMetaData;
-            try (ShardLock ignored = nodeEnv.shardLock(shardId, TimeUnit.SECONDS.toMillis(5))) {
+            try (AutoCloseable ignored = shardStoreReference(shardId)) {
                 shardStateMetaData = ShardStateMetaData.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY,
                     nodeEnv.availableShardPaths(request.shardId));
             }
