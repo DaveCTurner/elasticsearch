@@ -77,6 +77,7 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.Collections.unmodifiableSet;
 
@@ -625,6 +626,8 @@ public final class NodeEnvironment  implements Closeable {
         }
     }
 
+    private static final AtomicLong callId = new AtomicLong(0);
+
     private final class InternalShardLock {
         /*
          * This class holds a mutex for exclusive access and timeout / wait semantics
@@ -637,10 +640,15 @@ public final class NodeEnvironment  implements Closeable {
         private final ShardId shardId;
 
         InternalShardLock(ShardId shardId) {
-            logger.trace("InternalShardLock[{}]: creating", shardId);
+            long thisCall = callId.incrementAndGet();
+            try {
+                throw new ElasticsearchException("stack trace probe");
+            } catch (ElasticsearchException e) {
+                logger.trace("InternalShardLock[{}]/{}: creating: {}", shardId, thisCall, e);
+            }
             this.shardId = shardId;
             mutex.acquireUninterruptibly();
-            logger.trace("InternalShardLock[{}]: created", shardId);
+            logger.trace("InternalShardLock[{}]/{}: created", shardId, thisCall);
         }
 
         protected void release() {
@@ -674,19 +682,24 @@ public final class NodeEnvironment  implements Closeable {
         }
 
         void acquire(long timeoutInMillis) throws ShardLockObtainFailedException {
-            logger.trace("InternalShardLock[{}]: acquire({})", shardId, timeoutInMillis);
+            long thisCall = callId.incrementAndGet();
+            try {
+                throw new ElasticsearchException("stack trace probe");
+            } catch (ElasticsearchException e) {
+                logger.trace("InternalShardLock[{}]/{}: acquire({}): {}", shardId, thisCall, timeoutInMillis, e);
+            }
             try {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS) == false) {
-                    logger.trace("InternalShardLock[{}]: acquire({}) timed out", shardId, timeoutInMillis);
+                    logger.trace("InternalShardLock[{}]: acquire({})/{} timed out", shardId, thisCall, timeoutInMillis);
                     throw new ShardLockObtainFailedException(shardId,
                             "obtaining shard lock timed out after " + timeoutInMillis + "ms");
                 }
             } catch (InterruptedException e) {
-                logger.trace("InternalShardLock[{}]: acquire({}) interrupted", shardId, timeoutInMillis);
+                logger.trace("InternalShardLock[{}]: acquire({})/{} interrupted", shardId, thisCall, timeoutInMillis);
                 Thread.currentThread().interrupt();
                 throw new ShardLockObtainFailedException(shardId, "thread interrupted while trying to obtain shard lock", e);
             }
-            logger.trace("InternalShardLock[{}]: acquire({}) succeeded", shardId, timeoutInMillis);
+            logger.trace("InternalShardLock[{}]: acquire({})/{} succeeded", shardId, thisCall, timeoutInMillis);
         }
     }
 
