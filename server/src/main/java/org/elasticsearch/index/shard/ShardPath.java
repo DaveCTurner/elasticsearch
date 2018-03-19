@@ -19,9 +19,9 @@
 package org.elasticsearch.index.shard;
 
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.ShardLock;
 import org.elasticsearch.index.IndexSettings;
@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public final class ShardPath {
     public static final String INDEX_FOLDER_NAME = "index";
@@ -116,8 +117,11 @@ public final class ShardPath {
         final Path[] paths = env.availableShardPaths(shardId);
         Path loadedPath = null;
         for (Path path : paths) {
-            // EMPTY is safe here because we never call namedObject
-            ShardStateMetaData load = ShardStateMetaData.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, path);
+            ShardStateMetaData load;
+            try (ShardLock ignored = env.shardLock(shardId, TimeUnit.SECONDS.toMillis(5))) {
+                // EMPTY is safe here because we never call namedObject
+                load = ShardStateMetaData.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, path);
+            }
             if (load != null) {
                 if (load.indexUUID.equals(indexUUID) == false && IndexMetaData.INDEX_UUID_NA_VALUE.equals(load.indexUUID) == false) {
                     logger.warn("{} found shard on path: [{}] with a different index UUID - this shard seems to be leftover from a different index with the same name. Remove the leftover shard in order to reuse the path with the current index", shardId, path);
@@ -125,7 +129,7 @@ public final class ShardPath {
                 }
                 if (loadedPath == null) {
                     loadedPath = path;
-                } else{
+                } else {
                     throw new IllegalStateException(shardId + " more than one shard state found");
                 }
             }
