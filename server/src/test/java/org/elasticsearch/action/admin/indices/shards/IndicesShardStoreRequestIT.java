@@ -55,13 +55,13 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoTimeout;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
 @TestLogging("_root:DEBUG,org.elasticsearch.action.admin.indices.shards:TRACE,org.elasticsearch.cluster.service:TRACE," +
-    "org.elasticsearch.gateway.TransportNodesListGatewayStartedShards:TRACE,org.elasticsearch.env.NodeEnvironment:TRACE")
+    "org.elasticsearch.gateway.TransportNodesListGatewayStartedShards:TRACE,org.elasticsearch.env.NodeEnvironment:TRACE" +
+    "org.elasticsearch.action.admin.indices.shards:TRACE")
 public class IndicesShardStoreRequestIT extends ESIntegTestCase {
 
     @Override

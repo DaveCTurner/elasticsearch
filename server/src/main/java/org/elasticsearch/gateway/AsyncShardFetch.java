@@ -285,7 +285,7 @@ public abstract class AsyncShardFetch<T extends BaseNodeResponse> implements Rel
      */
     // visible for testing
     void asyncFetch(final DiscoveryNode[] nodes, long fetchingRound) {
-        logger.warn("{} fetching [{}] from {}", shardId, type, nodes);
+        logger.trace("{} fetching [{}] from {}", shardId, type, nodes);
         action.list(shardId, nodes, new ActionListener<BaseNodesResponse<T>>() {
             @Override
             public void onResponse(BaseNodesResponse<T> response) {
