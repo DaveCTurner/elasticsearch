@@ -30,7 +30,6 @@ import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.NativeFSLockFactory;
 import org.apache.lucene.store.SimpleFSDirectory;
-import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -45,6 +44,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.gateway.MetaDataStateFormat;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexSettings;
@@ -637,29 +637,36 @@ public final class NodeEnvironment  implements Closeable {
         private final ShardId shardId;
 
         InternalShardLock(ShardId shardId) {
+            logger.trace("InternalShardLock[{}]: creating", shardId);
             this.shardId = shardId;
             mutex.acquireUninterruptibly();
+            logger.trace("InternalShardLock[{}]: created", shardId);
         }
 
         protected void release() {
+            logger.trace("InternalShardLock[{}]: releasing", shardId);
             mutex.release();
             decWaitCount();
+            logger.trace("InternalShardLock[{}]: released", shardId);
         }
 
         void incWaitCount() {
+            logger.trace("InternalShardLock[{}]: incWaitCount", shardId);
             synchronized (shardLocks) {
                 assert waitCount > 0 : "waitCount is " + waitCount + " but should be > 0";
                 waitCount++;
+                logger.trace("[{}]: incWaitCount: count is now {}", shardId, waitCount);
             }
         }
 
         private void decWaitCount() {
+            logger.trace("InternalShardLock[{}]: decWaitCount", shardId);
             synchronized (shardLocks) {
                 assert waitCount > 0 : "waitCount is " + waitCount + " but should be > 0";
                 --waitCount;
-                logger.trace("shard lock wait count for {} is now [{}]", shardId, waitCount);
+                logger.trace("InternalShardLock[{}]: decWaitCount: count is now {}", shardId, waitCount);
                 if (waitCount == 0) {
-                    logger.trace("last shard lock wait decremented, removing lock for {}", shardId);
+                    logger.trace("InternalShardLock[{}]: last shard lock wait decremented, removing lock", shardId);
                     InternalShardLock remove = shardLocks.remove(shardId);
                     assert remove != null : "Removed lock was null";
                 }
@@ -667,15 +674,19 @@ public final class NodeEnvironment  implements Closeable {
         }
 
         void acquire(long timeoutInMillis) throws ShardLockObtainFailedException {
+            logger.trace("InternalShardLock[{}]: acquire({})", shardId, timeoutInMillis);
             try {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS) == false) {
+                    logger.trace("InternalShardLock[{}]: acquire({}) timed out", shardId, timeoutInMillis);
                     throw new ShardLockObtainFailedException(shardId,
                             "obtaining shard lock timed out after " + timeoutInMillis + "ms");
                 }
             } catch (InterruptedException e) {
+                logger.trace("InternalShardLock[{}]: acquire({}) interrupted", shardId, timeoutInMillis);
                 Thread.currentThread().interrupt();
                 throw new ShardLockObtainFailedException(shardId, "thread interrupted while trying to obtain shard lock", e);
             }
+            logger.trace("InternalShardLock[{}]: acquire({}) succeeded", shardId, timeoutInMillis);
         }
     }
 
