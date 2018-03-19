@@ -644,7 +644,7 @@ public final class NodeEnvironment  implements Closeable {
             try {
                 throw new ElasticsearchException("stack trace probe");
             } catch (ElasticsearchException e) {
-                logger.trace("InternalShardLock[{}]/{}: creating: {}", shardId, thisCall, e);
+                logger.trace("InternalShardLock[{}]/{}: creating: {}", shardId, thisCall, e.toString());
             }
             this.shardId = shardId;
             mutex.acquireUninterruptibly();
@@ -686,20 +686,20 @@ public final class NodeEnvironment  implements Closeable {
             try {
                 throw new ElasticsearchException("stack trace probe");
             } catch (ElasticsearchException e) {
-                logger.trace("InternalShardLock[{}]/{}: acquire({}): {}", shardId, thisCall, timeoutInMillis, e);
+                logger.trace("InternalShardLock[{}]/{}: acquire({}): {}", shardId, thisCall, timeoutInMillis, e.toString());
             }
             try {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS) == false) {
-                    logger.trace("InternalShardLock[{}]: acquire({})/{} timed out", shardId, thisCall, timeoutInMillis);
+                    logger.trace("InternalShardLock[{}]/{}: acquire({}) timed out", shardId, thisCall, timeoutInMillis);
                     throw new ShardLockObtainFailedException(shardId,
                             "obtaining shard lock timed out after " + timeoutInMillis + "ms");
                 }
             } catch (InterruptedException e) {
-                logger.trace("InternalShardLock[{}]: acquire({})/{} interrupted", shardId, thisCall, timeoutInMillis);
+                logger.trace("InternalShardLock[{}]/{}: acquire({}) interrupted", shardId, thisCall, timeoutInMillis);
                 Thread.currentThread().interrupt();
                 throw new ShardLockObtainFailedException(shardId, "thread interrupted while trying to obtain shard lock", e);
             }
-            logger.trace("InternalShardLock[{}]: acquire({})/{} succeeded", shardId, thisCall, timeoutInMillis);
+            logger.trace("InternalShardLock[{}]/{}: acquire({}) succeeded", shardId, thisCall, timeoutInMillis);
         }
     }
 
