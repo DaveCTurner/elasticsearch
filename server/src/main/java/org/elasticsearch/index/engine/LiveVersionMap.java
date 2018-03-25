@@ -184,6 +184,16 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
         long getMinDeleteTimestamp() {
             return Math.min(current.minDeleteTimestamp.get(), old.minDeleteTimestamp.get());
         }
+
+        @Override
+        public String toString() {
+            return "Maps{" +
+                "current.unsafe=" + current.unsafe +
+                ", old.unsafe=" + old.unsafe +
+                ", needsSafeAccess=" + needsSafeAccess +
+                ", previousMapsNeededSafeAccess=" + previousMapsNeededSafeAccess +
+                '}';
+        }
     }
 
     // All deletes also go here, and delete "tombstones" are retained after refresh:
@@ -460,5 +470,10 @@ final class LiveVersionMap implements ReferenceManager.RefreshListener, Accounta
      */
     Releasable acquireLock(BytesRef uid) {
         return keyedLock.acquire(uid);
+    }
+
+    @Override
+    public String toString() {
+        return "LiveVersionMap{maps=" + maps + '}';
     }
 }

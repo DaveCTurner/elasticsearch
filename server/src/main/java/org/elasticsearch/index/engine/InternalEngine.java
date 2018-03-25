@@ -579,8 +579,10 @@ public class InternalEngine extends Engine {
 
     private OpVsLuceneDocStatus compareOpToLuceneDocBasedOnSeqNo(final Operation op) throws IOException {
         assert op.seqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO : "resolving ops based on seq# but no seqNo is found";
+        logger.trace("compareOpToLuceneDocBasedOnSeqNo: op={}", op);
         final OpVsLuceneDocStatus status;
         VersionValue versionValue = getVersionFromMap(op.uid().bytes());
+        logger.trace("compareOpToLuceneDocBasedOnSeqNo: versionValue={}", versionValue);
         assert incrementVersionLookup();
         if (versionValue != null) {
             if  (op.seqNo() > versionValue.seqNo ||
@@ -594,6 +596,7 @@ public class InternalEngine extends Engine {
             assert incrementIndexVersionLookup();
             try (Searcher searcher = acquireSearcher("load_seq_no", SearcherScope.INTERNAL)) {
                 DocIdAndSeqNo docAndSeqNo = VersionsAndSeqNoResolver.loadDocIdAndSeqNo(searcher.reader(), op.uid());
+                logger.trace("compareOpToLuceneDocBasedOnSeqNo: docAndSeqNo={}", docAndSeqNo);
                 if (docAndSeqNo == null) {
                     status = OpVsLuceneDocStatus.LUCENE_DOC_NOT_FOUND;
                 } else if (op.seqNo() > docAndSeqNo.seqNo) {
@@ -601,6 +604,7 @@ public class InternalEngine extends Engine {
                 } else if (op.seqNo() == docAndSeqNo.seqNo) {
                     // load term to tie break
                     final long existingTerm = VersionsAndSeqNoResolver.loadPrimaryTerm(docAndSeqNo, op.uid().field());
+                    logger.trace("compareOpToLuceneDocBasedOnSeqNo: existingTerm={}", existingTerm);
                     if (op.primaryTerm() > existingTerm) {
                         status = OpVsLuceneDocStatus.OP_NEWER;
                     } else {
@@ -827,6 +831,19 @@ public class InternalEngine extends Engine {
             } else {
                 opVsLucene = compareOpToLuceneDocBasedOnSeqNo(index);
             }
+
+            logger.trace("planIndexingAsNonPrimary: [1] versionMap={}", versionMap);
+
+            try {
+                logger.debug("start artificial delay in indexing");
+                Thread.sleep(5000);
+                logger.debug("end artificial delay in indexing");
+            } catch (InterruptedException e) {
+                logger.debug("artificial delay in indexing interrupted", e);
+            }
+
+            logger.trace("planIndexingAsNonPrimary: [2] versionMap={}", versionMap);
+
             if (opVsLucene == OpVsLuceneDocStatus.OP_STALE_OR_EQUAL) {
                 plan = IndexingStrategy.processButSkipLucene(false, index.seqNo(), index.version());
             } else {
@@ -896,6 +913,7 @@ public class InternalEngine extends Engine {
                 assert assertDocDoesNotExist(index, canOptimizeAddDocument(index) == false);
                 index(index.docs(), indexWriter);
             }
+            logger.trace("indexIntoLucene: versionMap={}", versionMap);
             versionMap.maybePutUnderLock(index.uid().bytes(),
                 new VersionValue(plan.versionForIndexing, plan.seqNoForIndexing, index.primaryTerm()));
             return new IndexResult(plan.versionForIndexing, plan.seqNoForIndexing, plan.currentNotFoundOrDeleted);
@@ -1037,6 +1055,17 @@ public class InternalEngine extends Engine {
 
     @Override
     public DeleteResult delete(Delete delete) throws IOException {
+
+        if (delete.origin() != Operation.Origin.PRIMARY) {
+            try {
+                logger.debug("start artificial delay in delete");
+                Thread.sleep(8000);
+                logger.debug("end artificial delay in delete");
+            } catch (InterruptedException e) {
+                logger.debug("artificial delay in delete interrupted", e);
+            }
+        }
+
         versionMap.enforceSafeAccess();
         assert Objects.equals(delete.uid().field(), uidField) : delete.uid().field();
         assert assertVersionType(delete);
@@ -1154,11 +1183,14 @@ public class InternalEngine extends Engine {
     private DeleteResult deleteInLucene(Delete delete, DeletionStrategy plan)
         throws IOException {
         try {
+            logger.trace("deleteInLucene: plan.currentlyDeleted={}", plan.currentlyDeleted);
+
             if (plan.currentlyDeleted == false) {
                 // any exception that comes from this is a either an ACE or a fatal exception there
                 // can't be any document failures  coming from this
                 indexWriter.deleteDocuments(delete.uid());
             }
+            logger.trace("deleteInLucene: versionMap={}", versionMap);
             versionMap.putUnderLock(delete.uid().bytes(),
                 new DeleteVersionValue(plan.versionOfDeletion, plan.seqNoOfDeletion, delete.primaryTerm(),
                     engineConfig.getThreadPool().relativeTimeInMillis()));
