@@ -228,6 +228,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
      * Add a listener for updated cluster states
      */
     public void addListener(ClusterStateListener listener) {
+        assert listener != null : "addListener(null)";
         clusterStateListeners.add(listener);
     }
 
