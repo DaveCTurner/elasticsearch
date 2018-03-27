@@ -37,7 +37,7 @@ public class ReplicationIT extends ESIntegTestCase {
             .setSettings(Settings.builder()
                 .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
                 .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
-                .put("refresh_interval", -1))
+                .put("index.refresh_interval", -1))
             .setWaitForActiveShards(2)
             .get();
         ensureGreen("index");
