@@ -1134,6 +1134,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 } catch (IOException e) {
                     throw new IndexShardSnapshotFailedException(shardId, "Failed to get store file metadata", e);
                 }
+                logger.trace("[{}] [{}] Computing file list", shardId, snapshotId);
                 for (String fileName : fileNames) {
                     if (snapshotStatus.isAborted()) {
                         logger.debug("[{}] [{}] Aborted on the file [{}], exiting", shardId, snapshotId, fileName);
@@ -1174,9 +1175,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         indexCommitPointFiles.add(existingFileInfo);
                     }
                 }
+                logger.trace("[{}] [{}] filesToSnapshot.size() = {}", shardId, snapshotId, filesToSnapshot.size());
 
                 snapshotStatus.moveToStarted(startTime, indexNumberOfFiles, indexTotalFilesSize);
 
+                logger.trace("[{}] [{}] snapshotting files", shardId, snapshotId);
                 for (BlobStoreIndexShardSnapshot.FileInfo snapshotFileInfo : filesToSnapshot) {
                     try {
                         snapshotFile(snapshotFileInfo);
@@ -1184,6 +1187,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         throw new IndexShardSnapshotFailedException(shardId, "Failed to perform snapshot (index files)", e);
                     }
                 }
+                logger.trace("[{}] [{}] finished snapshotting files", shardId, snapshotId);
             } finally {
                 store.decRef();
             }
@@ -1208,6 +1212,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             } catch (IOException e) {
                 throw new IndexShardSnapshotFailedException(shardId, "Failed to write commit point", e);
             }
+            logger.trace("[{}] [{}] finished writing shard snapshot file", shardId, snapshotId);
 
             // delete all files that are not referenced by any commit point
             // build a new BlobStoreIndexShardSnapshot, that includes this one and all the saved ones
@@ -1232,9 +1237,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private void snapshotFile(final BlobStoreIndexShardSnapshot.FileInfo fileInfo) throws IOException {
             final String file = fileInfo.physicalName();
+            logger.trace("[{}] [{}] snapshotFile({}) in {} parts ({} bytes)",
+                shardId, snapshotId, file, fileInfo.numberOfParts(), fileInfo.length());
             try (IndexInput indexInput = store.openVerifyingInput(file, IOContext.READONCE, fileInfo.metadata())) {
                 for (int i = 0; i < fileInfo.numberOfParts(); i++) {
                     final long partBytes = fileInfo.partBytes(i);
+                    logger.trace("[{}] [{}] snapshotFile({}) writing part {} ({} bytes)", shardId, snapshotId, file, i, partBytes);
 
                     final InputStreamIndexInput inputStreamIndexInput = new InputStreamIndexInput(indexInput, partBytes);
                     InputStream inputStream = inputStreamIndexInput;
@@ -1244,14 +1252,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     }
                     inputStream = new AbortableInputStream(inputStream, fileInfo.physicalName());
                     blobContainer.writeBlob(fileInfo.partName(i), inputStream, partBytes);
+                    logger.trace("[{}] [{}] snapshotFile({}) wrote part {}", shardId, snapshotId, file, i);
                 }
+                logger.trace("[{}] [{}] snapshotFile({}) wrote all parts, now verifying", shardId, snapshotId, file);
                 Store.verify(indexInput);
+                logger.trace("[{}] [{}] snapshotFile({}) verified", shardId, snapshotId, file);
                 snapshotStatus.addProcessedFile(fileInfo.length());
             } catch (Exception t) {
                 failStoreIfCorrupted(t);
                 snapshotStatus.addProcessedFile(0);
                 throw t;
             }
+            logger.trace("[{}] [{}] snapshotFile({}) completed successfully", shardId, snapshotId, file);
         }
 
         private void failStoreIfCorrupted(Exception e) {
