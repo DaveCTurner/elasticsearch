@@ -29,6 +29,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import org.elasticsearch.common.settings.SecureSetting;
 import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Setting;
@@ -50,6 +51,10 @@ class S3ClientSettings {
 
     /** The secret key (ie password) for connecting to s3. */
     static final Setting.AffixSetting<SecureString> SECRET_KEY_SETTING = Setting.affixKeySetting(PREFIX, "secret_key",
+        key -> SecureSetting.secureString(key, null));
+
+    /** The secret key (ie password) for connecting to s3. */
+    static final Setting.AffixSetting<SecureString> SESSION_TOKEN_SETTING = Setting.affixKeySetting(PREFIX, "session_token",
         key -> SecureSetting.secureString(key, null));
 
     /** An override for the s3 endpoint to connect to. */
@@ -159,12 +164,17 @@ class S3ClientSettings {
     static S3ClientSettings getClientSettings(Settings settings, String clientName) {
         try (SecureString accessKey = getConfigValue(settings, clientName, ACCESS_KEY_SETTING);
              SecureString secretKey = getConfigValue(settings, clientName, SECRET_KEY_SETTING);
+             SecureString sessionToken = getConfigValue(settings, clientName, SESSION_TOKEN_SETTING);
              SecureString proxyUsername = getConfigValue(settings, clientName, PROXY_USERNAME_SETTING);
              SecureString proxyPassword = getConfigValue(settings, clientName, PROXY_PASSWORD_SETTING)) {
-            BasicAWSCredentials credentials = null;
+            AWSCredentials credentials = null;
             if (accessKey.length() != 0) {
                 if (secretKey.length() != 0) {
-                    credentials = new BasicAWSCredentials(accessKey.toString(), secretKey.toString());
+                    if (sessionToken.length() != 0) {
+                        credentials = new BasicSessionCredentials(accessKey.toString(), secretKey.toString(), sessionToken.toString());
+                    } else {
+                        credentials = new BasicAWSCredentials(accessKey.toString(), secretKey.toString());
+                    }
                 } else {
                     throw new IllegalArgumentException("Missing secret key for s3 client [" + clientName + "]");
                 }
