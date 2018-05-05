@@ -23,6 +23,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.http.IdleConnectionReaper;
 import com.amazonaws.internal.StaticCredentialsProvider;
@@ -112,17 +113,26 @@ class InternalAwsS3Service extends AbstractLifecycleComponent implements AwsS3Se
     static AWSCredentialsProvider buildCredentials(Logger logger, DeprecationLogger deprecationLogger,
                                                    S3ClientSettings clientSettings, Settings repositorySettings) {
 
-
-        BasicAWSCredentials credentials = clientSettings.credentials;
+        AWSCredentials credentials = clientSettings.credentials;
         if (S3Repository.ACCESS_KEY_SETTING.exists(repositorySettings)) {
             if (S3Repository.SECRET_KEY_SETTING.exists(repositorySettings) == false) {
                 throw new IllegalArgumentException("Repository setting [" + S3Repository.ACCESS_KEY_SETTING.getKey() +
                     " must be accompanied by setting [" + S3Repository.SECRET_KEY_SETTING.getKey() + "]");
             }
-            try (SecureString key = S3Repository.ACCESS_KEY_SETTING.get(repositorySettings);
-                 SecureString secret = S3Repository.SECRET_KEY_SETTING.get(repositorySettings)) {
-                credentials = new BasicAWSCredentials(key.toString(), secret.toString());
+
+            if (S3Repository.SESSION_TOKEN_SETTING.exists(repositorySettings)) {
+                try (SecureString key = S3Repository.ACCESS_KEY_SETTING.get(repositorySettings);
+                     SecureString secret = S3Repository.SECRET_KEY_SETTING.get(repositorySettings);
+                     SecureString sessionToken = S3Repository.SESSION_TOKEN_SETTING.get(repositorySettings)) {
+                    credentials = new BasicSessionCredentials(key.toString(), secret.toString(), sessionToken.toString());
+                }
+            } else {
+                try (SecureString key = S3Repository.ACCESS_KEY_SETTING.get(repositorySettings);
+                     SecureString secret = S3Repository.SECRET_KEY_SETTING.get(repositorySettings)) {
+                    credentials = new BasicAWSCredentials(key.toString(), secret.toString());
+                }
             }
+
             // backcompat for reading keys out of repository settings
             deprecationLogger.deprecated("Using s3 access/secret key from repository settings. Instead " +
                 "store these in named clients and the elasticsearch keystore for secure settings.");

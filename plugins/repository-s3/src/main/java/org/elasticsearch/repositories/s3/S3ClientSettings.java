@@ -27,6 +27,7 @@ import java.util.Set;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
 import org.elasticsearch.common.settings.SecureSetting;
 import org.elasticsearch.common.settings.SecureString;
@@ -88,7 +89,7 @@ class S3ClientSettings {
         key -> Setting.boolSetting(key, ClientConfiguration.DEFAULT_THROTTLE_RETRIES, Property.NodeScope));
 
     /** Credentials to authenticate with s3. */
-    final BasicAWSCredentials credentials;
+    final AWSCredentials credentials;
 
     /** The s3 endpoint the client should talk to, or empty string to use the default. */
     final String endpoint;
@@ -119,7 +120,7 @@ class S3ClientSettings {
     /** Whether the s3 client should use an exponential backoff retry policy. */
     final boolean throttleRetries;
 
-    private S3ClientSettings(BasicAWSCredentials credentials, String endpoint, Protocol protocol,
+    private S3ClientSettings(AWSCredentials credentials, String endpoint, Protocol protocol,
                              String proxyHost, int proxyPort, String proxyUsername, String proxyPassword,
                              int readTimeoutMillis, int maxRetries, boolean throttleRetries) {
         this.credentials = credentials;

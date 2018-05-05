@@ -59,6 +59,9 @@ class S3Repository extends BlobStoreRepository {
     /** The secret key to authenticate with s3. This setting is insecure because cluster settings are stored in cluster state */
     static final Setting<SecureString> SECRET_KEY_SETTING = SecureSetting.insecureString("secret_key");
 
+    /** The secret key to authenticate with s3. This setting is insecure because cluster settings are stored in cluster state */
+    static final Setting<SecureString> SESSION_TOKEN_SETTING = SecureSetting.insecureString("session_token");
+
     /**
      * Default is to use 100MB (S3 defaults) for heaps above 2GB and 5% of
      * the available memory for smaller heaps.
