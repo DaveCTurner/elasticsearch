@@ -26,6 +26,7 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CopyObjectRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
@@ -34,6 +35,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
@@ -63,11 +65,13 @@ class S3BlobContainer extends AbstractBlobContainer {
 
     private final S3BlobStore blobStore;
     private final String keyPath;
+    private final Logger logger;
 
-    S3BlobContainer(BlobPath path, S3BlobStore blobStore) {
+    S3BlobContainer(BlobPath path, S3BlobStore blobStore, Logger logger) {
         super(path);
         this.blobStore = blobStore;
         this.keyPath = path.buildAsString();
+        this.logger = logger;
     }
 
     @Override
@@ -214,7 +218,9 @@ class S3BlobContainer extends AbstractBlobContainer {
             putRequest.setStorageClass(blobStore.getStorageClass());
             putRequest.setCannedAcl(blobStore.getCannedACL());
 
+            logger.trace("executeSingleUpload: starting client.putObject");
             blobStore.client().putObject(putRequest);
+            logger.trace("executeSingleUpload: finished client.putObject");
         } catch (AmazonClientException e) {
             throw new IOException("Unable to upload object [" + blobName + "] using a single upload", e);
         }
@@ -262,7 +268,11 @@ class S3BlobContainer extends AbstractBlobContainer {
                 initRequest.setObjectMetadata(md);
             }
 
-            uploadId.set(blobStore.client().initiateMultipartUpload(initRequest).getUploadId());
+            logger.trace("executeMultipartUpload: starting client.initiateMultipartUpload");
+            final InitiateMultipartUploadResult initiateMultipartUploadResult = blobStore.client().initiateMultipartUpload(initRequest);
+            logger.trace("executeMultipartUpload: finished client.initiateMultipartUpload");
+
+            uploadId.set(initiateMultipartUploadResult.getUploadId());
             if (Strings.isEmpty(uploadId.get())) {
                 throw new IOException("Failed to initialize multipart upload " + blobName);
             }
@@ -287,7 +297,9 @@ class S3BlobContainer extends AbstractBlobContainer {
                 }
                 bytesCount += uploadRequest.getPartSize();
 
+                logger.trace("executeMultipartUpload: starting client.uploadPart");
                 final UploadPartResult uploadResponse = blobStore.client().uploadPart(uploadRequest);
+                logger.trace("executeMultipartUpload: finished client.uploadPart");
                 parts.add(uploadResponse.getPartETag());
             }
 
@@ -297,7 +309,9 @@ class S3BlobContainer extends AbstractBlobContainer {
             }
 
             CompleteMultipartUploadRequest complRequest = new CompleteMultipartUploadRequest(bucketName, blobName, uploadId.get(), parts);
+            logger.trace("executeMultipartUpload: starting client.completeMultipartUpload");
             blobStore.client().completeMultipartUpload(complRequest);
+            logger.trace("executeMultipartUpload: finished client.completeMultipartUpload");
             success = true;
 
         } catch (AmazonClientException e) {
@@ -305,7 +319,9 @@ class S3BlobContainer extends AbstractBlobContainer {
         } finally {
             if (success == false && Strings.hasLength(uploadId.get())) {
                 final AbortMultipartUploadRequest abortRequest = new AbortMultipartUploadRequest(bucketName, blobName, uploadId.get());
+                logger.trace("executeMultipartUpload: starting client.abortMultipartUpload");
                 blobStore.client().abortMultipartUpload(abortRequest);
+                logger.trace("executeMultipartUpload: finished client.abortMultipartUpload");
             }
         }
     }

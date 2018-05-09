@@ -99,7 +99,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
     public void testExecuteSingleUploadBlobSizeTooLarge() throws IOException {
         final long blobSize = ByteSizeUnit.GB.toBytes(randomIntBetween(6, 10));
         final S3BlobStore blobStore = mock(S3BlobStore.class);
-        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore, logger);
 
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () ->
             blobContainer.executeSingleUpload(blobStore, randomAlphaOfLengthBetween(1, 10), null, blobSize));
@@ -110,7 +110,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
         final S3BlobStore blobStore = mock(S3BlobStore.class);
         when(blobStore.bufferSizeInBytes()).thenReturn(ByteSizeUnit.MB.toBytes(1));
 
-        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore, logger);
         final String blobName = randomAlphaOfLengthBetween(1, 10);
 
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () ->
@@ -134,7 +134,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
         when(blobStore.bucket()).thenReturn(bucketName);
         when(blobStore.bufferSizeInBytes()).thenReturn((long) bufferSize);
 
-        final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore, logger);
 
         final boolean serverSideEncryption = randomBoolean();
         when(blobStore.serverSideEncryption()).thenReturn(serverSideEncryption);
@@ -171,7 +171,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
     public void testExecuteMultipartUploadBlobSizeTooLarge() throws IOException {
         final long blobSize = ByteSizeUnit.TB.toBytes(randomIntBetween(6, 10));
         final S3BlobStore blobStore = mock(S3BlobStore.class);
-        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore, logger);
 
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () ->
             blobContainer.executeMultipartUpload(blobStore, randomAlphaOfLengthBetween(1, 10), null, blobSize)
@@ -182,7 +182,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
     public void testExecuteMultipartUploadBlobSizeTooSmall() throws IOException {
         final long blobSize = ByteSizeUnit.MB.toBytes(randomIntBetween(1, 4));
         final S3BlobStore blobStore = mock(S3BlobStore.class);
-        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(mock(BlobPath.class), blobStore, logger);
 
         IllegalArgumentException e = expectThrows(IllegalArgumentException.class, () ->
             blobContainer.executeMultipartUpload(blobStore, randomAlphaOfLengthBetween(1, 10), null, blobSize)
@@ -247,7 +247,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
         when(client.completeMultipartUpload(compArgCaptor.capture())).thenReturn(new CompleteMultipartUploadResult());
 
         final ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[0]);
-        final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore);
+        final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore, logger);
         blobContainer.executeMultipartUpload(blobStore, blobName, inputStream, blobSize);
 
         final InitiateMultipartUploadRequest initRequest = initArgCaptor.getValue();
@@ -352,7 +352,7 @@ public class S3BlobStoreContainerTests extends ESBlobStoreContainerTestCase {
         doNothing().when(client).abortMultipartUpload(argumentCaptor.capture());
 
         final IOException e = expectThrows(IOException.class, () -> {
-            final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore);
+            final S3BlobContainer blobContainer = new S3BlobContainer(blobPath, blobStore, logger);
             blobContainer.executeMultipartUpload(blobStore, blobName, new ByteArrayInputStream(new byte[0]), blobSize);
         });
 

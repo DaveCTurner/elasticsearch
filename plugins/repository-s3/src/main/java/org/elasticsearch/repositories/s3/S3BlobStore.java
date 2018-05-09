@@ -99,7 +99,7 @@ class S3BlobStore extends AbstractComponent implements BlobStore {
 
     @Override
     public BlobContainer blobContainer(BlobPath path) {
-        return new S3BlobContainer(path, this);
+        return new S3BlobContainer(path, this, logger);
     }
 
     @Override
