@@ -53,10 +53,12 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -567,6 +569,7 @@ public class MasterService extends AbstractLifecycleComponent {
         private final long clusterStateVersion;
         private final Future<?> ackTimeoutCallback;
         private Exception lastFailure;
+        private final Set<DiscoveryNode> waitingNodes = Collections.synchronizedSet(new HashSet<>());
 
         AckCountDownListener(AckedClusterStateTaskListener ackedTaskListener, long clusterStateVersion, DiscoveryNodes nodes,
                              ThreadPool threadPool) {
@@ -575,24 +578,28 @@ public class MasterService extends AbstractLifecycleComponent {
             this.nodes = nodes;
             int countDown = 0;
             for (DiscoveryNode node : nodes) {
-                if (ackedTaskListener.mustAck(node)) {
+                if (expectAck(node)) {
                     countDown++;
+                    assert waitingNodes.add(node) : "node [" + node + "] already added to expected set";
                 }
             }
-            //we always wait for at least 1 node (the master)
-            countDown = Math.max(1, countDown);
             logger.trace("expecting {} acknowledgements for cluster_state update (version: {})", countDown, clusterStateVersion);
+
+            assert countDown > 0 : "AckCountDownListener must always wait for at least 1 node";
+            assert waitingNodes.size() == countDown : "AckCountDownListener waiting for correct number of nodes";
+
             this.countDown = new CountDown(countDown);
             this.ackTimeoutCallback = threadPool.schedule(ackedTaskListener.ackTimeout(), ThreadPool.Names.GENERIC, () -> onTimeout());
         }
 
+        private boolean expectAck(DiscoveryNode node) {
+            return node.equals(nodes.getMasterNode()) || ackedTaskListener.mustAck(node);
+        }
+
         @Override
         public void onNodeAck(DiscoveryNode node, @Nullable Exception e) {
-            if (!ackedTaskListener.mustAck(node)) {
-                //we always wait for the master ack anyway
-                if (!node.equals(nodes.getMasterNode())) {
-                    return;
-                }
+            if (!expectAck(node)) {
+                return;
             }
             if (e == null) {
                 logger.trace("ack received from node [{}], cluster_state update (version: {})", node, clusterStateVersion);
@@ -601,6 +608,8 @@ public class MasterService extends AbstractLifecycleComponent {
                 logger.debug(() -> new ParameterizedMessage(
                         "ack received from node [{}], cluster_state update (version: {})", node, clusterStateVersion), e);
             }
+
+            assert waitingNodes.remove(node) : "unexpected ack from [" + node + "]";
 
             if (countDown.countDown()) {
                 logger.trace("all expected nodes acknowledged cluster_state update (version: {})", clusterStateVersion);
