@@ -575,7 +575,7 @@ public abstract class TransportReplicationAction<
 
         @Override
         public void onFailure(Exception e) {
-            if (e instanceof RetryOnReplicaException) {
+            if (false && e instanceof RetryOnReplicaException) {
                 logger.trace(
                         () -> new ParameterizedMessage(
                             "Retrying operation on replica, action [{}], request [{}]",
