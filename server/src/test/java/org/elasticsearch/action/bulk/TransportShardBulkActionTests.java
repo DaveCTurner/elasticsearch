@@ -31,6 +31,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
+import org.elasticsearch.action.support.replication.TransportReplicationAction.RetryOnReplicaException;
 import org.elasticsearch.action.support.replication.TransportWriteAction.WritePrimaryResult;
 import org.elasticsearch.action.update.UpdateHelper;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -64,6 +65,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyLong;
@@ -791,6 +793,38 @@ public class TransportShardBulkActionTests extends IndexShardTestCase {
         // Assert that the document did not make it there, since it should have failed
         assertDocCount(shard, 0);
         closeShards(shard);
+    }
+
+    public void testExecuteBulkIndexRequestRequiringMappingUpdateOnReplica() throws Exception {
+        IndexShard primaryShard = newStartedShard(true);
+        IndexShard replicaShard = newStartedShard(false);
+
+        BulkItemRequest[] items = new BulkItemRequest[1];
+        DocWriteRequest writeRequest = new IndexRequest("index", "_doc", "id")
+            .source(Requests.INDEX_CONTENT_TYPE, "newfield", "stuff");
+        items[0] = new BulkItemRequest(0, writeRequest);
+        BulkShardRequest bulkShardRequest =
+            new BulkShardRequest(shardId, RefreshPolicy.NONE, items);
+
+        MappingUpdatePerformer primaryMappingUpdater = (update, shardId, type) -> {
+            assertThat(shardId, is(primaryShard.shardId()));
+
+            MapperService mapperService = primaryShard.mapperService();
+            try {
+                IndexMetaData newIndexMetaData = IndexMetaData.builder(primaryShard.indexSettings().getIndexMetaData())
+                    .putMapping(type, update.toString()).build();
+                mapperService.merge(newIndexMetaData, MapperService.MergeReason.MAPPING_UPDATE);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        TransportShardBulkAction.performOnPrimary(bulkShardRequest, primaryShard, null, threadPool::absoluteTimeInMillis,
+            primaryMappingUpdater);
+
+        expectThrows(RetryOnReplicaException.class, () -> TransportShardBulkAction.performOnReplica(bulkShardRequest, replicaShard));
+
+        closeShards(primaryShard, replicaShard);
     }
 
     /**
