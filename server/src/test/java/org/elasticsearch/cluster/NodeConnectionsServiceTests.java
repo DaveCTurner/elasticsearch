@@ -131,6 +131,43 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         assertConnectedExactlyToNodes(event.state());
     }
 
+    public void testDoesNotReconnectToKnownNodesOnNewClusterState() {
+        List<DiscoveryNode> nodes = generateNodes();
+        NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
+
+        final ClusterState state1 = clusterStateFromNodes(randomSubsetOf(nodes));
+        final ClusterState state2 = clusterStateFromNodes(randomSubsetOf(nodes));
+
+        service.connectToNodes(state1.nodes());
+
+        final Set<DiscoveryNode> disconnectedNodes = new HashSet<>(randomSubsetOf(nodes));
+        for (final DiscoveryNode node : disconnectedNodes) {
+            transport.disconnectFromNode(node);
+        }
+
+        service.connectToNodes(state2.nodes());
+
+        final Set<DiscoveryNode> expectedNodes = new HashSet<>(nodes.size());
+        state1.nodes().forEach(expectedNodes::add);
+        disconnectedNodes.forEach(expectedNodes::remove);
+        for (final DiscoveryNode discoveryNode : state2.nodes()) {
+            if (state1.nodes().get(discoveryNode.getId()) == null) {
+                // Only expect to be connected to _new_ nodes in state2.
+                expectedNodes.add(discoveryNode);
+            }
+        }
+
+        assertConnected(expectedNodes);
+        assertThat(transport.connectedNodes.size(), equalTo(expectedNodes.size()));
+
+        service.new ConnectionChecker().run();
+
+        state1.nodes().forEach(expectedNodes::add);
+
+        assertConnected(expectedNodes);
+        assertThat(transport.connectedNodes.size(), equalTo(expectedNodes.size()));
+    }
+
     private void assertConnectedExactlyToNodes(ClusterState state) {
         assertConnected(state.nodes());
         assertThat(transport.connectedNodes.size(), equalTo(state.nodes().getSize()));
