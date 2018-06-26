@@ -279,6 +279,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                     TransportCloseIndexAction.CLUSTER_INDICES_CLOSE_ENABLE_SETTING,
                     ShardsLimitAllocationDecider.CLUSTER_TOTAL_SHARDS_PER_NODE_SETTING,
                     NodeConnectionsService.CLUSTER_NODE_RECONNECT_INTERVAL_SETTING,
+                    NodeConnectionsService.CLUSTER_NODE_CONNECT_ON_NEW_STATE_WAIT_SETTING,
                     HierarchyCircuitBreakerService.FIELDDATA_CIRCUIT_BREAKER_TYPE_SETTING,
                     HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_TYPE_SETTING,
                     Transport.TRANSPORT_TCP_COMPRESS,

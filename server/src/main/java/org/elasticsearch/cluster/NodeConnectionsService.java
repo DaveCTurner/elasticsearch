@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.common.settings.Setting.Property;
 import static org.elasticsearch.common.settings.Setting.positiveTimeSetting;
@@ -57,6 +58,10 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
     public static final Setting<TimeValue> CLUSTER_NODE_RECONNECT_INTERVAL_SETTING =
             positiveTimeSetting("cluster.nodes.reconnect_interval", TimeValue.timeValueSeconds(10), Property.NodeScope);
+
+    public static final Setting<TimeValue> CLUSTER_NODE_CONNECT_ON_NEW_STATE_WAIT_SETTING =
+            positiveTimeSetting("cluster.nodes.connect_wait", TimeValue.timeValueSeconds(3), Property.NodeScope);
+
     private final ThreadPool threadPool;
     private final TransportService transportService;
 
@@ -67,6 +72,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
     private final KeyedLock<DiscoveryNode> nodeLocks = new KeyedLock<>();
 
     private final TimeValue reconnectInterval;
+    private final TimeValue connectWaitTime;
 
     private volatile ScheduledFuture<?> backgroundFuture = null;
 
@@ -76,6 +82,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         this.threadPool = threadPool;
         this.transportService = transportService;
         this.reconnectInterval = NodeConnectionsService.CLUSTER_NODE_RECONNECT_INTERVAL_SETTING.get(settings);
+        this.connectWaitTime = NodeConnectionsService.CLUSTER_NODE_CONNECT_ON_NEW_STATE_WAIT_SETTING.get(settings);
     }
 
     public void connectToNodes(DiscoveryNodes discoveryNodes) {
@@ -115,7 +122,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
             }
         }
         try {
-            latch.await();
+            latch.await(connectWaitTime.millis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
