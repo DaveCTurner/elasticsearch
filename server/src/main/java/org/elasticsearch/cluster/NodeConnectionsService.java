@@ -23,25 +23,26 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
-import org.elasticsearch.common.util.concurrent.KeyedLock;
 import org.elasticsearch.discovery.zen.MasterFaultDetection;
 import org.elasticsearch.discovery.zen.NodesFaultDetection;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.elasticsearch.common.settings.Setting.Property;
 import static org.elasticsearch.common.settings.Setting.positiveTimeSetting;
@@ -65,11 +66,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
     private final ThreadPool threadPool;
     private final TransportService transportService;
 
-    // map between current node and the number of failed connection attempts. 0 means successfully connected.
-    // if a node doesn't appear in this list it shouldn't be monitored
-    private ConcurrentMap<DiscoveryNode, Integer> nodes = ConcurrentCollections.newConcurrentMap();
-
-    private final KeyedLock<DiscoveryNode> nodeLocks = new KeyedLock<>();
+    private Map<DiscoveryNode, NodeConnection> nodeConnections = ConcurrentCollections.newConcurrentMap();
 
     private final TimeValue reconnectInterval;
     private final TimeValue connectWaitTime;
@@ -88,41 +85,12 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
     public void connectToNodes(DiscoveryNodes discoveryNodes) {
         CountDownLatch latch = new CountDownLatch(discoveryNodes.getSize());
         for (final DiscoveryNode node : discoveryNodes) {
-            final boolean connected;
-            try (Releasable ignored = nodeLocks.acquire(node)) {
-                nodes.putIfAbsent(node, 0);
-                connected = transportService.nodeConnected(node);
-            }
-            if (connected) {
-                latch.countDown();
-            } else {
-                // spawn to another thread to do in parallel
-                threadPool.executor(ThreadPool.Names.MANAGEMENT).execute(new AbstractRunnable() {
-                    @Override
-                    public void onFailure(Exception e) {
-                        // both errors and rejections are logged here. the service
-                        // will try again after `cluster.nodes.reconnect_interval` on all nodes but the current master.
-                        // On the master, node fault detection will remove these nodes from the cluster as their are not
-                        // connected. Note that it is very rare that we end up here on the master.
-                        logger.warn(() -> new ParameterizedMessage("failed to connect to {}", node), e);
-                    }
-
-                    @Override
-                    protected void doRun() throws Exception {
-                        try (Releasable ignored = nodeLocks.acquire(node)) {
-                            validateAndConnectIfNeeded(node);
-                        }
-                    }
-
-                    @Override
-                    public void onAfter() {
-                        latch.countDown();
-                    }
-                });
-            }
+            nodeConnections.computeIfAbsent(node, NodeConnection::new).ensureConnectedAsync(latch::countDown);
         }
         try {
-            latch.await(connectWaitTime.millis(), TimeUnit.MILLISECONDS);
+            if (latch.await(connectWaitTime.millis(), TimeUnit.MILLISECONDS) == false) {
+                logger.info("timed out after [{}] when waiting for node connections, proceeding anyway", connectWaitTime);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -132,45 +100,26 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
      * Disconnects from all nodes except the ones provided as parameter
      */
     public void disconnectFromNodesExcept(DiscoveryNodes nodesToKeep) {
-        Set<DiscoveryNode> currentNodes = new HashSet<>(nodes.keySet());
-        for (DiscoveryNode node : nodesToKeep) {
-            currentNodes.remove(node);
-        }
-        for (final DiscoveryNode node : currentNodes) {
-            try (Releasable ignored = nodeLocks.acquire(node)) {
-                Integer current = nodes.remove(node);
-                assert current != null : "node " + node + " was removed in event but not in internal nodes";
-                try {
-                    transportService.disconnectFromNode(node);
-                } catch (Exception e) {
-                    logger.warn(() -> new ParameterizedMessage("failed to disconnect to node [{}]", node), e);
-                }
+        Set<NodeConnection> toDisconnect = new HashSet<>();
+        for (final NodeConnection nodeConnection : nodeConnections.values()) {
+            if (nodesToKeep.nodeExists(nodeConnection.discoveryNode) == false) {
+                toDisconnect.add(nodeConnection);
             }
         }
-    }
 
-    void validateAndConnectIfNeeded(DiscoveryNode node) {
-        assert nodeLocks.isHeldByCurrentThread(node) : "validateAndConnectIfNeeded must be called under lock";
-        if (lifecycle.stoppedOrClosed() ||
-                nodes.containsKey(node) == false) { // we double check existence of node since connectToNode might take time...
-            // nothing to do
-        } else {
-            try {
-                // connecting to an already connected node is a noop
-                transportService.connectToNode(node);
-                nodes.put(node, 0);
-            } catch (Exception e) {
-                Integer nodeFailureCount = nodes.get(node);
-                assert nodeFailureCount != null : node + " didn't have a counter in nodes map";
-                nodeFailureCount = nodeFailureCount + 1;
-                // log every 6th failure
-                if ((nodeFailureCount % 6) == 1) {
-                    final int finalNodeFailureCount = nodeFailureCount;
-                    logger.warn(() -> new ParameterizedMessage(
-                                "failed to connect to node {} (tried [{}] times)", node, finalNodeFailureCount), e);
-                }
-                nodes.put(node, nodeFailureCount);
+        CountDownLatch latch = new CountDownLatch(toDisconnect.size());
+        for (final NodeConnection nodeConnection : toDisconnect) {
+            boolean removed = nodeConnections.remove(nodeConnection.discoveryNode, nodeConnection);
+            assert removed;
+            nodeConnection.disconnect(latch::countDown);
+        }
+
+        try {
+            if (latch.await(connectWaitTime.millis(), TimeUnit.MILLISECONDS) == false) {
+                logger.info("timed out after [{}] when waiting for node disconnections, proceeding anyway", connectWaitTime);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -182,10 +131,8 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         }
 
         protected void doRun() {
-            for (DiscoveryNode node : nodes.keySet()) {
-                try (Releasable ignored = nodeLocks.acquire(node)) {
-                    validateAndConnectIfNeeded(node);
-                }
+            for (final NodeConnection nodeConnection : nodeConnections.values()) {
+                nodeConnection.ensureConnected();
             }
         }
 
@@ -210,5 +157,133 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
     @Override
     protected void doClose() {
 
+    }
+
+    private class NodeConnection {
+        private final Object mutex = new Object(); // protects connectionInProgress and connectionCompletionListeners
+        private volatile boolean connectionInProgress; // volatile so we can assert it without using the mutex
+        private List<Runnable> connectionCompletionListeners = new ArrayList<>();
+
+        private final DiscoveryNode discoveryNode;
+        private final AtomicInteger connectionFailureCount = new AtomicInteger();
+
+        NodeConnection(DiscoveryNode discoveryNode) {
+            this.discoveryNode = discoveryNode;
+        }
+
+        void ensureConnectedAsync(Runnable onCompletion) {
+            synchronized (mutex) {
+                connectionCompletionListeners.add(onCompletion);
+                if (connectionInProgress) {
+                    return;
+                }
+                connectionInProgress = true;
+            }
+
+            if (transportService.nodeConnected(discoveryNode)) {
+                onConnectionCompletion();
+                return;
+            }
+
+            // spawn to another thread to do in parallel
+            threadPool.executor(ThreadPool.Names.MANAGEMENT).execute(new AbstractRunnable() {
+                @Override
+                public void onFailure(Exception e) {
+                    // both errors and rejections are logged here. the service
+                    // will try again after `cluster.nodes.reconnect_interval` on all nodes but the current master.
+                    // On the master, node fault detection will remove these nodes from the cluster as their are not
+                    // connected. Note that it is very rare that we end up here on the master.
+                    logger.warn(() -> new ParameterizedMessage("failed to connect to {}", discoveryNode), e);
+                }
+
+                @Override
+                protected void doRun() {
+                    validateAndConnect();
+                }
+
+                @Override
+                public void onAfter() {
+                    onConnectionCompletion();
+                }
+            });
+        }
+
+        private void validateAndConnect() {
+            assert connectionInProgress;
+
+            if (lifecycle.stoppedOrClosed() || nodeConnections.containsKey(discoveryNode) == false) {
+                // Nothing to do
+                return;
+            }
+
+            try {
+                // connecting to an already connected node is a noop
+                transportService.connectToNode(discoveryNode);
+                connectionFailureCount.set(0);
+            } catch (Exception e) {
+                final int currentConnectionFailureCount = connectionFailureCount.incrementAndGet();
+                // log every 6th failure
+                if ((currentConnectionFailureCount % 6) == 1) {
+                    logger.warn(() -> new ParameterizedMessage(
+                        "failed to connect to node {} (tried [{}] times)", discoveryNode, currentConnectionFailureCount), e);
+                }
+            }
+        }
+
+        private void onConnectionCompletion() {
+            final List<Runnable> toNotify;
+            synchronized (mutex) {
+                assert connectionInProgress;
+
+                // Disconnections can occur concurrently with connection attempts. On a disconnection this object is removed from the
+                // nodeConnections map. It's possible that this node was added back to the map before we get here, in which case
+                // there's another NodeConnection object that's responsible for it.
+                if (nodeConnections.containsKey(discoveryNode)) {
+                    doDisconnect();
+                }
+
+                connectionInProgress = false;
+                toNotify = new ArrayList<>(connectionCompletionListeners);
+                connectionCompletionListeners.clear();
+            }
+            toNotify.forEach(Runnable::run);
+        }
+
+        private void doDisconnect() {
+            assert Thread.holdsLock(mutex) : "doDisconnect should be called under lock";
+
+            try {
+                transportService.disconnectFromNode(discoveryNode);
+            } catch (Exception e) {
+                logger.warn(() -> new ParameterizedMessage("failed to disconnect from node [{}]", discoveryNode), e);
+            }
+        }
+
+        void ensureConnected() {
+            synchronized (mutex) {
+                if (connectionInProgress) {
+                    return;
+                }
+                connectionInProgress = true;
+            }
+
+            validateAndConnect();
+            onConnectionCompletion();
+        }
+
+        public void disconnect(Runnable onCompletion) {
+            synchronized (mutex) {
+                if (connectionInProgress) {
+                    // we check whether to disconnect at the end of each connection attempt
+                    connectionCompletionListeners.add(onCompletion);
+                    return;
+                }
+
+                assert this != nodeConnections.get(discoveryNode) : "should already have been removed from nodeConnections";
+                doDisconnect();
+            }
+
+            onCompletion.run();
+        }
     }
 }
