@@ -15,7 +15,7 @@ public class IndexCreationIT extends ESIntegTestCase {
         for (int i = 0; i < repeats; i++) {
             final ActionFuture<CreateIndexResponse> createIndexResponseActionFuture = prepareCreate("test").execute();
 
-            ensureGreen("test");
+            ensureGreen();
             try {
                 createIndexResponseActionFuture.get();
             } catch (Exception e) {
@@ -29,7 +29,6 @@ public class IndexCreationIT extends ESIntegTestCase {
                     // don't care
                 }
             }
-
 
             deleteIndexResponseActionFuture = client().admin().indices().prepareDelete("test").execute();
         }
