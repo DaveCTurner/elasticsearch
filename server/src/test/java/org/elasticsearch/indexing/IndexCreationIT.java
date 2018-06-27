@@ -5,38 +5,39 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.test.ESIntegTestCase;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class IndexCreationIT extends ESIntegTestCase {
     public void testRepeatedCreationAndDeletion() {
 
-        final int repeats = 10000;
+        final int repeats = 100;
 
-        final List<ActionFuture<CreateIndexResponse>> createIndexResponses = new ArrayList<>(repeats);
-        final List<ActionFuture<DeleteIndexResponse>> deleteIndexResponses = new ArrayList<>(repeats);
+        ActionFuture<DeleteIndexResponse> deleteIndexResponseActionFuture = null;
 
         for (int i = 0; i < repeats; i++) {
-             createIndexResponses.add(prepareCreate("test").execute());
-             deleteIndexResponses.add(client().admin().indices().prepareDelete("test").execute());
-        }
+            final ActionFuture<CreateIndexResponse> createIndexResponseActionFuture = prepareCreate("test").execute();
 
-        for (ActionFuture<CreateIndexResponse> createIndexResponse : createIndexResponses) {
+            ensureGreen("test");
             try {
-                createIndexResponse.get();
+                createIndexResponseActionFuture.get();
             } catch (Exception e) {
                 // don't care
             }
-        }
 
-        for (ActionFuture<DeleteIndexResponse> deleteIndexResponse : deleteIndexResponses) {
-            try {
-                deleteIndexResponse.get();
-            } catch (Exception e) {
-                // don't care
+            if (deleteIndexResponseActionFuture != null) {
+                try {
+                    deleteIndexResponseActionFuture.get();
+                } catch (Exception e) {
+                    // don't care
+                }
             }
+
+
+            deleteIndexResponseActionFuture = client().admin().indices().prepareDelete("test").execute();
         }
 
-        ensureGreen();
+        try {
+            deleteIndexResponseActionFuture.get();
+        } catch (Exception e) {
+            // don't care
+        }
     }
 }
