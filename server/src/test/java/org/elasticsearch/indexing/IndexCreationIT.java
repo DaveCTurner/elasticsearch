@@ -11,24 +11,14 @@ import java.util.List;
 public class IndexCreationIT extends ESIntegTestCase {
     public void testRepeatedCreationAndDeletion() {
 
-        final int repeats = 100;
+        final int repeats = 10000;
 
         final List<ActionFuture<CreateIndexResponse>> createIndexResponses = new ArrayList<>(repeats);
         final List<ActionFuture<DeleteIndexResponse>> deleteIndexResponses = new ArrayList<>(repeats);
 
         for (int i = 0; i < repeats; i++) {
              createIndexResponses.add(prepareCreate("test").execute());
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                // don't care
-            }
-            deleteIndexResponses.add(client().admin().indices().prepareDelete("test").execute());
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                // don't care
-            }
+             deleteIndexResponses.add(client().admin().indices().prepareDelete("test").execute());
         }
 
         for (ActionFuture<CreateIndexResponse> createIndexResponse : createIndexResponses) {
