@@ -308,6 +308,44 @@ public class TimeZoneRoundingTests extends ESTestCase {
         assertThat(rounding.round(time("2016-03-28T13:00:00+02:00")), isDate(time("2016-03-28T12:00:00+02:00"), tz));
     }
 
+    public void testIntervalRoundingMultipleMidnights() {
+        // time zone "America/St_Johns", rounding to 2-day-long intervals (midnight on odd-numbered days in October 2006)
+        DateTimeZone tz = DateTimeZone.forID("America/St_Johns");
+        Rounding rounding = new Rounding.TimeIntervalRounding(TimeUnit.DAYS.toMillis(2), tz);
+
+        // 29 October 2006 - Daylight Saving Time ended, changing the UTC offset from -02:30 to -03:30.
+        // This happened at 02:31 UTC, 00:01 local time, so the clocks were set back 1 hour to 23:01 on the 28th.
+        // This means that 2006-10-29 has _two_ midnights, one in the -02:30 offset and one in the -03:30 offset.
+        // For the purposes of _interval_ rounding, both of these are considered to be validly rounded, yielding
+        // an anomolous 1-hour-long bucket.
+
+        assertThat(rounding.round(time("2006-10-28T23:30:00.000-02:30")), isDate(time("2006-10-27T00:00:00.000-02:30"), tz));
+        assertThat(rounding.round(time("2006-10-28T23:59:59.999-02:30")), isDate(time("2006-10-27T00:00:00.000-02:30"), tz));
+        assertThat(rounding.round(time("2006-10-29T00:00:00.000-02:30")), isDate(time("2006-10-29T00:00:00.000-02:30"), tz));
+        assertThat(rounding.round(time("2006-10-29T00:00:30.000-02:30")), isDate(time("2006-10-29T00:00:00.000-02:30"), tz));
+        assertThat(rounding.round(time("2006-10-28T23:30:00.000-03:30")), isDate(time("2006-10-29T00:00:00.000-02:30"), tz));
+        assertThat(rounding.round(time("2006-10-29T00:00:00.000-03:30")), isDate(time("2006-10-29T00:00:00.000-03:30"), tz)); // NB -03:30
+        assertThat(rounding.round(time("2006-10-29T06:00:00.000-03:30")), isDate(time("2006-10-29T00:00:00.000-03:30"), tz));
+        assertThat(rounding.round(time("2006-10-30T23:59:59.999-03:30")), isDate(time("2006-10-29T00:00:00.000-03:30"), tz));
+        assertThat(rounding.round(time("2006-10-31T00:00:00.000-03:30")), isDate(time("2006-10-31T00:00:00.000-03:30"), tz));
+
+        // additionally, rounding.nextRoundingValue yields some very strange values:
+
+        assertThat(rounding.nextRoundingValue(time("2006-10-25T23:59:59.999-02:30")), isDate(time("2006-10-27T23:59:59.999-02:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-26T00:00:00.000-02:30")), isDate(time("2006-10-28T00:00:00.000-02:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-26T12:00:00.000-02:30")), isDate(time("2006-10-28T12:00:00.000-02:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-27T00:00:00.000-02:30")), isDate(time("2006-10-29T00:00:00.000-02:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-27T12:00:00.000-02:30")), isDate(time("2006-10-29T12:00:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-28T00:00:00.000-02:30")), isDate(time("2006-10-30T00:00:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-28T00:00:00.001-02:30")), isDate(time("2006-10-30T00:00:00.001-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-28T23:30:00.000-02:30")), isDate(time("2006-10-30T23:30:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-29T00:00:00.000-02:30")), isDate(time("2006-10-31T00:00:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-29T00:00:30.000-02:30")), isDate(time("2006-10-31T00:00:30.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-28T23:30:00.000-03:30")), isDate(time("2006-10-30T23:30:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-29T00:00:00.000-03:30")), isDate(time("2006-10-31T00:00:00.000-03:30"), tz));
+        assertThat(rounding.nextRoundingValue(time("2006-10-29T06:00:00.000-03:30")), isDate(time("2006-10-31T06:00:00.000-03:30"), tz));
+    }
+
     /**
      * randomized test on {@link TimeIntervalRounding} with random interval and time zone offsets
      */
