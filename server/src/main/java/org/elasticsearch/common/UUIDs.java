@@ -19,6 +19,10 @@
 
 package org.elasticsearch.common;
 
+import org.apache.logging.log4j.LogManager;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class UUIDs {
@@ -26,6 +30,14 @@ public class UUIDs {
     private static final RandomBasedUUIDGenerator RANDOM_UUID_GENERATOR = new RandomBasedUUIDGenerator();
     private static final UUIDGenerator LEGACY_TIME_UUID_GENERATOR = new LegacyTimeBasedUUIDGenerator();
     private static final UUIDGenerator TIME_UUID_GENERATOR = new TimeBasedUUIDGenerator();
+
+    private static final Map<String, UUIDGenerator> uuidGeneratorsByType;
+
+    static {
+        uuidGeneratorsByType = new HashMap<>();
+        uuidGeneratorsByType.put("default", TIME_UUID_GENERATOR);
+        uuidGeneratorsByType.put("v2", new TimeBasedUUIDGeneratorV2());
+    }
 
     /** Generates a time-based UUID (similar to Flake IDs), which is preferred when generating an ID to be indexed into a Lucene index as
      *  primary key.  The id is opaque and the implementation is free to change at any time! */
@@ -50,4 +62,19 @@ public class UUIDs {
         return RANDOM_UUID_GENERATOR.getBase64UUID();
     }
 
+    public static UUIDGenerator getUUIDGenerator(String generatorType) {
+        if (Strings.isNullOrEmpty(generatorType)) {
+            return TIME_UUID_GENERATOR;
+        }
+
+        UUIDGenerator uuidGenerator = uuidGeneratorsByType.get(generatorType);
+        if (uuidGenerator != null) {
+            return uuidGenerator;
+        }
+
+        LogManager.getLogger(UUIDs.class).warn("unknown UUID generator type [{}], using default generator. Known types: {}",
+            generatorType, uuidGeneratorsByType.keySet());
+
+        return TIME_UUID_GENERATOR;
+    }
 }

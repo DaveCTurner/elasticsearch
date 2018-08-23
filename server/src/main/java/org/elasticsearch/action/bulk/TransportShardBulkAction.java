@@ -192,7 +192,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
                     IndexRequest indexRequest = updateResult.action();
                     IndexMetaData metaData = context.getPrimary().indexSettings().getIndexMetaData();
                     MappingMetaData mappingMd = metaData.mappingOrDefault(indexRequest.type());
-                    indexRequest.process(metaData.getCreationVersion(), mappingMd, updateRequest.concreteIndex());
+                    indexRequest.process(metaData.getUUIDGenerator(), mappingMd, updateRequest.concreteIndex());
                     context.setRequestToExecute(indexRequest);
                     break;
                 case DELETED:

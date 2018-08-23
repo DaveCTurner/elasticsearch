@@ -322,7 +322,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
                             MappingMetaData mappingMd = indexMetaData.mappingOrDefault(indexRequest.type());
                             Version indexCreated = indexMetaData.getCreationVersion();
                             indexRequest.resolveRouting(metaData);
-                            indexRequest.process(indexCreated, mappingMd, concreteIndex.getName());
+                            indexRequest.process(indexMetaData.getUUIDGenerator(), mappingMd, concreteIndex.getName());
                             break;
                         case UPDATE:
                             TransportUpdateAction.resolveAndValidateRouting(metaData, concreteIndex.getName(), (UpdateRequest) docWriteRequest);

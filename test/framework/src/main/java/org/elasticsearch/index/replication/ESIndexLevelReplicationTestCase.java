@@ -53,6 +53,8 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingHelper;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.TestShardRouting;
+import org.elasticsearch.common.UUIDGenerator;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
@@ -99,6 +101,8 @@ public abstract class ESIndexLevelReplicationTestCase extends IndexShardTestCase
     protected final Index index = new Index("test", "uuid");
     private final ShardId shardId = new ShardId(index, 0);
     private final Map<String, String> indexMapping = Collections.singletonMap("type", "{ \"type\": {} }");
+
+    private static final UUIDGenerator uuidGenerator = UUIDs.getUUIDGenerator(null);
 
     protected ReplicationGroup createGroup(int replicas) throws IOException {
         IndexMetaData metaData = buildIndexMetaData(replicas);
@@ -621,7 +625,7 @@ public abstract class ESIndexLevelReplicationTestCase extends IndexShardTestCase
         IndexShard primary, BulkShardRequest request) throws Exception {
         for (BulkItemRequest itemRequest : request.items()) {
             if (itemRequest.request() instanceof IndexRequest) {
-                ((IndexRequest) itemRequest.request()).process(Version.CURRENT, null, index.getName());
+                ((IndexRequest) itemRequest.request()).process(uuidGenerator, null, index.getName());
             }
         }
         final PlainActionFuture<Releasable> permitAcquiredFuture = new PlainActionFuture<>();
