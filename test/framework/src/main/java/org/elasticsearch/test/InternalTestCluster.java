@@ -222,48 +222,48 @@ public final class InternalTestCluster extends TestCluster {
     private Function<Client, Client> clientWrapper;
 
     public InternalTestCluster(
-            final long clusterSeed,
-            final Path baseDir,
-            final boolean randomlyAddDedicatedMasters,
-            final boolean autoManageMinMasterNodes,
-            final int minNumDataNodes,
-            final int maxNumDataNodes,
-            final String clusterName,
-            final NodeConfigurationSource nodeConfigurationSource,
-            final int numClientNodes,
-            final String nodePrefix,
-            final Collection<Class<? extends Plugin>> mockPlugins,
-            final Function<Client, Client> clientWrapper) {
+        final long clusterSeed,
+        final Path baseDir,
+        final boolean randomlyAddDedicatedMasters,
+        final boolean autoManageMinMasterNodes,
+        final int minNumDataNodes,
+        final int maxNumDataNodes,
+        final String clusterName,
+        final NodeConfigurationSource nodeConfigurationSource,
+        final int numClientNodes,
+        final String nodePrefix,
+        final Collection<Class<? extends Plugin>> mockPlugins,
+        final Function<Client, Client> clientWrapper) {
         this(
-                clusterSeed,
-                baseDir,
-                randomlyAddDedicatedMasters,
-                autoManageMinMasterNodes,
-                minNumDataNodes,
-                maxNumDataNodes,
-                clusterName,
-                nodeConfigurationSource,
-                numClientNodes,
-                nodePrefix,
-                mockPlugins,
-                clientWrapper,
-                true);
+            clusterSeed,
+            baseDir,
+            randomlyAddDedicatedMasters,
+            autoManageMinMasterNodes,
+            minNumDataNodes,
+            maxNumDataNodes,
+            clusterName,
+            nodeConfigurationSource,
+            numClientNodes,
+            nodePrefix,
+            mockPlugins,
+            clientWrapper,
+            true);
     }
 
     public InternalTestCluster(
-            final long clusterSeed,
-            final Path baseDir,
-            final boolean randomlyAddDedicatedMasters,
-            final boolean autoManageMinMasterNodes,
-            final int minNumDataNodes,
-            final int maxNumDataNodes,
-            final String clusterName,
-            final NodeConfigurationSource nodeConfigurationSource,
-            final int numClientNodes,
-            final String nodePrefix,
-            final Collection<Class<? extends Plugin>> mockPlugins,
-            final Function<Client, Client> clientWrapper,
-            final boolean forbidPrivateIndexSettings) {
+        final long clusterSeed,
+        final Path baseDir,
+        final boolean randomlyAddDedicatedMasters,
+        final boolean autoManageMinMasterNodes,
+        final int minNumDataNodes,
+        final int maxNumDataNodes,
+        final String clusterName,
+        final NodeConfigurationSource nodeConfigurationSource,
+        final int numClientNodes,
+        final String nodePrefix,
+        final Collection<Class<? extends Plugin>> mockPlugins,
+        final Function<Client, Client> clientWrapper,
+        final boolean forbidPrivateIndexSettings) {
         super(clusterSeed);
         this.autoManageMinMasterNodes = autoManageMinMasterNodes;
         this.clientWrapper = clientWrapper;
@@ -375,7 +375,9 @@ public final class InternalTestCluster extends TestCluster {
         return clusterName;
     }
 
-    /** returns true if the {@link ElectMasterService#DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING} setting is auto managed by this cluster */
+    /**
+     * returns true if the {@link ElectMasterService#DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING} setting is auto managed by this cluster
+     */
     public boolean getAutoManageMinMasterNode() {
         return autoManageMinMasterNodes;
     }
@@ -563,8 +565,9 @@ public final class InternalTestCluster extends TestCluster {
 
     /**
      * builds a new node given the settings.
-     *  @param settings              the settings to use
-     * @param defaultMinMasterNodes min_master_nodes value to use if min_master_nodes is auto managed
+     *
+     * @param settings                  the settings to use
+     * @param defaultMinMasterNodes     min_master_nodes value to use if min_master_nodes is auto managed
      * @param onTransportServiceStarted callback to run when transport service is started
      */
     private NodeAndClient buildNode(Settings settings, int defaultMinMasterNodes, Runnable onTransportServiceStarted) {
@@ -574,12 +577,13 @@ public final class InternalTestCluster extends TestCluster {
 
     /**
      * builds a new node
-     *  @param nodeId                the node internal id (see {@link NodeAndClient#nodeAndClientId()}
-     * @param seed                  the node's random seed
-     * @param settings              the settings to use
-     * @param reuseExisting         if a node with the same name is already part of {@link #nodes}, no new node will be built and
-*                              the method will return the existing one
-     * @param defaultMinMasterNodes min_master_nodes value to use if min_master_nodes is auto managed
+     *
+     * @param nodeId                    the node internal id (see {@link NodeAndClient#nodeAndClientId()}
+     * @param seed                      the node's random seed
+     * @param settings                  the settings to use
+     * @param reuseExisting             if a node with the same name is already part of {@link #nodes}, no new node will be built and
+     *                                  the method will return the existing one
+     * @param defaultMinMasterNodes     min_master_nodes value to use if min_master_nodes is auto managed
      * @param onTransportServiceStarted callback to run when transport service is started
      */
     private NodeAndClient buildNode(int nodeId, long seed, Settings settings,
@@ -1027,7 +1031,7 @@ public final class InternalTestCluster extends TestCluster {
 
         // trash all nodes with id >= sharedNodesSeeds.length - they are non shared
         final List<NodeAndClient> toClose = new ArrayList<>();
-        for (Iterator<NodeAndClient> iterator = nodes.values().iterator(); iterator.hasNext();) {
+        for (Iterator<NodeAndClient> iterator = nodes.values().iterator(); iterator.hasNext(); ) {
             NodeAndClient nodeAndClient = iterator.next();
             if (nodeAndClient.nodeAndClientId() >= sharedNodesSeeds.length) {
                 logger.debug("Close Node [{}] not shared", nodeAndClient.name);
@@ -1086,13 +1090,17 @@ public final class InternalTestCluster extends TestCluster {
         logger.debug("Cluster is consistent again - nodes: [{}] nextNodeId: [{}] numSharedNodes: [{}]", nodes.keySet(), nextNodeId.get(), newSize);
     }
 
-    /** ensure a cluster is formed with all published nodes. */
+    /**
+     * ensure a cluster is formed with all published nodes.
+     */
     public synchronized void validateClusterFormed() {
         String name = randomFrom(random, getNodeNames());
         validateClusterFormed(name);
     }
 
-    /** ensure a cluster is formed with all published nodes, but do so by using the client of the specified node */
+    /**
+     * ensure a cluster is formed with all published nodes, but do so by using the client of the specified node
+     */
     public synchronized void validateClusterFormed(String viaNode) {
         Set<DiscoveryNode> expectedNodes = new HashSet<>();
         for (NodeAndClient nodeAndClient : nodes.values()) {
@@ -1411,8 +1419,7 @@ public final class InternalTestCluster extends TestCluster {
         }
     }
 
-    private synchronized void startAndPublishNodesAndClients(List<NodeAndClient> nodeAndClients,
-                                                             @Nullable Runnable awaitTransportServicesStarted) {
+    private synchronized void startAndPublishNodesAndClients(List<NodeAndClient> nodeAndClients, Runnable awaitTransportServicesStarted) {
         if (nodeAndClients.size() > 0) {
             final int newMasters = (int) nodeAndClients.stream().filter(NodeAndClient::isMasterEligible)
                 .filter(nac -> nodes.containsKey(nac.name) == false) // filter out old masters
@@ -1425,25 +1432,23 @@ public final class InternalTestCluster extends TestCluster {
             }
             List<Future<?>> futures = nodeAndClients.stream().map(node -> executor.submit(node::startNode)).collect(Collectors.toList());
 
-            if (awaitTransportServicesStarted != null) { // TODO think we always want to do this, but WIP
-                awaitTransportServicesStarted.run();
-                try {
-                    List<String> discoveryFileContents = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
-                        .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
-                        .map(TransportService::getLocalNode).filter(Objects::nonNull)
-                        .map(n -> n.getAddress().toString())
-                        .distinct().collect(Collectors.toList());
-                    Set<Path> configPaths = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
-                        .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
-                    for (final Path configPath : configPaths) {
-                        Files.createDirectories(configPath);
-                        Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
-                    }
-                } catch (IOException e) {
-                    throw new AssertionError("failed to configure file-based discovery", e);
+            awaitTransportServicesStarted.run();
+            try {
+                List<String> discoveryFileContents = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
+                    .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
+                    .map(TransportService::getLocalNode).filter(Objects::nonNull)
+                    .map(n -> n.getAddress().toString())
+                    .distinct().collect(Collectors.toList());
+                Set<Path> configPaths = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
+                    .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
+                for (final Path configPath : configPaths) {
+                    Files.createDirectories(configPath);
+                    Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
                 }
+            } catch (IOException e) {
+                throw new AssertionError("failed to configure file-based discovery", e);
             }
-
+            
             try {
                 for (Future<?> future : futures) {
                     future.get();
@@ -1470,12 +1475,12 @@ public final class InternalTestCluster extends TestCluster {
 
     private synchronized void stopNodesAndClients(Collection<NodeAndClient> nodeAndClients) throws IOException {
         if (autoManageMinMasterNodes && nodeAndClients.size() > 0) {
-            int masters = (int)nodeAndClients.stream().filter(NodeAndClient::isMasterEligible).count();
+            int masters = (int) nodeAndClients.stream().filter(NodeAndClient::isMasterEligible).count();
             if (masters > 0) {
                 updateMinMasterNodes(getMasterNodesCount() - masters);
             }
         }
-        for (NodeAndClient nodeAndClient: nodeAndClients) {
+        for (NodeAndClient nodeAndClient : nodeAndClients) {
             removeDisruptionSchemeFromNode(nodeAndClient);
             NodeAndClient previous = nodes.remove(nodeAndClient.name);
             assert previous == nodeAndClient;
@@ -1598,7 +1603,7 @@ public final class InternalTestCluster extends TestCluster {
     public synchronized void fullRestart(RestartCallback callback) throws Exception {
         int numNodesRestarted = 0;
         Map<Set<Role>, List<NodeAndClient>> nodesByRoles = new HashMap<>();
-        Set[] rolesOrderedByOriginalStartupOrder =  new Set[nextNodeId.get()];
+        Set[] rolesOrderedByOriginalStartupOrder = new Set[nextNodeId.get()];
         for (NodeAndClient nodeAndClient : nodes.values()) {
             callback.doAfterNodes(numNodesRestarted++, nodeAndClient.nodeClient());
             logger.info("Stopping node [{}] ", nodeAndClient.name);
@@ -1766,7 +1771,7 @@ public final class InternalTestCluster extends TestCluster {
         }
         List<NodeAndClient> nodes = new ArrayList<>();
         CountDownLatch transportServicesCountDown = new CountDownLatch(settings.length);
-        for (Settings nodeSettings: settings) {
+        for (Settings nodeSettings : settings) {
             nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, () -> {
                 logger.warn("transport service started");
                 transportServicesCountDown.countDown();
@@ -1821,13 +1826,15 @@ public final class InternalTestCluster extends TestCluster {
         return minMasterNodes;
     }
 
-    /** calculates a min master nodes value based on the given number of master nodes */
+    /**
+     * calculates a min master nodes value based on the given number of master nodes
+     */
     private int getMinMasterNodes(int eligibleMasterNodes) {
         return eligibleMasterNodes / 2 + 1;
     }
 
     private int getMasterNodesCount() {
-        return (int)nodes.values().stream().filter(n -> Node.NODE_MASTER_SETTING.get(n.node().settings())).count();
+        return (int) nodes.values().stream().filter(n -> Node.NODE_MASTER_SETTING.get(n.node().settings())).count();
     }
 
     public synchronized String startMasterOnlyNode() {
@@ -1842,6 +1849,7 @@ public final class InternalTestCluster extends TestCluster {
     public synchronized String startDataOnlyNode() {
         return startDataOnlyNode(Settings.EMPTY);
     }
+
     public synchronized String startDataOnlyNode(Settings settings) {
         Settings settings1 = Settings.builder().put(settings).put(Node.NODE_MASTER_SETTING.getKey(), false).put(Node.NODE_DATA_SETTING.getKey(), true).build();
         return startNode(settings1);
@@ -1868,7 +1876,7 @@ public final class InternalTestCluster extends TestCluster {
     }
 
     public synchronized int numMasterNodes() {
-      return filterNodes(nodes, NodeAndClient::isMasterEligible).size();
+        return filterNodes(nodes, NodeAndClient::isMasterEligible).size();
     }
 
 
@@ -2081,8 +2089,12 @@ public final class InternalTestCluster extends TestCluster {
             return false;
         }
 
-        /** returns true if the restart should also validate the cluster has reformed */
-        public boolean validateClusterForming() { return true; }
+        /**
+         * returns true if the restart should also validate the cluster has reformed
+         */
+        public boolean validateClusterForming() {
+            return true;
+        }
     }
 
     public Settings getDefaultSettings() {
@@ -2128,7 +2140,7 @@ public final class InternalTestCluster extends TestCluster {
                 NodeService nodeService = getInstanceFromNode(NodeService.class, nodeAndClient.node);
                 CommonStatsFlags flags = new CommonStatsFlags(Flag.FieldData, Flag.QueryCache, Flag.Segments);
                 NodeStats stats = nodeService.stats(flags,
-                        false, false, false, false, false, false, false, false, false, false, false, false);
+                    false, false, false, false, false, false, false, false, false, false, false, false);
                 assertThat("Fielddata size must be 0 on node: " + stats.getNode(), stats.getIndices().getFieldData().getMemorySizeInBytes(), equalTo(0L));
                 assertThat("Query cache size must be 0 on node: " + stats.getNode(), stats.getIndices().getQueryCache().getMemorySizeInBytes(), equalTo(0L));
                 assertThat("FixedBitSet cache size must be 0 on node: " + stats.getNode(), stats.getIndices().getSegments().getBitsetMemoryInBytes(), equalTo(0L));
