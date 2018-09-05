@@ -34,7 +34,6 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
 import org.elasticsearch.test.junit.annotations.TestLogging;
@@ -69,12 +68,6 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         final HashSet<Class<? extends Plugin>> classes = new HashSet<>(super.nodePlugins());
         classes.add(MockTransportService.TestPlugin.class);
         return classes;
-    }
-
-    @Override
-    protected Settings nodeSettings(int nodeOrdinal) {
-        return Settings.builder().put(super.nodeSettings(nodeOrdinal))
-            .put(TestZenDiscovery.USE_MOCK_PINGS.getKey(), false).build();
     }
 
     public void testSimpleMinimumMasterNodes() throws Exception {

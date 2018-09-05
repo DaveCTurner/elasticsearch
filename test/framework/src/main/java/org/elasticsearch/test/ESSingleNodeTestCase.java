@@ -50,7 +50,6 @@ import org.elasticsearch.node.NodeValidationException;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.SearchContext;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -203,10 +202,6 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         if (plugins.contains(getTestTransportPlugin()) == false) {
             plugins = new ArrayList<>(plugins);
             plugins.add(getTestTransportPlugin());
-        }
-        if (plugins.contains(TestZenDiscovery.TestPlugin.class) == false) {
-            plugins = new ArrayList<>(plugins);
-            plugins.add(TestZenDiscovery.TestPlugin.class);
         }
         if (addMockHttpTransport()) {
             plugins.add(MockHttpTransport.TestPlugin.class);

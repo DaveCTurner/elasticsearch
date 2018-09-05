@@ -36,7 +36,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.TaskInfo;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.MockHttpTransport;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.ccr.action.CreateAndFollowIndexAction;
 import org.elasticsearch.xpack.ccr.action.FollowIndexAction;
@@ -84,7 +83,7 @@ public class ShardChangesIT extends ESIntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> getMockPlugins() {
-        return Arrays.asList(TestSeedPlugin.class, TestZenDiscovery.TestPlugin.class, MockHttpTransport.TestPlugin.class);
+        return Arrays.asList(TestSeedPlugin.class, MockHttpTransport.TestPlugin.class);
     }
 
     @Override

@@ -10,12 +10,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.xpack.core.XPackPlugin;
 import org.elasticsearch.xpack.core.XPackSettings;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 public abstract class AbstractSqlIntegTestCase extends ESIntegTestCase {
 
@@ -54,7 +54,7 @@ public abstract class AbstractSqlIntegTestCase extends ESIntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> getMockPlugins() {
-        return Arrays.asList(TestZenDiscovery.TestPlugin.class, TestSeedPlugin.class);
+        return Collections.singletonList(TestSeedPlugin.class);
     }
 }
 

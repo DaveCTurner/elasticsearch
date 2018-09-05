@@ -31,6 +31,7 @@ import org.elasticsearch.test.ESIntegTestCase.ThirdParty;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Base class for AWS tests that require credentials.
@@ -66,11 +67,6 @@ public abstract class AbstractAwsTestCase extends ESIntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return Arrays.asList(Ec2DiscoveryPlugin.class);
-    }
-
-    @Override
-    protected boolean addTestZenDiscovery() {
-        return false;
+        return Collections.singletonList(Ec2DiscoveryPlugin.class);
     }
 }

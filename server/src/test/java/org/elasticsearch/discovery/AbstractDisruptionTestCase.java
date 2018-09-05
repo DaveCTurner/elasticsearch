@@ -28,13 +28,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.discovery.zen.ElectMasterService;
 import org.elasticsearch.discovery.zen.FaultDetection;
-import org.elasticsearch.discovery.zen.UnicastZenPing;
-import org.elasticsearch.discovery.zen.ZenPing;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.discovery.ClusterDiscoveryConfiguration;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.Bridge;
 import org.elasticsearch.test.disruption.NetworkDisruption.DisruptedLinks;
@@ -66,8 +63,7 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
 
     @Override
     protected Settings nodeSettings(int nodeOrdinal) {
-        return Settings.builder().put(discoveryConfig.nodeSettings(nodeOrdinal))
-                .put(TestZenDiscovery.USE_MOCK_PINGS.getKey(), false).build();
+        return discoveryConfig.nodeSettings(nodeOrdinal);
     }
 
     @Before
@@ -127,12 +123,6 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
         configureCluster(numberOfNodes, unicastHostsOrdinals, minimumMasterNode);
         List<String> nodes = internalCluster().startNodes(numberOfNodes);
         ensureStableCluster(numberOfNodes);
-
-        // TODO: this is a temporary solution so that nodes will not base their reaction to a partition based on previous successful results
-        ZenPing zenPing = ((TestZenDiscovery) internalCluster().getInstance(Discovery.class)).getZenPing();
-        if (zenPing instanceof UnicastZenPing) {
-            ((UnicastZenPing) zenPing).clearTemporalResponses();
-        }
         return nodes;
     }
 

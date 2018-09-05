@@ -15,7 +15,6 @@ import org.elasticsearch.discovery.DiscoverySettings;
 import org.elasticsearch.discovery.zen.FaultDetection;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.xpack.core.ml.action.CloseJobAction;
@@ -38,7 +37,6 @@ public class NetworkDisruptionIT extends BaseMlIntegTestCase {
     @Override
     protected Settings nodeSettings(int nodeOrdinal) {
         return Settings.builder().put(super.nodeSettings(nodeOrdinal))
-                .put(TestZenDiscovery.USE_MOCK_PINGS.getKey(), false)
                 .put(FaultDetection.PING_TIMEOUT_SETTING.getKey(), "1s") // for hitting simulated network failures quickly
                 .put(FaultDetection.PING_RETRIES_SETTING.getKey(), "1") // for hitting simulated network failures quickly
                 .put(DiscoverySettings.PUBLISH_TIMEOUT_SETTING.getKey(), "1s") // for hitting simulated network failures quickly
