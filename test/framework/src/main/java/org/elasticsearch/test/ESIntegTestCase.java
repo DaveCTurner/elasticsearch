@@ -203,6 +203,8 @@ import static org.elasticsearch.client.Requests.syncedFlushRequest;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
 import static org.elasticsearch.common.util.CollectionUtils.eagerPartition;
+import static org.elasticsearch.discovery.DiscoveryModule.DISCOVERY_HOSTS_PROVIDER_SETTING;
+import static org.elasticsearch.discovery.zen.SettingsBasedHostsProvider.DISCOVERY_ZEN_PING_UNICAST_HOSTS_SETTING;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.test.XContentTestUtils.convertToMap;
 import static org.elasticsearch.test.XContentTestUtils.differenceBetweenMapsIgnoringArrayOrder;
@@ -1805,7 +1807,9 @@ public abstract class ESIntegTestCase extends ESTestCase {
             // wait short time for other active shards before actually deleting, default 30s not needed in tests
             .put(IndicesStore.INDICES_STORE_DELETE_SHARD_TIMEOUT.getKey(), new TimeValue(1, TimeUnit.SECONDS))
             // randomly enable low-level search cancellation to make sure it does not alter results
-            .put(SearchService.LOW_LEVEL_CANCELLATION_SETTING.getKey(), randomBoolean());
+            .put(SearchService.LOW_LEVEL_CANCELLATION_SETTING.getKey(), randomBoolean())
+            .putList(DISCOVERY_ZEN_PING_UNICAST_HOSTS_SETTING.getKey())
+            .putList(DISCOVERY_HOSTS_PROVIDER_SETTING.getKey(), "file");
         if (rarely()) {
             // Sometimes adjust the minimum search thread pool size, causing
             // QueueResizingEsThreadPoolExecutor to be used instead of a regular
