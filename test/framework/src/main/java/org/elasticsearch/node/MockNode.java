@@ -60,8 +60,8 @@ import java.util.function.Function;
 /**
  * A node for testing which allows:
  * <ul>
- *   <li>Overriding Version.CURRENT</li>
- *   <li>Adding test plugins that exist on the classpath</li>
+ * <li>Overriding Version.CURRENT</li>
+ * <li>Adding test plugins that exist on the classpath</li>
  * </ul>
  */
 public class MockNode extends Node {
@@ -74,9 +74,9 @@ public class MockNode extends Node {
     }
 
     public MockNode(
-            final Settings settings,
-            final Collection<Class<? extends Plugin>> classpathPlugins,
-            final boolean forbidPrivateIndexSettings) {
+        final Settings settings,
+        final Collection<Class<? extends Plugin>> classpathPlugins,
+        final boolean forbidPrivateIndexSettings) {
         this(settings, classpathPlugins, null, forbidPrivateIndexSettings, null);
     }
 
@@ -91,10 +91,10 @@ public class MockNode extends Node {
     }
 
     private MockNode(
-            final Environment environment,
-            final Collection<Class<? extends Plugin>> classpathPlugins,
-            final boolean forbidPrivateIndexSettings,
-            final Runnable onTransportServiceStarted) {
+        final Environment environment,
+        final Collection<Class<? extends Plugin>> classpathPlugins,
+        final boolean forbidPrivateIndexSettings,
+        final Runnable onTransportServiceStarted) {
         super(environment, classpathPlugins, forbidPrivateIndexSettings);
         this.classpathPlugins = classpathPlugins;
         this.onTransportServiceStarted = onTransportServiceStarted;
@@ -179,9 +179,7 @@ public class MockNode extends Node {
 
     @Override
     protected void onTransportServiceStarted() {
-        if (onTransportServiceStarted != null) {
-            onTransportServiceStarted.run();
-        }
+        onTransportServiceStarted.run();
     }
 }
 

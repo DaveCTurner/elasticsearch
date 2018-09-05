@@ -1448,7 +1448,7 @@ public final class InternalTestCluster extends TestCluster {
             } catch (IOException e) {
                 throw new AssertionError("failed to configure file-based discovery", e);
             }
-            
+
             try {
                 for (Future<?> future : futures) {
                     future.get();
