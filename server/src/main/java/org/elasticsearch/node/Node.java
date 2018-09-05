@@ -688,6 +688,8 @@ public class Node implements Closeable {
         assert localNodeFactory.getNode() != null;
         assert transportService.getLocalNode().equals(localNodeFactory.getNode())
             : "transportService has a different local node than the factory provided";
+        onTransportServiceStarted();
+
         final MetaData onDiskMetadata;
         try {
             // we load the global state here (the persistent part of the cluster state stored on disk) to
@@ -762,6 +764,10 @@ public class Node implements Closeable {
         pluginsService.filterPlugins(ClusterPlugin.class).forEach(ClusterPlugin::onNodeStarted);
 
         return this;
+    }
+
+    // For notifying tests that discovery can be configured
+    protected void onTransportServiceStarted() {
     }
 
     private Node stop() {

@@ -102,6 +102,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,9 +114,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -131,6 +134,7 @@ import static org.apache.lucene.util.LuceneTestCase.TEST_NIGHTLY;
 import static org.apache.lucene.util.LuceneTestCase.rarely;
 import static org.elasticsearch.discovery.DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING;
 import static org.elasticsearch.discovery.zen.ElectMasterService.DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING;
+import static org.elasticsearch.discovery.zen.FileBasedUnicastHostsProvider.UNICAST_HOSTS_FILE;
 import static org.elasticsearch.test.ESTestCase.assertBusy;
 import static org.elasticsearch.test.ESTestCase.awaitBusy;
 import static org.elasticsearch.test.ESTestCase.getTestTransportType;
@@ -140,6 +144,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -485,11 +490,12 @@ public final class InternalTestCluster extends TestCluster {
 
     private synchronized NodeAndClient getOrBuildRandomNode() {
         ensureOpen();
-        NodeAndClient randomNodeAndClient = getRandomNodeAndClient();
+        final NodeAndClient randomNodeAndClient = getRandomNodeAndClient();
         if (randomNodeAndClient != null) {
             return randomNodeAndClient;
         }
-        NodeAndClient buildNode = buildNode(1);
+        final int ord = nextNodeId.getAndIncrement();
+        final NodeAndClient buildNode = buildNode(ord, random.nextLong(), null, false, 1, null);
         buildNode.startNode();
         publishNode(buildNode);
         return buildNode;
@@ -498,7 +504,6 @@ public final class InternalTestCluster extends TestCluster {
     private synchronized NodeAndClient getRandomNodeAndClient() {
         return getRandomNodeAndClient(nc -> true);
     }
-
 
     private synchronized NodeAndClient getRandomNodeAndClient(Predicate<NodeAndClient> predicate) {
         ensureOpen();
@@ -558,37 +563,27 @@ public final class InternalTestCluster extends TestCluster {
 
     /**
      * builds a new node given the settings.
-     *
-     * @param settings              the settings to use
+     *  @param settings              the settings to use
      * @param defaultMinMasterNodes min_master_nodes value to use if min_master_nodes is auto managed
+     * @param onTransportServiceStarted callback to run when transport service is started
      */
-    private NodeAndClient buildNode(Settings settings, int defaultMinMasterNodes) {
+    private NodeAndClient buildNode(Settings settings, int defaultMinMasterNodes, Runnable onTransportServiceStarted) {
         int ord = nextNodeId.getAndIncrement();
-        return buildNode(ord, random.nextLong(), settings, false, defaultMinMasterNodes);
-    }
-
-    /**
-     * builds a new node with default settings
-     *
-     * @param defaultMinMasterNodes min_master_nodes value to use if min_master_nodes is auto managed
-     */
-    private NodeAndClient buildNode(int defaultMinMasterNodes) {
-        int ord = nextNodeId.getAndIncrement();
-        return buildNode(ord, random.nextLong(), null, false, defaultMinMasterNodes);
+        return buildNode(ord, random.nextLong(), settings, false, defaultMinMasterNodes, onTransportServiceStarted);
     }
 
     /**
      * builds a new node
-     *
-     * @param nodeId                the node internal id (see {@link NodeAndClient#nodeAndClientId()}
+     *  @param nodeId                the node internal id (see {@link NodeAndClient#nodeAndClientId()}
      * @param seed                  the node's random seed
      * @param settings              the settings to use
      * @param reuseExisting         if a node with the same name is already part of {@link #nodes}, no new node will be built and
-     *                              the method will return the existing one
+*                              the method will return the existing one
      * @param defaultMinMasterNodes min_master_nodes value to use if min_master_nodes is auto managed
+     * @param onTransportServiceStarted callback to run when transport service is started
      */
     private NodeAndClient buildNode(int nodeId, long seed, Settings settings,
-                                    boolean reuseExisting, int defaultMinMasterNodes) {
+                                    boolean reuseExisting, int defaultMinMasterNodes, Runnable onTransportServiceStarted) {
         assert Thread.holdsLock(this);
         ensureOpen();
         settings = getSettings(nodeId, seed, settings);
@@ -625,11 +620,8 @@ public final class InternalTestCluster extends TestCluster {
             // we clone this here since in the case of a node restart we might need it again
             secureSettings = ((MockSecureSettings) secureSettings).clone();
         }
-        MockNode node = new MockNode(
-                finalSettings.build(),
-                plugins,
-                nodeConfigurationSource.nodeConfigPath(nodeId),
-                forbidPrivateIndexSettings);
+        MockNode node = new MockNode(finalSettings.build(), plugins, nodeConfigurationSource.nodeConfigPath(nodeId),
+            forbidPrivateIndexSettings, onTransportServiceStarted);
         try {
             IOUtils.close(secureSettings);
         } catch (IOException e) {
@@ -1054,11 +1046,14 @@ public final class InternalTestCluster extends TestCluster {
         final int numberOfMasterNodes = numSharedDedicatedMasterNodes > 0 ? numSharedDedicatedMasterNodes : numSharedDataNodes;
         final int defaultMinMasterNodes = (numberOfMasterNodes / 2) + 1;
         final List<NodeAndClient> toStartAndPublish = new ArrayList<>(); // we want to start nodes in one go due to min master nodes
+        final CountDownLatch transportServicesCountDown
+            = new CountDownLatch(numSharedDedicatedMasterNodes + numSharedDataNodes + numSharedCoordOnlyNodes);
         for (int i = 0; i < numSharedDedicatedMasterNodes; i++) {
             final Settings.Builder settings = Settings.builder();
             settings.put(Node.NODE_MASTER_SETTING.getKey(), true);
             settings.put(Node.NODE_DATA_SETTING.getKey(), false);
-            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes);
+            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
+                transportServicesCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
         for (int i = numSharedDedicatedMasterNodes; i < numSharedDedicatedMasterNodes + numSharedDataNodes; i++) {
@@ -1068,18 +1063,20 @@ public final class InternalTestCluster extends TestCluster {
                 settings.put(Node.NODE_MASTER_SETTING.getKey(), false).build();
                 settings.put(Node.NODE_DATA_SETTING.getKey(), true).build();
             }
-            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes);
+            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
+                transportServicesCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
         for (int i = numSharedDedicatedMasterNodes + numSharedDataNodes;
              i < numSharedDedicatedMasterNodes + numSharedDataNodes + numSharedCoordOnlyNodes; i++) {
             final Builder settings = Settings.builder().put(Node.NODE_MASTER_SETTING.getKey(), false)
                 .put(Node.NODE_DATA_SETTING.getKey(), false).put(Node.NODE_INGEST_SETTING.getKey(), false);
-            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes);
+            NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
+                transportServicesCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
 
-        startAndPublishNodesAndClients(toStartAndPublish);
+        startAndPublishNodesAndClients(toStartAndPublish, () -> awaitTransportServicesStartup(transportServicesCountDown));
 
         nextNodeId.set(newSize);
         assert size() == newSize;
@@ -1414,7 +1411,8 @@ public final class InternalTestCluster extends TestCluster {
         }
     }
 
-    private synchronized void startAndPublishNodesAndClients(List<NodeAndClient> nodeAndClients) {
+    private synchronized void startAndPublishNodesAndClients(List<NodeAndClient> nodeAndClients,
+                                                             @Nullable Runnable awaitTransportServicesStarted) {
         if (nodeAndClients.size() > 0) {
             final int newMasters = (int) nodeAndClients.stream().filter(NodeAndClient::isMasterEligible)
                 .filter(nac -> nodes.containsKey(nac.name) == false) // filter out old masters
@@ -1426,6 +1424,26 @@ public final class InternalTestCluster extends TestCluster {
                 updateMinMasterNodes(currentMasters + newMasters);
             }
             List<Future<?>> futures = nodeAndClients.stream().map(node -> executor.submit(node::startNode)).collect(Collectors.toList());
+
+            if (awaitTransportServicesStarted != null) { // TODO think we always want to do this, but WIP
+                awaitTransportServicesStarted.run();
+                try {
+                    List<String> discoveryFileContents = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
+                        .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
+                        .map(TransportService::getLocalNode).filter(Objects::nonNull)
+                        .map(n -> n.getAddress().toString())
+                        .distinct().collect(Collectors.toList());
+                    Set<Path> configPaths = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
+                        .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
+                    for (final Path configPath : configPaths) {
+                        Files.createDirectories(configPath);
+                        Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
+                    }
+                } catch (IOException e) {
+                    throw new AssertionError("failed to configure file-based discovery", e);
+                }
+            }
+
             try {
                 for (Future<?> future : futures) {
                     future.get();
@@ -1622,7 +1640,7 @@ public final class InternalTestCluster extends TestCluster {
             nodeAndClient.recreateNodeOnRestart(callback, false, autoManageMinMasterNodes ? getMinMasterNodes(getMasterNodesCount()) : -1);
         }
 
-        startAndPublishNodesAndClients(startUpOrder);
+        startAndPublishNodesAndClients(startUpOrder, null);
 
         if (callback.validateClusterForming()) {
             validateClusterFormed();
@@ -1727,6 +1745,14 @@ public final class InternalTestCluster extends TestCluster {
         return startNodes(Collections.nCopies(numOfNodes, settings).stream().toArray(Settings[]::new));
     }
 
+    private static void awaitTransportServicesStartup(CountDownLatch transportServicesCountDown) {
+        try {
+            assertTrue("transport service startup timed out", transportServicesCountDown.await(30L, TimeUnit.SECONDS));
+        } catch (InterruptedException e) {
+            throw new AssertionError(e);
+        }
+    }
+
     /**
      * Starts multiple nodes with the given settings and returns their names
      */
@@ -1739,10 +1765,14 @@ public final class InternalTestCluster extends TestCluster {
             defaultMinMasterNodes = -1;
         }
         List<NodeAndClient> nodes = new ArrayList<>();
+        CountDownLatch transportServicesCountDown = new CountDownLatch(settings.length);
         for (Settings nodeSettings: settings) {
-            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes));
+            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, () -> {
+                logger.warn("transport service started");
+                transportServicesCountDown.countDown();
+            }));
         }
-        startAndPublishNodesAndClients(nodes);
+        startAndPublishNodesAndClients(nodes, () -> awaitTransportServicesStartup(transportServicesCountDown));
         if (autoManageMinMasterNodes) {
             validateClusterFormed();
         }
