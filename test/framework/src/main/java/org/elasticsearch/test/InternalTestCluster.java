@@ -1436,7 +1436,7 @@ public final class InternalTestCluster extends TestCluster {
             try {
                 List<String> discoveryFileContents = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
                     .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
-                    .map(TransportService::getLocalNode).filter(Objects::nonNull)
+                    .map(TransportService::getLocalNode).filter(Objects::nonNull).filter(DiscoveryNode::isMasterNode)
                     .map(n -> n.getAddress().toString())
                     .distinct().collect(Collectors.toList());
                 Set<Path> configPaths = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
