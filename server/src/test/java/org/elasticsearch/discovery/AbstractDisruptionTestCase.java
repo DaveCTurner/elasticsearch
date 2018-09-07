@@ -123,6 +123,14 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
         configureCluster(numberOfNodes, unicastHostsOrdinals, minimumMasterNode);
         List<String> nodes = internalCluster().startNodes(numberOfNodes);
         ensureStableCluster(numberOfNodes);
+
+//        // TODO: this is a temporary solution so that nodes will not base their reaction to a partition based on previous successful results
+//        ZenPing zenPing = ((TestZenDiscovery) internalCluster().getInstance(Discovery.class)).getZenPing();
+//        if (zenPing instanceof UnicastZenPing) {
+//            ((UnicastZenPing) zenPing).clearTemporalResponses();
+//        }
+        // TODO reinstate this
+
         return nodes;
     }
 
