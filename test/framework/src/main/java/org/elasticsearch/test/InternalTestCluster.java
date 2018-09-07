@@ -498,7 +498,8 @@ public final class InternalTestCluster extends TestCluster {
             return randomNodeAndClient;
         }
         final int ord = nextNodeId.getAndIncrement();
-        final NodeAndClient buildNode = buildNode(ord, random.nextLong(), null, false, 1, null);
+        final Runnable onTransportServiceStarted = () -> {}; // do not create unicast host file for this one node.
+        final NodeAndClient buildNode = buildNode(ord, random.nextLong(), null, false, 1, onTransportServiceStarted);
         buildNode.startNode();
         publishNode(buildNode);
         return buildNode;
