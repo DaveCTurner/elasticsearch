@@ -596,6 +596,7 @@ public final class InternalTestCluster extends TestCluster {
         Collection<Class<? extends Plugin>> plugins = getPlugins();
         String name = buildNodeName(nodeId, settings);
         if (reuseExisting && nodes.containsKey(name)) {
+            onTransportServiceStarted.run(); // assume that node already started
             return nodes.get(name);
         } else {
             assert reuseExisting == true || nodes.containsKey(name) == false :
@@ -1484,12 +1485,12 @@ public final class InternalTestCluster extends TestCluster {
 
     private static void rebuildUnicastHostFiles(Collection<NodeAndClient> existingNodes, Collection<NodeAndClient> newNodes) {
         try {
-            List<String> discoveryFileContents = Stream.concat(newNodes.stream(), existingNodes.stream())
+            List<String> discoveryFileContents = Stream.concat(existingNodes.stream(), newNodes.stream())
                 .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
                 .map(TransportService::getLocalNode).filter(Objects::nonNull).filter(DiscoveryNode::isMasterNode)
                 .map(n -> n.getAddress().toString())
                 .distinct().collect(Collectors.toList());
-            Set<Path> configPaths = Stream.concat(newNodes.stream(), existingNodes.stream())
+            Set<Path> configPaths = Stream.concat(existingNodes.stream(), newNodes.stream())
                 .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
             for (final Path configPath : configPaths) {
                 Files.createDirectories(configPath);
