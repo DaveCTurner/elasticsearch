@@ -130,6 +130,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Collections.emptyList;
 import static org.apache.lucene.util.LuceneTestCase.TEST_NIGHTLY;
 import static org.apache.lucene.util.LuceneTestCase.rarely;
 import static org.elasticsearch.discovery.DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING;
@@ -902,14 +903,15 @@ public final class InternalTestCluster extends TestCluster {
             if (!node.isClosed()) {
                 closeNode();
             }
-            recreateNodeOnRestart(callback, clearDataIfNeeded, minMasterNodes);
+            recreateNodeOnRestart(callback, clearDataIfNeeded, minMasterNodes, () -> rebuildUnicastHostFiles(nodes.values(), emptyList()));
             startNode();
         }
 
         /**
          * rebuilds a new node object using the current node settings and starts it
          */
-        void recreateNodeOnRestart(RestartCallback callback, boolean clearDataIfNeeded, int minMasterNodes) throws Exception {
+        void recreateNodeOnRestart(RestartCallback callback, boolean clearDataIfNeeded, int minMasterNodes,
+                                   Runnable onTransportServiceStarted) throws Exception {
             assert callback != null;
             Settings callbackSettings = callback.onNodeStopped(name);
             Settings.Builder newSettings = Settings.builder();
@@ -923,7 +925,7 @@ public final class InternalTestCluster extends TestCluster {
             if (clearDataIfNeeded) {
                 clearDataIfNeeded(callback);
             }
-            createNewNode(newSettings.build());
+            createNewNode(newSettings.build(), onTransportServiceStarted);
             // make sure cached client points to new node
             resetClient();
         }
@@ -939,7 +941,7 @@ public final class InternalTestCluster extends TestCluster {
             }
         }
 
-        private void createNewNode(final Settings newSettings) {
+        private void createNewNode(final Settings newSettings, final Runnable onTransportServiceStarted) {
             final long newIdSeed = NodeEnvironment.NODE_ID_SEED_SETTING.get(node.settings()) + 1; // use a new seed to make sure we have new node id
             Settings finalSettings = Settings.builder().put(node.originalSettings()).put(newSettings).put(NodeEnvironment.NODE_ID_SEED_SETTING.getKey(), newIdSeed).build();
             if (DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING.exists(finalSettings) == false) {
@@ -947,7 +949,7 @@ public final class InternalTestCluster extends TestCluster {
                     " is not configured after restart of [" + name + "]");
             }
             Collection<Class<? extends Plugin>> plugins = node.getClasspathPlugins();
-            node = new MockNode(finalSettings, plugins);
+            node = new MockNode(finalSettings, plugins, null, true, onTransportServiceStarted);
             markNodeDataDirsAsNotEligableForWipe(node);
         }
 
@@ -1433,21 +1435,7 @@ public final class InternalTestCluster extends TestCluster {
             List<Future<?>> futures = nodeAndClients.stream().map(node -> executor.submit(node::startNode)).collect(Collectors.toList());
 
             awaitTransportServicesStarted.run();
-            try {
-                List<String> discoveryFileContents = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
-                    .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
-                    .map(TransportService::getLocalNode).filter(Objects::nonNull).filter(DiscoveryNode::isMasterNode)
-                    .map(n -> n.getAddress().toString())
-                    .distinct().collect(Collectors.toList());
-                Set<Path> configPaths = Stream.concat(nodeAndClients.stream(), nodes.values().stream())
-                    .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
-                for (final Path configPath : configPaths) {
-                    Files.createDirectories(configPath);
-                    Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
-                }
-            } catch (IOException e) {
-                throw new AssertionError("failed to configure file-based discovery", e);
-            }
+            rebuildUnicastHostFiles(nodes.values(), nodeAndClients);
 
             try {
                 for (Future<?> future : futures) {
@@ -1466,6 +1454,24 @@ public final class InternalTestCluster extends TestCluster {
                 validateClusterFormed();
                 updateMinMasterNodes(currentMasters + newMasters);
             }
+        }
+    }
+
+    private static void rebuildUnicastHostFiles(Collection<NodeAndClient> existingNodes, Collection<NodeAndClient> newNodes) {
+        try {
+            List<String> discoveryFileContents = Stream.concat(newNodes.stream(), existingNodes.stream())
+                .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
+                .map(TransportService::getLocalNode).filter(Objects::nonNull).filter(DiscoveryNode::isMasterNode)
+                .map(n -> n.getAddress().toString())
+                .distinct().collect(Collectors.toList());
+            Set<Path> configPaths = Stream.concat(newNodes.stream(), existingNodes.stream())
+                .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
+            for (final Path configPath : configPaths) {
+                Files.createDirectories(configPath);
+                Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
+            }
+        } catch (IOException e) {
+            throw new AssertionError("failed to configure file-based discovery", e);
         }
     }
 
@@ -1638,14 +1644,16 @@ public final class InternalTestCluster extends TestCluster {
         }
         assert nodesByRoles.values().stream().collect(Collectors.summingInt(List::size)) == 0;
 
-        // do two rounds to minimize pinging (mock zen pings pings with no delay and can create a lot of logs)
+        final CountDownLatch restartCountdown = new CountDownLatch(startUpOrder.size());
+
         for (NodeAndClient nodeAndClient : startUpOrder) {
             logger.info("resetting node [{}] ", nodeAndClient.name);
             // we already cleared data folders, before starting nodes up
-            nodeAndClient.recreateNodeOnRestart(callback, false, autoManageMinMasterNodes ? getMinMasterNodes(getMasterNodesCount()) : -1);
+            nodeAndClient.recreateNodeOnRestart(callback, false, autoManageMinMasterNodes ? getMinMasterNodes(getMasterNodesCount()) : -1,
+                restartCountdown::countDown);
         }
 
-        startAndPublishNodesAndClients(startUpOrder, null);
+        startAndPublishNodesAndClients(startUpOrder, () -> awaitTransportServicesStartup(restartCountdown));
 
         if (callback.validateClusterForming()) {
             validateClusterFormed();
@@ -1772,10 +1780,7 @@ public final class InternalTestCluster extends TestCluster {
         List<NodeAndClient> nodes = new ArrayList<>();
         CountDownLatch transportServicesCountDown = new CountDownLatch(settings.length);
         for (Settings nodeSettings : settings) {
-            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, () -> {
-                logger.warn("transport service started");
-                transportServicesCountDown.countDown();
-            }));
+            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, transportServicesCountDown::countDown));
         }
         startAndPublishNodesAndClients(nodes, () -> awaitTransportServicesStartup(transportServicesCountDown));
         if (autoManageMinMasterNodes) {
