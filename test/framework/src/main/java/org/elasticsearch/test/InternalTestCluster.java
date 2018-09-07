@@ -978,12 +978,12 @@ public final class InternalTestCluster extends TestCluster {
         }
 
         void countDown() {
-            logger.info("transport service started - {} to go", countDownLatch.getCount() - 1);
+            logger.info("transport service started: {} of {} remaining", countDownLatch.getCount() - 1, initialCount);
             countDownLatch.countDown();
         }
 
         void await() {
-            logger.info("waiting for all {} transport services to start - {} to go", initialCount, countDownLatch.getCount());
+            logger.info("waiting for all transport services to start: {} of {} remaining", countDownLatch.getCount(), initialCount);
             try {
                 assertTrue("transport service startup timed out", countDownLatch.await(30L, TimeUnit.SECONDS));
             } catch (InterruptedException e) {

@@ -74,25 +74,25 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
 
     public void testNoShardRelocationsOccurWhenElectedMasterNodeFails() throws Exception {
         Settings defaultSettings = Settings.builder()
-                .put(FaultDetection.PING_TIMEOUT_SETTING.getKey(), "1s")
-                .put(FaultDetection.PING_RETRIES_SETTING.getKey(), "1")
-                .build();
+            .put(FaultDetection.PING_TIMEOUT_SETTING.getKey(), "1s")
+            .put(FaultDetection.PING_RETRIES_SETTING.getKey(), "1")
+            .build();
 
         Settings masterNodeSettings = Settings.builder()
-                .put(Node.NODE_DATA_SETTING.getKey(), false)
-                .put(defaultSettings)
-                .build();
+            .put(Node.NODE_DATA_SETTING.getKey(), false)
+            .put(defaultSettings)
+            .build();
         internalCluster().startNodes(2, masterNodeSettings);
         Settings dateNodeSettings = Settings.builder()
-                .put(Node.NODE_MASTER_SETTING.getKey(), false)
-                .put(defaultSettings)
-                .build();
+            .put(Node.NODE_MASTER_SETTING.getKey(), false)
+            .put(defaultSettings)
+            .build();
         internalCluster().startNodes(2, dateNodeSettings);
         ClusterHealthResponse clusterHealthResponse = client().admin().cluster().prepareHealth()
-                .setWaitForEvents(Priority.LANGUID)
-                .setWaitForNodes("4")
-                .setWaitForNoRelocatingShards(true)
-                .get();
+            .setWaitForEvents(Priority.LANGUID)
+            .setWaitForNodes("4")
+            .setWaitForNoRelocatingShards(true)
+            .get();
         assertThat(clusterHealthResponse.isTimedOut(), is(false));
 
         createIndex("test");
@@ -116,19 +116,19 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
 
     public void testNodeFailuresAreProcessedOnce() throws ExecutionException, InterruptedException, IOException {
         Settings defaultSettings = Settings.builder()
-                .put(FaultDetection.PING_TIMEOUT_SETTING.getKey(), "1s")
-                .put(FaultDetection.PING_RETRIES_SETTING.getKey(), "1")
-                .build();
+            .put(FaultDetection.PING_TIMEOUT_SETTING.getKey(), "1s")
+            .put(FaultDetection.PING_RETRIES_SETTING.getKey(), "1")
+            .build();
 
         Settings masterNodeSettings = Settings.builder()
-                .put(Node.NODE_DATA_SETTING.getKey(), false)
-                .put(defaultSettings)
-                .build();
+            .put(Node.NODE_DATA_SETTING.getKey(), false)
+            .put(defaultSettings)
+            .build();
         String master = internalCluster().startNode(masterNodeSettings);
         Settings dateNodeSettings = Settings.builder()
-                .put(Node.NODE_MASTER_SETTING.getKey(), false)
-                .put(defaultSettings)
-                .build();
+            .put(Node.NODE_MASTER_SETTING.getKey(), false)
+            .put(defaultSettings)
+            .build();
         internalCluster().startNodes(2, dateNodeSettings);
         client().admin().cluster().prepareHealth().setWaitForNodes("3").get();
 
@@ -170,8 +170,8 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
         assert node != null;
 
         DiscoveryNodes.Builder nodes = DiscoveryNodes.builder(state.nodes())
-                .add(new DiscoveryNode("abc", buildNewFakeTransportAddress(), emptyMap(),
-                        emptySet(), Version.CURRENT)).masterNodeId("abc");
+            .add(new DiscoveryNode("abc", buildNewFakeTransportAddress(), emptyMap(),
+                emptySet(), Version.CURRENT)).masterNodeId("abc");
         ClusterState.Builder builder = ClusterState.builder(state);
         builder.nodes(nodes);
         BytesReference bytes = PublishClusterStateAction.serializeFullClusterState(builder.build(), node.getVersion());
@@ -179,25 +179,25 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Exception> reference = new AtomicReference<>();
         internalCluster().getInstance(TransportService.class, noneMasterNode).sendRequest(node, PublishClusterStateAction.SEND_ACTION_NAME,
-                new BytesTransportRequest(bytes, Version.CURRENT), new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
+            new BytesTransportRequest(bytes, Version.CURRENT), new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
 
-            @Override
-            public void handleResponse(TransportResponse.Empty response) {
-                super.handleResponse(response);
-                latch.countDown();
-            }
+                @Override
+                public void handleResponse(TransportResponse.Empty response) {
+                    super.handleResponse(response);
+                    latch.countDown();
+                }
 
-            @Override
-            public void handleException(TransportException exp) {
-                super.handleException(exp);
-                reference.set(exp);
-                latch.countDown();
-            }
-        });
+                @Override
+                public void handleException(TransportException exp) {
+                    super.handleException(exp);
+                    reference.set(exp);
+                    latch.countDown();
+                }
+            });
         latch.await();
         assertThat(reference.get(), notNullValue());
         assertThat(ExceptionsHelper.detailedMessage(reference.get()),
-                containsString("cluster state from a different master than the current one, rejecting"));
+            containsString("cluster state from a different master than the current one, rejecting"));
     }
 
     public void testHandleNodeJoin_incompatibleClusterState() throws UnknownHostException {
@@ -252,19 +252,19 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
 
     public void testDiscoveryStats() throws Exception {
         String expectedStatsJsonResponse = "{\n" +
-                "  \"discovery\" : {\n" +
-                "    \"cluster_state_queue\" : {\n" +
-                "      \"total\" : 0,\n" +
-                "      \"pending\" : 0,\n" +
-                "      \"committed\" : 0\n" +
-                "    },\n" +
-                "    \"published_cluster_states\" : {\n" +
-                "      \"full_states\" : 0,\n" +
-                "      \"incompatible_diffs\" : 0,\n" +
-                "      \"compatible_diffs\" : 0\n" +
-                "    }\n" +
-                "  }\n" +
-                "}";
+            "  \"discovery\" : {\n" +
+            "    \"cluster_state_queue\" : {\n" +
+            "      \"total\" : 0,\n" +
+            "      \"pending\" : 0,\n" +
+            "      \"committed\" : 0\n" +
+            "    },\n" +
+            "    \"published_cluster_states\" : {\n" +
+            "      \"full_states\" : 0,\n" +
+            "      \"incompatible_diffs\" : 0,\n" +
+            "      \"compatible_diffs\" : 0\n" +
+            "    }\n" +
+            "  }\n" +
+            "}";
 
         internalCluster().startNode();
         ensureGreen(); // ensures that all events are processed (in particular state recovery fully completed)
