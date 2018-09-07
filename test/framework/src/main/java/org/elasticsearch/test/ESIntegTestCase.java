@@ -1922,7 +1922,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             networkSettings.put(NetworkModule.TRANSPORT_TYPE_KEY, getTestTransportType());
         }
 
-        NodeConfigurationSource nodeConfigurationSource = new NodeConfigurationSource() {
+        return new NodeConfigurationSource() {
             @Override
             public Settings nodeSettings(int nodeOrdinal) {
                 return Settings.builder()
@@ -1956,7 +1956,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 return Collections.unmodifiableCollection(plugins);
             }
         };
-        return nodeConfigurationSource;
     }
 
     /**

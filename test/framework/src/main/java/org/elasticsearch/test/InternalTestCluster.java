@@ -905,7 +905,7 @@ public final class InternalTestCluster extends TestCluster {
             if (!node.isClosed()) {
                 closeNode();
             }
-            recreateNodeOnRestart(callback, clearDataIfNeeded, minMasterNodes, () -> rebuildUnicastHostFiles(nodes.values(), emptyList()));
+            recreateNodeOnRestart(callback, clearDataIfNeeded, minMasterNodes, () -> rebuildUnicastHostFiles(emptyList()));
             startNode();
         }
 
@@ -978,8 +978,8 @@ public final class InternalTestCluster extends TestCluster {
         }
 
         void countDown() {
+            logger.info("transport service started - {} to go", countDownLatch.getCount() - 1);
             countDownLatch.countDown();
-            logger.info("transport service started - {} to go", countDownLatch.getCount());
         }
 
         void await() {
@@ -1461,7 +1461,7 @@ public final class InternalTestCluster extends TestCluster {
             List<Future<?>> futures = nodeAndClients.stream().map(node -> executor.submit(node::startNode)).collect(Collectors.toList());
 
             awaitTransportServicesStarted.run();
-            rebuildUnicastHostFiles(nodes.values(), nodeAndClients);
+            rebuildUnicastHostFiles(nodeAndClients);
 
             try {
                 for (Future<?> future : futures) {
@@ -1483,15 +1483,16 @@ public final class InternalTestCluster extends TestCluster {
         }
     }
 
-    private static void rebuildUnicastHostFiles(Collection<NodeAndClient> existingNodes, Collection<NodeAndClient> newNodes) {
+    private void rebuildUnicastHostFiles(Collection<NodeAndClient> newNodes) {
         try {
-            List<String> discoveryFileContents = Stream.concat(existingNodes.stream(), newNodes.stream())
+            List<String> discoveryFileContents = Stream.concat(nodes.values().stream(), newNodes.stream())
                 .map(nac -> nac.node.injector().getInstance(TransportService.class)).filter(Objects::nonNull)
                 .map(TransportService::getLocalNode).filter(Objects::nonNull).filter(DiscoveryNode::isMasterNode)
                 .map(n -> n.getAddress().toString())
                 .distinct().collect(Collectors.toList());
-            Set<Path> configPaths = Stream.concat(existingNodes.stream(), newNodes.stream())
+            Set<Path> configPaths = Stream.concat(nodes.values().stream(), newNodes.stream())
                 .map(nac -> nac.node.getEnvironment().configFile()).collect(Collectors.toSet());
+            logger.info("configuring discovery with {} at {}", discoveryFileContents, configPaths);
             for (final Path configPath : configPaths) {
                 Files.createDirectories(configPath);
                 Files.write(configPath.resolve(UNICAST_HOSTS_FILE), discoveryFileContents); // TODO do we need to do this atomically?
