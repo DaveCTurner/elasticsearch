@@ -77,7 +77,7 @@ public class MockNode extends Node {
         final Settings settings,
         final Collection<Class<? extends Plugin>> classpathPlugins,
         final boolean forbidPrivateIndexSettings) {
-        this(settings, classpathPlugins, null, forbidPrivateIndexSettings, null);
+        this(settings, classpathPlugins, null, forbidPrivateIndexSettings, () -> {});
     }
 
     public MockNode(
