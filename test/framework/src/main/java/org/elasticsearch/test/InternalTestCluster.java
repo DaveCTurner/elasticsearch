@@ -967,6 +967,31 @@ public final class InternalTestCluster extends TestCluster {
 
     public static final String TRANSPORT_CLIENT_PREFIX = "transport_client_";
 
+    private class TransportServiceStartupCountDown {
+        private final int initialCount;
+        private final CountDownLatch countDownLatch;
+
+        TransportServiceStartupCountDown(int count) {
+            initialCount = count;
+            countDownLatch = new CountDownLatch(count);
+        }
+
+        void countDown() {
+            countDownLatch.countDown();
+            logger.info("transport service started - {} to go", countDownLatch.getCount());
+        }
+
+        void await() {
+            logger.info("waiting for all {} transport services to start - {} to go", initialCount, countDownLatch.getCount());
+            try {
+                assertTrue("transport service startup timed out", countDownLatch.await(30L, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                throw new AssertionError(e);
+            }
+            logger.info("all {} transport services started", initialCount);
+        }
+    }
+
     static class TransportClientFactory {
         private final boolean sniff;
         private final Settings settings;
@@ -1053,14 +1078,13 @@ public final class InternalTestCluster extends TestCluster {
         final int numberOfMasterNodes = numSharedDedicatedMasterNodes > 0 ? numSharedDedicatedMasterNodes : numSharedDataNodes;
         final int defaultMinMasterNodes = (numberOfMasterNodes / 2) + 1;
         final List<NodeAndClient> toStartAndPublish = new ArrayList<>(); // we want to start nodes in one go due to min master nodes
-        final CountDownLatch transportServicesCountDown
-            = new CountDownLatch(numSharedDedicatedMasterNodes + numSharedDataNodes + numSharedCoordOnlyNodes);
+        final TransportServiceStartupCountDown transportServiceStartupCountDown = new TransportServiceStartupCountDown(newSize);
         for (int i = 0; i < numSharedDedicatedMasterNodes; i++) {
             final Settings.Builder settings = Settings.builder();
             settings.put(Node.NODE_MASTER_SETTING.getKey(), true);
             settings.put(Node.NODE_DATA_SETTING.getKey(), false);
             NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
-                transportServicesCountDown::countDown);
+                transportServiceStartupCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
         for (int i = numSharedDedicatedMasterNodes; i < numSharedDedicatedMasterNodes + numSharedDataNodes; i++) {
@@ -1071,7 +1095,7 @@ public final class InternalTestCluster extends TestCluster {
                 settings.put(Node.NODE_DATA_SETTING.getKey(), true).build();
             }
             NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
-                transportServicesCountDown::countDown);
+                transportServiceStartupCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
         for (int i = numSharedDedicatedMasterNodes + numSharedDataNodes;
@@ -1079,11 +1103,11 @@ public final class InternalTestCluster extends TestCluster {
             final Builder settings = Settings.builder().put(Node.NODE_MASTER_SETTING.getKey(), false)
                 .put(Node.NODE_DATA_SETTING.getKey(), false).put(Node.NODE_INGEST_SETTING.getKey(), false);
             NodeAndClient nodeAndClient = buildNode(i, sharedNodesSeeds[i], settings.build(), true, defaultMinMasterNodes,
-                transportServicesCountDown::countDown);
+                transportServiceStartupCountDown::countDown);
             toStartAndPublish.add(nodeAndClient);
         }
 
-        startAndPublishNodesAndClients(toStartAndPublish, () -> awaitTransportServicesStartup(transportServicesCountDown));
+        startAndPublishNodesAndClients(toStartAndPublish, transportServiceStartupCountDown::await);
 
         nextNodeId.set(newSize);
         assert size() == newSize;
@@ -1645,16 +1669,15 @@ public final class InternalTestCluster extends TestCluster {
         }
         assert nodesByRoles.values().stream().collect(Collectors.summingInt(List::size)) == 0;
 
-        final CountDownLatch restartCountdown = new CountDownLatch(startUpOrder.size());
-
+        final TransportServiceStartupCountDown transportServiceStartupCountDown = new TransportServiceStartupCountDown(startUpOrder.size());
         for (NodeAndClient nodeAndClient : startUpOrder) {
             logger.info("resetting node [{}] ", nodeAndClient.name);
             // we already cleared data folders, before starting nodes up
             nodeAndClient.recreateNodeOnRestart(callback, false, autoManageMinMasterNodes ? getMinMasterNodes(getMasterNodesCount()) : -1,
-                restartCountdown::countDown);
+                transportServiceStartupCountDown::countDown);
         }
 
-        startAndPublishNodesAndClients(startUpOrder, () -> awaitTransportServicesStartup(restartCountdown));
+        startAndPublishNodesAndClients(startUpOrder, transportServiceStartupCountDown::await);
 
         if (callback.validateClusterForming()) {
             validateClusterFormed();
@@ -1759,14 +1782,6 @@ public final class InternalTestCluster extends TestCluster {
         return startNodes(Collections.nCopies(numOfNodes, settings).stream().toArray(Settings[]::new));
     }
 
-    private static void awaitTransportServicesStartup(CountDownLatch transportServicesCountDown) {
-        try {
-            assertTrue("transport service startup timed out", transportServicesCountDown.await(30L, TimeUnit.SECONDS));
-        } catch (InterruptedException e) {
-            throw new AssertionError(e);
-        }
-    }
-
     /**
      * Starts multiple nodes with the given settings and returns their names
      */
@@ -1779,11 +1794,11 @@ public final class InternalTestCluster extends TestCluster {
             defaultMinMasterNodes = -1;
         }
         List<NodeAndClient> nodes = new ArrayList<>();
-        CountDownLatch transportServicesCountDown = new CountDownLatch(settings.length);
+        TransportServiceStartupCountDown transportServiceStartupCountDown = new TransportServiceStartupCountDown(settings.length);
         for (Settings nodeSettings : settings) {
-            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, transportServicesCountDown::countDown));
+            nodes.add(buildNode(nodeSettings, defaultMinMasterNodes, transportServiceStartupCountDown::countDown));
         }
-        startAndPublishNodesAndClients(nodes, () -> awaitTransportServicesStartup(transportServicesCountDown));
+        startAndPublishNodesAndClients(nodes, transportServiceStartupCountDown::await);
         if (autoManageMinMasterNodes) {
             validateClusterFormed();
         }
