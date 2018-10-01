@@ -107,10 +107,11 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
             throw new NotMasterException("Node [" + currentNodes.getLocalNode() + "] not master for join request");
         } else {
             newState = ClusterState.builder(currentState);
-            logger.trace("already master, newState.nodes() = {}", newState.nodes());
+            logger.trace("already master, newState.nodes() = {}\n{}", newState.nodes(), newState.nodes().toStringDetailed());
         }
 
         DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder(newState.nodes());
+        logger.trace("nodesBuilder: {}", nodesBuilder.toStringDetailed());
 
         assert nodesBuilder.isLocalNodeElectedMaster();
 
@@ -137,6 +138,7 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
                     ensureIndexCompatibility(node.getVersion(), currentState.getMetaData());
                     nodesBuilder.add(node);
                     logger.trace("processed joinTask {}", joinTask);
+                    logger.trace("nodesBuilder: {}", nodesBuilder.toStringDetailed());
                     nodesChanged = true;
                     minClusterNodeVersion = Version.min(minClusterNodeVersion, node.getVersion());
                     maxClusterNodeVersion = Version.max(maxClusterNodeVersion, node.getVersion());
@@ -150,7 +152,7 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
         if (nodesChanged) {
             newState.nodes(nodesBuilder);
             final ClusterState finalState = newState.build();
-            logger.trace("finalState.nodes = {}", finalState.nodes());
+            logger.trace("finalState.nodes = {}\n{}", finalState.nodes(), finalState.nodes().toStringDetailed());
             return results.build(allocationService.reroute(finalState, "node_join"));
         } else {
             // we must return a new cluster state instance to force publishing. This is important

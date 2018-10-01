@@ -175,6 +175,13 @@ public final class ImmutableOpenMap<KType, VType> implements Iterable<ObjectObje
         return map.toString();
     }
 
+    public String toStringDetailed() {
+        StringBuilder stringBuilder = new StringBuilder();
+        map.iterator().forEachRemaining(obj -> stringBuilder.append(obj).append(", "));
+        stringBuilder.append(map.visualizeKeyDistribution(1000));
+        return stringBuilder.toString();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

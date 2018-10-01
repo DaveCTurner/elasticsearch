@@ -248,7 +248,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
 
     /**
      * Returns the version of the node with the oldest version in the cluster that is not a client node
-     *
+     * <p>
      * If there are no non-client nodes, Version.CURRENT will be returned.
      *
      * @return the oldest version in the cluster
@@ -259,7 +259,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
 
     /**
      * Returns the version of the node with the youngest version in the cluster that is not a client node.
-     *
+     * <p>
      * If there are no non-client nodes, Version.CURRENT will be returned.
      *
      * @return the youngest version in the cluster
@@ -311,7 +311,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
      * - a node id
      * - a wild card pattern that will be matched against node names
      * - a "attr:value" pattern, where attr can be a node role (master, data, ingest etc.) in which case the value can be true or false,
-     *   or a generic node attribute name in which case value will be treated as a wildcard and matched against the node attribute values.
+     * or a generic node attribute name in which case value will be treated as a wildcard and matched against the node attribute values.
      */
     public String[] resolveNodes(String... nodes) {
         if (nodes == null || nodes.length == 0) {
@@ -334,9 +334,9 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
                 } else {
                     for (DiscoveryNode node : this) {
                         if ("_all".equals(nodeId)
-                                || Regex.simpleMatch(nodeId, node.getName())
-                                || Regex.simpleMatch(nodeId, node.getHostAddress())
-                                || Regex.simpleMatch(nodeId, node.getHostName())) {
+                            || Regex.simpleMatch(nodeId, node.getName())
+                            || Regex.simpleMatch(nodeId, node.getHostAddress())
+                            || Regex.simpleMatch(nodeId, node.getHostName())) {
                             resolvedNodesIds.add(node.getId());
                         }
                     }
@@ -431,13 +431,15 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
     public static class Delta {
 
         private final String localNodeId;
-        @Nullable private final DiscoveryNode previousMasterNode;
-        @Nullable private final DiscoveryNode newMasterNode;
+        @Nullable
+        private final DiscoveryNode previousMasterNode;
+        @Nullable
+        private final DiscoveryNode newMasterNode;
         private final List<DiscoveryNode> removed;
         private final List<DiscoveryNode> added;
 
         private Delta(@Nullable DiscoveryNode previousMasterNode, @Nullable DiscoveryNode newMasterNode, String localNodeId,
-                     List<DiscoveryNode> removed, List<DiscoveryNode> added) {
+                      List<DiscoveryNode> removed, List<DiscoveryNode> added) {
             this.previousMasterNode = previousMasterNode;
             this.newMasterNode = newMasterNode;
             this.localNodeId = localNodeId;
@@ -571,11 +573,22 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
         return new Builder(nodes);
     }
 
+    public String toStringDetailed() {
+        return nodes.toStringDetailed();
+    }
+
     public static class Builder {
 
         private final ImmutableOpenMap.Builder<String, DiscoveryNode> nodes;
         private String masterNodeId;
         private String localNodeId;
+
+        public String toStringDetailed() {
+            StringBuilder stringBuilder = new StringBuilder();
+            nodes.iterator().forEachRemaining(obj -> stringBuilder.append(obj).append(", "));
+            stringBuilder.append(nodes.visualizeKeyDistribution(1000));
+            return stringBuilder.toString();
+        }
 
         public Builder() {
             nodes = ImmutableOpenMap.builder();
@@ -606,7 +619,8 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
          * @param nodeId id of the wanted node
          * @return wanted node if it exists. Otherwise <code>null</code>
          */
-        @Nullable public DiscoveryNode get(String nodeId) {
+        @Nullable
+        public DiscoveryNode get(String nodeId) {
             return nodes.get(nodeId);
         }
 
@@ -641,7 +655,7 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
          * Checks that a node can be safely added to this node collection.
          *
          * @return null if all is OK or an error message explaining why a node can not be added.
-         *
+         * <p>
          * Note: if this method returns a non-null value, calling {@link #add(DiscoveryNode)} will fail with an
          * exception
          */

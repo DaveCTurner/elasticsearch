@@ -31,6 +31,7 @@ import org.elasticsearch.cluster.coordination.CoordinatorTests.Cluster.ClusterNo
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNode.Role;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.node.DiscoveryNodes.Builder;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.UUIDs;
@@ -85,6 +86,73 @@ import static org.hamcrest.Matchers.not;
 
 @TestLogging("org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.discovery:TRACE")
 public class CoordinatorTests extends ESTestCase {
+
+    public void testDiscoveryNodesIterationOrder() {
+        final Cluster cluster = new Cluster(3);
+        final List<DiscoveryNode> nodesInOrderAdded = cluster.clusterNodes.stream().map(ClusterNode::getLocalNode).collect(Collectors.toList());
+        final Builder originalBuilder = DiscoveryNodes.builder();
+        nodesInOrderAdded.forEach(originalBuilder::add);
+        final List<DiscoveryNode> expectedOrder = new ArrayList<>();
+        originalBuilder.build().iterator().forEachRemaining(expectedOrder::add);
+
+        for (int i = 0; i < 1000; i++) {
+            final Builder builder = DiscoveryNodes.builder();
+            nodesInOrderAdded.forEach(builder::add);
+            final List<DiscoveryNode> actualOrder = new ArrayList<>();
+            builder.build().iterator().forEachRemaining(actualOrder::add);
+            assertThat(actualOrder, equalTo(expectedOrder));
+        }
+    }
+
+    public void testDiscoveryNodesIterationOrder2() {
+        final Cluster cluster = new Cluster(3);
+        final List<DiscoveryNode> nodesInOrderAdded = cluster.clusterNodes.stream().map(ClusterNode::getLocalNode).collect(Collectors.toList());
+        final DiscoveryNodes originalNodes = DiscoveryNodes.builder().add(nodesInOrderAdded.get(0)).add(nodesInOrderAdded.get(1)).build();
+
+        final List<DiscoveryNode> expectedOrder = new ArrayList<>();
+        DiscoveryNodes.builder(originalNodes).add(nodesInOrderAdded.get(2)).build().iterator().forEachRemaining(expectedOrder::add);
+
+        for (int i = 0; i < 1000; i++) {
+            final List<DiscoveryNode> actualOrder = new ArrayList<>(3);
+            DiscoveryNodes.builder(originalNodes).add(nodesInOrderAdded.get(2)).build().iterator().forEachRemaining(actualOrder::add);
+            assertThat(actualOrder, equalTo(expectedOrder));
+        }
+    }
+
+    private List<Integer> enumerateDiscoveryNodesAndGetHashCodes(List<DiscoveryNode> discoveryNodes) {
+        final DiscoveryNode origNode0 = discoveryNodes.get(0);
+        final DiscoveryNode origNode1 = discoveryNodes.get(1);
+        final DiscoveryNode origNode2 = discoveryNodes.get(2);
+
+        final DiscoveryNodes firstTwoNodes = DiscoveryNodes.builder()
+            .add(new DiscoveryNode(randomAlphaOfLength(10), origNode0.getId(), origNode0.getEphemeralId(), randomAlphaOfLength(10),
+                randomAlphaOfLength(10), buildNewFakeTransportAddress(), // give it a new transport address each time
+                origNode0.getAttributes(), origNode0.getRoles(), origNode0.getVersion()))
+            .add(new DiscoveryNode(randomAlphaOfLength(10), origNode1.getId(), origNode1.getEphemeralId(), randomAlphaOfLength(10),
+                randomAlphaOfLength(10), buildNewFakeTransportAddress(), // give it a new transport address each time
+                origNode1.getAttributes(), origNode1.getRoles(), origNode1.getVersion()))
+            .build();
+
+        final DiscoveryNodes allNodes = DiscoveryNodes.builder(firstTwoNodes)
+            .add(new DiscoveryNode(randomAlphaOfLength(10), origNode2.getId(), origNode2.getEphemeralId(), randomAlphaOfLength(10),
+                randomAlphaOfLength(10), buildNewFakeTransportAddress(), // give it a new transport address each time
+                origNode2.getAttributes(), origNode2.getRoles(), origNode2.getVersion()))
+            .build();
+        final List<DiscoveryNode> actualOrder = new ArrayList<>(3);
+        allNodes.iterator().forEachRemaining(actualOrder::add);
+        return actualOrder.stream().map(DiscoveryNode::hashCode).collect(Collectors.toList());
+    }
+
+    public void testDiscoveryNodesIterationOrder4() {
+        final Cluster cluster = new Cluster(3);
+        final List<DiscoveryNode> nodesInOrderAdded = cluster.clusterNodes.stream().map(ClusterNode::getLocalNode).collect(Collectors.toList());
+        final List<Integer> expectedHashCodes = enumerateDiscoveryNodesAndGetHashCodes(nodesInOrderAdded);
+        assertThat(expectedHashCodes.size(), is(3));
+        for (int i = 0; i < 1000; i++) {
+            final List<Integer> actualHashCodes = enumerateDiscoveryNodesAndGetHashCodes(nodesInOrderAdded);
+            assertThat("try " + i, actualHashCodes, equalTo(expectedHashCodes));
+        }
+    }
 
     public void testCanUpdateClusterStateAfterStabilisation() {
         final Cluster cluster = new Cluster(randomIntBetween(1, 5));
