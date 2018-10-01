@@ -147,6 +147,8 @@ public abstract class TaskBatcher {
                     return tasks.isEmpty() ? entry.getKey() : entry.getKey() + "[" + tasks + "]";
                 }).reduce((s1, s2) -> s1 + ", " + s2).orElse("");
 
+                logger.debug("executing task batch {}", toExecute);
+
                 run(updateTask.batchingKey, toExecute, tasksSummary);
             }
         }

@@ -291,6 +291,7 @@ public class JoinHelper extends AbstractComponent {
                 });
                 pendingAsTasks.put(JoinTaskExecutor.newFinishElectionTask(), (source, e) -> {
                 });
+                logger.debug("closing CandidateJoinAccumulator, newMode={}, pendingAsTasks={}", newMode, pendingAsTasks);
                 masterService.submitStateUpdateTasks(stateUpdateSource, pendingAsTasks, ClusterStateTaskConfig.build(Priority.URGENT),
                     joinTaskExecutor);
             } else {
