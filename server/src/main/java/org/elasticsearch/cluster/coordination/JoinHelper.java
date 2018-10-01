@@ -287,10 +287,27 @@ public class JoinHelper extends AbstractComponent {
 
                 final String stateUpdateSource = "elected-as-master ([" + pendingAsTasks.size() + "] nodes joined)";
 
-                pendingAsTasks.put(JoinTaskExecutor.newBecomeMasterTask(), (source, e) -> {
+                pendingAsTasks.put(JoinTaskExecutor.newBecomeMasterTask(), new ClusterStateTaskListener() {
+                    @Override
+                    public void onFailure(String source, Exception e) {
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "become master task from CandidateJoinAccumulator";
+                    }
                 });
-                pendingAsTasks.put(JoinTaskExecutor.newFinishElectionTask(), (source, e) -> {
+                pendingAsTasks.put(JoinTaskExecutor.newFinishElectionTask(), new ClusterStateTaskListener() {
+                    @Override
+                    public void onFailure(String source, Exception e) {
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "finish election task from CandidateJoinAccumulator";
+                    }
                 });
+
                 logger.debug("closing CandidateJoinAccumulator, newMode={}, pendingAsTasks={}", newMode, pendingAsTasks);
                 masterService.submitStateUpdateTasks(stateUpdateSource, pendingAsTasks, ClusterStateTaskConfig.build(Priority.URGENT),
                     joinTaskExecutor);

@@ -89,6 +89,8 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
         boolean nodesChanged = false;
         ClusterState.Builder newState;
 
+        logger.trace("currentNodes = {}", currentNodes);
+
         if (joiningNodes.size() == 1 && joiningNodes.get(0).isFinishElectionTask()) {
             return results.successes(joiningNodes).build(currentState);
         } else if (currentNodes.getMasterNode() == null && joiningNodes.stream().anyMatch(Task::isBecomeMasterTask)) {
@@ -98,12 +100,14 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
             // Note that we don't have to do any validation of the amount of joining nodes - the commit
             // during the cluster state publishing guarantees that we have enough
             newState = becomeMasterAndTrimConflictingNodes(currentState, joiningNodes);
+            logger.trace("becoming master, newState.nodes() = {}", newState.nodes());
             nodesChanged = true;
         } else if (currentNodes.isLocalNodeElectedMaster() == false) {
             logger.trace("processing node joins, but we are not the master. current master: {}", currentNodes.getMasterNode());
             throw new NotMasterException("Node [" + currentNodes.getLocalNode() + "] not master for join request");
         } else {
             newState = ClusterState.builder(currentState);
+            logger.trace("already master, newState.nodes() = {}", newState.nodes());
         }
 
         DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder(newState.nodes());
@@ -116,6 +120,7 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
         final boolean enforceMajorVersion = currentState.getBlocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK) == false;
         // processing any joins
         for (final Task joinTask : joiningNodes) {
+            logger.trace("processing joinTask {}", joinTask);
             if (joinTask.isBecomeMasterTask() || joinTask.isFinishElectionTask()) {
                 // noop
             } else if (currentNodes.nodeExists(joinTask.node())) {
@@ -131,6 +136,7 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
                     // we have to reject nodes that don't support all indices we have in this cluster
                     ensureIndexCompatibility(node.getVersion(), currentState.getMetaData());
                     nodesBuilder.add(node);
+                    logger.trace("processed joinTask {}, nodes now", joinTask, nodesBuilder.build());
                     nodesChanged = true;
                     minClusterNodeVersion = Version.min(minClusterNodeVersion, node.getVersion());
                     maxClusterNodeVersion = Version.max(maxClusterNodeVersion, node.getVersion());
@@ -143,11 +149,15 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
         }
         if (nodesChanged) {
             newState.nodes(nodesBuilder);
-            return results.build(allocationService.reroute(newState.build(), "node_join"));
+            final ClusterState finalState = newState.build();
+            logger.trace("finalState.nodes = {}", finalState.nodes());
+            return results.build(allocationService.reroute(finalState, "node_join"));
         } else {
             // we must return a new cluster state instance to force publishing. This is important
             // for the joining node to finalize its join and set us as a master
-            return results.build(newState.build());
+            final ClusterState finalState = newState.build();
+            logger.trace("finalState.nodes = {}", finalState.nodes());
+            return results.build(finalState);
         }
     }
 
