@@ -136,7 +136,7 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
                     // we have to reject nodes that don't support all indices we have in this cluster
                     ensureIndexCompatibility(node.getVersion(), currentState.getMetaData());
                     nodesBuilder.add(node);
-                    logger.trace("processed joinTask {}, nodes now", joinTask, nodesBuilder.build());
+                    logger.trace("processed joinTask {}", joinTask);
                     nodesChanged = true;
                     minClusterNodeVersion = Version.min(minClusterNodeVersion, node.getVersion());
                     maxClusterNodeVersion = Version.max(maxClusterNodeVersion, node.getVersion());
