@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher.AckListener;
 import org.elasticsearch.cluster.coordination.CoordinationState.PersistedState;
 import org.elasticsearch.cluster.coordination.CoordinationStateTests.InMemoryPersistedState;
+import org.elasticsearch.cluster.coordination.Coordinator.Mode;
 import org.elasticsearch.cluster.coordination.CoordinatorTests.Cluster.ClusterNode;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNode.Role;
@@ -95,7 +96,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
-@TestLogging("org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.discovery:TRACE")
+//@TestLogging("org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.discovery:TRACE")
 public class CoordinatorTests extends ESTestCase {
 
     @Before
@@ -597,6 +598,23 @@ public class CoordinatorTests extends ESTestCase {
 
             runUntil(stabilisationEndTime);
 
+            // TODO remove when term-bumping is enabled
+            final long maxTerm = clusterNodes.stream().map(n -> n.coordinator.getCurrentTerm()).max(Long::compare).orElse(0L);
+            final long maxLeaderTerm = clusterNodes.stream().filter(n -> n.coordinator.getMode() == Mode.LEADER)
+                .map(n -> n.coordinator.getCurrentTerm()).max(Long::compare).orElse(0L);
+
+            if (maxLeaderTerm < maxTerm) {
+                logger.info("--> forcing a term bump, maxTerm={}, maxLeaderTerm={}", maxTerm, maxLeaderTerm);
+                final ClusterNode leader = getAnyLeader();
+                synchronized (leader.coordinator.mutex) {
+                    leader.coordinator.ensureTermAtLeast(leader.localNode, maxTerm + 1);
+                }
+                leader.coordinator.startElection();
+                final long termBumpEndTime = stabilisationEndTime + DEFAULT_ELECTION_DELAY;
+                logger.info("--> re-stabilising after term bump until [{}ms]", termBumpEndTime);
+                runUntil(termBumpEndTime);
+            }
+
             assertUniqueLeaderAndExpectedModes();
         }
 
@@ -963,7 +981,7 @@ public class CoordinatorTests extends ESTestCase {
                                         final ClusterState newClusterState = clusterStateSupplier.get();
                                         assert oldClusterState.version() <= newClusterState.version() :
                                             "updating cluster state from version "
-                                            + oldClusterState.version() + " to stale version " + newClusterState.version();
+                                                + oldClusterState.version() + " to stale version " + newClusterState.version();
                                         clusterApplier.lastAppliedClusterState = newClusterState;
                                     }
 
