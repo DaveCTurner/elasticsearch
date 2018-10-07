@@ -607,28 +607,7 @@ public class CoordinatorTests extends ESTestCase {
             assertThat("stabilisation requires default delay variability (and proper cleanup of raised variability)",
                 deterministicTaskQueue.getExecutionDelayVariabilityMillis(), lessThanOrEqualTo(DEFAULT_DELAY_VARIABILITY));
             runFor(stabilisationDurationMillis, "stabilising");
-            fixLag();
             assertUniqueLeaderAndExpectedModes();
-        }
-
-        // TODO remove this when lag detection is implemented
-        void fixLag() {
-            final ClusterNode leader = getAnyLeader();
-            final long leaderVersion = leader.coordinator.getLastAcceptedState().version();
-            final long minVersion = clusterNodes.stream()
-                .filter(n -> isConnectedPair(n, leader))
-                .map(n -> n.coordinator.getLastAcceptedState().version()).min(Long::compare).orElse(Long.MIN_VALUE);
-
-            assert minVersion >= 0;
-            if (minVersion < leaderVersion) {
-                logger.info("--> publishing a value to fix lag, leaderVersion={}, minVersion={}", leaderVersion, minVersion);
-                onNode(leader.getLocalNode(), () -> {
-                    synchronized (leader.coordinator.mutex) {
-                        leader.submitValue(randomLong());
-                    }
-                }).run();
-            }
-            runFor(DEFAULT_CLUSTER_STATE_UPDATE_DELAY, "re-stabilising after lag-fixing publication");
         }
 
         void runFor(long runDurationMillis, String description) {
@@ -670,11 +649,10 @@ public class CoordinatorTests extends ESTestCase {
         private void assertUniqueLeaderAndExpectedModes() {
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
-            Matcher<Long> isPresentAndEqualToLeaderVersion
-                = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
+            Matcher<Long> isEqualToLeaderVersion = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
 
             assertTrue(leader.getLastAppliedClusterState().getNodes().nodeExists(leader.getId()));
-            assertThat(leader.getLastAppliedClusterState().getVersion(), isPresentAndEqualToLeaderVersion);
+            assertThat(leader.getLastAppliedClusterState().getVersion(), isEqualToLeaderVersion);
 
             for (final ClusterNode clusterNode : clusterNodes) {
                 final String nodeId = clusterNode.getId();
@@ -688,7 +666,10 @@ public class CoordinatorTests extends ESTestCase {
                     assertThat(nodeId + " is a follower", clusterNode.coordinator.getMode(), is(FOLLOWER));
                     assertThat(nodeId + " has the same term as the leader", clusterNode.coordinator.getCurrentTerm(), is(leaderTerm));
                     assertTrue(nodeId + " has voted for the leader", leader.coordinator.hasJoinVoteFrom(clusterNode.getLocalNode()));
-                    // TODO assert that this node's accepted and committed states are the same as the leader's
+                    assertThat(nodeId + " has accepted the leader's last state",
+                        clusterNode.coordinator.getLastAcceptedState().getVersion(), isEqualToLeaderVersion);
+                    assertThat(nodeId + " has applied the leader's last state",
+                        clusterNode.getLastAppliedClusterState().getVersion(), isEqualToLeaderVersion);
 
                     assertTrue(nodeId + " is in the leader's applied state",
                         leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));

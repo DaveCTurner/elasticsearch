@@ -31,6 +31,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.InternalClusterInfoService;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.action.index.MappingUpdatedAction;
+import org.elasticsearch.cluster.coordination.LagDetector;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.ElectionSchedulerFactory;
 import org.elasticsearch.cluster.coordination.JoinHelper;
@@ -451,6 +452,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                     ElectionSchedulerFactory.ELECTION_BACK_OFF_TIME_SETTING,
                     ElectionSchedulerFactory.ELECTION_MAX_TIMEOUT_SETTING,
                     Coordinator.PUBLISH_TIMEOUT_SETTING,
+                    LagDetector.CLUSTER_STATE_APPLICATION_TIMEOUT_SETTING,
                     JoinHelper.JOIN_TIMEOUT_SETTING
             )));
 
