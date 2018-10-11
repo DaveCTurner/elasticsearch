@@ -324,7 +324,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             final boolean prevElectionWon = coordState.electionWon();
 
             optionalJoin.ifPresent(this::handleJoin);
+            logger.trace("joinAccumulator={} handling join request", joinAccumulator);
             joinAccumulator.handleJoinRequest(joinRequest.getSourceNode(), joinCallback);
+            logger.trace("joinAccumulator={} handled join request", joinAccumulator);
 
             if (prevElectionWon == false && coordState.electionWon()) {
                 becomeLeader("handleJoinRequest");
@@ -334,7 +336,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     void becomeCandidate(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-        logger.debug("{}: becoming CANDIDATE (was {}, lastKnownLeader was [{}])", method, mode, lastKnownLeader);
+        logger.debug("{}: becoming CANDIDATE (was {}, term {}, lastKnownLeader was [{}])", method, mode, getCurrentTerm(), lastKnownLeader);
 
         if (mode != Mode.CANDIDATE) {
             mode = Mode.CANDIDATE;
@@ -366,7 +368,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     void becomeLeader(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
         assert mode == Mode.CANDIDATE : "expected candidate but was " + mode;
-        logger.debug("{}: becoming LEADER (was {}, lastKnownLeader was [{}])", method, mode, lastKnownLeader);
+        logger.debug("{}: becoming LEADER (was {}, term {}, lastKnownLeader was [{}])", method, mode, getCurrentTerm(), lastKnownLeader);
 
         mode = Mode.LEADER;
         joinAccumulator.close(mode);
@@ -383,7 +385,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     void becomeFollower(String method, DiscoveryNode leaderNode) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-        logger.debug("{}: becoming FOLLOWER of [{}] (was {}, lastKnownLeader was [{}])", method, leaderNode, mode, lastKnownLeader);
+        logger.debug("{}: becoming FOLLOWER of [{}] (was {}, term {}, lastKnownLeader was [{}])", method, leaderNode, mode,
+            getCurrentTerm(), lastKnownLeader);
 
         final boolean restartLeaderChecker = (mode == Mode.FOLLOWER && Optional.of(leaderNode).equals(lastKnownLeader)) == false;
 
@@ -894,15 +897,19 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
                             @Override
                             public void onSuccess(String source) {
-                                synchronized (mutex) {
-                                    assert currentPublication.get() == CoordinatorPublication.this;
-                                    currentPublication = Optional.empty();
-                                    logger.debug("publication ended successfully: {}", CoordinatorPublication.this);
-                                    // trigger term bump if new term was found during publication
-                                    updateMaxTermSeen(getCurrentTerm());
+                                try {
+                                    synchronized (mutex) {
+                                        assert currentPublication.get() == CoordinatorPublication.this;
+                                        currentPublication = Optional.empty();
+                                        logger.debug("publication ended successfully: {}", CoordinatorPublication.this);
+                                        // trigger term bump if new term was found during publication
+                                        updateMaxTermSeen(getCurrentTerm());
+                                    }
+                                    ackListener.onNodeAck(getLocalNode(), null);
+                                    publishListener.onResponse(null);
+                                } catch (Exception e) {
+                                    throw e;
                                 }
-                                ackListener.onNodeAck(getLocalNode(), null);
-                                publishListener.onResponse(null);
                             }
                         });
                 }

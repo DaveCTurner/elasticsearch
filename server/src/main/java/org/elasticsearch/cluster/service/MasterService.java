@@ -769,6 +769,7 @@ public class MasterService extends AbstractLifecycleComponent {
                                            final Map<T, ClusterStateTaskListener> tasks, final ClusterStateTaskConfig config,
                                            final ClusterStateTaskExecutor<T> executor) {
         if (!lifecycle.started()) {
+            logger.debug("not started");
             return;
         }
         final ThreadContext threadContext = threadPool.getThreadContext();
@@ -781,6 +782,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 .collect(Collectors.toList());
             taskBatcher.submitTasks(safeTasks, config.timeout());
         } catch (EsRejectedExecutionException e) {
+            logger.debug("rejected execution", e);
             // ignore cases where we are shutting down..., there is really nothing interesting
             // to be done here...
             if (!lifecycle.stoppedOrClosed()) {

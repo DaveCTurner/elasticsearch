@@ -55,6 +55,7 @@ public abstract class TaskBatcher {
 
     public void submitTasks(List<? extends BatchedTask> tasks, @Nullable TimeValue timeout) throws EsRejectedExecutionException {
         if (tasks.isEmpty()) {
+            logger.debug("empty tasks");
             return;
         }
         final BatchedTask firstTask = tasks.get(0);
@@ -74,12 +75,15 @@ public abstract class TaskBatcher {
                 // check that there won't be two tasks with the same identity for the same batching key
                 BatchedTask duplicateTask = tasksIdentity.get(existing.getTask());
                 if (duplicateTask != null) {
+                    logger.debug("duplicate task");
                     throw new IllegalStateException("task [" + duplicateTask.describeTasks(
                         Collections.singletonList(existing)) + "] with source [" + duplicateTask.source + "] is already queued");
                 }
             }
             existingTasks.addAll(tasks);
         }
+
+        logger.trace("executing task with timeout={}", timeout);
 
         if (timeout != null) {
             threadExecutor.execute(firstTask, timeout, () -> onTimeoutInternal(tasks, timeout));

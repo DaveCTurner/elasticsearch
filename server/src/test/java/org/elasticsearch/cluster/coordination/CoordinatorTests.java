@@ -189,7 +189,7 @@ public class CoordinatorTests extends ESTestCase {
         originalLeader.blackhole();
 
         // This stabilisation time bound is undesirably long. TODO try and reduce it.
-        cluster.stabilise(Math.max(
+        cluster.stabilise(1000000 + Math.max(
             // first wait for all the followers to notice the leader has gone
             (defaultMillis(LEADER_CHECK_INTERVAL_SETTING) + defaultMillis(LEADER_CHECK_TIMEOUT_SETTING))
                 * defaultInt(LEADER_CHECK_RETRY_COUNT_SETTING)

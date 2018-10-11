@@ -49,6 +49,7 @@ public class FakeThreadPoolMasterService extends MasterService {
     private boolean scheduledNextTask = false;
     private boolean taskInProgress = false;
     private boolean waitForPublish = false;
+    private long taskId;
 
     public FakeThreadPoolMasterService(String serviceName, Consumer<Runnable> onTaskAvailableToRun) {
         super(Settings.EMPTY, createMockThreadPool());
@@ -82,32 +83,49 @@ public class FakeThreadPoolMasterService extends MasterService {
     }
 
     private void scheduleNextTaskIfNecessary() {
-        if (taskInProgress == false && pendingTasks.isEmpty() == false && scheduledNextTask == false) {
-            scheduledNextTask = true;
-            onTaskAvailableToRun.accept(new Runnable() {
-                @Override
-                public String toString() {
-                    return "master service scheduling next task";
-                }
-
-                @Override
-                public void run() {
-                    assert taskInProgress == false;
-                    assert waitForPublish == false;
-                    assert scheduledNextTask;
-                    final int taskIndex = randomInt(pendingTasks.size() - 1);
-                    logger.debug("next master service task: choosing task {} of {}", taskIndex, pendingTasks.size());
-                    final Runnable task = pendingTasks.remove(taskIndex);
-                    taskInProgress = true;
-                    scheduledNextTask = false;
-                    task.run();
-                    if (waitForPublish == false) {
-                        taskInProgress = false;
-                    }
-                    FakeThreadPoolMasterService.this.scheduleNextTaskIfNecessary();
-                }
-            });
+        if (taskInProgress != false) {
+            logger.trace("scheduleNextTaskIfNecessary: task in progress, not scheduling");
+            return;
         }
+
+        if (pendingTasks.isEmpty() != false) {
+            logger.trace("scheduleNextTaskIfNecessary: no pending tasks, not scheduling");
+            return;
+        }
+
+        if (scheduledNextTask != false) {
+            logger.trace("scheduleNextTaskIfNecessary: task already scheduled, not scheduling");
+            return;
+        }
+
+        scheduledNextTask = true;
+        final long thisTaskId = taskId++;
+        final Runnable task = new Runnable() {
+            @Override
+            public String toString() {
+                return "next master service task [" + thisTaskId + "]";
+            }
+
+            @Override
+            public void run() {
+                assert taskInProgress == false;
+                assert waitForPublish == false;
+                assert scheduledNextTask;
+                final int taskIndex = randomInt(pendingTasks.size() - 1);
+                int taskCount = pendingTasks.size();
+                final Runnable task = pendingTasks.remove(taskIndex);
+                logger.debug("{}: choosing task {} of {}: {}", this, taskIndex, taskCount, task);
+                taskInProgress = true;
+                scheduledNextTask = false;
+                task.run();
+                if (waitForPublish == false) {
+                    taskInProgress = false;
+                }
+                FakeThreadPoolMasterService.this.scheduleNextTaskIfNecessary();
+            }
+        };
+        logger.trace("scheduleNextTaskIfNecessary: scheduling {}", task);
+        onTaskAvailableToRun.accept(task);
     }
 
     @Override
