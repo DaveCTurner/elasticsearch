@@ -49,6 +49,8 @@ import org.elasticsearch.transport.TransportService;
 import org.hamcrest.Matcher;
 import org.junit.Before;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -638,7 +640,7 @@ public class CoordinatorTests extends ESTestCase {
                     // - reboot a node
                     // - abdicate leadership
 
-                } catch (CoordinationStateRejectedException ignored) {
+                } catch (CoordinationStateRejectedException | UncheckedIOException ignored) {
                     // This is ok: it just means a message couldn't currently be handled.
                 }
 
@@ -837,20 +839,27 @@ public class CoordinatorTests extends ESTestCase {
 
             private void possiblyFail(String description) {
                 if (disruptStorage && rarely()) {
-                    throw new CoordinationStateRejectedException("simulated IO exception [" + description + ']');
+                    // TODO revisit this when we've decided how PersistedState should throw exceptions
+                    if (randomBoolean()) {
+                        throw new UncheckedIOException(new IOException("simulated IO exception [" + description + ']'));
+                    } else {
+                        throw new CoordinationStateRejectedException("simulated IO exception [" + description + ']');
+                    }
                 }
             }
 
             @Override
             public void setCurrentTerm(long currentTerm) {
-                possiblyFail("writing term of " + currentTerm);
+                possiblyFail("before writing term of " + currentTerm);
                 super.setCurrentTerm(currentTerm);
+                possiblyFail("after writing term of " + currentTerm);
             }
 
             @Override
             public void setLastAcceptedState(ClusterState clusterState) {
-                possiblyFail("writing last-accepted state of term=" + clusterState.term() + ", version=" + clusterState.version());
+                possiblyFail("before writing last-accepted state of term=" + clusterState.term() + ", version=" + clusterState.version());
                 super.setLastAcceptedState(clusterState);
+                possiblyFail("after writing last-accepted state of term=" + clusterState.term() + ", version=" + clusterState.version());
             }
         }
 

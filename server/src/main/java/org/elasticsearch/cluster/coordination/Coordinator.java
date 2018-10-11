@@ -266,7 +266,12 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 if (publicationInProgress() == false) {
                     // Bump our term. However if there is a publication in flight then doing so would cancel the publication, so don't do that
                     // since we check whether a term bump is needed at the end of the publication too.
-                    ensureTermAtLeast(getLocalNode(), updatedMaxTermSeen);
+                    try {
+                        ensureTermAtLeast(getLocalNode(), updatedMaxTermSeen);
+                    } catch (Exception e) {
+                        becomeCandidate("updateMaxTermSeen");
+                        return;
+                    }
                     startElection();
                 } else if (term == updatedMaxTermSeen) {
                     logger.debug("updateMaxTermSeen: updatedMaxTermSeen = {} > currentTerm = {}, enqueueing term bump",
