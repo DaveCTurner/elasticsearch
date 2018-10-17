@@ -28,7 +28,9 @@ import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher.AckListener;
 import org.elasticsearch.cluster.coordination.CoordinationState.PersistedState;
+import org.elasticsearch.cluster.coordination.Coordinator.Mode;
 import org.elasticsearch.cluster.coordination.CoordinatorTests.Cluster.ClusterNode;
+import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterApplier;
 import org.elasticsearch.common.Randomness;
@@ -158,6 +160,62 @@ public class CoordinatorTests extends ESTestCase {
         logger.info("--> disconnecting {}", disconnect3);
         disconnect3.disconnect();
         cluster.stabilise();
+    }
+
+    public void testDoesNotShrinkConfigurationDueToLossToleranceConfigurationWithThreeNodes() {
+        final Cluster cluster = new Cluster(3);
+        cluster.runRandomly();
+        cluster.stabilise();
+
+        cluster.getAnyLeader().submitSetMasterNodesFailureTolerance(1);
+        cluster.stabilise(DEFAULT_ELECTION_DELAY);
+
+        final ClusterNode disconnect1 = cluster.getAnyNode();
+
+        logger.info("--> disconnecting {}", disconnect1);
+        disconnect1.disconnect();
+        cluster.stabilise();
+
+        final ClusterNode disconnect2 = cluster.getAnyNodeExcept(disconnect1);
+        logger.info("--> disconnecting {}", disconnect2);
+        disconnect2.disconnect();
+        cluster.runFor(DEFAULT_STABILISATION_TIME, "allowing time for fault detection");
+
+        for (final ClusterNode clusterNode : cluster.clusterNodes) {
+            assertThat(clusterNode.getId() + " should be a candidate", clusterNode.coordinator.getMode(), equalTo(Mode.CANDIDATE));
+        }
+
+        disconnect1.heal();
+        cluster.stabilise(); // would not work if disconnect1 were removed from the configuration
+    }
+
+    public void testDoesNotShrinkConfigurationDueToLossToleranceConfigurationWithFiveNodes() {
+        final Cluster cluster = new Cluster(5);
+        cluster.runRandomly();
+        cluster.stabilise();
+
+        cluster.getAnyLeader().submitSetMasterNodesFailureTolerance(2);
+        cluster.stabilise(DEFAULT_ELECTION_DELAY);
+
+        final ClusterNode disconnect1 = cluster.getAnyNode();
+        final ClusterNode disconnect2 = cluster.getAnyNodeExcept(disconnect1);
+
+        logger.info("--> disconnecting {} and {}", disconnect1, disconnect2);
+        disconnect1.disconnect();
+        disconnect2.disconnect();
+        cluster.stabilise();
+
+        final ClusterNode disconnect3 = cluster.getAnyNodeExcept(disconnect1, disconnect2);
+        logger.info("--> disconnecting {}", disconnect3);
+        disconnect3.disconnect();
+        cluster.runFor(DEFAULT_STABILISATION_TIME, "allowing time for fault detection");
+
+        for (final ClusterNode clusterNode : cluster.clusterNodes) {
+            assertThat(clusterNode.getId() + " should be a candidate", clusterNode.coordinator.getMode(), equalTo(Mode.CANDIDATE));
+        }
+
+        disconnect1.heal();
+        cluster.stabilise(); // would not work if disconnect1 were removed from the configuration
     }
 
     public void testLeaderDisconnectionDetectedQuickly() {
@@ -624,6 +682,15 @@ public class CoordinatorTests extends ESTestCase {
                             clusterNode.submitValue(newValue);
                         }).run();
                     } else if (rarely()) {
+                        final ClusterNode clusterNode = getAnyNodePreferringLeaders();
+                        final int masterNodeFailureTolerance = randomIntBetween(0, 2);
+                        onNode(clusterNode.getLocalNode(),
+                            () -> {
+                                logger.debug("----> [runRandomly {}] setting master-node fault tolerance to {} on {}",
+                                    thisStep, masterNodeFailureTolerance, clusterNode.getId());
+                                clusterNode.submitSetMasterNodesFailureTolerance(masterNodeFailureTolerance);
+                            }).run();
+                    } else if (rarely()) {
                         final ClusterNode clusterNode = getAnyNode();
                         onNode(clusterNode.getLocalNode(), () -> {
                             logger.debug("----> [runRandomly {}] forcing {} to become candidate", thisStep, clusterNode.getId());
@@ -788,8 +855,8 @@ public class CoordinatorTests extends ESTestCase {
                     }
                 }).run();
                 runFor(DEFAULT_CLUSTER_STATE_UPDATE_DELAY
-                    // may need to bump terms too
-                    + DEFAULT_ELECTION_DELAY,
+                        // may need to bump terms too
+                        + DEFAULT_ELECTION_DELAY,
                     "re-stabilising after lag-fixing publication");
             } else {
                 logger.info("--> fixLag found no lag, leader={}, leaderVersion={}, minVersion={}", leader, leaderVersion, minVersion);
@@ -1009,6 +1076,18 @@ public class CoordinatorTests extends ESTestCase {
 
             void setClusterStateApplyResponse(ClusterStateApplyResponse clusterStateApplyResponse) {
                 this.clusterStateApplyResponse = clusterStateApplyResponse;
+            }
+
+            void submitSetMasterNodesFailureTolerance(final int masterNodesFaultTolerance) {
+                submitUpdateTask("set master nodes failure tolerance [" + masterNodesFaultTolerance + "]", cs ->
+                    ClusterState.builder(cs).metaData(
+                        MetaData.builder(cs.metaData())
+                            .persistentSettings(Settings.builder()
+                                .put(cs.metaData().persistentSettings())
+                                .put(Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE.getKey(), masterNodesFaultTolerance)
+                                .build())
+                            .build())
+                        .build());
             }
 
             AckCollector submitValue(final long value) {
