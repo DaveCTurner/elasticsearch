@@ -485,7 +485,8 @@ public class CoordinatorTests extends ESTestCase {
     }
 
     public void testSettingInitialConfigurationTriggersElection() {
-        final Cluster cluster = new Cluster(randomIntBetween(1, 5));
+        int nodeCount = randomIntBetween(1, 5);
+        final Cluster cluster = new Cluster(nodeCount);
         cluster.runFor(defaultMillis(DISCOVERY_FIND_PEERS_INTERVAL_SETTING) * 2 + randomLongBetween(0, 60000), "initial discovery phase");
         for (final ClusterNode clusterNode : cluster.clusterNodes) {
             final String nodeId = clusterNode.getId();
@@ -500,14 +501,17 @@ public class CoordinatorTests extends ESTestCase {
         }
 
         cluster.getAnyNode().applyInitialConfiguration();
-        cluster.stabilise(defaultMillis(
+        cluster.stabilise(
             // the first election should succeed, because only one node knows of the initial configuration and therefore can win a
             // pre-voting round and proceed to an election, so there cannot be any collisions
-            ELECTION_INITIAL_TIMEOUT_SETTING) // TODO this wait is unnecessary, we could trigger the election immediately
-            // Allow two round-trip for pre-voting and voting
-            + 4 * DEFAULT_DELAY_VARIABILITY
-            // Then a commit of the new leader's first cluster state
-            + DEFAULT_CLUSTER_STATE_UPDATE_DELAY);
+            defaultMillis(ELECTION_INITIAL_TIMEOUT_SETTING) // TODO this wait is unnecessary, we could trigger the election immediately
+                // Allow two round-trip for pre-voting and voting
+                + 4 * DEFAULT_DELAY_VARIABILITY
+                // Then a commit of the new leader's first cluster state
+                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+                // Then allow time for all the other nodes to join, each of which might cause a reconfiguration
+                + (nodeCount - 1) * 2 * DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+        );
     }
 
     public void testCannotSetInitialConfigurationTwice() {
@@ -794,8 +798,7 @@ public class CoordinatorTests extends ESTestCase {
 
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
-            Matcher<Long> isPresentAndEqualToLeaderVersion
-                = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
+            Matcher<Long> isPresentAndEqualToLeaderVersion = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
 
             assertTrue(leader.getLastAppliedClusterState().getNodes().nodeExists(leader.getId()));
             assertThat(leader.getLastAppliedClusterState().getVersion(), isPresentAndEqualToLeaderVersion);

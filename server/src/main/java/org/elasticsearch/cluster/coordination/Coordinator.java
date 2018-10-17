@@ -990,8 +990,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
                     removePublicationAndPossiblyBecomeCandidate("Publication.onCompletion(false)");
 
-                    FailedToCommitClusterStateException exception = new FailedToCommitClusterStateException(
-                        "publication failed", e);
+                    FailedToCommitClusterStateException exception = new FailedToCommitClusterStateException("publication failed", e);
                     ackListener.onNodeAck(getLocalNode(), exception); // other nodes have acked, but not the master.
                     publishListener.onFailure(exception);
                 }
