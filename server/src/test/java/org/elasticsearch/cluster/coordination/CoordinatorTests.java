@@ -95,6 +95,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 
 @TestLogging("org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.discovery:TRACE")
@@ -692,7 +693,52 @@ public class CoordinatorTests extends ESTestCase {
 
             runFor(stabilisationDurationMillis, "stabilising");
             fixLag();
-            assertUniqueLeaderAndExpectedModes();
+
+            final ClusterNode leader = getAnyLeader();
+            final long leaderTerm = leader.coordinator.getCurrentTerm();
+            Matcher<Long> isPresentAndEqualToLeaderVersion
+                = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
+
+            assertTrue(leader.getLastAppliedClusterState().getNodes().nodeExists(leader.getId()));
+            assertThat(leader.getLastAppliedClusterState().getVersion(), isPresentAndEqualToLeaderVersion);
+
+            for (final ClusterNode clusterNode : clusterNodes) {
+                final String nodeId = clusterNode.getId();
+                assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
+
+                if (clusterNode == leader) {
+                    continue;
+                }
+
+                if (isConnectedPair(leader, clusterNode)) {
+                    assertThat(nodeId + " is a follower", clusterNode.coordinator.getMode(), is(FOLLOWER));
+                    assertThat(nodeId + " has the same term as the leader", clusterNode.coordinator.getCurrentTerm(), is(leaderTerm));
+                    assertTrue(nodeId + " has voted for the leader", leader.coordinator.hasJoinVoteFrom(clusterNode.getLocalNode()));
+                    // TODO assert that this node's accepted and committed states are the same as the leader's
+
+                    assertTrue(nodeId + " is in the leader's applied state",
+                        leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));
+                } else {
+                    assertThat(nodeId + " is a candidate", clusterNode.coordinator.getMode(), is(CANDIDATE));
+                    assertFalse(nodeId + " is not in the leader's applied state",
+                        leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));
+                }
+            }
+
+            final Set<String> connectedNodeIds
+                = clusterNodes.stream().filter(n -> isConnectedPair(leader, n)).map(ClusterNode::getId).collect(Collectors.toSet());
+
+            assertThat(leader.getLastAppliedClusterState().getNodes().getSize(), equalTo(connectedNodeIds.size()));
+
+            final ClusterState lastAcceptedState = leader.coordinator.getLastAcceptedState();
+            final VotingConfiguration lastCommittedConfiguration = lastAcceptedState.getLastCommittedConfiguration();
+            assertTrue(connectedNodeIds + " should be a quorum of " + lastCommittedConfiguration,
+                lastCommittedConfiguration.hasQuorum(connectedNodeIds));
+
+            assertThat("no reconfiguration is in progress",
+                lastAcceptedState.getLastCommittedConfiguration(), equalTo(lastAcceptedState.getLastAcceptedConfiguration()));
+            assertThat("current configuration is already optimal",
+                leader.coordinator.reconfigureIfPossible(lastAcceptedState), sameInstance(lastAcceptedState));
         }
 
         // TODO remove this when lag detection is implemented
@@ -753,42 +799,6 @@ public class CoordinatorTests extends ESTestCase {
             return n1 == n2 ||
                 (getConnectionStatus(n1.getLocalNode(), n2.getLocalNode()) == ConnectionStatus.CONNECTED
                     && getConnectionStatus(n2.getLocalNode(), n1.getLocalNode()) == ConnectionStatus.CONNECTED);
-        }
-
-        private void assertUniqueLeaderAndExpectedModes() {
-            final ClusterNode leader = getAnyLeader();
-            final long leaderTerm = leader.coordinator.getCurrentTerm();
-            Matcher<Long> isPresentAndEqualToLeaderVersion
-                = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
-
-            assertTrue(leader.getLastAppliedClusterState().getNodes().nodeExists(leader.getId()));
-            assertThat(leader.getLastAppliedClusterState().getVersion(), isPresentAndEqualToLeaderVersion);
-
-            for (final ClusterNode clusterNode : clusterNodes) {
-                final String nodeId = clusterNode.getId();
-                assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
-
-                if (clusterNode == leader) {
-                    continue;
-                }
-
-                if (isConnectedPair(leader, clusterNode)) {
-                    assertThat(nodeId + " is a follower", clusterNode.coordinator.getMode(), is(FOLLOWER));
-                    assertThat(nodeId + " has the same term as the leader", clusterNode.coordinator.getCurrentTerm(), is(leaderTerm));
-                    assertTrue(nodeId + " has voted for the leader", leader.coordinator.hasJoinVoteFrom(clusterNode.getLocalNode()));
-                    // TODO assert that this node's accepted and committed states are the same as the leader's
-
-                    assertTrue(nodeId + " is in the leader's applied state",
-                        leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));
-                } else {
-                    assertThat(nodeId + " is a candidate", clusterNode.coordinator.getMode(), is(CANDIDATE));
-                    assertFalse(nodeId + " is not in the leader's applied state",
-                        leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));
-                }
-            }
-
-            int connectedNodeCount = Math.toIntExact(clusterNodes.stream().filter(n -> isConnectedPair(leader, n)).count());
-            assertThat(leader.getLastAppliedClusterState().getNodes().getSize(), equalTo(connectedNodeCount));
         }
 
         ClusterNode getAnyLeader() {
@@ -938,8 +948,9 @@ public class CoordinatorTests extends ESTestCase {
                 transportService = mockTransport.createTransportService(
                     settings, deterministicTaskQueue.getThreadPool(runnable -> onNode(localNode, runnable)), NOOP_TRANSPORT_INTERCEPTOR,
                     a -> localNode, null, emptySet());
-                coordinator = new Coordinator(settings, transportService, ESAllocationTestCase.createAllocationService(Settings.EMPTY),
-                    masterService, this::getPersistedState, Cluster.this::provideUnicastHosts, clusterApplier, Randomness.get());
+                coordinator = new Coordinator(settings, clusterSettings, transportService,
+                    ESAllocationTestCase.createAllocationService(Settings.EMPTY), masterService, this::getPersistedState,
+                    Cluster.this::provideUnicastHosts, clusterApplier, Randomness.get());
                 masterService.setClusterStatePublisher(coordinator);
 
                 transportService.start();

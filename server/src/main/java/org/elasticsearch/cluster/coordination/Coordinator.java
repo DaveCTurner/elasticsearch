@@ -42,6 +42,7 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.lease.Releasable;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
@@ -66,7 +67,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import static java.util.Collections.emptySet;
 import static org.elasticsearch.discovery.DiscoverySettings.NO_MASTER_BLOCK_WRITES;
 import static org.elasticsearch.gateway.GatewayService.STATE_NOT_RECOVERED_BLOCK;
 
@@ -104,6 +107,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     @Nullable
     private Releasable leaderCheckScheduler;
     private long maxTermSeen;
+    private final Reconfigurator reconfigurator;
 
     private Mode mode;
     private Optional<DiscoveryNode> lastKnownLeader;
@@ -111,9 +115,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     private JoinHelper.JoinAccumulator joinAccumulator;
     private Optional<CoordinatorPublication> currentPublication = Optional.empty();
 
-    public Coordinator(Settings settings, TransportService transportService, AllocationService allocationService,
-                       MasterService masterService, Supplier<CoordinationState.PersistedState> persistedStateSupplier,
-                       UnicastHostsProvider unicastHostsProvider, ClusterApplier clusterApplier, Random random) {
+    public Coordinator(Settings settings, ClusterSettings clusterSettings, TransportService transportService,
+                       AllocationService allocationService, MasterService masterService,
+                       Supplier<CoordinationState.PersistedState> persistedStateSupplier, UnicastHostsProvider unicastHostsProvider,
+                       ClusterApplier clusterApplier, Random random) {
         super(settings);
         this.transportService = transportService;
         this.masterService = masterService;
@@ -136,6 +141,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         this.nodeRemovalExecutor = new NodeRemovalClusterStateTaskExecutor(allocationService, logger);
         this.clusterApplier = clusterApplier;
         masterService.setClusterStateSupplier(this::getStateForMasterService);
+        this.reconfigurator = new Reconfigurator(settings, clusterSettings);
     }
 
     private Runnable getOnLeaderFailure() {
@@ -587,6 +593,29 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             preVoteCollector.update(getPreVoteResponse(), null); // pick up the change to last-accepted version
             startElectionScheduler();
         }
+    }
+
+    // Package-private for testing
+    ClusterState reconfigureIfPossible(ClusterState clusterState) {
+        if (clusterState.getLastCommittedConfiguration().equals(clusterState.getLastAcceptedConfiguration()) == false) {
+            // reconfiguration already in progress
+            return clusterState;
+        }
+
+        synchronized (mutex) {
+            if (mode == Mode.LEADER) {
+                final Set<DiscoveryNode> liveNodes = StreamSupport.stream(clusterState.nodes().spliterator(), false)
+                    .filter(coordinationState.get()::containsJoinVoteFor).collect(Collectors.toSet());
+                final ClusterState.VotingConfiguration newConfig = reconfigurator.reconfigure(
+                    liveNodes, emptySet(), clusterState.getLastAcceptedConfiguration());
+                if (newConfig.equals(clusterState.getLastAcceptedConfiguration()) == false) {
+                    assert coordinationState.get().joinVotesHaveQuorumFor(newConfig);
+                    return ClusterState.builder(clusterState).lastAcceptedConfiguration(newConfig).build();
+                }
+            }
+        }
+
+        return clusterState;
     }
 
     // for tests
