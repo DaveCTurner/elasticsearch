@@ -91,6 +91,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -548,13 +549,18 @@ public class CoordinatorTests extends ESTestCase {
         Cluster(int initialNodeCount) {
             deterministicTaskQueue.setExecutionDelayVariabilityMillis(DEFAULT_DELAY_VARIABILITY);
 
-            logger.info("--> creating cluster of {} nodes", initialNodeCount);
+            assertThat(initialNodeCount, greaterThan(0));
 
-            Set<String> initialNodeIds = new HashSet<>(initialNodeCount);
-            for (int i = 0; i < initialNodeCount; i++) {
-                initialNodeIds.add(nodeIdFromIndex(i));
+            Set<String> initialConfigurationNodeIds = new HashSet<>(initialNodeCount);
+            while (initialConfigurationNodeIds.isEmpty()) {
+                for (int i = 0; i < initialNodeCount; i++) {
+                    if (randomBoolean()) {
+                        initialConfigurationNodeIds.add(nodeIdFromIndex(i));
+                    }
+                }
             }
-            initialConfiguration = new VotingConfiguration(initialNodeIds);
+            initialConfiguration = new VotingConfiguration(initialConfigurationNodeIds);
+            logger.info("--> creating cluster of {} nodes with initial configuration {}", initialNodeCount, initialConfiguration);
 
             clusterNodes = new ArrayList<>(initialNodeCount);
             for (int i = 0; i < initialNodeCount; i++) {
