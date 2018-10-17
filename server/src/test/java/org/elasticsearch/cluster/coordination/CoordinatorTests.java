@@ -1080,14 +1080,15 @@ public class CoordinatorTests extends ESTestCase {
 
             void submitSetMasterNodesFailureTolerance(final int masterNodesFaultTolerance) {
                 submitUpdateTask("set master nodes failure tolerance [" + masterNodesFaultTolerance + "]", cs ->
-                    ClusterState.builder(cs).metaData(
-                        MetaData.builder(cs.metaData())
-                            .persistentSettings(Settings.builder()
-                                .put(cs.metaData().persistentSettings())
-                                .put(Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE.getKey(), masterNodesFaultTolerance)
+                    cs.getLastAcceptedConfiguration().getNodeIds().size() < 2 * masterNodesFaultTolerance + 1 ? cs :
+                        ClusterState.builder(cs).metaData(
+                            MetaData.builder(cs.metaData())
+                                .persistentSettings(Settings.builder()
+                                    .put(cs.metaData().persistentSettings())
+                                    .put(Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE.getKey(), masterNodesFaultTolerance)
+                                    .build())
                                 .build())
-                            .build())
-                        .build());
+                            .build());
             }
 
             AckCollector submitValue(final long value) {
