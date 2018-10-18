@@ -236,9 +236,7 @@ public class CoordinatorTests extends ESTestCase {
                 // then wait for the exception response
                 + DEFAULT_DELAY_VARIABILITY
                 // then wait for a new election
-                + DEFAULT_ELECTION_DELAY
-                // then wait for the old leader's removal to be committed
-                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY,
+                + DEFAULT_ELECTION_DELAY,
 
             // ALSO the leader may have just sent a follower check, which receives no response
             // TODO unnecessary if notified of disconnection
@@ -246,10 +244,14 @@ public class CoordinatorTests extends ESTestCase {
                 // wait for the leader to check its followers
                 + defaultMillis(FOLLOWER_CHECK_INTERVAL_SETTING)
                 // then wait for the exception response
-                + DEFAULT_DELAY_VARIABILITY
-                // then wait for the removal to be committed
-                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
-        ));
+                + DEFAULT_DELAY_VARIABILITY)
+
+            // FINALLY:
+
+            // wait for the removal to be committed
+            + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+            // then wait for the followup reconfiguration
+            + DEFAULT_CLUSTER_STATE_UPDATE_DELAY);
 
         assertThat(cluster.getAnyLeader().getId(), not(equalTo(originalLeader.getId())));
     }
@@ -284,6 +286,8 @@ public class CoordinatorTests extends ESTestCase {
                     * defaultInt(FOLLOWER_CHECK_RETRY_COUNT_SETTING))
 
                 // then wait for the new leader to commit a state without the old leader
+                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+                // then wait for the followup reconfiguration
                 + DEFAULT_CLUSTER_STATE_UPDATE_DELAY,
 
             // ALSO wait for the leader to notice that its followers are unresponsive
@@ -315,6 +319,8 @@ public class CoordinatorTests extends ESTestCase {
                 // then wait for the exception response
                 + DEFAULT_DELAY_VARIABILITY
                 // then wait for the removal to be committed
+                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+                // then wait for the followup reconfiguration
                 + DEFAULT_CLUSTER_STATE_UPDATE_DELAY,
 
             // ALSO the follower may have just sent a leader check, which receives no response
@@ -343,6 +349,8 @@ public class CoordinatorTests extends ESTestCase {
             (defaultMillis(FOLLOWER_CHECK_INTERVAL_SETTING) + defaultMillis(FOLLOWER_CHECK_TIMEOUT_SETTING))
                 * defaultInt(FOLLOWER_CHECK_RETRY_COUNT_SETTING)
                 // then wait for the leader to commit a state without the follower
+                + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+                // then wait for the followup reconfiguration
                 + DEFAULT_CLUSTER_STATE_UPDATE_DELAY,
 
             // ALSO wait for the follower to notice the leader is unresponsive
