@@ -156,7 +156,7 @@ public class NodeJoinTests extends ESTestCase {
                 }
             }
         };
-        ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+        final ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
         TransportService transportService = capturingTransport.createTransportService(Settings.EMPTY, threadPool,
             TransportService.NOOP_TRANSPORT_INTERCEPTOR,
             x -> initialState.nodes().getLocalNode(),

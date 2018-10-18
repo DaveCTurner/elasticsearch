@@ -496,7 +496,7 @@ public class CoordinatorTests extends ESTestCase {
     }
 
     public void testSettingInitialConfigurationTriggersElection() {
-        int nodeCount = randomIntBetween(1, 5);
+        final int nodeCount = randomIntBetween(1, 5);
         final Cluster cluster = new Cluster(nodeCount);
         cluster.runFor(defaultMillis(DISCOVERY_FIND_PEERS_INTERVAL_SETTING) * 2 + randomLongBetween(0, 60000), "initial discovery phase");
         for (final ClusterNode clusterNode : cluster.clusterNodes) {
@@ -624,7 +624,7 @@ public class CoordinatorTests extends ESTestCase {
 
             assertThat(initialNodeCount, greaterThan(0));
 
-            Set<String> initialConfigurationNodeIds = new HashSet<>(initialNodeCount);
+            final Set<String> initialConfigurationNodeIds = new HashSet<>(initialNodeCount);
             while (initialConfigurationNodeIds.isEmpty()) {
                 for (int i = 0; i < initialNodeCount; i++) {
                     if (randomBoolean()) {
@@ -809,7 +809,7 @@ public class CoordinatorTests extends ESTestCase {
 
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
-            Matcher<Long> isPresentAndEqualToLeaderVersion = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
+            final Matcher<Long> isPresentAndEqualToLeaderVersion = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
 
             assertTrue(leader.getLastAppliedClusterState().getNodes().nodeExists(leader.getId()));
             assertThat(leader.getLastAppliedClusterState().getVersion(), isPresentAndEqualToLeaderVersion);
