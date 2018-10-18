@@ -591,8 +591,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             MetaData.Builder metaDataBuilder = MetaData.builder();
             // automatically generate a UID for the metadata if we need to
             metaDataBuilder.generateClusterUuidIfNeeded(); // TODO generate UUID in bootstrapping tool?
-            metaDataBuilder.persistentSettings(Settings.builder()
-                .put(CLUSTER_MASTER_NODES_FAILURE_TOLERANCE.getKey(), (votingConfiguration.getNodeIds().size() - 1) / 2).build());
+            metaDataBuilder.persistentSettings(Settings.builder().put(CLUSTER_MASTER_NODES_FAILURE_TOLERANCE.getKey(),
+                (votingConfiguration.getNodeIds().size() - 1) / 2).build()); // TODO set this in bootstrapping tool?
             builder.metaData(metaDataBuilder);
             coordinationState.get().setInitialState(builder.build());
             preVoteCollector.update(getPreVoteResponse(), null); // pick up the change to last-accepted version
@@ -602,11 +602,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     // Package-private for testing
     ClusterState reconfigureIfPossible(ClusterState clusterState) {
-//        if (clusterState.getLastCommittedConfiguration().equals(clusterState.getLastAcceptedConfiguration()) == false) {
-//            // reconfiguration already in progress
-//            return clusterState;
-//        }
-
         synchronized (mutex) {
             if (mode == Mode.LEADER) {
                 final Set<DiscoveryNode> liveNodes = StreamSupport.stream(clusterState.nodes().spliterator(), false)

@@ -160,6 +160,9 @@ public class CoordinatorTests extends ESTestCase {
         logger.info("--> disconnecting {}", disconnect3);
         disconnect3.disconnect();
         cluster.stabilise();
+
+        VotingConfiguration lastCommittedConfiguration = cluster.getAnyLeader().getLastAppliedClusterState().getLastCommittedConfiguration();
+        assertThat(lastCommittedConfiguration + " should be a single node", lastCommittedConfiguration.getNodeIds().size(), equalTo(1));
     }
 
     public void testDoesNotShrinkConfigurationDueToLossToleranceConfigurationWithThreeNodes() {
