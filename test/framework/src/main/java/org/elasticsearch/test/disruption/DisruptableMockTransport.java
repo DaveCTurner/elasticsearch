@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.test.transport.MockTransport;
 import org.elasticsearch.transport.ConnectTransportException;
@@ -34,6 +35,7 @@ import org.elasticsearch.transport.TransportResponseOptions;
 import java.io.IOException;
 import java.util.Optional;
 
+import static org.apache.lucene.util.LuceneTestCase.rarely;
 import static org.elasticsearch.test.ESTestCase.copyWriteable;
 
 public abstract class DisruptableMockTransport extends MockTransport {
@@ -194,10 +196,14 @@ public abstract class DisruptableMockTransport extends MockTransport {
         };
 
         final TransportRequest copiedRequest;
-        try {
-            copiedRequest = copyWriteable(request, writeableRegistry(), requestHandler::newRequest);
-        } catch (IOException e) {
-            throw new AssertionError("exception de/serializing request", e);
+        if (rarely(Randomness.get())) {
+            try {
+                copiedRequest = copyWriteable(request, writeableRegistry(), requestHandler::newRequest);
+            } catch (IOException e) {
+                throw new AssertionError("exception de/serializing request", e);
+            }
+        } else {
+            copiedRequest = request;
         }
 
         try {

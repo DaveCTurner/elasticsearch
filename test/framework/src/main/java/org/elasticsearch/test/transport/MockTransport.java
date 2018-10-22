@@ -91,11 +91,15 @@ public class MockTransport implements Transport, LifecycleComponent {
         final TransportResponseHandler transportResponseHandler = responseHandlers.onResponseReceived(requestId, listener);
         if (transportResponseHandler != null) {
             final TransportResponse deliveredResponse;
-            try (BytesStreamOutput output = new BytesStreamOutput()) {
-                response.writeTo(output);
-                deliveredResponse = transportResponseHandler.read(output.bytes().streamInput());
-            } catch (IOException | UnsupportedOperationException e) {
-                throw new AssertionError("failed to serialize/deserialize response " + response, e);
+            if (rarely(Randomness.get())) {
+                try (BytesStreamOutput output = new BytesStreamOutput()) {
+                    response.writeTo(output);
+                    deliveredResponse = transportResponseHandler.read(output.bytes().streamInput());
+                } catch (IOException | UnsupportedOperationException e) {
+                    throw new AssertionError("failed to serialize/deserialize response " + response, e);
+                }
+            } else {
+                deliveredResponse = response;
             }
             transportResponseHandler.handleResponse(deliveredResponse);
         }
@@ -126,14 +130,14 @@ public class MockTransport implements Transport, LifecycleComponent {
     public void handleRemoteError(final long requestId, final Throwable t) {
         final RemoteTransportException remoteException;
         if (rarely(Randomness.get())) {
-            remoteException = new RemoteTransportException("remote failure, coming from local node", t);
-        } else {
             try (BytesStreamOutput output = new BytesStreamOutput()) {
                 output.writeException(t);
                 remoteException = new RemoteTransportException("remote failure", output.bytes().streamInput().readException());
             } catch (IOException ioException) {
                 throw new AssertionError("failed to serialize/deserialize supplied exception " + t, ioException);
             }
+        } else {
+            remoteException = new RemoteTransportException("remote failure, coming from local node", t);
         }
         this.handleError(requestId, remoteException);
     }
