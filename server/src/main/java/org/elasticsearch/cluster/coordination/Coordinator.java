@@ -67,12 +67,14 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static java.util.Collections.emptySet;
 import static org.elasticsearch.cluster.coordination.Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE;
+import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentSet;
 import static org.elasticsearch.discovery.DiscoverySettings.NO_MASTER_BLOCK_WRITES;
 import static org.elasticsearch.gateway.GatewayService.STATE_NOT_RECOVERED_BLOCK;
 
@@ -115,6 +117,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     private Optional<Join> lastJoin;
     private JoinHelper.JoinAccumulator joinAccumulator;
     private Optional<CoordinatorPublication> currentPublication = Optional.empty();
+
+    private final Set<Consumer<Iterable<DiscoveryNode>>> discoveredNodesListeners = newConcurrentSet();
 
     public Coordinator(Settings settings, ClusterSettings clusterSettings, TransportService transportService,
                        AllocationService allocationService, MasterService masterService,
@@ -854,6 +858,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     }
                 }
             }
+
+            for (Consumer<Iterable<DiscoveryNode>> discoveredNodesListener : discoveredNodesListeners) {
+                discoveredNodesListener.accept(getFoundPeers());
+            }
         }
     }
 
@@ -879,6 +887,18 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 return "scheduling of new prevoting round";
             }
         });
+    }
+
+    public Releasable withDiscoveryListener(Consumer<Iterable<DiscoveryNode>> listener) {
+        discoveredNodesListeners.add(listener);
+        return () -> {
+            boolean removed = discoveredNodesListeners.remove(listener);
+            assert removed : listener;
+        };
+    }
+
+    public Iterable<DiscoveryNode> getFoundPeers() {
+        return peerFinder.getFoundPeers();
     }
 
     class CoordinatorPublication extends Publication {

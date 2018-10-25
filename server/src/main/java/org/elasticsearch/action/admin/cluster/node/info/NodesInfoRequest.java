@@ -270,3 +270,4 @@ public class NodesInfoRequest extends BaseNodesRequest<NodesInfoRequest> {
         out.writeBoolean(indices);
     }
 }
+
