@@ -43,6 +43,12 @@ public class DiscoveredNodesResponse extends ActionResponse implements ToXConten
         return nodes;
     }
 
+    public BootstrapWarrant getWarrant() {
+        final BootstrapWarrant.Builder warrantBuilder = new BootstrapWarrant.Builder();
+        nodes.forEach(warrantBuilder::add);
+        return warrantBuilder.build();
+    }
+
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
@@ -52,7 +58,7 @@ public class DiscoveredNodesResponse extends ActionResponse implements ToXConten
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeCollection(nodes, (o,p) -> p.writeTo(o));
+        out.writeCollection(nodes, (o, p) -> p.writeTo(o));
     }
 
     @Override

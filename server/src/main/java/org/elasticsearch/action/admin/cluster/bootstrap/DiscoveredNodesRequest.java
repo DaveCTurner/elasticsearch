@@ -70,11 +70,15 @@ public class DiscoveredNodesRequest extends ActionRequest {
 
     @Override
     public void readFrom(StreamInput in) throws IOException {
-        throw new UnsupportedOperationException("not a remote action"); // TODO is this needed?
+        super.readFrom(in);
+        waitForNodes(in.readInt());
+        timeout(in.readTimeValue());
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        throw new UnsupportedOperationException("not a remote action"); // TODO is this needed?
+        super.writeTo(out);
+        out.writeInt(waitForNodes());
+        out.writeTimeValue(timeout());
     }
 }

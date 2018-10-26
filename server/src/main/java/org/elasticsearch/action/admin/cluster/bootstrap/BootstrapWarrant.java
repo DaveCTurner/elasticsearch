@@ -22,6 +22,11 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.ClusterState.VotingConfiguration;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
@@ -34,12 +39,23 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
-public class BootstrapWarrant implements ToXContentObject {
+public class BootstrapWarrant implements ToXContentObject, Writeable {
+
+    public static final ParseField NODES = new ParseField("nodes");
+    public static final ObjectParser<Builder, Void> PARSER = new ObjectParser<>("bootstrap_warrant", true, Builder::new);
+
+    static {
+        PARSER.declareObjectArray(Builder::addAll, Node.PARSER, NODES);
+    }
 
     private final List<Node> nodes;
 
-    BootstrapWarrant(List<Node> nodes) {
+    public BootstrapWarrant(List<Node> nodes) {
         this.nodes = nodes;
+    }
+
+    public BootstrapWarrant(StreamInput in) throws IOException {
+        this.nodes = in.readList(Node::new);
     }
 
     public VotingConfiguration resolve(Iterable<DiscoveryNode> discoveredNodes) {
@@ -76,7 +92,7 @@ public class BootstrapWarrant implements ToXContentObject {
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
-        builder.startArray("nodes");
+        builder.startArray(NODES.getPreferredName());
         for (final Node warrantNode : nodes) {
             builder.value(warrantNode);
         }
@@ -85,7 +101,21 @@ public class BootstrapWarrant implements ToXContentObject {
         return builder;
     }
 
-    public static class Node implements ToXContentObject {
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeList(nodes);
+    }
+
+    public static class Node implements ToXContentObject, Writeable {
+        public static final ParseField ID = new ParseField("id");
+        public static final ParseField NAME = new ParseField("name");
+        public static final ObjectParser<Builder, Void> PARSER = new ObjectParser<>("bootstrap_warrant_node", true, Builder::new);
+
+        static {
+            PARSER.declareString(Builder::id, ID);
+            PARSER.declareString(Builder::name, NAME);
+        }
+
         @Nullable
         private final String id;
         private final String name;
@@ -103,6 +133,17 @@ public class BootstrapWarrant implements ToXContentObject {
             this.name = name;
         }
 
+        public Node(StreamInput in) throws IOException {
+            id = in.readOptionalString();
+            name = in.readString();
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            out.writeOptionalString(id);
+            out.writeString(name);
+        }
+
         @Override
         public String toString() {
             return "Node{" +
@@ -115,11 +156,28 @@ public class BootstrapWarrant implements ToXContentObject {
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             if (id != null) {
-                builder.field("id", id);
+                builder.field(ID.getPreferredName(), id);
             }
-            builder.field("name", name);
+            builder.field(NAME.getPreferredName(), name);
             builder.endObject();
             return builder;
+        }
+
+        static class Builder {
+            private String id;
+            private String name;
+
+            public void id(String id) {
+                this.id = id;
+            }
+
+            public void name(String name) {
+                this.name = name;
+            }
+
+            public Node build() {
+                return new Node(id, name);
+            }
         }
     }
 
@@ -135,11 +193,23 @@ public class BootstrapWarrant implements ToXContentObject {
         }
 
         public void add(@Nullable String id, String name) {
-            nodes.add(new Node(id, name));
+            add(new Node(id, name));
+        }
+
+        private void add(Node.Builder nodeBuilder) {
+            add(nodeBuilder.build());
+        }
+
+        private void add(Node node) {
+            nodes.add(node);
         }
 
         public BootstrapWarrant build() {
             return new BootstrapWarrant(unmodifiableList(nodes));
+        }
+
+        public static void addAll(Builder builder, List<Node.Builder> nodeBuilders) {
+            nodeBuilders.forEach(builder::add);
         }
     }
 }

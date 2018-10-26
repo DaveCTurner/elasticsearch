@@ -23,6 +23,7 @@ import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
@@ -31,6 +32,8 @@ import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.CountDown;
 import org.elasticsearch.discovery.Discovery;
+import org.elasticsearch.rest.action.admin.cluster.BootstrapClusterAction;
+import org.elasticsearch.rest.action.admin.cluster.BootstrapClusterRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.transport.TransportService;
@@ -112,3 +115,4 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
         }
     }
 }
+

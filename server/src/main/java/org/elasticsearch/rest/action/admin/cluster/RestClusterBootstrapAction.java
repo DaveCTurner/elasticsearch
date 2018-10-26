@@ -18,16 +18,15 @@
  */
 package org.elasticsearch.rest.action.admin.cluster;
 
+import org.elasticsearch.action.admin.cluster.bootstrap.BootstrapWarrant;
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesAction;
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesRequest;
-import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesResponse;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 
@@ -53,7 +52,10 @@ public class RestClusterBootstrapAction extends BaseRestHandler {
             return channel -> client.execute(DiscoveredNodesAction.INSTANCE, discoveredNodesRequest, new RestToXContentListener<>(channel));
         } else {
             assert request.method().equals(RestRequest.Method.POST);
-            throw new NotImplementedException();
+            BootstrapClusterRequest bootstrapClusterRequest = new BootstrapClusterRequest();
+            bootstrapClusterRequest.warrant(BootstrapWarrant.PARSER.apply(request.contentParser(), null).build());
+            return channel -> client.execute(BootstrapClusterAction.INSTANCE, bootstrapClusterRequest,
+                new RestToXContentListener<>(channel));
         }
     }
 }
