@@ -20,9 +20,12 @@ package org.elasticsearch.action.admin.cluster.bootstrap;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.TimeValue;
 
-// TODO is serialization needed?
+import java.io.IOException;
+
 public class DiscoveredNodesRequest extends ActionRequest {
 
     private int waitForNodes = 1;
@@ -64,5 +67,14 @@ public class DiscoveredNodesRequest extends ActionRequest {
 
         return actionRequestValidationException.validationErrors().isEmpty() ? null : actionRequestValidationException;
     }
-}
 
+    @Override
+    public void readFrom(StreamInput in) throws IOException {
+        throw new UnsupportedOperationException("not a remote action"); // TODO is this needed?
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        throw new UnsupportedOperationException("not a remote action"); // TODO is this needed?
+    }
+}

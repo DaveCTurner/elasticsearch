@@ -841,10 +841,12 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
         @Override
         protected void onFoundPeersUpdated() {
+            final Iterable<DiscoveryNode> foundPeers;
             synchronized (mutex) {
+                foundPeers = getFoundPeers();
                 if (mode == Mode.CANDIDATE) {
                     final CoordinationState.VoteCollection expectedVotes = new CoordinationState.VoteCollection();
-                    getFoundPeers().forEach(expectedVotes::addVote);
+                    foundPeers.forEach(expectedVotes::addVote);
                     expectedVotes.addVote(Coordinator.this.getLocalNode());
                     final ClusterState lastAcceptedState = coordinationState.get().getLastAcceptedState();
                     final boolean foundQuorum = CoordinationState.isElectionQuorum(expectedVotes, lastAcceptedState);
@@ -860,7 +862,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             }
 
             for (Consumer<Iterable<DiscoveryNode>> discoveredNodesListener : discoveredNodesListeners) {
-                discoveredNodesListener.accept(getFoundPeers());
+                discoveredNodesListener.accept(foundPeers);
             }
         }
     }

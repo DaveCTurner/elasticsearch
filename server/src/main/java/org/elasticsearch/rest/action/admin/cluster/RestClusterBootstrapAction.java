@@ -20,6 +20,7 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesAction;
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesRequest;
+import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesResponse;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;

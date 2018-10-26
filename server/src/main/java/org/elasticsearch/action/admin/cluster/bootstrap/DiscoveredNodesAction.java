@@ -21,7 +21,7 @@ package org.elasticsearch.action.admin.cluster.bootstrap;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class DiscoveredNodesAction extends Action<AcknowledgedResponse> {
+public class DiscoveredNodesAction extends Action<DiscoveredNodesResponse> {
 
     public static final DiscoveredNodesAction INSTANCE = new DiscoveredNodesAction();
     public static final String NAME = "cluster:monitor/discovered_nodes";
@@ -31,8 +31,8 @@ public class DiscoveredNodesAction extends Action<AcknowledgedResponse> {
     }
 
     @Override
-    public AcknowledgedResponse newResponse() {
-        return new AcknowledgedResponse();
+    public DiscoveredNodesResponse newResponse() {
+        return new DiscoveredNodesResponse();
     }
 }
 

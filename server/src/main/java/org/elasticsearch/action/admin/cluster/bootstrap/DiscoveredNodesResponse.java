@@ -20,12 +20,20 @@ package org.elasticsearch.action.admin.cluster.bootstrap;
 
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-public class DiscoveredNodesResponse extends ActionResponse {
-    private final Set<DiscoveryNode> nodes;
+public class DiscoveredNodesResponse extends ActionResponse implements ToXContentObject {
+    private Set<DiscoveryNode> nodes;
+
+    public DiscoveredNodesResponse() {
+    }
 
     public DiscoveredNodesResponse(final Set<DiscoveryNode> nodes) {
         this.nodes = nodes;
@@ -33,5 +41,24 @@ public class DiscoveredNodesResponse extends ActionResponse {
 
     public Set<DiscoveryNode> getNodes() {
         return nodes;
+    }
+
+    @Override
+    public void readFrom(StreamInput in) throws IOException {
+        super.readFrom(in);
+        nodes = in.readSet(DiscoveryNode::new);
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        super.writeTo(out);
+        out.writeCollection(nodes, (o,p) -> p.writeTo(o));
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        BootstrapWarrant.Builder warrantBuilder = new BootstrapWarrant.Builder();
+        nodes.forEach(warrantBuilder::add);
+        return warrantBuilder.build().toXContent(builder, params);
     }
 }
