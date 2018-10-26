@@ -54,9 +54,9 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
     private final TransportService transportService;
 
     @Inject
-    public TransportDiscoveredNodesAction(Settings settings, ActionFilters actionFilters, TaskManager taskManager,
-                                          TransportService transportService, Discovery discovery) {
-        super(settings, DiscoveredNodesAction.NAME, actionFilters, taskManager);
+    public TransportDiscoveredNodesAction(Settings settings, ActionFilters actionFilters, TransportService transportService,
+                                          Discovery discovery) {
+        super(settings, DiscoveredNodesAction.NAME, actionFilters, transportService.getTaskManager());
         this.transportService = transportService;
         if (discovery instanceof Coordinator) {
             coordinator = (Coordinator) discovery;

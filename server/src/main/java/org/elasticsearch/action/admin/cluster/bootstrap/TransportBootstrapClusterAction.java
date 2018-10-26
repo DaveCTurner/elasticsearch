@@ -40,8 +40,9 @@ public class TransportBootstrapClusterAction extends TransportAction<BootstrapCl
     private final Coordinator coordinator;
 
     @Inject
-    public TransportBootstrapClusterAction(Settings settings, ActionFilters actionFilters, TaskManager taskManager, Discovery discovery) {
-        super(settings, BootstrapClusterAction.NAME, actionFilters, taskManager);
+    public TransportBootstrapClusterAction(Settings settings, ActionFilters actionFilters, TransportService transportService,
+                                           Discovery discovery) {
+        super(settings, BootstrapClusterAction.NAME, actionFilters, transportService.getTaskManager());
         if (discovery instanceof Coordinator) {
             coordinator = (Coordinator) discovery;
         } else {

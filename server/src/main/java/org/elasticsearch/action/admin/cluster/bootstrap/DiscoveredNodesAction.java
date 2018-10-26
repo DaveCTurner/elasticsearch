@@ -22,7 +22,6 @@ import org.elasticsearch.action.Action;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
 public class DiscoveredNodesAction extends Action<DiscoveredNodesResponse> {
-
     public static final DiscoveredNodesAction INSTANCE = new DiscoveredNodesAction();
     public static final String NAME = "cluster:monitor/discovered_nodes";
 

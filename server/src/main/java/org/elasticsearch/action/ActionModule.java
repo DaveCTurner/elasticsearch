@@ -23,6 +23,9 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction;
 import org.elasticsearch.action.admin.cluster.allocation.TransportClusterAllocationExplainAction;
+import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesAction;
+import org.elasticsearch.action.admin.cluster.bootstrap.TransportBootstrapClusterAction;
+import org.elasticsearch.action.admin.cluster.bootstrap.TransportDiscoveredNodesAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.TransportClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction;
@@ -216,6 +219,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.action.RestFieldCapabilitiesAction;
 import org.elasticsearch.rest.action.RestMainAction;
+import org.elasticsearch.rest.action.admin.cluster.BootstrapClusterAction;
 import org.elasticsearch.rest.action.admin.cluster.RestCancelTasksAction;
 import org.elasticsearch.rest.action.admin.cluster.RestClusterAllocationExplainAction;
 import org.elasticsearch.rest.action.admin.cluster.RestClusterBootstrapAction;
@@ -423,6 +427,8 @@ public class ActionModule extends AbstractModule {
         actions.register(GetTaskAction.INSTANCE, TransportGetTaskAction.class);
         actions.register(CancelTasksAction.INSTANCE, TransportCancelTasksAction.class);
 
+        actions.register(DiscoveredNodesAction.INSTANCE, TransportDiscoveredNodesAction.class);
+        actions.register(BootstrapClusterAction.INSTANCE, TransportBootstrapClusterAction.class);
         actions.register(ClusterAllocationExplainAction.INSTANCE, TransportClusterAllocationExplainAction.class);
         actions.register(ClusterStatsAction.INSTANCE, TransportClusterStatsAction.class);
         actions.register(ClusterStateAction.INSTANCE, TransportClusterStateAction.class);

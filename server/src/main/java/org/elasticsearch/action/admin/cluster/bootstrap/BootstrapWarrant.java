@@ -69,7 +69,7 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
                             throw new ElasticsearchException("discovered multiple nodes matching {} in {}", warrantNode, discoveredNodes);
                         }
                         found = true;
-                        if (selectedNodes.add(discoveryNode)) {
+                        if (selectedNodes.add(discoveryNode) == false) {
                             throw new ElasticsearchException("multiple nodes matching {} in {}", discoveryNode, this);
                         }
                     } else {
@@ -104,6 +104,13 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeList(nodes);
+    }
+
+    @Override
+    public String toString() {
+        return "BootstrapWarrant{" +
+            "nodes=" + nodes +
+            '}';
     }
 
     public static class Node implements ToXContentObject, Writeable {
