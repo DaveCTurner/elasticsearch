@@ -34,4 +34,3 @@ public class DiscoveredNodesAction extends Action<DiscoveredNodesResponse> {
         return new DiscoveredNodesResponse();
     }
 }
-
