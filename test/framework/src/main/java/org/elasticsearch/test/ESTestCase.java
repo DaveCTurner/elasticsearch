@@ -335,10 +335,14 @@ public abstract class ESTestCase extends LuceneTestCase {
                             final Client client = node.client();
                             if (bootstrapWarrant == null) {
                                 try {
-                                    bootstrapWarrant = client.execute(DiscoveredNodesAction.INSTANCE,
-                                        new DiscoveredNodesRequest()
-                                            .timeout(TimeValue.timeValueSeconds(5))
-                                            .waitForNodes(minimumConfigurationSize)).get().getWarrant();
+                                    final DiscoveredNodesRequest discoveredNodesRequest
+                                        = new DiscoveredNodesRequest().waitForNodes(minimumConfigurationSize);
+                                    if (minimumConfigurationSize > 1 && randomBoolean()) {
+                                        discoveredNodesRequest.timeout(TimeValue.timeValueSeconds(5));
+                                    }
+
+                                    bootstrapWarrant
+                                        = client.execute(DiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
                                 } catch (Exception e) {
                                     logger.trace("exception getting bootstrap warrant", e);
                                 }
