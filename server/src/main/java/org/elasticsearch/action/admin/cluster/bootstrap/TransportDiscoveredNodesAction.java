@@ -120,4 +120,3 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
         }
     }
 }
-

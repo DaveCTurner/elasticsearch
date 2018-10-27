@@ -377,6 +377,7 @@ public abstract class ESTestCase extends LuceneTestCase {
                 }
             }
         }
+
     }
 
     /**
