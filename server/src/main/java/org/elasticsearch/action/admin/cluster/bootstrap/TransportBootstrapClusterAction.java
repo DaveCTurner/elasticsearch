@@ -18,12 +18,14 @@
  */
 package org.elasticsearch.action.admin.cluster.bootstrap;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState.VotingConfiguration;
 import org.elasticsearch.cluster.coordination.Coordinator;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -34,15 +36,20 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.transport.TransportService;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TransportBootstrapClusterAction extends TransportAction<BootstrapClusterRequest, AcknowledgedResponse> {
 
     @Nullable // TODO make this not nullable
     private final Coordinator coordinator;
+    private final TransportService transportService;
 
     @Inject
     public TransportBootstrapClusterAction(Settings settings, ActionFilters actionFilters, TransportService transportService,
                                            Discovery discovery) {
         super(settings, BootstrapClusterAction.NAME, actionFilters, transportService.getTaskManager());
+        this.transportService = transportService;
         if (discovery instanceof Coordinator) {
             coordinator = (Coordinator) discovery;
         } else {
@@ -56,11 +63,21 @@ public class TransportBootstrapClusterAction extends TransportAction<BootstrapCl
             throw new IllegalStateException("cannot execute a Zen2 action if not using Zen2");
         }
 
+        final DiscoveryNode localNode = transportService.getLocalNode();
+        assert localNode != null;
+        if (localNode.isMasterNode() == false) {
+            throw new ElasticsearchException("this node is not master-eligible");
+        }
+
         if (coordinator.isInitialConfigurationSet()) {
             logger.info("initial configuration already set, ignoring bootstrapping request");
             listener.onResponse(new AcknowledgedResponse(false));
         } else {
-            final VotingConfiguration votingConfiguration = request.warrant().resolve(coordinator.getFoundPeers());
+            final List<DiscoveryNode> selfAndDiscoveredPeers = new ArrayList<>();
+            selfAndDiscoveredPeers.add(localNode);
+            coordinator.getFoundPeers().forEach(selfAndDiscoveredPeers::add);
+
+            final VotingConfiguration votingConfiguration = request.warrant().resolve(selfAndDiscoveredPeers);
             logger.info("setting initial configuration to {}", votingConfiguration);
             coordinator.setInitialConfiguration(votingConfiguration);
             listener.onResponse(new AcknowledgedResponse(true));

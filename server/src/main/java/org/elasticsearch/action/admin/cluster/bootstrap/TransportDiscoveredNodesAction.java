@@ -19,6 +19,7 @@
 package org.elasticsearch.action.admin.cluster.bootstrap;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
@@ -71,11 +72,15 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
             throw new IllegalStateException("cannot execute a Zen2 action if not using Zen2");
         }
 
+        final DiscoveryNode localNode = transportService.getLocalNode();
+        assert localNode != null;
+        if (localNode.isMasterNode() == false) {
+            throw new ElasticsearchException("this node is not master-eligible");
+        }
+
         final AtomicBoolean responseSent = new AtomicBoolean();
         final CountDownLatch countDownLatch = new CountDownLatch(1);
         final long timeoutMillis = request.timeout().millis();
-        final DiscoveryNode localNode = transportService.getLocalNode();
-        assert localNode != null;
         assert timeoutMillis >= 0 : timeoutMillis;
 
         final Consumer<Iterable<DiscoveryNode>> respondIfRequestSatisfied = new Consumer<Iterable<DiscoveryNode>>() {

@@ -63,8 +63,6 @@ public class DiscoveredNodesResponse extends ActionResponse implements ToXConten
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        BootstrapWarrant.Builder warrantBuilder = new BootstrapWarrant.Builder();
-        nodes.forEach(warrantBuilder::add);
-        return warrantBuilder.build().toXContent(builder, params);
+        return getWarrant().toXContent(builder, params);
     }
 }
