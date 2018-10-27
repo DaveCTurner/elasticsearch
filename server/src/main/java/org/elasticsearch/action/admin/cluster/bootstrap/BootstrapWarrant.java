@@ -63,6 +63,7 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
         for (final Node warrantNode : nodes) {
             boolean found = false;
             for (final DiscoveryNode discoveryNode : discoveredNodes) {
+                assert discoveryNode.isMasterNode() : discoveryNode;
                 if (discoveryNode.getName().equals(warrantNode.getName())) {
                     if (warrantNode.getId() == null || warrantNode.getId().equals(discoveryNode.getId())) {
                         if (found) {

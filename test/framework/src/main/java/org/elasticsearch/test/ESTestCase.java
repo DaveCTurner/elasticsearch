@@ -82,6 +82,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.MockBigArrays;
 import org.elasticsearch.common.util.MockPageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -311,49 +312,57 @@ public abstract class ESTestCase extends LuceneTestCase {
         Thread bootstrapThread = null;
 
         if (condition) {
-            final Random bootstrapRandom = new Random(randomLong());
-
-            bootstrapThread = new Thread(() -> {
-                BootstrapWarrant bootstrapWarrant = null;
-                while (stopBootstrapThread.get() == false) {
-                    final Node node = randomFrom(bootstrapRandom, nodes);
-                    final TransportService transportService = node.injector().getInstance(TransportService.class);
-                    if (transportService.getLocalNode() != null) {
-                        final Client client = node.client();
-                        if (bootstrapWarrant == null) {
-                            logger.info("requesting bootstrap warrant");
-                            try {
-                                bootstrapWarrant = client.execute(DiscoveredNodesAction.INSTANCE,
-                                    new DiscoveredNodesRequest()).get().getWarrant();
-                                logger.info("obtained bootstrap warrant: {}", bootstrapWarrant);
-                            } catch (Exception e) {
-                                logger.info("exception getting bootstrap warrant", e);
-                            }
-                        } else {
-                            logger.info("bootstrapping cluster with {}", bootstrapWarrant);
-                            try {
-                                client.execute(BootstrapClusterAction.INSTANCE,
-                                    new BootstrapClusterRequest().warrant(bootstrapWarrant)).get();
-                                if (randomBoolean()) {
-                                    logger.info("bootstrapped cluster");
-                                    return;
-                                }
-                                logger.info("bootstrapped cluster, but trying again anyway");
-                            } catch (Exception e) {
-                                logger.info("exception bootstrapping cluster", e);
-                            }
-                        }
-                    } else {
-                        logger.info("transport service not started yet");
-                    }
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        throw new AssertionError("interrupted while sleeping", e);
+            int zen2MasterNodeCount = 0;
+            for (Node node : nodes) {
+                if (DiscoveryNode.isMasterNode(node.settings())) {
+                    Discovery discovery = node.injector().getInstance(Discovery.class);
+                    if (discovery instanceof Coordinator) {
+                        zen2MasterNodeCount++;
                     }
                 }
-            }, "Bootstrap-Thread for " + ClusterName.CLUSTER_NAME_SETTING.get(nodes.get(0).settings()));
-            bootstrapThread.start();
+            }
+
+            if (zen2MasterNodeCount > 0) {
+                final int minimumConfigurationSize = randomIntBetween(1, zen2MasterNodeCount);
+                final Random bootstrapRandom = new Random(randomLong());
+
+                bootstrapThread = new Thread(() -> {
+                    BootstrapWarrant bootstrapWarrant = null;
+                    while (stopBootstrapThread.get() == false) {
+                        final Node node = randomFrom(bootstrapRandom, nodes);
+                        final TransportService transportService = node.injector().getInstance(TransportService.class);
+                        if (transportService.getLocalNode() != null) {
+                            final Client client = node.client();
+                            if (bootstrapWarrant == null) {
+                                try {
+                                    bootstrapWarrant = client.execute(DiscoveredNodesAction.INSTANCE,
+                                        new DiscoveredNodesRequest()
+                                            .timeout(TimeValue.timeValueSeconds(5))
+                                            .waitForNodes(minimumConfigurationSize)).get().getWarrant();
+                                } catch (Exception e) {
+                                    logger.trace("exception getting bootstrap warrant", e);
+                                }
+                            } else {
+                                try {
+                                    client.execute(BootstrapClusterAction.INSTANCE,
+                                        new BootstrapClusterRequest().warrant(bootstrapWarrant)).get();
+                                    if (usually(bootstrapRandom)) {
+                                        return;
+                                    }
+                                } catch (Exception e) {
+                                    logger.trace("exception bootstrapping cluster", e);
+                                }
+                            }
+                        }
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            throw new AssertionError("interrupted while sleeping", e);
+                        }
+                    }
+                }, "Bootstrap-Thread for " + ClusterName.CLUSTER_NAME_SETTING.get(nodes.get(0).settings()));
+                bootstrapThread.start();
+            }
         }
 
         try {
