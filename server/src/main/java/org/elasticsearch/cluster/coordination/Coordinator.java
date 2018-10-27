@@ -569,9 +569,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     }
 
     public boolean isInitialConfigurationSet() {
-        synchronized (mutex) {
-            return getStateForMasterService().getLastAcceptedConfiguration().isEmpty() == false;
-        }
+        return getStateForMasterService().getLastAcceptedConfiguration().isEmpty() == false;
     }
 
     public void setInitialConfiguration(final VotingConfiguration votingConfiguration) {
