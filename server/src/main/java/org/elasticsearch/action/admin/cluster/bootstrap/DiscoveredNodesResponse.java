@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-public class DiscoveredNodesResponse extends ActionResponse implements ToXContentObject {
+public class DiscoveredNodesResponse extends ActionResponse {
     private Set<DiscoveryNode> nodes;
 
     public DiscoveredNodesResponse() {
@@ -59,10 +59,5 @@ public class DiscoveredNodesResponse extends ActionResponse implements ToXConten
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeCollection(nodes, (o, p) -> p.writeTo(o));
-    }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        return getWarrant().toXContent(builder, params);
     }
 }

@@ -22,13 +22,9 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.ClusterState.VotingConfiguration;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
-import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.xcontent.ObjectParser;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,14 +35,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
-public class BootstrapWarrant implements ToXContentObject, Writeable {
-
-    public static final ParseField NODES = new ParseField("nodes");
-    public static final ObjectParser<Builder, Void> PARSER = new ObjectParser<>("bootstrap_warrant", true, Builder::new);
-
-    static {
-        PARSER.declareObjectArray(Builder::addAll, Node.PARSER, NODES);
-    }
+public class BootstrapWarrant implements Writeable {
 
     private final List<Node> nodes;
 
@@ -91,18 +80,6 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
     }
 
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.startArray(NODES.getPreferredName());
-        for (final Node warrantNode : nodes) {
-            builder.value(warrantNode);
-        }
-        builder.endArray();
-        builder.endObject();
-        return builder;
-    }
-
-    @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeList(nodes);
     }
@@ -114,15 +91,7 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
             '}';
     }
 
-    public static class Node implements ToXContentObject, Writeable {
-        public static final ParseField ID = new ParseField("id");
-        public static final ParseField NAME = new ParseField("name");
-        public static final ObjectParser<Builder, Void> PARSER = new ObjectParser<>("bootstrap_warrant_node", true, Builder::new);
-
-        static {
-            PARSER.declareString(Builder::id, ID);
-            PARSER.declareString(Builder::name, NAME);
-        }
+    public static class Node implements Writeable {
 
         @Nullable
         private final String id;
@@ -158,17 +127,6 @@ public class BootstrapWarrant implements ToXContentObject, Writeable {
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 '}';
-        }
-
-        @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            builder.startObject();
-            if (id != null) {
-                builder.field(ID.getPreferredName(), id);
-            }
-            builder.field(NAME.getPreferredName(), name);
-            builder.endObject();
-            return builder;
         }
 
         static class Builder {
