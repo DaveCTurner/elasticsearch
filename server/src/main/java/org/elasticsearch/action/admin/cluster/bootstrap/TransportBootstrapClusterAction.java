@@ -30,10 +30,7 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.discovery.Discovery;
-import org.elasticsearch.rest.action.admin.cluster.BootstrapClusterAction;
-import org.elasticsearch.rest.action.admin.cluster.BootstrapClusterRequest;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
