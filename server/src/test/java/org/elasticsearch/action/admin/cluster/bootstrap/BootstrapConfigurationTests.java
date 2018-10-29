@@ -38,55 +38,9 @@ import static org.hamcrest.Matchers.startsWith;
 
 public class BootstrapConfigurationTests extends ESTestCase {
 
-    private NodeDescription mutate(NodeDescription original) {
-        if (randomBoolean()) {
-            return new NodeDescription(original.getId(), randomAlphaOfLength(10));
-        } else {
-            return new NodeDescription(original.getId() == null || randomBoolean() ? randomAlphaOfLength(10) : null, original.getName());
-        }
-    }
-
-    private BootstrapConfiguration mutate(BootstrapConfiguration original) {
-        final List<NodeDescription> newDescriptions = new ArrayList<>(original.getNodeDescriptions());
-        final int mutateElement = randomIntBetween(0, newDescriptions.size());
-        if (mutateElement == newDescriptions.size()) {
-            newDescriptions.add(randomIntBetween(0, newDescriptions.size()), randomNodeDescription());
-        } else {
-            if (newDescriptions.size() > 1 && randomBoolean()) {
-                newDescriptions.remove(mutateElement);
-            } else {
-                newDescriptions.set(mutateElement, mutate(newDescriptions.get(mutateElement)));
-            }
-        }
-        return new BootstrapConfiguration(newDescriptions);
-    }
-
-    private NodeDescription randomNodeDescription() {
-        return new NodeDescription(randomBoolean() ? null : randomAlphaOfLength(10), randomAlphaOfLength(10));
-    }
-
     public void testEqualsHashcodeSerialization() {
         EqualsHashCodeTestUtils.checkEqualsAndHashCode(randomBootstrapConfiguration(),
             bootstrapConfiguration -> copyWriteable(bootstrapConfiguration, writableRegistry(), BootstrapConfiguration::new), this::mutate);
-    }
-
-    private BootstrapConfiguration randomBootstrapConfiguration() {
-        final int size = randomIntBetween(1, 5);
-        final List<NodeDescription> nodeDescriptions = new ArrayList<>(size);
-        while (nodeDescriptions.size() <= size) {
-            nodeDescriptions.add(randomNodeDescription());
-        }
-        return new BootstrapConfiguration(nodeDescriptions);
-    }
-
-    private List<DiscoveryNode> randomDiscoveryNodes() {
-        final int size = randomIntBetween(1, 5);
-        final List<DiscoveryNode> nodes = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            nodes.add(new DiscoveryNode(randomAlphaOfLength(10), randomAlphaOfLength(10), buildNewFakeTransportAddress(), emptyMap(),
-                singleton(Role.MASTER), Version.CURRENT));
-        }
-        return nodes;
     }
 
     public void testNodeDescriptionResolvedByName() {
@@ -168,5 +122,51 @@ public class BootstrapConfigurationTests extends ESTestCase {
 
         final ElasticsearchException e = expectThrows(ElasticsearchException.class, () -> bootstrapConfiguration.resolve(discoveryNodes));
         assertThat(e.getMessage(), startsWith("multiple nodes matching "));
+    }
+
+    private NodeDescription mutate(NodeDescription original) {
+        if (randomBoolean()) {
+            return new NodeDescription(original.getId(), randomAlphaOfLength(10));
+        } else {
+            return new NodeDescription(original.getId() == null || randomBoolean() ? randomAlphaOfLength(10) : null, original.getName());
+        }
+    }
+
+    protected BootstrapConfiguration mutate(BootstrapConfiguration original) {
+        final List<NodeDescription> newDescriptions = new ArrayList<>(original.getNodeDescriptions());
+        final int mutateElement = randomIntBetween(0, newDescriptions.size());
+        if (mutateElement == newDescriptions.size()) {
+            newDescriptions.add(randomIntBetween(0, newDescriptions.size()), randomNodeDescription());
+        } else {
+            if (newDescriptions.size() > 1 && randomBoolean()) {
+                newDescriptions.remove(mutateElement);
+            } else {
+                newDescriptions.set(mutateElement, mutate(newDescriptions.get(mutateElement)));
+            }
+        }
+        return new BootstrapConfiguration(newDescriptions);
+    }
+
+    protected NodeDescription randomNodeDescription() {
+        return new NodeDescription(randomBoolean() ? null : randomAlphaOfLength(10), randomAlphaOfLength(10));
+    }
+
+    protected BootstrapConfiguration randomBootstrapConfiguration() {
+        final int size = randomIntBetween(1, 5);
+        final List<NodeDescription> nodeDescriptions = new ArrayList<>(size);
+        while (nodeDescriptions.size() <= size) {
+            nodeDescriptions.add(randomNodeDescription());
+        }
+        return new BootstrapConfiguration(nodeDescriptions);
+    }
+
+    protected List<DiscoveryNode> randomDiscoveryNodes() {
+        final int size = randomIntBetween(1, 5);
+        final List<DiscoveryNode> nodes = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            nodes.add(new DiscoveryNode(randomAlphaOfLength(10), randomAlphaOfLength(10), buildNewFakeTransportAddress(), emptyMap(),
+                singleton(Role.MASTER), Version.CURRENT));
+        }
+        return nodes;
     }
 }

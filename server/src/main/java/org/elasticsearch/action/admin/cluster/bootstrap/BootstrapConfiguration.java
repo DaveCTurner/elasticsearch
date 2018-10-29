@@ -45,10 +45,8 @@ public class BootstrapConfiguration implements Writeable {
     }
 
     public BootstrapConfiguration(StreamInput in) throws IOException {
-        this.nodeDescriptions = in.readList(NodeDescription::new);
-        if (nodeDescriptions.isEmpty()) {
-            throw new IllegalArgumentException("cannot create empty bootstrap configuration");
-        }
+        nodeDescriptions = in.readList(NodeDescription::new);
+        assert nodeDescriptions.isEmpty() == false;
     }
 
     public List<NodeDescription> getNodeDescriptions() {
