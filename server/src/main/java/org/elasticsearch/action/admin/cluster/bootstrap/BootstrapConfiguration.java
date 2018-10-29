@@ -35,42 +35,42 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
 
-public class BootstrapWarrant implements Writeable {
+public class BootstrapConfiguration implements Writeable {
 
     private final List<Node> nodes;
 
-    public BootstrapWarrant(List<Node> nodes) {
+    public BootstrapConfiguration(List<Node> nodes) {
         this.nodes = nodes;
     }
 
-    public BootstrapWarrant(StreamInput in) throws IOException {
+    public BootstrapConfiguration(StreamInput in) throws IOException {
         this.nodes = in.readList(Node::new);
     }
 
     public VotingConfiguration resolve(Iterable<DiscoveryNode> discoveredNodes) {
         final Set<DiscoveryNode> selectedNodes = new HashSet<>();
-        for (final Node warrantNode : nodes) {
+        for (final Node desiredNode : nodes) {
             boolean found = false;
-            for (final DiscoveryNode discoveryNode : discoveredNodes) {
-                assert discoveryNode.isMasterNode() : discoveryNode;
-                if (discoveryNode.getName().equals(warrantNode.getName())) {
-                    if (warrantNode.getId() == null || warrantNode.getId().equals(discoveryNode.getId())) {
+            for (final DiscoveryNode discoveredNode : discoveredNodes) {
+                assert discoveredNode.isMasterNode() : discoveredNode;
+                if (discoveredNode.getName().equals(desiredNode.getName())) {
+                    if (desiredNode.getId() == null || desiredNode.getId().equals(discoveredNode.getId())) {
                         if (found) {
-                            throw new ElasticsearchException("discovered multiple nodes matching {} in {}", warrantNode, discoveredNodes);
+                            throw new ElasticsearchException("discovered multiple nodes matching {} in {}", desiredNode, discoveredNodes);
                         }
                         found = true;
-                        if (selectedNodes.add(discoveryNode) == false) {
-                            throw new ElasticsearchException("multiple nodes matching {} in {}", discoveryNode, this);
+                        if (selectedNodes.add(discoveredNode) == false) {
+                            throw new ElasticsearchException("multiple nodes matching {} in {}", discoveredNode, this);
                         }
                     } else {
-                        throw new ElasticsearchException("node id mismatch comparing {} to {}", warrantNode, discoveryNode);
+                        throw new ElasticsearchException("node id mismatch comparing {} to {}", desiredNode, discoveredNode);
                     }
-                } else if (warrantNode.getId() != null && warrantNode.getId().equals(discoveryNode.getId())) {
-                    throw new ElasticsearchException("node name mismatch comparing {} to {}", warrantNode, discoveryNode);
+                } else if (desiredNode.getId() != null && desiredNode.getId().equals(discoveredNode.getId())) {
+                    throw new ElasticsearchException("node name mismatch comparing {} to {}", desiredNode, discoveredNode);
                 }
             }
             if (found == false) {
-                throw new ElasticsearchException("no node matching {} found in {}", warrantNode, discoveredNodes);
+                throw new ElasticsearchException("no node matching {} found in {}", desiredNode, discoveredNodes);
             }
         }
 
@@ -86,7 +86,7 @@ public class BootstrapWarrant implements Writeable {
 
     @Override
     public String toString() {
-        return "BootstrapWarrant{" +
+        return "BootstrapConfiguration{" +
             "nodes=" + nodes +
             '}';
     }
@@ -170,8 +170,8 @@ public class BootstrapWarrant implements Writeable {
             nodes.add(node);
         }
 
-        public BootstrapWarrant build() {
-            return new BootstrapWarrant(unmodifiableList(nodes));
+        public BootstrapConfiguration build() {
+            return new BootstrapConfiguration(unmodifiableList(nodes));
         }
 
         public static void addAll(Builder builder, List<Node.Builder> nodeBuilders) {

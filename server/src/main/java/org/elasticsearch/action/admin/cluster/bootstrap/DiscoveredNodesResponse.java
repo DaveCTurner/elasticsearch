@@ -40,8 +40,8 @@ public class DiscoveredNodesResponse extends ActionResponse {
         return nodes;
     }
 
-    public BootstrapWarrant getWarrant() {
-        final BootstrapWarrant.Builder warrantBuilder = new BootstrapWarrant.Builder();
+    public BootstrapConfiguration getWarrant() {
+        final BootstrapConfiguration.Builder warrantBuilder = new BootstrapConfiguration.Builder();
         nodes.forEach(warrantBuilder::add);
         return warrantBuilder.build();
     }

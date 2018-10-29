@@ -48,7 +48,7 @@ import org.apache.lucene.util.TestRuleMarkFailure;
 import org.apache.lucene.util.TestUtil;
 import org.apache.lucene.util.TimeUnits;
 import org.elasticsearch.Version;
-import org.elasticsearch.action.admin.cluster.bootstrap.BootstrapWarrant;
+import org.elasticsearch.action.admin.cluster.bootstrap.BootstrapConfiguration;
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesAction;
 import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesRequest;
 import org.elasticsearch.bootstrap.BootstrapForTesting;
@@ -323,13 +323,13 @@ public abstract class ESTestCase extends LuceneTestCase {
                 final Random bootstrapRandom = new Random(randomLong());
 
                 bootstrapThread = new Thread(() -> {
-                    BootstrapWarrant bootstrapWarrant = null;
+                    BootstrapConfiguration bootstrapConfiguration = null;
                     while (stopBootstrapThread.get() == false) {
                         final Node node = randomFrom(bootstrapRandom, nodes);
                         final TransportService transportService = node.injector().getInstance(TransportService.class);
                         if (transportService.getLocalNode() != null) {
                             final Client client = node.client();
-                            if (bootstrapWarrant == null) {
+                            if (bootstrapConfiguration == null) {
                                 try {
                                     final DiscoveredNodesRequest discoveredNodesRequest
                                         = new DiscoveredNodesRequest().waitForNodes(minimumConfigurationSize);
@@ -337,7 +337,7 @@ public abstract class ESTestCase extends LuceneTestCase {
                                         discoveredNodesRequest.timeout(TimeValue.timeValueSeconds(5));
                                     }
 
-                                    bootstrapWarrant
+                                    bootstrapConfiguration
                                         = client.execute(DiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
                                 } catch (Exception e) {
                                     logger.trace("exception getting bootstrap warrant", e);
@@ -345,7 +345,7 @@ public abstract class ESTestCase extends LuceneTestCase {
                             } else {
                                 try {
                                     client.execute(BootstrapClusterAction.INSTANCE,
-                                        new BootstrapClusterRequest().warrant(bootstrapWarrant)).get();
+                                        new BootstrapClusterRequest().warrant(bootstrapConfiguration)).get();
                                     if (usually(bootstrapRandom)) {
                                         return;
                                     }
