@@ -337,8 +337,8 @@ public abstract class ESTestCase extends LuceneTestCase {
                                         discoveredNodesRequest.timeout(TimeValue.timeValueSeconds(5));
                                     }
 
-                                    bootstrapConfiguration
-                                        = client.execute(GetDiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getBootstrapConfiguration();
+                                    bootstrapConfiguration = client.execute(GetDiscoveredNodesAction.INSTANCE, discoveredNodesRequest)
+                                        .get().getBootstrapConfiguration();
                                 } catch (Exception e) {
                                     logger.trace("exception getting bootstrap configuration", e);
                                 }
