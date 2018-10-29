@@ -37,40 +37,22 @@ import static java.util.Collections.unmodifiableList;
 
 public class BootstrapConfiguration implements Writeable {
 
-    private final List<Node> nodes;
+    private final List<NodeDescription> nodeDescriptions;
 
-    public BootstrapConfiguration(List<Node> nodes) {
-        this.nodes = nodes;
+    public BootstrapConfiguration(List<NodeDescription> nodeDescriptions) {
+        this.nodeDescriptions = nodeDescriptions;
     }
 
     public BootstrapConfiguration(StreamInput in) throws IOException {
-        this.nodes = in.readList(Node::new);
+        this.nodeDescriptions = in.readList(NodeDescription::new);
     }
 
     public VotingConfiguration resolve(Iterable<DiscoveryNode> discoveredNodes) {
         final Set<DiscoveryNode> selectedNodes = new HashSet<>();
-        for (final Node desiredNode : nodes) {
-            boolean found = false;
-            for (final DiscoveryNode discoveredNode : discoveredNodes) {
-                assert discoveredNode.isMasterNode() : discoveredNode;
-                if (discoveredNode.getName().equals(desiredNode.getName())) {
-                    if (desiredNode.getId() == null || desiredNode.getId().equals(discoveredNode.getId())) {
-                        if (found) {
-                            throw new ElasticsearchException("discovered multiple nodes matching {} in {}", desiredNode, discoveredNodes);
-                        }
-                        found = true;
-                        if (selectedNodes.add(discoveredNode) == false) {
-                            throw new ElasticsearchException("multiple nodes matching {} in {}", discoveredNode, this);
-                        }
-                    } else {
-                        throw new ElasticsearchException("node id mismatch comparing {} to {}", desiredNode, discoveredNode);
-                    }
-                } else if (desiredNode.getId() != null && desiredNode.getId().equals(discoveredNode.getId())) {
-                    throw new ElasticsearchException("node name mismatch comparing {} to {}", desiredNode, discoveredNode);
-                }
-            }
-            if (found == false) {
-                throw new ElasticsearchException("no node matching {} found in {}", desiredNode, discoveredNodes);
+        for (final NodeDescription nodeDescription : nodeDescriptions) {
+            final DiscoveryNode discoveredNode = nodeDescription.resolve(discoveredNodes);
+            if (selectedNodes.add(discoveredNode) == false) {
+                throw new ElasticsearchException("multiple nodeDescriptions matching {} in {}", discoveredNode, this);
             }
         }
 
@@ -81,17 +63,17 @@ public class BootstrapConfiguration implements Writeable {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeList(nodes);
+        out.writeList(nodeDescriptions);
     }
 
     @Override
     public String toString() {
         return "BootstrapConfiguration{" +
-            "nodes=" + nodes +
+            "nodeDescriptions=" + nodeDescriptions +
             '}';
     }
 
-    public static class Node implements Writeable {
+    public static class NodeDescription implements Writeable {
 
         @Nullable
         private final String id;
@@ -105,12 +87,12 @@ public class BootstrapConfiguration implements Writeable {
             return name;
         }
 
-        public Node(@Nullable String id, String name) {
+        public NodeDescription(@Nullable String id, String name) {
             this.id = id;
             this.name = name;
         }
 
-        public Node(StreamInput in) throws IOException {
+        public NodeDescription(StreamInput in) throws IOException {
             id = in.readOptionalString();
             name = in.readString();
         }
@@ -123,10 +105,36 @@ public class BootstrapConfiguration implements Writeable {
 
         @Override
         public String toString() {
-            return "Node{" +
+            return "NodeDescription{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 '}';
+        }
+
+        public DiscoveryNode resolve(Iterable<DiscoveryNode> discoveredNodes) {
+            NodeDescription nodeDescription = this;
+            DiscoveryNode selectedNode = null;
+            for (final DiscoveryNode discoveredNode : discoveredNodes) {
+                assert discoveredNode.isMasterNode() : discoveredNode;
+                if (discoveredNode.getName().equals(nodeDescription.getName())) {
+                    if (nodeDescription.getId() == null || nodeDescription.getId().equals(discoveredNode.getId())) {
+                        if (selectedNode != null) {
+                            throw new ElasticsearchException(
+                                "discovered multiple nodes matching {} in {}", nodeDescription, discoveredNodes);
+                        }
+                        selectedNode = discoveredNode;
+                    } else {
+                        throw new ElasticsearchException("node id mismatch comparing {} to {}", nodeDescription, discoveredNode);
+                    }
+                } else if (nodeDescription.getId() != null && nodeDescription.getId().equals(discoveredNode.getId())) {
+                    throw new ElasticsearchException("node name mismatch comparing {} to {}", nodeDescription, discoveredNode);
+                }
+            }
+            if (selectedNode == null) {
+                throw new ElasticsearchException("no node matching {} found in {}", nodeDescription, discoveredNodes);
+            }
+
+            return selectedNode;
         }
 
         static class Builder {
@@ -141,41 +149,29 @@ public class BootstrapConfiguration implements Writeable {
                 this.name = name;
             }
 
-            public Node build() {
-                return new Node(id, name);
+            public NodeDescription build() {
+                return new NodeDescription(id, name);
             }
         }
     }
 
     public static class Builder {
-        private final List<Node> nodes = new ArrayList<>();
+        private final List<NodeDescription> nodeDescriptions = new ArrayList<>();
 
         public void add(DiscoveryNode discoveryNode) {
             add(discoveryNode.getId(), discoveryNode.getName());
         }
 
-        public void add(String name) {
-            add(null, name);
-        }
-
         public void add(@Nullable String id, String name) {
-            add(new Node(id, name));
+            add(new NodeDescription(id, name));
         }
 
-        private void add(Node.Builder nodeBuilder) {
-            add(nodeBuilder.build());
-        }
-
-        private void add(Node node) {
-            nodes.add(node);
+        private void add(NodeDescription node) {
+            nodeDescriptions.add(node);
         }
 
         public BootstrapConfiguration build() {
-            return new BootstrapConfiguration(unmodifiableList(nodes));
-        }
-
-        public static void addAll(Builder builder, List<Node.Builder> nodeBuilders) {
-            nodeBuilders.forEach(builder::add);
+            return new BootstrapConfiguration(unmodifiableList(nodeDescriptions));
         }
     }
 }
