@@ -29,6 +29,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,11 +38,17 @@ public class BootstrapConfiguration implements Writeable {
     private final List<NodeDescription> nodeDescriptions;
 
     public BootstrapConfiguration(List<NodeDescription> nodeDescriptions) {
+        if (nodeDescriptions.isEmpty()) {
+            throw new IllegalArgumentException("cannot create empty bootstrap configuration");
+        }
         this.nodeDescriptions = nodeDescriptions;
     }
 
     public BootstrapConfiguration(StreamInput in) throws IOException {
         this.nodeDescriptions = in.readList(NodeDescription::new);
+        if (nodeDescriptions.isEmpty()) {
+            throw new IllegalArgumentException("cannot create empty bootstrap configuration");
+        }
     }
 
     public VotingConfiguration resolve(Iterable<DiscoveryNode> discoveredNodes) {
@@ -86,7 +93,7 @@ public class BootstrapConfiguration implements Writeable {
 
         public NodeDescription(DiscoveryNode discoveryNode) {
             this.id = discoveryNode.getId();
-            this.name = discoveryNode.getName();
+            this.name = Objects.requireNonNull(discoveryNode.getName());
         }
 
         public NodeDescription(StreamInput in) throws IOException {
