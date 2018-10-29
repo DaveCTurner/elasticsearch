@@ -96,6 +96,7 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
@@ -716,9 +717,17 @@ public class CoordinatorTests extends ESTestCase {
                 clusterNode.coordinator.getLastAcceptedState().getLastAcceptedConfiguration().isEmpty());
             assertTrue(nodeId + " has an empty last-committed configuration",
                 clusterNode.coordinator.getLastAcceptedState().getLastCommittedConfiguration().isEmpty());
+
+            final Set<DiscoveryNode> foundPeers = new HashSet<>();
+            clusterNode.coordinator.getFoundPeers().forEach(foundPeers::add);
+            assertTrue(nodeId + " should not have discovered itself", foundPeers.add(clusterNode.getLocalNode()));
+            assertThat(nodeId + " should have found all peers", foundPeers, hasSize(cluster.size()));
         }
 
-        cluster.getAnyNode().applyInitialConfiguration();
+        final ClusterNode bootstrapNode = cluster.getAnyNode();
+        bootstrapNode.applyInitialConfiguration();
+        assertTrue(bootstrapNode.getId() + " has been bootstrapped", bootstrapNode.coordinator.isInitialConfigurationSet());
+
         cluster.stabilise(
             // the first election should succeed, because only one node knows of the initial configuration and therefore can win a
             // pre-voting round and proceed to an election, so there cannot be any collisions
