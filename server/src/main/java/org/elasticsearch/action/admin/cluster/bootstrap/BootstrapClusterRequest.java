@@ -26,10 +26,10 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 
 public class BootstrapClusterRequest extends ActionRequest {
-    private BootstrapConfiguration warrant;
+    private BootstrapConfiguration bootstrapConfiguration;
 
-    public BootstrapClusterRequest warrant(BootstrapConfiguration warrant) {
-        this.warrant = warrant;
+    public BootstrapClusterRequest bootstrapConfiguration(BootstrapConfiguration bootstrapConfiguration) {
+        this.bootstrapConfiguration = bootstrapConfiguration;
         return this;
     }
 
@@ -38,19 +38,19 @@ public class BootstrapClusterRequest extends ActionRequest {
         return null;
     }
 
-    public BootstrapConfiguration warrant() {
-        return warrant;
+    public BootstrapConfiguration bootstrapConfiguration() {
+        return bootstrapConfiguration;
     }
 
     @Override
     public void readFrom(StreamInput in) throws IOException {
         super.readFrom(in);
-        warrant = new BootstrapConfiguration(in);
+        bootstrapConfiguration = new BootstrapConfiguration(in);
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        warrant.writeTo(out);
+        bootstrapConfiguration.writeTo(out);
     }
 }

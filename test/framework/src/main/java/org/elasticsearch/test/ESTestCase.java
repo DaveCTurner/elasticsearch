@@ -340,12 +340,12 @@ public abstract class ESTestCase extends LuceneTestCase {
                                     bootstrapConfiguration
                                         = client.execute(DiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
                                 } catch (Exception e) {
-                                    logger.trace("exception getting bootstrap warrant", e);
+                                    logger.trace("exception getting bootstrap configuration", e);
                                 }
                             } else {
                                 try {
                                     client.execute(BootstrapClusterAction.INSTANCE,
-                                        new BootstrapClusterRequest().warrant(bootstrapConfiguration)).get();
+                                        new BootstrapClusterRequest().bootstrapConfiguration(bootstrapConfiguration)).get();
                                     if (usually(bootstrapRandom)) {
                                         return;
                                     }

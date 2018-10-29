@@ -74,7 +74,7 @@ public class TransportBootstrapClusterAction extends TransportAction<BootstrapCl
             selfAndDiscoveredPeers.add(localNode);
             coordinator.getFoundPeers().forEach(selfAndDiscoveredPeers::add);
 
-            final VotingConfiguration votingConfiguration = request.warrant().resolve(selfAndDiscoveredPeers);
+            final VotingConfiguration votingConfiguration = request.bootstrapConfiguration().resolve(selfAndDiscoveredPeers);
             logger.info("setting initial configuration to {}", votingConfiguration);
             coordinator.setInitialConfiguration(votingConfiguration);
             listener.onResponse(new AcknowledgedResponse(true));
