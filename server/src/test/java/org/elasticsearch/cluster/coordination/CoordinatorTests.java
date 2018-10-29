@@ -35,6 +35,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterApplier;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.component.AbstractComponent;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -61,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -98,6 +100,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
@@ -701,6 +704,39 @@ public class CoordinatorTests extends ESTestCase {
 //        assertTrue("expected ack from " + leader, ackCollector.hasAckedSuccessfully(leader));
 //        assertTrue("expected nack from " + follower0, ackCollector.hasAckedUnsuccessfully(follower0));
 //        assertTrue("expected ack from " + follower1, ackCollector.hasAckedSuccessfully(follower1));
+    }
+
+    public void testDiscoveryOfPeersTriggersNotification() {
+        final Cluster cluster = new Cluster(randomIntBetween(2, 5));
+
+        // register a listener and then deregister it again to show that it is not called after deregistration
+        try (Releasable ignored = cluster.getAnyNode().coordinator.withDiscoveryListener(ns -> {
+            throw new AssertionError("should not be called");
+        })) {
+            // do nothing
+        }
+
+        final long startTimeMillis = cluster.deterministicTaskQueue.getCurrentTimeMillis();
+        final ClusterNode bootstrapNode = cluster.getAnyNode();
+        final AtomicBoolean hasDiscoveredAllPeers = new AtomicBoolean();
+        assertFalse(bootstrapNode.coordinator.getFoundPeers().iterator().hasNext());
+        try (Releasable ignored = bootstrapNode.coordinator.withDiscoveryListener(discoveryNodes -> {
+            int peerCount = 0;
+            for (final DiscoveryNode discoveryNode : discoveryNodes) {
+                peerCount++;
+            }
+            assertThat(peerCount, lessThan(cluster.size()));
+            if (peerCount == cluster.size() - 1 && hasDiscoveredAllPeers.get() == false) {
+                hasDiscoveredAllPeers.set(true);
+                final long elapsedTimeMillis = cluster.deterministicTaskQueue.getCurrentTimeMillis() - startTimeMillis;
+                logger.info("--> {} discovered {} peers in {}ms", bootstrapNode.getId(), cluster.size() - 1, elapsedTimeMillis);
+                assertThat(elapsedTimeMillis, lessThanOrEqualTo(defaultMillis(DISCOVERY_FIND_PEERS_INTERVAL_SETTING) * 2));
+            }
+        })) {
+            cluster.runFor(defaultMillis(DISCOVERY_FIND_PEERS_INTERVAL_SETTING) * 2 + randomLongBetween(0, 60000), "discovery phase");
+        }
+
+        assertTrue(hasDiscoveredAllPeers.get());
     }
 
     public void testSettingInitialConfigurationTriggersElection() {
