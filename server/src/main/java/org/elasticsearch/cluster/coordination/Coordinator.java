@@ -42,7 +42,6 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
-import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -359,6 +358,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             joinAccumulator.close(mode);
             joinAccumulator = joinHelper.new CandidateJoinAccumulator();
 
+            peerFinder.activate(coordinationState.get().getLastAcceptedState().nodes());
             leaderChecker.setCurrentNodes(DiscoveryNodes.EMPTY_NODES);
             leaderChecker.updateLeader(null);
 
@@ -369,10 +369,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 applierState = clusterStateWithNoMasterBlock(applierState);
                 clusterApplier.onNewClusterState("becoming candidate: " + method, () -> applierState, (source, e) -> {
                 });
-            }
-
-            if (lifecycleState() == Lifecycle.State.STARTED) {
-                peerFinder.activate(coordinationState.get().getLastAcceptedState().nodes());
             }
         }
 
