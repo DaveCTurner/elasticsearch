@@ -485,9 +485,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     @Override
     protected void doStop() {
         configuredHostsResolver.stop();
-        synchronized (mutex) {
-            becomeCandidate("doStop");
-        }
+        becomeCandidate("doStop");
     }
 
     @Override
