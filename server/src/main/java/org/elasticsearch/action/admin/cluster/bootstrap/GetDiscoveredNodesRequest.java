@@ -81,4 +81,12 @@ public class GetDiscoveredNodesRequest extends ActionRequest {
         out.writeInt(waitForNodes());
         out.writeTimeValue(timeout());
     }
+
+    @Override
+    public String toString() {
+        return "GetDiscoveredNodesRequest{" +
+            "waitForNodes=" + waitForNodes +
+            ", timeout=" + timeout +
+            '}';
+    }
 }

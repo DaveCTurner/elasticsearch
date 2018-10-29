@@ -42,7 +42,7 @@ public class GetDiscoveredNodesResponse extends ActionResponse {
         return nodes;
     }
 
-    public BootstrapConfiguration getWarrant() {
+    public BootstrapConfiguration getBootstrapConfiguration() {
         return new BootstrapConfiguration(nodes.stream().map(NodeDescription::new).collect(Collectors.toList()));
     }
 

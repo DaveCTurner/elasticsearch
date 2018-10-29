@@ -338,7 +338,7 @@ public abstract class ESTestCase extends LuceneTestCase {
                                     }
 
                                     bootstrapConfiguration
-                                        = client.execute(GetDiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
+                                        = client.execute(GetDiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getBootstrapConfiguration();
                                 } catch (Exception e) {
                                     logger.trace("exception getting bootstrap configuration", e);
                                 }
