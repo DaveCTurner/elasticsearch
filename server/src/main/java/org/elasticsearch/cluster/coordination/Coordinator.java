@@ -576,7 +576,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         synchronized (mutex) {
             final ClusterState currentState = getStateForMasterService();
 
-            if (currentState.getLastAcceptedConfiguration().isEmpty() == false) {
+            if (isInitialConfigurationSet()) {
                 throw new CoordinationStateRejectedException("Cannot set initial configuration: configuration has already been set");
             }
             assert currentState.term() == 0 : currentState;

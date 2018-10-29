@@ -711,6 +711,7 @@ public class CoordinatorTests extends ESTestCase {
             assertThat(nodeId + " is in term 0", clusterNode.coordinator.getCurrentTerm(), is(0L));
             assertThat(nodeId + " last accepted in term 0", clusterNode.coordinator.getLastAcceptedState().term(), is(0L));
             assertThat(nodeId + " last accepted version 0", clusterNode.coordinator.getLastAcceptedState().version(), is(0L));
+            assertFalse(nodeId + " has not received an initial configuration", clusterNode.coordinator.isInitialConfigurationSet());
             assertTrue(nodeId + " has an empty last-accepted configuration",
                 clusterNode.coordinator.getLastAcceptedState().getLastAcceptedConfiguration().isEmpty());
             assertTrue(nodeId + " has an empty last-committed configuration",
@@ -1007,7 +1008,7 @@ public class CoordinatorTests extends ESTestCase {
                 deterministicTaskQueue.getExecutionDelayVariabilityMillis(), lessThanOrEqualTo(DEFAULT_DELAY_VARIABILITY));
             assertFalse("stabilisation requires stable storage", disruptStorage);
 
-            if (clusterNodes.stream().allMatch(n -> n.coordinator.getLastAcceptedState().getLastAcceptedConfiguration().isEmpty())) {
+            if (clusterNodes.stream().allMatch(n -> n.coordinator.isInitialConfigurationSet() == false)) {
                 assertThat("setting initial configuration may fail with disconnected nodes", disconnectedNodes, empty());
                 assertThat("setting initial configuration may fail with blackholed nodes", blackholedNodes, empty());
                 runFor(defaultMillis(DISCOVERY_FIND_PEERS_INTERVAL_SETTING) * 2, "discovery prior to setting initial configuration");
@@ -1025,6 +1026,7 @@ public class CoordinatorTests extends ESTestCase {
             final Matcher<Long> isEqualToLeaderVersion = equalTo(leader.coordinator.getLastAcceptedState().getVersion());
             final String leaderId = leader.getId();
 
+            assertTrue(leaderId + " has been bootstrapped", leader.coordinator.isInitialConfigurationSet());
             assertTrue(leaderId + " exists in its last-applied state", leader.getLastAppliedClusterState().getNodes().nodeExists(leaderId));
             assertThat(leaderId + " has applied its state ", leader.getLastAppliedClusterState().getVersion(), isEqualToLeaderVersion);
 
@@ -1050,6 +1052,7 @@ public class CoordinatorTests extends ESTestCase {
                     }
                     assertTrue(nodeId + " is in the latest applied state on " + leaderId,
                         leader.getLastAppliedClusterState().getNodes().nodeExists(nodeId));
+                    assertTrue(nodeId + " has been bootstrapped", clusterNode.coordinator.isInitialConfigurationSet());
                 } else {
                     assertThat(nodeId + " is not following " + leaderId, clusterNode.coordinator.getMode(), is(CANDIDATE));
                     assertFalse(nodeId + " is not in the applied state on " + leaderId,
