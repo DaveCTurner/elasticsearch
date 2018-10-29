@@ -51,6 +51,10 @@ public class BootstrapConfiguration implements Writeable {
         }
     }
 
+    public List<NodeDescription> getNodeDescriptions() {
+        return nodeDescriptions;
+    }
+
     public VotingConfiguration resolve(Iterable<DiscoveryNode> discoveredNodes) {
         final Set<DiscoveryNode> selectedNodes = new HashSet<>();
         for (final NodeDescription nodeDescription : nodeDescriptions) {
@@ -77,10 +81,24 @@ public class BootstrapConfiguration implements Writeable {
             '}';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BootstrapConfiguration that = (BootstrapConfiguration) o;
+        return Objects.equals(nodeDescriptions, that.nodeDescriptions);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(nodeDescriptions);
+    }
+
     public static class NodeDescription implements Writeable {
 
         @Nullable
         private final String id;
+
         private final String name;
 
         @Nullable
@@ -92,14 +110,17 @@ public class BootstrapConfiguration implements Writeable {
             return name;
         }
 
+        public NodeDescription(@Nullable String id, String name) {
+            this.id = id;
+            this.name = Objects.requireNonNull(name);
+        }
+
         public NodeDescription(DiscoveryNode discoveryNode) {
-            this.id = discoveryNode.getId();
-            this.name = Objects.requireNonNull(discoveryNode.getName());
+            this(discoveryNode.getId(), discoveryNode.getName());
         }
 
         public NodeDescription(StreamInput in) throws IOException {
-            id = in.readOptionalString();
-            name = in.readString();
+            this(in.readOptionalString(), in.readString());
         }
 
         @Override
@@ -140,5 +161,20 @@ public class BootstrapConfiguration implements Writeable {
 
             return selectedNode;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            NodeDescription that = (NodeDescription) o;
+            return Objects.equals(id, that.id) &&
+                Objects.equals(name, that.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, name);
+        }
     }
 }
+
