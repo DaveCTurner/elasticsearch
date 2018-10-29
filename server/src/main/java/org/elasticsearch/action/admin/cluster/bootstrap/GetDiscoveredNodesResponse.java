@@ -55,6 +55,6 @@ public class GetDiscoveredNodesResponse extends ActionResponse {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeCollection(nodes, (o, p) -> p.writeTo(o));
+        out.writeCollection(nodes, (o, v) -> v.writeTo(o));
     }
 }

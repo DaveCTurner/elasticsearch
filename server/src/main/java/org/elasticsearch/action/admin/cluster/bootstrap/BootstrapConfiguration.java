@@ -83,6 +83,7 @@ public class BootstrapConfiguration implements Writeable {
         private final String id;
         private final String name;
 
+        @Nullable
         public String getId() {
             return id;
         }
