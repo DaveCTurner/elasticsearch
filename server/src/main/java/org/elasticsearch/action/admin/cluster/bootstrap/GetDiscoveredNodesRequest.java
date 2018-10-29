@@ -26,12 +26,12 @@ import org.elasticsearch.common.unit.TimeValue;
 
 import java.io.IOException;
 
-public class DiscoveredNodesRequest extends ActionRequest {
+public class GetDiscoveredNodesRequest extends ActionRequest {
 
     private int waitForNodes = 1;
     private TimeValue timeout = TimeValue.ZERO;
 
-    public DiscoveredNodesRequest waitForNodes(int waitForNodes) {
+    public GetDiscoveredNodesRequest waitForNodes(int waitForNodes) {
         if (waitForNodes < 1) {
             throw new IllegalArgumentException("always finds at least one node, waiting for [" + waitForNodes + "] is not allowed");
         }
@@ -43,7 +43,7 @@ public class DiscoveredNodesRequest extends ActionRequest {
         return waitForNodes;
     }
 
-    public DiscoveredNodesRequest timeout(TimeValue timeout) {
+    public GetDiscoveredNodesRequest timeout(TimeValue timeout) {
         if (timeout.compareTo(TimeValue.ZERO) < 0) {
             throw new IllegalArgumentException("negative timeout of [" + timeout + "] is not allowed");
         }

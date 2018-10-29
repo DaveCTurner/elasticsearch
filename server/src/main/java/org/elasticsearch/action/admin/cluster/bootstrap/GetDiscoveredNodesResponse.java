@@ -28,13 +28,13 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class DiscoveredNodesResponse extends ActionResponse {
+public class GetDiscoveredNodesResponse extends ActionResponse {
     private Set<DiscoveryNode> nodes;
 
-    public DiscoveredNodesResponse() {
+    public GetDiscoveredNodesResponse() {
     }
 
-    public DiscoveredNodesResponse(final Set<DiscoveryNode> nodes) {
+    public GetDiscoveredNodesResponse(final Set<DiscoveryNode> nodes) {
         this.nodes = nodes;
     }
 

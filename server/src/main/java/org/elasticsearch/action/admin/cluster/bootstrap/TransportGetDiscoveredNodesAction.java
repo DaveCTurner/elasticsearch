@@ -41,16 +41,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNodesRequest, DiscoveredNodesResponse> {
+public class TransportGetDiscoveredNodesAction extends TransportAction<GetDiscoveredNodesRequest, GetDiscoveredNodesResponse> {
 
     @Nullable // TODO make this not nullable
     private final Coordinator coordinator;
     private final TransportService transportService;
 
     @Inject
-    public TransportDiscoveredNodesAction(Settings settings, ActionFilters actionFilters, TransportService transportService,
-                                          Discovery discovery) {
-        super(settings, DiscoveredNodesAction.NAME, actionFilters, transportService.getTaskManager());
+    public TransportGetDiscoveredNodesAction(Settings settings, ActionFilters actionFilters, TransportService transportService,
+                                             Discovery discovery) {
+        super(settings, GetDiscoveredNodesAction.NAME, actionFilters, transportService.getTaskManager());
         this.transportService = transportService;
         if (discovery instanceof Coordinator) {
             coordinator = (Coordinator) discovery;
@@ -60,7 +60,7 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
     }
 
     @Override
-    protected void doExecute(Task task, DiscoveredNodesRequest request, ActionListener<DiscoveredNodesResponse> listener) {
+    protected void doExecute(Task task, GetDiscoveredNodesRequest request, ActionListener<GetDiscoveredNodesResponse> listener) {
         if (coordinator == null) { // TODO remove when not nullable
             throw new IllegalStateException("cannot execute a Zen2 action if not using Zen2");
         }
@@ -83,7 +83,7 @@ public class TransportDiscoveredNodesAction extends TransportAction<DiscoveredNo
                 nodesSet.add(localNode);
                 nodes.forEach(nodesSet::add);
                 if (nodesSet.size() >= request.waitForNodes() && responseSent.compareAndSet(false, true)) {
-                    listener.onResponse(new DiscoveredNodesResponse(nodesSet));
+                    listener.onResponse(new GetDiscoveredNodesResponse(nodesSet));
                     countDownLatch.countDown();
                 }
             }

@@ -19,18 +19,17 @@
 package org.elasticsearch.action.admin.cluster.bootstrap;
 
 import org.elasticsearch.action.Action;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class DiscoveredNodesAction extends Action<DiscoveredNodesResponse> {
-    public static final DiscoveredNodesAction INSTANCE = new DiscoveredNodesAction();
+public class GetDiscoveredNodesAction extends Action<GetDiscoveredNodesResponse> {
+    public static final GetDiscoveredNodesAction INSTANCE = new GetDiscoveredNodesAction();
     public static final String NAME = "cluster:monitor/discovered_nodes";
 
-    private DiscoveredNodesAction() {
+    private GetDiscoveredNodesAction() {
         super(NAME);
     }
 
     @Override
-    public DiscoveredNodesResponse newResponse() {
-        return new DiscoveredNodesResponse();
+    public GetDiscoveredNodesResponse newResponse() {
+        return new GetDiscoveredNodesResponse();
     }
 }

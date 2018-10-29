@@ -49,8 +49,8 @@ import org.apache.lucene.util.TestUtil;
 import org.apache.lucene.util.TimeUnits;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.bootstrap.BootstrapConfiguration;
-import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesAction;
-import org.elasticsearch.action.admin.cluster.bootstrap.DiscoveredNodesRequest;
+import org.elasticsearch.action.admin.cluster.bootstrap.GetDiscoveredNodesAction;
+import org.elasticsearch.action.admin.cluster.bootstrap.GetDiscoveredNodesRequest;
 import org.elasticsearch.bootstrap.BootstrapForTesting;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
@@ -331,14 +331,14 @@ public abstract class ESTestCase extends LuceneTestCase {
                             final Client client = node.client();
                             if (bootstrapConfiguration == null) {
                                 try {
-                                    final DiscoveredNodesRequest discoveredNodesRequest
-                                        = new DiscoveredNodesRequest().waitForNodes(minimumConfigurationSize);
+                                    final GetDiscoveredNodesRequest discoveredNodesRequest
+                                        = new GetDiscoveredNodesRequest().waitForNodes(minimumConfigurationSize);
                                     if (minimumConfigurationSize > 1 && randomBoolean()) {
                                         discoveredNodesRequest.timeout(TimeValue.timeValueSeconds(5));
                                     }
 
                                     bootstrapConfiguration
-                                        = client.execute(DiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
+                                        = client.execute(GetDiscoveredNodesAction.INSTANCE, discoveredNodesRequest).get().getWarrant();
                                 } catch (Exception e) {
                                     logger.trace("exception getting bootstrap configuration", e);
                                 }
