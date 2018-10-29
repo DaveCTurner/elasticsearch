@@ -19,12 +19,14 @@
 package org.elasticsearch.action.admin.cluster.bootstrap;
 
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.admin.cluster.bootstrap.BootstrapConfiguration.NodeDescription;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class DiscoveredNodesResponse extends ActionResponse {
     private Set<DiscoveryNode> nodes;
@@ -41,9 +43,7 @@ public class DiscoveredNodesResponse extends ActionResponse {
     }
 
     public BootstrapConfiguration getWarrant() {
-        final BootstrapConfiguration.Builder warrantBuilder = new BootstrapConfiguration.Builder();
-        nodes.forEach(warrantBuilder::add);
-        return warrantBuilder.build();
+        return new BootstrapConfiguration(nodes.stream().map(NodeDescription::new).collect(Collectors.toList()));
     }
 
     @Override
