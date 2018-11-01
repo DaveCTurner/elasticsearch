@@ -26,6 +26,7 @@ import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.rest.yaml.ObjectPath;
 
 import java.io.IOException;
@@ -182,6 +183,7 @@ public class RecoveryIT extends AbstractRollingTestCase {
         return null;
     }
 
+    @TestLogging("org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
     public void testRelocationWithConcurrentIndexing() throws Exception {
         final String index = "relocation_with_concurrent_indexing";
         switch (CLUSTER_TYPE) {
