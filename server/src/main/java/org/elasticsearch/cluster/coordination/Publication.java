@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
+import java.util.function.ObjLongConsumer;
 
 public abstract class Publication extends AbstractComponent {
 
@@ -44,17 +45,20 @@ public abstract class Publication extends AbstractComponent {
     private final AckListener ackListener;
     private final LongSupplier currentTimeSupplier;
     private final long startTime;
+    private final ObjLongConsumer<DiscoveryNode> onNodeApplicationAck;
 
     private Optional<ApplyCommitRequest> applyCommitRequest; // set when state is committed
     private boolean isCompleted; // set when publication is completed
     private boolean timedOut; // set when publication timed out
 
-    public Publication(Settings settings, PublishRequest publishRequest, AckListener ackListener, LongSupplier currentTimeSupplier) {
+    public Publication(Settings settings, PublishRequest publishRequest, AckListener ackListener, LongSupplier currentTimeSupplier,
+                       ObjLongConsumer<DiscoveryNode> onNodeApplicationAck) {
         super(settings);
         this.publishRequest = publishRequest;
         this.ackListener = ackListener;
         this.currentTimeSupplier = currentTimeSupplier;
         startTime = currentTimeSupplier.getAsLong();
+        this.onNodeApplicationAck = onNodeApplicationAck;
         applyCommitRequest = Optional.empty();
         publicationTargets = new ArrayList<>(publishRequest.getAcceptedState().getNodes().getNodes().size());
         publishRequest.getAcceptedState().getNodes().iterator().forEachRemaining(n -> publicationTargets.add(new PublicationTarget(n)));
@@ -250,6 +254,7 @@ public abstract class Publication extends AbstractComponent {
         void setAppliedCommit() {
             assert state == PublicationTargetState.SENT_APPLY_COMMIT : state + " -> " + PublicationTargetState.APPLIED_COMMIT;
             state = PublicationTargetState.APPLIED_COMMIT;
+            onNodeApplicationAck.accept(discoveryNode, publishRequest.getAcceptedState().version());
             ackOnce(null);
         }
 

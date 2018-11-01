@@ -62,8 +62,7 @@ public class PublicationTests extends ESTestCase {
             this.localNode = localNode;
             ClusterState initialState = CoordinationStateTests.clusterState(0L, 0L, localNode,
                 VotingConfiguration.EMPTY_CONFIG, VotingConfiguration.EMPTY_CONFIG, 0L);
-            coordinationState = new CoordinationState(settings, localNode, new InMemoryPersistedState(0L,
-                initialState));
+            coordinationState = new CoordinationState(settings, localNode, new InMemoryPersistedState(0L, initialState));
         }
 
         final DiscoveryNode localNode;
@@ -104,8 +103,9 @@ public class PublicationTests extends ESTestCase {
         Set<DiscoveryNode> missingJoins = new HashSet<>();
 
         MockPublication(Settings settings, PublishRequest publishRequest, Discovery.AckListener ackListener,
-                               LongSupplier currentTimeSupplier) {
-            super(settings, publishRequest, ackListener, currentTimeSupplier);
+                        LongSupplier currentTimeSupplier) {
+            super(settings, publishRequest, ackListener, currentTimeSupplier, (n, l) -> {
+            });
             this.publishRequest = publishRequest;
         }
 
@@ -437,6 +437,4 @@ public class PublicationTests extends ESTestCase {
                 return ts.stream();
             });
     }
-
-
 }

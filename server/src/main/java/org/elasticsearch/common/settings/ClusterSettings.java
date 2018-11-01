@@ -31,6 +31,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.InternalClusterInfoService;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.action.index.MappingUpdatedAction;
+import org.elasticsearch.cluster.coordination.LagDetector;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.ElectionSchedulerFactory;
 import org.elasticsearch.cluster.coordination.JoinHelper;
@@ -454,9 +455,9 @@ public final class ClusterSettings extends AbstractScopedSettings {
                     ElectionSchedulerFactory.ELECTION_MAX_TIMEOUT_SETTING,
                     Coordinator.PUBLISH_TIMEOUT_SETTING,
                     ElectionSchedulerFactory.ELECTION_DURATION_SETTING,
-                    Coordinator.PUBLISH_TIMEOUT_SETTING,
                     JoinHelper.JOIN_TIMEOUT_SETTING,
-                    Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE
+                    Reconfigurator.CLUSTER_MASTER_NODES_FAILURE_TOLERANCE,
+                    LagDetector.CLUSTER_STATE_APPLICATION_TIMEOUT_SETTING
             )));
 
     public static List<SettingUpgrader<?>> BUILT_IN_SETTING_UPGRADERS = Collections.unmodifiableList(Arrays.asList(
