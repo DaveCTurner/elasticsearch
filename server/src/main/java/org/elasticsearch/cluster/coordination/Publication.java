@@ -49,8 +49,7 @@ public abstract class Publication extends AbstractComponent {
     private boolean isCompleted; // set when publication is completed
     private boolean timedOut; // set when publication timed out
 
-    public Publication(Settings settings, PublishRequest publishRequest, AckListener ackListener, LongSupplier currentTimeSupplier) {
-        super(settings);
+    public Publication(PublishRequest publishRequest, AckListener ackListener, LongSupplier currentTimeSupplier) {
         this.publishRequest = publishRequest;
         this.ackListener = ackListener;
         this.currentTimeSupplier = currentTimeSupplier;

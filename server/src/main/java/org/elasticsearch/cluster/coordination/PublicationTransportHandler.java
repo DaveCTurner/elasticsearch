@@ -41,10 +41,9 @@ public class PublicationTransportHandler extends AbstractComponent {
 
     private final TransportService transportService;
 
-    public PublicationTransportHandler(Settings settings, TransportService transportService,
+    public PublicationTransportHandler(TransportService transportService,
                                        Function<PublishRequest, PublishWithJoinResponse> handlePublishRequest,
                                        BiConsumer<ApplyCommitRequest, ActionListener<Void>> handleApplyCommit) {
-        super(settings);
         this.transportService = transportService;
 
         transportService.registerRequestHandler(PUBLISH_STATE_ACTION_NAME, ThreadPool.Names.GENERIC, false, false,
