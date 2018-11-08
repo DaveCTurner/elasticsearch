@@ -178,7 +178,7 @@ public class ElectionSchedulerFactory extends AbstractComponent {
             };
 
             logger.debug("scheduling {}", runnable);
-            threadPool.schedule(TimeValue.timeValueMillis(delayMillis), Names.GENERIC, runnable);
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(delayMillis), Names.GENERIC, runnable);
         }
 
         @Override

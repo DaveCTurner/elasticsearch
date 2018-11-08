@@ -247,7 +247,7 @@ public abstract class PeerFinder extends AbstractComponent {
             }
         });
 
-        transportService.getThreadPool().schedule(findPeersInterval, Names.GENERIC, new AbstractRunnable() {
+        transportService.getThreadPool().scheduleUnlessShuttingDown(findPeersInterval, Names.GENERIC, new AbstractRunnable() {
             @Override
             public boolean isForceExecution() {
                 return true;
