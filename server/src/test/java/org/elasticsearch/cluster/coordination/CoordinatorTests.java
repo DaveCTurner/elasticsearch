@@ -599,7 +599,7 @@ public class CoordinatorTests extends ESTestCase {
 
         assertTrue("expected immediate ack from " + follower1, ackCollector.hasAckedSuccessfully(follower1));
         assertFalse("expected no ack from " + leader, ackCollector.hasAckedSuccessfully(leader));
-        cluster.stabilise();
+        cluster.stabilise(defaultMillis(PUBLISH_TIMEOUT_SETTING));
         assertTrue("expected eventual ack from " + leader, ackCollector.hasAckedSuccessfully(leader));
         assertFalse("expected no ack from " + follower0, ackCollector.hasAcked(follower0));
     }
