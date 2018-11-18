@@ -201,8 +201,10 @@ public class PublicationTransportHandler {
                         }
                     });
                 } else if (sendFullVersion || !previousState.nodes().nodeExists(destination)) {
+                    logger.trace("sending full cluster state version {} to {}", newState.version(), destination);
                     PublicationTransportHandler.this.sendFullClusterState(newState, serializedStates, destination, responseActionListener);
                 } else {
+                    logger.trace("sending cluster state diff for version {} to {}", newState.version(), destination);
                     PublicationTransportHandler.this.sendClusterStateDiff(newState, serializedDiffs, serializedStates, destination,
                         responseActionListener);
                 }
