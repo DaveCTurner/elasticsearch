@@ -380,6 +380,28 @@ public class PublicationTransportHandler {
         return bStream.bytes();
     }
 
+    private static void ensureIncomingIsFresher(final ClusterState lastSeen, final ClusterState incoming) {
+        if (lastSeen == null) {
+            return;
+        }
+
+        if (incoming.term() == lastSeen.term() && incoming.version() > lastSeen.version()) {
+            return;
+        }
+
+        if (incoming.term() > lastSeen.term()) {
+            return;
+        }
+
+        if (incoming.nodes().getMasterNode() != null && Coordinator.isZen1Node(incoming.nodes().getMasterNode())) {
+            // versions are not guaranteed to be monotonically increasing in Zen1, so accept them all
+            return;
+        }
+
+        throw new CoordinationStateRejectedException("received cluster state for term [" + incoming.term() + "] and version ["
+            + incoming.version() + "] but the last-received was term [" + lastSeen.term() + "] and version [" + lastSeen.version() + "]");
+    }
+
     private PublishWithJoinResponse handleIncomingPublishRequest(BytesTransportRequest request) throws IOException {
         final Compressor compressor = CompressorFactory.compressor(request.bytes());
         StreamInput in = request.bytes().streamInput();
@@ -388,23 +410,25 @@ public class PublicationTransportHandler {
             if (compressor != null) {
                 in = compressor.streamInput(in);
             }
+            final ClusterState lastSeen = lastSeenClusterState.get();
             in = new NamedWriteableAwareStreamInput(in, namedWriteableRegistry);
             in.setVersion(request.version());
             // If true we received full cluster state - otherwise diffs
             if (in.readBoolean()) {
                 incomingState = ClusterState.readFrom(in, transportService.getLocalNode());
+                ensureIncomingIsFresher(lastSeen, incomingState);
                 fullClusterStateReceivedCount.incrementAndGet();
                 logger.debug("received full cluster state version [{}] with size [{}]", incomingState.version(),
                     request.bytes().length());
                 lastSeenClusterState.set(incomingState);
             } else {
-                final ClusterState lastSeen = lastSeenClusterState.get();
                 if (lastSeen == null) {
                     logger.debug("received diff for but don't have any local cluster state - requesting full state");
                     throw new IncompatibleClusterStateVersionException("have no local cluster state");
                 } else {
                     Diff<ClusterState> diff = ClusterState.readDiffFrom(in, lastSeen.nodes().getLocalNode());
                     incomingState = diff.apply(lastSeen); // might throw IncompatibleClusterStateVersionException
+                    ensureIncomingIsFresher(lastSeen, incomingState);
                     compatibleClusterStateDiffReceivedCount.incrementAndGet();
                     logger.debug("received diff cluster state version [{}] with uuid [{}], diff size [{}]",
                         incomingState.version(), incomingState.stateUUID(), request.bytes().length());
@@ -413,6 +437,9 @@ public class PublicationTransportHandler {
             }
         } catch (IncompatibleClusterStateVersionException e) {
             incompatibleClusterStateDiffReceivedCount.incrementAndGet();
+            throw e;
+        } catch (CoordinationStateRejectedException e) {
+            logger.debug("rejecting incoming state", e);
             throw e;
         } catch (Exception e) {
             logger.warn("unexpected error while deserializing an incoming cluster state", e);
