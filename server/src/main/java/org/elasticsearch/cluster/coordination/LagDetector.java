@@ -125,6 +125,8 @@ public class LagDetector {
         void startLagDetector(final long version) {
             final long appliedVersionWhenStarted = appliedVersion.get();
             if (version <= appliedVersionWhenStarted) {
+                logger.trace("lag detection for {} for version {} unnecessary, node has already applied version {}",
+                    discoveryNode, version, appliedVersionWhenStarted);
                 return;
             }
 
@@ -132,17 +134,17 @@ public class LagDetector {
                 @Override
                 public void run() {
                     if (appliedStateTrackersByNode.get(discoveryNode) != NodeAppliedStateTracker.this) {
-                        logger.trace("{} no longer active", NodeAppliedStateTracker.this);
+                        logger.trace("{}, no longer active", this);
                         return;
                     }
 
                     long appliedVersion = NodeAppliedStateTracker.this.appliedVersion.get();
                     if (version <= appliedVersion) {
-                        logger.trace("{} satisfied, node applied version {}", NodeAppliedStateTracker.this, appliedVersion);
+                        logger.trace("{}, satisfied, node applied version {}", this, appliedVersion);
                         return;
                     }
 
-                    logger.debug("{} detected lag, node has only applied version {}", NodeAppliedStateTracker.this, appliedVersion);
+                    logger.debug("{}, detected lag, node has only applied version {}", this, appliedVersion);
                     onLagDetected.accept(discoveryNode);
                 }
 
