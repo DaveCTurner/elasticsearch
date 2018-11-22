@@ -22,10 +22,14 @@ package org.elasticsearch.discovery;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.coordination.CoordinationState.PersistedState;
+import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterApplier;
 import org.elasticsearch.cluster.service.MasterService;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -56,6 +60,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING;
+import static org.elasticsearch.node.Node.NODE_NAME_SETTING;
 
 /**
  * A module for loading classes for node discovery.
@@ -119,6 +126,36 @@ public class DiscoveryModule {
         discoveryTypes.put("zen",
             () -> new ZenDiscovery(settings, threadPool, transportService, namedWriteableRegistry, masterService, clusterApplier,
                 clusterSettings, hostsProvider, allocationService, Collections.unmodifiableCollection(joinValidators)));
+
+        discoveryTypes.put("zen2", () -> new Coordinator(NODE_NAME_SETTING.get(settings), settings, clusterSettings, transportService,
+            namedWriteableRegistry, allocationService, masterService, () -> new PersistedState() {
+
+            private long currentTerm;
+            private ClusterState clusterState = ClusterState.builder(CLUSTER_NAME_SETTING.get(settings))
+                .nodes(DiscoveryNodes.builder().add(transportService.getLocalNode()).localNodeId(transportService.getLocalNode().getId()))
+                .build();
+
+            @Override
+            public long getCurrentTerm() {
+                return currentTerm;
+            }
+
+            @Override
+            public ClusterState getLastAcceptedState() {
+                return clusterState;
+            }
+
+            @Override
+            public void setCurrentTerm(long currentTerm) {
+                this.currentTerm = currentTerm;
+            }
+
+            @Override
+            public void setLastAcceptedState(ClusterState clusterState) {
+                this.clusterState = clusterState;
+            }
+        }, hostsProvider, clusterApplier, Randomness.get()));
+
         discoveryTypes.put("single-node", () -> new SingleNodeDiscovery(settings, transportService, masterService, clusterApplier));
         for (DiscoveryPlugin plugin : plugins) {
             plugin.getDiscoveryTypes(threadPool, transportService, namedWriteableRegistry,
