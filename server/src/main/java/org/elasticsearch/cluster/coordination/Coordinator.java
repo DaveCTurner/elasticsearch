@@ -311,8 +311,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             // The preVoteCollector is only active while we are candidate, but it does not call this method with synchronisation, so we have
             // to check our mode again here.
             if (mode == Mode.CANDIDATE) {
-                final StartJoinRequest startJoinRequest
-                    = new StartJoinRequest(getLocalNode(), Math.max(getCurrentTerm(), maxTermSeen) + 1);
+                maxTermSeen = Math.max(getCurrentTerm(), maxTermSeen) + 1;
+                final StartJoinRequest startJoinRequest = new StartJoinRequest(getLocalNode(), maxTermSeen);
                 logger.debug("starting election with {}", startJoinRequest);
                 getDiscoveredNodes().forEach(node -> joinHelper.sendStartJoinRequest(startJoinRequest, node));
             }

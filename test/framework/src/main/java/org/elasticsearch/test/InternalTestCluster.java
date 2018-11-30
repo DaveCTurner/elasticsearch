@@ -1147,6 +1147,7 @@ public final class InternalTestCluster extends TestCluster {
                         return false;
                     }
                 }
+
                 return true;
             }, 30, TimeUnit.SECONDS) == false) {
                 throw new IllegalStateException("cluster failed to form with expected nodes " + expectedNodes + " and actual nodes " +

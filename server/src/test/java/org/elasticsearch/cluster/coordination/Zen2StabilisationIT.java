@@ -28,6 +28,7 @@ import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -39,7 +40,7 @@ import static org.elasticsearch.test.discovery.TestZenDiscovery.USE_ZEN2;
 @TestLogging("org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.discovery:TRACE")
 public class Zen2StabilisationIT extends ESIntegTestCase {
 
-    public void testTermDoesNotIncreaseAfterStabilisation() {
+    public void testTermDoesNotIncreaseAfterStabilisation() throws Exception {
         int nodeCount = randomIntBetween(2, 5);
         internalCluster().startNodes(nodeCount, Settings.builder()
             .put(INITIAL_MASTER_NODE_COUNT_SETTING.getKey(), nodeCount)
@@ -47,14 +48,27 @@ public class Zen2StabilisationIT extends ESIntegTestCase {
             .put(USE_ZEN2.getKey(), true)
             .build());
         final List<Coordinator> coordinators = StreamSupport.stream(internalCluster().getInstances(Discovery.class).spliterator(), false)
-            .map(d -> ((Coordinator)d)).collect(Collectors.toList());
+            .map(d -> ((Coordinator) d)).collect(Collectors.toList());
 
-        final Coordinator leader = coordinators.stream().filter(c -> c.getMode() == Mode.LEADER).findFirst().get();
-        final Tuple<Long, Set<DiscoveryNode>> termAndVotes = leader.getTermAndVotesIfStableLeader();
+        final AtomicLong term = new AtomicLong();
 
-        for (final Coordinator coordinator : coordinators) {
-            assertTrue(termAndVotes.v2().contains(coordinator.getLocalNode()));
-            assertTrue(coordinator == leader || coordinator.isStableFollowerInTerm(termAndVotes.v1()));
+        assertBusy(() -> {
+            final Coordinator leader = coordinators.stream().filter(c -> c.getMode() == Mode.LEADER).findFirst().get();
+            final Tuple<Long, Set<DiscoveryNode>> termAndVotes = leader.getTermAndVotesIfStableLeader();
+
+            for (final Coordinator coordinator : coordinators) {
+                assertTrue(termAndVotes.v2().contains(coordinator.getLocalNode()));
+                assertTrue(coordinator == leader || coordinator.isStableFollowerInTerm(termAndVotes.v1()));
+            }
+
+            term.set(termAndVotes.v1());
+        });
+
+        createIndex("test");
+        ensureGreen("test");
+
+        for (Coordinator coordinator : coordinators) {
+            assertEquals(coordinator.getLocalNode().toString(), coordinator.getCurrentTerm(), term.get());
         }
     }
 }
