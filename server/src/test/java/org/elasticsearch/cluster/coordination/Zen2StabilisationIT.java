@@ -27,6 +27,7 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -53,8 +54,12 @@ public class Zen2StabilisationIT extends ESIntegTestCase {
         final AtomicLong term = new AtomicLong();
 
         assertBusy(() -> {
-            final Coordinator leader = coordinators.stream().filter(c -> c.getMode() == Mode.LEADER).findFirst().get();
+            final Optional<Coordinator> maybeLeader = coordinators.stream().filter(c -> c.getMode() == Mode.LEADER).findFirst();
+            assertTrue(maybeLeader.isPresent());
+
+            final Coordinator leader = maybeLeader.get();
             final Tuple<Long, Set<DiscoveryNode>> termAndVotes = leader.getTermAndVotesIfStableLeader();
+            assertNotNull(termAndVotes);
 
             for (final Coordinator coordinator : coordinators) {
                 assertTrue(termAndVotes.v2().contains(coordinator.getLocalNode()));
