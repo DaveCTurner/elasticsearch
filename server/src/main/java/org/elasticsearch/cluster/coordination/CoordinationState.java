@@ -29,8 +29,10 @@ import org.elasticsearch.common.settings.Settings;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * The core class of the cluster state coordination algorithm, directly implementing the
@@ -115,6 +117,10 @@ public class CoordinationState {
 
     public boolean containsJoinVoteFor(DiscoveryNode node) {
         return joinVotes.containsVoteFor(node);
+    }
+
+    Set<DiscoveryNode> nodesWithJoinVotes() {
+        return new HashSet<>(joinVotes.nodes());
     }
 
     public boolean joinVotesHaveQuorumFor(VotingConfiguration votingConfiguration) {

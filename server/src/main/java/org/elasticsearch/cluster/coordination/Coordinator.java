@@ -46,6 +46,7 @@ import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.lease.Releasable;
@@ -881,6 +882,39 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         if (currentPublication.isPresent()) {
             currentPublication.get().onTimeout();
         }
+    }
+
+    @Nullable
+    public Tuple<Long, Set<DiscoveryNode>> getTermAndVotesIfStableLeader() {
+        synchronized (mutex) {
+            if (mode != Mode.LEADER) {
+                return null;
+            }
+
+            if (getCurrentTerm() < maxTermSeen) {
+                return null;
+            }
+
+            return Tuple.tuple(getCurrentTerm(), coordinationState.get().nodesWithJoinVotes());
+        }
+    }
+
+    public boolean isStableFollowerInTerm(long term) {
+        synchronized (mutex) {
+            if (mode != Mode.FOLLOWER) {
+                return false;
+            }
+
+            if (getCurrentTerm() != term) {
+                return false;
+            }
+
+            if (term < maxTermSeen) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public enum Mode {
