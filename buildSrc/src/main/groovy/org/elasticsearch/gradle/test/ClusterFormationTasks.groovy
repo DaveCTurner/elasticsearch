@@ -337,11 +337,13 @@ class ClusterFormationTasks {
                 'path.repo'                    : "${node.sharedDir}/repo",
                 'path.shared_data'             : "${node.sharedDir}/",
                 // Define a node attribute so we can test that it exists
-                'node.attr.testattr'           : 'test'
+                'node.attr.testattr'           : 'test',
+                'discovery.type'               : 'zen2'
         ]
         int minimumMasterNodes = node.config.minimumMasterNodes.call()
         if (minimumMasterNodes > 0) {
             esConfig['discovery.zen.minimum_master_nodes'] = minimumMasterNodes
+            esConfig['cluster.unsafe_initial_master_node_count'] = minimumMasterNodes
         }
         if (minimumMasterNodes > 1) {
             // don't wait for state.. just start up quickly
