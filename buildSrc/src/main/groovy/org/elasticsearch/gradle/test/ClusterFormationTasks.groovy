@@ -24,7 +24,6 @@ import org.elasticsearch.gradle.BuildPlugin
 import org.elasticsearch.gradle.LoggedExec
 import org.elasticsearch.gradle.Version
 import org.elasticsearch.gradle.VersionProperties
-
 import org.elasticsearch.gradle.plugin.PluginBuildPlugin
 import org.elasticsearch.gradle.plugin.PluginPropertiesExtension
 import org.gradle.api.AntBuilder
@@ -44,6 +43,7 @@ import org.gradle.api.tasks.Exec
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+import java.util.stream.Collectors
 
 /**
  * A helper for creating tasks to build a cluster that is used by a task, and tear down the cluster when the task is finished.
@@ -134,6 +134,13 @@ class ClusterFormationTasks {
                         esConfig['discovery.zen.hosts_provider'] = 'file'
                     }
                     esConfig['discovery.zen.ping.unicast.hosts'] = []
+                    if (config.numBwcNodes == 0) {
+                        esConfig['discovery.type'] = 'zen2'
+                        esConfig['cluster.unsafe_initial_master_node_count'] = 1
+                        esConfig['cluster.initial_master_nodes'] = nodes.stream().map({ n ->
+                            "node-" + n.nodeNum
+                        }).collect(Collectors.toList())
+                    }
                     esConfig
                 }
                 dependsOn = startDependencies
@@ -337,13 +344,11 @@ class ClusterFormationTasks {
                 'path.repo'                    : "${node.sharedDir}/repo",
                 'path.shared_data'             : "${node.sharedDir}/",
                 // Define a node attribute so we can test that it exists
-                'node.attr.testattr'           : 'test',
-                'discovery.type'               : 'zen2'
+                'node.attr.testattr'           : 'test'
         ]
         int minimumMasterNodes = node.config.minimumMasterNodes.call()
         if (minimumMasterNodes > 0) {
             esConfig['discovery.zen.minimum_master_nodes'] = minimumMasterNodes
-            esConfig['cluster.unsafe_initial_master_node_count'] = minimumMasterNodes
         }
         if (minimumMasterNodes > 1) {
             // don't wait for state.. just start up quickly
