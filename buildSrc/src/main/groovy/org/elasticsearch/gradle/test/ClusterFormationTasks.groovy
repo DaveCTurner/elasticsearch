@@ -144,7 +144,7 @@ class ClusterFormationTasks {
                         }
                         esConfig['discovery.zen.ping.unicast.hosts'] = []
 
-                        if (hasBwcNodes == false) {
+                        if (hasBwcNodes == false && esConfig.containsKey('cluster.initial_master_nodes') == false) {
                             esConfig['cluster.initial_master_nodes'] = nodes.stream().map({ n ->
                                 if (n.config.settings['node.name'] == null) {
                                     return "node-" + n.nodeNum
