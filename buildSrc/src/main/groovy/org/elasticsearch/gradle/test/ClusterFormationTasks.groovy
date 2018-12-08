@@ -131,12 +131,18 @@ class ClusterFormationTasks {
             Object dependsOn
             if (node.nodeVersion.onOrAfter("6.5.0")) {
                 writeConfigSetup = { Map esConfig ->
-                    // Don't force discovery provider if one is set by the test cluster specs already
-                    if (esConfig.containsKey('discovery.zen.hosts_provider') == false) {
-                        esConfig['discovery.zen.hosts_provider'] = 'file'
+                    boolean automatic_discovery_configuration = true
+                    if (esConfig.containsKey('test.automatic_discovery_configuration')) {
+                        automatic_discovery_configuration = esConfig['test.automatic_discovery_configuration']
+                        esConfig.remove('test.automatic_discovery_configuration')
                     }
-                    esConfig['discovery.zen.ping.unicast.hosts'] = []
-                    if (hasBwcNodes == false && esConfig['discovery.type'] == null) {
+
+                    if (automatic_discovery_configuration) {
+                        // Don't force discovery provider if one is set by the test cluster specs already
+                        if (esConfig.containsKey('discovery.zen.hosts_provider') == false) {
+                            esConfig['discovery.zen.hosts_provider'] = 'file'
+                        }
+                        esConfig['discovery.zen.ping.unicast.hosts'] = []
                         esConfig['discovery.type'] = 'zen2'
                         esConfig['cluster.initial_master_nodes'] = nodes.stream().map({ n ->
                             if (n.config.settings['node.name'] == null) {
