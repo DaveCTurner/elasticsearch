@@ -55,6 +55,8 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
+import static org.elasticsearch.discovery.DiscoveryModule.DISCOVERY_TYPE_SETTING;
+import static org.elasticsearch.discovery.DiscoveryModule.ZEN_DISCOVERY_TYPE;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.Mockito.mock;
@@ -102,7 +104,9 @@ public class TransportBootstrapClusterActionTests extends ESTestCase {
         final Discovery discovery = mock(Discovery.class);
         verifyZeroInteractions(discovery);
 
-        new TransportBootstrapClusterAction(Settings.EMPTY, EMPTY_FILTERS, transportService, discovery); // registers action
+        final String discoveryType = randomFrom(ZEN_DISCOVERY_TYPE, "single-node", randomAlphaOfLength(5));
+        new TransportBootstrapClusterAction(Settings.builder().put(DISCOVERY_TYPE_SETTING.getKey(), discoveryType).build(),
+            EMPTY_FILTERS, transportService, discovery); // registers action
         transportService.start();
         transportService.acceptIncomingRequests();
 
@@ -117,7 +121,8 @@ public class TransportBootstrapClusterActionTests extends ESTestCase {
             public void handleException(TransportException exp) {
                 final Throwable rootCause = exp.getRootCause();
                 assertThat(rootCause, instanceOf(IllegalArgumentException.class));
-                assertThat(rootCause.getMessage(), equalTo("cluster bootstrapping is not supported by discovery type [zen]"));
+                assertThat(rootCause.getMessage(),
+                    equalTo("cluster bootstrapping is not supported by discovery type [" + discoveryType + "]"));
                 countDownLatch.countDown();
             }
         });
