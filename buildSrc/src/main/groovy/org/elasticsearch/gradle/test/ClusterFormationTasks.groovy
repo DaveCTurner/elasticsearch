@@ -143,14 +143,16 @@ class ClusterFormationTasks {
                             esConfig['discovery.zen.hosts_provider'] = 'file'
                         }
                         esConfig['discovery.zen.ping.unicast.hosts'] = []
-                        esConfig['discovery.type'] = 'zen2'
-                        esConfig['cluster.initial_master_nodes'] = nodes.stream().map({ n ->
-                            if (n.config.settings['node.name'] == null) {
-                                return "node-" + n.nodeNum
-                            } else {
-                                return n.config.settings['node.name']
-                            }
-                        }).collect(Collectors.toList())
+
+                        if (hasBwcNodes == false) {
+                            esConfig['cluster.initial_master_nodes'] = nodes.stream().map({ n ->
+                                if (n.config.settings['node.name'] == null) {
+                                    return "node-" + n.nodeNum
+                                } else {
+                                    return n.config.settings['node.name']
+                                }
+                            }).collect(Collectors.toList())
+                        }
                     }
                     esConfig
                 }
