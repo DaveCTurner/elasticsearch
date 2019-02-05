@@ -31,7 +31,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.discovery.Discovery;
 import org.elasticsearch.discovery.DiscoveryModule;
-import org.elasticsearch.discovery.zen.UnicastHostsProvider;
+import org.elasticsearch.discovery.SeedHostsProvider;
 import org.elasticsearch.discovery.zen.ZenDiscovery;
 import org.elasticsearch.discovery.zen.ZenPing;
 import org.elasticsearch.gateway.GatewayMetaState;
@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.Supplier;
 
-import static org.elasticsearch.discovery.zen.SettingsBasedHostsProvider.DISCOVERY_SEED_HOSTS_SETTING;
+import static org.elasticsearch.discovery.SettingsBasedSeedHostsProvider.DISCOVERY_SEED_HOSTS_SETTING;
 
 /**
  * A alternative zen discovery which allows using mocks for things like pings, as well as
@@ -73,7 +73,7 @@ public class TestZenDiscovery extends ZenDiscovery {
         public Map<String, Supplier<Discovery>> getDiscoveryTypes(ThreadPool threadPool, TransportService transportService,
                                                                   NamedWriteableRegistry namedWriteableRegistry,
                                                                   MasterService masterService, ClusterApplier clusterApplier,
-                                                                  ClusterSettings clusterSettings, UnicastHostsProvider hostsProvider,
+                                                                  ClusterSettings clusterSettings, SeedHostsProvider hostsProvider,
                                                                   AllocationService allocationService, GatewayMetaState gatewayMetaState) {
             // we don't get the latest setting which were updated by the extra settings for the plugin. TODO: fix.
             Settings fixedSettings = Settings.builder().put(settings).putList(DISCOVERY_SEED_HOSTS_SETTING.getKey()).build();
@@ -106,7 +106,7 @@ public class TestZenDiscovery extends ZenDiscovery {
 
     private TestZenDiscovery(Settings settings, ThreadPool threadPool, TransportService transportService,
                              NamedWriteableRegistry namedWriteableRegistry, MasterService masterService,
-                             ClusterApplier clusterApplier, ClusterSettings clusterSettings, UnicastHostsProvider hostsProvider,
+                             ClusterApplier clusterApplier, ClusterSettings clusterSettings, SeedHostsProvider hostsProvider,
                              AllocationService allocationService, GatewayMetaState gatewayMetaState) {
         super(settings, threadPool, transportService, namedWriteableRegistry, masterService, clusterApplier, clusterSettings,
             hostsProvider, allocationService, Collections.emptyList(), gatewayMetaState);
@@ -114,7 +114,7 @@ public class TestZenDiscovery extends ZenDiscovery {
 
     @Override
     protected ZenPing newZenPing(Settings settings, ThreadPool threadPool, TransportService transportService,
-                                 UnicastHostsProvider hostsProvider) {
+                                 SeedHostsProvider hostsProvider) {
         if (USE_MOCK_PINGS.get(settings) && USE_ZEN2.get(settings) == false) {
             return new MockZenPing(this);
         } else {

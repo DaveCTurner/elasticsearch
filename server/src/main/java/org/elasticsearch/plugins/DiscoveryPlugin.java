@@ -34,7 +34,7 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.discovery.Discovery;
-import org.elasticsearch.discovery.zen.UnicastHostsProvider;
+import org.elasticsearch.discovery.SeedHostsProvider;
 import org.elasticsearch.gateway.GatewayMetaState;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -73,7 +73,7 @@ public interface DiscoveryPlugin {
                                                                MasterService masterService,
                                                                ClusterApplier clusterApplier,
                                                                ClusterSettings clusterSettings,
-                                                               UnicastHostsProvider hostsProvider,
+                                                               SeedHostsProvider hostsProvider,
                                                                AllocationService allocationService,
                                                                GatewayMetaState gatewayMetaState) {
         return Collections.emptyMap();
@@ -97,7 +97,7 @@ public interface DiscoveryPlugin {
     }
 
     /**
-     * Returns providers of unicast host lists for zen discovery.
+     * Returns providers of seed hosts for discovery.
      *
      * The key of the returned map is the name of the host provider
      * (see {@link org.elasticsearch.discovery.DiscoveryModule#DISCOVERY_SEED_PROVIDERS_SETTING}), and
@@ -107,8 +107,8 @@ public interface DiscoveryPlugin {
      *                         of a {@link org.elasticsearch.cluster.node.DiscoveryNode}
      * @param networkService Use to find the publish host address of the current node
      */
-    default Map<String, Supplier<UnicastHostsProvider>> getZenHostsProviders(TransportService transportService,
-                                                                             NetworkService networkService) {
+    default Map<String, Supplier<SeedHostsProvider>> getSeedHostProviders(TransportService transportService,
+                                                                          NetworkService networkService) {
         return Collections.emptyMap();
     }
 
