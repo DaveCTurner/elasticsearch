@@ -664,7 +664,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
 
     void assertTotalHits(int expectedTotalHits, Map<?, ?> response) {
         int actualTotalHits = extractTotalHits(response);
-        assertEquals(expectedTotalHits, actualTotalHits);
+        assertEquals(response.toString(), expectedTotalHits, actualTotalHits);
     }
 
     int extractTotalHits(Map<?, ?> response) {
@@ -731,6 +731,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
              * an index without a translog so we randomize whether
              * or not we have one. */
             shouldHaveTranslog = randomBoolean();
+            logger.info("count={}, shouldHaveTranslog={}", count, shouldHaveTranslog);
 
             indexRandomDocuments(count, true, true, i -> jsonBuilder().startObject().field("field", "value").endObject());
 
@@ -738,6 +739,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
             ensureGreen(index);
             // Recovering a synced-flush index from 5.x to 6.x might be subtle as a 5.x index commit does not have all 6.x commit tags.
             if (randomBoolean()) {
+                logger.info("synced flush");
                 // We have to spin synced-flush requests here because we fire the global checkpoint sync for the last write operation.
                 // A synced-flush request considers the global checkpoint sync as an going operation because it acquires a shard permit.
                 assertBusy(() -> {
@@ -751,6 +753,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
                     }
                 });
             } else {
+                logger.info("non-synced flush");
                 // Explicitly flush so we're sure to have a bunch of documents in the Lucene index
                 assertOK(client().performRequest(new Request("POST", "/_flush")));
             }
