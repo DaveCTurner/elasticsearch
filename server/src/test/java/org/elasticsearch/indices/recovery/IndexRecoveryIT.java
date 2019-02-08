@@ -31,6 +31,7 @@ import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.RecoverySource;
@@ -44,7 +45,9 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.recovery.RecoveryStats;
+import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.RecoveryState.Stage;
@@ -56,6 +59,9 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.disruption.NetworkDisruption;
+import org.elasticsearch.test.disruption.NetworkDisruption.NetworkDisconnect;
+import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.store.MockFSIndexStore;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -784,6 +790,41 @@ public class IndexRecoveryIT extends ESIntegTestCase {
 
         for (int i = 0; i < 10; i++) {
             assertHitCount(client().prepareSearch(indexName).get(), numDocs);
+        }
+    }
+
+    public void testHistoryRetention() throws InterruptedException, IOException {
+        internalCluster().startNodes(2);
+
+        final String indexName = "test";
+        client().admin().indices().prepareCreate(indexName).setSettings(Settings.builder()
+            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)).get();
+        ensureGreen(indexName);
+
+        // Perform some replicated operations so the replica isn't simply empty, because ops-based recovery isn't better in that case
+        final List<IndexRequestBuilder> requests = new ArrayList<>();
+        final int replicatedDocCount = scaledRandomIntBetween(25, 250);
+        while (requests.size() < replicatedDocCount) {
+            requests.add(client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON));
+        }
+        indexRandom(true, requests);
+
+        internalCluster().stopRandomNode(s -> true);
+
+        // This operation needs to be retained for replay if the replica comes back
+        final long unreplicatedSeqNo = client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON).get().getSeqNo();
+
+        final IndexShard indexShard = internalCluster().getInstance(IndicesService.class).indexService(resolveIndex(indexName)).getShard(0);
+        assertTrue("have complete history from " + unreplicatedSeqNo + " after first doc",
+            indexShard.hasCompleteHistoryOperations("test", unreplicatedSeqNo));
+
+        final int numNewDocs = scaledRandomIntBetween(25, 250);
+        for (int i = 0; i < numNewDocs; i++) {
+            client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
+            flush(indexName);
+            assertTrue("have complete history from " + unreplicatedSeqNo + " after " + (i + 2) + " docs",
+                indexShard.hasCompleteHistoryOperations("test", unreplicatedSeqNo));
         }
     }
 }
