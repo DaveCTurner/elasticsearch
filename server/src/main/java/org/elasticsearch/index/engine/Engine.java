@@ -104,6 +104,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiFunction;
+import java.util.function.LongConsumer;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
@@ -264,6 +265,8 @@ public abstract class Engine implements Closeable {
         }
         return new DocsStats(numDocs, numDeletedDocs, sizeInBytes);
     }
+
+    public abstract void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer);
 
     /**
      * A throttling class that can be activated, causing the

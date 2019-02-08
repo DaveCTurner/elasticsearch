@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.LongConsumer;
 import java.util.stream.Stream;
 
 /**
@@ -433,6 +434,12 @@ public class ReadOnlyEngine extends Engine {
     @Override
     public DocsStats docStats() {
         return docsStats;
+    }
+
+    @Override
+    public void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer) {
+        // a read-only engine generates no history so there is no history to retain
+        // TODO we should expire the peer recovery retention leases if the engine is readonly
     }
 
     @Override

@@ -56,6 +56,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.ObjLongConsumer;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
@@ -235,7 +236,8 @@ public abstract class AbstractIndicesClusterStateServiceTestCase extends ESTestC
                 final RepositoriesService repositoriesService,
                 final Consumer<IndexShard.ShardFailure> onShardFailure,
                 final Consumer<ShardId> globalCheckpointSyncer,
-                final RetentionLeaseSyncer retentionLeaseSyncer) throws IOException {
+                final RetentionLeaseSyncer retentionLeaseSyncer,
+                final ObjLongConsumer<ShardId> peerRecoveryRetentionleaseRenewer) throws IOException {
             failRandomly();
             MockIndexService indexService = indexService(recoveryState.getShardId().getIndex());
             MockIndexShard indexShard = indexService.createShard(shardRouting);
