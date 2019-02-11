@@ -113,7 +113,9 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
             for (String nodeName : internalCluster().getNodeNames()) {
                 final IndexShard indexShard = internalCluster().getInstance(IndicesService.class, nodeName)
                     .indexService(resolveIndex(indexName)).getShard(0);
-                assertFalse("complete history on " + nodeName, indexShard.hasCompleteHistoryOperations("test", 0L));
+                final long maxSeqNo = indexShard.seqNoStats().getMaxSeqNo();
+                assertFalse("can release operations with seqno < " + maxSeqNo + " on " + nodeName,
+                    indexShard.hasCompleteHistoryOperations("test", maxSeqNo - 1));
             }
         });
     }

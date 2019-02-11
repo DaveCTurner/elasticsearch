@@ -2370,6 +2370,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void renewPeerRecoveryRetentionLeaseForRemote(String nodeId, long minimumSeqNoForPeerRecovery) {
+        logger.info("renewPeerRecoveryRetentionLeaseForRemote({}, {})", nodeId, minimumSeqNoForPeerRecovery);
         replicationTracker.renewPeerRecoveryRetentionLease(nodeId, minimumSeqNoForPeerRecovery);
     }
 

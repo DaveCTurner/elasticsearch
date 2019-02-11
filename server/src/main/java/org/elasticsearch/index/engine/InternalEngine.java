@@ -566,6 +566,7 @@ public class InternalEngine extends Engine {
         } catch (IOException e) {
             throw new ElasticsearchException("exception getting minimum sequence number needed for peer recovery", e);
         }
+        logger.info("renewPeerRecoveryRetentionLease: can release up to {}", minimumPeerRecoverySeqNo);
         minimumPeerRecoverySeqNoConsumer.accept(minimumPeerRecoverySeqNo);
     }
 
