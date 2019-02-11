@@ -215,7 +215,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     private final RetentionLeaseSyncer retentionLeaseSyncer;
 
-    private final LongConsumer peerRecoveryRetentionLeaseRenewer;
+    private final Runnable peerRecoveryRetentionLeaseRenewer;
 
     @Nullable
     private RecoveryState recoveryState;
@@ -276,7 +276,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             final Runnable globalCheckpointSyncer,
             final RetentionLeaseSyncer retentionLeaseSyncer,
             final CircuitBreakerService circuitBreakerService,
-            final LongConsumer peerRecoveryRetentionLeaseRenewer) throws IOException {
+            final Runnable peerRecoveryRetentionLeaseRenewer) throws IOException {
         super(shardRouting.shardId(), indexSettings);
         assert shardRouting.initializing();
         this.shardRouting = shardRouting;
@@ -2375,10 +2375,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void renewPeerRecoveryRetentionLease() {
-        final Engine engine = getEngineOrNull();
-        if (engine != null) {
-            engine.renewPeerRecoveryRetentionLease(peerRecoveryRetentionLeaseRenewer);
-        }
+        peerRecoveryRetentionLeaseRenewer.run();
     }
 
     private void addPeerRecoveryRetentionLeaseForPrimary() {
@@ -2394,6 +2391,18 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         if (engine != null) {
             engine.renewPeerRecoveryRetentionLease(minimumPeerRecoverySeqNo -> threadPool.generic().execute(() ->
                 addPeerRecoveryRetentionLease(shardRouting.currentNodeId(), minimumPeerRecoverySeqNo, () -> {})));
+        }
+    }
+
+    public long getMinimumSeqNoForPeerRecovery() {
+        final Engine engine = getEngineOrNull();
+        if (engine == null) {
+            throw new ElasticsearchException("minimum sequence number for peer recovery is unavailable");
+        }
+        try {
+            return engine.getMinimumSeqNoForPeerRecovery();
+        } catch (IOException e) {
+            throw new ElasticsearchException("error getting minimum sequence number for peer recovery", e);
         }
     }
 

@@ -18,80 +18,126 @@
  */
 package org.elasticsearch.index.seqno;
 
-import org.elasticsearch.action.Action;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable.Reader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.replication.ReplicationRequest;
+import org.elasticsearch.action.support.replication.ReplicationResponse;
+import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.cluster.action.shard.ShardStateAction;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Request;
 import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Response;
+import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
-
-import java.io.IOException;
+import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.threadpool.ThreadPool.Names;
+import org.elasticsearch.transport.TransportResponse.Empty;
+import org.elasticsearch.transport.TransportService;
 
 /**
  * Background action to renew retention leases held to ensure that enough history is retained to perform a peer recovery if needed. This
- * action renews the lease for the sending shard, advancing the corresponding sequence number, and thereby releases any operations that
- * are now contained in a safe commit.
+ * action renews the leases for each copy of the shard, advancing the corresponding sequence number, and thereby releases any operations
+ * that are now contained in a safe commit on every copy since they are no longer needed.
  */
-public class PeerRecoveryRetentionLeaseRenewalAction extends Action<Response> {
+public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicationAction<Request, Request, Response> {
 
     public static final String ACTION_NAME = "indices:admin/seq_no/peer_recovery_retention_lease_renewal";
-    public static final PeerRecoveryRetentionLeaseRenewalAction INSTANCE = new PeerRecoveryRetentionLeaseRenewalAction();
 
-    public PeerRecoveryRetentionLeaseRenewalAction() {
-        super(ACTION_NAME);
+    private final Logger logger = LogManager.getLogger(PeerRecoveryRetentionLeaseRenewalAction.class);
+
+    @Inject
+    public PeerRecoveryRetentionLeaseRenewalAction(
+        final Settings settings,
+        final TransportService transportService,
+        final ClusterService clusterService,
+        final IndicesService indicesService,
+        final ThreadPool threadPool,
+        final ShardStateAction shardStateAction,
+        final ActionFilters actionFilters,
+        final IndexNameExpressionResolver indexNameExpressionResolver) {
+
+        super(settings, ACTION_NAME, transportService, clusterService, indicesService, threadPool, shardStateAction, actionFilters,
+            indexNameExpressionResolver, Request::new, Request::new, Names.MANAGEMENT);
     }
 
     @Override
-    public Response newResponse() {
-        throw new UnsupportedOperationException("use Writable instead");
+    protected Response newResponseInstance() {
+        return new Response();
     }
 
     @Override
-    public Reader<Response> getResponseReader() {
-        return Response::new;
+    protected PrimaryResult<Request, Response> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
+        return new PrimaryResult<>(shardRequest, getResponse(primary));
     }
 
-    public static final class Request extends ActionRequest {
-        final ShardId shardId;
-        final String nodeId;
-        final long minimumPeerRecoverySeqNo;
+    private Response getResponse(IndexShard indexShard) {
+        return new Response(transportService.getLocalNode().getId(), indexShard.getMinimumSeqNoForPeerRecovery());
+    }
 
-        public Request(final ShardId shardId, String nodeId, long minimumPeerRecoverySeqNo) {
-            this.shardId = shardId;
-            this.nodeId = nodeId;
-            this.minimumPeerRecoverySeqNo = minimumPeerRecoverySeqNo;
-        }
+    @Override
+    protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard replica) {
+        return new ShardCopyResponse(getResponse(replica));
+    }
 
-        public Request(StreamInput in) throws IOException {
-            super(in);
-            shardId = ShardId.readShardId(in);
-            nodeId = in.readString();
-            minimumPeerRecoverySeqNo = in.readLong();
+    public void renewPeerRecoveryRetentionLease(ShardId shardId) {
+        execute(new Request(shardId), new ActionListener<Response>() {
+            @Override
+            public void onResponse(Response response) {
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+
+            }
+        });
+    }
+
+    static final class ShardCopyResponse extends ReplicaResult {
+
+        private final Response response;
+
+        // TODO how do we send this response back?
+
+        ShardCopyResponse(Response response) {
+            this.response = response;
         }
 
         @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            super.writeTo(out);
-            shardId.writeTo(out);
-            out.writeString(nodeId);
-            out.writeLong(minimumPeerRecoverySeqNo);
-        }
-
-        @Override
-        public ActionRequestValidationException validate() {
-            return null;
+        public void respond(ActionListener<Empty> listener) {
+            super.respond(listener);
         }
     }
 
-    public static class Response extends ActionResponse {
+    public static final class Request extends ReplicationRequest<Request> {
+        Request() {
+        }
+
+        Request(ShardId shardId) {
+            super(shardId);
+        }
+
+        @Override
+        public String toString() {
+            return "request for minimum seqno needed for peer recovery for " + shardId;
+        }
+    }
+
+    public static class Response extends ReplicationResponse {
+        private String nodeId;
+        private long minimumSeqNoForPeerRecovery;
+
         public Response() {
         }
 
-        public Response(StreamInput in) throws IOException {
-            super(in);
+        public Response(String nodeId, long minimumSeqNoForPeerRecovery) {
+            this.nodeId = nodeId;
+            this.minimumSeqNoForPeerRecovery = minimumSeqNoForPeerRecovery;
         }
     }
 }

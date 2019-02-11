@@ -443,6 +443,12 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
+    public long getMinimumSeqNoForPeerRecovery() {
+        throw new UnsupportedOperationException("read-only engine does not support history retention");
+        // TODO can we return a number here?
+    }
+
+    @Override
     public void updateMaxUnsafeAutoIdTimestamp(long newTimestamp) {
 
     }

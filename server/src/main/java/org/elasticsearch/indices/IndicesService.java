@@ -610,7 +610,7 @@ public class IndicesService extends AbstractLifecycleComponent
             final Consumer<IndexShard.ShardFailure> onShardFailure,
             final Consumer<ShardId> globalCheckpointSyncer,
             final RetentionLeaseSyncer retentionLeaseSyncer,
-            final ObjLongConsumer<ShardId> peerRecoveryRetentionLeaseRenewer) throws IOException {
+            final Consumer<ShardId> peerRecoveryRetentionLeaseRenewer) throws IOException {
         Objects.requireNonNull(retentionLeaseSyncer);
         ensureChangesAllowed();
         IndexService indexService = indexService(shardRouting.index());

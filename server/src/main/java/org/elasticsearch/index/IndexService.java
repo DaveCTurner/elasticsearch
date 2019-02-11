@@ -322,7 +322,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
             final ShardRouting routing,
             final Consumer<ShardId> globalCheckpointSyncer,
             final RetentionLeaseSyncer retentionLeaseSyncer,
-            final ObjLongConsumer<ShardId> peerRecoveryRetentionLeaseRenewer) throws IOException {
+            final Consumer<ShardId> peerRecoveryRetentionLeaseRenewer) throws IOException {
         Objects.requireNonNull(retentionLeaseSyncer);
         Objects.requireNonNull(peerRecoveryRetentionLeaseRenewer);
         /*
@@ -414,7 +414,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                     () -> globalCheckpointSyncer.accept(shardId),
                     retentionLeaseSyncer,
                     circuitBreakerService,
-                    seqNo -> peerRecoveryRetentionLeaseRenewer.accept(shardId, seqNo));
+                    () -> peerRecoveryRetentionLeaseRenewer.accept(shardId));
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);
             shards = newMapBuilder(shards).put(shardId.id(), indexShard).immutableMap();

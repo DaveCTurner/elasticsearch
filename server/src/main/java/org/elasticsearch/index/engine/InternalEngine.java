@@ -559,15 +559,9 @@ public class InternalEngine extends Engine {
         return indexWriter.getFlushingBytes() + versionMap.getRefreshingBytes();
     }
 
-    public void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer) {
-        final long minimumPeerRecoverySeqNo;
-        try {
-            minimumPeerRecoverySeqNo = combinedDeletionPolicy.getMinimumPeerRecoverySeqNo();
-        } catch (IOException e) {
-            throw new ElasticsearchException("exception getting minimum sequence number needed for peer recovery", e);
-        }
-        logger.info("renewPeerRecoveryRetentionLease: can release up to {}", minimumPeerRecoverySeqNo);
-        minimumPeerRecoverySeqNoConsumer.accept(minimumPeerRecoverySeqNo);
+    @Override
+    public long getMinimumSeqNoForPeerRecovery() throws IOException {
+        return combinedDeletionPolicy.getMinimumPeerRecoverySeqNo();
     }
 
     /**

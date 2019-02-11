@@ -268,6 +268,8 @@ public abstract class Engine implements Closeable {
 
     public abstract void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer);
 
+    public abstract long getMinimumSeqNoForPeerRecovery() throws IOException;
+
     /**
      * A throttling class that can be activated, causing the
      * {@code acquireThrottle} method to block on a lock when throttling
