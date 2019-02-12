@@ -252,6 +252,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             if (retentionLeases.contains(id)) {
                 throw new IllegalArgumentException("retention lease with ID [" + id + "] already exists");
             }
+            // should we abort if we have already discarded operations >= retainingSequenceNumber?
             retentionLease = new RetentionLease(id, retainingSequenceNumber, currentTimeMillisSupplier.getAsLong(), source);
             retentionLeases = new RetentionLeases(
                     operationPrimaryTerm,
@@ -320,8 +321,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
 
             if (shardRouting.active()) {
                 final String leaseId = getPeerRecoveryLeaseId(nodeId);
-                if (retentionLeases.contains(leaseId)) {
-                    renewRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), "peer recovery");
+                final RetentionLease retentionLease = retentionLeases.get(leaseId);
+                if (retentionLease != null) {
+                    if (retentionLease.retainingSequenceNumber() < minimumSeqNoForPeerRecovery) {
+                        renewRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), "peer recovery");
+                    }
                 } else {
                     // These leases should never expire, because by default they last for hours, we renew them every few minutes while the
                     // replica is healthy, and we ensure they exist before starting a replica. But if they do expire

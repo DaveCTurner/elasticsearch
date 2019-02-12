@@ -28,7 +28,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.seqno.RetentionLeaseIT;
-import org.elasticsearch.index.seqno.RetentionLeaseIT.RetentionLeaseSyncIntervalSettingPlugin;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
@@ -37,12 +36,10 @@ import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -87,14 +84,20 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
             requests.add(client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON));
         }
         indexRandom(true, requests);
+        if (randomBoolean()) {
+            flush(indexName);
+        }
 
         internalCluster().stopRandomNode(s -> true);
 
-        final long desyncNanoTime = getNanoTimeInPast();
+        final long desyncNanoTime = System.nanoTime();
+        while (System.nanoTime() <= desyncNanoTime) {
+            // time passes
+        }
+
         final int numNewDocs = scaledRandomIntBetween(25, 250);
         for (int i = 0; i < numNewDocs; i++) {
             client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
-            flush(indexName);
         }
 
         internalCluster().startNode();
@@ -107,6 +110,8 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
         assertThat(recoveryStates, hasSize(1));
         assertThat(recoveryStates.get(0).getIndex().totalFileCount(), is(0));
         assertThat(recoveryStates.get(0).getTranslog().recoveredOperations(), greaterThan(0));
+
+        flush(indexName);
 
         logger.info("--> ensure that history is not retained forever");
         assertBusy(() -> {
