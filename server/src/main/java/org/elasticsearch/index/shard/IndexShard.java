@@ -2369,12 +2369,17 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, onCompletion);
     }
 
-    public void renewPeerRecoveryRetentionLeaseForRemote(String nodeId, long minimumSeqNoForPeerRecovery) {
-        logger.info("renewPeerRecoveryRetentionLeaseForRemote({}, {})", nodeId, minimumSeqNoForPeerRecovery);
+    public void renewPeerRecoveryRetentionLeaseForNode(String nodeId, long minimumSeqNoForPeerRecovery) {
+        logger.info("renewPeerRecoveryRetentionLeaseForNode({}, {})", nodeId, minimumSeqNoForPeerRecovery);
         replicationTracker.renewPeerRecoveryRetentionLease(nodeId, minimumSeqNoForPeerRecovery);
     }
 
     public void renewPeerRecoveryRetentionLease() {
+        try {
+            renewPeerRecoveryRetentionLeaseForNode(shardRouting.currentNodeId(), getEngineOrNull().getMinimumSeqNoForPeerRecovery());
+        } catch (IOException e) {
+            logger.debug("exception getting minimum sequence number for peer recovery", e);
+        }
         peerRecoveryRetentionLeaseRenewer.run();
     }
 

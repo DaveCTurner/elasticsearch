@@ -18,22 +18,21 @@
  */
 package org.elasticsearch.index.seqno;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Request;
-import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Response;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
@@ -48,11 +47,9 @@ import java.io.IOException;
  * action renews the leases for each copy of the shard, advancing the corresponding sequence number, and thereby releases any operations
  * that are now contained in a safe commit on every copy since they are no longer needed.
  */
-public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicationAction<Request, Request, Response> {
+public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicationAction<Request, Request, ReplicationResponse> {
 
     public static final String ACTION_NAME = "indices:admin/seq_no/peer_recovery_retention_lease_renewal";
-
-    private final Logger logger = LogManager.getLogger(PeerRecoveryRetentionLeaseRenewalAction.class);
 
     @Inject
     public PeerRecoveryRetentionLeaseRenewalAction(
@@ -70,14 +67,13 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
     }
 
     @Override
-    protected Response newResponseInstance() {
-        return new Response();
+    protected ReplicationResponse newResponseInstance() {
+        return new ReplicationResponse();
     }
 
     @Override
-    protected PrimaryResult<Request, Response> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
-        return new PrimaryResult<>(shardRequest,
-            new Response(transportService.getLocalNode().getId(), primary.getMinimumSeqNoForPeerRecovery()));
+    protected PrimaryResult<Request, ReplicationResponse> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
+        return new PrimaryResult<>(shardRequest, new ReplicationResponse());
     }
 
     @Override
@@ -96,15 +92,26 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         };
     }
 
+    @Override
+    protected void handleReplicaResponse(ShardRouting shard, ReplicationOperation.ReplicaResponse response) {
+        assert response instanceof ShardCopyResponse : response.getClass();
+        final ShardCopyResponse shardCopyResponse = (ShardCopyResponse) response; // TODO introduce type parameter rather than cast here
+        renewPeerRecoveryRetentionLeaseForNode(shard.shardId(), shard.currentNodeId(), shardCopyResponse.minimumSeqNoForPeerRecovery);
+    }
+
+    private void renewPeerRecoveryRetentionLeaseForNode(ShardId shardId, String nodeId, long minimumSeqNoForPeerRecovery) {
+        indicesService.indexServiceSafe(shardId.getIndex()).getShard(shardId.id())
+            .renewPeerRecoveryRetentionLeaseForNode(nodeId, minimumSeqNoForPeerRecovery);
+    }
+
     public void renewPeerRecoveryRetentionLease(ShardId shardId) {
-        execute(new Request(shardId), new ActionListener<Response>() {
+        execute(new Request(shardId), new ActionListener<ReplicationResponse>() {
             @Override
-            public void onResponse(Response response) {
+            public void onResponse(ReplicationResponse response) {
             }
 
             @Override
             public void onFailure(Exception e) {
-
             }
         });
     }
@@ -135,7 +142,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         }
     }
 
-    public static final class Request extends ReplicationRequest<Request> {
+    static final class Request extends ReplicationRequest<Request> {
         Request() {
         }
 
@@ -146,19 +153,6 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         @Override
         public String toString() {
             return "request for minimum seqno needed for peer recovery for " + shardId;
-        }
-    }
-
-    public static class Response extends ReplicationResponse {
-        private String nodeId;
-        private long minimumSeqNoForPeerRecovery;
-
-        public Response() {
-        }
-
-        public Response(String nodeId, long minimumSeqNoForPeerRecovery) {
-            this.nodeId = nodeId;
-            this.minimumSeqNoForPeerRecovery = minimumSeqNoForPeerRecovery;
         }
     }
 }

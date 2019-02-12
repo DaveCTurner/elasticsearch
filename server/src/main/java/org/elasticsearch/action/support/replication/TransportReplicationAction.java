@@ -32,6 +32,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.TransportActions;
+import org.elasticsearch.action.support.replication.ReplicationOperation.ReplicaResponse;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
@@ -475,9 +476,17 @@ public abstract class TransportReplicationAction<
         protected ReplicationOperation<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation(
             Request request, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener,
             PrimaryShardReference primaryShardReference) {
-            return new ReplicationOperation<>(request, primaryShardReference, listener,
-                    newReplicasProxy(primaryTerm), logger, actionName);
+            return new ReplicationOperation<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>>
+                (request, primaryShardReference, listener, newReplicasProxy(primaryTerm), logger, actionName) {
+                @Override
+                protected void handleReplicaResponse(ShardRouting shard, ReplicaResponse response) {
+                    TransportReplicationAction.this.handleReplicaResponse(shard, response);
+                }
+            };
         }
+    }
+
+    protected void handleReplicaResponse(ShardRouting shard, ReplicationOperation.ReplicaResponse response) {
     }
 
     protected static class PrimaryResult<ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
