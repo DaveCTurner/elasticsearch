@@ -263,10 +263,12 @@ public class RecoverySourceHandler {
                     sendFileResult.existingTotalSize, sendFileResult.took.millis(), phase1ThrottlingWaitTime,
                     prepareEngineStep.result().millis(), sendSnapshotResult.totalOperations, sendSnapshotResult.tookTime.millis());
 
+                logger.trace("creating peer-recovery retention lease");
                 final CountDownLatch peerRecoveryRetentionLeaseSyncedLatch = new CountDownLatch(1);
                 shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo,
                     peerRecoveryRetentionLeaseSyncedLatch::countDown);
-                peerRecoveryRetentionLeaseSyncedLatch.await(); // TODO does this truly need to be synchronous?
+                //peerRecoveryRetentionLeaseSyncedLatch.await(); // TODO does this truly need to be synchronous?
+                logger.trace("created peer-recovery retention lease");
 
                 try {
                     wrappedListener.onResponse(response);
