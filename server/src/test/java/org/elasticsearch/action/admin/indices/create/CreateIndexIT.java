@@ -45,7 +45,6 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalTestCluster;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -329,7 +328,6 @@ public class CreateIndexIT extends ESIntegTestCase {
     /**
      * This test ensures that index creation adheres to the {@link IndexMetaData#SETTING_WAIT_FOR_ACTIVE_SHARDS}.
      */
-    @TestLogging("org.elasticsearch:DEBUG,org.elasticsearch.cluster.service:TRACE,org.elasticsearch.indices.recovery:TRACE")
     public void testDefaultWaitForActiveShardsUsesIndexSetting() throws Exception {
         final int numReplicas = internalCluster().numDataNodes();
         Settings settings = Settings.builder()
