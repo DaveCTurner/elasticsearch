@@ -114,18 +114,5 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
         assertThat(recoveryStates, hasSize(1));
         assertThat(recoveryStates.get(0).getIndex().totalFileCount(), is(0));
         assertThat(recoveryStates.get(0).getTranslog().recoveredOperations(), greaterThan(0));
-
-        flush(indexName);
-
-        logger.info("--> ensure that history is not retained forever");
-        assertBusy(() -> {
-            for (String nodeName : internalCluster().getNodeNames()) {
-                final IndexShard indexShard = internalCluster().getInstance(IndicesService.class, nodeName)
-                    .indexService(resolveIndex(indexName)).getShard(0);
-                final long maxSeqNo = indexShard.seqNoStats().getMaxSeqNo();
-                assertFalse("can release operations with seqno < " + maxSeqNo + " on " + nodeName,
-                    indexShard.hasCompleteHistoryOperations("test", maxSeqNo - 1));
-            }
-        });
     }
 }

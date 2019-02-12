@@ -36,6 +36,7 @@ import org.elasticsearch.action.admin.cluster.configuration.AddVotingConfigExclu
 import org.elasticsearch.action.admin.cluster.configuration.ClearVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.cluster.configuration.ClearVotingConfigExclusionsRequest;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags.Flag;
 import org.elasticsearch.client.Client;
@@ -156,6 +157,7 @@ import static org.elasticsearch.discovery.DiscoveryModule.ZEN_DISCOVERY_TYPE;
 import static org.elasticsearch.discovery.DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING;
 import static org.elasticsearch.discovery.zen.ElectMasterService.DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING;
 import static org.elasticsearch.discovery.FileBasedSeedHostsProvider.UNICAST_HOSTS_FILE;
+import static org.elasticsearch.index.IndexSettings.INDEX_SOFT_DELETES_SETTING;
 import static org.elasticsearch.test.ESTestCase.assertBusy;
 import static org.elasticsearch.test.ESTestCase.awaitBusy;
 import static org.elasticsearch.test.ESTestCase.getTestTransportType;
@@ -2501,6 +2503,25 @@ public final class InternalTestCluster extends TestCluster {
                 } catch (ShardLockObtainFailedException ex) {
                     fail("Shard " + id + " is still locked after 5 sec waiting");
                 }
+            }
+        }
+
+        assertThat(client().admin().indices().prepareFlush().get().getFailedShards(), equalTo(0));
+        for (NodeAndClient nodeAndClient : nodes.values()) {
+            try {
+                assertBusy(() -> {
+                    final IndicesService indicesService = getInstance(IndicesService.class, nodeAndClient.name);
+                    for (final IndexService indexService : indicesService) {
+                        if (INDEX_SOFT_DELETES_SETTING.get(indexService.getIndexSettings().getSettings())) {
+                            for (final IndexShard indexShard : indexService) {
+                                assertFalse("cleaned up history for " + indexShard + " on " + nodeAndClient.getName(),
+                                    indexShard.hasCompleteHistoryOperations("after test", indexShard.seqNoStats().getMaxSeqNo() - 1));
+                            }
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                throw new AssertionError("unexpected exception in assertBusy", e);
             }
         }
     }
