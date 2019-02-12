@@ -2506,22 +2506,24 @@ public final class InternalTestCluster extends TestCluster {
             }
         }
 
-        assertThat(client().admin().indices().prepareFlush().get().getFailedShards(), equalTo(0));
-        for (NodeAndClient nodeAndClient : nodes.values()) {
-            try {
-                assertBusy(() -> {
-                    final IndicesService indicesService = getInstance(IndicesService.class, nodeAndClient.name);
-                    for (final IndexService indexService : indicesService) {
-                        if (INDEX_SOFT_DELETES_SETTING.get(indexService.getIndexSettings().getSettings())) {
-                            for (final IndexShard indexShard : indexService) {
-                                assertFalse("cleaned up history for " + indexShard + " on " + nodeAndClient.getName(),
-                                    indexShard.hasCompleteHistoryOperations("after test", indexShard.seqNoStats().getMaxSeqNo() - 1));
+        if (size() > 0) {
+            assertThat(client().admin().indices().prepareFlush().get().getFailedShards(), equalTo(0));
+            for (NodeAndClient nodeAndClient : nodes.values()) {
+                try {
+                    assertBusy(() -> {
+                        final IndicesService indicesService = getInstance(IndicesService.class, nodeAndClient.name);
+                        for (final IndexService indexService : indicesService) {
+                            if (INDEX_SOFT_DELETES_SETTING.get(indexService.getIndexSettings().getSettings())) {
+                                for (final IndexShard indexShard : indexService) {
+                                    assertFalse("cleaned up history for " + indexShard + " on " + nodeAndClient.getName(),
+                                        indexShard.hasCompleteHistoryOperations("after test", indexShard.seqNoStats().getMaxSeqNo() - 1));
+                                }
                             }
                         }
-                    }
-                });
-            } catch (Exception e) {
-                throw new AssertionError("unexpected exception in assertBusy", e);
+                    });
+                } catch (Exception e) {
+                    throw new AssertionError("unexpected exception in assertBusy", e);
+                }
             }
         }
     }
