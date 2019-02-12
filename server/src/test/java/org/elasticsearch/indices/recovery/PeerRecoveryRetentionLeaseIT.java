@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.index.IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -68,12 +69,12 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
 
     @TestLogging("org.elasticsearch.indices.recovery:TRACE")
     public void testHistoryRetention() throws Exception {
-        internalCluster().startNodes(2);
+        internalCluster().startNodes(3);
 
         final String indexName = "test";
         client().admin().indices().prepareCreate(indexName).setSettings(Settings.builder()
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
-            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 2)
             .put(RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "100ms")).get();
         ensureGreen(indexName);
 
@@ -89,6 +90,7 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
         }
 
         internalCluster().stopRandomNode(s -> true);
+        internalCluster().stopRandomNode(s -> true);
 
         final long desyncNanoTime = System.nanoTime();
         while (System.nanoTime() <= desyncNanoTime) {
@@ -100,6 +102,8 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
             client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
         }
 
+        assertAcked(client().admin().indices().prepareUpdateSettings(indexName)
+            .setSettings(Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)));
         internalCluster().startNode();
         ensureGreen(indexName);
 
@@ -123,13 +127,5 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
                     indexShard.hasCompleteHistoryOperations("test", maxSeqNo - 1));
             }
         });
-    }
-
-    private long getNanoTimeInPast() {
-        final long desyncNanoTime = System.nanoTime();
-        while (System.nanoTime() <= desyncNanoTime) {
-            // time passes
-        }
-        return desyncNanoTime;
     }
 }

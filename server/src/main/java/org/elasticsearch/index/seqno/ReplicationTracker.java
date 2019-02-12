@@ -373,17 +373,24 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 }
 
                 if (shardRouting.primary() && routingTable.allShardsStarted()) {
-
                     final Set<String> expectedPeerRecoveryLeaseIds
                         = routingTable.shards().stream().map(sr -> getPeerRecoveryLeaseId(sr.currentNodeId())).collect(Collectors.toSet());
 
-                    final List<RetentionLease> stalePeerRecoveryLeases =
-                        retentionLeases.leases().stream().filter(l -> l.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX)
-                            && expectedPeerRecoveryLeaseIds.contains(l.id()) == false).collect(Collectors.toList());
+                    retentionLeases.leases().stream().filter(l -> l.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX)
+                        && expectedPeerRecoveryLeaseIds.contains(l.id()) == false)
+                        .forEach(rl -> removeRetentionLease(rl.id(), new ActionListener<ReplicationResponse>() {
+                            @Override
+                            public void onResponse(ReplicationResponse replicationResponse) {
+                                // this operation is fire-and-forget
+                            }
 
-                    if (stalePeerRecoveryLeases.isEmpty() == false) {
-                        // TODO all shards are allocated but there are additional leases hanging over from earlier allocations. Expire them!
-                    }
+                            @Override
+                            public void onFailure(Exception e) {
+                                logger.debug(new ParameterizedMessage("exception removing stale retention lease {}",
+                                    rl.id()), e);
+                                // this operation is fire-and-forget
+                            }
+                        }));
                 }
             }
 

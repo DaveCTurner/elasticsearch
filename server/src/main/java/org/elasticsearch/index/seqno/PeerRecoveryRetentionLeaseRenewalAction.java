@@ -96,12 +96,8 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
     protected void handleReplicaResponse(ShardRouting shard, ReplicationOperation.ReplicaResponse response) {
         assert response instanceof ShardCopyResponse : response.getClass();
         final ShardCopyResponse shardCopyResponse = (ShardCopyResponse) response; // TODO introduce type parameter rather than cast here
-        renewPeerRecoveryRetentionLeaseForNode(shard.shardId(), shard.currentNodeId(), shardCopyResponse.minimumSeqNoForPeerRecovery);
-    }
-
-    private void renewPeerRecoveryRetentionLeaseForNode(ShardId shardId, String nodeId, long minimumSeqNoForPeerRecovery) {
-        indicesService.indexServiceSafe(shardId.getIndex()).getShard(shardId.id())
-            .renewPeerRecoveryRetentionLeaseForNode(nodeId, minimumSeqNoForPeerRecovery);
+        indicesService.indexServiceSafe(shard.index()).getShard(shard.id())
+            .renewPeerRecoveryRetentionLeaseForNode(shard.currentNodeId(), shardCopyResponse.minimumSeqNoForPeerRecovery);
     }
 
     public void renewPeerRecoveryRetentionLease(ShardId shardId) {
