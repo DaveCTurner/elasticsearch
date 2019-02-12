@@ -543,6 +543,10 @@ public abstract class TransportReplicationAction<
                 listener.onFailure(finalFailure);
             }
         }
+
+        public ReplicaResponse getReplicaResponse(IndexShard replica) {
+            return new ReplicaResponse(replica.getLocalCheckpoint(), replica.getGlobalCheckpoint());
+        }
     }
 
     public class ReplicaOperationTransportHandler implements TransportRequestHandler<ConcreteReplicaRequest<ReplicaRequest>> {
@@ -619,9 +623,7 @@ public abstract class TransportReplicationAction<
             try {
                 final ReplicaResult replicaResult = shardOperationOnReplica(request, replica);
                 releasable.close(); // release shard operation lock before responding to caller
-                final TransportReplicationAction.ReplicaResponse response =
-                        new ReplicaResponse(replica.getLocalCheckpoint(), replica.getGlobalCheckpoint());
-                replicaResult.respond(new ResponseListener(response));
+                replicaResult.respond(new ResponseListener(replicaResult.getReplicaResponse(replica)));
             } catch (final Exception e) {
                 Releasables.closeWhileHandlingException(releasable); // release shard operation lock before responding to caller
                 AsyncReplicaAction.this.onFailure(e);

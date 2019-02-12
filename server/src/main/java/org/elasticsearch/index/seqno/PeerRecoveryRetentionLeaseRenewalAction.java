@@ -29,6 +29,8 @@ import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Request;
 import org.elasticsearch.index.seqno.PeerRecoveryRetentionLeaseRenewalAction.Response;
@@ -39,6 +41,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.TransportResponse.Empty;
 import org.elasticsearch.transport.TransportService;
+
+import java.io.IOException;
 
 /**
  * Background action to renew retention leases held to ensure that enough history is retained to perform a peer recovery if needed. This
@@ -82,7 +86,13 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
 
     @Override
     protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard replica) {
-        return new ShardCopyResponse(getResponse(replica));
+        return new ReplicaResult() {
+            @Override
+            public ReplicaResponse getReplicaResponse(IndexShard replica) {
+                return new ShardCopyResponse(replica.getLocalCheckpoint(), replica.getGlobalCheckpoint(),
+                    replica.getMinimumSeqNoForPeerRecovery());
+            }
+        };
     }
 
     public void renewPeerRecoveryRetentionLease(ShardId shardId) {
@@ -98,19 +108,24 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         });
     }
 
-    static final class ShardCopyResponse extends ReplicaResult {
+    static final class ShardCopyResponse extends ReplicaResponse {
+        private long minimumSeqNoForPeerRecovery;
 
-        private final Response response;
-
-        // TODO how do we send this response back?
-
-        ShardCopyResponse(Response response) {
-            this.response = response;
+        public ShardCopyResponse(long localCheckpoint, long globalCheckpoint, long minimumSeqNoForPeerRecovery) {
+            super(localCheckpoint, globalCheckpoint);
+            this.minimumSeqNoForPeerRecovery = minimumSeqNoForPeerRecovery;
         }
 
         @Override
-        public void respond(ActionListener<Empty> listener) {
-            super.respond(listener);
+        public void writeTo(StreamOutput out) throws IOException {
+            super.writeTo(out);
+            out.writeLong(minimumSeqNoForPeerRecovery);
+        }
+
+        @Override
+        public void readFrom(StreamInput in) throws IOException {
+            super.readFrom(in);
+            minimumSeqNoForPeerRecovery = in.readLong();
         }
     }
 
