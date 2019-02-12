@@ -81,6 +81,11 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
     }
 
     @Override
+    protected ReplicaResponse readReplicaResponse(StreamInput in) throws IOException {
+        return new ShardCopyResponse(in);
+    }
+
+    @Override
     protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard replica) {
         return new ReplicaResult() {
             @Override
@@ -107,9 +112,15 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
     static final class ShardCopyResponse extends ReplicaResponse {
         private long minimumSeqNoForPeerRecovery;
 
-        public ShardCopyResponse(long localCheckpoint, long globalCheckpoint, long minimumSeqNoForPeerRecovery) {
+        ShardCopyResponse(long localCheckpoint, long globalCheckpoint, long minimumSeqNoForPeerRecovery) {
             super(localCheckpoint, globalCheckpoint);
             this.minimumSeqNoForPeerRecovery = minimumSeqNoForPeerRecovery;
+        }
+
+        ShardCopyResponse(StreamInput in) throws IOException {
+            super();
+            super.readFrom(in);
+            minimumSeqNoForPeerRecovery = in.readLong();
         }
 
         @Override
@@ -119,9 +130,8 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         }
 
         @Override
-        public void readFrom(StreamInput in) throws IOException {
-            super.readFrom(in);
-            minimumSeqNoForPeerRecovery = in.readLong();
+        public void readFrom(StreamInput in) {
+            throw new UnsupportedOperationException("use Writable not Streamable");
         }
     }
 

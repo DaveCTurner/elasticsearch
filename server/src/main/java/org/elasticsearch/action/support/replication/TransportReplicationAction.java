@@ -1075,7 +1075,7 @@ public abstract class TransportReplicationAction<
         private long localCheckpoint;
         private long globalCheckpoint;
 
-        ReplicaResponse() {
+        public ReplicaResponse() {
 
         }
 
@@ -1219,6 +1219,12 @@ public abstract class TransportReplicationAction<
         }
     }
 
+    protected ReplicaResponse readReplicaResponse(StreamInput in) throws IOException {
+        ReplicaResponse replicaResponse = new ReplicaResponse();
+        replicaResponse.readFrom(in);
+        return replicaResponse;
+    }
+
     /**
      * Sends the specified replica request to the specified node.
      *
@@ -1230,12 +1236,8 @@ public abstract class TransportReplicationAction<
             final ConcreteReplicaRequest<ReplicaRequest> replicaRequest,
             final DiscoveryNode node,
             final ActionListener<ReplicationOperation.ReplicaResponse> listener) {
-        final ActionListenerResponseHandler<ReplicaResponse> handler = new ActionListenerResponseHandler<>(listener, in -> {
-            ReplicaResponse replicaResponse = new ReplicaResponse();
-            replicaResponse.readFrom(in);
-            return replicaResponse;
-        });
-        transportService.sendRequest(node, transportReplicaAction, replicaRequest, transportOptions, handler);
+        transportService.sendRequest(node, transportReplicaAction, replicaRequest, transportOptions,
+            new ActionListenerResponseHandler<>(listener, this::readReplicaResponse));
     }
 
     /** a wrapper class to encapsulate a request when being sent to a specific allocation id **/
