@@ -266,8 +266,6 @@ public abstract class Engine implements Closeable {
         return new DocsStats(numDocs, numDeletedDocs, sizeInBytes);
     }
 
-    public abstract void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer);
-
     public abstract long getMinimumSeqNoForPeerRecovery() throws IOException;
 
     /**

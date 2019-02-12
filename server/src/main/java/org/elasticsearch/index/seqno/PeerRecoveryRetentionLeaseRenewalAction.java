@@ -39,7 +39,6 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
-import org.elasticsearch.transport.TransportResponse.Empty;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -77,11 +76,8 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
 
     @Override
     protected PrimaryResult<Request, Response> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
-        return new PrimaryResult<>(shardRequest, getResponse(primary));
-    }
-
-    private Response getResponse(IndexShard indexShard) {
-        return new Response(transportService.getLocalNode().getId(), indexShard.getMinimumSeqNoForPeerRecovery());
+        return new PrimaryResult<>(shardRequest,
+            new Response(transportService.getLocalNode().getId(), primary.getMinimumSeqNoForPeerRecovery()));
     }
 
     @Override

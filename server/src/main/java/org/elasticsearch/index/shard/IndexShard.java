@@ -2378,7 +2378,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         peerRecoveryRetentionLeaseRenewer.run();
     }
 
-    private void addPeerRecoveryRetentionLeaseForPrimary() {
+    private void addPeerRecoveryRetentionLeaseForPrimary() throws IOException {
         assert shardRouting.primary() : "only call addPeerRecoveryRetentionLeaseForPrimary on the primary";
 
         // Today we can't call addPeerRecoveryRetentionLease() on this thread. It doesn't have to happen immediately,
@@ -2389,8 +2389,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
         final Engine engine = getEngineOrNull();
         if (engine != null) {
-            engine.renewPeerRecoveryRetentionLease(minimumPeerRecoverySeqNo -> threadPool.generic().execute(() ->
-                addPeerRecoveryRetentionLease(shardRouting.currentNodeId(), minimumPeerRecoverySeqNo, () -> {})));
+            final long minimumSeqNoForPeerRecovery = engine.getMinimumSeqNoForPeerRecovery();
+            threadPool.generic().execute(() ->
+                addPeerRecoveryRetentionLease(shardRouting.currentNodeId(), minimumSeqNoForPeerRecovery, () -> {}));
         }
     }
 

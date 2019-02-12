@@ -437,15 +437,8 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
-    public void renewPeerRecoveryRetentionLease(LongConsumer minimumPeerRecoverySeqNoConsumer) {
-        // a read-only engine generates no history so there is no history to retain
-        // TODO we should expire the peer recovery retention leases if the engine is readonly
-    }
-
-    @Override
     public long getMinimumSeqNoForPeerRecovery() {
-        throw new UnsupportedOperationException("read-only engine does not support history retention");
-        // TODO can we return a number here?
+        return seqNoStats.getMaxSeqNo();
     }
 
     @Override

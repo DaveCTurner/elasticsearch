@@ -483,7 +483,7 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
                 primaryReplicaSyncer,
                 s -> {},
                 RetentionLeaseSyncer.EMPTY,
-                (s, l) -> {});
+                s -> {});
     }
 
     private class RecordingIndicesService extends MockIndicesService {
