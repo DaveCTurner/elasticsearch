@@ -2509,6 +2509,17 @@ public final class InternalTestCluster extends TestCluster {
         if (size() > 0) {
             assertThat(client().admin().indices().prepareFlush().get().getFailedShards(), equalTo(0));
             for (NodeAndClient nodeAndClient : nodes.values()) {
+                final IndicesService indicesService = getInstance(IndicesService.class, nodeAndClient.name);
+                for (final IndexService indexService : indicesService) {
+                    for (final IndexShard indexShard : indexService) {
+                        if (indexShard.routingEntry().primary()) {
+                            indexShard.renewPeerRecoveryRetentionLease();
+                        }
+                    }
+                }
+            }
+
+            for (NodeAndClient nodeAndClient : nodes.values()) {
                 try {
                     assertBusy(() -> {
                         final IndicesService indicesService = getInstance(IndicesService.class, nodeAndClient.name);

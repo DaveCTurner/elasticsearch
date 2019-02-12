@@ -403,6 +403,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     public synchronized void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
         if (primaryMode == false) {
             logger.debug("cannot add peer-recovery retention lease on a replica {}", nodeId);
+            onCompletion.run();
             return;
         }
 

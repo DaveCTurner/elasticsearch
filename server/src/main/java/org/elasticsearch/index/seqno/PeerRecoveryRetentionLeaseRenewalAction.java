@@ -73,6 +73,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
 
     @Override
     protected PrimaryResult<Request, ReplicationResponse> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
+        primary.renewPeerRecoveryRetentionLeaseForNode(primary.routingEntry().currentNodeId(), primary.getMinimumSeqNoForPeerRecovery());
         return new PrimaryResult<>(shardRequest, new ReplicationResponse());
     }
 
