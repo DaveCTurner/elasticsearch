@@ -401,6 +401,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     }
 
     public synchronized void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
+        if (primaryMode == false) {
+            logger.debug("cannot add peer-recovery retention lease on a replica {}", nodeId);
+            return;
+        }
+
         final String leaseId = getPeerRecoveryLeaseId(nodeId);
         if (retentionLeases.contains(leaseId)) {
             renewRetentionLease(leaseId, max(0L, startingSeqNo), "peer recovery");
