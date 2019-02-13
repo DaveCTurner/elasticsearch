@@ -199,6 +199,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         return PEER_RECOVERY_LEASE_ID_PREFIX + nodeId;
     }
 
+    public static boolean isPeerRecoveryLease(RetentionLease retentionLease) {
+        return retentionLease.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX);
+    }
+
     /**
      * If the expire leases parameter is false, gets all retention leases tracked on this shard and otherwise first calculates
      * expiration of existing retention leases, and then gets all non-expired retention leases tracked on this shard. Note that only the

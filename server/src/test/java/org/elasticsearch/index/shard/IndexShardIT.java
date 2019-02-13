@@ -507,7 +507,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         // A flush stats may include the new total count but the old period count - assert eventually.
         assertBusy(() -> {
             final FlushStats flushStats = client().admin().indices().prepareStats("test").clear().setFlush(true).get().getTotal().flush;
-            assertThat(flushStats.getPeriodic(), allOf(equalTo(flushStats.getTotal()), greaterThan(0L)));
+            assertThat(flushStats.getPeriodic(), allOf(equalTo(flushStats.getTotal() - 1), greaterThan(0L)));
         });
         assertBusy(() -> assertThat(indexService.getShard(0).shouldPeriodicallyFlush(), equalTo(false)));
         settings = Settings.builder().put("index.translog.flush_threshold_size", (String) null).build();
@@ -516,7 +516,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         client().prepareIndex("test", "doc", UUIDs.randomBase64UUID()).setSource("{}", XContentType.JSON).get();
         client().admin().indices().prepareFlush("test").setForce(randomBoolean()).setWaitIfOngoing(true).get();
         final FlushStats flushStats = client().admin().indices().prepareStats("test").clear().setFlush(true).get().getTotal().flush;
-        assertThat(flushStats.getTotal(), greaterThan(flushStats.getPeriodic()));
+        assertThat(flushStats.getTotal(), greaterThan(flushStats.getPeriodic() + 1));
     }
 
     public void testShardHasMemoryBufferOnTranslogRecover() throws Throwable {

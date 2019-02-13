@@ -33,6 +33,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.elasticsearch.index.seqno.ReplicationTracker.isPeerRecoveryLease;
+
 /**
  * Represents a versioned collection of retention leases. We version the collection of retention leases to ensure that sync requests that
  * arrive out of order on the replica, using the version to ensure that older sync requests are rejected.
@@ -250,4 +252,15 @@ public class RetentionLeases implements Writeable {
         return retentionLeases.leases;
     }
 
+    /**
+     * A utility method to convert a retention lease collection to a map from retention lease ID to retention lease and exclude
+     * the automatically-added peer-recovery retention leases
+     *
+     * @param retentionLeases the retention lease collection
+     * @return the map from retention lease ID to retention lease
+     */
+    static Map<String, RetentionLease> toMapExcludingPeerRecoveryRetentionLeases(final RetentionLeases retentionLeases) {
+        return retentionLeases.leases.values().stream().filter(l -> isPeerRecoveryLease(l) == false)
+            .collect(Collectors.toMap(RetentionLease::id, Function.identity()));
+    }
 }
