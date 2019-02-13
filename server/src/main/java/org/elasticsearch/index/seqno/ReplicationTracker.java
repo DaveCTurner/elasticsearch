@@ -412,8 +412,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         if (retentionLease != null) {
             if (retentionLease.retainingSequenceNumber() < startingSeqNo) {
                 renewRetentionLease(leaseId, max(0L, startingSeqNo), "peer recovery");
-                onCompletion.run();
             }
+            onCompletion.run();
         } else {
             // TODO is it ok to do this under the mutex?
             addRetentionLease(leaseId, max(0L, startingSeqNo), "peer recovery", new ActionListener<ReplicationResponse>() {
