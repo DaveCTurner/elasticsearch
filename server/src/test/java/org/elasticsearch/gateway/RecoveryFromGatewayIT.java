@@ -472,7 +472,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
                 if (softDeleteEnabled) { // We need an extra flush to advance the min_retained_seqno of the SoftDeletesPolicy
                     client(primaryNode).admin().indices().prepareFlush("test").setForce(true).get();
                     // expire retention lease for replica; since number_of_replicas is 0 it is no longer needed
-                    internalCluster().getInstance(IndicesService.class, primaryNode).indexServiceSafe(resolveIndex("test"))
+                    internalCluster().getInstance(IndicesService.class, primaryNode).indexServiceSafe(resolveIndex("test", primaryNode))
                         .forEach(IndexShard::renewPeerRecoveryRetentionLease);
                 }
                 client(primaryNode).admin().indices().prepareUpdateSettings("test").setSettings(Settings.builder()
