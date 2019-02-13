@@ -439,8 +439,8 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         final boolean flush = randomBoolean();
         final Settings settings;
         if (flush) {
-            // size of the operation plus two generations of overhead.
-            settings = Settings.builder().put("index.translog.flush_threshold_size", "180b").build();
+            // size of the operation
+            settings = Settings.builder().put("index.translog.flush_threshold_size", "161b").build();
         } else {
             // size of the operation plus header and footer
             settings = Settings.builder().put("index.translog.generation_threshold_size", "117b").build();
