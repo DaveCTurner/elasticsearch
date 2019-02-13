@@ -221,7 +221,7 @@ public final class CombinedDeletionPolicy extends IndexDeletionPolicy {
         return String.format(Locale.ROOT, "CommitPoint{segment[%s], userData[%s]}", commit.getSegmentsFileName(), commit.getUserData());
     }
 
-    long getMinimumPeerRecoverySeqNo() throws IOException {
+    long getMinimumSeqNoForPeerRecovery() throws IOException {
         return Store.loadSeqNoInfo(safeCommit).localCheckpoint;
     }
 

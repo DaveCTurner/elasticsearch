@@ -46,7 +46,6 @@ import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
 import org.elasticsearch.Assertions;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.index.IndexRequest;
@@ -105,7 +104,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
-import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -561,7 +559,7 @@ public class InternalEngine extends Engine {
 
     @Override
     public long getMinimumSeqNoForPeerRecovery() throws IOException {
-        return combinedDeletionPolicy.getMinimumPeerRecoverySeqNo();
+        return combinedDeletionPolicy.getMinimumSeqNoForPeerRecovery();
     }
 
     /**

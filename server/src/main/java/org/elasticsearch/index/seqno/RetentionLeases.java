@@ -243,16 +243,6 @@ public class RetentionLeases implements Writeable {
     }
 
     /**
-     * A utility method to convert a retention lease collection to a map from retention lease ID to retention lease.
-     *
-     * @param retentionLeases the retention lease collection
-     * @return the map from retention lease ID to retention lease
-     */
-    static Map<String, RetentionLease> toMap(final RetentionLeases retentionLeases) {
-        return retentionLeases.leases;
-    }
-
-    /**
      * A utility method to convert a retention lease collection to a map from retention lease ID to retention lease and exclude
      * the automatically-added peer-recovery retention leases
      *
