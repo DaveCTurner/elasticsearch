@@ -2302,7 +2302,7 @@ public class InternalEngineTests extends EngineTestCase {
             gcpTracker.updateFromMaster(1L, new HashSet<>(Arrays.asList(primary.allocationId().getId(),
                 replica.allocationId().getId())),
                 new IndexShardRoutingTable.Builder(shardId).addShard(primary).build(), Collections.emptySet());
-            gcpTracker.activatePrimaryMode(primarySeqNo, "node1", 0);
+            gcpTracker.activatePrimaryMode(primarySeqNo, 0);
             gcpTracker.addPeerRecoveryRetentionLease("node2", 0, () -> {});
             gcpTracker.updateFromMaster(2L, new HashSet<>(Arrays.asList(primary.allocationId().getId(),
                 replica.allocationId().getId())),

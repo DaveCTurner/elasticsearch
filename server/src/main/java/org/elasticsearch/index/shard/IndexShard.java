@@ -480,8 +480,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 if (newPrimaryTerm == pendingPrimaryTerm) {
                     if (currentRouting.initializing() && currentRouting.isRelocationTarget() == false && newRouting.active()) {
                         // the master started a recovering primary, activate primary mode.
-                        replicationTracker.activatePrimaryMode(getLocalCheckpoint(),
-                            shardRouting.currentNodeId(), getMinimumSeqNoForPeerRecovery());
+                        replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getMinimumSeqNoForPeerRecovery());
                     }
                 } else {
                     assert currentRouting.primary() == false : "term is only increased as part of primary promotion";
@@ -523,8 +522,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                                 ", current routing: " + currentRouting + ", new routing: " + newRouting;
                             assert getOperationPrimaryTerm() == newPrimaryTerm;
                             try {
-                                replicationTracker.activatePrimaryMode(getLocalCheckpoint(),
-                                    shardRouting.currentNodeId(), getMinimumSeqNoForPeerRecovery());
+                                replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getMinimumSeqNoForPeerRecovery());
                                 /*
                                  * If this shard was serving as a replica shard when another shard was promoted to primary then
                                  * its Lucene index was reset during the primary term transition. In particular, the Lucene index

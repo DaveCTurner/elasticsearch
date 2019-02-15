@@ -775,24 +775,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     /**
      * Initializes the global checkpoint tracker in primary mode (see {@link #primaryMode}. Called on primary activation or promotion.
      */
-    public synchronized void activatePrimaryMode(final long localCheckpoint) {
-        assert invariant();
-        assert primaryMode == false;
-        assert checkpoints.get(shardAllocationId) != null && checkpoints.get(shardAllocationId).inSync &&
-            checkpoints.get(shardAllocationId).localCheckpoint == SequenceNumbers.UNASSIGNED_SEQ_NO :
-            "expected " + shardAllocationId + " to have initialized entry in " + checkpoints + " when activating primary";
-        assert localCheckpoint >= SequenceNumbers.NO_OPS_PERFORMED;
-        primaryMode = true;
-        updateLocalCheckpoint(shardAllocationId, checkpoints.get(shardAllocationId), localCheckpoint);
-        updateGlobalCheckpointOnPrimary();
-        assert invariant();
-    }
-
-    /**
-     * Initializes the global checkpoint tracker in primary mode (see {@link #primaryMode}. Called on primary activation or promotion.
-     */
-    public synchronized void activatePrimaryMode(final long localCheckpoint,
-                                                 final String currentNodeId, final long minimumSeqNoForPeerRecovery) {
+    public synchronized void activatePrimaryMode(final long localCheckpoint, final long minimumSeqNoForPeerRecovery) {
         assert invariant();
         assert primaryMode == false;
         assert checkpoints.get(shardAllocationId) != null && checkpoints.get(shardAllocationId).inSync &&
@@ -803,15 +786,17 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         updateLocalCheckpoint(shardAllocationId, checkpoints.get(shardAllocationId), localCheckpoint);
         updateGlobalCheckpointOnPrimary();
 
-        if (retentionLeases.get(getPeerRecoveryLeaseId(currentNodeId)) == null) {
+        final ShardRouting primaryShard = routingTable.primaryShard();
+        final String leaseId = getPeerRecoveryLeaseId(primaryShard.currentNodeId());
+        if (retentionLeases.get(leaseId) == null) {
             // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
             // this copy must already be in-sync and active and therefore holds a retention lease for itself.
-            assert routingTable.activeShards().size() == 1 : routingTable.activeShards();
-            assert routingTable.activeShards().get(0).currentNodeId().equals(currentNodeId) : routingTable.activeShards();
-            assert replicationGroup.getReplicationTargets().equals(singletonList(routingTable.activeShards().get(0)));
+            assert routingTable.activeShards().equals(singletonList(primaryShard)) : routingTable.activeShards();
+            assert primaryShard.allocationId().getId().equals(shardAllocationId) : routingTable.activeShards() + " vs " + shardAllocationId;
+            assert replicationGroup.getReplicationTargets().equals(singletonList(primaryShard));
 
             // Safe to call innerAddRetentionLease() without a subsequent sync because there are no other members of this replication gp.
-            innerAddRetentionLease(getPeerRecoveryLeaseId(currentNodeId), minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
+            innerAddRetentionLease(leaseId, minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
         }
 
         assert invariant();
