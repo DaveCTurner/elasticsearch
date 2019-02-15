@@ -33,7 +33,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.index.seqno.ReplicationTracker.isPeerRecoveryLease;
+import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_LEASE_SOURCE;
 
 /**
  * Represents a versioned collection of retention leases. We version the collection of retention leases to ensure that sync requests that
@@ -250,7 +250,7 @@ public class RetentionLeases implements Writeable {
      * @return the map from retention lease ID to retention lease
      */
     static Map<String, RetentionLease> toMapExcludingPeerRecoveryRetentionLeases(final RetentionLeases retentionLeases) {
-        return retentionLeases.leases.values().stream().filter(l -> isPeerRecoveryLease(l) == false)
+        return retentionLeases.leases.values().stream().filter(l -> PEER_RECOVERY_LEASE_SOURCE.equals(l.source()) == false)
             .collect(Collectors.toMap(RetentionLease::id, Function.identity()));
     }
 }

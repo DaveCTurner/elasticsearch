@@ -270,7 +270,7 @@ public class RecoverySourceHandler {
                         peerRecoveryRetentionLeaseSyncedLatch::countDown);
                     peerRecoveryRetentionLeaseSyncedLatch.await();
                 } catch (RetentionLeaseAlreadyExistsException e) {
-                    logger.trace("peer-recovery retention lease already exists", e);
+                    logger.debug("peer-recovery retention lease already exists", e);
                 }
 
                 try {

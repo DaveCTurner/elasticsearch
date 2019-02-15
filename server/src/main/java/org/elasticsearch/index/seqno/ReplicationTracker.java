@@ -21,7 +21,6 @@ package org.elasticsearch.index.seqno;
 
 import com.carrotsearch.hppc.ObjectLongHashMap;
 import com.carrotsearch.hppc.ObjectLongMap;
-import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -41,7 +40,6 @@ import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -190,23 +188,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         return getRetentionLeases(false).v2();
     }
 
-    /**
-     * There are some special leases corresponding with shard copies in this cluster, for whom we track a retention lease so that we keep
-     * hold of enough history to bring them back online with an operations-based recovery later.
-     */
-    private static final String PEER_RECOVERY_LEASE_ID_PREFIX = "peer_recovery/";
-    private static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
+    static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
 
     private static String getPeerRecoveryLeaseId(String nodeId) {
-        return PEER_RECOVERY_LEASE_ID_PREFIX + nodeId;
+        return "peer_recovery/" + nodeId;
     }
 
     private static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
         return getPeerRecoveryLeaseId(shardRouting.currentNodeId());
-    }
-
-    public static boolean isPeerRecoveryLease(RetentionLease retentionLease) {
-        return retentionLease.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX);
     }
 
     /**
