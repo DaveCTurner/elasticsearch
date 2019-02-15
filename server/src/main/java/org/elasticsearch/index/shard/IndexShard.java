@@ -1915,7 +1915,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * @return the retention leases
      */
     public RetentionLeases getRetentionLeases() {
-        return getRetentionLeases(false).v2();
+        return getRetentionLeases(false);
     }
 
     /**
@@ -1926,7 +1926,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      *
      * @return a tuple indicating whether or not any retention leases were expired, and the non-expired retention leases
      */
-    public Tuple<Boolean, RetentionLeases> getRetentionLeases(final boolean expireLeases) {
+    public RetentionLeases getRetentionLeases(final boolean expireLeases) {
         assert expireLeases == false || assertPrimaryMode();
         verifyNotClosed();
         return replicationTracker.getRetentionLeases(expireLeases);
@@ -2015,12 +2015,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void syncRetentionLeases() {
         assert assertPrimaryMode();
         verifyNotClosed();
-        final Tuple<Boolean, RetentionLeases> retentionLeases = getRetentionLeases(true);
-        if (retentionLeases.v1()) {
-            retentionLeaseSyncer.sync(shardId, retentionLeases.v2(), ActionListener.wrap(() -> {}));
-        } else {
-            retentionLeaseSyncer.backgroundSync(shardId, retentionLeases.v2());
-        }
+        retentionLeaseSyncer.sync(shardId, getRetentionLeases(true), ActionListener.wrap(() -> { }));
     }
 
     /**

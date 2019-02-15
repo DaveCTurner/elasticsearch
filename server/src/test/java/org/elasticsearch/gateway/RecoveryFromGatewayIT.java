@@ -38,10 +38,12 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.MergePolicyConfig;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
@@ -53,6 +55,7 @@ import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.InternalTestCluster.RestartCallback;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.store.MockFSIndexStore;
 
 import java.nio.file.DirectoryStream;
@@ -74,6 +77,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.gateway.GatewayService.RECOVER_AFTER_NODES_SETTING;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_LEASE_SOURCE;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
@@ -82,6 +86,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 
 @ClusterScope(numDataNodes = 0, scope = Scope.TEST)
 public class RecoveryFromGatewayIT extends ESIntegTestCase {
@@ -409,6 +414,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         assertThat(state.metaData().index("test").getAliases().get("test_alias").filter(), notNullValue());
     }
 
+    @TestLogging("org.elasticsearch.indices.recovery:TRACE")
     public void testReuseInFileBasedPeerRecovery() throws Exception {
         internalCluster().startMasterOnlyNode();
         final String primaryNode = internalCluster().startDataOnlyNode(nodeSettings(0));
@@ -473,7 +479,19 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
                     client(primaryNode).admin().indices().prepareFlush("test").setForce(true).get();
                     // expire retention lease for replica; since number_of_replicas is 0 it is no longer needed
                     internalCluster().getInstance(IndicesService.class, primaryNode).indexServiceSafe(resolveIndex("test", primaryNode))
-                        .forEach(IndexShard::renewPeerRecoveryRetentionLease);
+                        .forEach(is -> {
+                            is.renewPeerRecoveryRetentionLease();
+                            is.syncRetentionLeases();
+                            try {
+                                assertBusy(() -> {
+                                    assertThat(is.getRetentionLeases().leases().stream()
+                                        .filter(l -> PEER_RECOVERY_LEASE_SOURCE.equals(l.source())).count(), equalTo(1L));
+                                    assertEquals(is.getMinRetainedSeqNo(), is.getMinimumSeqNoForPeerRecovery());
+                                });
+                            } catch (Exception e) {
+                                throw new AssertionError(e);
+                            }
+                        });
                 }
                 client(primaryNode).admin().indices().prepareUpdateSettings("test").setSettings(Settings.builder()
                     .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)

@@ -28,7 +28,6 @@ import org.elasticsearch.cluster.routing.AllocationId;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.SuppressForbidden;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -185,10 +184,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * @return the retention leases
      */
     public RetentionLeases getRetentionLeases() {
-        return getRetentionLeases(false).v2();
+        return getRetentionLeases(false);
     }
 
-    static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
+    public static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
 
     private static String getPeerRecoveryLeaseId(String nodeId) {
         return "peer_recovery/" + nodeId;
@@ -206,34 +205,33 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      *
      * @return a tuple indicating whether or not any retention leases were expired, and the non-expired retention leases
      */
-    public synchronized Tuple<Boolean, RetentionLeases> getRetentionLeases(final boolean expireLeases) {
-        if (expireLeases == false) {
-            return Tuple.tuple(false, retentionLeases);
+    public synchronized RetentionLeases getRetentionLeases(final boolean expireLeases) {
+        if (expireLeases) {
+            assert primaryMode;
+            // the primary calculates the non-expired retention leases and syncs them to replicas
+            final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
+            final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
+            final Set<String> leaseIdsForCurrentPeers
+                = routingTable.assignedShards().stream().map(ReplicationTracker::getPeerRecoveryLeaseId).collect(Collectors.toSet());
+            final List<RetentionLease> nonExpiredLeases = retentionLeases.leases().stream()
+                .filter(lease ->
+                {
+                    if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
+                        if (leaseIdsForCurrentPeers.contains(lease.id())) {
+                            return true;
+                        }
+                        if (routingTable.allShardsStarted()) {
+                            return false;
+                        }
+                    }
+                    return currentTimeMillis - lease.timestamp() <= retentionLeaseMillis;
+                })
+                .map(lease -> leaseIdsForCurrentPeers.contains(lease.id()) ?
+                    new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
+                .collect(Collectors.toList());
+            retentionLeases = new RetentionLeases(operationPrimaryTerm, retentionLeases.version() + 1, nonExpiredLeases);
         }
-        assert primaryMode;
-        // the primary calculates the non-expired retention leases and syncs them to replicas
-        final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
-        final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
-        final Set<String> leaseIdsForCurrentPeers
-            = routingTable.assignedShards().stream().map(ReplicationTracker::getPeerRecoveryLeaseId).collect(Collectors.toSet());
-        final List<RetentionLease> nonExpiredLeases = retentionLeases.leases().stream()
-            .filter(lease ->
-            {
-                if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
-                    if (leaseIdsForCurrentPeers.contains(lease.id())) {
-                        return true;
-                    }
-                    if (routingTable.allShardsStarted()) {
-                        return false;
-                    }
-                }
-                return currentTimeMillis - lease.timestamp() <= retentionLeaseMillis;
-            })
-            .map(lease -> leaseIdsForCurrentPeers.contains(lease.id()) ?
-                new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
-            .collect(Collectors.toList());
-        retentionLeases = new RetentionLeases(operationPrimaryTerm, retentionLeases.version() + 1, nonExpiredLeases);
-        return Tuple.tuple(true, retentionLeases);
+        return retentionLeases;
     }
 
     /**
