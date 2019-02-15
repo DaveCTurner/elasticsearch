@@ -50,6 +50,7 @@ import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.engine.RecoveryEngineException;
 import org.elasticsearch.index.seqno.LocalCheckpointTracker;
+import org.elasticsearch.index.seqno.RetentionLeaseAlreadyExistsException;
 import org.elasticsearch.index.seqno.RetentionLeases;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
@@ -263,12 +264,14 @@ public class RecoverySourceHandler {
                     sendFileResult.existingTotalSize, sendFileResult.took.millis(), phase1ThrottlingWaitTime,
                     prepareEngineStep.result().millis(), sendSnapshotResult.totalOperations, sendSnapshotResult.tookTime.millis());
 
-                logger.trace("creating peer-recovery retention lease");
-                final CountDownLatch peerRecoveryRetentionLeaseSyncedLatch = new CountDownLatch(1);
-                shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo,
-                    peerRecoveryRetentionLeaseSyncedLatch::countDown);
-                peerRecoveryRetentionLeaseSyncedLatch.await();
-                logger.trace("created peer-recovery retention lease");
+                try {
+                    final CountDownLatch peerRecoveryRetentionLeaseSyncedLatch = new CountDownLatch(1);
+                    shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo,
+                        peerRecoveryRetentionLeaseSyncedLatch::countDown);
+                    peerRecoveryRetentionLeaseSyncedLatch.await();
+                } catch (RetentionLeaseAlreadyExistsException e) {
+                    logger.trace("peer-recovery retention lease already exists", e);
+                }
 
                 try {
                     wrappedListener.onResponse(response);

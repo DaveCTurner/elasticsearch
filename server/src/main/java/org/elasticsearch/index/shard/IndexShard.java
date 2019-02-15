@@ -2410,7 +2410,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void renewPeerRecoveryRetentionLease() {
-        peerRecoveryRetentionLeaseRenewer.run();
+        assert assertPrimaryMode();
+        if (replicationTracker.peerRetentionLeasesNeedRenewal(getMinimumSeqNoForPeerRecovery())) {
+            peerRecoveryRetentionLeaseRenewer.run();
+        }
     }
 
     public long getMinimumSeqNoForPeerRecovery() {

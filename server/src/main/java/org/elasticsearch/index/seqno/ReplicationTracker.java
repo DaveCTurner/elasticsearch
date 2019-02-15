@@ -201,6 +201,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         return PEER_RECOVERY_LEASE_ID_PREFIX + nodeId;
     }
 
+    private static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
+        return getPeerRecoveryLeaseId(shardRouting.currentNodeId());
+    }
+
     public static boolean isPeerRecoveryLease(RetentionLease retentionLease) {
         return retentionLease.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX);
     }
@@ -222,26 +226,23 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
         final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
         final Set<String> leaseIdsForCurrentPeers
-            = routingTable.assignedShards().stream().map(s -> getPeerRecoveryLeaseId(s.currentNodeId())).collect(Collectors.toSet());
-        final Map<Boolean, List<RetentionLease>> partitionByExpiration = retentionLeases.leases().stream()
-            .collect(Collectors.groupingBy(lease ->
+            = routingTable.assignedShards().stream().map(ReplicationTracker::getPeerRecoveryLeaseId).collect(Collectors.toSet());
+        final List<RetentionLease> nonExpiredLeases = retentionLeases.leases().stream()
+            .filter(lease ->
             {
                 if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
                     if (leaseIdsForCurrentPeers.contains(lease.id())) {
-                        return false;
-                    }
-                    if (routingTable.allShardsStarted()) {
                         return true;
                     }
+                    if (routingTable.allShardsStarted()) {
+                        return false;
+                    }
                 }
-                return currentTimeMillis - lease.timestamp() > retentionLeaseMillis;
-            }));
-        if (partitionByExpiration.get(true) == null) {
-            // early out as no retention leases have expired
-            return Tuple.tuple(false, retentionLeases);
-        }
-        final Collection<RetentionLease> nonExpiredLeases =
-                partitionByExpiration.get(false) != null ? partitionByExpiration.get(false) : Collections.emptyList();
+                return currentTimeMillis - lease.timestamp() <= retentionLeaseMillis;
+            })
+            .map(lease -> leaseIdsForCurrentPeers.contains(lease.id()) ?
+                new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
+            .collect(Collectors.toList());
         retentionLeases = new RetentionLeases(operationPrimaryTerm, retentionLeases.version() + 1, nonExpiredLeases);
         return Tuple.tuple(true, retentionLeases);
     }
@@ -370,99 +371,27 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             return;
         }
 
-        for (final ShardRouting shardRouting : routingTable.shards()) {
-            if (shardRouting.currentNodeId().equals(nodeId) == false) {
-                continue;
-            }
-
-            if (shardRouting.active()) {
-                final String leaseId = getPeerRecoveryLeaseId(nodeId);
-                final RetentionLease retentionLease = retentionLeases.get(leaseId);
-                if (retentionLease != null) {
-                    if (retentionLease.retainingSequenceNumber() < minimumSeqNoForPeerRecovery) {
-                        renewRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), "peer recovery");
-                    }
-                } else {
-                    // These leases should never expire, because by default they last for hours, we renew them every few minutes while the
-                    // replica is healthy, and we ensure they exist before starting a replica. But if they do expire
-                    // (e.g. index.soft_deletes.retention.lease is set to a very small value) then we should create them again.
-                    logger.warn("lease for peer recovery to {} unexpectedly expired before renewal", shardRouting);
-
-                    // TODO is it ok to do this under the mutex?
-                    addRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), "peer recovery",
-                        new ActionListener<ReplicationResponse>() {
-                            @Override
-                            public void onResponse(ReplicationResponse replicationResponse) {
-                                // this operation is fire-and-forget
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                logger.debug(new ParameterizedMessage("exception creating new retention lease for peer recovery to {}",
-                                    shardRouting), e);
-                                // this operation is fire-and-forget
-                            }
-                        });
-                }
-
-                if (shardRouting.primary() && routingTable.allShardsStarted()) {
-                    final Set<String> expectedPeerRecoveryLeaseIds
-                        = routingTable.shards().stream().map(sr -> getPeerRecoveryLeaseId(sr.currentNodeId())).collect(Collectors.toSet());
-
-                    retentionLeases.leases().stream().filter(l -> l.id().startsWith(PEER_RECOVERY_LEASE_ID_PREFIX)
-                        && expectedPeerRecoveryLeaseIds.contains(l.id()) == false)
-                        .forEach(rl -> removeRetentionLease(rl.id(), new ActionListener<ReplicationResponse>() {
-                            @Override
-                            public void onResponse(ReplicationResponse replicationResponse) {
-                                // this operation is fire-and-forget
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                logger.debug(new ParameterizedMessage("exception removing stale retention lease {}",
-                                    rl.id()), e);
-                                // this operation is fire-and-forget
-                            }
-                        }));
-                }
-            }
-
-            return;
-        }
-
-        logger.debug("attempted to renew peer recovery retention lease for node {} but no corresponding shard routing found", nodeId);
-    }
-
-    public synchronized void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
-        if (primaryMode == false) {
-            logger.debug("cannot add peer-recovery retention lease on a replica {}", nodeId);
-            onCompletion.run();
-            return;
-        }
-
         final String leaseId = getPeerRecoveryLeaseId(nodeId);
         final RetentionLease retentionLease = retentionLeases.get(leaseId);
-        if (retentionLease != null) {
-            if (retentionLease.retainingSequenceNumber() < startingSeqNo) {
-                renewRetentionLease(leaseId, max(0L, startingSeqNo), "peer recovery");
-            }
-            onCompletion.run();
-        } else {
-            // TODO is it ok to do this under the mutex?
-            addRetentionLease(leaseId, max(0L, startingSeqNo), "peer recovery", new ActionListener<ReplicationResponse>() {
-                @Override
-                public void onResponse(ReplicationResponse replicationResponse) {
-                    onCompletion.run();
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    // TODO do we care?
-                    logger.debug(new ParameterizedMessage("exception creating new retention lease for peer recovery to {}", nodeId), e);
-                    onCompletion.run();
-                }
-            });
+        if (retentionLease == null) {
+            assert routingTable.activeShards().stream().noneMatch(sr -> sr.currentNodeId().equals(nodeId))
+                : "no retention lease found for active shard " + nodeId;
+            logger.debug("attempted to renew peer recovery retention lease for node {} but no corresponding shard routing found", nodeId);
+        } else if (retentionLease.retainingSequenceNumber() < minimumSeqNoForPeerRecovery) {
+            renewRetentionLease(leaseId, minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
         }
+    }
+
+    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
+        addRetentionLease(getPeerRecoveryLeaseId(nodeId), max(0L, startingSeqNo),
+            PEER_RECOVERY_LEASE_SOURCE, ActionListener.wrap(onCompletion));
+    }
+
+    public synchronized boolean peerRetentionLeasesNeedRenewal(long minimumSeqNo) {
+        assert primaryMode;
+        final RetentionLeases retentionLeases = getRetentionLeases();
+        return routingTable.activeShards().stream().anyMatch(
+            sr -> retentionLeases.get(getPeerRecoveryLeaseId(sr)).retainingSequenceNumber() < minimumSeqNo);
     }
 
     public static class CheckpointState implements Writeable {
