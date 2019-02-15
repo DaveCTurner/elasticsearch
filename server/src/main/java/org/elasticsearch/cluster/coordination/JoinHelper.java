@@ -33,6 +33,7 @@ import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.logging.SuppressedLogger;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
@@ -67,6 +68,7 @@ import java.util.function.Supplier;
 public class JoinHelper {
 
     private static final Logger logger = LogManager.getLogger(JoinHelper.class);
+    private static final SuppressedLogger suppressedLogger = new SuppressedLogger(logger, 10);
 
     public static final String JOIN_ACTION_NAME = "internal:cluster/coordination/join";
     public static final String VALIDATE_JOIN_ACTION_NAME = "internal:cluster/coordination/join/validate";
@@ -189,12 +191,7 @@ public class JoinHelper {
         };
     }
 
-    public void sendJoinRequest(DiscoveryNode destination, Optional<Join> optionalJoin) {
-        sendJoinRequest(destination, optionalJoin, () -> {
-        });
-    }
-
-    public void sendJoinRequest(DiscoveryNode destination, Optional<Join> optionalJoin, Runnable onCompletion) {
+    void sendJoinRequest(DiscoveryNode destination, Optional<Join> optionalJoin) {
         assert destination.isMasterNode() : "trying to join master-ineligible " + destination;
         final JoinRequest joinRequest = new JoinRequest(transportService.getLocalNode(), optionalJoin);
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
@@ -220,15 +217,14 @@ public class JoinHelper {
                     @Override
                     public void handleResponse(Empty response) {
                         pendingOutgoingJoins.remove(dedupKey);
+                        suppressedLogger.drain();
                         logger.debug("successfully joined {} with {}", destination, joinRequest);
-                        onCompletion.run();
                     }
 
                     @Override
                     public void handleException(TransportException exp) {
                         pendingOutgoingJoins.remove(dedupKey);
-                        logger.info(() -> new ParameterizedMessage("failed to join {} with {}", destination, joinRequest), exp);
-                        onCompletion.run();
+                        suppressedLogger.log(new ParameterizedMessage("failed to join {} with {}", destination, joinRequest), exp);
                     }
 
                     @Override
