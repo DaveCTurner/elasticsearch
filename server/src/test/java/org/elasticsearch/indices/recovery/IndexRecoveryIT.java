@@ -752,9 +752,6 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         for (MockTransportService mockTransportService : Arrays.asList(redMockTransportService, blueMockTransportService)) {
             mockTransportService.addSendBehavior(masterTransportService, (connection, requestId, action, request, options) -> {
                 logger.info("--> sending request {} on {}", action, connection.getNode());
-                if ((primaryRelocation && finalized.get()) == false) {
-                    assertNotEquals(action, ShardStateAction.SHARD_FAILED_ACTION_NAME);
-                }
                 connection.sendRequest(requestId, action, request, options);
             });
         }
