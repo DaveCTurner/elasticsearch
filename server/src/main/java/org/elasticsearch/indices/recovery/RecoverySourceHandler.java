@@ -266,7 +266,7 @@ public class RecoverySourceHandler {
                 final CountDownLatch peerRecoveryRetentionLeaseSyncedLatch = new CountDownLatch(1);
                 shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo,
                     peerRecoveryRetentionLeaseSyncedLatch::countDown);
-                peerRecoveryRetentionLeaseSyncedLatch.await(); // TODO does this truly need to be synchronous?
+                peerRecoveryRetentionLeaseSyncedLatch.await();
                 logger.trace("created peer-recovery retention lease");
 
                 try {
