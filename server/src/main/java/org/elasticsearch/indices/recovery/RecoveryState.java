@@ -417,10 +417,6 @@ public class RecoveryState implements ToXContentFragment, Streamable, Writeable 
             stopTime = 0;
         }
 
-        // for tests
-        public long getStartNanoTime() {
-            return startNanoTime;
-        }
     }
 
     public static class VerifyIndex extends Timer implements ToXContentFragment, Writeable {
