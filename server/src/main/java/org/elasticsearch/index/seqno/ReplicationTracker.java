@@ -22,7 +22,6 @@ package org.elasticsearch.index.seqno;
 import com.carrotsearch.hppc.ObjectLongHashMap;
 import com.carrotsearch.hppc.ObjectLongMap;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -50,7 +49,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
@@ -74,7 +72,7 @@ import static java.util.Collections.singletonList;
  * <p>
  * The global checkpoint is maintained by the primary shard and is replicated to all the replicas (via {@link GlobalCheckpointSyncAction}).
  */
-public class  ReplicationTracker extends AbstractIndexShardComponent implements LongSupplier {
+public class ReplicationTracker extends AbstractIndexShardComponent implements LongSupplier {
 
     /**
      * The allocation ID for the shard to which this tracker is a component of.
@@ -220,15 +218,12 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
             return Tuple.tuple(false, retentionLeases);
         }
         assert primaryMode;
-
         // the primary calculates the non-expired retention leases and syncs them to replicas
         final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
         final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
         final Set<String> leaseIdsForCurrentPeers
             = routingTable.assignedShards().stream().map(s -> getPeerRecoveryLeaseId(s.currentNodeId())).collect(Collectors.toSet());
-        final Map<Boolean, List<RetentionLease>> partitionByExpiration = retentionLeases
-            .leases()
-            .stream()
+        final Map<Boolean, List<RetentionLease>> partitionByExpiration = retentionLeases.leases().stream()
             .collect(Collectors.groupingBy(lease ->
             {
                 if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
@@ -267,9 +262,8 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
             final String source,
             final ActionListener<ReplicationResponse> listener) {
         Objects.requireNonNull(listener);
-
-        final RetentionLeases currentRetentionLeases;
         final RetentionLease retentionLease;
+        final RetentionLeases currentRetentionLeases;
         synchronized (this) {
             retentionLease = innerAddRetentionLease(id, retainingSequenceNumber, source);
             currentRetentionLeases = this.retentionLeases;
