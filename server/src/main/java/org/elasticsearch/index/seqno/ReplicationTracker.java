@@ -71,7 +71,7 @@ import static java.lang.Math.max;
  * <p>
  * The global checkpoint is maintained by the primary shard and is replicated to all the replicas (via {@link GlobalCheckpointSyncAction}).
  */
-public class ReplicationTracker extends AbstractIndexShardComponent implements LongSupplier {
+public class  ReplicationTracker extends AbstractIndexShardComponent implements LongSupplier {
 
     /**
      * The allocation ID for the shard to which this tracker is a component of.
@@ -677,6 +677,13 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             assert checkpoints.get(aId) != null : "aId [" + aId + "] is pending in sync but isn't tracked";
         }
 
+        if (primaryMode) {
+            for (ShardRouting shardRouting : routingTable.shards()) {
+                assert retentionLeases.contains(getPeerRecoveryLeaseId(shardRouting.currentNodeId())) :
+                    "no retention lease for active shard " + shardRouting + " in " + retentionLeases;
+            }
+        }
+
         return true;
     }
 
@@ -818,29 +825,6 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             cps.globalCheckpoint = globalCheckpoint;
             ifUpdated.accept(cps.globalCheckpoint);
         }
-    }
-
-    public synchronized void activatePrimaryMode(final long localCheckpoint, final String currentNodeId,
-                                                 final long minimumSeqNoForPeerRecovery) {
-        activatePrimaryMode(localCheckpoint);
-
-        final String peerRecoveryLeaseId = getPeerRecoveryLeaseId(currentNodeId);
-        final RetentionLease existingRetentionLease = retentionLeases.get(peerRecoveryLeaseId);
-
-        // TODO can the retainingSequenceNumber be > minimumSeqNoForPeerRecovery? how??
-        final RetentionLease retentionLease = existingRetentionLease != null
-            && minimumSeqNoForPeerRecovery <= existingRetentionLease.retainingSequenceNumber()
-            ? existingRetentionLease
-            : new RetentionLease(peerRecoveryLeaseId, minimumSeqNoForPeerRecovery,
-                                 currentTimeMillisSupplier.getAsLong(), "activate primary mode");
-
-        retentionLeases = new RetentionLeases(
-            operationPrimaryTerm,
-            retentionLeases.version() + 1,
-            Stream.concat(
-                retentionLeases.leases().stream().filter(lease -> lease.id().equals(peerRecoveryLeaseId) == false),
-                Stream.of(retentionLease))
-                .collect(Collectors.toList()));
     }
 
     /**
