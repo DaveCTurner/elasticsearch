@@ -26,11 +26,13 @@ import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.indices.recovery.RecoveryRequest;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryResponse;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.RecoverySource;
@@ -79,6 +81,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.elasticsearch.index.IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING;
 import static org.elasticsearch.node.RecoverySettingsChunkSizePlugin.CHUNK_SIZE_SETTING;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
@@ -782,5 +785,53 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         for (int i = 0; i < 10; i++) {
             assertHitCount(client().prepareSearch(indexName).get(), numDocs);
         }
+    }
+
+    @TestLogging("org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.cluster.service:TRACE")
+    public void testHistoryRetention() throws Exception {
+        internalCluster().startNodes(3);
+
+        final String indexName = "test";
+        client().admin().indices().prepareCreate(indexName).setSettings(Settings.builder()
+            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 2)).get();
+        ensureGreen(indexName);
+
+        // Perform some replicated operations so the replica isn't simply empty, because ops-based recovery isn't better in that case
+        final List<IndexRequestBuilder> requests = new ArrayList<>();
+        final int replicatedDocCount = scaledRandomIntBetween(25, 250);
+        while (requests.size() < replicatedDocCount) {
+            requests.add(client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON));
+        }
+        indexRandom(true, requests);
+        if (randomBoolean()) {
+            flush(indexName);
+        }
+
+        internalCluster().stopRandomNode(s -> true);
+        internalCluster().stopRandomNode(s -> true);
+
+        final long desyncNanoTime = System.nanoTime();
+        while (System.nanoTime() <= desyncNanoTime) {
+            // time passes
+        }
+
+        final int numNewDocs = scaledRandomIntBetween(25, 250);
+        for (int i = 0; i < numNewDocs; i++) {
+            client().prepareIndex(indexName, "_doc").setSource("{}", XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
+        }
+
+        assertAcked(client().admin().indices().prepareUpdateSettings(indexName)
+            .setSettings(Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)));
+        internalCluster().startNode();
+        ensureGreen(indexName);
+
+        final RecoveryResponse recoveryResponse = client().admin().indices().recoveries(new RecoveryRequest(indexName)).get();
+        final List<RecoveryState> recoveryStates = recoveryResponse.shardRecoveryStates().get(indexName);
+        recoveryStates.removeIf(r -> r.getTimer().getStartNanoTime() <= desyncNanoTime);
+
+        assertThat(recoveryStates, hasSize(1));
+        assertThat(recoveryStates.get(0).getIndex().totalFileCount(), is(0));
+        assertThat(recoveryStates.get(0).getTranslog().recoveredOperations(), greaterThan(0));
     }
 }
