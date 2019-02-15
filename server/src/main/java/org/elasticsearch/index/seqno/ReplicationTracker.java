@@ -189,11 +189,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
 
     public static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
 
-    private static String getPeerRecoveryLeaseId(String nodeId) {
+    static String getPeerRecoveryLeaseId(String nodeId) {
         return "peer_recovery/" + nodeId;
     }
 
-    private static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
+    static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
         return getPeerRecoveryLeaseId(shardRouting.currentNodeId());
     }
 
