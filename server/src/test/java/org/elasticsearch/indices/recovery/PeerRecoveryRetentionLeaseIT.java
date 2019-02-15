@@ -65,7 +65,7 @@ public class PeerRecoveryRetentionLeaseIT extends ESIntegTestCase {
             .collect(Collectors.toList());
     }
 
-    @TestLogging("org.elasticsearch.indices.recovery:TRACE")
+    @TestLogging("org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.cluster.service:TRACE")
     public void testHistoryRetention() throws Exception {
         internalCluster().startNodes(3);
 

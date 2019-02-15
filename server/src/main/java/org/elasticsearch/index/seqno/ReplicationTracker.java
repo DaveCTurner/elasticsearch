@@ -22,6 +22,7 @@ package org.elasticsearch.index.seqno;
 import com.carrotsearch.hppc.ObjectLongHashMap;
 import com.carrotsearch.hppc.ObjectLongMap;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -49,6 +50,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
@@ -59,6 +61,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static java.lang.Math.max;
+import static java.util.Collections.singletonList;
 
 /**
  * This class is responsible for tracking the replication group with its progress and safety markers (local and global checkpoints).
@@ -194,6 +197,7 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
      * hold of enough history to bring them back online with an operations-based recovery later.
      */
     private static final String PEER_RECOVERY_LEASE_ID_PREFIX = "peer_recovery/";
+    private static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
 
     private static String getPeerRecoveryLeaseId(String nodeId) {
         return PEER_RECOVERY_LEASE_ID_PREFIX + nodeId;
@@ -216,13 +220,27 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
             return Tuple.tuple(false, retentionLeases);
         }
         assert primaryMode;
+
         // the primary calculates the non-expired retention leases and syncs them to replicas
         final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
         final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
+        final Set<String> leaseIdsForCurrentPeers
+            = routingTable.assignedShards().stream().map(s -> getPeerRecoveryLeaseId(s.currentNodeId())).collect(Collectors.toSet());
         final Map<Boolean, List<RetentionLease>> partitionByExpiration = retentionLeases
-                .leases()
-                .stream()
-                .collect(Collectors.groupingBy(lease -> currentTimeMillis - lease.timestamp() > retentionLeaseMillis));
+            .leases()
+            .stream()
+            .collect(Collectors.groupingBy(lease ->
+            {
+                if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
+                    if (leaseIdsForCurrentPeers.contains(lease.id())) {
+                        return false;
+                    }
+                    if (routingTable.allShardsStarted()) {
+                        return true;
+                    }
+                }
+                return currentTimeMillis - lease.timestamp() > retentionLeaseMillis;
+            }));
         if (partitionByExpiration.get(true) == null) {
             // early out as no retention leases have expired
             return Tuple.tuple(false, retentionLeases);
@@ -249,22 +267,39 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
             final String source,
             final ActionListener<ReplicationResponse> listener) {
         Objects.requireNonNull(listener);
-        final RetentionLease retentionLease;
+
         final RetentionLeases currentRetentionLeases;
+        final RetentionLease retentionLease;
         synchronized (this) {
-            assert primaryMode;
-            if (retentionLeases.contains(id)) {
-                throw new RetentionLeaseAlreadyExistsException(id);
-            }
-            // should we abort if we have already discarded operations >= retainingSequenceNumber?
-            retentionLease = new RetentionLease(id, retainingSequenceNumber, currentTimeMillisSupplier.getAsLong(), source);
-            retentionLeases = new RetentionLeases(
-                    operationPrimaryTerm,
-                    retentionLeases.version() + 1,
-                    Stream.concat(retentionLeases.leases().stream(), Stream.of(retentionLease)).collect(Collectors.toList()));
-            currentRetentionLeases = retentionLeases;
+            retentionLease = innerAddRetentionLease(id, retainingSequenceNumber, source);
+            currentRetentionLeases = this.retentionLeases;
         }
         onSyncRetentionLeases.accept(currentRetentionLeases, listener);
+        return retentionLease;
+    }
+
+    /**
+     * Adds a new retention lease, but does not synchronise it with the rest of the replication group.
+     *
+     * @param id                      the identifier of the retention lease
+     * @param retainingSequenceNumber the retaining sequence number
+     * @param source                  the source of the retention lease
+     * @return the new retention lease
+     * @throws IllegalArgumentException if the specified retention lease already exists
+     */
+    private RetentionLease innerAddRetentionLease(String id, long retainingSequenceNumber, String source) {
+        assert Thread.holdsLock(this);
+        assert primaryMode;
+        if (retentionLeases.contains(id)) {
+            throw new RetentionLeaseAlreadyExistsException(id);
+        }
+        // should we abort if we have already discarded operations >= retainingSequenceNumber?
+        final RetentionLease retentionLease
+            = new RetentionLease(id, retainingSequenceNumber, currentTimeMillisSupplier.getAsLong(), source);
+        retentionLeases = new RetentionLeases(
+            operationPrimaryTerm,
+            retentionLeases.version() + 1,
+            Stream.concat(retentionLeases.leases().stream(), Stream.of(retentionLease)).collect(Collectors.toList()));
         return retentionLease;
     }
 
@@ -677,8 +712,8 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
             assert checkpoints.get(aId) != null : "aId [" + aId + "] is pending in sync but isn't tracked";
         }
 
-        if (primaryMode) {
-            for (ShardRouting shardRouting : routingTable.shards()) {
+        if (primaryMode) { // TODO can we do this on non-primaries too? Why not?
+            for (ShardRouting shardRouting : routingTable.activeShards()) {
                 assert retentionLeases.contains(getPeerRecoveryLeaseId(shardRouting.currentNodeId())) :
                     "no retention lease for active shard " + shardRouting + " in " + retentionLeases;
             }
@@ -840,6 +875,35 @@ public class  ReplicationTracker extends AbstractIndexShardComponent implements 
         primaryMode = true;
         updateLocalCheckpoint(shardAllocationId, checkpoints.get(shardAllocationId), localCheckpoint);
         updateGlobalCheckpointOnPrimary();
+        assert invariant();
+    }
+
+    /**
+     * Initializes the global checkpoint tracker in primary mode (see {@link #primaryMode}. Called on primary activation or promotion.
+     */
+    public synchronized void activatePrimaryMode(final long localCheckpoint,
+                                                 final String currentNodeId, final long minimumSeqNoForPeerRecovery) {
+        assert invariant();
+        assert primaryMode == false;
+        assert checkpoints.get(shardAllocationId) != null && checkpoints.get(shardAllocationId).inSync &&
+            checkpoints.get(shardAllocationId).localCheckpoint == SequenceNumbers.UNASSIGNED_SEQ_NO :
+            "expected " + shardAllocationId + " to have initialized entry in " + checkpoints + " when activating primary";
+        assert localCheckpoint >= SequenceNumbers.NO_OPS_PERFORMED;
+        primaryMode = true;
+        updateLocalCheckpoint(shardAllocationId, checkpoints.get(shardAllocationId), localCheckpoint);
+        updateGlobalCheckpointOnPrimary();
+
+        if (retentionLeases.get(getPeerRecoveryLeaseId(currentNodeId)) == null) {
+            // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
+            // this copy must already be in-sync and active and therefore holds a retention lease for itself.
+            assert routingTable.activeShards().size() == 1 : routingTable.activeShards();
+            assert routingTable.activeShards().get(0).currentNodeId().equals(currentNodeId) : routingTable.activeShards();
+            assert replicationGroup.getReplicationTargets().equals(singletonList(routingTable.activeShards().get(0)));
+
+            // Safe to call innerAddRetentionLease() without a subsequent sync because there are no other members of this replication gp.
+            innerAddRetentionLease(getPeerRecoveryLeaseId(currentNodeId), minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
+        }
+
         assert invariant();
     }
 
