@@ -39,7 +39,7 @@ import java.util.function.Supplier;
  */
 final class SoftDeletesPolicy {
     private final LongSupplier globalCheckpointSupplier;
-    private long localCheckpointOfSafeCommit;
+    private volatile long localCheckpointOfSafeCommit;
     // This lock count is used to prevent `minRetainedSeqNo` from advancing.
     private int retentionLockCount;
     // The extra number of operations before the global checkpoint are retained
@@ -79,6 +79,10 @@ final class SoftDeletesPolicy {
                 "new checkpoint [" + newCheckpoint + "]," + "current checkpoint [" + localCheckpointOfSafeCommit + "]");
         }
         this.localCheckpointOfSafeCommit = newCheckpoint;
+    }
+
+    long getLocalCheckpointOfSafeCommit() {
+        return localCheckpointOfSafeCommit;
     }
 
     /**
@@ -161,5 +165,4 @@ final class SoftDeletesPolicy {
     Query getRetentionQuery() {
         return LongPoint.newRangeQuery(SeqNoFieldMapper.NAME, getMinRetainedSeqNo(), Long.MAX_VALUE);
     }
-
 }

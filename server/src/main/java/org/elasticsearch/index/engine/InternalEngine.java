@@ -558,8 +558,8 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public long getMinimumSeqNoForPeerRecovery() throws IOException {
-        return combinedDeletionPolicy.getMinimumSeqNoForPeerRecovery();
+    public long getMinimumSeqNoForPeerRecovery() {
+        return softDeletesPolicy.getLocalCheckpointOfSafeCommit();
     }
 
     /**

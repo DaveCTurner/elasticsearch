@@ -2414,11 +2414,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         if (engine == null) {
             throw new ElasticsearchException("minimum sequence number for peer recovery is unavailable");
         }
-        try {
-            return engine.getMinimumSeqNoForPeerRecovery();
-        } catch (IOException e) {
-            throw new ElasticsearchException("error getting minimum sequence number for peer recovery", e);
-        }
+        return engine.getMinimumSeqNoForPeerRecovery();
     }
 
     class ShardEventListener implements Engine.EventListener {
