@@ -388,10 +388,14 @@ public class IndexShardRetentionLeaseTests extends IndexShardTestCase {
             if (randomBoolean()) {
                 retentionLeases = indexShard.getRetentionLeases();
             } else {
-                retentionLeases = indexShard.getRetentionLeases(false);
+                final Tuple<Boolean, RetentionLeases> tuple = indexShard.getRetentionLeases(false);
+                assertFalse(tuple.v1());
+                retentionLeases = tuple.v2();
             }
         } else {
-            retentionLeases = indexShard.getRetentionLeases(true);
+            final Tuple<Boolean, RetentionLeases> tuple = indexShard.getRetentionLeases(true);
+            assertTrue(tuple.v1());
+            retentionLeases = tuple.v2();
         }
         assertRetentionLeases(
                 retentionLeases,

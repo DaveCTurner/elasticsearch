@@ -22,6 +22,7 @@ package org.elasticsearch.index.seqno;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.routing.AllocationId;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.IndexSettings;
@@ -482,10 +483,14 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
             if (randomBoolean()) {
                 retentionLeases = replicationTracker.getRetentionLeases();
             } else {
-                retentionLeases = replicationTracker.getRetentionLeases(false);
+                final Tuple<Boolean, RetentionLeases> tuple = replicationTracker.getRetentionLeases(false);
+                assertFalse(tuple.v1());
+                retentionLeases = tuple.v2();
             }
         } else {
-            retentionLeases = replicationTracker.getRetentionLeases(true);
+            final Tuple<Boolean, RetentionLeases> tuple = replicationTracker.getRetentionLeases(true);
+            assertTrue(tuple.v1());
+            retentionLeases = tuple.v2();
         }
         assertThat(retentionLeases.primaryTerm(), equalTo(primaryTerm));
         assertThat(retentionLeases.version(), equalTo(version));

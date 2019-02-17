@@ -1913,18 +1913,18 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * @return the retention leases
      */
     public RetentionLeases getRetentionLeases() {
-        return getRetentionLeases(false);
+        return getRetentionLeases(false).v2();
     }
 
     /**
-     * If the expire leases parameter is false, gets all retention leases tracked on this shard and otherwise first calculates
-     * expiration of existing retention leases, and then gets all non-expired retention leases tracked on this shard. Note that only the
-     * primary shard calculates which leases are expired, and if any have expired, syncs the retention leases to any replicas. If the
-     * expire leases parameter is true, this replication tracker must be in primary mode.
+     * If the expire leases parameter is false, gets all retention leases tracked on this shard and otherwise first calculates expiration of
+     * existing retention leases, renews all peer-recovery retention leases for active shard copies, and then gets all non-expired retention
+     * leases tracked on this shard. Note that only the primary shard calculates which leases are expired, and if any have expired, syncs
+     * the retention leases to any replicas. If the expire leases parameter is true, this replication tracker must be in primary mode.
      *
      * @return a tuple indicating whether or not any retention leases were expired, and the non-expired retention leases
      */
-    public RetentionLeases getRetentionLeases(final boolean expireLeases) {
+    public Tuple<Boolean, RetentionLeases> getRetentionLeases(final boolean expireLeases) {
         assert expireLeases == false || assertPrimaryMode();
         verifyNotClosed();
         return replicationTracker.getRetentionLeases(expireLeases);
@@ -2013,7 +2013,12 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void syncRetentionLeases() {
         assert assertPrimaryMode();
         verifyNotClosed();
-        retentionLeaseSyncer.sync(shardId, getRetentionLeases(true), ActionListener.wrap(() -> { }));
+        final Tuple<Boolean, RetentionLeases> retentionLeases = getRetentionLeases(true);
+        if (retentionLeases.v1()) {
+            retentionLeaseSyncer.sync(shardId, retentionLeases.v2(), ActionListener.wrap(() -> {}));
+        } else {
+            retentionLeaseSyncer.backgroundSync(shardId, retentionLeases.v2());
+        }
     }
 
     /**
