@@ -941,6 +941,15 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                     Property.Dynamic,
                     Property.IndexScope);
 
+    // this setting is intentionally not registered, it is only used in tests
+    public static final Setting<TimeValue> RETENTION_LEASE_PEER_RECOVERY_SYNC_INTERVAL_SETTING =
+        Setting.timeSetting(
+            "index.soft_deletes.retention_lease.peer_recovery.sync_interval",
+            new TimeValue(5, TimeUnit.MINUTES),
+            new TimeValue(0, TimeUnit.MILLISECONDS),
+            Property.Dynamic,
+            Property.IndexScope);
+
     /**
      * Background task that syncs the global checkpoint to replicas.
      */
@@ -993,8 +1002,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     final class AsyncPeerRecoveryRetentionLeaseRenewalTask extends BaseAsyncTask {
 
         AsyncPeerRecoveryRetentionLeaseRenewalTask(final IndexService indexService) {
-            // TODO needs its own interval setting?
-            super(indexService, RETENTION_LEASE_SYNC_INTERVAL_SETTING.get(indexService.getIndexSettings().getSettings()));
+            super(indexService, RETENTION_LEASE_PEER_RECOVERY_SYNC_INTERVAL_SETTING.get(indexService.getIndexSettings().getSettings()));
         }
 
         @Override
