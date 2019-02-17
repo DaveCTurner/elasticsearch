@@ -451,7 +451,7 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
-    public long getMinimumSeqNoForPeerRecovery() {
+    public long getLocalCheckpointOfSafeCommit() {
         return seqNoStats.getMaxSeqNo();
     }
 

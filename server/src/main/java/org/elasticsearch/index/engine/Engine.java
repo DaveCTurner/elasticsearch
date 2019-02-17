@@ -265,7 +265,7 @@ public abstract class Engine implements Closeable {
         return new DocsStats(numDocs, numDeletedDocs, sizeInBytes);
     }
 
-    public abstract long getMinimumSeqNoForPeerRecovery();
+    public abstract long getLocalCheckpointOfSafeCommit();
 
     /**
      * Performs the pre-closing checks on the {@link Engine}.

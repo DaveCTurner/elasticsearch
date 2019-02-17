@@ -34,7 +34,6 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.engine.InternalEngine;
 import org.elasticsearch.index.engine.InternalEngineFactory;
-import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.index.seqno.RetentionLease;
 import org.elasticsearch.index.seqno.RetentionLeaseStats;
 import org.elasticsearch.index.seqno.RetentionLeases;
@@ -56,8 +55,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.cluster.routing.TestShardRouting.newShardRouting;
-import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_LEASE_SOURCE;
-import static org.elasticsearch.index.seqno.ReplicationTracker.getPeerRecoveryLeaseId;
+import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE;
+import static org.elasticsearch.index.seqno.ReplicationTracker.getPeerRecoveryRetentionLeaseId;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -159,7 +158,7 @@ public class IndexShardRetentionLeaseTests extends IndexShardTestCase {
 
     private RetentionLease peerRecoveryRetentionLease(IndexShard indexShard) {
         return new RetentionLease(
-            getPeerRecoveryLeaseId(indexShard.routingEntry()), 0, currentTimeMillis.get(), PEER_RECOVERY_LEASE_SOURCE);
+            getPeerRecoveryRetentionLeaseId(indexShard.routingEntry()), 0, currentTimeMillis.get(), PEER_RECOVERY_RETENTION_LEASE_SOURCE);
     }
 
     private void runExpirationTest(final boolean primary) throws IOException {
@@ -433,7 +432,7 @@ public class IndexShardRetentionLeaseTests extends IndexShardTestCase {
         assertThat(retentionLeases.version(), equalTo(version));
         final Map<String, RetentionLease> idToRetentionLease = new HashMap<>();
         for (final RetentionLease retentionLease : retentionLeases.leases()) {
-            if (PEER_RECOVERY_LEASE_SOURCE.equals(retentionLease.source()) == false) {
+            if (PEER_RECOVERY_RETENTION_LEASE_SOURCE.equals(retentionLease.source()) == false) {
                 idToRetentionLease.put(retentionLease.id(), retentionLease);
             }
         }

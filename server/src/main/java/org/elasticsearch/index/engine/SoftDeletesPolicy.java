@@ -165,4 +165,5 @@ final class SoftDeletesPolicy {
     Query getRetentionQuery() {
         return LongPoint.newRangeQuery(SeqNoFieldMapper.NAME, getMinRetainedSeqNo(), Long.MAX_VALUE);
     }
+
 }

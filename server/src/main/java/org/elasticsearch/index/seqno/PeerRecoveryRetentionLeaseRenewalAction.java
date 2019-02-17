@@ -73,7 +73,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
 
     @Override
     protected PrimaryResult<Request, ReplicationResponse> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
-        primary.renewPeerRecoveryRetentionLeaseForNode(primary.routingEntry().currentNodeId(), primary.getMinimumSeqNoForPeerRecovery());
+        primary.renewPeerRecoveryRetentionLeaseForNode(primary.routingEntry().currentNodeId(), primary.getLocalCheckpointOfSafeCommit());
         return new PrimaryResult<>(shardRequest, new ReplicationResponse());
     }
 
@@ -88,7 +88,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
             @Override
             public ReplicaResponse getReplicaResponse(IndexShard replica) {
                 return new ShardCopyResponse(replica.getLocalCheckpoint(), replica.getGlobalCheckpoint(),
-                    replica.getMinimumSeqNoForPeerRecovery());
+                    replica.getLocalCheckpointOfSafeCommit());
             }
         };
     }
@@ -98,7 +98,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         assert response instanceof ShardCopyResponse : response.getClass();
         final ShardCopyResponse shardCopyResponse = (ShardCopyResponse) response; // TODO introduce type parameter rather than cast here
         indicesService.indexServiceSafe(shard.index()).getShard(shard.id())
-            .renewPeerRecoveryRetentionLeaseForNode(shard.currentNodeId(), shardCopyResponse.minimumSeqNoForPeerRecovery);
+            .renewPeerRecoveryRetentionLeaseForNode(shard.currentNodeId(), shardCopyResponse.localCheckpointOfSafeCommit);
     }
 
     public void renewPeerRecoveryRetentionLease(ShardId shardId) {
@@ -114,23 +114,23 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
     }
 
     static final class ShardCopyResponse extends ReplicaResponse {
-        private long minimumSeqNoForPeerRecovery;
+        private long localCheckpointOfSafeCommit;
 
-        ShardCopyResponse(long localCheckpoint, long globalCheckpoint, long minimumSeqNoForPeerRecovery) {
+        ShardCopyResponse(long localCheckpoint, long globalCheckpoint, long localCheckpointOfSafeCommit) {
             super(localCheckpoint, globalCheckpoint);
-            this.minimumSeqNoForPeerRecovery = minimumSeqNoForPeerRecovery;
+            this.localCheckpointOfSafeCommit = localCheckpointOfSafeCommit;
         }
 
         ShardCopyResponse(StreamInput in) throws IOException {
             super();
             super.readFrom(in);
-            minimumSeqNoForPeerRecovery = in.readLong();
+            localCheckpointOfSafeCommit = in.readLong();
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeLong(minimumSeqNoForPeerRecovery);
+            out.writeLong(localCheckpointOfSafeCommit);
         }
 
         @Override

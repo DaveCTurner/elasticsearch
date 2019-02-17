@@ -1234,7 +1234,7 @@ public class IndexStatsIT extends ESIntegTestCase {
                 for (IndexService indexService : indexServices) {
                     for (IndexShard indexShard : indexService) {
                         assertFalse(indexShard.routingEntry().toString(),
-                            indexShard.hasCompleteHistoryOperations("test", indexShard.getMinimumSeqNoForPeerRecovery() - 1));
+                            indexShard.hasCompleteHistoryOperations("test", indexShard.getLocalCheckpointOfSafeCommit()));
                     }
                 }
             }

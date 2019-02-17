@@ -480,7 +480,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 if (newPrimaryTerm == pendingPrimaryTerm) {
                     if (currentRouting.initializing() && currentRouting.isRelocationTarget() == false && newRouting.active()) {
                         // the master started a recovering primary, activate primary mode.
-                        replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getMinimumSeqNoForPeerRecovery());
+                        replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getLocalCheckpointOfSafeCommit());
                     }
                 } else {
                     assert currentRouting.primary() == false : "term is only increased as part of primary promotion";
@@ -522,7 +522,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                                 ", current routing: " + currentRouting + ", new routing: " + newRouting;
                             assert getOperationPrimaryTerm() == newPrimaryTerm;
                             try {
-                                replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getMinimumSeqNoForPeerRecovery());
+                                replicationTracker.activatePrimaryMode(getLocalCheckpoint(), getLocalCheckpointOfSafeCommit());
                                 /*
                                  * If this shard was serving as a replica shard when another shard was promoted to primary then
                                  * its Lucene index was reset during the primary term transition. In particular, the Lucene index
@@ -2402,24 +2402,23 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
-    public void renewPeerRecoveryRetentionLeaseForNode(String nodeId, long minimumSeqNoForPeerRecovery) {
-        logger.info("renewPeerRecoveryRetentionLeaseForNode({}, {})", nodeId, minimumSeqNoForPeerRecovery);
-        replicationTracker.renewPeerRecoveryRetentionLease(nodeId, minimumSeqNoForPeerRecovery);
+    public void renewPeerRecoveryRetentionLeaseForNode(String nodeId, long localCheckpointOfSafeCommit) {
+        replicationTracker.renewPeerRecoveryRetentionLease(nodeId, localCheckpointOfSafeCommit);
     }
 
     public void renewPeerRecoveryRetentionLease() {
         assert assertPrimaryMode();
-        if (replicationTracker.peerRetentionLeasesNeedRenewal(getMinimumSeqNoForPeerRecovery())) {
+        if (replicationTracker.peerRetentionLeasesNeedRenewal(getLocalCheckpointOfSafeCommit())) {
             peerRecoveryRetentionLeaseRenewer.run();
         }
     }
 
-    public long getMinimumSeqNoForPeerRecovery() {
+    public long getLocalCheckpointOfSafeCommit() {
         final Engine engine = getEngineOrNull();
         if (engine == null) {
             throw new ElasticsearchException("minimum sequence number for peer recovery is unavailable");
         }
-        return engine.getMinimumSeqNoForPeerRecovery();
+        return engine.getLocalCheckpointOfSafeCommit();
     }
 
     class ShardEventListener implements Engine.EventListener {

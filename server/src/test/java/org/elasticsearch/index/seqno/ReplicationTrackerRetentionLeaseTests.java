@@ -40,8 +40,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_LEASE_SOURCE;
-import static org.elasticsearch.index.seqno.ReplicationTracker.getPeerRecoveryLeaseId;
+import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE;
+import static org.elasticsearch.index.seqno.ReplicationTracker.getPeerRecoveryRetentionLeaseId;
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -180,7 +180,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 routingTable,
                 Collections.emptySet());
         replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED, 0);
-        retainingSequenceNumbers.put(getPeerRecoveryLeaseId(routingTable.primaryShard()), 0L);
+        retainingSequenceNumbers.put(getPeerRecoveryRetentionLeaseId(routingTable.primaryShard()), 0L);
 
         final int length = randomIntBetween(0, 8);
         for (int i = 0; i < length; i++) {
@@ -305,7 +305,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 routingTable,
                 Collections.emptySet());
         replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED, 0);
-        retainingSequenceNumbers.put(getPeerRecoveryLeaseId(routingTable.primaryShard()), 0L);
+        retainingSequenceNumbers.put(getPeerRecoveryRetentionLeaseId(routingTable.primaryShard()), 0L);
 
         final int length = randomIntBetween(0, 8);
         for (int i = 0; i < length; i++) {
@@ -496,7 +496,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
         assertThat(retentionLeases.version(), equalTo(version));
         final Map<String, RetentionLease> idToRetentionLease = new HashMap<>();
         for (final RetentionLease retentionLease : retentionLeases.leases()) {
-            if (PEER_RECOVERY_LEASE_SOURCE.equals(retentionLease.source()) == false) {
+            if (PEER_RECOVERY_RETENTION_LEASE_SOURCE.equals(retentionLease.source()) == false) {
                 idToRetentionLease.put(retentionLease.id(), retentionLease);
             }
         }

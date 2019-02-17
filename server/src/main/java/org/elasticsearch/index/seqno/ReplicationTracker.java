@@ -189,14 +189,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         return getRetentionLeases(false).v2();
     }
 
-    public static final String PEER_RECOVERY_LEASE_SOURCE = "peer recovery";
+    public static final String PEER_RECOVERY_RETENTION_LEASE_SOURCE = "peer recovery";
 
-    static String getPeerRecoveryLeaseId(String nodeId) {
+    static String getPeerRecoveryRetentionLeaseId(String nodeId) {
         return "peer_recovery/" + nodeId;
     }
 
-    public static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
-        return getPeerRecoveryLeaseId(shardRouting.currentNodeId());
+    public static String getPeerRecoveryRetentionLeaseId(ShardRouting shardRouting) {
+        return getPeerRecoveryRetentionLeaseId(shardRouting.currentNodeId());
     }
 
     /**
@@ -216,24 +216,23 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         final long currentTimeMillis = currentTimeMillisSupplier.getAsLong();
         final long retentionLeaseMillis = indexSettings.getRetentionLeaseMillis();
         final Set<String> leaseIdsForCurrentPeers
-            = routingTable.assignedShards().stream().map(ReplicationTracker::getPeerRecoveryLeaseId).collect(Collectors.toSet());
+            = routingTable.assignedShards().stream().map(ReplicationTracker::getPeerRecoveryRetentionLeaseId).collect(Collectors.toSet());
         final Map<Boolean, List<RetentionLease>> partitionByExpiration = retentionLeases
-            .leases()
-            .stream()
-            .collect(Collectors.groupingBy(lease -> {
-                if (lease.source().equals(PEER_RECOVERY_LEASE_SOURCE)) {
-                    if (leaseIdsForCurrentPeers.contains(lease.id())) {
-                        return false;
+                .leases()
+                .stream()
+                .collect(Collectors.groupingBy(lease -> {
+                    if (lease.source().equals(PEER_RECOVERY_RETENTION_LEASE_SOURCE)) {
+                        if (leaseIdsForCurrentPeers.contains(lease.id())) {
+                            return false;
+                        }
+                        if (routingTable.allShardsStarted()) {
+                            return true;
+                        }
                     }
-                    if (routingTable.allShardsStarted()) {
-                        return true;
-                    }
-                }
-                return currentTimeMillis - lease.timestamp() > retentionLeaseMillis;
-            }));
+                    return currentTimeMillis - lease.timestamp() > retentionLeaseMillis;
+                }));
         final Collection<RetentionLease> nonExpiredLeases = partitionByExpiration.get(false);
-        retentionLeases = new RetentionLeases(operationPrimaryTerm, retentionLeases.version() + 1,
-            nonExpiredLeases.stream()
+        retentionLeases = new RetentionLeases(operationPrimaryTerm, retentionLeases.version() + 1, nonExpiredLeases.stream()
                 .map(lease -> leaseIdsForCurrentPeers.contains(lease.id()) ?
                     new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
                 .collect(Collectors.toList()));
@@ -359,29 +358,29 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         }
     }
 
-    public synchronized void renewPeerRecoveryRetentionLease(String nodeId, long minimumSeqNoForPeerRecovery) {
+    public synchronized void renewPeerRecoveryRetentionLease(String nodeId, long localCheckpointOfSafeCommit) {
         assert primaryMode;
-        final String leaseId = getPeerRecoveryLeaseId(nodeId);
+        final String leaseId = getPeerRecoveryRetentionLeaseId(nodeId);
         final RetentionLease retentionLease = retentionLeases.get(leaseId);
         if (retentionLease == null) {
             assert routingTable.activeShards().stream().noneMatch(sr -> sr.currentNodeId().equals(nodeId))
                 : "no retention lease found for active shard " + nodeId;
             logger.debug("attempted to renew peer recovery retention lease for node {} but no corresponding shard routing found", nodeId);
-        } else if (retentionLease.retainingSequenceNumber() < minimumSeqNoForPeerRecovery) {
-            renewRetentionLease(leaseId, minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
+        } else if (retentionLease.retainingSequenceNumber() < localCheckpointOfSafeCommit + 1) { // TODO +1 everywhere?
+            renewRetentionLease(leaseId, localCheckpointOfSafeCommit + 1, PEER_RECOVERY_RETENTION_LEASE_SOURCE);
         }
     }
 
     public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, ActionListener<Void> listener) {
-        addRetentionLease(getPeerRecoveryLeaseId(nodeId), max(0L, startingSeqNo),
-            PEER_RECOVERY_LEASE_SOURCE, wrap(r -> listener.onResponse(null), listener::onFailure));
+        addRetentionLease(getPeerRecoveryRetentionLeaseId(nodeId), max(0L, startingSeqNo),
+            PEER_RECOVERY_RETENTION_LEASE_SOURCE, wrap(r -> listener.onResponse(null), listener::onFailure));
     }
 
-    public synchronized boolean peerRetentionLeasesNeedRenewal(long minimumSeqNo) {
+    public synchronized boolean peerRetentionLeasesNeedRenewal(long localCheckpointOfSafeCommit) {
         assert primaryMode;
         final RetentionLeases retentionLeases = getRetentionLeases();
         return routingTable.activeShards().stream().anyMatch(
-            sr -> retentionLeases.get(getPeerRecoveryLeaseId(sr)).retainingSequenceNumber() < minimumSeqNo);
+            sr -> retentionLeases.get(getPeerRecoveryRetentionLeaseId(sr)).retainingSequenceNumber() < localCheckpointOfSafeCommit + 1);
     }
 
     public static class CheckpointState implements Writeable {
@@ -627,7 +626,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
 
         if (primaryMode) { // TODO can we do this on non-primaries too? Why not?
             for (ShardRouting shardRouting : routingTable.activeShards()) {
-                assert retentionLeases.contains(getPeerRecoveryLeaseId(shardRouting.currentNodeId())) :
+                assert retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting.currentNodeId())) :
                     "no retention lease for active shard " + shardRouting + " in " + retentionLeases;
             }
         }
@@ -778,7 +777,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     /**
      * Initializes the global checkpoint tracker in primary mode (see {@link #primaryMode}. Called on primary activation or promotion.
      */
-    public synchronized void activatePrimaryMode(final long localCheckpoint, final long minimumSeqNoForPeerRecovery) {
+    public synchronized void activatePrimaryMode(final long localCheckpoint, final long localCheckpointOfSafeCommit) {
         assert invariant();
         assert primaryMode == false;
         assert checkpoints.get(shardAllocationId) != null && checkpoints.get(shardAllocationId).inSync &&
@@ -790,7 +789,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         updateGlobalCheckpointOnPrimary();
 
         final ShardRouting primaryShard = routingTable.primaryShard();
-        final String leaseId = getPeerRecoveryLeaseId(primaryShard.currentNodeId());
+        final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard.currentNodeId());
         if (retentionLeases.get(leaseId) == null) {
             // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
             // this copy must already be in-sync and active and therefore holds a retention lease for itself.
@@ -799,7 +798,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             assert replicationGroup.getReplicationTargets().equals(singletonList(primaryShard));
 
             // Safe to call innerAddRetentionLease() without a subsequent sync because there are no other members of this replication gp.
-            innerAddRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), PEER_RECOVERY_LEASE_SOURCE);
+            innerAddRetentionLease(leaseId, max(0L, localCheckpointOfSafeCommit + 1), PEER_RECOVERY_RETENTION_LEASE_SOURCE);
         }
 
         assert invariant();

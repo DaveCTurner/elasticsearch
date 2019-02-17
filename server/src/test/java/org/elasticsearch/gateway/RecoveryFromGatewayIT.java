@@ -38,13 +38,10 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.MergePolicyConfig;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.seqno.ReplicationTracker;
-import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
 import org.elasticsearch.indices.IndicesService;
@@ -77,7 +74,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.gateway.GatewayService.RECOVER_AFTER_NODES_SETTING;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
-import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_LEASE_SOURCE;
+import static org.elasticsearch.index.seqno.ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
@@ -485,8 +482,8 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
                             try {
                                 assertBusy(() -> {
                                     assertThat(is.getRetentionLeases().leases().stream()
-                                        .filter(l -> PEER_RECOVERY_LEASE_SOURCE.equals(l.source())).count(), equalTo(1L));
-                                    assertEquals(is.getMinRetainedSeqNo(), is.getMinimumSeqNoForPeerRecovery());
+                                        .filter(l -> PEER_RECOVERY_RETENTION_LEASE_SOURCE.equals(l.source())).count(), equalTo(1L));
+                                    assertEquals(is.getMinRetainedSeqNo(), is.getLocalCheckpointOfSafeCommit() + 1);
                                 });
                             } catch (Exception e) {
                                 throw new AssertionError(e);

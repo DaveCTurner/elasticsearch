@@ -558,7 +558,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public long getMinimumSeqNoForPeerRecovery() {
+    public long getLocalCheckpointOfSafeCommit() {
         return softDeletesPolicy.getLocalCheckpointOfSafeCommit();
     }
 
