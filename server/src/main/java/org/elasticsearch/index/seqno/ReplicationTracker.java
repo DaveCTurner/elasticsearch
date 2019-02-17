@@ -195,7 +195,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         return "peer_recovery/" + nodeId;
     }
 
-    static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
+    public static String getPeerRecoveryLeaseId(ShardRouting shardRouting) {
         return getPeerRecoveryLeaseId(shardRouting.currentNodeId());
     }
 
