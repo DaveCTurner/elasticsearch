@@ -73,7 +73,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -200,10 +199,21 @@ public class RecoverySourceHandler {
             assert requiredSeqNoRangeStart >= startingSeqNo : "requiredSeqNoRangeStart [" + requiredSeqNoRangeStart + "] is lower than ["
                 + startingSeqNo + "]";
 
+            final StepListener<Void> addPeerRecoveryRetentionLeaseStep = new StepListener<>();
+            try {
+                shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, addPeerRecoveryRetentionLeaseStep);
+            } catch (RetentionLeaseAlreadyExistsException e) {
+                logger.debug("peer-recovery retention lease already exists", e);
+                addPeerRecoveryRetentionLeaseStep.onResponse(null);
+            }
+
             final StepListener<TimeValue> prepareEngineStep = new StepListener<>();
-            // For a sequence based recovery, the target can keep its local translog
-            prepareTargetForTranslog(isSequenceNumberBasedRecovery == false,
-                shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo), prepareEngineStep);
+            addPeerRecoveryRetentionLeaseStep.whenComplete(r -> {
+                // For a sequence based recovery, the target can keep its local translog
+                prepareTargetForTranslog(isSequenceNumberBasedRecovery == false,
+                    shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo), prepareEngineStep);
+            }, onFailure);
+
             final StepListener<SendSnapshotResult> sendSnapshotStep = new StepListener<>();
             prepareEngineStep.whenComplete(prepareEngineTime -> {
                 /*
@@ -263,15 +273,6 @@ public class RecoverySourceHandler {
                     sendFileResult.phase1ExistingFileNames, sendFileResult.phase1ExistingFileSizes, sendFileResult.totalSize,
                     sendFileResult.existingTotalSize, sendFileResult.took.millis(), phase1ThrottlingWaitTime,
                     prepareEngineStep.result().millis(), sendSnapshotResult.totalOperations, sendSnapshotResult.tookTime.millis());
-
-                try {
-                    final CountDownLatch peerRecoveryRetentionLeaseSyncedLatch = new CountDownLatch(1);
-                    shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo,
-                        peerRecoveryRetentionLeaseSyncedLatch::countDown);
-                    peerRecoveryRetentionLeaseSyncedLatch.await();
-                } catch (RetentionLeaseAlreadyExistsException e) {
-                    logger.debug("peer-recovery retention lease already exists", e);
-                }
 
                 try {
                     wrappedListener.onResponse(response);

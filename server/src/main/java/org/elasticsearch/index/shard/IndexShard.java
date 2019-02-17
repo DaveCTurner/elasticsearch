@@ -2393,8 +2393,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return replicationTracker.isRelocated();
     }
 
-    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
-        replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, onCompletion);
+    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, ActionListener<Void> listener) {
+        replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
     public void renewPeerRecoveryRetentionLeaseForNode(String nodeId, long minimumSeqNoForPeerRecovery) {

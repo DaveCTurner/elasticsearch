@@ -57,6 +57,7 @@ import java.util.stream.Stream;
 
 import static java.lang.Math.max;
 import static java.util.Collections.singletonList;
+import static org.elasticsearch.action.ActionListener.wrap;
 
 /**
  * This class is responsible for tracking the replication group with its progress and safety markers (local and global checkpoints).
@@ -354,10 +355,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     }
 
     public synchronized void renewPeerRecoveryRetentionLease(String nodeId, long minimumSeqNoForPeerRecovery) {
-        if (isPrimaryMode() == false) {
-            return;
-        }
-
+        assert primaryMode;
         final String leaseId = getPeerRecoveryLeaseId(nodeId);
         final RetentionLease retentionLease = retentionLeases.get(leaseId);
         if (retentionLease == null) {
@@ -369,9 +367,9 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         }
     }
 
-    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, Runnable onCompletion) {
+    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, ActionListener<Void> listener) {
         addRetentionLease(getPeerRecoveryLeaseId(nodeId), max(0L, startingSeqNo),
-            PEER_RECOVERY_LEASE_SOURCE, ActionListener.wrap(onCompletion));
+            PEER_RECOVERY_LEASE_SOURCE, wrap(r -> listener.onResponse(null), listener::onFailure));
     }
 
     public synchronized boolean peerRetentionLeasesNeedRenewal(long minimumSeqNo) {
