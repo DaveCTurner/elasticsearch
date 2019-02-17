@@ -73,7 +73,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
 
     @Override
     protected PrimaryResult<Request, ReplicationResponse> shardOperationOnPrimary(Request shardRequest, IndexShard primary) {
-        primary.renewPeerRecoveryRetentionLeaseForNode(primary.routingEntry().currentNodeId(), primary.getLocalCheckpointOfSafeCommit());
+        primary.renewPeerRecoveryRetentionLeaseForNode(primary.routingEntry(), primary.getLocalCheckpointOfSafeCommit());
         return new PrimaryResult<>(shardRequest, new ReplicationResponse());
     }
 
@@ -98,7 +98,7 @@ public class PeerRecoveryRetentionLeaseRenewalAction extends TransportReplicatio
         assert response instanceof ShardCopyResponse : response.getClass();
         final ShardCopyResponse shardCopyResponse = (ShardCopyResponse) response; // TODO introduce type parameter rather than cast here
         indicesService.indexServiceSafe(shard.index()).getShard(shard.id())
-            .renewPeerRecoveryRetentionLeaseForNode(shard.currentNodeId(), shardCopyResponse.localCheckpointOfSafeCommit);
+            .renewPeerRecoveryRetentionLeaseForNode(shard, shardCopyResponse.localCheckpointOfSafeCommit);
     }
 
     public void renewPeerRecoveryRetentionLease(ShardId shardId) {

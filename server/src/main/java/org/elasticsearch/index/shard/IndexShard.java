@@ -2402,8 +2402,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
-    public void renewPeerRecoveryRetentionLeaseForNode(String nodeId, long localCheckpointOfSafeCommit) {
-        replicationTracker.renewPeerRecoveryRetentionLease(nodeId, localCheckpointOfSafeCommit);
+    public void renewPeerRecoveryRetentionLeaseForNode(ShardRouting shardRouting, long localCheckpointOfSafeCommit) {
+        replicationTracker.renewPeerRecoveryRetentionLease(shardRouting, localCheckpointOfSafeCommit);
     }
 
     public void renewPeerRecoveryRetentionLease() {

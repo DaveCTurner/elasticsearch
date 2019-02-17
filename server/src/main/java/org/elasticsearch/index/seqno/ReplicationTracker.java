@@ -358,15 +358,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         }
     }
 
-    public synchronized void renewPeerRecoveryRetentionLease(String nodeId, long localCheckpointOfSafeCommit) {
+    public synchronized void renewPeerRecoveryRetentionLease(ShardRouting shardRouting, long localCheckpointOfSafeCommit) {
         assert primaryMode;
-        final String leaseId = getPeerRecoveryRetentionLeaseId(nodeId);
+        final String leaseId = getPeerRecoveryRetentionLeaseId(shardRouting);
         final RetentionLease retentionLease = retentionLeases.get(leaseId);
         if (retentionLease == null) {
-            assert routingTable.activeShards().stream().noneMatch(sr -> sr.currentNodeId().equals(nodeId))
-                : "no retention lease found for active shard " + nodeId;
-            logger.debug("attempted to renew peer recovery retention lease for node {} but no corresponding shard routing found", nodeId);
-        } else if (retentionLease.retainingSequenceNumber() < localCheckpointOfSafeCommit + 1) { // TODO +1 everywhere?
+            assert routingTable.activeShards().contains(shardRouting) == false : "no retention lease found for current " + shardRouting;
+            logger.debug("attempted to renew peer recovery retention lease for unknown {}", shardRouting);
+        } else if (retentionLease.retainingSequenceNumber() < localCheckpointOfSafeCommit + 1) {
             renewRetentionLease(leaseId, localCheckpointOfSafeCommit + 1, PEER_RECOVERY_RETENTION_LEASE_SOURCE);
         }
     }
@@ -626,7 +625,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
 
         if (primaryMode) { // TODO can we do this on non-primaries too? Why not?
             for (ShardRouting shardRouting : routingTable.activeShards()) {
-                assert retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting.currentNodeId())) :
+                assert retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) :
                     "no retention lease for active shard " + shardRouting + " in " + retentionLeases;
             }
         }
@@ -789,7 +788,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         updateGlobalCheckpointOnPrimary();
 
         final ShardRouting primaryShard = routingTable.primaryShard();
-        final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard.currentNodeId());
+        final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
         if (retentionLeases.get(leaseId) == null) {
             // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
             // this copy must already be in-sync and active and therefore holds a retention lease for itself.
