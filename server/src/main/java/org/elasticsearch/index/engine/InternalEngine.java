@@ -1655,10 +1655,7 @@ public class InternalEngine extends Engine {
         final long translogGenerationOfLastCommit =
             Long.parseLong(lastCommittedSegmentInfos.userData.get(Translog.TRANSLOG_GENERATION_KEY));
         final long flushThreshold = config().getIndexSettings().getFlushThresholdSize().getBytes();
-        final long translogSize = translog.sizeInBytesByMinGen(translogGenerationOfLastCommit);
-        if (translogSize < flushThreshold) {
-            logger.trace("not flushing translog: sizeInBytesByMinGen({}) = {} < {}",
-                translogGenerationOfLastCommit, translogSize, flushThreshold);
+        if (translog.sizeInBytesByMinGen(translogGenerationOfLastCommit) < flushThreshold) {
             return false;
         }
         /*
