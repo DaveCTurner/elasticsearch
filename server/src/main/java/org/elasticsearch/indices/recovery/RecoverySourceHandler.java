@@ -200,12 +200,14 @@ public class RecoverySourceHandler {
                 + startingSeqNo + "]";
 
             final StepListener<Void> addPeerRecoveryRetentionLeaseStep = new StepListener<>();
-            try {
-                shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, addPeerRecoveryRetentionLeaseStep);
-            } catch (RetentionLeaseAlreadyExistsException e) {
-                logger.debug("peer-recovery retention lease already exists", e);
-                addPeerRecoveryRetentionLeaseStep.onResponse(null);
-            }
+            runUnderPrimaryPermit(() -> {
+                try {
+                    shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, addPeerRecoveryRetentionLeaseStep);
+                } catch (RetentionLeaseAlreadyExistsException e) {
+                    logger.debug("peer-recovery retention lease already exists", e);
+                    addPeerRecoveryRetentionLeaseStep.onResponse(null);
+                }
+            }, shardId + " adding peer-recovery retention lease for " + request.targetNode(), shard, cancellableThreads, logger);
 
             final StepListener<TimeValue> prepareEngineStep = new StepListener<>();
             addPeerRecoveryRetentionLeaseStep.whenComplete(r -> {

@@ -21,6 +21,7 @@ package org.elasticsearch.index.shard;
 
 import com.carrotsearch.hppc.ObjectLongMap;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.SegmentInfos;
@@ -138,6 +139,7 @@ import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.suggest.completion.CompletionStats;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.threadpool.ThreadPool.Names;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -2403,7 +2405,17 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void renewPeerRecoveryRetentionLeaseForNode(ShardRouting shardRouting, long localCheckpointOfSafeCommit) {
-        replicationTracker.renewPeerRecoveryRetentionLease(shardRouting, localCheckpointOfSafeCommit);
+        final Runnable doRenewal = () -> replicationTracker.renewPeerRecoveryRetentionLease(shardRouting, localCheckpointOfSafeCommit);
+        if (shardRouting.primary()) {
+            assert shardRouting.equals(this.shardRouting) : shardRouting + " vs " + this.shardRouting;
+            // already running under primary permit
+            assert indexShardOperationPermits.getActiveOperationsCount() != 0 : "no operation permit for " + shardRouting;
+            doRenewal.run();
+        } else {
+            runUnderPrimaryPermit(doRenewal,
+                e -> logger.debug(new ParameterizedMessage("exception renewing peer-recovery retention lease for {}", shardRouting), e),
+                Names.SAME, Tuple.tuple(shardRouting, localCheckpointOfSafeCommit));
+        }
     }
 
     public void renewPeerRecoveryRetentionLease() {
