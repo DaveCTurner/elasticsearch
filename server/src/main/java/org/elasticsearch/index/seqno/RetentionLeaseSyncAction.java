@@ -33,6 +33,7 @@ import org.elasticsearch.action.support.replication.ReplicatedWriteRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportWriteAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
+import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
@@ -204,4 +205,17 @@ public class RetentionLeaseSyncAction extends
         return new Response();
     }
 
+    @Override
+    protected ClusterBlockLevel globalBlockLevel() {
+        // see e.g. ShrinkIndexIT#testCreateShrinkIndexFails which tries to relocate shards in a read-only index, needing updates to the
+        // peer recovery retention leases. TODO orly?
+        return null;
+    }
+
+    @Override
+    protected ClusterBlockLevel indexBlockLevel() {
+        // see e.g. ShrinkIndexIT#testCreateShrinkIndexFails which tries to relocate shards in a read-only index, needing updates to the
+        // peer recovery retention leases. TODO orly?
+        return null;
+    }
 }
