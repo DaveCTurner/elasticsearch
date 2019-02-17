@@ -2401,6 +2401,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, ActionListener<Void> listener) {
+        assert assertPrimaryMode();
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
