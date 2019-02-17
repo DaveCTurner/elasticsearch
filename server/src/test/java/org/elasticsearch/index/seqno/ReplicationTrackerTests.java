@@ -922,7 +922,8 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final Set<AllocationId> inSyncIdsToRemove = new HashSet<>(
             exclude(randomSubsetOf(randomInt(clusterState.inSyncIds.size()), clusterState.inSyncIds), allocationIds));
         final Set<AllocationId> remainingInSyncIds = Sets.difference(clusterState.inSyncIds, inSyncIdsToRemove);
-        final Set<AllocationId> initializingIds = Sets.difference(Sets.union(clusterState.initializingIds(), initializingIdsToAdd), initializingIdsToRemove);
+        final Set<AllocationId> initializingIds
+            = Sets.difference(Sets.union(clusterState.initializingIds(), initializingIdsToAdd), initializingIdsToRemove);
         final ShardRouting primaryShard = clusterState.routingTable.primaryShard();
         assert !initializingIds.contains(primaryShard.allocationId());
         final ShardId shardId = new ShardId("test", "_na_", 0);
