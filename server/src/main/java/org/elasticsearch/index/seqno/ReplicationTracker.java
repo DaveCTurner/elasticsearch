@@ -276,7 +276,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      */
     private RetentionLease innerAddRetentionLease(String id, long retainingSequenceNumber, String source) {
         assert Thread.holdsLock(this);
-        assert primaryMode;
+        assert primaryMode : id + "/" + retainingSequenceNumber + "/" + source;
         if (retentionLeases.contains(id)) {
             throw new RetentionLeaseAlreadyExistsException(id);
         }
