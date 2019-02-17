@@ -623,10 +623,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             assert checkpoints.get(aId) != null : "aId [" + aId + "] is pending in sync but isn't tracked";
         }
 
-        if (primaryMode) { // TODO can we do this on non-primaries too? Why not?
+        if (checkpoints.get(shardAllocationId).inSync
+            && (primaryMode || shardAllocationId.equals(routingTable.primaryShard().allocationId().getId()) == false)) {
+            // a newly-recovered primary creates its own retention lease when entering primaryMode, which is done later, so it doesn't
+            // exist yet
+
             for (ShardRouting shardRouting : routingTable.activeShards()) {
                 assert retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) :
-                    "no retention lease for active shard " + shardRouting + " in " + retentionLeases;
+                    "no retention lease for active shard " + shardRouting + " in " + retentionLeases + " on " + shardAllocationId;
             }
         }
 
