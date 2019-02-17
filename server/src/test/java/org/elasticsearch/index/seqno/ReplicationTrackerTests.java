@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static java.util.Collections.unmodifiableSet;
+import static org.elasticsearch.action.ActionListener.wrap;
 import static org.elasticsearch.index.seqno.SequenceNumbers.NO_OPS_PERFORMED;
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 import static org.hamcrest.Matchers.equalTo;
@@ -707,7 +708,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
             shardId, clusterState.routingTable.primaryShard().allocationId().getRelocationId(),
             indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease);
 
-        oldPrimary.addPeerRecoveryRetentionLease(clusterState.routingTable.primaryShard().relocatingNodeId(), 0L, () -> {});
+        oldPrimary.addPeerRecoveryRetentionLease(clusterState.routingTable.primaryShard().relocatingNodeId(), 0L, wrap(() -> {}));
         newPrimary.updateRetentionLeasesOnReplica(oldPrimary.getRetentionLeases());
 
         clusterState.apply(oldPrimary);

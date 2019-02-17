@@ -794,7 +794,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             assert replicationGroup.getReplicationTargets().equals(singletonList(primaryShard));
 
             // Safe to call innerAddRetentionLease() without a subsequent sync because there are no other members of this replication gp.
-            innerAddRetentionLease(leaseId, minimumSeqNoForPeerRecovery, PEER_RECOVERY_LEASE_SOURCE);
+            innerAddRetentionLease(leaseId, max(0L, minimumSeqNoForPeerRecovery), PEER_RECOVERY_LEASE_SOURCE);
         }
 
         assert invariant();

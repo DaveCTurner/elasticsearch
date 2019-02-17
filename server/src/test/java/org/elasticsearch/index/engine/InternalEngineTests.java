@@ -170,6 +170,7 @@ import java.util.stream.LongStream;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.shuffle;
+import static org.elasticsearch.action.ActionListener.wrap;
 import static org.elasticsearch.index.engine.Engine.Operation.Origin.LOCAL_TRANSLOG_RECOVERY;
 import static org.elasticsearch.index.engine.Engine.Operation.Origin.PEER_RECOVERY;
 import static org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY;
@@ -2303,7 +2304,7 @@ public class InternalEngineTests extends EngineTestCase {
                 replica.allocationId().getId())),
                 new IndexShardRoutingTable.Builder(shardId).addShard(primary).build(), Collections.emptySet());
             gcpTracker.activatePrimaryMode(primarySeqNo, 0);
-            gcpTracker.addPeerRecoveryRetentionLease("node2", 0, () -> {});
+            gcpTracker.addPeerRecoveryRetentionLease("node2", 0, wrap(() -> {}));
             gcpTracker.updateFromMaster(2L, new HashSet<>(Arrays.asList(primary.allocationId().getId(),
                 replica.allocationId().getId())),
                 new IndexShardRoutingTable.Builder(shardId).addShard(primary).addShard(replica).build(), Collections.emptySet());
