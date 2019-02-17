@@ -1017,7 +1017,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
 
         @Override
         public String toString() {
-            return "retention_lease_sync";
+            return "peer_recovery_retention_lease_sync";
         }
     }
 
