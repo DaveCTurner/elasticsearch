@@ -343,7 +343,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
      * @param storeProvider                 an optional custom store provider to use. If null a default file based store will be created
      * @param indexSearcherWrapper          an optional wrapper to be used during searchers
      * @param globalCheckpointSyncer        callback for syncing global checkpoints
-     * @param globalCheckpointSyncer        callback for syncing retention leases
+     * @param retentionLeaseSyncer          callback for syncing retention leases
      * @param indexEventListener            index event listener
      * @param listeners                     an optional set of listeners to add to the shard
      */
