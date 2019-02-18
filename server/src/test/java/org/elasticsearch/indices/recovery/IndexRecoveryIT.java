@@ -45,9 +45,9 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.recovery.RecoveryStats;
 import org.elasticsearch.index.shard.IndexShard;
+import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.RecoveryState.Stage;
@@ -81,6 +81,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNull;
 import static org.elasticsearch.node.RecoverySettingsChunkSizePlugin.CHUNK_SIZE_SETTING;
@@ -833,29 +836,22 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         assertThat(recoveryStates.get(0).getIndex().totalFileCount(), is(0));
         assertThat(recoveryStates.get(0).getTranslog().recoveredOperations(), greaterThan(0));
 
-        IndexShard maybePrimary = null;
-        IndexShard maybeReplica = null;
-        for (final IndicesService indicesService : internalCluster().getInstances(IndicesService.class)) {
-            for (final IndexService indexService : indicesService) {
-                for (final IndexShard indexShard : indexService) {
-                    if (indexShard.routingEntry().primary()) {
-                        assertNull(maybePrimary);
-                        maybePrimary = indexShard;
-                    } else {
-                        assertNull(maybeReplica);
-                        maybeReplica = indexShard;
-                    }
-                }
-            }
-        }
-        final IndexShard primary = requireNonNull(maybePrimary);
-        final IndexShard replica = requireNonNull(maybeReplica);
+        final Map<Boolean, IndexShard> indexShardsByPrimary
+            = StreamSupport.stream(internalCluster().getInstances(IndicesService.class).spliterator(), false)
+            .map(is -> is.getShardOrNull(new ShardId(resolveIndex("test"), 0)))
+            .collect(Collectors.toMap(is -> is.routingEntry().primary(), Function.identity(),
+                (o1, o2) -> {
+                    throw new AssertionError("should not need to combine " + o1 + " with " + o2);
+                }));
 
+        final IndexShard primary = requireNonNull(indexShardsByPrimary.get(true));
         assertThat(client().admin().indices().prepareFlush().setForce(true).get().getFailedShards(), equalTo(0)); // make a safe commit
         primary.syncRetentionLeases(); // happens periodically, removes retention leases for old shard copies
         primary.renewPeerRecoveryRetentionLeases(); // happens periodically, advances retention leases according to last safe commit
         assertBusy(() -> assertThat(primary.getMinRetainedSeqNo(), equalTo(primary.seqNoStats().getMaxSeqNo() + 1)));
         primary.syncRetentionLeases(); // happens periodically, pushes updated retention leases to replica
+
+        final IndexShard replica = requireNonNull(indexShardsByPrimary.get(false));
         assertBusy(() -> assertThat(replica.getMinRetainedSeqNo(), equalTo(replica.seqNoStats().getMaxSeqNo() + 1)));
     }
 }
