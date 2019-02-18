@@ -700,7 +700,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
             indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease);
 
         clusterState.apply(oldPrimary);
-        oldPrimary.activatePrimaryMode(randomIntBetween(Math.toIntExact(NO_OPS_PERFORMED), 10), 0L);
+        oldPrimary.activatePrimaryMode(randomIntBetween(Math.toIntExact(NO_OPS_PERFORMED), 10), NO_OPS_PERFORMED);
 
         clusterState = randomUpdateClusterState(singleton(oldPrimary.shardAllocationId), clusterState);
 
