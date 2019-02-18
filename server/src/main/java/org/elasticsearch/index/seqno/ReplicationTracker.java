@@ -816,7 +816,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         assert checkpoints.get(shardAllocationId) != null && checkpoints.get(shardAllocationId).inSync &&
             checkpoints.get(shardAllocationId).localCheckpoint == SequenceNumbers.UNASSIGNED_SEQ_NO :
             "expected " + shardAllocationId + " to have initialized entry in " + checkpoints + " when activating primary";
-        assert localCheckpoint >= SequenceNumbers.NO_OPS_PERFORMED;
+        assert localCheckpointOfSafeCommit >= SequenceNumbers.NO_OPS_PERFORMED : localCheckpointOfSafeCommit;
+        assert localCheckpoint >= localCheckpointOfSafeCommit : localCheckpoint + " < " + localCheckpointOfSafeCommit;
         primaryMode = true;
         updateLocalCheckpoint(shardAllocationId, checkpoints.get(shardAllocationId), localCheckpoint);
         updateGlobalCheckpointOnPrimary();

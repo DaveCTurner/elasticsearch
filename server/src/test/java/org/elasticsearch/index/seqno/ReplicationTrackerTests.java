@@ -125,7 +125,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
 
         final IndexShardRoutingTable routingTable = routingTable(initializing, primaryId);
         tracker.updateFromMaster(initialClusterStateVersion, ids(active), routingTable, emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         assertThat(tracker.getReplicationGroup().getReplicationTargets().size(), equalTo(1));
         initializing.forEach(aId -> markAsTrackingAndInSyncQuietly(tracker, aId.getId(), NO_OPS_PERFORMED));
         assertThat(tracker.getReplicationGroup().getReplicationTargets().size(), equalTo(1 + initializing.size()));
@@ -194,7 +194,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final ReplicationTracker tracker = newTracker(primaryId);
         tracker.updateFromMaster(initialClusterStateVersion, ids(active), routingTable(initializing, primaryId), emptySet());
         final long localCheckpoint = randomLongBetween(0, Long.MAX_VALUE - 1);
-        tracker.activatePrimaryMode(localCheckpoint, 0L);
+        tracker.activatePrimaryMode(localCheckpoint, NO_OPS_PERFORMED);
         tracker.initiateTracking(replicaId.getId());
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final Thread thread = new Thread(() -> {
@@ -235,7 +235,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         AllocationId primaryId = active.keySet().iterator().next();
         final ReplicationTracker tracker = newTracker(primaryId);
         tracker.updateFromMaster(randomNonNegativeLong(), ids(active.keySet()), routingTable(initializing.keySet(), primaryId), emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         randomSubsetOf(initializing.keySet()).forEach(k -> markAsTrackingAndInSyncQuietly(tracker, k.getId(), NO_OPS_PERFORMED));
         final AllocationId missingActiveID = randomFrom(active.keySet());
         assigned
@@ -262,7 +262,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         AllocationId primaryId = active.keySet().iterator().next();
         final ReplicationTracker tracker = newTracker(primaryId);
         tracker.updateFromMaster(randomNonNegativeLong(), ids(active.keySet()), routingTable(initializing.keySet(), primaryId), emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         randomSubsetOf(randomIntBetween(1, initializing.size() - 1),
             initializing.keySet()).forEach(aId -> markAsTrackingAndInSyncQuietly(tracker, aId.getId(), NO_OPS_PERFORMED));
 
@@ -284,7 +284,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final AllocationId primaryId = active.keySet().iterator().next();
         final ReplicationTracker tracker = newTracker(primaryId);
         tracker.updateFromMaster(randomNonNegativeLong(), ids(active.keySet()), routingTable(initializing.keySet(), primaryId), emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         initializing.keySet().forEach(k -> markAsTrackingAndInSyncQuietly(tracker, k.getId(), NO_OPS_PERFORMED));
         nonApproved.keySet().forEach(k ->
             expectThrows(IllegalStateException.class, () -> markAsTrackingAndInSyncQuietly(tracker, k.getId(), NO_OPS_PERFORMED)));
@@ -320,7 +320,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final ReplicationTracker tracker = newTracker(primaryId);
         final IndexShardRoutingTable routingTable = routingTable(initializing, primaryId);
         tracker.updateFromMaster(initialClusterStateVersion, ids(active), routingTable, emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         if (randomBoolean()) {
             initializingToStay.keySet().forEach(k -> markAsTrackingAndInSyncQuietly(tracker, k.getId(), NO_OPS_PERFORMED));
         } else {
@@ -364,7 +364,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final long clusterStateVersion = randomNonNegativeLong();
         final IndexShardRoutingTable routingTable = routingTable(Collections.singleton(trackingAllocationId), inSyncAllocationId);
         tracker.updateFromMaster(clusterStateVersion, Collections.singleton(inSyncAllocationId.getId()), routingTable, emptySet());
-        tracker.activatePrimaryMode(globalCheckpoint, 0L);
+        tracker.activatePrimaryMode(globalCheckpoint, NO_OPS_PERFORMED);
         final Thread thread = new Thread(() -> {
             try {
                 // synchronize starting with the test thread
@@ -428,7 +428,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final ReplicationTracker tracker = newTracker(inSyncAllocationId);
         tracker.updateFromMaster(randomNonNegativeLong(), Collections.singleton(inSyncAllocationId.getId()),
             routingTable(Collections.singleton(trackingAllocationId), inSyncAllocationId), emptySet());
-        tracker.activatePrimaryMode(globalCheckpoint, 0L);
+        tracker.activatePrimaryMode(globalCheckpoint, NO_OPS_PERFORMED);
         final Thread thread = new Thread(() -> {
             try {
                 // synchronize starting with the test thread
@@ -477,7 +477,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         IndexShardRoutingTable routingTable = routingTable(initializingIds, primaryId);
         final ReplicationTracker tracker = newTracker(primaryId);
         tracker.updateFromMaster(initialClusterStateVersion, ids(activeAllocationIds), routingTable, emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
         assertThat(tracker.getReplicationGroup().getInSyncAllocationIds(), equalTo(ids(activeAllocationIds)));
         assertThat(tracker.getReplicationGroup().getRoutingTable(), equalTo(routingTable));
 
@@ -641,7 +641,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
                 Collections.singleton(active.getId()),
                 routingTable(Collections.singleton(initializing), active),
                 emptySet());
-        tracker.activatePrimaryMode(activeLocalCheckpoint, 0L);
+        tracker.activatePrimaryMode(activeLocalCheckpoint, NO_OPS_PERFORMED);
         final int nextActiveLocalCheckpoint = randomIntBetween(activeLocalCheckpoint + 1, Integer.MAX_VALUE);
         final Thread activeThread = new Thread(() -> {
             try {
@@ -852,7 +852,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final ReplicationTracker tracker = newTracker(active);
         tracker.updateFromMaster(randomNonNegativeLong(), Collections.singleton(active.getId()),
             routingTable(Collections.singleton(initializing), active), emptySet());
-        tracker.activatePrimaryMode(NO_OPS_PERFORMED, 0L);
+        tracker.activatePrimaryMode(NO_OPS_PERFORMED, NO_OPS_PERFORMED);
 
         expectThrows(IllegalStateException.class, () -> tracker.initiateTracking(randomAlphaOfLength(10)));
         expectThrows(IllegalStateException.class, () -> tracker.markAllocationIdAsInSync(randomAlphaOfLength(10), randomNonNegativeLong()));

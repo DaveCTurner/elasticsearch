@@ -488,7 +488,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 Collections.singleton(allocationId.getId()),
                 routingTable(Collections.emptySet(), allocationId),
                 Collections.emptySet());
-        replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED, 0L);
+        replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED, SequenceNumbers.NO_OPS_PERFORMED);
         final int length = randomIntBetween(0, 8);
         for (int i = 0; i < length; i++) {
             if (rarely() && primaryTerm < Long.MAX_VALUE) {
