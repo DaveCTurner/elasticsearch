@@ -477,7 +477,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
                     // expire retention lease for replica; since number_of_replicas is 0 it is no longer needed
                     internalCluster().getInstance(IndicesService.class, primaryNode).indexServiceSafe(resolveIndex("test", primaryNode))
                         .forEach(is -> {
-                            is.renewPeerRecoveryRetentionLease();
+                            is.renewPeerRecoveryRetentionLeases();
                             is.syncRetentionLeases();
                             try {
                                 assertBusy(() -> {

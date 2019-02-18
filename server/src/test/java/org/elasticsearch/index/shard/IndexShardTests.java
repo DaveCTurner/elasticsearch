@@ -123,7 +123,10 @@ import org.elasticsearch.test.CorruptionUtils;
 import org.elasticsearch.test.DummyShardLock;
 import org.elasticsearch.test.FieldMaskingReader;
 import org.elasticsearch.test.VersionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.threadpool.ThreadPool.Names;
+import org.junit.Assert;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -3340,7 +3343,7 @@ public class IndexShardTests extends IndexShardTestCase {
         indexDoc(primary, "_doc", "4", "{\"foo\": \"potato\"}");
         indexDoc(primary, "_doc", "5", "{\"foo\": \"potato\"}");
         // Forces a refresh with the INTERNAL scope
-        ((InternalEngine) primary.getEngine()).writeIndexingBuffer();
+        primary.getEngine().writeIndexingBuffer();
 
         ss = primary.segmentStats(randomBoolean());
         breaker = primary.circuitBreakerService.getBreaker(CircuitBreaker.ACCOUNTING);
@@ -3356,6 +3359,8 @@ public class IndexShardTests extends IndexShardTestCase {
         if (IndexSettings.INDEX_SOFT_DELETES_SETTING.get(settings)) {
             primary.sync();
             flushShard(primary);
+            primary.runUnderPrimaryPermit(primary::renewPeerRecoveryRetentionLeaseForPrimary, Assert::assertNull, Names.SAME, "");
+            flushShard(primary, true); // force since the last flush didn't discard the retained ops; TODO should an unforced flush work?
         }
         primary.refresh("force refresh");
 

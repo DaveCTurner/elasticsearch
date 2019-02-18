@@ -1223,7 +1223,7 @@ public class IndexStatsIT extends ESIntegTestCase {
             for (IndexService indexService : indexServices) {
                 for (IndexShard indexShard : indexService) {
                     if (indexShard.routingEntry().primary()) {
-                        indexShard.renewPeerRecoveryRetentionLease();
+                        indexShard.renewPeerRecoveryRetentionLeases();
                     }
                 }
             }

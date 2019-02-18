@@ -2419,21 +2419,21 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
-    public void renewPeerRecoveryRetentionLeaseForNode(ShardRouting shardRouting, long localCheckpointOfSafeCommit) {
-        final Runnable doRenewal = () -> replicationTracker.renewPeerRecoveryRetentionLease(shardRouting, localCheckpointOfSafeCommit);
-        if (shardRouting.primary()) {
-            assert shardRouting.equals(this.shardRouting) : shardRouting + " vs " + this.shardRouting;
-            // already running under primary permit
-            assert indexShardOperationPermits.getActiveOperationsCount() != 0 : "no operation permit for " + shardRouting;
-            doRenewal.run();
-        } else {
-            runUnderPrimaryPermit(doRenewal,
-                e -> logger.debug(new ParameterizedMessage("exception renewing peer-recovery retention lease for {}", shardRouting), e),
-                Names.SAME, Tuple.tuple(shardRouting, localCheckpointOfSafeCommit));
-        }
+    public void renewPeerRecoveryRetentionLeaseForReplica(ShardRouting shardRouting, long localCheckpointOfSafeCommit) {
+        assert shardRouting.primary() == false : shardRouting;
+        runUnderPrimaryPermit(() -> replicationTracker.renewPeerRecoveryRetentionLease(shardRouting, localCheckpointOfSafeCommit),
+            e -> logger.debug(new ParameterizedMessage("exception renewing peer-recovery retention lease for {}", shardRouting), e),
+            Names.SAME, Tuple.tuple(shardRouting, localCheckpointOfSafeCommit));
     }
 
-    public void renewPeerRecoveryRetentionLease() {
+    public void renewPeerRecoveryRetentionLeaseForPrimary() {
+        assert assertPrimaryMode();
+        // already running under primary permit
+        assert indexShardOperationPermits.getActiveOperationsCount() != 0 : "no operation permit for " + routingEntry();
+        replicationTracker.renewPeerRecoveryRetentionLease(routingEntry(), getLocalCheckpointOfSafeCommit());
+    }
+
+    public void renewPeerRecoveryRetentionLeases() {
         assert assertPrimaryMode();
         if (replicationTracker.peerRetentionLeasesNeedRenewal(getLocalCheckpointOfSafeCommit())) {
             peerRecoveryRetentionLeaseRenewer.run();

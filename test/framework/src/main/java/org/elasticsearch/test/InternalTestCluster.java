@@ -2512,7 +2512,7 @@ public final class InternalTestCluster extends TestCluster {
                 for (final IndexService indexService : indicesService) {
                     for (final IndexShard indexShard : indexService) {
                         if (indexShard.routingEntry().primary()) {
-                            indexShard.renewPeerRecoveryRetentionLease();
+                            indexShard.renewPeerRecoveryRetentionLeases();
                         }
                     }
                 }

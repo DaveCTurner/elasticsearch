@@ -799,7 +799,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     }
 
     private void renewPeerRecoveryRetentionLeases() {
-        sync(IndexShard::renewPeerRecoveryRetentionLease, "peer recovery retention leases");
+        sync(IndexShard::renewPeerRecoveryRetentionLeases, "peer recovery retention leases");
     }
 
     private void sync(final Consumer<IndexShard> sync, final String source) {
