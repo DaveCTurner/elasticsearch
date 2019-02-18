@@ -101,6 +101,8 @@ import org.elasticsearch.index.mapper.SourceFieldMapper;
 import org.elasticsearch.index.mapper.SourceToParse;
 import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.index.mapper.VersionFieldMapper;
+import org.elasticsearch.index.seqno.ReplicationTracker;
+import org.elasticsearch.index.seqno.RetentionLease;
 import org.elasticsearch.index.seqno.RetentionLeaseSyncer;
 import org.elasticsearch.index.seqno.RetentionLeases;
 import org.elasticsearch.index.seqno.SeqNoStats;
@@ -168,6 +170,7 @@ import static org.elasticsearch.cluster.routing.TestShardRouting.newShardRouting
 import static org.elasticsearch.common.lucene.Lucene.cleanLuceneIndex;
 import static org.elasticsearch.common.xcontent.ToXContent.EMPTY_PARAMS;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.index.seqno.ReplicationTracker.getPeerRecoveryRetentionLeaseId;
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 import static org.elasticsearch.test.hamcrest.RegexMatcher.matches;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -2790,6 +2793,29 @@ public class IndexShardTests extends IndexShardTestCase {
             flushRequest.force(false);
             flushRequest.waitIfOngoing(false);
             indexShard.flush(flushRequest);
+
+            if (indexShard.indexSettings.isSoftDeleteEnabled()) {
+                // We still retain the deletes because of the peer-recovery retention lease - need to update the lease and flush again
+                if (indexShard.routingEntry().primary()) {
+                    indexShard.runUnderPrimaryPermit(
+                        indexShard::renewPeerRecoveryRetentionLeaseForPrimary, Assert::assertNull, Names.SAME, "");
+                } else {
+                    final RetentionLeases retentionLeases = indexShard.getRetentionLeases();
+                    final long localCheckpointOfSafeCommit = indexShard.getLocalCheckpointOfSafeCommit();
+                    indexShard.updateRetentionLeasesOnReplica(new RetentionLeases(retentionLeases.primaryTerm(),
+                        retentionLeases.version() + 1,
+                        retentionLeases.leases().stream().map(l -> {
+                            assertEquals(ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE, l.source());
+                            assertThat(l.retainingSequenceNumber(), lessThanOrEqualTo(localCheckpointOfSafeCommit + 1));
+                            return new RetentionLease(l.id(), localCheckpointOfSafeCommit + 1, l.timestamp(), l.source());
+                        }).collect(Collectors.toList())));
+                    indexShard.updateGlobalCheckpointOnReplica(indexShard.getLocalCheckpoint(), "test");
+                }
+                final FlushRequest flushRequest2 = new FlushRequest();
+                flushRequest2.force(true);
+                flushRequest2.waitIfOngoing(false);
+                indexShard.flush(flushRequest2);
+            }
 
             if (randomBoolean()) {
                 indexShard.refresh("test");
