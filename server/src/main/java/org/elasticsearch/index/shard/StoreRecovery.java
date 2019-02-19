@@ -470,7 +470,7 @@ final class StoreRecovery {
             final String translogUUID = Translog.createEmptyTranslog(
                 indexShard.shardPath().resolveTranslog(), localCheckpoint, shardId, indexShard.getPendingPrimaryTerm());
             store.associateIndexWithNewTranslog(translogUUID);
-            assert indexShard.shardRouting.primary() : "only primary shards can recover from store";
+            assert indexShard.shardRouting.primary() : "only primary shards can recover from store, got " + indexShard.shardRouting;
             indexShard.openEngineAndRecoverFromTranslog();
             indexShard.getEngine().fillSeqNoGaps(indexShard.getPendingPrimaryTerm());
             indexShard.finalizeRecovery();

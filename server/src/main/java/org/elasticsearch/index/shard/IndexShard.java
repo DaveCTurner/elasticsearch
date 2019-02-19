@@ -47,6 +47,7 @@ import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
+import org.elasticsearch.cluster.routing.RecoverySource.Type;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.CheckedRunnable;
@@ -1438,7 +1439,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         final String translogUUID = store.readLastCommittedSegmentsInfo().getUserData().get(Translog.TRANSLOG_UUID_KEY);
         final long globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID);
         replicationTracker.updateGlobalCheckpointOnReplica(globalCheckpoint, "read from translog checkpoint");
-        updateRetentionLeasesOnReplica(loadRetentionLeases());
+        updateRetentionLeasesOnReplica(
+            recoveryState.getRecoverySource().getType() == Type.EXISTING_STORE ? loadRetentionLeases() : RetentionLeases.EMPTY);
         trimUnsafeCommits();
         synchronized (mutex) {
             verifyNotClosed();

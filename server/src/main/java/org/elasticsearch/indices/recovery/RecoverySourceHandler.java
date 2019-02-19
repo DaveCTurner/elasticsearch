@@ -228,7 +228,7 @@ public class RecoverySourceHandler {
                 }, shardId + " adding peer-recovery retention lease for " + request.targetNode(), shard, cancellableThreads, logger);
             } else {
                 assert retentionLease.get().retainingSequenceNumber() <= requiredSeqNoRangeStart
-                    : requiredSeqNoRangeStart + " should be retained by " + retentionLease.get();
+                    : shard.shardId() + ": seqno " + requiredSeqNoRangeStart + " should be retained by " + retentionLease.get();
                 // The target shard has a lease (and it is now in the routing table so its lease will not expire)
                 addPeerRecoveryRetentionLeaseStep.onResponse(null);
             }
