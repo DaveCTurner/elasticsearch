@@ -254,7 +254,7 @@ public class IndexShardRetentionLeaseTests extends IndexShardTestCase {
                 assertThat(writtenRetentionLeases.leases(), empty());
             } else {
                 assertThat(writtenRetentionLeases.version(), equalTo(length + 1L));
-                assertThat(retentionLeases.leases(), contains(retentionLeases.leases().toArray(new RetentionLease[0])));
+                assertThat(writtenRetentionLeases.leases(), contains(retentionLeases.leases().toArray(new RetentionLease[0])));
             }
 
             // when we recover, we should recover the retention leases

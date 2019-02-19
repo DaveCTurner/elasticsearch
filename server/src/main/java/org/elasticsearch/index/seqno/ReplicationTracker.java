@@ -393,13 +393,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * @throws IOException if an I/O exception occurs reading the retention leases
      */
     public RetentionLeases loadRetentionLeases(final Path path) throws IOException {
-        final RetentionLeases retentionLeases =
-                RetentionLeases.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, path);
+        final RetentionLeases retentionLeases = RetentionLeases.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, path);
         if (retentionLeases == null) {
             return RetentionLeases.EMPTY;
         }
         return retentionLeases;
     }
+
+    private final Object retentionLeasePersistenceLock = new Object();
 
     /**
      * Persists the current retention leases to their dedicated state file.
@@ -407,9 +408,15 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * @param path the path to the directory containing the state file
      * @throws WriteStateException if an exception occurs writing the state file
      */
-    public synchronized void persistRetentionLeases(final Path path) throws WriteStateException {
-        logger.trace("persisting retention leases [{}]", retentionLeases);
-        RetentionLeases.FORMAT.writeAndCleanup(retentionLeases, path);
+    public void persistRetentionLeases(final Path path) throws WriteStateException {
+        synchronized (retentionLeasePersistenceLock) {
+            final RetentionLeases currentRetentionLeases;
+            synchronized (this) {
+                currentRetentionLeases = retentionLeases;
+            }
+            logger.trace("persisting retention leases [{}]", currentRetentionLeases);
+            RetentionLeases.FORMAT.writeAndCleanup(currentRetentionLeases, path);
+        }
     }
 
     public static class CheckpointState implements Writeable {
