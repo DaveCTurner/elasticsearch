@@ -270,6 +270,10 @@ public class RetentionLeases implements ToXContent, Writeable {
      */
     static Map<String, RetentionLease> toMapExcludingPeerRecoveryRetentionLeases(final RetentionLeases retentionLeases) {
         return retentionLeases.leases.values().stream().filter(l -> PEER_RECOVERY_RETENTION_LEASE_SOURCE.equals(l.source()) == false)
-            .collect(Collectors.toMap(RetentionLease::id, Function.identity()));
+            .collect(Collectors.toMap(RetentionLease::id, Function.identity(),
+                (o1, o2) -> {
+                    throw new AssertionError("unexpectedly merging " + o1 + " and " + o2);
+                },
+                LinkedHashMap::new));
     }
 }
