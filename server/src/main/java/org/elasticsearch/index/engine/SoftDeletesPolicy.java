@@ -110,13 +110,6 @@ final class SoftDeletesPolicy {
      * Operations whose seq# is least this value should exist in the Lucene index.
      */
     synchronized long getMinRetainedSeqNo() {
-<<<<<<< HEAD
-        return getRetentionPolicy().v1();
-    }
-
-    synchronized Tuple<Long, RetentionLeases> getRetentionPolicy() {
-=======
->>>>>>> master
         /*
          * When an engine is flushed, we need to provide it the latest collection of retention leases even when the soft deletes policy is
          * locked for peer recovery.
