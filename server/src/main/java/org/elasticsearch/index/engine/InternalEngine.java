@@ -370,12 +370,15 @@ public class InternalEngine extends Engine {
             ensureOpen();
             final long localCheckpoint = localCheckpointTracker.getCheckpoint();
             final long maxSeqNo = localCheckpointTracker.getMaxSeqNo();
+            logger.trace("filling gaps from {} to {}", localCheckpoint + 1, maxSeqNo);
             int numNoOpsAdded = 0;
             for (
                     long seqNo = localCheckpoint + 1;
                     seqNo <= maxSeqNo;
                     seqNo = localCheckpointTracker.getCheckpoint() + 1 /* the local checkpoint might have advanced so we leap-frog */) {
-                innerNoOp(new NoOp(seqNo, primaryTerm, Operation.Origin.PRIMARY, System.nanoTime(), "filling gaps"));
+                final NoOp noOp = new NoOp(seqNo, primaryTerm, Operation.Origin.PRIMARY, System.nanoTime(), "filling gaps");
+                logger.trace("filling gap with {}", noOp);
+                innerNoOp(noOp);
                 numNoOpsAdded++;
                 assert seqNo <= localCheckpointTracker.getCheckpoint()
                         : "local checkpoint did not advance; was [" + seqNo + "], now [" + localCheckpointTracker.getCheckpoint() + "]";
@@ -1472,6 +1475,7 @@ public class InternalEngine extends Engine {
             final Optional<Exception> preFlightError = preFlightCheckForNoOp(noOp);
             if (preFlightError.isPresent()) {
                 noOpResult = new NoOpResult(getPrimaryTerm(), noOp.seqNo(), preFlightError.get());
+                logger.trace("noOp failed preflight", preFlightError.get());
             } else {
                 Exception failure = null;
                 if (softDeleteEnabled) {
@@ -1499,7 +1503,9 @@ public class InternalEngine extends Engine {
                     noOpResult = new NoOpResult(getPrimaryTerm(), noOp.seqNo());
                 } else {
                     noOpResult = new NoOpResult(getPrimaryTerm(), noOp.seqNo(), failure);
+                    logger.trace("noOp failed", failure);
                 }
+                logger.trace("noOpResult.getResultType() = {}", noOpResult.getResultType());
                 if (noOp.origin().isFromTranslog() == false && noOpResult.getResultType() == Result.Type.SUCCESS) {
                     final Translog.Location location = translog.add(new Translog.NoOp(noOp.seqNo(), noOp.primaryTerm(), noOp.reason()));
                     noOpResult.setTranslogLocation(location);
