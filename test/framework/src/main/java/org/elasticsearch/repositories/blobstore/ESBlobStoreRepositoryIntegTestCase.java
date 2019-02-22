@@ -80,7 +80,8 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
 
     }
 
-    @TestLogging("org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.seqno:TRACE,org.elasticsearch.index.translog:TRACE")
+    @TestLogging("org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.seqno:TRACE,org.elasticsearch.index.translog:TRACE," +
+        "org.elasticsearch.index.engine:TRACE")
     public void testSnapshotAndRestore() throws Exception {
         final String repoName = randomAsciiName();
         logger.info("-->  creating repository {}", repoName);
