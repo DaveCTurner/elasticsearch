@@ -19,7 +19,9 @@
 
 package org.elasticsearch.index.translog;
 
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.io.stream.ByteBufferStreamInput;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 import java.io.IOException;
@@ -32,6 +34,8 @@ import java.nio.file.Path;
  * A base class for all classes that allows reading ops from translog files
  */
 public abstract class BaseTranslogReader implements Comparable<BaseTranslogReader> {
+
+    private static final Logger logger = Loggers.getLogger(BaseTranslogReader.class);
 
     protected final long generation;
     protected final FileChannel channel;
@@ -90,6 +94,7 @@ public abstract class BaseTranslogReader implements Comparable<BaseTranslogReade
     }
 
     public TranslogSnapshot newSnapshot() {
+        logger.info("obtaining translog snapshot for {}", this);
         return new TranslogSnapshot(this, sizeInBytes());
     }
 

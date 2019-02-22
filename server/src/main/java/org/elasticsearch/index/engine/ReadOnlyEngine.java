@@ -288,6 +288,7 @@ public class ReadOnlyEngine extends Engine {
 
     @Override
     public Translog.Snapshot readHistoryOperations(String source, MapperService mapperService, long startingSeqNo) throws IOException {
+        logger.info("readHistoryOperations() returning empty snapshot");
         return newEmptySnapshot();
     }
 
