@@ -556,12 +556,14 @@ public class RecoverySourceHandler {
                 long batchSizeInBytes = 0L;
                 Translog.Operation operation;
                 while ((operation = snapshot.next()) != null) {
+                    logger.trace("recovery [phase2]: considering op {}", operation);
                     if (shard.state() == IndexShardState.CLOSED) {
                         throw new IndexShardClosedException(request.shardId());
                     }
                     cancellableThreads.checkForCancel();
                     final long seqNo = operation.seqNo();
                     if (seqNo < startingSeqNo || seqNo > endingSeqNo) {
+                        logger.trace("recovery [phase2]: skipping op {}, only need seqno in [{}, {}]", operation, startingSeqNo, endingSeqNo);
                         skippedOps.incrementAndGet();
                         continue;
                     }
@@ -575,6 +577,7 @@ public class RecoverySourceHandler {
                         break;
                     }
                 }
+                logger.trace("recovery [phase2]: sending batch of {} ops", ops.size());
                 lastBatchCount.set(ops.size());
                 return ops;
             }
