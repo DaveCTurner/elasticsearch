@@ -19,9 +19,9 @@
 
 package org.elasticsearch.index.translog;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.io.stream.ByteBufferStreamInput;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ import java.nio.file.Path;
  */
 public abstract class BaseTranslogReader implements Comparable<BaseTranslogReader> {
 
-    private static final Logger logger = Loggers.getLogger(BaseTranslogReader.class);
+    private static final Logger logger = LogManager.getLogger(BaseTranslogReader.class);
 
     protected final long generation;
     protected final FileChannel channel;
