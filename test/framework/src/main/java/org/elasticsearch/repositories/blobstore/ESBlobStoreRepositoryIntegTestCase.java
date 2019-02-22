@@ -33,6 +33,7 @@ import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.SnapshotMissingException;
 import org.elasticsearch.snapshots.SnapshotRestoreException;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.Arrays;
@@ -79,6 +80,7 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
 
     }
 
+    @TestLogging("org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.seqno:TRACE,org.elasticsearch.index.translog:TRACE")
     public void testSnapshotAndRestore() throws Exception {
         final String repoName = randomAsciiName();
         logger.info("-->  creating repository {}", repoName);
