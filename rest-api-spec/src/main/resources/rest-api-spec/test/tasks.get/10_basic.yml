@@ -1,5 +1,9 @@
 ---
 "get task test":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
+
   # Note that this gets much better testing in reindex's tests because it actually saves the task
   - do:
       cluster.state:

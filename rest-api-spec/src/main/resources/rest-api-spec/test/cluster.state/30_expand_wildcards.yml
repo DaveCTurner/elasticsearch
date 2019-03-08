@@ -28,6 +28,9 @@ setup:
 
 ---
 "Test expand_wildcards parameter on closed, open indices and both":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
 
   - do:
       cluster.state:
@@ -61,6 +64,9 @@ setup:
 
 ---
 "Test ignore_unavailable parameter":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
 
   - do:
       cluster.state:
@@ -81,6 +87,9 @@ setup:
 
 ---
 "Test allow_no_indices parameter":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
 
   - do:
       cluster.state:

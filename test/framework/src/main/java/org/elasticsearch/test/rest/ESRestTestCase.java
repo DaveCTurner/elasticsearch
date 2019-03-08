@@ -259,6 +259,17 @@ public abstract class ESRestTestCase extends ESTestCase {
         return expectVersionSpecificWarnings(consumer -> consumer.current(warnings));
     }
 
+    public static Request clusterStateRequest() {
+        return clusterStateRequest("");
+    }
+
+    public static Request clusterStateRequest(String suffix) {
+        final Request request = new Request("GET", "/_cluster/state" + (suffix == null ? "" : "/" + suffix));
+        request.setOptions(expectWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and will " +
+            "be removed in the next major version."));
+        return request;
+    }
+
     /**
      * Creates RequestOptions designed to ignore [types removal] warnings but nothing else
      * @deprecated this method is only required while we deprecate types and can be removed in 8.0

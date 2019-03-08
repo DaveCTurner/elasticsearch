@@ -1,5 +1,9 @@
 ---
 "get cluster state":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
+
   - do:
       cluster.state:
         compressed_cluster_state_size: false
@@ -9,6 +13,8 @@
 ---
 "get cluster state returns cluster state size with human readable format":
   - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
       features: "warnings"
 
   - do:
@@ -23,6 +29,10 @@
 
 ---
 "get cluster state suppresses cluster state size with flag":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
+
   - do:
       cluster.state:
         compressed_cluster_state_size: false
@@ -35,8 +45,8 @@
 ---
 "get cluster state returns cluster_uuid at the top level":
   - skip:
-      version:  " - 6.3.99"
-      reason:   "cluster state including cluster_uuid at the top level is new in v6.4.0 and higher"
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
 
   - do:
       cluster.state:

@@ -1,8 +1,8 @@
 ---
 "Copy settings during shrink index":
   - skip:
-      version: " - 6.9.99"
-      reason: expects warnings that pre-7.0.0 will not send
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
       features: "warnings"
 
   - do:

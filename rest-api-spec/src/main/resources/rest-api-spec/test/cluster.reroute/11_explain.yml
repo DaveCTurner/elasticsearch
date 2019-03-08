@@ -25,6 +25,9 @@ setup:
 
 ---
 "Explain API for non-existent node & shard":
+  - skip:
+      version: " - 7.99.99"
+      reason:  compressed_cluster_state_size added in 8.0
 
   - do:
       cluster.state:
