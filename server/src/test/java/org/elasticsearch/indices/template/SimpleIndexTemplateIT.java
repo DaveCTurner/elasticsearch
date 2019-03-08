@@ -159,7 +159,8 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
     }
 
     public void testDeleteIndexTemplate() throws Exception {
-        final int existingTemplates = admin().cluster().prepareState().execute().actionGet().getState().metaData().templates().size();
+        final int existingTemplates = admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .execute().actionGet().getState().metaData().templates().size();
         logger.info("--> put template_1 and template_2");
         client().admin().indices().preparePutTemplate("template_1")
                 .setPatterns(Collections.singletonList("te*"))
@@ -200,7 +201,7 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
         logger.info("--> explicitly delete template_1");
         admin().indices().prepareDeleteTemplate("template_1").execute().actionGet();
 
-        ClusterState state = admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState state = admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         assertThat(state.metaData().templates().size(), equalTo(1 + existingTemplates));
         assertThat(state.metaData().templates().containsKey("template_2"), equalTo(true));
@@ -219,12 +220,14 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
 
         logger.info("--> delete template*");
         admin().indices().prepareDeleteTemplate("template*").execute().actionGet();
-        assertThat(admin().cluster().prepareState().execute().actionGet().getState().metaData().templates().size(),
+        assertThat(admin().cluster().prepareState().setCompressedClusterStateSize(false)
+                .execute().actionGet().getState().metaData().templates().size(),
                    equalTo(existingTemplates));
 
         logger.info("--> delete * with no templates, make sure we don't get a failure");
         admin().indices().prepareDeleteTemplate("*").execute().actionGet();
-        assertThat(admin().cluster().prepareState().execute().actionGet().getState().metaData().templates().size(),
+        assertThat(admin().cluster().prepareState().setCompressedClusterStateSize(false)
+                .execute().actionGet().getState().metaData().templates().size(),
                    equalTo(0));
     }
 

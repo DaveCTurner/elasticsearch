@@ -118,7 +118,8 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
             entries.add(new NamedWriteableRegistry.Entry(PersistentTaskState.class, DatafeedState.NAME, DatafeedState::fromStream));
             entries.add(new NamedWriteableRegistry.Entry(ClusterState.Custom.class, TokenMetaData.TYPE, TokenMetaData::new));
             final NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(entries);
-            ClusterState masterClusterState = client().admin().cluster().prepareState().all().get().getState();
+            ClusterState masterClusterState
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).all().get().getState();
             byte[] masterClusterStateBytes = ClusterState.Builder.toBytes(masterClusterState);
             // remove local node reference
             masterClusterState = ClusterState.Builder.fromBytes(masterClusterStateBytes, null, namedWriteableRegistry);
@@ -126,7 +127,8 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
             int masterClusterStateSize = ClusterState.Builder.toBytes(masterClusterState).length;
             String masterId = masterClusterState.nodes().getMasterNodeId();
             for (Client client : cluster().getClients()) {
-                ClusterState localClusterState = client.admin().cluster().prepareState().all().setLocal(true).get().getState();
+                ClusterState localClusterState
+                    = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).all().setLocal(true).get().getState();
                 byte[] localClusterStateBytes = ClusterState.Builder.toBytes(localClusterState);
                 // remove local node reference
                 localClusterState = ClusterState.Builder.fromBytes(localClusterStateBytes, null, namedWriteableRegistry);

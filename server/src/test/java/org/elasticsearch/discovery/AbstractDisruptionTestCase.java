@@ -141,7 +141,7 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
     }
 
     ClusterState getNodeClusterState(String node) {
-        return client(node).admin().cluster().prepareState().setLocal(true).get().getState();
+        return client(node).admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).get().getState();
     }
 
     void assertNoMaster(final String node) throws Exception {

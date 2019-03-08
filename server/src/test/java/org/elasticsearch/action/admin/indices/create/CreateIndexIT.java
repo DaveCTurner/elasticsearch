@@ -89,7 +89,7 @@ public class CreateIndexIT extends ESIntegTestCase {
         long timeBeforeRequest = System.currentTimeMillis();
         prepareCreate("test").get();
         long timeAfterRequest = System.currentTimeMillis();
-        ClusterStateResponse response = client().admin().cluster().prepareState().get();
+        ClusterStateResponse response = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         ClusterState state = response.getState();
         assertThat(state, notNullValue());
         MetaData metadata = state.getMetaData();
@@ -401,7 +401,7 @@ public class CreateIndexIT extends ESIntegTestCase {
         final Settings settings = Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", replicas).build();
         client().admin().indices().prepareCreate("test").setSettings(settings).get();
         ensureGreen("test");
-        final ClusterState state = client().admin().cluster().prepareState().get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
 
         final Set<String> dataOrMasterNodeNames = new HashSet<>();
         for (final ObjectCursor<DiscoveryNode> node : state.nodes().getMasterAndDataNodes().values()) {
@@ -428,7 +428,8 @@ public class CreateIndexIT extends ESIntegTestCase {
 
         // check that the cluster does not keep reallocating shards
         assertBusy(() -> {
-            final RoutingTable routingTable = client().admin().cluster().prepareState().get().getState().routingTable();
+            final RoutingTable routingTable
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().routingTable();
             final IndexRoutingTable indexRoutingTable = routingTable.index("test");
             assertNotNull(indexRoutingTable);
             for (IndexShardRoutingTable shardRoutingTable : indexRoutingTable) {

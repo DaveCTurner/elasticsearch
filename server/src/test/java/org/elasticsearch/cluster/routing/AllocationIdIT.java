@@ -129,7 +129,7 @@ public class AllocationIdIT extends ESIntegTestCase {
 
         // allocation fails due to corruption marker
         assertBusy(() -> {
-            final ClusterState state = client().admin().cluster().prepareState().get().getState();
+            final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             final ShardRouting shardRouting = state.routingTable().index(indexName).shard(shardId.id()).primaryShard();
             assertThat(shardRouting.state(), equalTo(ShardRoutingState.UNASSIGNED));
             assertThat(shardRouting.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.ALLOCATION_FAILED));
@@ -196,7 +196,7 @@ public class AllocationIdIT extends ESIntegTestCase {
     }
 
     private Set<String> getAllocationIds(String indexName) {
-        final ClusterState state = client().admin().cluster().prepareState().get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         final Set<String> allocationIds = state.metaData().index(indexName).inSyncAllocationIds(0);
         return allocationIds;
     }

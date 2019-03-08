@@ -92,7 +92,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
             logger.info("Stopping dedicated master node");
             internalCluster().stopRandomNode(settings -> settings.getAsBoolean("node.master", false));
             assertBusy(() -> {
-                ClusterState state = client(mlAndDataNode).admin().cluster().prepareState()
+                ClusterState state = client(mlAndDataNode).admin().cluster().prepareState().setCompressedClusterStateSize(false)
                         .setLocal(true).get().getState();
                 assertNull(state.nodes().getMasterNodeId());
             });
@@ -298,7 +298,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         persistentTasksClusterService.setRecheckInterval(TimeValue.timeValueMillis(200));
 
         assertBusy(() -> {
-            ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+            ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             PersistentTasksCustomMetaData tasks = clusterState.metaData().custom(PersistentTasksCustomMetaData.TYPE);
             assertNotNull(tasks);
             assertEquals("Expected 2 tasks, but got [" + tasks.taskMap() + "]", 2, tasks.taskMap().size());

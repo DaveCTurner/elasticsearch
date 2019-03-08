@@ -68,7 +68,7 @@ public class DelayedAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
         indexRandomData();
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(findNodeWithShard()));
-        assertBusy(() -> assertThat(client().admin().cluster().prepareState().all().get().getState()
+        assertBusy(() -> assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).all().get().getState()
             .getRoutingNodes().unassigned().size() > 0, equalTo(true)));
         assertThat(client().admin().cluster().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1));
         internalCluster().startNode(); // this will use the same data location as the stopped node
@@ -111,7 +111,7 @@ public class DelayedAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
         indexRandomData();
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(findNodeWithShard()));
-        assertBusy(() -> assertThat(client().admin().cluster().prepareState().all().get()
+        assertBusy(() -> assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).all().get()
             .getState().getRoutingNodes().unassigned().size() > 0, equalTo(true)));
         assertThat(client().admin().cluster().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1));
         assertAcked(client().admin().indices().prepareUpdateSettings("test").setSettings(Settings.builder()
@@ -134,7 +134,7 @@ public class DelayedAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
         indexRandomData();
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(findNodeWithShard()));
-        assertBusy(() -> assertThat(client().admin().cluster().prepareState().all().get().getState()
+        assertBusy(() -> assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).all().get().getState()
             .getRoutingNodes().unassigned().size() > 0, equalTo(true)));
         assertThat(client().admin().cluster().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1));
         assertAcked(client().admin().indices().prepareUpdateSettings("test").setSettings(Settings.builder()
@@ -157,7 +157,7 @@ public class DelayedAllocationIT extends ESIntegTestCase {
     }
 
     private String findNodeWithShard() {
-        ClusterState state = client().admin().cluster().prepareState().get().getState();
+        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         List<ShardRouting> startedShards = state.routingTable().shardsWithState(ShardRoutingState.STARTED);
         Collections.shuffle(startedShards,random());
         return state.nodes().get(startedShards.get(0).currentNodeId()).getName();

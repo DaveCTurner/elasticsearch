@@ -142,7 +142,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
             previousTerms = new HashMap<>();
         }
         final Map<String, long[]> result = new HashMap<>();
-        final ClusterState state = client().admin().cluster().prepareState().get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         for (ObjectCursor<IndexMetaData> cursor : state.metaData().indices().values()) {
             final IndexMetaData indexMetaData = cursor.value;
             final String index = indexMetaData.getIndex().getName();
@@ -356,7 +356,8 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
             assertHitCount(client().prepareSearch().setSize(0).setQuery(matchAllQuery()).execute().actionGet(), 2);
         }
 
-        String metaDataUuid = client().admin().cluster().prepareState().execute().get().getState().getMetaData().clusterUUID();
+        String metaDataUuid = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .execute().get().getState().getMetaData().clusterUUID();
         assertThat(metaDataUuid, not(equalTo("_na_")));
 
         logger.info("--> closing first node, and indexing more data to the second node");
@@ -398,13 +399,15 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         logger.info("--> running cluster_health (wait for the shards to startup)");
         ensureGreen();
 
-        assertThat(client().admin().cluster().prepareState().execute().get().getState().getMetaData().clusterUUID(), equalTo(metaDataUuid));
+        assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .execute().get().getState().getMetaData().clusterUUID(), equalTo(metaDataUuid));
 
         for (int i = 0; i < 10; i++) {
             assertHitCount(client().prepareSearch().setSize(0).setQuery(matchAllQuery()).execute().actionGet(), 3);
         }
 
-        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState state
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
         assertThat(state.metaData().templates().get("template_1").patterns(), equalTo(Collections.singletonList("te*")));
         assertThat(state.metaData().index("test").getAliases().get("test_alias"), notNullValue());
         assertThat(state.metaData().index("test").getAliases().get("test_alias").filter(), notNullValue());

@@ -94,7 +94,7 @@ public class MockDiskUsagesIT extends ESIntegTestCase {
         });
 
         final List<String> realNodeNames = new ArrayList<>();
-        ClusterStateResponse resp = client().admin().cluster().prepareState().get();
+        ClusterStateResponse resp = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         Iterator<RoutingNode> iter = resp.getState().getRoutingNodes().iterator();
         while (iter.hasNext()) {
             RoutingNode node = iter.next();
@@ -112,7 +112,7 @@ public class MockDiskUsagesIT extends ESIntegTestCase {
         final Map<String, Integer> nodesToShardCount = new HashMap<>();
 
         assertBusy(() -> {
-            ClusterStateResponse resp12 = client().admin().cluster().prepareState().get();
+            ClusterStateResponse resp12 = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
             Iterator<RoutingNode> iter12 = resp12.getState().getRoutingNodes().iterator();
             while (iter12.hasNext()) {
                 RoutingNode node = iter12.next();
@@ -134,7 +134,7 @@ public class MockDiskUsagesIT extends ESIntegTestCase {
         nodesToShardCount.clear();
 
         assertBusy(() -> {
-            ClusterStateResponse resp1 = client().admin().cluster().prepareState().get();
+            ClusterStateResponse resp1 = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
             Iterator<RoutingNode> iter1 = resp1.getState().getRoutingNodes().iterator();
             while (iter1.hasNext()) {
                 RoutingNode node = iter1.next();

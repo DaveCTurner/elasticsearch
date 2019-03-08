@@ -46,7 +46,8 @@ public class SimpleAllocationIT extends ESIntegTestCase {
         }
         ensureGreen("test");
 
-        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState state
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(0));
         for (RoutingNode node : state.getRoutingNodes()) {
             if (!node.isEmpty()) {
@@ -56,7 +57,7 @@ public class SimpleAllocationIT extends ESIntegTestCase {
         client().admin().indices().prepareUpdateSettings("test")
             .setSettings(Settings.builder().put(SETTING_NUMBER_OF_REPLICAS, 0)).execute().actionGet();
         ensureGreen("test");
-        state = client().admin().cluster().prepareState().execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(0));
         for (RoutingNode node : state.getRoutingNodes()) {
@@ -75,7 +76,7 @@ public class SimpleAllocationIT extends ESIntegTestCase {
         client().admin().indices().prepareUpdateSettings("test")
             .setSettings(Settings.builder().put(SETTING_NUMBER_OF_REPLICAS, 1)).execute().actionGet();
         ensureGreen("test");
-        state = client().admin().cluster().prepareState().execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(0));
         for (RoutingNode node : state.getRoutingNodes()) {

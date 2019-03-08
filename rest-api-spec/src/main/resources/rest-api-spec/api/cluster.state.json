@@ -54,6 +54,11 @@
           "options" : ["open","closed","none","all"],
           "default" : "open",
           "description" : "Whether to expand wildcard expression to concrete indices that are open, closed or both."
+        },
+        "compressed_cluster_state_size": {
+          "type": "boolean",
+          "default" : "true",
+          "description": "Return the compressed size of the whole cluster state (default: true)"
         }
       }
     },

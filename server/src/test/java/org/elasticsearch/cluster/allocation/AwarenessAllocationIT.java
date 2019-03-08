@@ -93,7 +93,8 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
                     }
 
                     logger.info("--> checking current state");
-                    ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+                    ClusterState clusterState
+                        = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
                     // check that closed indices are effectively closed
                     if (indicesToClose.stream().anyMatch(index -> clusterState.metaData().index(index).getState() != State.CLOSE)) {
                         return false;
@@ -153,7 +154,8 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .setWaitForNoRelocatingShards(true).execute().actionGet();
         assertThat(health.isTimedOut(), equalTo(false));
 
-        ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState clusterState
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
         ObjectIntHashMap<String> counts = new ObjectIntHashMap<>();
 
         for (IndexRoutingTable indexRoutingTable : clusterState.routingTable()) {
@@ -200,7 +202,8 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .setWaitForNoRelocatingShards(true)
             .execute().actionGet();
         assertThat(health.isTimedOut(), equalTo(false));
-        ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState clusterState
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
         ObjectIntHashMap<String> counts = new ObjectIntHashMap<>();
 
         for (IndexRoutingTable indexRoutingTable : clusterState.routingTable()) {
@@ -233,7 +236,7 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .execute().actionGet();
 
         assertThat(health.isTimedOut(), equalTo(false));
-        clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         counts = new ObjectIntHashMap<>();
 
@@ -267,7 +270,7 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .execute().actionGet();
 
         assertThat(health.isTimedOut(), equalTo(false));
-        clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         counts = new ObjectIntHashMap<>();
 
@@ -296,7 +299,7 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .execute().actionGet();
 
         assertThat(health.isTimedOut(), equalTo(false));
-        clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
 
         counts = new ObjectIntHashMap<>();
 

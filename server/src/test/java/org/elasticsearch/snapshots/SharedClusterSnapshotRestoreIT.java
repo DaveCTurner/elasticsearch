@@ -301,7 +301,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         for (int i=0; i<5; i++) {
             assertHitCount(client.prepareSearch("test-idx-1").setSize(0).get(), 100L);
         }
-        ClusterState clusterState = client.admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertThat(clusterState.getMetaData().hasIndex("test-idx-1"), equalTo(true));
         assertThat(clusterState.getMetaData().hasIndex("test-idx-2"), equalTo(false));
 
@@ -454,8 +454,8 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
         logger.info("--> assert that old mapping is restored");
-        ImmutableOpenMap<String, MappingMetaData> mappings = client().admin().cluster().prepareState().get().getState().getMetaData()
-            .getIndices().get("test-idx").getMappings();
+        ImmutableOpenMap<String, MappingMetaData> mappings = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getMetaData().getIndices().get("test-idx").getMappings();
         assertThat(mappings.get("foo"), notNullValue());
         assertThat(mappings.get("bar"), nullValue());
 
@@ -965,7 +965,8 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             // same node again during the same reroute operation. Then another reroute
             // operation is scheduled, but the RestoreInProgressAllocationDecider will
             // block the shard to be assigned again because it failed during restore.
-            final ClusterStateResponse clusterStateResponse = client.admin().cluster().prepareState().get();
+            final ClusterStateResponse clusterStateResponse
+                = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
             assertEquals(1, clusterStateResponse.getState().getNodes().getDataNodes().size());
             assertEquals(restoreInfo.failedShards(),
                 clusterStateResponse.getState().getRoutingTable().shardsWithState(ShardRoutingState.UNASSIGNED).size());
@@ -1130,7 +1131,8 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(restoreResponse.getRestoreInfo().totalShards(), equalTo(numShards.numPrimaries));
         assertThat(restoreResponse.getRestoreInfo().successfulShards(), equalTo(0));
 
-        ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().setCustoms(true).setRoutingTable(true).get();
+        ClusterStateResponse clusterStateResponse
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setCustoms(true).setRoutingTable(true).get();
 
         // check that there is no restore in progress
         RestoreInProgress restoreInProgress = clusterStateResponse.getState().custom(RestoreInProgress.TYPE);
@@ -1568,7 +1570,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         ensureGreen();
         logger.info("-->  closing index test-idx-closed");
         assertAcked(client.admin().indices().prepareClose("test-idx-closed"));
-        ClusterStateResponse stateResponse = client.admin().cluster().prepareState().get();
+        ClusterStateResponse stateResponse = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         assertThat(stateResponse.getState().metaData().index("test-idx-closed").getState(), equalTo(IndexMetaData.State.CLOSE));
         assertThat(stateResponse.getState().routingTable().index("test-idx-closed"), notNullValue());
 
@@ -2397,7 +2399,8 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
                     .setWaitForCompletion(true).execute().actionGet();
             assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
-            ClusterBlocks blocks = client.admin().cluster().prepareState().clear().setBlocks(true).get().getState().blocks();
+            ClusterBlocks blocks = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setBlocks(true)
+                .get().getState().blocks();
             // compute current index settings (as we cannot query them if they contain SETTING_BLOCKS_METADATA)
             Settings mergedSettings = Settings.builder()
                     .put(initialSettings)
@@ -3720,8 +3723,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             }
         }
 
-        final IndexMetaData indexMetaData = client().admin().cluster().prepareState().clear().setIndices(indexName)
-            .setMetaData(true).get().getState().metaData().index(indexName);
+        final IndexMetaData indexMetaData
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setIndices(indexName)
+                .setMetaData(true).get().getState().metaData().index(indexName);
         final int numPrimaries = getNumShards(indexName).numPrimaries;
         final Map<Integer, Long> primaryTerms = IntStream.range(0, numPrimaries)
             .boxed().collect(Collectors.toMap(shardId -> shardId, indexMetaData::primaryTerm));
@@ -3739,8 +3743,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(restoreSnapshotResponse.getRestoreInfo().successfulShards(), equalTo(numPrimaries));
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
 
-        final IndexMetaData restoredIndexMetaData = client().admin().cluster().prepareState().clear().setIndices(indexName)
-            .setMetaData(true).get().getState().metaData().index(indexName);
+        final IndexMetaData restoredIndexMetaData
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setIndices(indexName).setMetaData(true)
+            .get().getState().metaData().index(indexName);
         for (int shardId = 0; shardId < numPrimaries; shardId++) {
             assertThat(restoredIndexMetaData.primaryTerm(shardId), greaterThan(primaryTerms.get(shardId)));
         }

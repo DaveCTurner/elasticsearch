@@ -105,7 +105,7 @@ public class CorruptedTranslogIT extends ESIntegTestCase {
 
 
     private void corruptRandomTranslogFile() throws IOException {
-        ClusterState state = client().admin().cluster().prepareState().get().getState();
+        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         GroupShardsIterator shardIterators = state.getRoutingTable().activePrimaryShardsGrouped(new String[]{"test"}, false);
         final Index test = state.metaData().index("test").getIndex();
         List<ShardIterator> iterators = iterableAsArrayList(shardIterators);

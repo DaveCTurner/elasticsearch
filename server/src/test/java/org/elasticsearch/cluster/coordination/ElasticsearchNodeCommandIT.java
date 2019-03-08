@@ -151,7 +151,7 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
                         .put(Node.INITIAL_STATE_TIMEOUT_SETTING.getKey(), "0s") // to ensure quick node startup
                         .build());
         assertBusy(() -> {
-            ClusterState state = client().admin().cluster().prepareState().setLocal(true)
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
                     .execute().actionGet().getState();
             assertTrue(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
         });
@@ -168,7 +168,7 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
                         .put(Node.INITIAL_STATE_TIMEOUT_SETTING.getKey(), "0s") // to ensure quick node startup
                         .build());
         assertBusy(() -> {
-            ClusterState state = client().admin().cluster().prepareState().setLocal(true)
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
                     .execute().actionGet().getState();
             assertTrue(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
         });
@@ -279,8 +279,8 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
 
         logger.info("--> ensure NO_MASTER_BLOCK on data-only node");
         assertBusy(() -> {
-            ClusterState state = internalCluster().client(dataNode).admin().cluster().prepareState().setLocal(true)
-                    .execute().actionGet().getState();
+            ClusterState state = internalCluster().client(dataNode).admin().cluster().prepareState()
+                .setCompressedClusterStateSize(false).setLocal(true).execute().actionGet().getState();
             assertTrue(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
         });
 
@@ -311,8 +311,8 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
 
         logger.info("--> ensure there is no NO_MASTER_BLOCK and unsafe-bootstrap is reflected in cluster state");
         assertBusy(() -> {
-            ClusterState state = internalCluster().client(dataNode2).admin().cluster().prepareState().setLocal(true)
-                    .execute().actionGet().getState();
+            ClusterState state = internalCluster().client(dataNode2).admin().cluster().prepareState()
+                .setCompressedClusterStateSize(false).setLocal(true).execute().actionGet().getState();
             assertFalse(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
             assertTrue(state.metaData().persistentSettings().getAsBoolean(UnsafeBootstrapMasterCommand.UNSAFE_BOOTSTRAP.getKey(), false));
         });
@@ -387,7 +387,7 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
                 .put(Node.INITIAL_STATE_TIMEOUT_SETTING.getKey(), "2s")
                 .build());
 
-        ClusterState state = internalCluster().client().admin().cluster().prepareState().setLocal(true)
+        ClusterState state = internalCluster().client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
                 .execute().actionGet().getState();
         assertTrue(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
 
@@ -401,7 +401,8 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
                 Settings.builder().put(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "1234kb"));
         internalCluster().client().admin().cluster().updateSettings(req).get();
 
-        ClusterState state = internalCluster().client().admin().cluster().prepareState().execute().actionGet().getState();
+        ClusterState state = internalCluster().client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .execute().actionGet().getState();
         assertThat(state.metaData().persistentSettings().get(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey()),
                 equalTo("1234kb"));
 
@@ -414,7 +415,8 @@ public class ElasticsearchNodeCommandIT extends ESIntegTestCase {
         internalCluster().startMasterOnlyNode();
         ensureGreen();
 
-        state = internalCluster().client().admin().cluster().prepareState().execute().actionGet().getState();
+        state = internalCluster().client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .execute().actionGet().getState();
         assertThat(state.metaData().settings().get(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey()),
                 equalTo("1234kb"));
     }

@@ -388,20 +388,24 @@ public class ClusterSettingsIT extends ESIntegTestCase {
             logger.info("Using persistent settings");
 
             client().admin().cluster().prepareUpdateSettings().setPersistentSettings(settings).execute().actionGet();
-            ClusterStateResponse state = client().admin().cluster().prepareState().execute().actionGet();
+            ClusterStateResponse state
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet();
             assertEquals(value, state.getState().getMetaData().persistentSettings().get(key));
 
             client().admin().cluster().prepareUpdateSettings().setPersistentSettings(updatedSettings).execute().actionGet();
-            ClusterStateResponse updatedState = client().admin().cluster().prepareState().execute().actionGet();
+            ClusterStateResponse updatedState
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet();
             assertEquals(updatedValue, updatedState.getState().getMetaData().persistentSettings().get(key));
         } else {
             logger.info("Using transient settings");
             client().admin().cluster().prepareUpdateSettings().setTransientSettings(settings).execute().actionGet();
-            ClusterStateResponse state = client().admin().cluster().prepareState().execute().actionGet();
+            ClusterStateResponse state
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet();
             assertEquals(value, state.getState().getMetaData().transientSettings().get(key));
 
             client().admin().cluster().prepareUpdateSettings().setTransientSettings(updatedSettings).execute().actionGet();
-            ClusterStateResponse updatedState = client().admin().cluster().prepareState().execute().actionGet();
+            ClusterStateResponse updatedState
+                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet();
             assertEquals(updatedValue, updatedState.getState().getMetaData().transientSettings().get(key));
         }
     }

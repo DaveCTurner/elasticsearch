@@ -125,7 +125,7 @@ public class CloseIndexIT extends ESIntegTestCase {
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(Settings.builder().put("index.routing.allocation.include._name", "nothing").build()));
 
-        final ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        final ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertThat(clusterState.metaData().indices().get(indexName).getState(), is(IndexMetaData.State.OPEN));
         assertThat(clusterState.routingTable().allShards().stream().allMatch(ShardRouting::unassigned), is(true));
 
@@ -205,7 +205,8 @@ public class CloseIndexIT extends ESIntegTestCase {
             }
             indices[i] = indexName;
         }
-        assertThat(client().admin().cluster().prepareState().get().getState().metaData().indices().size(), equalTo(indices.length));
+        assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().metaData().indices().size(), equalTo(indices.length));
 
         final List<Thread> threads = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
@@ -297,7 +298,7 @@ public class CloseIndexIT extends ESIntegTestCase {
         indexer.setAssertNoFailuresOnStop(false);
         indexer.stop();
 
-        final ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        final ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         if (clusterState.metaData().indices().get(indexName).getState() == IndexMetaData.State.CLOSE) {
             assertIndexIsClosed(indexName);
             assertAcked(client().admin().indices().prepareOpen(indexName));
@@ -328,7 +329,7 @@ public class CloseIndexIT extends ESIntegTestCase {
     }
 
     static void assertIndexIsClosed(final String... indices) {
-        final ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        final ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         for (String index : indices) {
             final IndexMetaData indexMetaData = clusterState.metaData().indices().get(index);
             assertThat(indexMetaData.getState(), is(IndexMetaData.State.CLOSE));
@@ -344,7 +345,7 @@ public class CloseIndexIT extends ESIntegTestCase {
     }
 
     static void assertIndexIsOpened(final String... indices) {
-        final ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        final ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         for (String index : indices) {
             final IndexMetaData indexMetaData = clusterState.metaData().indices().get(index);
             assertThat(indexMetaData.getState(), is(IndexMetaData.State.OPEN));

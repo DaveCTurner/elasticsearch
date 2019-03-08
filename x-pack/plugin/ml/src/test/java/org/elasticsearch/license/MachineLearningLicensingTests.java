@@ -237,7 +237,7 @@ public class MachineLearningLicensingTests extends BaseMlIntegTestCase {
             DatafeedState datafeedState = getDatafeedStats(datafeedId).getDatafeedState();
             assertEquals(DatafeedState.STOPPED, datafeedState);
 
-            ClusterState state = client().admin().cluster().prepareState().get().getState();
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             PersistentTasksCustomMetaData tasks = state.metaData().custom(PersistentTasksCustomMetaData.TYPE);
             assertEquals(0, tasks.taskMap().size());
         });
@@ -265,7 +265,7 @@ public class MachineLearningLicensingTests extends BaseMlIntegTestCase {
             DatafeedState datafeedState = getDatafeedStats(datafeedId).getDatafeedState();
             assertEquals(DatafeedState.STARTED, datafeedState);
 
-            ClusterState state = client().admin().cluster().prepareState().get().getState();
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             PersistentTasksCustomMetaData tasks = state.metaData().custom(PersistentTasksCustomMetaData.TYPE);
             assertEquals(2, tasks.taskMap().size());
         });
@@ -285,7 +285,7 @@ public class MachineLearningLicensingTests extends BaseMlIntegTestCase {
             DatafeedState datafeedState = getDatafeedStats(datafeedId).getDatafeedState();
             assertEquals(DatafeedState.STOPPED, datafeedState);
 
-            ClusterState state = client().admin().cluster().prepareState().get().getState();
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             PersistentTasksCustomMetaData tasks = state.metaData().custom(PersistentTasksCustomMetaData.TYPE);
             assertEquals(0, tasks.taskMap().size());
         });
@@ -327,7 +327,7 @@ public class MachineLearningLicensingTests extends BaseMlIntegTestCase {
         assertBusy(() -> {
             JobState jobState = getJobStats(jobId).getState();
             assertEquals(JobState.CLOSED, jobState);
-            ClusterState state = client().admin().cluster().prepareState().get().getState();
+            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             PersistentTasksCustomMetaData tasks = state.metaData().custom(PersistentTasksCustomMetaData.TYPE);
             assertEquals(0, tasks.taskMap().size());
         });

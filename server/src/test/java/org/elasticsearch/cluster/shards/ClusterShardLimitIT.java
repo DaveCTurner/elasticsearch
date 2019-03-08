@@ -77,7 +77,8 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
 
 
     public void testIndexCreationOverLimit() {
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
 
         ShardCounts counts = ShardCounts.forDataNodeCount(dataNodes);
 
@@ -97,12 +98,13 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         } catch (IllegalArgumentException e) {
             verifyException(dataNodes, counts, e);
         }
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertFalse(clusterState.getMetaData().hasIndex("should-fail"));
     }
 
     public void testIncreaseReplicasOverLimit() {
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
 
         dataNodes = ensureMultipleDataNodes(dataNodes);
 
@@ -125,12 +127,13 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
                 + "] maximum shards open;";
             assertEquals(expectedError, e.getMessage());
         }
-        MetaData clusterState = client().admin().cluster().prepareState().get().getState().metaData();
+        MetaData clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
         assertEquals(0, clusterState.index("growing-should-fail").getNumberOfReplicas());
     }
 
     public void testChangingMultipleIndicesOverLimit() {
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
 
         dataNodes = ensureMultipleDataNodes(dataNodes);
 
@@ -172,13 +175,14 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
                 + "] maximum shards open;";
             assertEquals(expectedError, e.getMessage());
         }
-        MetaData clusterState = client().admin().cluster().prepareState().get().getState().metaData();
+        MetaData clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
         assertEquals(firstIndexReplicas, clusterState.index("test-1-index").getNumberOfReplicas());
         assertEquals(secondIndexReplicas, clusterState.index("test-2-index").getNumberOfReplicas());
     }
 
     public void testPreserveExistingSkipsCheck() {
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
 
         dataNodes = ensureMultipleDataNodes(dataNodes);
 
@@ -198,7 +202,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
             .setPreserveExisting(true)
             .setSettings(Settings.builder().put("number_of_replicas", dataNodes))
             .get());
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertEquals(0, clusterState.getMetaData().index("test-index").getNumberOfReplicas());
     }
 
@@ -213,7 +217,8 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
 
         assertAcked(client.admin().cluster().preparePutRepository("test-repo").setType("fs").setSettings(repoSettings.build()));
 
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
         ShardCounts counts = ShardCounts.forDataNodeCount(dataNodes);
         createIndex("snapshot-index", Settings.builder().put(indexSettings())
             .put(SETTING_NUMBER_OF_SHARDS, counts.getFailingIndexShards())
@@ -256,13 +261,14 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
             verifyException(dataNodes, counts, e);
         }
         ensureGreen();
-        ClusterState clusterState = client.admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertFalse(clusterState.getMetaData().hasIndex("snapshot-index"));
     }
 
     public void testOpenIndexOverLimit() {
         Client client = client();
-        int dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+        int dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().getNodes().getDataNodes().size();
         ShardCounts counts = ShardCounts.forDataNodeCount(dataNodes);
 
         createIndex("test-index-1", Settings.builder().put(indexSettings())
@@ -288,7 +294,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         } catch (IllegalArgumentException e) {
             verifyException(dataNodes, counts, e);
         }
-        ClusterState clusterState = client.admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertFalse(clusterState.getMetaData().hasIndex("snapshot-index"));
     }
 
@@ -297,7 +303,8 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
             internalCluster().startNode(Settings.builder().put(Node.NODE_DATA_SETTING.getKey(), true).build());
             assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForNodes(">=2").setLocal(true)
                 .execute().actionGet().isTimedOut(), equalTo(false));
-            dataNodes = client().admin().cluster().prepareState().get().getState().getNodes().getDataNodes().size();
+            dataNodes = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+                .get().getState().getNodes().getDataNodes().size();
         }
         return dataNodes;
     }

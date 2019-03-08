@@ -19,6 +19,8 @@
 
 package org.elasticsearch.rest.action.admin.cluster;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -26,6 +28,7 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -44,6 +47,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class RestClusterStateAction extends BaseRestHandler {
+
+    private static Logger logger = LogManager.getLogger(RestClusterStateAction.class);
+    private static DeprecationLogger deprecationLogger = new DeprecationLogger(logger);
 
     private final SettingsFilter settingsFilter;
 
@@ -71,6 +77,7 @@ public class RestClusterStateAction extends BaseRestHandler {
             clusterStateRequest.waitForMetaDataVersion(request.paramAsLong("wait_for_metadata_version", 0));
         }
         clusterStateRequest.waitForTimeout(request.paramAsTime("wait_for_timeout", ClusterStateRequest.DEFAULT_WAIT_FOR_NODE_TIMEOUT));
+        clusterStateRequest.compressedClusterStateSize(request.paramAsBoolean("compressed_cluster_state_size", true));
 
         final String[] indices = Strings.splitStringByCommaToArray(request.param("indices", "_all"));
         boolean isAllIndicesOnly = indices.length == 1 && "_all".equals(indices[0]);
@@ -102,8 +109,10 @@ public class RestClusterStateAction extends BaseRestHandler {
                     builder.field(Fields.WAIT_FOR_TIMED_OUT, response.isWaitForTimedOut());
                 }
                 builder.field(Fields.CLUSTER_NAME, response.getClusterName().value());
-                builder.humanReadableField(Fields.CLUSTER_STATE_SIZE_IN_BYTES, Fields.CLUSTER_STATE_SIZE,
+                if (clusterStateRequest.compressedClusterStateSize()) {
+                    builder.humanReadableField(Fields.CLUSTER_STATE_SIZE_IN_BYTES, Fields.CLUSTER_STATE_SIZE,
                         response.getTotalCompressedSize());
+                }
                 response.getState().toXContent(builder, request);
                 builder.endObject();
                 return new BytesRestResponse(RestStatus.OK, builder);

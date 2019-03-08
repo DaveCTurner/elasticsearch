@@ -140,7 +140,8 @@ public class AutoFollowIT extends CcrIntegTestCase {
         AutoFollowStats[] autoFollowStats = new AutoFollowStats[1];
         try {
             assertBusy(() -> {
-                metaData[0] = followerClient().admin().cluster().prepareState().get().getState().metaData();
+                metaData[0]
+                    = followerClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
                 autoFollowStats[0] = getAutoFollowStats();
                 assertThat(autoFollowStats[0].getNumberOfSuccessfulFollowIndices(), equalTo(expectedVal1));
             });
@@ -155,7 +156,8 @@ public class AutoFollowIT extends CcrIntegTestCase {
         deleteAutoFollowPatternSetting();
         try {
             assertBusy(() -> {
-                metaData[0] = followerClient().admin().cluster().prepareState().get().getState().metaData();
+                metaData[0]
+                    = followerClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
                 autoFollowStats[0] = getAutoFollowStats();
                 assertThat(autoFollowStats[0].getAutoFollowedClusters().size(), equalTo(0));
             });
@@ -176,7 +178,8 @@ public class AutoFollowIT extends CcrIntegTestCase {
 
         try {
             assertBusy(() -> {
-                metaData[0] = followerClient().admin().cluster().prepareState().get().getState().metaData();
+                metaData[0]
+                    = followerClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
                 autoFollowStats[0] = getAutoFollowStats();
                 long count = Arrays.stream(metaData[0].getConcreteAllIndices()).filter(s -> s.startsWith("copy-")).count();
                 assertThat(count, equalTo(expectedVal2));

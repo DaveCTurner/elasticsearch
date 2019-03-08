@@ -123,7 +123,7 @@ public class SearchRedStateIndexIT extends ESIntegTestCase {
         client().admin().cluster().prepareHealth().setWaitForStatus(ClusterHealthStatus.RED).get();
 
         assertBusy(() -> {
-            ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+            ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
             List<ShardRouting> unassigneds = clusterState.getRoutingTable().shardsWithState(ShardRoutingState.UNASSIGNED);
             assertThat(unassigneds.size(), greaterThan(0));
         }); 

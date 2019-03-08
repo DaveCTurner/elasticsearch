@@ -61,7 +61,7 @@ public class SimpleRoutingIT extends ESIntegTestCase {
     public String findNonMatchingRoutingValue(String index, String id) {
         OperationRouting operationRouting = new OperationRouting(Settings.EMPTY,
             new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
-        ClusterState state = client().admin().cluster().prepareState().all().get().getState();
+        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).all().get().getState();
         int routing = -1;
         ShardId idShard;
         ShardId routingShard;

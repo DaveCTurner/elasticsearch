@@ -250,7 +250,7 @@ public class LocalExporterIntegTests extends LocalExporterIntegTestCase {
      * fields and belongs to the right data or timestamped index.
      */
     private void checkMonitoringDocs() {
-        ClusterStateResponse response = client().admin().cluster().prepareState().get();
+        ClusterStateResponse response = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         String customTimeFormat = response.getState().getMetaData().transientSettings()
                 .get("xpack.monitoring.exporters._local.index.name.time_format");
         assertEquals(indexTimeFormat, customTimeFormat);

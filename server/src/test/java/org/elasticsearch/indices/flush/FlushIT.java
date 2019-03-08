@@ -109,7 +109,8 @@ public class FlushIT extends ESIntegTestCase {
         prepareCreate("test").setSettings(Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)).get();
         ensureGreen();
 
-        final Index index = client().admin().cluster().prepareState().get().getState().metaData().index("test").getIndex();
+        final Index index = client().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            .get().getState().metaData().index("test").getIndex();
 
         IndexStats indexStats = client().admin().indices().prepareStats("test").get().getIndex("test");
         for (ShardStats shardStats : indexStats.getShards()) {
@@ -138,7 +139,7 @@ public class FlushIT extends ESIntegTestCase {
 
         // now, start new node and relocate a shard there and see if sync id still there
         String newNodeName = internalCluster().startNode();
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         ShardRouting shardRouting = clusterState.getRoutingTable().index("test").shard(0).iterator().next();
         String currentNodeName = clusterState.nodes().resolveNode(shardRouting.currentNodeId()).getName();
         assertFalse(currentNodeName.equals(newNodeName));

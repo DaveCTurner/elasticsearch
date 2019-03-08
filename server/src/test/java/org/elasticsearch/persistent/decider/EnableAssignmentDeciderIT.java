@@ -141,7 +141,8 @@ public class EnableAssignmentDeciderIT extends ESIntegTestCase {
     }
 
     private void assertEnableAssignmentSetting(final Allocation expected) {
-        ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().clear().setMetaData(true).get();
+        ClusterStateResponse clusterStateResponse
+            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setMetaData(true).get();
         Settings settings = clusterStateResponse.getState().getMetaData().settings();
 
         String value = settings.get(CLUSTER_TASKS_ALLOCATION_ENABLE_SETTING.getKey());

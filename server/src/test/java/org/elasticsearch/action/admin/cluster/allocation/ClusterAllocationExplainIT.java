@@ -1203,13 +1203,13 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
     }
 
     private String primaryNodeName() {
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         String nodeId = clusterState.getRoutingTable().index("idx").shard(0).primaryShard().currentNodeId();
         return clusterState.getRoutingNodes().node(nodeId).node().getName();
     }
 
     private DiscoveryNode replicaNode() {
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         String nodeId = clusterState.getRoutingTable().index("idx").shard(0).replicaShards().get(0).currentNodeId();
         return clusterState.getRoutingNodes().node(nodeId).node();
     }

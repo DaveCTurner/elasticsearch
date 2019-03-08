@@ -611,7 +611,7 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         indexRandom(true, requests);
         ensureSearchable(indexName);
 
-        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().get();
+        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         final String blueNodeId = internalCluster().getInstance(ClusterService.class, blueNodeName).localNode().getId();
 
         assertFalse(stateResponse.getState().getRoutingNodes().node(blueNodeId).isEmpty());
@@ -745,7 +745,8 @@ public class IndexRecoveryIT extends ESIntegTestCase {
                 if (PeerRecoverySourceService.Actions.START_RECOVERY.equals(action) && count.incrementAndGet() == 1) {
                     // ensures that it's considered as valid recovery attempt by source
                     try {
-                        awaitBusy(() -> client(blueNodeName).admin().cluster().prepareState().setLocal(true).get()
+                        awaitBusy(() ->
+                            client(blueNodeName).admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).get()
                             .getState().getRoutingTable().index("test").shard(0).getAllInitializingShards().isEmpty() == false);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);

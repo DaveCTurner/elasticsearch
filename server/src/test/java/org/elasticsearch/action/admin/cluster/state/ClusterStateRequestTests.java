@@ -43,13 +43,17 @@ public class ClusterStateRequestTests extends ESTestCase {
 
             Version testVersion = VersionUtils.randomVersionBetween(random(),
                 Version.CURRENT.minimumCompatibilityVersion(), Version.CURRENT);
-            // TODO: change version to V_6_6_0 after backporting:
-            if (testVersion.onOrAfter(Version.V_7_0_0)) {
+            if (testVersion.onOrAfter(Version.V_6_6_0)) {
                 if (randomBoolean()) {
                     clusterStateRequest.waitForMetaDataVersion(randomLongBetween(1, Long.MAX_VALUE));
                 }
                 if (randomBoolean()) {
                     clusterStateRequest.waitForTimeout(new TimeValue(randomNonNegativeLong()));
+                }
+            }
+            if (testVersion.onOrAfter(Version.V_6_7_0)) {
+                if (randomBoolean()) {
+                    clusterStateRequest.compressedClusterStateSize(randomBoolean());
                 }
             }
 
@@ -70,6 +74,11 @@ public class ClusterStateRequestTests extends ESTestCase {
             if (testVersion.onOrAfter(Version.V_6_6_0)) {
                 assertThat(deserializedCSRequest.waitForMetaDataVersion(), equalTo(clusterStateRequest.waitForMetaDataVersion()));
                 assertThat(deserializedCSRequest.waitForTimeout(), equalTo(clusterStateRequest.waitForTimeout()));
+            }
+            if (testVersion.onOrAfter(Version.V_6_7_0)) {
+                assertThat(deserializedCSRequest.compressedClusterStateSize(), equalTo(clusterStateRequest.compressedClusterStateSize()));
+            } else {
+                assertTrue(deserializedCSRequest.compressedClusterStateSize());
             }
         }
     }

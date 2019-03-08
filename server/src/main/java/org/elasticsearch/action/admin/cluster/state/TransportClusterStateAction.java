@@ -20,6 +20,8 @@
 package org.elasticsearch.action.admin.cluster.state;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
@@ -35,6 +37,7 @@ import org.elasticsearch.cluster.metadata.MetaData.Custom;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -45,6 +48,8 @@ import java.util.function.Predicate;
 
 public class TransportClusterStateAction extends TransportMasterNodeReadAction<ClusterStateRequest, ClusterStateResponse> {
 
+    private static final Logger logger = LogManager.getLogger(TransportClusterStateAction.class);
+    private static final DeprecationLogger deprecationLogger = new DeprecationLogger(logger);
 
     @Inject
     public TransportClusterStateAction(TransportService transportService, ClusterService clusterService,
@@ -79,9 +84,8 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
                                    final ActionListener<ClusterStateResponse> listener) throws IOException {
 
         if (request.waitForMetaDataVersion() != null) {
-            final Predicate<ClusterState> metadataVersionPredicate = clusterState -> {
-              return clusterState.metaData().version() >= request.waitForMetaDataVersion();
-            };
+            final Predicate<ClusterState> metadataVersionPredicate
+                = clusterState -> clusterState.metaData().version() >= request.waitForMetaDataVersion();
             final ClusterStateObserver observer =
                 new ClusterStateObserver(clusterService, request.waitForTimeout(), logger, threadPool.getThreadContext());
             final ClusterState clusterState = observer.setAndGetObservedState();
@@ -182,9 +186,16 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
                 }
             }
         }
-        listener.onResponse(new ClusterStateResponse(currentState.getClusterName(), builder.build(),
-            PublicationTransportHandler.serializeFullClusterState(currentState, Version.CURRENT).length(), false));
-    }
 
+        final int size;
+        if (request.compressedClusterStateSize()) {
+            deprecationLogger.deprecated("Reporting the compressed cluster state size alongside the cluster state is deprecated and will " +
+                "be removed in the next major version.");
+            size = PublicationTransportHandler.serializeFullClusterState(currentState, Version.CURRENT).length();
+        } else {
+            size = 0;
+        }
+        listener.onResponse(new ClusterStateResponse(currentState.getClusterName(), builder.build(), size, false));
+    }
 
 }

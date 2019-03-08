@@ -34,6 +34,7 @@ public class ClusterStateApiTests extends ESSingleNodeTestCase {
 
     public void testWaitForMetaDataVersion() throws Exception {
         ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        clusterStateRequest.compressedClusterStateSize(false);
         clusterStateRequest.waitForTimeout(TimeValue.timeValueHours(1));
         ActionFuture<ClusterStateResponse> future1 = client().admin().cluster().state(clusterStateRequest);
         assertThat(future1.isDone(), is(true));
@@ -42,6 +43,7 @@ public class ClusterStateApiTests extends ESSingleNodeTestCase {
 
         // Verify that cluster state api returns after the cluster settings have been updated:
         clusterStateRequest = new ClusterStateRequest();
+        clusterStateRequest.compressedClusterStateSize(false);
         clusterStateRequest.waitForMetaDataVersion(metadataVersion + 1);
 
         ActionFuture<ClusterStateResponse> future2 = client().admin().cluster().state(clusterStateRequest);

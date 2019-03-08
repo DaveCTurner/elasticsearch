@@ -351,7 +351,7 @@ public class CircuitBreakerServiceIT extends ESIntegTestCase {
         // is not blocked by the above inflight circuit breaker
         reset();
 
-        assertThat(client().admin().cluster().prepareState().get()
+        assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get()
             .getState().metaData().transientSettings().get(HierarchyCircuitBreakerService.TOTAL_CIRCUIT_BREAKER_LIMIT_SETTING.getKey()),
             nullValue());
 

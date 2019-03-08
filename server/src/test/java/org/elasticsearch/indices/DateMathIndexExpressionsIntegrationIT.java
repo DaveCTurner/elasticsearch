@@ -182,7 +182,7 @@ public class DateMathIndexExpressionsIntegrationIT extends ESIntegTestCase {
         assertEquals(dateMathExp2, getSettingsResponse.getSetting(index2, IndexMetaData.SETTING_INDEX_PROVIDED_NAME));
         assertEquals(dateMathExp3, getSettingsResponse.getSetting(index3, IndexMetaData.SETTING_INDEX_PROVIDED_NAME));
 
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertThat(clusterState.metaData().index(index1), notNullValue());
         assertThat(clusterState.metaData().index(index2), notNullValue());
         assertThat(clusterState.metaData().index(index3), notNullValue());

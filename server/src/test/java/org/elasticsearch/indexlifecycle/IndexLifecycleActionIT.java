@@ -71,7 +71,7 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
             createIndexRequest("test").settings(settings)).actionGet();
         assertAcked(createIndexResponse);
 
-        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(11));
 
@@ -103,7 +103,7 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         assertThat(clusterHealth.getActivePrimaryShards(), equalTo(11));
 
 
-        clusterState = client().admin().cluster().prepareState().get().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertNodesPresent(clusterState.getRoutingNodes(), node1, node2);
         routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
         assertThat(routingNodeEntry1.numberOfShardsWithState(RELOCATING), equalTo(0));
@@ -141,7 +141,7 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         assertThat(clusterHealth.getActivePrimaryShards(), equalTo(11));
 
 
-        clusterState = client().admin().cluster().prepareState().get().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertNodesPresent(clusterState.getRoutingNodes(), node1, node2, node3);
 
         routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
@@ -181,7 +181,7 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         assertThat(clusterHealth.getActiveShards(), equalTo(22));
         assertThat(clusterHealth.getActivePrimaryShards(), equalTo(11));
 
-        clusterState = client().admin().cluster().prepareState().get().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertNodesPresent(clusterState.getRoutingNodes(), node3, node2);
         routingNodeEntry2 = clusterState.getRoutingNodes().node(node2);
         routingNodeEntry3 = clusterState.getRoutingNodes().node(node3);
@@ -200,7 +200,7 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         AcknowledgedResponse deleteIndexResponse = client().admin().indices().prepareDelete("test").execute().actionGet();
         assertThat(deleteIndexResponse.isAcknowledged(), equalTo(true));
 
-        clusterState = client().admin().cluster().prepareState().get().getState();
+        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
         assertNodesPresent(clusterState.getRoutingNodes(), node3, node2);
         routingNodeEntry2 = clusterState.getRoutingNodes().node(node2);
         assertThat(routingNodeEntry2.isEmpty(), equalTo(true));
