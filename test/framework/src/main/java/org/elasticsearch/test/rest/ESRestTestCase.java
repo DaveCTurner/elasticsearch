@@ -281,7 +281,9 @@ public abstract class ESRestTestCase extends ESTestCase {
                 @Override
                 public boolean warningsShouldFailRequest(List<String> warnings) {
                     for (String warning : warnings) {
-                        if(warning.startsWith("[types removal]") == false) {
+                        if (warning.startsWith("[types removal]") == false
+                            && warning.equals("Reporting the compressed cluster state size alongside the cluster state is deprecated and " +
+                            "will be removed in the next major version") == false) {
                             //Something other than a types removal message - return true
                             return true;
                         }
