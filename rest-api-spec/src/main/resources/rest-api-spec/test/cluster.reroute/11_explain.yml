@@ -28,6 +28,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ master_node ]
 
   - set: {master_node: node_id}

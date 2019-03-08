@@ -10,6 +10,7 @@ setup:
 "Filtering the cluster state by blocks should return the blocks field even if the response is empty":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ blocks ]
 
   - is_true: blocks
@@ -28,6 +29,7 @@ setup:
           index.blocks.read_only: true
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ blocks ]
 
   - is_true: blocks
@@ -47,6 +49,7 @@ setup:
 "Filtering the cluster state by nodes only should work":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ nodes ]
 
   - is_false: blocks
@@ -59,6 +62,7 @@ setup:
 "Filtering the cluster state by metadata only should work":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
 
   - is_false: blocks
@@ -72,6 +76,7 @@ setup:
 "Filtering the cluster state by routing table only should work":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ routing_table ]
 
   - is_false: blocks
@@ -84,6 +89,7 @@ setup:
 "Filtering the cluster state by routing nodes only should work":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ routing_nodes ]
 
   - is_false: blocks
@@ -103,6 +109,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ routing_table, metadata ]
         index: [ testidx ]
 
@@ -115,6 +122,7 @@ setup:
 "Filtering the cluster state using _all for indices and metrics should work":
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ '_all' ]
         index: [ '_all' ]
 
@@ -142,6 +150,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ routing_table, metadata ]
         index: [ index* ]
 
@@ -161,11 +170,13 @@ setup:
 
   # Get the current cluster_uuid
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
   - set: { metadata.cluster_uuid : cluster_uuid }
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ master_node, version ]
 
   - match: { cluster_uuid: $cluster_uuid }
@@ -175,6 +186,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ routing_table ]
         index: testidx
 

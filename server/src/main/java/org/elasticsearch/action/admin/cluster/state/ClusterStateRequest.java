@@ -62,7 +62,7 @@ public class ClusterStateRequest extends MasterNodeReadRequest<ClusterStateReque
             waitForTimeout = in.readTimeValue();
             waitForMetaDataVersion = in.readOptionalLong();
         }
-        if (in.getVersion().onOrAfter(Version.V_6_7_0)) {
+        if (in.getVersion().onOrAfter(Version.V_8_0_0)) { // TODO aiming for V_6_7_0 after backport
             compressedClusterStateSize = in.readBoolean();
         }
     }
@@ -81,7 +81,7 @@ public class ClusterStateRequest extends MasterNodeReadRequest<ClusterStateReque
             out.writeTimeValue(waitForTimeout);
             out.writeOptionalLong(waitForMetaDataVersion);
         }
-        if (out.getVersion().onOrAfter(Version.V_6_7_0)) {
+        if (out.getVersion().onOrAfter(Version.V_8_0_0)) { // TODO aiming for V_6_7_0 after backport
             out.writeBoolean(compressedClusterStateSize);
         }
     }

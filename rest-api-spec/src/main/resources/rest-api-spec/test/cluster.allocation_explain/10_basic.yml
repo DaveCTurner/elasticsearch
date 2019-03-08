@@ -14,6 +14,7 @@
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ master_node ]
 
   - do:
@@ -39,6 +40,7 @@
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ master_node ]
 
   - do:

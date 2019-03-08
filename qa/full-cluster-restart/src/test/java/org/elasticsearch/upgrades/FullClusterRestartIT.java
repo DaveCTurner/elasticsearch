@@ -232,7 +232,10 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
         }
 
         // verifying if we can still read some properties from cluster state api:
-        Map<String, Object> clusterState = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
+        final Request request = new Request("GET", "/_cluster/state");
+        request.setOptions(expectWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and " +
+            "will be removed in the next major version."));
+        Map<String, Object> clusterState = entityAsMap(client().performRequest(request));
 
         // Check some global properties:
         String clusterName = (String) clusterState.get("cluster_name");
@@ -1010,7 +1013,10 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
      */
     @SuppressWarnings("unchecked")
     private void assertClosedIndex(final String index, final boolean checkRoutingTable) throws IOException {
-        final Map<String, ?> state = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
+        final Request request = new Request("GET", "/_cluster/state");
+        request.setOptions(expectWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and " +
+            "will be removed in the next major version."));
+        final Map<String, ?> state = entityAsMap(client().performRequest(request));
 
         final Map<String, ?> metadata = (Map<String, Object>) XContentMapValues.extractValue("metadata.indices." + index, state);
         assertThat(metadata, notNullValue());

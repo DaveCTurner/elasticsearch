@@ -1,7 +1,8 @@
 ---
 "node_info test":
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
 
   # Get master node id
   - set: { master_node: master }

@@ -51,7 +51,7 @@ public class ClusterStateRequestTests extends ESTestCase {
                     clusterStateRequest.waitForTimeout(new TimeValue(randomNonNegativeLong()));
                 }
             }
-            if (testVersion.onOrAfter(Version.V_6_7_0)) {
+            if (testVersion.onOrAfter(Version.V_8_0_0)) { // TODO aiming for V_6_7_0 after backport
                 if (randomBoolean()) {
                     clusterStateRequest.compressedClusterStateSize(randomBoolean());
                 }
@@ -75,7 +75,7 @@ public class ClusterStateRequestTests extends ESTestCase {
                 assertThat(deserializedCSRequest.waitForMetaDataVersion(), equalTo(clusterStateRequest.waitForMetaDataVersion()));
                 assertThat(deserializedCSRequest.waitForTimeout(), equalTo(clusterStateRequest.waitForTimeout()));
             }
-            if (testVersion.onOrAfter(Version.V_6_7_0)) {
+            if (testVersion.onOrAfter(Version.V_8_0_0)) { // TODO aiming for V_6_7_0 after backport
                 assertThat(deserializedCSRequest.compressedClusterStateSize(), equalTo(clusterStateRequest.compressedClusterStateSize()));
             } else {
                 assertTrue(deserializedCSRequest.compressedClusterStateSize());

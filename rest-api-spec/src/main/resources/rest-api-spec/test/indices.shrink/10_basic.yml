@@ -11,7 +11,8 @@
   # which node is the one with the highest version and that is the only one that can safely
   # be used to shrink the index.
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
       # Get master node id
 
   - set: { master_node: master }

@@ -1,7 +1,8 @@
 ---
 "Nodes Stats with response filtering":
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
 
   # Get master node id
   - set: { master_node: master }
@@ -156,7 +157,8 @@
 ---
 "Nodes Stats filtered using both includes and excludes filters":
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
 
   # Get master node id
   - set: { master_node: master }

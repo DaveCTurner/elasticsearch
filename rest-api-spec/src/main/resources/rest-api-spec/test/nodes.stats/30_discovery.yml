@@ -4,7 +4,8 @@
       version:     " - 6.0.99"
       reason:      "published_cluster_states_received arrived in 6.1.0"
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
 
   # Get master node id
   - set: { master_node: master }

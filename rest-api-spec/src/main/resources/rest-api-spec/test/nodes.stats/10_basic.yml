@@ -10,7 +10,8 @@
 ---
 "Nodes stats level":
   - do:
-      cluster.state: {}
+      cluster.state:
+        compressed_cluster_state_size: false
 
   - set: { master_node: master }
 

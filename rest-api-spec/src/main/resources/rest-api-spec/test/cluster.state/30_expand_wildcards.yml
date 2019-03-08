@@ -31,6 +31,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: test*
         expand_wildcards: [ closed ]
@@ -40,6 +41,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: test*
         expand_wildcards: [ open ]
@@ -49,6 +51,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: test*
         expand_wildcards: [ open,closed ]
@@ -61,6 +64,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: foobla
         ignore_unavailable: true
@@ -70,6 +74,7 @@ setup:
   - do:
       catch: missing
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: foobla
         ignore_unavailable: false
@@ -79,6 +84,7 @@ setup:
 
   - do:
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: not_there*
 
@@ -87,6 +93,7 @@ setup:
   - do:
       catch: missing
       cluster.state:
+        compressed_cluster_state_size: false
         metric: [ metadata ]
         index: not_there*
         allow_no_indices: false
