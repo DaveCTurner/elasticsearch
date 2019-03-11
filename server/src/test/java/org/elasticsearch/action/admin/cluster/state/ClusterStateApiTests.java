@@ -32,6 +32,19 @@ import static org.hamcrest.Matchers.nullValue;
 
 public class ClusterStateApiTests extends ESSingleNodeTestCase {
 
+    public void testEmitsDeprecationWarningIfCompressedClusterStateSizeNotSuppressed() {
+        ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        client().admin().cluster().state(clusterStateRequest).actionGet();
+        assertWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
+    }
+
+    public void testEmitsDeprecationWarningIfCompressedClusterStateSizeRequested() {
+        ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        clusterStateRequest.compressedClusterStateSize(true);
+        client().admin().cluster().state(clusterStateRequest).actionGet();
+        assertWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
+    }
+
     public void testWaitForMetaDataVersion() throws Exception {
         ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
         clusterStateRequest.compressedClusterStateSize(false);

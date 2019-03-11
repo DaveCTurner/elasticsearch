@@ -183,7 +183,25 @@ public abstract class ESRestTestCase extends ESTestCase {
         assert hasXPack != null;
         assert nodeVersions != null;
     }
-    
+
+    protected final Request newGetClusterStateRequest() {
+        final Request request = new Request("GET", "/_cluster/state");
+        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
+        return request;
+    }
+
+    protected final Request newGetClusterMetadataRequest() {
+        final Request request = new Request("GET", "/_cluster/state/metadata");
+        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
+        return request;
+    }
+
+    protected final Request newGetClusterSettingsRequest() {
+        final Request request = new Request("GET", "/_cluster/settings");
+        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
+        return request;
+    }
+
     /**
      * Helper class to check warnings in REST responses with sensitivity to versions
      * used in the target cluster.
@@ -268,25 +286,17 @@ public abstract class ESRestTestCase extends ESTestCase {
     public static RequestOptions allowTypesRemovalWarnings() {
         Builder builder = RequestOptions.DEFAULT.toBuilder();
         builder.setWarningsHandler(new WarningsHandler() {
-                @Override
-                public boolean warningsShouldFailRequest(List<String> warnings) {
-                    for (String warning : warnings) {
-                        if (warning.startsWith("[types removal]")) {
-                            // ignore types removal messages
-                            continue;
-                        }
-
-                        if (warning.equals(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE)) {
-                            // ignore the message about the deprecation of the compressed cluster state size
-                            continue;
-                        }
-
+            @Override
+            public boolean warningsShouldFailRequest(List<String> warnings) {
+                for (String warning : warnings) {
+                    if(warning.startsWith("[types removal]") == false) {
+                        //Something other than a types removal message - return true
                         return true;
                     }
-
-                    return false;
                 }
-            });
+                return false;
+            }
+        });
         return builder.build();
     }
 
@@ -572,7 +582,7 @@ public abstract class ESRestTestCase extends ESTestCase {
      * Remove any cluster settings.
      */
     private void wipeClusterSettings() throws IOException {
-        Map<?, ?> getResponse = entityAsMap(adminClient().performRequest(new Request("GET", "/_cluster/settings")));
+        Map<?, ?> getResponse = entityAsMap(adminClient().performRequest(newGetClusterSettingsRequest()));
 
         boolean mustClear = false;
         XContentBuilder clearCommand = JsonXContent.contentBuilder();
@@ -913,7 +923,11 @@ public abstract class ESRestTestCase extends ESTestCase {
     }
 
     protected static Map<String, Object> getAsMap(final String endpoint) throws IOException {
-        Response response = client().performRequest(new Request("GET", endpoint));
+        return requestAsMap(new Request("GET", endpoint));
+    }
+
+    protected static Map<String, Object> requestAsMap(Request request) throws IOException {
+        Response response = client().performRequest(request);
         XContentType entityContentType = XContentType.fromMediaTypeOrFormat(response.getEntity().getContentType().getValue());
         Map<String, Object> responseEntity = XContentHelper.convertToMap(entityContentType.xContent(),
                 response.getEntity().getContent(), false);

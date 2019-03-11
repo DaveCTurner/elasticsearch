@@ -21,6 +21,7 @@ package org.elasticsearch.upgrades;
 
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.Version;
+import org.elasticsearch.action.admin.cluster.state.TransportClusterStateAction;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
@@ -232,7 +233,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
         }
 
         // verifying if we can still read some properties from cluster state api:
-        Map<String, Object> clusterState = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
+        Map<String, Object> clusterState = entityAsMap(client().performRequest(newGetClusterStateRequest()));
 
         // Check some global properties:
         String clusterName = (String) clusterState.get("cluster_name");
@@ -802,6 +803,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
 
         // Stick a routing attribute into to cluster settings so we can see it after the restore
         Request addRoutingSettings = new Request("PUT", "/_cluster/settings");
+        addRoutingSettings.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
         addRoutingSettings.setJsonEntity(
                     "{\"persistent\": {\"cluster.routing.allocation.exclude.test_attr\": \"" + getOldClusterVersion() + "\"}}");
         client().performRequest(addRoutingSettings);
@@ -1010,7 +1012,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
      */
     @SuppressWarnings("unchecked")
     private void assertClosedIndex(final String index, final boolean checkRoutingTable) throws IOException {
-        final Map<String, ?> state = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
+        final Map<String, ?> state = entityAsMap(client().performRequest(newGetClusterStateRequest()));
 
         final Map<String, ?> metadata = (Map<String, Object>) XContentMapValues.extractValue("metadata.indices." + index, state);
         assertThat(metadata, notNullValue());
@@ -1107,7 +1109,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
         client().performRequest(new Request("DELETE", "/restored_*"));
 
         // Check settings added by the restore process
-        Request clusterSettingsRequest = new Request("GET", "/_cluster/settings");
+        Request clusterSettingsRequest = newGetClusterSettingsRequest();
         clusterSettingsRequest.addParameter("flat_settings", "true");
         Map<String, Object> clusterSettingsResponse = entityAsMap(client().performRequest(clusterSettingsRequest));
         @SuppressWarnings("unchecked") final Map<String, Object> persistentSettings =
