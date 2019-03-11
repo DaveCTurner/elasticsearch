@@ -43,7 +43,8 @@ public class ClusterStateRequestTests extends ESTestCase {
 
             Version testVersion = VersionUtils.randomVersionBetween(random(),
                 Version.CURRENT.minimumCompatibilityVersion(), Version.CURRENT);
-            if (testVersion.onOrAfter(Version.V_6_6_0)) {
+            // TODO: change version to V_6_6_0 after backporting:
+            if (testVersion.onOrAfter(Version.V_7_0_0)) {
                 if (randomBoolean()) {
                     clusterStateRequest.waitForMetaDataVersion(randomLongBetween(1, Long.MAX_VALUE));
                 }
