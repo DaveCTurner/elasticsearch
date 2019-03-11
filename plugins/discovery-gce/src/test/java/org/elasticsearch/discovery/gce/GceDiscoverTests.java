@@ -74,7 +74,7 @@ public class GceDiscoverTests extends ESIntegTestCase {
         final String masterNode = internalCluster().startMasterOnlyNode();
         registerGceNode(masterNode);
 
-        ClusterStateResponse clusterStateResponse = client(masterNode).admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        ClusterStateResponse clusterStateResponse = client(masterNode).admin().cluster().prepareState()
                                                                             .setMasterNodeTimeout("1s")
                                                                             .clear()
                                                                             .setNodes(true)
@@ -84,7 +84,7 @@ public class GceDiscoverTests extends ESIntegTestCase {
         // start another node
         final String secondNode = internalCluster().startNode();
         registerGceNode(secondNode);
-        clusterStateResponse = client(secondNode).admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        clusterStateResponse = client(secondNode).admin().cluster().prepareState()
                                                                             .setMasterNodeTimeout("1s")
                                                                             .clear()
                                                                             .setNodes(true)
