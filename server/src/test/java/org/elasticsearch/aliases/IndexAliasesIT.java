@@ -185,7 +185,7 @@ public class IndexAliasesIT extends ESIntegTestCase {
 
         // For now just making sure that filter was stored with the alias
         logger.info("--> making sure that filter was stored with alias [alias1] and filter [user:kimchy]");
-        ClusterState clusterState = admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = admin().cluster().prepareState().get().getState();
         IndexMetaData indexMd = clusterState.metaData().index("test");
         assertThat(indexMd.getAliases().get("alias1").filter().string(),
             equalTo("{\"term\":{\"user\":{\"value\":\"kimchy\",\"boost\":1.0}}}"));

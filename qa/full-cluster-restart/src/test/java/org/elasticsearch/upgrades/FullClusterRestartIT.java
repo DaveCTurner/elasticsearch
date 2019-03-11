@@ -232,7 +232,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
         }
 
         // verifying if we can still read some properties from cluster state api:
-        Map<String, Object> clusterState = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state/")));
+        Map<String, Object> clusterState = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
 
         // Check some global properties:
         String clusterName = (String) clusterState.get("cluster_name");
@@ -1010,7 +1010,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
      */
     @SuppressWarnings("unchecked")
     private void assertClosedIndex(final String index, final boolean checkRoutingTable) throws IOException {
-        final Map<String, ?> state = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state/")));
+        final Map<String, ?> state = entityAsMap(client().performRequest(new Request("GET", "/_cluster/state")));
 
         final Map<String, ?> metadata = (Map<String, Object>) XContentMapValues.extractValue("metadata.indices." + index, state);
         assertThat(metadata, notNullValue());

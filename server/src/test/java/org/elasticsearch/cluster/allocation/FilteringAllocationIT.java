@@ -79,8 +79,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
 
         logger.info("--> verify all are allocated on node1 now");
-        ClusterState clusterState
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
         for (IndexRoutingTable indexRoutingTable : clusterState.routingTable()) {
             for (IndexShardRoutingTable indexShardRoutingTable : indexRoutingTable) {
                 for (ShardRouting shardRouting : indexShardRoutingTable) {
@@ -126,8 +125,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
             ensureGreen("test");
         }
 
-        ClusterState clusterState
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
         IndexRoutingTable indexRoutingTable = clusterState.routingTable().index("test");
         int numShardsOnNode1 = 0;
         for (IndexShardRoutingTable indexShardRoutingTable : indexRoutingTable) {
@@ -153,7 +151,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
 
         logger.info("--> verify all shards are allocated on node_1 now");
-        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
         indexRoutingTable = clusterState.routingTable().index("test");
         for (IndexShardRoutingTable indexShardRoutingTable : indexRoutingTable) {
             for (ShardRouting shardRouting : indexShardRoutingTable) {
@@ -169,7 +167,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         ensureGreen("test");
 
         logger.info("--> verify that there are shards allocated on both nodes now");
-        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(clusterState.routingTable().index("test").numberOfNodesShardsAreAllocatedOn(), equalTo(2));
     }
 
@@ -207,7 +205,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         logger.info("--> waiting for relocation");
         waitForRelocation(ClusterHealthStatus.GREEN);
 
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
 
         for (ShardRouting shard : state.getRoutingTable().shardsWithState(ShardRoutingState.STARTED)) {
             String node = state.getRoutingNodes().node(shard.currentNodeId()).node().getName();
@@ -226,7 +224,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         logger.info("--> waiting for relocation");
         waitForRelocation(ClusterHealthStatus.GREEN);
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        state = client().admin().cluster().prepareState().get().getState();
 
         // The transient settings still exist in the state
         assertThat(state.metaData().transientSettings(), equalTo(exclude));

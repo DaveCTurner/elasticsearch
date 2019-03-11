@@ -45,8 +45,7 @@ public class FollowStatsIT extends CcrSingleNodeTestCase {
      * @throws InterruptedException if we are interrupted waiting on the latch to countdown
      */
     public void testStatsWhenNoPersistentTasksMetaDataExists() throws InterruptedException {
-        final ClusterStateResponse response = client().admin().cluster()
-            .state(new ClusterStateRequest().compressedClusterStateSize(false)).actionGet();
+        final ClusterStateResponse response = client().admin().cluster().state(new ClusterStateRequest()).actionGet();
         assertNull(response.getState().metaData().custom(PersistentTasksCustomMetaData.TYPE));
         final AtomicBoolean onResponse = new AtomicBoolean();
         final CountDownLatch latch = new CountDownLatch(1);

@@ -70,7 +70,7 @@ public class IndexPrimaryRelocationIT extends ESIntegTestCase {
         };
         indexingThread.start();
 
-        ClusterState initialState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState initialState = client().admin().cluster().prepareState().get().getState();
         DiscoveryNode[] dataNodes = initialState.getNodes().getDataNodes().values().toArray(DiscoveryNode.class);
         DiscoveryNode relocationSource = initialState.getNodes().getDataNodes().get(initialState.getRoutingTable()
             .shardRoutingTable("test", 0).primaryShard().currentNodeId());

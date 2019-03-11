@@ -134,14 +134,16 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         ClusterStateResponse leaderState = leaderClient()
             .admin()
-            .cluster().prepareState().setCompressedClusterStateSize(false)
+            .cluster()
+            .prepareState()
             .clear()
             .setMetaData(true)
             .setIndices(leaderIndex)
             .get();
         ClusterStateResponse followerState = followerClient()
             .admin()
-            .cluster().prepareState().setCompressedClusterStateSize(false)
+            .cluster()
+            .prepareState()
             .clear()
             .setMetaData(true)
             .setIndices(followerIndex)
@@ -432,7 +434,6 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
             clusterStateRequest.clear();
             clusterStateRequest.metaData(true);
             clusterStateRequest.indices(followerIndex);
-            clusterStateRequest.compressedClusterStateSize(false);
             MappingMetaData mappingMetaData = followerClient().admin().indices().prepareGetMappings("index2").get().getMappings()
                 .get("index2").get("doc");
             assertThat(XContentMapValues.extractValue("properties.k.type", mappingMetaData.sourceAsMap()), equalTo("long"));

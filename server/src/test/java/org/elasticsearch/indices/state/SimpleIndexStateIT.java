@@ -51,7 +51,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
 
         NumShards numShards = getNumShards("test");
 
-        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().get();
         assertThat(stateResponse.getState().metaData().index("test").getState(), equalTo(IndexMetaData.State.OPEN));
         assertThat(stateResponse.getState().routingTable().index("test").shards().size(), equalTo(numShards.numPrimaries));
         assertEquals(stateResponse.getState().routingTable().index("test").shardsWithState(ShardRoutingState.STARTED).size()
@@ -63,7 +63,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         logger.info("--> closing test index...");
         assertAcked(client().admin().indices().prepareClose("test"));
 
-        stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        stateResponse = client().admin().cluster().prepareState().get();
         assertThat(stateResponse.getState().metaData().index("test").getState(), equalTo(IndexMetaData.State.CLOSE));
         assertThat(stateResponse.getState().routingTable().index("test"), notNullValue());
 
@@ -82,7 +82,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         logger.info("--> waiting for green status");
         ensureGreen();
 
-        stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        stateResponse = client().admin().cluster().prepareState().get();
         assertThat(stateResponse.getState().metaData().index("test").getState(), equalTo(IndexMetaData.State.OPEN));
 
         assertThat(stateResponse.getState().routingTable().index("test").shards().size(), equalTo(numShards.numPrimaries));
@@ -115,7 +115,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
 
         NumShards numShards = getNumShards("test");
 
-        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().get();
         assertThat(stateResponse.getState().metaData().index("test").getState(), equalTo(IndexMetaData.State.OPEN));
         assertThat(stateResponse.getState().routingTable().index("test").shards().size(), equalTo(numShards.numPrimaries));
         assertEquals(stateResponse.getState().routingTable().index("test").shardsWithState(ShardRoutingState.STARTED).size(),

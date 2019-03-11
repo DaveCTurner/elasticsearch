@@ -97,8 +97,8 @@ public class ShrinkIndexIT extends ESIntegTestCase {
             client().prepareIndex("source", "t1", Integer.toString(i))
                 .setSource("{\"foo\" : \"bar\", \"i\" : " + i + "}", XContentType.JSON).get();
         }
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+            .getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         String mergeNode = discoveryNodes[0].getName();
@@ -174,7 +174,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         prepareCreate("source").setSettings(Settings.builder().put(indexSettings()).put("number_of_shards", numberOfShards)).get();
 
         final ImmutableOpenMap<String, DiscoveryNode> dataNodes =
-                client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+                client().admin().cluster().prepareState().get().getState().nodes().getDataNodes();
         assertThat(dataNodes.size(), greaterThanOrEqualTo(2));
         final DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         final String mergeNode = discoveryNodes[0].getName();
@@ -237,8 +237,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
     }
 
     private static IndexMetaData indexMetaData(final Client client, final String index) {
-        final ClusterStateResponse clusterStateResponse = client.admin().cluster()
-            .state(new ClusterStateRequest().compressedClusterStateSize(false)).actionGet();
+        final ClusterStateResponse clusterStateResponse = client.admin().cluster().state(new ClusterStateRequest()).actionGet();
         return clusterStateResponse.getState().metaData().index(index);
     }
 
@@ -255,7 +254,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
                 .setSource("{\"foo\" : \"bar\", \"i\" : " + i + "}", XContentType.JSON).get();
         }
         ImmutableOpenMap<String, DiscoveryNode> dataNodes =
-                client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+                client().admin().cluster().prepareState().get().getState().nodes().getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         // ensure all shards are allocated otherwise the ensure green below might not succeed since we require the merge node
@@ -291,7 +290,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         ensureGreen();
 
         // resolve true merge node - this is not always the node we required as all shards may be on another node
-        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().get().getState();
         DiscoveryNode mergeNode = state.nodes().get(state.getRoutingTable().index("target").shard(0).primaryShard().currentNodeId());
         logger.info("merge node {}", mergeNode);
 
@@ -355,8 +354,8 @@ public class ShrinkIndexIT extends ESIntegTestCase {
             client().prepareIndex("source", "type")
                 .setSource("{\"foo\" : \"bar\", \"i\" : " + i + "}", XContentType.JSON).get();
         }
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+            .getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         String spareNode = discoveryNodes[0].getName();
@@ -390,8 +389,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
             .setSettings(Settings.builder().putNull("index.routing.allocation.exclude._name")).get();
         // wait until it fails
         assertBusy(() -> {
-            ClusterStateResponse clusterStateResponse
-                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+            ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().get();
             RoutingTable routingTables = clusterStateResponse.getState().routingTable();
             assertTrue(routingTables.index("target").shard(0).getShards().get(0).unassigned());
             assertEquals(UnassignedInfo.Reason.ALLOCATION_FAILED,
@@ -437,8 +435,8 @@ public class ShrinkIndexIT extends ESIntegTestCase {
             client().prepareIndex("source", "type", Integer.toString(i))
                 .setSource("{\"foo\" : \"bar\", \"id\" : " + i + "}", XContentType.JSON).get();
         }
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+            .getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         String mergeNode = discoveryNodes[0].getName();
@@ -501,7 +499,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         }
         client().admin().indices().prepareFlush("source").get();
         ImmutableOpenMap<String, DiscoveryNode> dataNodes =
-            client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+            client().admin().cluster().prepareState().get().getState().nodes().getDataNodes();
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         // ensure all shards are allocated otherwise the ensure green below might not succeed since we require the merge node
         // if we change the setting too quickly we will end up with one replica unassigned which can't be assigned anymore due
@@ -525,7 +523,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         assertAcked(client().admin().indices().prepareResizeIndex("source", "target")
             .setSettings(Settings.builder().put("index.number_of_replicas", 0).build()).get());
         ensureGreen();
-        ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().get();
         IndexMetaData target = clusterStateResponse.getState().getMetaData().index("target");
         client().admin().indices().prepareForceMerge("target").setMaxNumSegments(1).setFlush(false).get();
         IndicesSegmentResponse targetSegStats = client().admin().indices().prepareSegments("target").get();

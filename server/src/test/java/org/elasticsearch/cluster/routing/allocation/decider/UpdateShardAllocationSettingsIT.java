@@ -108,7 +108,7 @@ public class UpdateShardAllocationSettingsIT extends ESIntegTestCase {
             Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
                 .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
         ).get();
-        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
         assertFalse("replica should be unassigned",
             clusterState.getRoutingTable().index(indexName).shardsWithState(ShardRoutingState.UNASSIGNED).isEmpty());
         // now, update the same_host setting to allow shards to be allocated to multiple nodes on
@@ -116,7 +116,7 @@ public class UpdateShardAllocationSettingsIT extends ESIntegTestCase {
         client().admin().cluster().prepareUpdateSettings().setTransientSettings(
             Settings.builder().put(CLUSTER_ROUTING_ALLOCATION_SAME_HOST_SETTING.getKey(), false)
         ).get();
-        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        clusterState = client().admin().cluster().prepareState().get().getState();
         assertTrue("all shards should be assigned",
             clusterState.getRoutingTable().index(indexName).shardsWithState(ShardRoutingState.UNASSIGNED).isEmpty());
     }

@@ -111,8 +111,9 @@ public class UpgradeSettingsIT extends ESSingleNodeTestCase {
         builder.get();
 
         final ClusterStateResponse response = client()
-            .admin()
-            .cluster().prepareState().setCompressedClusterStateSize(false)
+                .admin()
+                .cluster()
+                .prepareState()
                 .clear()
                 .setMetaData(true)
                 .get();
@@ -136,8 +137,7 @@ public class UpgradeSettingsIT extends ESSingleNodeTestCase {
                             .build())
                 .get();
 
-        final ClusterStateResponse response
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setMetaData(true).get();
+        final ClusterStateResponse response = client().admin().cluster().prepareState().clear().setMetaData(true).get();
 
         final Settings settings = response.getState().metaData().persistentSettings();
         assertFalse(RemoteClusterService.SEARCH_REMOTE_CLUSTER_SKIP_UNAVAILABLE.getConcreteSettingForNamespace("foo").exists(settings));

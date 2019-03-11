@@ -54,7 +54,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
         GetJobsStatsAction.Response statsResponse =
                 client().execute(GetJobsStatsAction.INSTANCE, new GetJobsStatsAction.Request("close-failed-job-2")).actionGet();
         assertEquals(statsResponse.getResponse().results().get(0).getState(), JobState.CLOSED);
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         PersistentTasksCustomMetaData tasks = state.getMetaData().custom(PersistentTasksCustomMetaData.TYPE);
         assertEquals(1, tasks.taskMap().size());
         // now just double check that the first job is still opened:
@@ -187,8 +187,7 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
                 client().execute(OpenJobAction.INSTANCE, openJobRequest).actionGet();
                 assertBusy(() -> {
                     for (Client client : clients()) {
-                        PersistentTasksCustomMetaData tasks
-                            = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState()
+                        PersistentTasksCustomMetaData tasks = client.admin().cluster().prepareState().get().getState()
                                 .getMetaData().custom(PersistentTasksCustomMetaData.TYPE);
                         assertEquals(MlTasks.getJobState(job.getId(), tasks), JobState.OPENED);
                     }

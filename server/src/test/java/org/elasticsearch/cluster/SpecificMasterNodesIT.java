@@ -50,7 +50,7 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
             .put(Node.NODE_MASTER_SETTING.getKey(), false)
             .put("discovery.initial_state_timeout", "1s"));
         try {
-            assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setMasterNodeTimeout("100ms")
+            assertThat(client().admin().cluster().prepareState().setMasterNodeTimeout("100ms")
                 .execute().actionGet().getState().nodes().getMasterNodeId(), nullValue());
             fail("should not be able to find master");
         } catch (MasterNotDiscoveredException e) {
@@ -59,16 +59,16 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
         logger.info("--> start master node");
         final String masterNodeName = internalCluster()
             .startNode(Settings.builder().put(Node.NODE_DATA_SETTING.getKey(), false).put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
-        assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().masterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
 
         logger.info("--> stop master node");
         internalCluster().stopCurrentMasterNode();
 
         try {
-            assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setMasterNodeTimeout("100ms")
+            assertThat(client().admin().cluster().prepareState().setMasterNodeTimeout("100ms")
                 .execute().actionGet().getState().nodes().getMasterNodeId(), nullValue());
             fail("should not be able to find master");
         } catch (MasterNotDiscoveredException e) {
@@ -78,9 +78,9 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
         logger.info("--> start master node");
         final String nextMasterEligibleNodeName = internalCluster()
             .startNode(Settings.builder().put(Node.NODE_DATA_SETTING.getKey(), false).put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligibleNodeName));
-        assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().masterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligibleNodeName));
     }
 
@@ -91,7 +91,7 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
         internalCluster().startNode(Settings.builder().put(Node.NODE_DATA_SETTING.getKey(), true)
             .put(Node.NODE_MASTER_SETTING.getKey(), false).put("discovery.initial_state_timeout", "1s"));
         try {
-            assertThat(client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setMasterNodeTimeout("100ms")
+            assertThat(client().admin().cluster().prepareState().setMasterNodeTimeout("100ms")
                 .execute().actionGet().getState().nodes().getMasterNodeId(), nullValue());
             fail("should not be able to find master");
         } catch (MasterNotDiscoveredException e) {
@@ -100,19 +100,19 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
         logger.info("--> start master node (1)");
         final String masterNodeName = internalCluster().startNode(Settings.builder().put(Node.NODE_DATA_SETTING.getKey(), false)
             .put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
-        assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().masterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
 
         logger.info("--> start master node (2)");
         final String nextMasterEligableNodeName = internalCluster().startNode(Settings.builder()
             .put(Node.NODE_DATA_SETTING.getKey(), false).put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
-        assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().masterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(masterNodeName));
 
         logger.info("--> closing master node (1)");
@@ -120,15 +120,15 @@ public class SpecificMasterNodesIT extends ESIntegTestCase {
                 new AddVotingConfigExclusionsRequest(new String[]{masterNodeName})).get();
         // removing the master from the voting configuration immediately triggers the master to step down
         assertBusy(() -> {
-            assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
                 .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligableNodeName));
-            assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+            assertThat(internalCluster().masterClient().admin().cluster().prepareState()
                 .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligableNodeName));
         });
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(masterNodeName));
-        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().nonMasterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligableNodeName));
-        assertThat(internalCluster().masterClient().admin().cluster().prepareState().setCompressedClusterStateSize(false)
+        assertThat(internalCluster().masterClient().admin().cluster().prepareState()
             .execute().actionGet().getState().nodes().getMasterNode().getName(), equalTo(nextMasterEligableNodeName));
     }
 

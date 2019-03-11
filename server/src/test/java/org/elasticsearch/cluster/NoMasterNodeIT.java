@@ -91,7 +91,7 @@ public class NoMasterNodeIT extends ESIntegTestCase {
         final Client clientToMasterlessNode = client();
 
         assertBusy(() -> {
-            ClusterState state = clientToMasterlessNode.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
+            ClusterState state = clientToMasterlessNode.admin().cluster().prepareState().setLocal(true)
                 .execute().actionGet().getState();
             assertTrue(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID));
         });
@@ -212,7 +212,7 @@ public class NoMasterNodeIT extends ESIntegTestCase {
 
         ensureSearchable("test1", "test2");
 
-        ClusterStateResponse clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        ClusterStateResponse clusterState = client().admin().cluster().prepareState().get();
         logger.info("Cluster state:\n{}", clusterState.getState());
 
         final NetworkDisruption disruptionScheme
@@ -223,8 +223,7 @@ public class NoMasterNodeIT extends ESIntegTestCase {
         final Client clientToMasterlessNode = client();
 
         assertTrue(awaitBusy(() -> {
-                ClusterState state = clientToMasterlessNode.admin().cluster().prepareState()
-                    .setCompressedClusterStateSize(false).setLocal(true).get().getState();
+                ClusterState state = clientToMasterlessNode.admin().cluster().prepareState().setLocal(true).get().getState();
                 return state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID);
             }
         ));

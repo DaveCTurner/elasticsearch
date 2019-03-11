@@ -43,7 +43,7 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
         long start = System.currentTimeMillis();
         Set<ClusterBlock> blocks;
         do {
-            blocks = nodeClient.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+            blocks = nodeClient.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                     .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE);
         }
         while (!blocks.isEmpty() && (System.currentTimeMillis() - start) < timeout.millis());
@@ -59,17 +59,17 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
         internalCluster().setBootstrapMasterNodeIndex(0);
         logger.info("--> start node (1)");
         Client clientNode1 = startNode(Settings.builder().put("gateway.recover_after_nodes", 3));
-        assertThat(clientNode1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(clientNode1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
         logger.info("--> start node (2)");
         Client clientNode2 = startNode(Settings.builder().put("gateway.recover_after_nodes", 3));
         Thread.sleep(BLOCK_WAIT_TIMEOUT.millis());
-        assertThat(clientNode1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(clientNode1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(clientNode2.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(clientNode2.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -87,7 +87,7 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
         Client master1 = startNode(Settings.builder()
             .put("gateway.recover_after_master_nodes", 2).put(Node.NODE_DATA_SETTING.getKey(), false)
             .put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(master1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -95,10 +95,10 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
         Client data1 = startNode(Settings.builder()
             .put("gateway.recover_after_master_nodes", 2)
             .put(Node.NODE_DATA_SETTING.getKey(), true).put(Node.NODE_MASTER_SETTING.getKey(), false));
-        assertThat(master1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(data1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(data1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -106,13 +106,13 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
         Client data2 = startNode(Settings.builder()
             .put("gateway.recover_after_master_nodes", 2).put(Node.NODE_DATA_SETTING.getKey(), true)
             .put(Node.NODE_MASTER_SETTING.getKey(), false));
-        assertThat(master1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(data1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(data1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(data2.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(data2.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -134,7 +134,7 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
             .put("gateway.recover_after_data_nodes", 2)
             .put(Node.NODE_DATA_SETTING.getKey(), false)
             .put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(master1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -143,10 +143,10 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
             .put("gateway.recover_after_data_nodes", 2)
             .put(Node.NODE_DATA_SETTING.getKey(), true)
             .put(Node.NODE_MASTER_SETTING.getKey(), false));
-        assertThat(master1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(data1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(data1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 
@@ -155,13 +155,13 @@ public class RecoverAfterNodesIT extends ESIntegTestCase {
             .put("gateway.recover_after_data_nodes", 2)
             .put(Node.NODE_DATA_SETTING.getKey(), false)
             .put(Node.NODE_MASTER_SETTING.getKey(), true));
-        assertThat(master2.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master2.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(data1.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(data1.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
-        assertThat(master2.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).execute().actionGet()
+        assertThat(master2.admin().cluster().prepareState().setLocal(true).execute().actionGet()
                 .getState().blocks().global(ClusterBlockLevel.METADATA_WRITE),
                 hasItem(GatewayService.STATE_NOT_RECOVERED_BLOCK));
 

@@ -152,8 +152,7 @@ public class SuggestStatsIT extends ESIntegTestCase {
     }
 
     private Set<String> nodeIdsWithIndex(String... indices) {
-        ClusterState state
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
         GroupShardsIterator<ShardIterator> allAssignedShardsGrouped = state.routingTable().allAssignedShardsGrouped(indices, true);
         Set<String> nodes = new HashSet<>();
         for (ShardIterator shardIterator : allAssignedShardsGrouped) {
@@ -169,8 +168,7 @@ public class SuggestStatsIT extends ESIntegTestCase {
 
 
     protected int numAssignedShards(String... indices) {
-        ClusterState state
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
         GroupShardsIterator allAssignedShardsGrouped = state.routingTable().allAssignedShardsGrouped(indices, true);
         return allAssignedShardsGrouped.size();
     }

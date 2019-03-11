@@ -81,8 +81,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         String node1Name = internalCluster().startNode(settings);
 
         logger.info("--> should be blocked, no master...");
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(true));
         assertThat(state.nodes().getSize(), equalTo(1)); // verify that we still see the local node in the cluster state
 
@@ -93,14 +92,12 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
             .setWaitForEvents(Priority.LANGUID).setWaitForNodes("2").execute().actionGet();
         assertThat(clusterHealthResponse.isTimedOut(), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.nodes().getSize(), equalTo(2));
         assertThat(state.metaData().indices().containsKey("test"), equalTo(false));
 
@@ -130,12 +127,10 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(masterNode));
 
         awaitBusy(() -> {
-            ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-                .execute().actionGet().getState();
+            ClusterState clusterState = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
             return clusterState.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID);
         });
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(true));
         // verify that both nodes are still in the cluster state but there is no master
         assertThat(state.nodes().getSize(), equalTo(2));
@@ -148,14 +143,12 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
             .setWaitForYellowStatus().setWaitForNodes("2").execute().actionGet();
         assertThat(clusterHealthResponse.isTimedOut(), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.nodes().getSize(), equalTo(2));
         assertThat(state.metaData().indices().containsKey("test"), equalTo(true));
 
@@ -179,8 +172,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(otherNode));
 
         assertBusy(() -> {
-            ClusterState state1 = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-                .execute().actionGet().getState();
+            ClusterState state1 = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
             assertThat(state1.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(true));
         });
 
@@ -192,14 +184,12 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
             .setWaitForNodes("2").setWaitForGreenStatus().execute().actionGet();
         assertThat(clusterHealthResponse.isTimedOut(), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-            .execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
         assertThat(state.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.nodes().getSize(), equalTo(2));
         assertThat(state.metaData().indices().containsKey("test"), equalTo(true));
 
@@ -227,8 +217,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
 
         assertBusy(() -> {
             for (Client client : clients()) {
-                ClusterState state1 = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-                    .execute().actionGet().getState();
+                ClusterState state1 = client.admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
                 assertThat(state1.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(true));
             }
         });
@@ -241,7 +230,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
             .setWaitForEvents(Priority.LANGUID).setWaitForNodes("3").execute().actionGet();
         assertThat(clusterHealthResponse.isTimedOut(), equalTo(false));
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.nodes().getSize(), equalTo(3));
 
         createIndex("test");
@@ -269,8 +258,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         logger.info("--> verify that there is no master anymore on remaining node");
         // spin here to wait till the state is set
         assertBusy(() -> {
-            ClusterState st = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true)
-                .execute().actionGet().getState();
+            ClusterState st = client().admin().cluster().prepareState().setLocal(true).execute().actionGet().getState();
             assertThat(st.blocks().hasGlobalBlockWithId(NoMasterBlockService.NO_MASTER_BLOCK_ID), equalTo(true));
         });
 
@@ -280,7 +268,7 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         internalCluster().validateClusterFormed();
         ensureGreen();
 
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.nodes().getSize(), equalTo(3));
 
         logger.info("--> verify we the data back");
@@ -347,8 +335,8 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         logger.debug("--> wait for master to be elected in major partition");
         assertBusy(() -> {
             DiscoveryNode masterNode =
-                    internalCluster().client(randomFrom(otherNodes)).admin().cluster().prepareState().setCompressedClusterStateSize(false)
-                        .execute().actionGet().getState().nodes().getMasterNode();
+                    internalCluster().client(randomFrom(otherNodes))
+                            .admin().cluster().prepareState().execute().actionGet().getState().nodes().getMasterNode();
             assertThat(masterNode, notNullValue());
             assertThat(masterNode.getName(), not(equalTo(master)));
         });

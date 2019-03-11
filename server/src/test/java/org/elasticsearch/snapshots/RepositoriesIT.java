@@ -65,8 +65,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         assertThat(FileSystemUtils.files(location).length, equalTo(numberOfFiles));
 
         logger.info("--> check that repository is really there");
-        ClusterStateResponse clusterStateResponse
-            = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setMetaData(true).get();
+        ClusterStateResponse clusterStateResponse = client.admin().cluster().prepareState().clear().setMetaData(true).get();
         MetaData metaData = clusterStateResponse.getState().getMetaData();
         RepositoriesMetaData repositoriesMetaData = metaData.custom(RepositoriesMetaData.TYPE);
         assertThat(repositoriesMetaData, notNullValue());
@@ -81,7 +80,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
 
         logger.info("--> check that both repositories are in cluster state");
-        clusterStateResponse = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().setMetaData(true).get();
+        clusterStateResponse = client.admin().cluster().prepareState().clear().setMetaData(true).get();
         metaData = clusterStateResponse.getState().getMetaData();
         repositoriesMetaData = metaData.custom(RepositoriesMetaData.TYPE);
         assertThat(repositoriesMetaData, notNullValue());
@@ -106,8 +105,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
                 .put("location", location)
             ).get().isAcknowledged(),
             equalTo(true));
-        assertEquals(beforeStateUuid,
-            client.admin().cluster().prepareState().setCompressedClusterStateSize(false).clear().get().getState().stateUUID());
+        assertEquals(beforeStateUuid, client.admin().cluster().prepareState().clear().get().getState().stateUUID());
 
         logger.info("--> delete repository test-repo-1");
         client.admin().cluster().prepareDeleteRepository("test-repo-1").get();

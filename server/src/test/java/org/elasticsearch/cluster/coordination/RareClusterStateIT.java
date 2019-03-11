@@ -215,7 +215,7 @@ public class RareClusterStateIT extends ESIntegTestCase {
         ensureGreen();
 
         // Check routing tables
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         assertEquals(master, state.nodes().getMasterNode().getName());
         List<ShardRouting> shards = state.routingTable().allShards("index");
         assertThat(shards, hasSize(1));
@@ -309,7 +309,7 @@ public class RareClusterStateIT extends ESIntegTestCase {
         ensureGreen();
 
         // Check routing tables
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         assertEquals(master, state.nodes().getMasterNode().getName());
         List<ShardRouting> shards = state.routingTable().allShards("index");
         assertThat(shards, hasSize(2));

@@ -198,7 +198,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         waitNoPendingTasksOnAll();
 
         String nodeId = null;
-        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (ObjectObjectCursor<String, DiscoveryNode> cursor : nodes.getNodes()) {
             final String name = cursor.value.getName();
@@ -364,7 +364,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         internalCluster().restartNode(node1, callback);
 
         String primaryNodeId = null;
-        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (ObjectObjectCursor<String, DiscoveryNode> cursor : nodes.getNodes()) {
             final String name = cursor.value.getName();
@@ -559,7 +559,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         ensureGreen(indexName);
 
         final Map<String, String> nodeNameToNodeId = new HashMap<>();
-        final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        final ClusterState state = client().admin().cluster().prepareState().get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (ObjectObjectCursor<String, DiscoveryNode> cursor : nodes.getNodes()) {
             nodeNameToNodeId.put(cursor.value.getName(), cursor.key);
@@ -596,7 +596,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
     }
 
     private Set<Path> getDirs(String indexName, String dirSuffix) {
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         GroupShardsIterator shardIterators = state.getRoutingTable().activePrimaryShardsGrouped(new String[]{indexName}, false);
         List<ShardIterator> iterators = iterableAsArrayList(shardIterators);
         ShardIterator shardIterator = RandomPicks.randomFrom(random(), iterators);

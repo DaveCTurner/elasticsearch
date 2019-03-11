@@ -185,8 +185,8 @@ public class SplitIndexIT extends ESIntegTestCase {
             }
         }
 
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+            .getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         ensureYellow();
         client().admin().indices().prepareUpdateSettings("source")
@@ -298,7 +298,7 @@ public class SplitIndexIT extends ESIntegTestCase {
             .put("index.number_of_routing_shards",  numberOfTargetShards)).get();
 
         final ImmutableOpenMap<String, DiscoveryNode> dataNodes =
-                client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+                client().admin().cluster().prepareState().get().getState().nodes().getDataNodes();
         assertThat(dataNodes.size(), greaterThanOrEqualTo(2));
         ensureYellow();
 
@@ -362,8 +362,7 @@ public class SplitIndexIT extends ESIntegTestCase {
     }
 
     private static IndexMetaData indexMetaData(final Client client, final String index) {
-        final ClusterStateResponse clusterStateResponse = client.admin().cluster()
-            .state(new ClusterStateRequest().compressedClusterStateSize(false)).actionGet();
+        final ClusterStateResponse clusterStateResponse = client.admin().cluster().state(new ClusterStateRequest()).actionGet();
         return clusterStateResponse.getState().metaData().index(index);
     }
 
@@ -380,7 +379,7 @@ public class SplitIndexIT extends ESIntegTestCase {
                 .setSource("{\"foo\" : \"bar\", \"i\" : " + i + "}", XContentType.JSON).get();
         }
         ImmutableOpenMap<String, DiscoveryNode> dataNodes =
-                client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+                client().admin().cluster().prepareState().get().getState().nodes().getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         // ensure all shards are allocated otherwise the ensure green below might not succeed since we require the merge node
         // if we change the setting too quickly we will end up with one replica unassigned which can't be assigned anymore due
@@ -411,7 +410,7 @@ public class SplitIndexIT extends ESIntegTestCase {
                         .build()).get());
             ensureGreen();
 
-            final ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+            final ClusterState state = client().admin().cluster().prepareState().get().getState();
             DiscoveryNode mergeNode = state.nodes().get(state.getRoutingTable().index("target").shard(0).primaryShard().currentNodeId());
             logger.info("split node {}", mergeNode);
 
@@ -487,8 +486,8 @@ public class SplitIndexIT extends ESIntegTestCase {
             client().prepareIndex("source", "type", Integer.toString(i))
                 .setSource("{\"foo\" : \"bar\", \"id\" : " + i + "}", XContentType.JSON).get();
         }
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+            .getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         // ensure all shards are allocated otherwise the ensure green below might not succeed since we require the merge node
         // if we change the setting too quickly we will end up with one replica unassigned which can't be assigned anymore due

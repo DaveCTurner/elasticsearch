@@ -103,7 +103,7 @@ public class DestructiveOperationsIT extends ESIntegTestCase {
             assertAcked(client().admin().indices().prepareClose("*").get());
         }
 
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         for (ObjectObjectCursor<String, IndexMetaData> indexMetaDataObjectObjectCursor : state.getMetaData().indices()) {
             assertEquals(IndexMetaData.State.CLOSE, indexMetaDataObjectObjectCursor.value.getState());
         }
@@ -139,7 +139,7 @@ public class DestructiveOperationsIT extends ESIntegTestCase {
             assertAcked(client().admin().indices().prepareOpen("*").get());
         }
 
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         for (ObjectObjectCursor<String, IndexMetaData> indexMetaDataObjectObjectCursor : state.getMetaData().indices()) {
             assertEquals(IndexMetaData.State.OPEN, indexMetaDataObjectObjectCursor.value.getState());
         }

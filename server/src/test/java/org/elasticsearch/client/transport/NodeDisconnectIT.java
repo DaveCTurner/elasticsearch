@@ -52,7 +52,7 @@ public class NodeDisconnectIT  extends ESIntegTestCase {
             }
             internalCluster().stopRandomDataNode();
             for (int i = 0; i < 20; i++) { // fire up requests such that we hit the node and pass it to the listener
-                client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+                client.admin().cluster().prepareState().get();
             }
             assertEquals(1, disconnectedNodes.size());
         }

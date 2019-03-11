@@ -199,9 +199,9 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         };
 
         Consumer<String> assertSettingValue = value -> {
-            assertThat(client.admin().cluster().prepareState().setCompressedClusterStateSize(false).setRoutingTable(false).setNodes(false)
-                    .execute().actionGet().getState().getMetaData().persistentSettings().get(BrokenSettingPlugin.BROKEN_SETTING.getKey()),
-                equalTo(value));
+            assertThat(client.admin().cluster().prepareState().setRoutingTable(false).setNodes(false).execute().actionGet().getState()
+                            .getMetaData().persistentSettings().get(BrokenSettingPlugin.BROKEN_SETTING.getKey()),
+                    equalTo(value));
         };
 
         logger.info("--> set test persistent setting");
@@ -313,7 +313,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         assertThat(client.admin().cluster().prepareGetRepositories("test-repo-2").get().repositories().size(), equalTo(1));
 
         logger.info("--> check that custom persistent metadata was restored");
-        ClusterState clusterState = client.admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client.admin().cluster().prepareState().get().getState();
         logger.info("Cluster state: {}", clusterState);
         MetaData metaData = clusterState.getMetaData();
         assertThat(((SnapshottableMetadata) metaData.custom(SnapshottableMetadata.TYPE)).getData(), equalTo("before_snapshot_s"));
@@ -328,7 +328,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         ensureYellow();
 
         logger.info("--> check that gateway-persistent custom metadata survived full cluster restart");
-        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        clusterState = client().admin().cluster().prepareState().get().getState();
         logger.info("Cluster state: {}", clusterState);
         metaData = clusterState.getMetaData();
         assertThat(metaData.custom(SnapshottableMetadata.TYPE), nullValue());
@@ -970,7 +970,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             assertEquals(1, snapshotsStatusResponse.getSnapshots().size());
             SnapshotInfo snapshotInfo = snapshotsStatusResponse.getSnapshots().get(0);
             assertTrue(snapshotInfo.state().completed());
-            ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+            ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
             SnapshotsInProgress snapshotsInProgress = clusterState.custom(SnapshotsInProgress.TYPE);
             assertEquals(0, snapshotsInProgress.entries().size());
         }, 30, TimeUnit.SECONDS);

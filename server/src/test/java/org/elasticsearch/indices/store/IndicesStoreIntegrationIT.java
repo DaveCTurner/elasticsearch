@@ -103,7 +103,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
                                 .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1))
         );
         ensureGreen("test");
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         Index index = state.metaData().index("test").getIndex();
 
         logger.info("--> making sure that shard and its replica are allocated on node_1 and node_2");
@@ -213,7 +213,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
                                 .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 0))
         );
         ensureGreen("test");
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         Index index = state.metaData().index("test").getIndex();
         assertThat(Files.exists(shardDirectory(node_1, index, 0)), equalTo(true));
         assertThat(Files.exists(indexDirectory(node_1, index)), equalTo(true));
@@ -273,7 +273,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         );
         ensureGreen("test");
 
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         Index index = state.metaData().index("test").getIndex();
         logger.info("--> making sure that shard and its replica are allocated on node_1 and node_2");
         assertThat(Files.exists(shardDirectory(node_1, index, 0)), equalTo(true));
@@ -413,7 +413,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         ensureGreen("test");
 
         waitNoPendingTasksOnAll();
-        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+        ClusterStateResponse stateResponse = client().admin().cluster().prepareState().get();
         final Index index = stateResponse.getState().metaData().index("test").getIndex();
         RoutingNode routingNode = stateResponse.getState().getRoutingNodes().node(nonMasterId);
         final int[] node2Shards = new int[routingNode.numberOfOwningShards()];

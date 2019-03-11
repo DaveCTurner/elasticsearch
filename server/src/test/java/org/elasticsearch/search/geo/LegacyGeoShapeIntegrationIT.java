@@ -162,7 +162,7 @@ public class LegacyGeoShapeIntegrationIT extends ESIntegTestCase {
     }
 
     private String findNodeName(String index) {
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         IndexShardRoutingTable shard = state.getRoutingTable().index(index).shard(0);
         String nodeId = shard.assignedShards().get(0).currentNodeId();
         return state.getNodes().get(nodeId).getName();

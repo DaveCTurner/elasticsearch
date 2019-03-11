@@ -41,7 +41,7 @@ public class ShardStateIT extends ESIntegTestCase {
         logger.info("--> disabling allocation to capture shard failure");
         disableAllocation("test");
 
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         final int shard = randomBoolean() ? 0 : 1;
         final String nodeId = state.routingTable().index("test").shard(shard).primaryShard().currentNodeId();
         final String node = state.nodes().get(nodeId).getName();
@@ -67,8 +67,7 @@ public class ShardStateIT extends ESIntegTestCase {
     protected void assertPrimaryTerms(long shard0Term, long shard1Term) {
         for (String node : internalCluster().getNodeNames()) {
             logger.debug("--> asserting primary terms terms on [{}]", node);
-            ClusterState state
-                = client(node).admin().cluster().prepareState().setCompressedClusterStateSize(false).setLocal(true).get().getState();
+            ClusterState state = client(node).admin().cluster().prepareState().setLocal(true).get().getState();
             IndexMetaData metaData = state.metaData().index("test");
             assertThat(metaData.primaryTerm(0), equalTo(shard0Term));
             assertThat(metaData.primaryTerm(1), equalTo(shard1Term));

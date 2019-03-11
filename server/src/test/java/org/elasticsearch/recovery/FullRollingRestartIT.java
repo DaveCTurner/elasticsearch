@@ -146,7 +146,7 @@ public class FullRollingRestartIT extends ESIntegTestCase {
                     .setSource(MapBuilder.<String, Object>newMapBuilder().put("test", "value" + i).map()).execute().actionGet();
         }
         ensureGreen();
-        ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
         RecoveryResponse recoveryResponse = client().admin().indices().prepareRecoveries("test").get();
         for (RecoveryState recoveryState : recoveryResponse.shardRecoveryStates().get("test")) {
             assertTrue("relocated from: " + recoveryState.getSourceNode() + " to: " + recoveryState.getTargetNode() + "\n" + state,
@@ -154,7 +154,7 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         }
         internalCluster().restartRandomDataNode();
         ensureGreen();
-        client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        client().admin().cluster().prepareState().get().getState();
 
         recoveryResponse = client().admin().indices().prepareRecoveries("test").get();
         for (RecoveryState recoveryState : recoveryResponse.shardRecoveryStates().get("test")) {

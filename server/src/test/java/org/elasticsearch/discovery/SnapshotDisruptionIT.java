@@ -161,7 +161,7 @@ public class SnapshotDisruptionIT extends ESIntegTestCase {
     private void assertAllSnapshotsCompleted() throws Exception {
         logger.info("--> wait until the snapshot is done");
         assertBusy(() -> {
-            ClusterState state = dataNodeClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+            ClusterState state = dataNodeClient().admin().cluster().prepareState().get().getState();
             SnapshotsInProgress snapshots = state.custom(SnapshotsInProgress.TYPE);
             SnapshotDeletionsInProgress snapshotDeletionsInProgress = state.custom(SnapshotDeletionsInProgress.TYPE);
             if (snapshots != null && snapshots.entries().isEmpty() == false) {

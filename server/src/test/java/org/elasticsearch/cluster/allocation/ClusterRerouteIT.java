@@ -107,8 +107,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
             client().admin().indices().prepareClose("test").get();
         }
 
-        ClusterState state
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(2));
 
         logger.info("--> explicitly allocate shard 1, *under dry_run*");
@@ -122,7 +121,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
             equalTo(ShardRoutingState.INITIALIZING));
 
         logger.info("--> get the state, verify nothing changed because of the dry run");
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(2));
 
         logger.info("--> explicitly allocate shard 1, actually allocating, no dry run");
@@ -142,7 +141,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
         assertThat(healthResponse.isTimedOut(), equalTo(false));
 
         logger.info("--> get the state, verify shard 1 primary allocated");
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(1));
         assertThat(state.getRoutingNodes().node(state.nodes().resolveNode(node_1).getId()).iterator().next().state(),
             equalTo(ShardRoutingState.STARTED));
@@ -167,7 +166,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
         assertThat(healthResponse.isTimedOut(), equalTo(false));
 
         logger.info("--> get the state, verify shard 1 primary moved from node1 to node2");
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(1));
         assertThat(state.getRoutingNodes().node(state.nodes().resolveNode(node_2).getId()).iterator().next().state(),
             equalTo(ShardRoutingState.STARTED));
@@ -243,8 +242,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
             client().admin().indices().prepareClose("test").get();
         }
 
-        ClusterState state
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(2));
 
         logger.info("--> explicitly allocate shard 1, actually allocating, no dry run");
@@ -264,7 +262,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
         assertThat(healthResponse.isTimedOut(), equalTo(false));
 
         logger.info("--> get the state, verify shard 1 primary allocated");
-        state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        state = client().admin().cluster().prepareState().execute().actionGet().getState();
         assertThat(state.getRoutingNodes().unassigned().size(), equalTo(1));
         assertThat(state.getRoutingNodes().node(state.nodes().resolveNode(node_1).getId()).iterator().next().state(),
             equalTo(ShardRoutingState.STARTED));
@@ -307,8 +305,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
         logger.info("--> get the state, verify shard 1 primary allocated");
         final String nodeToCheck = node_1;
         assertBusy(() -> {
-            ClusterState clusterState
-                = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+            ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
             String nodeId = clusterState.nodes().resolveNode(nodeToCheck).getId();
             assertThat(clusterState.getRoutingNodes().node(nodeId).iterator().next().state(), equalTo(ShardRoutingState.STARTED));
         });
@@ -453,8 +450,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
         ensureGreen("test-blocks");
 
         logger.info("--> check that the index has 1 shard");
-        ClusterState state
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet().getState();
+        ClusterState state = client().admin().cluster().prepareState().execute().actionGet().getState();
         List<ShardRouting> shards = state.routingTable().allShards("test-blocks");
         assertThat(shards, hasSize(1));
 
