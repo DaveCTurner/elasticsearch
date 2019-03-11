@@ -105,7 +105,7 @@ public class RestClusterStateAction extends BaseRestHandler {
                 builder.field(Fields.CLUSTER_NAME, response.getClusterName().value());
                 if (clusterStateRequest.compressedClusterStateSize()) {
                     builder.humanReadableField(Fields.CLUSTER_STATE_SIZE_IN_BYTES, Fields.CLUSTER_STATE_SIZE,
-                    response.getTotalCompressedSize());
+                        response.getTotalCompressedSize());
                 }
                 response.getState().toXContent(builder, request);
                 builder.endObject();
