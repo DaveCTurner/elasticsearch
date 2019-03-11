@@ -260,16 +260,6 @@ public abstract class ESRestTestCase extends ESTestCase {
         return expectVersionSpecificWarnings(consumer -> consumer.current(warnings));
     }
 
-    public static Request clusterStateRequest() {
-        return clusterStateRequest("");
-    }
-
-    public static Request clusterStateRequest(String suffix) {
-        final Request request = new Request("GET", "/_cluster/state" + (suffix == null ? "" : "/" + suffix));
-        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
-        return request;
-    }
-
     /**
      * Creates RequestOptions designed to ignore [types removal] warnings but nothing else
      * @deprecated this method is only required while we deprecate types and can be removed in 8.0
@@ -281,12 +271,19 @@ public abstract class ESRestTestCase extends ESTestCase {
                 @Override
                 public boolean warningsShouldFailRequest(List<String> warnings) {
                     for (String warning : warnings) {
-                        if (warning.startsWith("[types removal]") == false
-                            && warning.equals(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE) == false) {
-                            //Something other than a types removal message - return true
-                            return true;
+                        if (warning.startsWith("[types removal]")) {
+                            // ignore types removal messages
+                            continue;
                         }
+
+                        if (warning.equals(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE)) {
+                            // ignore the message about the deprecation of the compressed cluster state size
+                            continue;
+                        }
+
+                        return true;
                     }
+
                     return false;
                 }
             });
