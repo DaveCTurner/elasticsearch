@@ -50,6 +50,8 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
 
     private static final Logger logger = LogManager.getLogger(TransportClusterStateAction.class);
     private static final DeprecationLogger deprecationLogger = new DeprecationLogger(logger);
+    public static final String COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE = "Reporting the compressed cluster state size " +
+        "alongside the cluster state is deprecated and will be removed in the next major version.";
 
     @Inject
     public TransportClusterStateAction(TransportService transportService, ClusterService clusterService,
@@ -189,8 +191,7 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
 
         final int size;
         if (request.compressedClusterStateSize()) {
-            deprecationLogger.deprecated("Reporting the compressed cluster state size alongside the cluster state is deprecated and will " +
-                "be removed in the next major version.");
+            deprecationLogger.deprecated(COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
             size = PublicationTransportHandler.serializeFullClusterState(currentState, Version.CURRENT).length();
         } else {
             size = 0;

@@ -28,6 +28,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction;
+import org.elasticsearch.action.admin.cluster.state.TransportClusterStateAction;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RequestOptions.Builder;
@@ -265,8 +266,7 @@ public abstract class ESRestTestCase extends ESTestCase {
 
     public static Request clusterStateRequest(String suffix) {
         final Request request = new Request("GET", "/_cluster/state" + (suffix == null ? "" : "/" + suffix));
-        request.setOptions(expectWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and will " +
-            "be removed in the next major version."));
+        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
         return request;
     }
 
@@ -282,8 +282,7 @@ public abstract class ESRestTestCase extends ESTestCase {
                 public boolean warningsShouldFailRequest(List<String> warnings) {
                     for (String warning : warnings) {
                         if (warning.startsWith("[types removal]") == false
-                            && warning.equals("Reporting the compressed cluster state size alongside the cluster state is deprecated and " +
-                            "will be removed in the next major version") == false) {
+                            && warning.equals(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE) == false) {
                             //Something other than a types removal message - return true
                             return true;
                         }

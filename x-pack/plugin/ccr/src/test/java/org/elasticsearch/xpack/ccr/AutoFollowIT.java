@@ -186,12 +186,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
 
         try {
             assertBusy(() -> {
-<<<<<<< HEAD
-                metaData[0]
-                    = followerClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().metaData();
-=======
                 metaData[0] = getFollowerCluster().clusterService().state().metaData();
->>>>>>> master
                 autoFollowStats[0] = getAutoFollowStats();
 
                 assertThat(metaData[0].indices().size(), equalTo((int) expectedVal2));

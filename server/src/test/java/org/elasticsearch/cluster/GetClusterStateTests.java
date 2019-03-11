@@ -20,6 +20,7 @@
 package org.elasticsearch.cluster;
 
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.cluster.state.TransportClusterStateAction;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -39,8 +40,7 @@ public class GetClusterStateTests extends ESSingleNodeTestCase {
         assertNotNull(response.getClusterName());
         // assume the cluster state size is 50 bytes or more, just so we aren't testing against size of 0
         assertThat(response.getTotalCompressedSize().getBytes(), greaterThanOrEqualTo(50L));
-        assertWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and will be removed in " +
-            "the next major version.");
+        assertWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
     }
 
     public void testGetClusterStateExcludingSize() {
@@ -61,7 +61,6 @@ public class GetClusterStateTests extends ESSingleNodeTestCase {
         assertEquals(totalCompressedSize, response.getTotalCompressedSize().getBytes());
         assertNotEquals(clusterState, response.getState());
         assertEquals(0, response.getState().nodes().getSize());
-        assertWarnings("Reporting the compressed cluster state size alongside the cluster state is deprecated and will be removed in " +
-            "the next major version.");
+        assertWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
     }
 }
