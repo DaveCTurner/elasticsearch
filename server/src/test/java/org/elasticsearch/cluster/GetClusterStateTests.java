@@ -47,7 +47,6 @@ public class GetClusterStateTests extends ESSingleNodeTestCase {
         ClusterStateResponse response = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         assertNotNull(response.getState());
         assertNotNull(response.getClusterName());
-        // assume the cluster state size is 50 bytes or more, just so we aren't testing against size of 0
         assertThat(response.getTotalCompressedSize().getBytes(), equalTo(0L));
     }
 
