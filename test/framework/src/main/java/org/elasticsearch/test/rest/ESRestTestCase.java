@@ -290,17 +290,17 @@ public abstract class ESRestTestCase extends ESTestCase {
     public static RequestOptions allowTypesRemovalWarnings() {
         Builder builder = RequestOptions.DEFAULT.toBuilder();
         builder.setWarningsHandler(new WarningsHandler() {
-            @Override
-            public boolean warningsShouldFailRequest(List<String> warnings) {
-                for (String warning : warnings) {
-                    if(warning.startsWith("[types removal]") == false) {
-                        //Something other than a types removal message - return true
-                        return true;
+                @Override
+                public boolean warningsShouldFailRequest(List<String> warnings) {
+                    for (String warning : warnings) {
+                        if(warning.startsWith("[types removal]") == false) {
+                            //Something other than a types removal message - return true
+                            return true;
+                        }
                     }
+                    return false;
                 }
-                return false;
-            }
-        });
+            });
         return builder.build();
     }
 
