@@ -197,8 +197,12 @@ public abstract class ESRestTestCase extends ESTestCase {
     }
 
     protected final Request newGetClusterSettingsRequest() {
+        final Builder builder = RequestOptions.DEFAULT.toBuilder();
+        final VersionSensitiveWarningsHandler warningsHandler = new VersionSensitiveWarningsHandler(nodeVersions);
+        warningsHandler.compatible(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
+        builder.setWarningsHandler(warningsHandler);
         final Request request = new Request("GET", "/_cluster/settings");
-        request.setOptions(expectWarnings(TransportClusterStateAction.COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE));
+        request.setOptions(builder.build());
         return request;
     }
 
