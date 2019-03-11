@@ -111,7 +111,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
             assertThat(snapshotInfos.size(), equalTo(1));
             if (snapshotInfos.get(0).state().completed()) {
                 // Make sure that snapshot clean up operations are finished
-                ClusterStateResponse stateResponse = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
+                ClusterStateResponse stateResponse = client().admin().cluster().prepareState().get();
                 SnapshotsInProgress snapshotsInProgress = stateResponse.getState().custom(SnapshotsInProgress.TYPE);
                 if (snapshotsInProgress == null) {
                     return snapshotInfos.get(0);
