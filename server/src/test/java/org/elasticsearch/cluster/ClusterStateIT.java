@@ -336,7 +336,7 @@ public class ClusterStateIT extends ESIntegTestCase {
         // ensure that the customs are injected into the cluster state
         assertBusy(() -> assertTrue(clusterService().state().metaData().customs().containsKey(NodeCustom.TYPE)));
         assertBusy(() -> assertTrue(clusterService().state().metaData().customs().containsKey(NodeAndTransportClientCustom.TYPE)));
-        final ClusterStateResponse state 
+        final ClusterStateResponse state
             = internalCluster().transportClient().admin().cluster().prepareState().setCompressedClusterStateSize(false).get();
         final ImmutableOpenMap<String, MetaData.Custom> customs = state.getState().metaData().customs();
         final Set<String> keys = new HashSet<>(Arrays.asList(customs.keys().toArray(String.class)));

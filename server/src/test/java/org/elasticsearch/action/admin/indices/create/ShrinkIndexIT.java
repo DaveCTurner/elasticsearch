@@ -97,7 +97,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
             client().prepareIndex("source", "t1", Integer.toString(i))
                 .setSource("{\"foo\" : \"bar\", \"i\" : " + i + "}", XContentType.JSON).get();
         }
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes 
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes
             = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
         assertTrue("at least 2 nodes but was: " + dataNodes.size(), dataNodes.size() >= 2);
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
