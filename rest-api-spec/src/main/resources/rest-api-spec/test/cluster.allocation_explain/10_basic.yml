@@ -6,10 +6,6 @@
 
 ---
 "cluster shard allocation explanation test":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
       indices.create:
         index: test
@@ -18,7 +14,6 @@
 
   - do:
       cluster.state:
-        compressed_cluster_state_size: false
         metric: [ master_node ]
 
   - do:
@@ -37,10 +32,6 @@
 
 ---
 "cluster shard allocation explanation test with empty request":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
       indices.create:
         index: test
@@ -48,7 +39,6 @@
 
   - do:
       cluster.state:
-        compressed_cluster_state_size: false
         metric: [ master_node ]
 
   - do:

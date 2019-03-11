@@ -2,13 +2,10 @@
 
 "node_info test profile is empty":
   - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-      features: stash_in_path
+        features: stash_in_path
 
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: {master_node: master}
 

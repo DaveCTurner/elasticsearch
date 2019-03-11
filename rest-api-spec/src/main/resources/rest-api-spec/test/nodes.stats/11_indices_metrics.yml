@@ -1,12 +1,7 @@
 ---
 "Metric - blank":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -31,13 +26,8 @@
 
 ---
 "Metric - _all":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -62,13 +52,8 @@
 
 ---
 "Metric - indices _all":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -93,13 +78,8 @@
 
 ---
 "Metric - one":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -124,13 +104,8 @@
 
 ---
 "Metric - multi":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -156,13 +131,8 @@
 
 ---
 "Metric - recovery":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -187,13 +157,8 @@
 
 ---
 "Metric - _all include_segment_file_sizes":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 
@@ -219,13 +184,8 @@
 
 ---
 "Metric - segments include_segment_file_sizes":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   - set: { master_node: master }
 

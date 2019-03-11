@@ -1,12 +1,10 @@
 ---
 "Discovery stats":
   - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
+      version:     " - 6.0.99"
+      reason:      "published_cluster_states_received arrived in 6.1.0"
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   # Get master node id
   - set: { master_node: master }

@@ -1,13 +1,12 @@
 ---
 "Copy settings during split index":
   - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
+      version: " - 6.9.99"
+      reason: expects warnings that pre-7.0.0 will not send
       features: "warnings"
 
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   # get master node id
   - set: { master_node: master }

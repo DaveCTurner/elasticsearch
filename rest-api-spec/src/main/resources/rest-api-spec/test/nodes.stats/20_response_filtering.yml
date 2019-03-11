@@ -1,12 +1,7 @@
 ---
 "Nodes Stats with response filtering":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   # Get master node id
   - set: { master_node: master }
@@ -160,13 +155,8 @@
 
 ---
 "Nodes Stats filtered using both includes and excludes filters":
-  - skip:
-      version: " - 7.99.99"
-      reason:  compressed_cluster_state_size added in 8.0
-
   - do:
-      cluster.state:
-        compressed_cluster_state_size: false
+      cluster.state: {}
 
   # Get master node id
   - set: { master_node: master }
