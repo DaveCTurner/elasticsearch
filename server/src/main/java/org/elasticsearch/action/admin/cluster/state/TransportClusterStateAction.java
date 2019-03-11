@@ -39,6 +39,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -127,7 +128,7 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
 
     private void buildResponse(final ClusterStateRequest request,
                                final ClusterState currentState,
-                               final ActionListener<ClusterStateResponse> listener) throws IOException {
+                               final ActionListener<ClusterStateResponse> listener) {
         logger.trace("Serving cluster state request using version {}", currentState.version());
         ClusterState.Builder builder = ClusterState.builder(currentState.getClusterName());
         builder.version(currentState.version());
@@ -189,14 +190,22 @@ public class TransportClusterStateAction extends TransportMasterNodeReadAction<C
             }
         }
 
-        final int size;
         if (request.compressedClusterStateSize()) {
             deprecationLogger.deprecated(COMPRESSED_CLUSTER_STATE_SIZE_DEPRECATION_MESSAGE);
-            size = PublicationTransportHandler.serializeFullClusterState(currentState, Version.CURRENT).length();
-        } else {
-            size = 0;
-        }
-        listener.onResponse(new ClusterStateResponse(currentState.getClusterName(), builder.build(), size, false));
-    }
+            threadPool.generic().execute(new AbstractRunnable() {
+                @Override
+                protected void doRun() throws Exception {
+                    listener.onResponse(new ClusterStateResponse(currentState.getClusterName(), builder.build(),
+                        PublicationTransportHandler.serializeFullClusterState(currentState, Version.CURRENT).length(), false));
+                }
 
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(e);
+                }
+            });
+        } else {
+            listener.onResponse(new ClusterStateResponse(currentState.getClusterName(), builder.build(), 0, false));
+        }
+    }
 }
