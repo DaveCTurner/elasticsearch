@@ -37,8 +37,8 @@ public class ShrinkIndexWithSecurityTests extends SecurityIntegTestCase {
             client().prepareIndex("bigindex", "type").setSource("foo", "bar").get();
         }
 
-        ImmutableOpenMap<String, DiscoveryNode> dataNodes
-            = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState().nodes().getDataNodes();
+        ImmutableOpenMap<String, DiscoveryNode> dataNodes = client().admin().cluster().prepareState().get().getState().nodes()
+                .getDataNodes();
         DiscoveryNode[] discoveryNodes = dataNodes.values().toArray(DiscoveryNode.class);
         final String mergeNode = discoveryNodes[0].getName();
         ensureGreen();

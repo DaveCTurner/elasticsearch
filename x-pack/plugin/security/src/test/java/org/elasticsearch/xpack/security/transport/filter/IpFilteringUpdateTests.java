@@ -82,7 +82,7 @@ public class IpFilteringUpdateTests extends SecurityIntegTestCase {
         assertConnectionRejected("client", "127.0.0.8");
 
         // check that all is in cluster state
-        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
         assertThat(clusterState.metaData().settings().get("xpack.security.transport.filter.allow"), is("127.0.0.1"));
         assertThat(clusterState.metaData().settings().get("xpack.security.transport.filter.deny"), is("127.0.0.8"));
         assertEquals(Arrays.asList("127.0.0.1"), clusterState.metaData().settings().getAsList("xpack.security.http.filter.allow"));
@@ -100,7 +100,7 @@ public class IpFilteringUpdateTests extends SecurityIntegTestCase {
         assertConnectionAccepted("client", "127.0.0.8");
 
         // disabling should not have any effect on the cluster state settings
-        clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        clusterState = client().admin().cluster().prepareState().get().getState();
         assertThat(clusterState.metaData().settings().get("xpack.security.transport.filter.allow"), is("127.0.0.1"));
         assertThat(clusterState.metaData().settings().get("xpack.security.transport.filter.deny"), is("127.0.0.8"));
         assertEquals(Arrays.asList("127.0.0.1"), clusterState.metaData().settings().getAsList("xpack.security.http.filter.allow"));
