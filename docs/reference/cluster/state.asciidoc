@@ -26,9 +26,9 @@ particular node by adding `local=true` to the  query string.
 
 By default the cluster state response includes the compressed size of the
 cluster state as transported over the network to new nodes. This can be
-expensive to compute and this calculation can be avoided by adding
+expensive to compute. This calculation can be avoided by adding
 `?compressed_cluster_state_size=false` to the query string. deprecated[8.0.0,
-In a future version this calculation will be removed. The default will be
+In a future version this information will be removed. The default will be
 `?compressed_cluster_state_size=false` and other values will be ignored.]
 
 [float]
