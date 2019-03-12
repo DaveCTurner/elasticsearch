@@ -182,7 +182,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         CreateIndexResponse createIndexResponse = client().admin().indices().create(createIndexRequest("test").settings(settings))
                 .actionGet();
         assertAcked(createIndexResponse);
-        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(1));
         assertBusy(() -> {
@@ -192,8 +192,8 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         assertThat(indexLifecycleService.getScheduler().jobCount(), equalTo(1));
         assertNotNull(indexLifecycleService.getScheduledJob());
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster().prepareState()
-                .setCompressedClusterStateSize(false).execute().actionGet().getState().getMetaData().index("test"));
+            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster()
+                .prepareState().execute().actionGet().getState().getMetaData().index("test"));
             assertThat(lifecycleState.getStep(), equalTo(TerminalPolicyStep.KEY.getName()));
         });
     }
@@ -281,7 +281,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
                 .actionGet();
         assertAcked(createIndexResponse);
 
-        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node2);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(1));
 
@@ -289,8 +289,8 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
             assertEquals(true, client().admin().indices().prepareExists("test").get().isExists());
         });
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster().prepareState()
-                .setCompressedClusterStateSize(false).execute().actionGet().getState().getMetaData().index("test"));
+            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster()
+                .prepareState().execute().actionGet().getState().getMetaData().index("test"));
             assertThat(lifecycleState.getStep(), equalTo(TerminalPolicyStep.KEY.getName()));
         });
     }
@@ -311,7 +311,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
                 .actionGet();
         assertAcked(createIndexResponse);
 
-        ClusterState clusterState = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(1));
 
@@ -329,8 +329,8 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
 
         // check step in progress in lifecycle
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster().prepareState()
-                .setCompressedClusterStateSize(false).execute().actionGet().getState().getMetaData().index("test"));
+            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster()
+                .prepareState().execute().actionGet().getState().getMetaData().index("test"));
             assertThat(lifecycleState.getStep(), equalTo(ObservableClusterStateWaitStep.NAME));
         });
 
@@ -351,8 +351,8 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
 
         // check that index lifecycle picked back up where it
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster().prepareState()
-                .setCompressedClusterStateSize(false).execute().actionGet().getState().getMetaData().index("test"));
+            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster()
+                .prepareState().execute().actionGet().getState().getMetaData().index("test"));
             assertThat(lifecycleState.getStep(), equalTo(ObservableClusterStateWaitStep.NAME));
         });
 
@@ -362,8 +362,8 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
             .setSettings(Collections.singletonMap("index.lifecycle.test.complete", true)).get();
 
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster().prepareState()
-                .setCompressedClusterStateSize(false).execute().actionGet().getState().getMetaData().index("test"));
+            LifecycleExecutionState lifecycleState = LifecycleExecutionState.fromIndexMetadata(client().admin().cluster()
+                .prepareState().execute().actionGet().getState().getMetaData().index("test"));
             assertThat(lifecycleState.getStep(), equalTo(TerminalPolicyStep.KEY.getName()));
         });
     }

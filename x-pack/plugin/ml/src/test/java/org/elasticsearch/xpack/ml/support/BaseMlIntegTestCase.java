@@ -119,7 +119,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
     @Before
     public void ensureTemplatesArePresent() throws Exception {
         assertBusy(() -> {
-            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+            ClusterState state = client().admin().cluster().prepareState().get().getState();
             assertTrue("Timed out waiting for the ML templates to be installed",
                     MachineLearning.allTemplatesInstalled(state));
         });
