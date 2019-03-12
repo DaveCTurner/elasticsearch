@@ -146,8 +146,7 @@ public abstract class TestCluster implements Closeable {
                 // Happens if `action.destructive_requires_name` is set to true
                 // which is the case in the CloseIndexDisableCloseAllTests
                 if ("_all".equals(indices[0])) {
-                    ClusterStateResponse clusterStateResponse
-                        = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).execute().actionGet();
+                    ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().execute().actionGet();
                     ObjectArrayList<String> concreteIndices = new ObjectArrayList<>();
                     for (IndexMetaData indexMetaData : clusterStateResponse.getState().metaData()) {
                         concreteIndices.add(indexMetaData.getIndex().getName());
