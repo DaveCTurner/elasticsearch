@@ -365,7 +365,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
         final AtomicReference<SearchResponse> lastResponse = new AtomicReference<>();
         try {
             assertBusy(() -> {
-                ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+                ClusterState state = client().admin().cluster().prepareState().get().getState();
                 String[] watchHistoryIndices = indexNameExpressionResolver().concreteIndexNames(state,
                         IndicesOptions.lenientExpandOpen(), HistoryStoreField.INDEX_PREFIX_WITH_TEMPLATE + "*");
                 assertThat(watchHistoryIndices, not(emptyArray()));
@@ -423,7 +423,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
             assertBusy(() -> {
                 // The watch_history index gets created in the background when the first watch is triggered
                 // so we to check first is this index is created and shards are started
-                ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+                ClusterState state = client().admin().cluster().prepareState().get().getState();
                 String[] watchHistoryIndices = indexNameExpressionResolver().concreteIndexNames(state,
                         IndicesOptions.lenientExpandOpen(), HistoryStoreField.INDEX_PREFIX_WITH_TEMPLATE + "*");
                 assertThat(watchHistoryIndices, not(emptyArray()));
@@ -455,7 +455,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
     protected void assertWatchWithMinimumActionsCount(final String watchName, final ExecutionState recordState,
                                                       final long recordCount) throws Exception {
         assertBusy(() -> {
-            ClusterState state = client().admin().cluster().prepareState().setCompressedClusterStateSize(false).get().getState();
+            ClusterState state = client().admin().cluster().prepareState().get().getState();
             String[] watchHistoryIndices = indexNameExpressionResolver().concreteIndexNames(state, IndicesOptions.lenientExpandOpen(),
                     HistoryStoreField.INDEX_PREFIX_WITH_TEMPLATE + "*");
             assertThat(watchHistoryIndices, not(emptyArray()));
