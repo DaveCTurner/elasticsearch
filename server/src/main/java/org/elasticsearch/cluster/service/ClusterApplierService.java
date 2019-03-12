@@ -55,6 +55,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -451,7 +452,8 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
             }
         }
 
-        nodeConnectionsService.connectToNodes(newClusterState.nodes());
+        logger.trace("connecting to nodes of cluster state with version {}", newClusterState.version());
+        connectToNodesAndWait(newClusterState);
 
         logger.debug("applying cluster state version {}", newClusterState.version());
         try {
@@ -475,6 +477,18 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         callClusterStateListeners(clusterChangedEvent);
 
         task.listener.onSuccess(task.source);
+    }
+
+    protected void connectToNodesAndWait(ClusterState newClusterState) {
+        // can't wait for an ActionFuture on the cluster applier thread, but we do want to block the thread here, so use a CountDownLatch.
+        final CountDownLatch countDownLatch = new CountDownLatch(1);
+        nodeConnectionsService.connectToNodes(newClusterState.nodes(), countDownLatch::countDown);
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            logger.debug("interrupted while connecting to nodes, continuing", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void callClusterStateAppliers(ClusterChangedEvent clusterChangedEvent) {
