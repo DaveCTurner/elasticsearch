@@ -114,7 +114,7 @@ public class RetentionLeasesReplicationTests extends ESIndexLevelReplicationTest
             group.startAll();
             int numLeases = between(1, 100);
             IndexShard newPrimary = randomFrom(group.getReplicas());
-            RetentionLeases latestRetentionLeasesOnNewPrimary = RetentionLeases.EMPTY;
+            RetentionLeases latestRetentionLeasesOnNewPrimary = group.getPrimary().getRetentionLeases();
             for (int i = 0; i < numLeases; i++) {
                 PlainActionFuture<ReplicationResponse> addLeaseFuture = new PlainActionFuture<>();
                 group.addRetentionLease(Integer.toString(i), randomNonNegativeLong(), "test-" + i, addLeaseFuture);
