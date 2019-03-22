@@ -233,10 +233,8 @@ public class RecoverySourceHandler {
                 addPeerRecoveryRetentionLeaseStep.onResponse(null);
             }
 
-            addPeerRecoveryRetentionLeaseStep.whenComplete(r -> {
-                // we can release the retention lock here because the retention lease now reatils the required operations.
-                retentionLock.close();
-            }, onFailure);
+            // we can release the retention lock now because the retention lease now retains the required operations.
+            addPeerRecoveryRetentionLeaseStep.whenComplete(r -> retentionLock.close(), onFailure);
 
             final StepListener<TimeValue> prepareEngineStep = new StepListener<>();
             addPeerRecoveryRetentionLeaseStep.whenComplete(r -> {
