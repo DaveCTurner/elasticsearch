@@ -170,8 +170,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                     public void sync(
                             final ShardId shardId,
                             final RetentionLeases retentionLeases,
-                            final ActionListener<ReplicationResponse> listener) {
-                        Objects.requireNonNull(retentionLeaseSyncAction).sync(shardId, retentionLeases, listener);
+                            final ActionListener<ReplicationResponse> listener,
+                            final String allocationId,
+                            final long primaryTerm) {
+                        Objects.requireNonNull(retentionLeaseSyncAction)
+                            .sync(shardId, retentionLeases, listener, allocationId, primaryTerm);
                     }
 
                     @Override

@@ -333,7 +333,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         UNASSIGNED_SEQ_NO,
                         globalCheckpointListeners::globalCheckpointUpdated,
                         threadPool::absoluteTimeInMillis,
-                        (retentionLeases, listener) -> retentionLeaseSyncer.sync(shardId, retentionLeases, listener),
+                        (retentionLeases, listener) -> retentionLeaseSyncer.sync(shardId, retentionLeases, listener,
+                            routingEntry().allocationId().getId(), getOperationPrimaryTerm()),
                         IndexMetaData.SETTING_INDEX_VERSION_CREATED.get(indexSettings.getSettings()));
         this.replicationTracker = replicationTracker;
         this.peerRecoveryRetentionLeaseRenewer = peerRecoveryRetentionLeaseRenewer;
@@ -617,11 +618,16 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 synchronized (mutex) {
                     // wait for the shard to be started
                 }
-                runUnderPrimaryPermit(
-                    () -> replicationTracker.addPeerRecoveryRetentionLease(shardRouting.currentNodeId(),
-                        getLocalCheckpointOfSafeCommit(), ActionListener.wrap(() -> { })),
-                    e -> logger.debug("failed to lazily create peer recovery retention lease for primary", e),
-                    Names.SAME, "");
+                try {
+                    runUnderPrimaryPermit(
+                        () -> replicationTracker.addPeerRecoveryRetentionLease(shardRouting.currentNodeId(),
+                            getLocalCheckpointOfSafeCommit(), ActionListener.wrap(() -> {
+                            })),
+                        e -> logger.debug("failed to lazily create peer recovery retention lease for primary", e),
+                        Names.SAME, "");
+                } catch (IndexShardClosedException e) {
+                    logger.debug("failed to lazily create peer recovery retention lease for primary", e);
+                }
             });
         }
     }
@@ -2113,7 +2119,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             e -> logger.warn(new ParameterizedMessage(
                                             "failed to sync retention leases [{}] after expiration check",
                                             retentionLeases),
-                                    e)));
+                                    e)), routingEntry().allocationId().getId(), getOperationPrimaryTerm());
         } else {
             logger.trace("background syncing retention leases [{}] after expiration check", retentionLeases.v2());
             retentionLeaseSyncer.backgroundSync(shardId, retentionLeases.v2());
@@ -2138,7 +2144,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             retentionLeases),
                         e);
                     future.onFailure(e);
-                }));
+                }), routingEntry().allocationId().getId(), getOperationPrimaryTerm());
         return future;
     }
 

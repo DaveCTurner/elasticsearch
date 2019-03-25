@@ -182,13 +182,14 @@ public abstract class ESIndexLevelReplicationTestCase extends IndexShardTestCase
 
         private final RetentionLeaseSyncer retentionLeaseSyncer = new RetentionLeaseSyncer() {
             @Override
-            public void sync(ShardId shardId, RetentionLeases retentionLeases, ActionListener<ReplicationResponse> listener) {
+            public void sync(ShardId shardId, RetentionLeases retentionLeases, ActionListener<ReplicationResponse> listener,
+                             String allocationId, long primaryTerm) {
                 syncRetentionLeases(shardId, retentionLeases, listener);
             }
 
             @Override
             public void backgroundSync(ShardId shardId, RetentionLeases retentionLeases) {
-                sync(shardId, retentionLeases, ActionListener.wrap(
+                syncRetentionLeases(shardId, retentionLeases, ActionListener.wrap(
                     r -> { },
                     e -> {
                         throw new AssertionError("failed to backgroun sync retention lease", e);

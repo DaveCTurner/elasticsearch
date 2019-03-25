@@ -47,6 +47,8 @@ import org.elasticsearch.index.shard.IndexShardClosedException;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportException;
+import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -98,11 +100,15 @@ public class RetentionLeaseSyncAction extends
      * @param shardId         the shard to sync
      * @param retentionLeases the retention leases to sync
      * @param listener        the callback to invoke when the sync completes normally or abnormally
+     * @param allocationId    the allocation ID of the primary
+     * @param primaryTerm     the primary term of the primary
      */
     public void sync(
             final ShardId shardId,
             final RetentionLeases retentionLeases,
-            final ActionListener<ReplicationResponse> listener) {
+            final ActionListener<ReplicationResponse> listener,
+            final String allocationId,
+            final long primaryTerm) {
         Objects.requireNonNull(shardId);
         Objects.requireNonNull(retentionLeases);
         Objects.requireNonNull(listener);
@@ -110,16 +116,37 @@ public class RetentionLeaseSyncAction extends
         try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
             // we have to execute under the system context so that if security is enabled the sync is authorized
             threadContext.markAsSystemContext();
-            execute(
-                    new RetentionLeaseSyncAction.Request(shardId, retentionLeases),
-                    ActionListener.wrap(
-                            listener::onResponse,
-                            e -> {
-                                if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
-                                    getLogger().warn(new ParameterizedMessage("{} retention lease sync failed", shardId), e);
-                                }
-                                listener.onFailure(e);
-                            }));
+            transportService.sendRequest(transportService.getLocalNode(), transportPrimaryAction,
+                new ConcreteShardRequest<>(new RetentionLeaseSyncAction.Request(shardId, retentionLeases), allocationId, primaryTerm),
+
+                new TransportResponseHandler<RetentionLeaseSyncAction.Response>() {
+                    @Override
+                    public void handleResponse(RetentionLeaseSyncAction.Response response) {
+                        listener.onResponse(new ReplicationResponse());
+                    }
+
+                    @Override
+                    public void handleException(TransportException exp) {
+                        if (ExceptionsHelper.unwrap(exp, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
+                            getLogger().warn(new ParameterizedMessage("{} retention lease sync failed", shardId), exp);
+                        }
+                        listener.onFailure(exp);
+                    }
+
+                    @Override
+                    public String executor() {
+                        return ThreadPool.Names.SAME;
+                    }
+
+                    @Override
+                    public RetentionLeaseSyncAction.Response read(StreamInput in) throws IOException {
+                        final Response response = new Response();
+                        response.readFrom(in);
+                        return response;
+                    }
+                }
+
+            );
         }
     }
 

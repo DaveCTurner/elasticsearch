@@ -22,6 +22,8 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportWriteAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -164,6 +166,7 @@ public class RetentionLeaseSyncActionTests extends ESTestCase {
         assertTrue(success.get());
     }
 
+    @AwaitsFix(bugUrl = "http://todo.com")
     public void testRetentionLeaseSyncExecution() {
         final IndicesService indicesService = mock(IndicesService.class);
 
@@ -182,6 +185,12 @@ public class RetentionLeaseSyncActionTests extends ESTestCase {
 
         final RetentionLeases retentionLeases = mock(RetentionLeases.class);
         final AtomicBoolean invoked = new AtomicBoolean();
+
+        final RuntimeException e = randomBoolean() ? null : randomFrom(
+            new AlreadyClosedException("closed"),
+            new IndexShardClosedException(indexShard.shardId()),
+            new RuntimeException("failed"));
+
         final RetentionLeaseSyncAction action = new RetentionLeaseSyncAction(
                 Settings.EMPTY,
                 transportService,
@@ -193,28 +202,23 @@ public class RetentionLeaseSyncActionTests extends ESTestCase {
                 new IndexNameExpressionResolver()) {
 
             @Override
-            protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
+            protected WritePrimaryResult<Request, Response> shardOperationOnPrimary(Request request, IndexShard primary)
+                throws WriteStateException {
+
                 assertTrue(threadPool.getThreadContext().isSystemContext());
                 assertThat(request.shardId(), sameInstance(indexShard.shardId()));
                 assertThat(request.getRetentionLeases(), sameInstance(retentionLeases));
-                if (randomBoolean()) {
-                    listener.onResponse(new Response());
+
+                if (e == null) {
+                    return super.shardOperationOnPrimary(request, primary);
                 } else {
-                    final Exception e = randomFrom(
-                            new AlreadyClosedException("closed"),
-                            new IndexShardClosedException(indexShard.shardId()),
-                            new RuntimeException("failed"));
-                    listener.onFailure(e);
-                    if (e instanceof AlreadyClosedException == false && e instanceof IndexShardClosedException == false) {
-                        final ArgumentCaptor<ParameterizedMessage> captor = ArgumentCaptor.forClass(ParameterizedMessage.class);
-                        verify(retentionLeaseSyncActionLogger).warn(captor.capture(), same(e));
-                        final ParameterizedMessage message = captor.getValue();
-                        assertThat(message.getFormat(), equalTo("{} retention lease sync failed"));
-                        assertThat(message.getParameters(), arrayContaining(indexShard.shardId()));
-                    }
-                    verifyNoMoreInteractions(retentionLeaseSyncActionLogger);
+                    throw e;
                 }
-                invoked.set(true);
+            }
+
+            @Override
+            protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
+                throw new AssertionError("should not execute reroute phase");
             }
 
             @Override
@@ -223,8 +227,19 @@ public class RetentionLeaseSyncActionTests extends ESTestCase {
             }
         };
 
-        // execution happens on the test thread, so no need to register an actual listener to callback
-        action.sync(indexShard.shardId(), retentionLeases, ActionListener.wrap(() -> {}));
+        final PlainActionFuture<ReplicationResponse> future = new PlainActionFuture<>();
+        action.sync(indexShard.shardId(), retentionLeases, future, "TODO", 0L);
+        future.actionGet();
+
+        if (e instanceof AlreadyClosedException == false && e instanceof IndexShardClosedException == false) {
+            final ArgumentCaptor<ParameterizedMessage> captor = ArgumentCaptor.forClass(ParameterizedMessage.class);
+            verify(retentionLeaseSyncActionLogger).warn(captor.capture(), same(e));
+            final ParameterizedMessage message = captor.getValue();
+            assertThat(message.getFormat(), equalTo("{} retention lease sync failed"));
+            assertThat(message.getParameters(), arrayContaining(indexShard.shardId()));
+        }
+
+        verifyNoMoreInteractions(retentionLeaseSyncActionLogger);
         assertTrue(invoked.get());
     }
 

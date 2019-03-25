@@ -37,13 +37,15 @@ public interface RetentionLeaseSyncer {
      * @param retentionLeases the retention leases to sync
      * @param listener        the callback when sync completes
      */
-    void sync(ShardId shardId, RetentionLeases retentionLeases, ActionListener<ReplicationResponse> listener);
+    void sync(ShardId shardId, RetentionLeases retentionLeases, ActionListener<ReplicationResponse> listener,
+              String allocationId, long primaryTerm);
 
     void backgroundSync(ShardId shardId, RetentionLeases retentionLeases);
 
     RetentionLeaseSyncer EMPTY = new RetentionLeaseSyncer() {
         @Override
-        public void sync(final ShardId shardId, final RetentionLeases retentionLeases, final ActionListener<ReplicationResponse> listener) {
+        public void sync(final ShardId shardId, final RetentionLeases retentionLeases, final ActionListener<ReplicationResponse> listener,
+                         String allocationId, long primaryTerm) {
             listener.onResponse(new ReplicationResponse());
         }
 
