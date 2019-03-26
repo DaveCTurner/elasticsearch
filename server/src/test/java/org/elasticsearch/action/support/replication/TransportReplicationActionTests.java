@@ -589,23 +589,15 @@ public class TransportReplicationActionTests extends ESTestCase {
             isRelocated.set(true);
             executeOnPrimary = false;
         }
-        action.new AsyncPrimaryAction(request, primaryShard.allocationId().getId(), primaryTerm, createTransportChannel(listener), task) {
-            @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
-            createReplicatedOperation(
-                    Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
-                return new NoopReplicationOperation(request, actionListener) {
-                    @Override
-                    public void execute() throws Exception {
-                        assertPhase(task, "primary");
-                        assertFalse(executed.getAndSet(true));
-                        super.execute();
-                    }
-                };
-            }
-        }.run();
+        action.new AsyncPrimaryAction(request, primaryShard.allocationId().getId(), primaryTerm, createTransportChannel(listener), task,
+            (actionListener, primaryShardReference) -> new NoopReplicationOperation(request, actionListener) {
+                @Override
+                public void execute() throws Exception {
+                    assertPhase(task, "primary");
+                    assertFalse(executed.getAndSet(true));
+                    super.execute();
+                }
+            }).run();
         if (executeOnPrimary) {
             assertTrue(executed.get());
             assertTrue(listener.isDone());
@@ -646,23 +638,15 @@ public class TransportReplicationActionTests extends ESTestCase {
         ReplicationTask task = maybeTask();
         AtomicBoolean executed = new AtomicBoolean();
         action.new AsyncPrimaryAction(request, primaryShard.allocationId().getRelocationId(), primaryTerm,
-            createTransportChannel(listener), task) {
+            createTransportChannel(listener), task, (actionListener, primaryShardReference)
+            -> new NoopReplicationOperation(request, actionListener) {
             @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
-            createReplicatedOperation(
-                    Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
-                return new NoopReplicationOperation(request, actionListener) {
-                    @Override
-                    public void execute() throws Exception {
-                        assertPhase(task, "primary");
-                        assertFalse(executed.getAndSet(true));
-                        super.execute();
-                    }
-                };
+            public void execute() throws Exception {
+                assertPhase(task, "primary");
+                assertFalse(executed.getAndSet(true));
+                super.execute();
             }
-
+        }) {
             @Override
             public void onFailure(Exception e) {
                 throw new RuntimeException(e);
@@ -682,7 +666,8 @@ public class TransportReplicationActionTests extends ESTestCase {
                 fail("releasable is closed twice");
             }
         };
-        TestAction.PrimaryShardReference primary = action.new PrimaryShardReference(shard, releasable);
+        TestAction.PrimaryShardReference<Request, Request, TestResponse> primary
+            = new TransportReplicationAction.PrimaryShardReference<>(shard, releasable, action);
         final Request request = new Request();
         Request replicaRequest = (Request) primary.perform(request).replicaRequest;
 
@@ -817,13 +802,8 @@ public class TransportReplicationActionTests extends ESTestCase {
         final boolean throwExceptionOnCreation = i == 1;
         final boolean throwExceptionOnRun = i == 2;
         final boolean respondWithError = i == 3;
-        action.new AsyncPrimaryAction(request, primaryShard.allocationId().getId(), primaryTerm, createTransportChannel(listener), task) {
-            @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
-            createReplicatedOperation(
-                    Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
+        action.new AsyncPrimaryAction(request, primaryShard.allocationId().getId(), primaryTerm, createTransportChannel(listener), task,
+            (actionListener, primaryShardReference) -> {
                 assertIndexShardCounter(1);
                 if (throwExceptionOnCreation) {
                     throw new ElasticsearchException("simulated exception, during createReplicatedOperation");
@@ -842,8 +822,7 @@ public class TransportReplicationActionTests extends ESTestCase {
                         }
                     }
                 };
-            }
-        }.run();
+            }).run();
         assertIndexShardCounter(0);
         assertTrue(listener.isDone());
         assertPhase(task, "finished");

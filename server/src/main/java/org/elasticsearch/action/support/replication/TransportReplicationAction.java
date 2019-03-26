@@ -322,14 +322,31 @@ public abstract class TransportReplicationAction<
         private final long primaryTerm;
         private final TransportChannel channel;
         private final ReplicationTask replicationTask;
+        private final ReplicatedOperationFactory<Request, ReplicaRequest, Response> replicatedOperationFactory;
 
         AsyncPrimaryAction(Request request, String targetAllocationID, long primaryTerm, TransportChannel channel,
                            ReplicationTask replicationTask) {
+            this(request, targetAllocationID, primaryTerm, channel, replicationTask,
+                new TransportReplicationAction.ReplicatedOperationFactory<Request, ReplicaRequest, Response>() {
+                    @Override
+                    public ReplicationOperation<Request, ReplicaRequest, TransportReplicationAction.PrimaryResult<ReplicaRequest, Response>>
+                    createReplicatedOperation(ActionListener<TransportReplicationAction.PrimaryResult<ReplicaRequest, Response>> actionListener,
+                                              TransportReplicationAction.PrimaryShardReference<Request, ReplicaRequest, Response> primaryShardReference) {
+                        return new ReplicationOperation<>(request, primaryShardReference, actionListener,
+                            newReplicasProxy(primaryTerm), logger, actionName);
+                    }
+                });
+        }
+
+        AsyncPrimaryAction(Request request, String targetAllocationID, long primaryTerm, TransportChannel channel,
+                           ReplicationTask replicationTask,
+                           ReplicatedOperationFactory<Request, ReplicaRequest, Response> replicatedOperationFactory) {
             this.request = request;
             this.targetAllocationID = targetAllocationID;
             this.primaryTerm = primaryTerm;
             this.channel = channel;
             this.replicationTask = replicationTask;
+            this.replicatedOperationFactory = replicatedOperationFactory;
         }
 
         @Override
@@ -355,12 +372,13 @@ public abstract class TransportReplicationAction<
             }
 
             acquirePrimaryOperationPermit(indexShard, request, ActionListener.wrap(
-                releasable -> runWithPrimaryShardReference(new PrimaryShardReference(indexShard, releasable)),
+                releasable -> runWithPrimaryShardReference(
+                    new PrimaryShardReference<>(indexShard, releasable, TransportReplicationAction.this)),
                 this::onFailure
             ));
         }
 
-        void runWithPrimaryShardReference(final PrimaryShardReference primaryShardReference) {
+        void runWithPrimaryShardReference(final PrimaryShardReference<Request, ReplicaRequest, Response> primaryShardReference) {
             try {
                 final ClusterState clusterState = clusterService.state();
                 final IndexMetaData indexMetaData = clusterState.metaData().getIndexSafe(primaryShardReference.routingEntry().index());
@@ -406,10 +424,9 @@ public abstract class TransportReplicationAction<
                 } else {
                     setPhase(replicationTask, "primary");
                     final ActionListener<Response> listener = createResponseListener(primaryShardReference);
-                    createReplicatedOperation(request,
+                    replicatedOperationFactory.createReplicatedOperation(
                             ActionListener.wrap(result -> result.respond(listener), listener::onFailure),
-                            primaryShardReference)
-                            .execute();
+                            primaryShardReference).execute();
                 }
             } catch (Exception e) {
                 Releasables.closeWhileHandlingException(primaryShardReference); // release shard operation lock before responding to caller
@@ -469,13 +486,16 @@ public abstract class TransportReplicationAction<
                 }
             };
         }
+    }
 
-        protected ReplicationOperation<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation(
-            Request request, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener,
-            PrimaryShardReference primaryShardReference) {
-            return new ReplicationOperation<>(request, primaryShardReference, listener,
-                    newReplicasProxy(primaryTerm), logger, actionName);
-        }
+    @FunctionalInterface
+    interface ReplicatedOperationFactory<Request extends ReplicationRequest<Request>,
+        ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
+        Response extends ReplicationResponse> {
+
+        ReplicationOperation<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation
+            (ActionListener<PrimaryResult<ReplicaRequest, Response>> listener,
+             PrimaryShardReference<Request, ReplicaRequest, Response> primaryShardReference);
     }
 
     protected static class PrimaryResult<ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
@@ -982,7 +1002,7 @@ public abstract class TransportReplicationAction<
         replica.acquireReplicaOperationPermit(primaryTerm, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes, onAcquired, executor, request);
     }
 
-    class ShardReference implements Releasable {
+    static class ShardReference implements Releasable {
 
         protected final IndexShard indexShard;
         private final Releasable operationLock;
@@ -1007,11 +1027,18 @@ public abstract class TransportReplicationAction<
 
     }
 
-    class PrimaryShardReference extends ShardReference
+    static class PrimaryShardReference<
+        Request extends ReplicationRequest<Request>,
+        ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
+        Response extends ReplicationResponse
+        > extends ShardReference
             implements ReplicationOperation.Primary<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> {
 
-        PrimaryShardReference(IndexShard indexShard, Releasable operationLock) {
+        private final TransportReplicationAction<Request, ReplicaRequest, Response> transportReplicationAction;
+
+        PrimaryShardReference(IndexShard indexShard, Releasable operationLock, TransportReplicationAction<Request,ReplicaRequest, Response> transportReplicationAction) {
             super(indexShard, operationLock);
+            this.transportReplicationAction = transportReplicationAction;
         }
 
         public boolean isRelocated() {
@@ -1028,8 +1055,8 @@ public abstract class TransportReplicationAction<
         }
 
         @Override
-        public PrimaryResult perform(Request request) throws Exception {
-            PrimaryResult result = shardOperationOnPrimary(request, indexShard);
+        public PrimaryResult<ReplicaRequest,Response> perform(Request request) throws Exception {
+            PrimaryResult<ReplicaRequest,Response> result = transportReplicationAction.shardOperationOnPrimary(request, indexShard);
             assert result.replicaRequest() == null || result.finalFailure == null : "a replica request [" + result.replicaRequest()
                 + "] with a primary failure [" + result.finalFailure + "]";
             return result;
