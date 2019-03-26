@@ -326,16 +326,9 @@ public abstract class TransportReplicationAction<
 
         AsyncPrimaryAction(Request request, String targetAllocationID, long primaryTerm, TransportChannel channel,
                            ReplicationTask replicationTask) {
-            this(request, targetAllocationID, primaryTerm, channel, replicationTask,
-                new TransportReplicationAction.ReplicatedOperationFactory<Request, ReplicaRequest, Response>() {
-                    @Override
-                    public ReplicationOperation<Request, ReplicaRequest, TransportReplicationAction.PrimaryResult<ReplicaRequest, Response>>
-                    createReplicatedOperation(ActionListener<TransportReplicationAction.PrimaryResult<ReplicaRequest, Response>> actionListener,
-                                              TransportReplicationAction.PrimaryShardReference<Request, ReplicaRequest, Response> primaryShardReference) {
-                        return new ReplicationOperation<>(request, primaryShardReference, actionListener,
-                            newReplicasProxy(primaryTerm), logger, actionName);
-                    }
-                });
+            this(request, targetAllocationID,primaryTerm,channel,replicationTask,
+                (listener, primaryShardReference) -> new ReplicationOperation<>(request, primaryShardReference, listener,
+                newReplicasProxy(primaryTerm), logger, actionName));
         }
 
         AsyncPrimaryAction(Request request, String targetAllocationID, long primaryTerm, TransportChannel channel,
