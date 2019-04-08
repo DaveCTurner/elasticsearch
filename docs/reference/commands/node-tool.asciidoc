@@ -19,63 +19,93 @@ bin/elasticsearch-node repurpose|unsafe-bootstrap|detach-cluster
 [float]
 === Description
 
-This tool has three modes, described in the following sections:
+This tool has three modes:
 
-* `elasticsearch-node repurpose` reports on and performs necessary index meta-data
-  and shard data cleanup when a node is repurposed to no longer hold <<data-node,data>> or be
-  <<master-node,master-eligible>>.
+* `elasticsearch-node repurpose` can be used to delete unwanted metadata from a
+  node if it used to be a <<data-node,data node>> or a
+  <<master-node,master-eligible node>> but has been repurposed not to have one
+  or other of these roles.
 
-* `elasticsearch-node unsafe-bootstrap` can be used to perform _unsafe cluster bootstrapping_.
-  It forces one of the nodes to form a brand-new cluster on its own, using its local copy of
-  the cluster metadata.
+* `elasticsearch-node unsafe-bootstrap` can be used to perform _unsafe cluster
+  bootstrapping_.  It forces one of the nodes to form a brand-new cluster on
+  its own, using its local copy of the cluster metadata.
 
-* `elasticsearch-node detach-cluster` enables you to move nodes from one cluster to another.
-  This can be used to move nodes into a new cluster created with the `elasticsearch-node unsafe-bootstap`
-  command. If unsafe cluster bootstrapping was not possible, it also enables you to move nodes
+* `elasticsearch-node detach-cluster` enables you to move nodes from one
+  cluster to another.  This can be used to move nodes into a new cluster
+  created with the `elasticsearch-node unsafe-bootstap` command. If unsafe
+  cluster bootstrapping was not possible, it also enables you to move nodes
   into a brand-new cluster.
 
 [[node-tool-repurpose]]
 [float]
 ==== Changing the role of a node
 
-Changing the role of a node can lead to excess on-disk data that will prevent a node from starting. The
-`elasticsearch-node` tool should be used to cleanup excess data after certain role changes, detailed in the following.
+Each data node has the following data on disk:
 
-Two types of on-disk index data can need cleanup:
+* the shard data for every shard allocated to that node,
+* the index metadata corresponding with every shard allocated to that node, and
+* the cluster-wide metadata, such as settings and index templates.
 
-* Index metadata: information about indices like name, mapping and more.
-* Shard data: primary or replica shards allocated to this node.
+Similarly, each master-eligible node has the following data on disk:
 
-Repurposing an existing node by changing node.master or node.data to false can leave lingering on-disk metadata and
-shard data around, which will not be accessible by the node's new role. Beside storing non-accessible data, this could lead
-to situations where <<modules-gateway-dangling-indices,dangling indices>> are imported even though the node might not
-be able to host any shards, leading to a red cluster health.  To avoid this,
+* the index metadata for every index in the cluster, and
+* the cluster-wide metadata, such as settings and index templates.
 
-* nodes with on-disk shard data and `node.data` set to false will refuse to start
-* nodes with on-disk index/shard data and both `node.master` and `node.data set` to false will refuse to start
+If a node discovers unexpected data in its data path then it will refuse to
+start. This is to protect against storing inaccessible data and to avoid
+situations where <<modules-gateway-dangling-indices,dangling indices>> are
+imported even though it is not possible to assign any shards to a node, leading
+to a red cluster health. To be more precise:
 
-The `elasticsearch-node repurpose` tool allows cleaning up such excess data, enabling nodes to start
-after being repurposed. The cleanup that will be done are:
+* nodes with `node.data: false` will refuse to start if they have any shard
+  data on disk.
+* nodes with both `node.master: false` and `node.data: false` will refuse to
+  start if they have any index metadata on disk.
+// TODO what if there's cluster metadata on disk in this second case?
 
-* `node.data=false` and `node.master=false`: both index metadata and shard data will be cleaned up.
-* `node.data=false` and `node.master=true` : only shard data will be cleaned up.
-* Any other combinations: no cleanup necessary (will be reported by the tool).
+It is possible to "repurpose" a node by changing the roles configured in its
+`elasticsearch.yml` file and restarting it. The rules described here mean that
+you must perform some extra steps to prepare a node for repurposing when
+setting its `node.data` or `node.master` roles to `false`.
 
-[WARNING]
-Running this command can lead to data loss for the indices mentioned if the data
-contained is not available on other nodes in the cluster. Only run this tool if you
-understand and accept the possible consequences.
+If you want to repurpose a data node by changing `node.data` to `false` then
+you should first use an <<allocation-filtering,allocation filter>> to safely
+migrate all the shard data onto other nodes in the cluster.
+
+If you want to repurpose a node to have both `node.master: false` and
+`node.data: false` then it is simplest to start a brand-new node with an empty
+data path and the desired roles. You may find it safest to use an
+<<allocation-filtering,allocation filter>> to migrate the shard data elsewhere
+in the cluster first.
+
+There may be situations where you want to repurpose a node without following
+these processes. The `elasticsearch-node repurpose` tool allows you to delete
+any excess on-disk data and start a node after repurposing it.
 
 The intended use is:
 
-. Stop the node
-. Update node settings (node.master/node.data) to desired new role
-. Run `elasticsearch-node repurpose` on the node
-. Start the node
+* Stop the node
+* Update `elasticsearch.yml` by setting `node.master` and `node.data` as
+  desired.
+* Run `elasticsearch-node repurpose` on the node
+* Start the node
 
-The tool provides a summary of the the cleanup necessary and asks for confirmation before
-making any changes. Use the verbose (-v) option to get detailed information on indices and
-shards affected.
+If you run `elasticsearch-node repurpose` on a node with `node.data: false` and
+`node.master: true` then it will delete any remaining shard data on that node,
+but it will leave the index and cluster metadata alone. If you run
+`elasticsearch-node repurpose` on a node with `node.data: false` and
+`node.master: false` then it will delete any remaining shard data and index
+metadata, but it will leave the cluster metadata alone.
+
+[WARNING]
+Running this command can lead to data loss for the indices mentioned if the
+data contained is not available on other nodes in the cluster. Only run this
+tool if you understand and accept the possible consequences, and only after
+determining that the node cannot be repurposed cleanly.
+
+The tool provides a summary of the data to be deleted and asks for confirmation
+before making any changes. You can get detailed information about the affected
+indices and shards by passing the verbose (`-v`) option.
 
 [float]
 ==== Recovering data after a disaster
