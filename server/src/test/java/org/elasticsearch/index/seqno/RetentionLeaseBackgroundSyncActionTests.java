@@ -25,7 +25,7 @@ import org.elasticsearch.action.LatchedActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
-import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -162,7 +162,7 @@ public class RetentionLeaseBackgroundSyncActionTests extends ESTestCase {
         final RetentionLeaseBackgroundSyncAction.Request request =
                 new RetentionLeaseBackgroundSyncAction.Request(indexShard.shardId(), retentionLeases);
 
-        final TransportReplicationAction.ReplicaResult result = action.shardOperationOnReplica(request, indexShard);
+        final TransportRerouteFreeReplicationAction.ReplicaResult result = action.shardOperationOnReplica(request, indexShard);
         // the retention leases on the shard should be updated
         verify(indexShard).updateRetentionLeasesOnReplica(retentionLeases);
         // the retention leases on the shard should be persisted

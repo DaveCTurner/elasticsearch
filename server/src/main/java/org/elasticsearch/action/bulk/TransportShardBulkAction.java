@@ -33,7 +33,7 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.RetryOnReplicaException;
 import org.elasticsearch.action.support.replication.TransportWriteAction;
 import org.elasticsearch.action.update.UpdateHelper;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -506,7 +506,7 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             // field f might see the updated mapping (on the primary), and will therefore proceed to be replicated
             // to the replica. When it arrives on the replica, there’s no guarantee that the replica has already
             // applied the new mapping, so there is no other option than to wait.
-            throw new TransportReplicationAction.RetryOnReplicaException(replica.shardId(),
+            throw new RetryOnReplicaException(replica.shardId(),
                 "Mappings are not available on the replica yet, triggered update: " + result.getRequiredMappingUpdate());
         }
         return result;

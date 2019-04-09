@@ -25,8 +25,8 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
-import org.elasticsearch.action.support.replication.TransportReplicationAction;
 import org.elasticsearch.action.support.replication.TransportReplicationAction.ConcreteShardRequest;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ReplicaResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
@@ -250,7 +250,7 @@ public class TransportVerifyShardBeforeCloseActionTests extends ESTestCase {
                 String allocationId = ((ConcreteShardRequest) capturedRequest.request).getTargetAllocationID();
                 assertFalse(unavailableShards.stream().anyMatch(shardRouting -> shardRouting.allocationId().getId().equals(allocationId)));
                 assertTrue(inSyncAllocationIds.stream().anyMatch(inSyncAllocationId -> inSyncAllocationId.equals(allocationId)));
-                transport.handleResponse(capturedRequest.requestId, new TransportReplicationAction.ReplicaResponse(0L, 0L));
+                transport.handleResponse(capturedRequest.requestId, new ReplicaResponse(0L, 0L));
 
             } else {
                 fail("Test does not support action " + capturedRequest.action);

@@ -23,6 +23,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ReplicaResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlock;
@@ -183,23 +184,20 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
                 // node2 doesn't really exist, but we are performing some trickery in mockIndicesService() to pretend that node1 holds both
                 // the primary and the replica, so redirect the request back to node1.
                 transportService.sendRequest(transportService.getLocalNode(), action, request,
-                    new TransportResponseHandler<TransportReplicationAction.ReplicaResponse>() {
+                    new TransportResponseHandler<ReplicaResponse>() {
                         @Override
-                        public TransportReplicationAction.ReplicaResponse read(StreamInput in) throws IOException {
-                            final TransportReplicationAction.ReplicaResponse replicaResponse
-                                = new TransportReplicationAction.ReplicaResponse();
-                            replicaResponse.readFrom(in);
-                            return replicaResponse;
+                        public ReplicaResponse read(StreamInput in) throws IOException {
+                            return new ReplicaResponse(in);
                         }
 
                         @SuppressWarnings("unchecked")
-                        private TransportResponseHandler<TransportReplicationAction.ReplicaResponse> getResponseHandler() {
-                            return (TransportResponseHandler<TransportReplicationAction.ReplicaResponse>)
+                        private TransportResponseHandler<ReplicaResponse> getResponseHandler() {
+                            return (TransportResponseHandler<ReplicaResponse>)
                                 getResponseHandlers().onResponseReceived(requestId, TransportMessageListener.NOOP_LISTENER);
                         }
 
                         @Override
-                        public void handleResponse(TransportReplicationAction.ReplicaResponse response) {
+                        public void handleResponse(ReplicaResponse response) {
                             getResponseHandler().handleResponse(response);
                         }
 
@@ -449,14 +447,14 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
         }
 
         @Override
-        protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
+        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
             assertEquals("Replica is always assigned to node 2 in this test", clusterService.state().nodes().get("_node2").getId(),
                 shard.routingEntry().currentNodeId());
             executedOnReplica.set(true);
             // The TransportReplicationAction.getIndexShard() method is overridden for testing purpose but we double check here
             // that the permit has been acquired on the replica shard
             assertSame(replica, shard);
-            return new ReplicaResult();
+            return new TransportRerouteFreeReplicationAction.ReplicaResult();
         }
     }
 
@@ -508,7 +506,7 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
         }
 
         @Override
-        protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
+        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
             assertNoBlocks("block must not exist when executing the operation on replica shard: it should have been blocked before");
             assertThat(shard.getActiveOperationsCount(), greaterThan(0));
             return super.shardOperationOnReplica(shardRequest, shard);
@@ -554,7 +552,7 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
         }
 
         @Override
-        protected ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
+        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
             assertEquals("All permits must be acquired", 0, shard.getActiveOperationsCount());
             return super.shardOperationOnReplica(shardRequest, shard);
         }

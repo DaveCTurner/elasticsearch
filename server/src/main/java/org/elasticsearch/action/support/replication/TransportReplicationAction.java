@@ -22,17 +22,18 @@ package org.elasticsearch.action.support.replication;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.Assertions;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.UnavailableShardsException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.TransportActions;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ConcreteReplicaRequest;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ReplicaResponse;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ReplicaResult;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
@@ -57,7 +58,6 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardClosedException;
 import org.elasticsearch.index.shard.ReplicationGroup;
@@ -74,8 +74,6 @@ import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
-import org.elasticsearch.transport.TransportResponse;
-import org.elasticsearch.transport.TransportResponse.Empty;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
@@ -106,9 +104,8 @@ public abstract class TransportReplicationAction<
     protected final IndexNameExpressionResolver indexNameExpressionResolver;
     protected final TransportRequestOptions transportOptions;
     protected final String executor;
+    protected final TransportRerouteFreeReplicationAction<ReplicaRequest> transportRerouteFreeReplicationAction;
 
-    // package private for testing
-    protected final String transportReplicaAction;
     protected final String transportPrimaryAction;
 
     private final boolean syncGlobalCheckpointAfterOperation;
@@ -141,20 +138,30 @@ public abstract class TransportReplicationAction<
         this.executor = executor;
 
         this.transportPrimaryAction = actionName + "[p]";
-        this.transportReplicaAction = actionName + "[r]";
 
         transportService.registerRequestHandler(actionName, ThreadPool.Names.SAME, requestReader, this::handleOperationRequest);
 
         transportService.registerRequestHandler(transportPrimaryAction, executor, forceExecutionOnPrimary, true,
             in -> new ConcreteShardRequest<>(requestReader, in), this::handlePrimaryRequest);
 
-        // we must never reject on because of thread pool capacity on replicas
-        transportService.registerRequestHandler(transportReplicaAction, executor, true, true,
-            in -> new ConcreteReplicaRequest<>(replicaRequestReader, in), this::handleReplicaRequest);
-
         this.transportOptions = transportOptions(settings);
 
         this.syncGlobalCheckpointAfterOperation = syncGlobalCheckpointAfterOperation;
+
+        transportRerouteFreeReplicationAction = new TransportRerouteFreeReplicationAction<>(threadPool, transportService, clusterService,
+            indicesService, actionName, transportOptions, executor, replicaRequestReader) {
+            @Override
+            protected void acquireReplicaOperationPermit(IndexShard replica, ReplicaRequest request, ActionListener<Releasable> onAcquired,
+                                                         long primaryTerm, long globalCheckpoint, long maxSeqNoOfUpdatesOrDeletes) {
+                TransportReplicationAction.this.acquireReplicaOperationPermit(
+                    replica, request, onAcquired, primaryTerm, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes);
+            }
+
+            @Override
+            protected ReplicaResult shardOperationOnReplica(ReplicaRequest shardRequest, IndexShard replica) throws Exception {
+                return TransportReplicationAction.this.shardOperationOnReplica(shardRequest, replica);
+            }
+        };
     }
 
     @Override
@@ -462,158 +469,10 @@ public abstract class TransportReplicationAction<
         }
     }
 
-    public static class ReplicaResult {
-        final Exception finalFailure;
-
-        public ReplicaResult(Exception finalFailure) {
-            this.finalFailure = finalFailure;
-        }
-
-        public ReplicaResult() {
-            this(null);
-        }
-
-        public void respond(ActionListener<TransportResponse.Empty> listener) {
-            if (finalFailure == null) {
-                listener.onResponse(TransportResponse.Empty.INSTANCE);
-            } else {
-                listener.onFailure(finalFailure);
-            }
-        }
-    }
-
-    protected void handleReplicaRequest(final ConcreteReplicaRequest<ReplicaRequest> replicaRequest,
-                                        final TransportChannel channel, final Task task) {
-        new AsyncReplicaAction(
-            replicaRequest, new ChannelActionListener<>(channel, transportReplicaAction, replicaRequest), (ReplicationTask) task).run();
-    }
-
-    public static class RetryOnReplicaException extends ElasticsearchException {
-
-        public RetryOnReplicaException(ShardId shardId, String msg) {
-            super(msg);
-            setShard(shardId);
-        }
-
-        public RetryOnReplicaException(StreamInput in) throws IOException {
-            super(in);
-        }
-    }
-
-    private final class AsyncReplicaAction extends AbstractRunnable implements ActionListener<Releasable> {
-        private final ActionListener<ReplicaResponse> onCompletionListener;
-        private final IndexShard replica;
-        /**
-         * The task on the node with the replica shard.
-         */
-        private final ReplicationTask task;
-        // important: we pass null as a timeout as failing a replica is
-        // something we want to avoid at all costs
-        private final ClusterStateObserver observer = new ClusterStateObserver(clusterService, null, logger, threadPool.getThreadContext());
-        private final ConcreteReplicaRequest<ReplicaRequest> replicaRequest;
-
-        AsyncReplicaAction(ConcreteReplicaRequest<ReplicaRequest> replicaRequest, ActionListener<ReplicaResponse> onCompletionListener,
-                           ReplicationTask task) {
-            this.replicaRequest = replicaRequest;
-            this.onCompletionListener = onCompletionListener;
-            this.task = task;
-            final ShardId shardId = replicaRequest.getRequest().shardId();
-            assert shardId != null : "request shardId must be set";
-            this.replica = getIndexShard(shardId);
-        }
-
-        @Override
-        public void onResponse(Releasable releasable) {
-            try {
-                final ReplicaResult replicaResult = shardOperationOnReplica(replicaRequest.getRequest(), replica);
-                releasable.close(); // release shard operation lock before responding to caller
-                final TransportReplicationAction.ReplicaResponse response =
-                        new ReplicaResponse(replica.getLocalCheckpoint(), replica.getGlobalCheckpoint());
-                replicaResult.respond(new ResponseListener(response));
-            } catch (final Exception e) {
-                Releasables.closeWhileHandlingException(releasable); // release shard operation lock before responding to caller
-                AsyncReplicaAction.this.onFailure(e);
-            }
-        }
-
-        @Override
-        public void onFailure(Exception e) {
-            if (e instanceof RetryOnReplicaException) {
-                logger.trace(
-                        () -> new ParameterizedMessage(
-                            "Retrying operation on replica, action [{}], request [{}]",
-                            transportReplicaAction,
-                            replicaRequest.getRequest()),
-                    e);
-                replicaRequest.getRequest().onRetry();
-                observer.waitForNextChange(new ClusterStateObserver.Listener() {
-                    @Override
-                    public void onNewClusterState(ClusterState state) {
-                        // Forking a thread on local node via transport service so that custom transport service have an
-                        // opportunity to execute custom logic before the replica operation begins
-                        transportService.sendRequest(clusterService.localNode(), transportReplicaAction,
-                            replicaRequest,
-                            new ActionListenerResponseHandler<>(onCompletionListener, in -> new ReplicaResponse()));
-                    }
-
-                    @Override
-                    public void onClusterServiceClose() {
-                        responseWithFailure(new NodeClosedException(clusterService.localNode()));
-                    }
-
-                    @Override
-                    public void onTimeout(TimeValue timeout) {
-                        throw new AssertionError("Cannot happen: there is not timeout");
-                    }
-                });
-            } else {
-                responseWithFailure(e);
-            }
-        }
-
-        protected void responseWithFailure(Exception e) {
-            setPhase(task, "finished");
-            onCompletionListener.onFailure(e);
-        }
-
-        @Override
-        protected void doRun() throws Exception {
-            setPhase(task, "replica");
-            final String actualAllocationId = this.replica.routingEntry().allocationId().getId();
-            if (actualAllocationId.equals(replicaRequest.getTargetAllocationID()) == false) {
-                throw new ShardNotFoundException(this.replica.shardId(), "expected allocation id [{}] but found [{}]",
-                    replicaRequest.getTargetAllocationID(), actualAllocationId);
-            }
-            acquireReplicaOperationPermit(replica, replicaRequest.getRequest(), this, replicaRequest.getPrimaryTerm(),
-                replicaRequest.getGlobalCheckpoint(), replicaRequest.getMaxSeqNoOfUpdatesOrDeletes());
-        }
-
-        /**
-         * Listens for the response on the replica and sends the response back to the primary.
-         */
-        private class ResponseListener implements ActionListener<TransportResponse.Empty> {
-            private final ReplicaResponse replicaResponse;
-
-            ResponseListener(ReplicaResponse replicaResponse) {
-                this.replicaResponse = replicaResponse;
-            }
-
-            @Override
-            public void onResponse(Empty response) {
-                if (logger.isTraceEnabled()) {
-                    logger.trace("action [{}] completed on shard [{}] for request [{}]", transportReplicaAction,
-                        replicaRequest.getRequest().shardId(),
-                        replicaRequest.getRequest());
-                }
-                setPhase(task, "finished");
-                onCompletionListener.onResponse(replicaResponse);
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                responseWithFailure(e);
-            }
-        }
+    // Only for testing, TODO remove this
+    void handleReplicaRequest(final ConcreteReplicaRequest<ReplicaRequest> replicaRequest,
+                              final TransportChannel channel, final Task task) {
+        transportRerouteFreeReplicationAction.handleReplicaRequest(replicaRequest, channel, task);
     }
 
     private IndexShard getIndexShard(final ShardId shardId) {
@@ -959,64 +818,6 @@ public abstract class TransportReplicationAction<
     }
 
 
-    public static class ReplicaResponse extends ActionResponse implements ReplicationOperation.ReplicaResponse {
-        private long localCheckpoint;
-        private long globalCheckpoint;
-
-        ReplicaResponse() {
-
-        }
-
-        public ReplicaResponse(long localCheckpoint, long globalCheckpoint) {
-            /*
-             * A replica should always know its own local checkpoints so this should always be a valid sequence number or the pre-6.0
-             * checkpoint value when simulating responses to replication actions that pre-6.0 nodes are not aware of (e.g., the global
-             * checkpoint background sync, and the primary/replica resync).
-             */
-            assert localCheckpoint != SequenceNumbers.UNASSIGNED_SEQ_NO;
-            this.localCheckpoint = localCheckpoint;
-            this.globalCheckpoint = globalCheckpoint;
-        }
-
-        @Override
-        public void readFrom(StreamInput in) throws IOException {
-            super.readFrom(in);
-            localCheckpoint = in.readZLong();
-            globalCheckpoint = in.readZLong();
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            super.writeTo(out);
-            out.writeZLong(localCheckpoint);
-            out.writeZLong(globalCheckpoint);
-        }
-
-        @Override
-        public long localCheckpoint() {
-            return localCheckpoint;
-        }
-
-        @Override
-        public long globalCheckpoint() {
-            return globalCheckpoint;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            ReplicaResponse that = (ReplicaResponse) o;
-            return localCheckpoint == that.localCheckpoint &&
-                globalCheckpoint == that.globalCheckpoint;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(localCheckpoint, globalCheckpoint);
-        }
-    }
-
     /**
      * The {@code ReplicasProxy} is an implementation of the {@code Replicas}
      * interface that performs the actual {@code ReplicaRequest} on the replica
@@ -1044,14 +845,8 @@ public abstract class TransportReplicationAction<
                 listener.onFailure(new NoNodeAvailableException("unknown node [" + nodeId + "]"));
                 return;
             }
-            final ConcreteReplicaRequest<ReplicaRequest> replicaRequest = new ConcreteReplicaRequest<>(
-                request, replica.allocationId().getId(), primaryTerm, globalCheckpoint, maxSeqNoOfUpdatesOrDeletes);
-            final ActionListenerResponseHandler<ReplicaResponse> handler = new ActionListenerResponseHandler<>(listener, in -> {
-                ReplicaResponse replicaResponse = new ReplicaResponse();
-                replicaResponse.readFrom(in);
-                return replicaResponse;
-            });
-            transportService.sendRequest(node, transportReplicaAction, replicaRequest, transportOptions, handler);
+            transportRerouteFreeReplicationAction.sendRemoteRequest(node, replica, request, primaryTerm, globalCheckpoint,
+                maxSeqNoOfUpdatesOrDeletes, new ActionListenerResponseHandler<>(listener, ReplicaResponse::new));
         }
 
         @Override
@@ -1146,56 +941,6 @@ public abstract class TransportReplicationAction<
         @Override
         public String toString() {
             return "request: " + request + ", target allocation id: " + targetAllocationID + ", primary term: " + primaryTerm;
-        }
-    }
-
-    protected static final class ConcreteReplicaRequest<R extends TransportRequest> extends ConcreteShardRequest<R> {
-
-        private final long globalCheckpoint;
-        private final long maxSeqNoOfUpdatesOrDeletes;
-
-        public ConcreteReplicaRequest(Writeable.Reader<R> requestReader, StreamInput in) throws IOException {
-            super(requestReader, in);
-            globalCheckpoint = in.readZLong();
-            maxSeqNoOfUpdatesOrDeletes = in.readZLong();
-        }
-
-        public ConcreteReplicaRequest(final R request, final String targetAllocationID, final long primaryTerm,
-                                      final long globalCheckpoint, final long maxSeqNoOfUpdatesOrDeletes) {
-            super(request, targetAllocationID, primaryTerm);
-            this.globalCheckpoint = globalCheckpoint;
-            this.maxSeqNoOfUpdatesOrDeletes = maxSeqNoOfUpdatesOrDeletes;
-        }
-
-        @Override
-        public void readFrom(StreamInput in) {
-            throw new UnsupportedOperationException("usage of Streamable is to be replaced by Writeable");
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            super.writeTo(out);
-            out.writeZLong(globalCheckpoint);
-            out.writeZLong(maxSeqNoOfUpdatesOrDeletes);
-        }
-
-        public long getGlobalCheckpoint() {
-            return globalCheckpoint;
-        }
-
-        public long getMaxSeqNoOfUpdatesOrDeletes() {
-            return maxSeqNoOfUpdatesOrDeletes;
-        }
-
-        @Override
-        public String toString() {
-            return "ConcreteReplicaRequest{" +
-                    "targetAllocationID='" + getTargetAllocationID() + '\'' +
-                    ", primaryTerm='" + getPrimaryTerm() + '\'' +
-                    ", request=" + getRequest() +
-                    ", globalCheckpoint=" + globalCheckpoint +
-                    ", maxSeqNoOfUpdatesOrDeletes=" + maxSeqNoOfUpdatesOrDeletes +
-                    '}';
         }
     }
 

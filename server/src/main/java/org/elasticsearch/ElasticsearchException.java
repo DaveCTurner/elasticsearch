@@ -982,8 +982,9 @@ public class ElasticsearchException extends RuntimeException implements ToXConte
                 org.elasticsearch.transport.NodeNotConnectedException::new, 134, UNKNOWN_VERSION_ADDED),
         STRICT_DYNAMIC_MAPPING_EXCEPTION(org.elasticsearch.index.mapper.StrictDynamicMappingException.class,
                 org.elasticsearch.index.mapper.StrictDynamicMappingException::new, 135, UNKNOWN_VERSION_ADDED),
-        RETRY_ON_REPLICA_EXCEPTION(org.elasticsearch.action.support.replication.TransportReplicationAction.RetryOnReplicaException.class,
-                org.elasticsearch.action.support.replication.TransportReplicationAction.RetryOnReplicaException::new, 136,
+        RETRY_ON_REPLICA_EXCEPTION(
+            org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.RetryOnReplicaException.class,
+            org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.RetryOnReplicaException::new, 136,
             UNKNOWN_VERSION_ADDED),
         TYPE_MISSING_EXCEPTION(org.elasticsearch.indices.TypeMissingException.class,
                 org.elasticsearch.indices.TypeMissingException::new, 137, UNKNOWN_VERSION_ADDED),

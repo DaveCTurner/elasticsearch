@@ -26,6 +26,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportActions;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.WriteResponse;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.ReplicaResult;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -96,7 +97,7 @@ public abstract class TransportWriteAction<
     }
 
     @Override
-    protected ReplicationOperation.Replicas newReplicasProxy(long primaryTerm) {
+    protected ReplicationOperation.Replicas<ReplicaRequest> newReplicasProxy(long primaryTerm) {
         return new WriteActionReplicasProxy(primaryTerm);
     }
 

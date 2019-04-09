@@ -24,7 +24,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
@@ -757,7 +757,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
             shard.advanceMaxSeqNoOfUpdatesOrDeletes(seqNo); // manually replicate max_seq_no_of_updates
             result = shard.applyIndexOperationOnReplica(seqNo, 0, IndexRequest.UNSET_AUTO_GENERATED_TIMESTAMP, false, sourceToParse);
             if (result.getResultType() == Engine.Result.Type.MAPPING_UPDATE_REQUIRED) {
-                throw new TransportReplicationAction.RetryOnReplicaException(shard.shardId,
+                throw new TransportRerouteFreeReplicationAction.RetryOnReplicaException(shard.shardId,
                     "Mappings are not available on the replica yet, triggered update: " + result.getRequiredMappingUpdate());
             }
         }

@@ -23,7 +23,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
-import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction.RetryOnReplicaException;
 import org.elasticsearch.action.support.replication.TransportWriteAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
@@ -112,7 +112,7 @@ public class TransportResyncReplicationAction extends TransportWriteAction<Resyn
         for (Translog.Operation operation : request.getOperations()) {
             final Engine.Result operationResult = replica.applyTranslogOperation(operation, Engine.Operation.Origin.REPLICA);
             if (operationResult.getResultType() == Engine.Result.Type.MAPPING_UPDATE_REQUIRED) {
-                throw new TransportReplicationAction.RetryOnReplicaException(replica.shardId(),
+                throw new RetryOnReplicaException(replica.shardId(),
                     "Mappings are not available on the replica yet, triggered update: " + operationResult.getRequiredMappingUpdate());
             }
             location = syncOperationResultOrThrow(operationResult, location);
