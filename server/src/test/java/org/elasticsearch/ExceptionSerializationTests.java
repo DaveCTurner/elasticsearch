@@ -30,6 +30,7 @@ import org.elasticsearch.action.TimestampParsingException;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.client.AbstractClientHeadersTestCase;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlockException;
@@ -797,7 +798,7 @@ public class ExceptionSerializationTests extends ESTestCase {
         ids.put(133, org.elasticsearch.common.breaker.CircuitBreakingException.class);
         ids.put(134, org.elasticsearch.transport.NodeNotConnectedException.class);
         ids.put(135, org.elasticsearch.index.mapper.StrictDynamicMappingException.class);
-        ids.put(136, org.elasticsearch.action.support.replication.TransportReplicationAction.RetryOnReplicaException.class);
+        ids.put(136, TransportRerouteFreeReplicationAction.RetryOnReplicaException.class);
         ids.put(137, org.elasticsearch.indices.TypeMissingException.class);
         ids.put(138, null);
         ids.put(139, null);

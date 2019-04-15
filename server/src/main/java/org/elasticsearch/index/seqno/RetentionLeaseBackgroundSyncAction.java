@@ -30,6 +30,7 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -140,12 +141,12 @@ public class RetentionLeaseBackgroundSyncAction extends TransportReplicationActi
     }
 
     @Override
-    protected ReplicaResult shardOperationOnReplica(final Request request, final IndexShard replica) throws WriteStateException {
+    protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(final Request request, final IndexShard replica) throws WriteStateException {
         Objects.requireNonNull(request);
         Objects.requireNonNull(replica);
         replica.updateRetentionLeasesOnReplica(request.getRetentionLeases());
         replica.persistRetentionLeases();
-        return new ReplicaResult();
+        return new TransportRerouteFreeReplicationAction.ReplicaResult();
     }
 
     public static final class Request extends ReplicationRequest<Request> {

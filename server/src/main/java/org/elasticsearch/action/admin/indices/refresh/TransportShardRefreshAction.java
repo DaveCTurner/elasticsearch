@@ -24,6 +24,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.BasicReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -64,9 +65,9 @@ public class TransportShardRefreshAction
     }
 
     @Override
-    protected ReplicaResult shardOperationOnReplica(BasicReplicationRequest request, IndexShard replica) {
+    protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(BasicReplicationRequest request, IndexShard replica) {
         replica.refresh("api");
         logger.trace("{} refresh request executed on replica", replica.shardId());
-        return new ReplicaResult();
+        return new TransportRerouteFreeReplicationAction.ReplicaResult();
     }
 }

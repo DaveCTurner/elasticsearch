@@ -190,7 +190,7 @@ public abstract class TransportWriteAction<
      * Result of taking the action on the replica.
      */
     public static class WriteReplicaResult<ReplicaRequest extends ReplicatedWriteRequest<ReplicaRequest>>
-            extends ReplicaResult implements RespondingWriteResult {
+            extends TransportRerouteFreeReplicationAction.ReplicaResult implements RespondingWriteResult {
         public final Location location;
         boolean finishedAsyncActions;
         private ActionListener<TransportResponse.Empty> listener;

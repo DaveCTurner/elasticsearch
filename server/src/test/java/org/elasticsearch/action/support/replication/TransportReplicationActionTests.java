@@ -738,8 +738,8 @@ public class TransportReplicationActionTests extends ESTestCase {
         CapturingTransport.CapturedRequest[] captures = transport.getCapturedRequestsAndClear();
         assertThat(captures, arrayWithSize(1));
         if (randomBoolean()) {
-            final TransportReplicationAction.ReplicaResponse response =
-                    new TransportReplicationAction.ReplicaResponse(randomLong(), randomLong());
+            final TransportRerouteFreeReplicationAction.ReplicaResponse response =
+                    new TransportRerouteFreeReplicationAction.ReplicaResponse(randomLong(), randomLong());
             transport.handleResponse(captures[0].requestId, response);
             assertTrue(listener.isDone());
             assertThat(listener.get(), equalTo(response));
@@ -881,21 +881,21 @@ public class TransportReplicationActionTests extends ESTestCase {
         TestAction action = new TestAction(Settings.EMPTY, "internal:testActionWithExceptions", transportService, clusterService,
             shardStateAction, threadPool) {
             @Override
-            protected ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
+            protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
                 assertIndexShardCounter(1);
                 assertPhase(task, "replica");
                 if (throwException) {
                     throw new ElasticsearchException("simulated");
                 }
-                return new ReplicaResult();
+                return new TransportRerouteFreeReplicationAction.ReplicaResult();
             }
         };
         try {
             action.handleReplicaRequest(
-                new TransportReplicationAction.ConcreteReplicaRequest<>(
+                new TransportRerouteFreeReplicationAction.ConcreteReplicaRequest<>(
                         new Request(shardId), replicaRouting.allocationId().getId(), randomNonNegativeLong(),
                         randomNonNegativeLong(), randomNonNegativeLong()),
-                createTransportChannel(new PlainActionFuture<>()), task);
+                new PlainActionFuture<>(), task);
         } catch (ElasticsearchException e) {
             assertThat(e.getMessage(), containsString("simulated"));
             assertTrue(throwException);
@@ -980,12 +980,12 @@ public class TransportReplicationActionTests extends ESTestCase {
         state = ClusterState.builder(state).nodes(DiscoveryNodes.builder(state.nodes()).localNodeId(replica.currentNodeId())).build();
         setState(clusterService, state);
 
-        PlainActionFuture<TestResponse> listener = new PlainActionFuture<>();
+        PlainActionFuture<TransportRerouteFreeReplicationAction.ReplicaResponse> listener = new PlainActionFuture<>();
         Request request = new Request(shardId).timeout("1ms");
         action.handleReplicaRequest(
-            new TransportReplicationAction.ConcreteReplicaRequest<>(request, "_not_a_valid_aid_", randomNonNegativeLong(),
+            new TransportRerouteFreeReplicationAction.ConcreteReplicaRequest<>(request, "_not_a_valid_aid_", randomNonNegativeLong(),
                 randomNonNegativeLong(), randomNonNegativeLong()),
-            createTransportChannel(listener), maybeTask()
+            listener, maybeTask()
         );
         try {
             listener.get();
@@ -1000,7 +1000,7 @@ public class TransportReplicationActionTests extends ESTestCase {
     }
 
     /**
-     * test throwing a {@link org.elasticsearch.action.support.replication.TransportReplicationAction.RetryOnReplicaException}
+     * test throwing a {@link TransportRerouteFreeReplicationAction.RetryOnReplicaException}
      * causes a retry
      */
     public void testRetryOnReplica() throws Exception {
@@ -1016,22 +1016,22 @@ public class TransportReplicationActionTests extends ESTestCase {
         TestAction action = new TestAction(Settings.EMPTY, "internal:testActionWithExceptions", transportService, clusterService,
             shardStateAction, threadPool) {
             @Override
-            protected ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
+            protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
                 assertPhase(task, "replica");
                 if (throwException.get()) {
-                    throw new RetryOnReplicaException(shardId, "simulation");
+                    throw new TransportRerouteFreeReplicationAction.RetryOnReplicaException(shardId, "simulation");
                 }
-                return new ReplicaResult();
+                return new TransportRerouteFreeReplicationAction.ReplicaResult();
             }
         };
-        final PlainActionFuture<TestResponse> listener = new PlainActionFuture<>();
+        final PlainActionFuture<TransportRerouteFreeReplicationAction.ReplicaResponse> listener = new PlainActionFuture<>();
         final Request request = new Request(shardId);
         final long checkpoint = randomNonNegativeLong();
         final long maxSeqNoOfUpdatesOrDeletes = randomNonNegativeLong();
         action.handleReplicaRequest(
-                new TransportReplicationAction.ConcreteReplicaRequest<>(request, replica.allocationId().getId(),
+                new TransportRerouteFreeReplicationAction.ConcreteReplicaRequest<>(request, replica.allocationId().getId(),
                     primaryTerm, checkpoint, maxSeqNoOfUpdatesOrDeletes),
-                createTransportChannel(listener), task);
+                listener, task);
         if (listener.isDone()) {
             listener.get(); // fail with the exception if there
             fail("listener shouldn't be done");
@@ -1051,10 +1051,10 @@ public class TransportReplicationActionTests extends ESTestCase {
         assertThat(capturedRequests.size(), equalTo(1));
         final CapturingTransport.CapturedRequest capturedRequest = capturedRequests.get(0);
         assertThat(capturedRequest.action, equalTo("internal:testActionWithExceptions[r]"));
-        assertThat(capturedRequest.request, instanceOf(TransportReplicationAction.ConcreteReplicaRequest.class));
-        assertThat(((TransportReplicationAction.ConcreteReplicaRequest) capturedRequest.request).getGlobalCheckpoint(),
+        assertThat(capturedRequest.request, instanceOf(TransportRerouteFreeReplicationAction.ConcreteReplicaRequest.class));
+        assertThat(((TransportRerouteFreeReplicationAction.ConcreteReplicaRequest) capturedRequest.request).getGlobalCheckpoint(),
                 equalTo(checkpoint));
-        assertThat(((TransportReplicationAction.ConcreteReplicaRequest) capturedRequest.request).getMaxSeqNoOfUpdatesOrDeletes(),
+        assertThat(((TransportRerouteFreeReplicationAction.ConcreteReplicaRequest) capturedRequest.request).getMaxSeqNoOfUpdatesOrDeletes(),
             equalTo(maxSeqNoOfUpdatesOrDeletes));
         assertConcreteShardRequest(capturedRequest.request, request, replica.allocationId());
     }
@@ -1083,23 +1083,23 @@ public class TransportReplicationActionTests extends ESTestCase {
         TestAction action = new TestAction(Settings.EMPTY, "internal:testActionWithExceptions", transportService, clusterService,
             shardStateAction, threadPool) {
             @Override
-            protected ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
+            protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
                 assertPhase(task, "replica");
                 if (throwException.get()) {
-                    throw new RetryOnReplicaException(shardId, "simulation");
+                    throw new TransportRerouteFreeReplicationAction.RetryOnReplicaException(shardId, "simulation");
                 }
                 calledSuccessfully.set(true);
-                return new ReplicaResult();
+                return new TransportRerouteFreeReplicationAction.ReplicaResult();
             }
         };
-        final PlainActionFuture<TestResponse> listener = new PlainActionFuture<>();
+        final PlainActionFuture<TransportRerouteFreeReplicationAction.ReplicaResponse> listener = new PlainActionFuture<>();
         final Request request = new Request(shardId);
         final long checkpoint = randomNonNegativeLong();
         final long maxSeqNoOfUpdates = randomNonNegativeLong();
         action.handleReplicaRequest(
-                new TransportReplicationAction.ConcreteReplicaRequest<>(request, replica.allocationId().getId(),
+                new TransportRerouteFreeReplicationAction.ConcreteReplicaRequest<>(request, replica.allocationId().getId(),
                     primaryTerm, checkpoint, maxSeqNoOfUpdates),
-                createTransportChannel(listener), task);
+                listener, task);
         if (listener.isDone()) {
             listener.get(); // fail with the exception if there
             fail("listener shouldn't be done");
@@ -1240,9 +1240,9 @@ public class TransportReplicationActionTests extends ESTestCase {
         }
 
         @Override
-        protected ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
+        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request request, IndexShard replica) {
             request.processedOnReplicas.incrementAndGet();
-            return new ReplicaResult();
+            return new TransportRerouteFreeReplicationAction.ReplicaResult();
         }
 
         @Override

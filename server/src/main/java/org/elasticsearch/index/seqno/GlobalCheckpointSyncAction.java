@@ -27,6 +27,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -111,9 +112,9 @@ public class GlobalCheckpointSyncAction extends TransportReplicationAction<
     }
 
     @Override
-    protected ReplicaResult shardOperationOnReplica(final Request request, final IndexShard indexShard) throws Exception {
+    protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(final Request request, final IndexShard indexShard) throws Exception {
         maybeSyncTranslog(indexShard);
-        return new ReplicaResult();
+        return new TransportRerouteFreeReplicationAction.ReplicaResult();
     }
 
     private void maybeSyncTranslog(final IndexShard indexShard) throws IOException {

@@ -27,6 +27,7 @@ import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
@@ -94,9 +95,9 @@ public class TransportVerifyShardBeforeCloseAction extends TransportReplicationA
     }
 
     @Override
-    protected ReplicaResult shardOperationOnReplica(final ShardRequest shardRequest, final IndexShard replica) {
+    protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(final ShardRequest shardRequest, final IndexShard replica) {
         executeShardOperation(shardRequest, replica);
-        return new ReplicaResult();
+        return new TransportRerouteFreeReplicationAction.ReplicaResult();
     }
 
     private void executeShardOperation(final ShardRequest request, final IndexShard indexShard) {

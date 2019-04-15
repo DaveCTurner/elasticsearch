@@ -23,6 +23,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.support.replication.TransportReplicationAction;
+import org.elasticsearch.action.support.replication.TransportRerouteFreeReplicationAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -62,9 +63,9 @@ public class TransportShardFlushAction
     }
 
     @Override
-    protected ReplicaResult shardOperationOnReplica(ShardFlushRequest request, IndexShard replica) {
+    protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(ShardFlushRequest request, IndexShard replica) {
         replica.flush(request.getRequest());
         logger.trace("{} flush request executed on replica", replica.shardId());
-        return new ReplicaResult();
+        return new TransportRerouteFreeReplicationAction.ReplicaResult();
     }
 }
