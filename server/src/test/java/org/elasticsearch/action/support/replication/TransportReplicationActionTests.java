@@ -598,11 +598,11 @@ public class TransportReplicationActionTests extends ESTestCase {
             = new TransportReplicationAction.ConcreteShardRequest<>(request, primaryShard.allocationId().getId(), primaryTerm);
         action.new AsyncPrimaryAction(primaryRequest, listener, task) {
             @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+            protected ReplicationOperation<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
             createReplicatedOperation(
                 Request request,
-                ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
+                ReplicationOperation.Primary<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
                     primaryShardReference) {
                 return new NoopReplicationOperation(request, actionListener, primaryTerm) {
                     @Override
@@ -657,11 +657,11 @@ public class TransportReplicationActionTests extends ESTestCase {
             = new TransportReplicationAction.ConcreteShardRequest<>(request, primaryShard.allocationId().getRelocationId(), primaryTerm);
         action.new AsyncPrimaryAction(primaryRequest, listener, task) {
             @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+            protected ReplicationOperation<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
             createReplicatedOperation(
                     Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                    ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
+                    ReplicationOperation.Primary<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
                         primaryShardReference) {
                 return new NoopReplicationOperation(request, actionListener, primaryTerm) {
                     @Override
@@ -831,11 +831,11 @@ public class TransportReplicationActionTests extends ESTestCase {
             = new TransportReplicationAction.ConcreteShardRequest<>(request, primaryShard.allocationId().getId(), primaryTerm);
         action.new AsyncPrimaryAction(primaryRequest, listener, task) {
             @Override
-            protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+            protected ReplicationOperation<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
             createReplicatedOperation(
                     Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                    ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
+                    ReplicationOperation.Primary<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>>
                         primaryShardReference) {
                 assertIndexShardCounter(1);
                 if (throwExceptionOnCreation) {
@@ -1236,10 +1236,10 @@ public class TransportReplicationActionTests extends ESTestCase {
 
         @Override
         protected void shardOperationOnPrimary(Request shardRequest, IndexShard primary,
-                ActionListener<PrimaryResult<Request, TestResponse>> listener) {
+                ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> listener) {
             boolean executedBefore = shardRequest.processedOnPrimary.getAndSet(true);
             assert executedBefore == false : "request has already been executed on the primary";
-            listener.onResponse(new PrimaryResult<>(shardRequest, new TestResponse()));
+            listener.onResponse(new TransportRerouteFreeReplicationAction.PrimaryResult<>(shardRequest, new TestResponse()));
         }
 
         @Override
@@ -1325,9 +1325,9 @@ public class TransportReplicationActionTests extends ESTestCase {
         return indexShard;
     }
 
-    class NoopReplicationOperation extends ReplicationOperation<Request, Request, TestAction.PrimaryResult<Request, TestResponse>> {
+    class NoopReplicationOperation extends ReplicationOperation<Request, Request, TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> {
 
-        NoopReplicationOperation(Request request, ActionListener<TestAction.PrimaryResult<Request, TestResponse>> listener,
+        NoopReplicationOperation(Request request, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> listener,
                                  long primaryTerm) {
             super(request, null, listener, null, TransportReplicationActionTests.this.logger, "noop", primaryTerm);
         }
@@ -1335,7 +1335,7 @@ public class TransportReplicationActionTests extends ESTestCase {
         @Override
         public void execute() throws Exception {
             // Using the diamond operator (<>) prevents Eclipse from being able to compile this code
-            this.resultListener.onResponse(new TransportReplicationAction.PrimaryResult<Request, TestResponse>(null, new TestResponse()));
+            this.resultListener.onResponse(new TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>(null, new TestResponse()));
         }
     }
 

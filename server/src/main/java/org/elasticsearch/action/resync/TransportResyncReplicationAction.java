@@ -86,7 +86,7 @@ public class TransportResyncReplicationAction extends TransportWriteAction<Resyn
 
     @Override
     protected void shardOperationOnPrimary(ResyncReplicationRequest request, IndexShard primary,
-            ActionListener<PrimaryResult<ResyncReplicationRequest, ResyncReplicationResponse>> listener) {
+            ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ResyncReplicationRequest, ResyncReplicationResponse>> listener) {
         ActionListener.completeWith(listener,
             () -> new WritePrimaryResult<>(performOnPrimary(request), new ResyncReplicationResponse(), null, null, primary, logger));
     }

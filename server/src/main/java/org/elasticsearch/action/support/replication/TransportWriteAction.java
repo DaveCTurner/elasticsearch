@@ -108,7 +108,7 @@ public abstract class TransportWriteAction<
      */
     @Override
     protected abstract void shardOperationOnPrimary(
-            Request request, IndexShard primary, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener);
+            Request request, IndexShard primary, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> listener);
 
     /**
      * Called once per replica with a reference to the replica {@linkplain IndexShard} to modify.
@@ -126,7 +126,7 @@ public abstract class TransportWriteAction<
      * NOTE: public for testing
      */
     public static class WritePrimaryResult<ReplicaRequest extends ReplicatedWriteRequest<ReplicaRequest>,
-            Response extends ReplicationResponse & WriteResponse> extends PrimaryResult<ReplicaRequest, Response>
+            Response extends ReplicationResponse & WriteResponse> extends TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>
             implements RespondingWriteResult {
         boolean finishedAsyncActions;
         public final Location location;

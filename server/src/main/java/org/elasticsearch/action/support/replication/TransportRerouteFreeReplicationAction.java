@@ -20,7 +20,9 @@ package org.elasticsearch.action.support.replication;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionResponse;
@@ -45,6 +47,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
+import org.elasticsearch.index.shard.IndexShardClosedException;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardNotFoundException;
 import org.elasticsearch.indices.IndicesService;
@@ -73,12 +76,13 @@ public abstract class TransportRerouteFreeReplicationAction<
     private final ThreadPool threadPool;
     private final IndicesService indicesService;
     private final TransportRequestOptions transportOptions;
+    private final boolean syncGlobalCheckpointAfterOperation;
 
     protected TransportRerouteFreeReplicationAction(String actionName, ActionFilters actionFilters, TaskManager taskManager,
                                                     TransportService transportService, String executor,
                                                     Writeable.Reader<ReplicaRequest> replicaRequestReader,
                                                     ClusterService clusterService, ThreadPool threadPool, IndicesService indicesService,
-                                                    TransportRequestOptions transportOptions) {
+                                                    TransportRequestOptions transportOptions, boolean syncGlobalCheckpointAfterOperation) {
         // TODO reorder constructor parameters
         super(actionName + "[r]", actionFilters, taskManager);
         this.logger = Loggers.getLogger(TransportRerouteFreeReplicationAction.class, actionName);
@@ -88,6 +92,7 @@ public abstract class TransportRerouteFreeReplicationAction<
         this.threadPool = threadPool;
         this.indicesService = indicesService;
         this.transportOptions = transportOptions;
+        this.syncGlobalCheckpointAfterOperation = syncGlobalCheckpointAfterOperation;
 
         // we must never reject on because of thread pool capacity on replicas
         transportService.registerRequestHandler(actionName + "[r]", executor, true, true,
@@ -137,6 +142,32 @@ public abstract class TransportRerouteFreeReplicationAction<
             return replicaResponse;
         });
         transportService.sendRequest(node, actionName, replicaRequest, transportOptions, handler);
+    }
+
+    public void executeAndReplicate(Request request,
+                                    IndexShard primaryShard,
+                                    ReplicationOperation.Primary<Request, ReplicaRequest,
+                                        PrimaryResult<ReplicaRequest, Response>> primary,
+                                    ReplicationOperation.Replicas<ReplicaRequest> replicasProxy,
+                                    long primaryTerm,
+                                    ActionListener<Response> listener) throws Exception {
+        new ReplicationOperation<>(request, primary,
+            ActionListener.wrap(result -> result.respond(ActionListener.wrap(response -> {
+                if (syncGlobalCheckpointAfterOperation) {
+                    try {
+                        primaryShard.maybeSyncGlobalCheckpoint("post-operation");
+                    } catch (final Exception e) {
+                        // only log non-closed exceptions
+                        if (ExceptionsHelper.unwrap(
+                            e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
+                            // intentionally swallow, a missed global checkpoint sync should not fail this operation
+                            logger.info(
+                                new ParameterizedMessage(
+                                    "{} failed to execute post-operation global checkpoint sync", primary.routingEntry().shardId()), e);
+                        }
+                    }
+                }
+            }, listener::onFailure)), listener::onFailure), replicasProxy, logger, actionName, primaryTerm).execute();
     }
 
     public static class ReplicaResult {
@@ -277,6 +308,51 @@ public abstract class TransportRerouteFreeReplicationAction<
                     ", globalCheckpoint=" + globalCheckpoint +
                     ", maxSeqNoOfUpdatesOrDeletes=" + maxSeqNoOfUpdatesOrDeletes +
                     '}';
+        }
+    }
+
+    public static class PrimaryResult<ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
+            Response extends ReplicationResponse>
+            implements ReplicationOperation.PrimaryResult<ReplicaRequest> {
+        final ReplicaRequest replicaRequest;
+        public final Response finalResponseIfSuccessful;
+        public final Exception finalFailure;
+
+        /**
+         * Result of executing a primary operation
+         * expects <code>finalResponseIfSuccessful</code> or <code>finalFailure</code> to be not-null
+         */
+        public PrimaryResult(ReplicaRequest replicaRequest, Response finalResponseIfSuccessful, Exception finalFailure) {
+            assert finalFailure != null ^ finalResponseIfSuccessful != null
+                    : "either a response or a failure has to be not null, " +
+                    "found [" + finalFailure + "] failure and ["+ finalResponseIfSuccessful + "] response";
+            this.replicaRequest = replicaRequest;
+            this.finalResponseIfSuccessful = finalResponseIfSuccessful;
+            this.finalFailure = finalFailure;
+        }
+
+        public PrimaryResult(ReplicaRequest replicaRequest, Response replicationResponse) {
+            this(replicaRequest, replicationResponse, null);
+        }
+
+        @Override
+        public ReplicaRequest replicaRequest() {
+            return replicaRequest;
+        }
+
+        @Override
+        public void setShardInfo(ReplicationResponse.ShardInfo shardInfo) {
+            if (finalResponseIfSuccessful != null) {
+                finalResponseIfSuccessful.setShardInfo(shardInfo);
+            }
+        }
+
+        public void respond(ActionListener<Response> listener) {
+            if (finalResponseIfSuccessful != null) {
+                listener.onResponse(finalResponseIfSuccessful);
+            } else {
+                listener.onFailure(finalFailure);
+            }
         }
     }
 

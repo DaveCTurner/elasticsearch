@@ -440,12 +440,12 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
 
         @Override
         protected void shardOperationOnPrimary(Request shardRequest, IndexShard shard,
-                ActionListener<PrimaryResult<Request, Response>> listener) {
+                ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, Response>> listener) {
             executedOnPrimary.set(true);
             // The TransportReplicationAction.getIndexShard() method is overridden for testing purpose but we double check here
             // that the permit has been acquired on the primary shard
             assertSame(primary, shard);
-            listener.onResponse(new PrimaryResult<>(shardRequest, new Response()));
+            listener.onResponse(new TransportRerouteFreeReplicationAction.PrimaryResult<>(shardRequest, new Response()));
         }
 
         @Override
@@ -501,7 +501,7 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
 
         @Override
         protected void shardOperationOnPrimary(Request shardRequest, IndexShard shard,
-                ActionListener<PrimaryResult<Request, Response>> listener) {
+                ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, Response>> listener) {
             assertNoBlocks("block must not exist when executing the operation on primary shard: it should have been blocked before");
             assertThat(shard.getActiveOperationsCount(), greaterThan(0));
             super.shardOperationOnPrimary(shardRequest, shard, listener);
@@ -548,7 +548,7 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
 
         @Override
         protected void shardOperationOnPrimary(Request shardRequest, IndexShard shard,
-                ActionListener<PrimaryResult<Request, Response>> listener) {
+                ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, Response>> listener) {
             assertEquals("All permits must be acquired", 0, shard.getActiveOperationsCount());
             super.shardOperationOnPrimary(shardRequest, shard, listener);
         }

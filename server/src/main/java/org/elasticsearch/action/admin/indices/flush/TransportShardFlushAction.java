@@ -54,11 +54,11 @@ public class TransportShardFlushAction
 
     @Override
     protected void shardOperationOnPrimary(ShardFlushRequest shardRequest, IndexShard primary,
-            ActionListener<PrimaryResult<ShardFlushRequest, ReplicationResponse>> listener) {
+            ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ShardFlushRequest, ReplicationResponse>> listener) {
         ActionListener.completeWith(listener, () -> {
             primary.flush(shardRequest.getRequest());
             logger.trace("{} flush request executed on primary", primary.shardId());
-            return new PrimaryResult<>(shardRequest, new ReplicationResponse());
+            return new TransportRerouteFreeReplicationAction.PrimaryResult<>(shardRequest, new ReplicationResponse());
         });
     }
 

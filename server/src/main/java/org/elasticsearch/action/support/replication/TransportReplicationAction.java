@@ -108,8 +108,6 @@ public abstract class TransportReplicationAction<
     protected final String transportReplicaAction;
     protected final String transportPrimaryAction;
 
-    private final boolean syncGlobalCheckpointAfterOperation;
-
     protected TransportReplicationAction(Settings settings, String actionName, TransportService transportService,
                                          ClusterService clusterService, IndicesService indicesService,
                                          ThreadPool threadPool, ShardStateAction shardStateAction,
@@ -147,11 +145,9 @@ public abstract class TransportReplicationAction<
 
         this.transportOptions = transportOptions(settings);
 
-        this.syncGlobalCheckpointAfterOperation = syncGlobalCheckpointAfterOperation;
-
         this.transportRerouteFreeReplicationAction = new TransportRerouteFreeReplicationAction<>
             (actionName, actionFilters, taskManager, transportService, executor, replicaRequestReader, clusterService, threadPool,
-                indicesService, transportOptions) {
+                indicesService, transportOptions, syncGlobalCheckpointAfterOperation) {
 
             @Override
             protected void acquireReplicaOperationPermit(IndexShard replica, ReplicaRequest request, ActionListener<Releasable> onAcquired,
@@ -202,7 +198,7 @@ public abstract class TransportReplicationAction<
      * @param primary      the primary shard to perform the operation on
      */
     protected abstract void shardOperationOnPrimary(Request shardRequest, IndexShard primary,
-        ActionListener<PrimaryResult<ReplicaRequest, Response>> listener);
+        ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> listener);
 
     /**
      * Synchronously execute the specified replica operation. This is done under a permit from
@@ -369,34 +365,12 @@ public abstract class TransportReplicationAction<
                         });
                 } else {
                     setPhase(replicationTask, "primary");
-
-                    final ActionListener<Response> listener = ActionListener.wrap(response -> {
-                        primaryShardReference.close();  // release shard operation lock before responding to caller
-                        setPhase(replicationTask, "finished");
-                        onCompletionListener.onResponse(response);
-                    }, e -> handleException(primaryShardReference, e));
-
-                    final IndexShard primaryShard = primaryShardReference.indexShard;
-
-                    createReplicatedOperation(primaryRequest.getRequest(),
-                        ActionListener.wrap(result -> result.respond(ActionListener.wrap(response -> {
-                                if (syncGlobalCheckpointAfterOperation) {
-                                    try {
-                                        primaryShard.maybeSyncGlobalCheckpoint("post-operation");
-                                    } catch (final Exception e) {
-                                        // only log non-closed exceptions
-                                        if (ExceptionsHelper.unwrap(
-                                            e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
-                                            // intentionally swallow, a missed global checkpoint sync should not fail this operation
-                                            logger.info(
-                                                new ParameterizedMessage(
-                                                    "{} failed to execute post-operation global checkpoint sync", primaryShard.shardId()), e);
-                                        }
-                                    }
-                                }
-                                listener.onResponse(response);
-                            }, listener::onFailure)), listener::onFailure
-                        ), primaryShardReference).execute();
+                    transportRerouteFreeReplicationAction.executeAndReplicate(primaryRequest.getRequest(), primaryShardReference.indexShard,
+                        primaryShardReference, newReplicasProxy(), primaryRequest.getPrimaryTerm(), ActionListener.wrap(response -> {
+                            primaryShardReference.close();  // release shard operation lock before responding to caller
+                            setPhase(replicationTask, "finished");
+                            onCompletionListener.onResponse(response);
+                        }, e -> handleException(primaryShardReference, e)));
                 }
             } catch (Exception e) {
                 handleException(primaryShardReference, e);
@@ -414,57 +388,12 @@ public abstract class TransportReplicationAction<
             onCompletionListener.onFailure(e);
         }
 
-        protected ReplicationOperation<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation(
-            Request request, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener,
-            ReplicationOperation.Primary<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> primaryShardReference) {
+        protected ReplicationOperation<Request, ReplicaRequest, TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation(
+            Request request, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> listener,
+            ReplicationOperation.Primary<Request, ReplicaRequest, TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> primaryShardReference) {
 
             return new ReplicationOperation<>(request, primaryShardReference, listener,
                     newReplicasProxy(), logger, actionName, primaryRequest.getPrimaryTerm());
-        }
-    }
-
-    public static class PrimaryResult<ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
-            Response extends ReplicationResponse>
-            implements ReplicationOperation.PrimaryResult<ReplicaRequest> {
-        final ReplicaRequest replicaRequest;
-        public final Response finalResponseIfSuccessful;
-        public final Exception finalFailure;
-
-        /**
-         * Result of executing a primary operation
-         * expects <code>finalResponseIfSuccessful</code> or <code>finalFailure</code> to be not-null
-         */
-        public PrimaryResult(ReplicaRequest replicaRequest, Response finalResponseIfSuccessful, Exception finalFailure) {
-            assert finalFailure != null ^ finalResponseIfSuccessful != null
-                    : "either a response or a failure has to be not null, " +
-                    "found [" + finalFailure + "] failure and ["+ finalResponseIfSuccessful + "] response";
-            this.replicaRequest = replicaRequest;
-            this.finalResponseIfSuccessful = finalResponseIfSuccessful;
-            this.finalFailure = finalFailure;
-        }
-
-        public PrimaryResult(ReplicaRequest replicaRequest, Response replicationResponse) {
-            this(replicaRequest, replicationResponse, null);
-        }
-
-        @Override
-        public ReplicaRequest replicaRequest() {
-            return replicaRequest;
-        }
-
-        @Override
-        public void setShardInfo(ReplicationResponse.ShardInfo shardInfo) {
-            if (finalResponseIfSuccessful != null) {
-                finalResponseIfSuccessful.setShardInfo(shardInfo);
-            }
-        }
-
-        public void respond(ActionListener<Response> listener) {
-            if (finalResponseIfSuccessful != null) {
-                listener.onResponse(finalResponseIfSuccessful);
-            } else {
-                listener.onFailure(finalFailure);
-            }
         }
     }
 
@@ -738,7 +667,7 @@ public abstract class TransportReplicationAction<
     }
 
     class PrimaryShardReference implements Releasable,
-            ReplicationOperation.Primary<Request, ReplicaRequest, PrimaryResult<ReplicaRequest, Response>> {
+            ReplicationOperation.Primary<Request, ReplicaRequest, TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> {
 
         protected final IndexShard indexShard;
         private final Releasable operationLock;
@@ -775,7 +704,7 @@ public abstract class TransportReplicationAction<
         }
 
         @Override
-        public void perform(Request request, ActionListener<PrimaryResult<ReplicaRequest, Response>> listener) {
+        public void perform(Request request, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> listener) {
             if (Assertions.ENABLED) {
                 listener = ActionListener.map(listener, result -> {
                     assert result.replicaRequest() == null || result.finalFailure == null : "a replica request [" + result.replicaRequest()

@@ -130,13 +130,13 @@ public class RetentionLeaseBackgroundSyncAction extends TransportReplicationActi
     @Override
     protected void shardOperationOnPrimary(
             final Request request,
-            final IndexShard primary, ActionListener<PrimaryResult<Request, ReplicationResponse>> listener) {
+            final IndexShard primary, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, ReplicationResponse>> listener) {
         ActionListener.completeWith(listener, () -> {
             assert request.waitForActiveShards().equals(ActiveShardCount.NONE) : request.waitForActiveShards();
             Objects.requireNonNull(request);
             Objects.requireNonNull(primary);
             primary.persistRetentionLeases();
-            return new PrimaryResult<>(request, new ReplicationResponse());
+            return new TransportRerouteFreeReplicationAction.PrimaryResult<>(request, new ReplicationResponse());
         });
     }
 
