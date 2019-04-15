@@ -600,9 +600,10 @@ public class TransportReplicationActionTests extends ESTestCase {
             @Override
             protected ReplicationOperation<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
             createReplicatedOperation(
-                    Request request,
-                    ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
+                Request request,
+                ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
+                ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                    primaryShardReference) {
                 return new NoopReplicationOperation(request, actionListener, primaryTerm) {
                     @Override
                     public void execute() throws Exception {
@@ -660,7 +661,8 @@ public class TransportReplicationActionTests extends ESTestCase {
             createReplicatedOperation(
                     Request request,
                     ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
+                    ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                        primaryShardReference) {
                 return new NoopReplicationOperation(request, actionListener, primaryTerm) {
                     @Override
                     public void execute() throws Exception {
@@ -833,7 +835,8 @@ public class TransportReplicationActionTests extends ESTestCase {
             createReplicatedOperation(
                     Request request,
                     ActionListener<TransportReplicationAction.PrimaryResult<Request, TestResponse>> actionListener,
-                    TransportReplicationAction<Request, Request, TestResponse>.PrimaryShardReference primaryShardReference) {
+                    ReplicationOperation.Primary<Request, Request, TransportReplicationAction.PrimaryResult<Request, TestResponse>>
+                        primaryShardReference) {
                 assertIndexShardCounter(1);
                 if (throwExceptionOnCreation) {
                     throw new ElasticsearchException("simulated exception, during createReplicatedOperation");
