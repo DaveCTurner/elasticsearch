@@ -779,8 +779,9 @@ public class TransportReplicationActionTests extends ESTestCase {
                 inSyncIds,
                 shardRoutingTable.getAllAllocationIds()));
         doAnswer(invocation -> {
+            count.incrementAndGet();
             //noinspection unchecked
-            ((ActionListener<Releasable>)invocation.getArguments()[0]).onResponse(() -> {});
+            ((ActionListener<Releasable>)invocation.getArguments()[0]).onResponse(count::decrementAndGet);
             return null;
         }).when(shard).acquirePrimaryOperationPermit(any(), anyString(), anyObject());
 
@@ -1304,6 +1305,9 @@ public class TransportReplicationActionTests extends ESTestCase {
         doThrow(new AssertionError("failed shard is not supported")).when(indexShard).failShard(anyString(), any(Exception.class));
         when(indexShard.getPendingPrimaryTerm()).thenAnswer(i ->
             clusterService.state().metaData().getIndexSafe(shardId.getIndex()).primaryTerm(shardId.id()));
+        when(indexShard.getOperationPrimaryTerm()).thenAnswer(i ->
+            clusterService.state().metaData().getIndexSafe(shardId.getIndex()).primaryTerm(shardId.id()));
+        when(indexShard.getActiveOperationsCount()).thenAnswer(i -> count.get());
 
         ReplicationGroup replicationGroup = mock(ReplicationGroup.class);
         when(indexShard.getReplicationGroup()).thenReturn(replicationGroup);

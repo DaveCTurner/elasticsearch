@@ -149,9 +149,11 @@ public abstract class TransportRerouteFreeReplicationAction<
                                     ReplicationOperation.Primary<Request, ReplicaRequest,
                                         PrimaryResult<ReplicaRequest, Response>> primary,
                                     ReplicationOperation.Replicas<ReplicaRequest> replicasProxy,
-                                    long primaryTerm,
                                     ActionListener<Response> listener) throws Exception {
 
+        assert primaryShard.getActiveOperationsCount() > 0 : "should be running under a primary permit";
+        assert primaryShard.routingEntry().primary() : "should be primary";
+        assert primaryShard.isRelocatedPrimary() == false : "should not be a relocated primary";
 
         final ActionListener<Response> globalCheckpointSyncingListener = ActionListener.wrap(response -> {
             if (syncGlobalCheckpointAfterOperation) {
@@ -172,8 +174,8 @@ public abstract class TransportRerouteFreeReplicationAction<
         }, listener::onFailure);
 
         new ReplicationOperation<>(request, primary,
-            ActionListener.wrap(result -> result.respond(globalCheckpointSyncingListener), listener::onFailure),
-            replicasProxy, logger, actionName, primaryTerm).execute();
+            ActionListener.wrap(result -> result.respond(globalCheckpointSyncingListener), globalCheckpointSyncingListener::onFailure),
+            replicasProxy, logger, actionName, primaryShard.getOperationPrimaryTerm()).execute();
     }
 
     public static class ReplicaResult {

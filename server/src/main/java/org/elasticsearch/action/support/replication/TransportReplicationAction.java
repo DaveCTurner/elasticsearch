@@ -369,8 +369,14 @@ public abstract class TransportReplicationAction<
                         onCompletionListener.onResponse(response);
                     }, e -> handleException(primaryShardReference, e));
 
+                    assert primaryShardReference.indexShard.getOperationPrimaryTerm() == primaryRequest.getPrimaryTerm()
+                        : primaryShardReference.indexShard.getOperationPrimaryTerm() + " vs " + primaryRequest.getPrimaryTerm();
+
+                    assert primaryShardReference.routingEntry().allocationId().getId().equals(primaryRequest.getTargetAllocationID())
+                        : primaryShardReference.routingEntry().allocationId().getId() + " vs " + primaryRequest.getTargetAllocationID();
+
                     transportRerouteFreeReplicationAction.executeAndReplicate(primaryRequest.getRequest(), primaryShardReference.indexShard,
-                        primaryShardReference, newReplicasProxy(), primaryRequest.getPrimaryTerm(), referenceClosingListener);
+                        primaryShardReference, newReplicasProxy(), referenceClosingListener);
                 }
             } catch (Exception e) {
                 handleException(primaryShardReference, e);
