@@ -151,23 +151,29 @@ public abstract class TransportRerouteFreeReplicationAction<
                                     ReplicationOperation.Replicas<ReplicaRequest> replicasProxy,
                                     long primaryTerm,
                                     ActionListener<Response> listener) throws Exception {
-        new ReplicationOperation<>(request, primary,
-            ActionListener.wrap(result -> result.respond(ActionListener.wrap(response -> {
-                if (syncGlobalCheckpointAfterOperation) {
-                    try {
-                        primaryShard.maybeSyncGlobalCheckpoint("post-operation");
-                    } catch (final Exception e) {
-                        // only log non-closed exceptions
-                        if (ExceptionsHelper.unwrap(
-                            e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
-                            // intentionally swallow, a missed global checkpoint sync should not fail this operation
-                            logger.info(
-                                new ParameterizedMessage(
-                                    "{} failed to execute post-operation global checkpoint sync", primary.routingEntry().shardId()), e);
-                        }
+
+
+        final ActionListener<Response> globalCheckpointSyncingListener = ActionListener.wrap(response -> {
+            if (syncGlobalCheckpointAfterOperation) {
+                try {
+                    primaryShard.maybeSyncGlobalCheckpoint("post-operation");
+                } catch (final Exception e) {
+                    // only log non-closed exceptions
+                    if (ExceptionsHelper.unwrap(
+                        e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
+                        // intentionally swallow, a missed global checkpoint sync should not fail this operation
+                        logger.info(
+                            new ParameterizedMessage(
+                                "{} failed to execute post-operation global checkpoint sync", primaryShard.shardId()), e);
                     }
                 }
-            }, listener::onFailure)), listener::onFailure), replicasProxy, logger, actionName, primaryTerm).execute();
+            }
+            listener.onResponse(response);
+        }, listener::onFailure);
+
+        new ReplicationOperation<>(request, primary,
+            ActionListener.wrap(result -> result.respond(globalCheckpointSyncingListener), listener::onFailure),
+            replicasProxy, logger, actionName, primaryTerm).execute();
     }
 
     public static class ReplicaResult {

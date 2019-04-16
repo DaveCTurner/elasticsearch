@@ -20,9 +20,7 @@
 package org.elasticsearch.action.support.replication;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.Assertions;
-import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRequest;
@@ -57,7 +55,6 @@ import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.IndexShard;
-import org.elasticsearch.index.shard.IndexShardClosedException;
 import org.elasticsearch.index.shard.ReplicationGroup;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardNotFoundException;
@@ -365,12 +362,15 @@ public abstract class TransportReplicationAction<
                         });
                 } else {
                     setPhase(replicationTask, "primary");
+
+                    final ActionListener<Response> referenceClosingListener = ActionListener.wrap(response -> {
+                        primaryShardReference.close(); // release shard operation lock before responding to caller
+                        setPhase(replicationTask, "finished");
+                        onCompletionListener.onResponse(response);
+                    }, e -> handleException(primaryShardReference, e));
+
                     transportRerouteFreeReplicationAction.executeAndReplicate(primaryRequest.getRequest(), primaryShardReference.indexShard,
-                        primaryShardReference, newReplicasProxy(), primaryRequest.getPrimaryTerm(), ActionListener.wrap(response -> {
-                            primaryShardReference.close();  // release shard operation lock before responding to caller
-                            setPhase(replicationTask, "finished");
-                            onCompletionListener.onResponse(response);
-                        }, e -> handleException(primaryShardReference, e)));
+                        primaryShardReference, newReplicasProxy(), primaryRequest.getPrimaryTerm(), referenceClosingListener);
                 }
             } catch (Exception e) {
                 handleException(primaryShardReference, e);
@@ -386,14 +386,6 @@ public abstract class TransportReplicationAction<
         public void onFailure(Exception e) {
             setPhase(replicationTask, "finished");
             onCompletionListener.onFailure(e);
-        }
-
-        protected ReplicationOperation<Request, ReplicaRequest, TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> createReplicatedOperation(
-            Request request, ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> listener,
-            ReplicationOperation.Primary<Request, ReplicaRequest, TransportRerouteFreeReplicationAction.PrimaryResult<ReplicaRequest, Response>> primaryShardReference) {
-
-            return new ReplicationOperation<>(request, primaryShardReference, listener,
-                    newReplicasProxy(), logger, actionName, primaryRequest.getPrimaryTerm());
         }
     }
 
