@@ -375,7 +375,7 @@ public abstract class TransportReplicationAction<
                     assert primaryShardReference.routingEntry().allocationId().getId().equals(primaryRequest.getTargetAllocationID())
                         : primaryShardReference.routingEntry().allocationId().getId() + " vs " + primaryRequest.getTargetAllocationID();
 
-                    transportRerouteFreeReplicationAction.executeAndReplicate(primaryRequest.getRequest(), primaryShardReference.indexShard,
+                    transportRerouteFreeReplicationAction.performAndReplicate(primaryRequest.getRequest(), primaryShardReference.indexShard,
                         primaryShardReference, newReplicasProxy(), referenceClosingListener);
                 }
             } catch (Exception e) {

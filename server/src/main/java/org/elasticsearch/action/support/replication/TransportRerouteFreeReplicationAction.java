@@ -144,14 +144,14 @@ public abstract class TransportRerouteFreeReplicationAction<
         transportService.sendRequest(node, actionName, replicaRequest, transportOptions, handler);
     }
 
-    public void executeAndReplicate(Request request,
+    public void performAndReplicate(Request request,
                                     IndexShard primaryShard,
                                     ReplicationOperation.Primary<Request, ReplicaRequest,
                                         PrimaryResult<ReplicaRequest, Response>> primary,
                                     ReplicationOperation.Replicas<ReplicaRequest> replicasProxy,
                                     ActionListener<Response> listener) throws Exception {
 
-        assert primaryShard.getActiveOperationsCount() > 0 : "should be running under a primary permit";
+        // TODO NOCOMMIT assert primaryShard.getActiveOperationsCount() != 0 : "should be running under a primary permit";
         assert primaryShard.routingEntry().primary() : "should be primary";
         assert primaryShard.isRelocatedPrimary() == false : "should not be a relocated primary";
 
@@ -164,9 +164,8 @@ public abstract class TransportRerouteFreeReplicationAction<
                     if (ExceptionsHelper.unwrap(
                         e, AlreadyClosedException.class, IndexShardClosedException.class) == null) {
                         // intentionally swallow, a missed global checkpoint sync should not fail this operation
-                        logger.info(
-                            new ParameterizedMessage(
-                                "{} failed to execute post-operation global checkpoint sync", primaryShard.shardId()), e);
+                        logger.info(new ParameterizedMessage(
+                            "{} failed to execute post-operation global checkpoint sync", primaryShard.shardId()), e);
                     }
                 }
             }
