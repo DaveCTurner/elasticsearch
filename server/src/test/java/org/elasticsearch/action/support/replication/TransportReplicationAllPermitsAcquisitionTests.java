@@ -316,7 +316,8 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
                 allPermitsAction.new AsyncPrimaryAction(primaryRequest, allPermitFuture, null) {
                     @Override
                     void runWithPrimaryShardReference(final TransportReplicationAction.PrimaryShardReference reference) {
-                        assertEquals("All permits must be acquired", 0, reference.indexShard.getActiveOperationsCount());
+                        assertEquals("All permits must be acquired",
+                            IndexShard.OPERATIONS_BLOCKED, reference.indexShard.getActiveOperationsCount());
                         assertSame(primary, reference.indexShard);
 
                         final ClusterState clusterState = clusterService.state();
@@ -549,13 +550,15 @@ public class TransportReplicationAllPermitsAcquisitionTests extends IndexShardTe
         @Override
         protected void shardOperationOnPrimary(Request shardRequest, IndexShard shard,
                 ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, Response>> listener) {
-            assertEquals("All permits must be acquired", 0, shard.getActiveOperationsCount());
+            assertEquals("All permits must be acquired", IndexShard.OPERATIONS_BLOCKED, shard.getActiveOperationsCount());
             super.shardOperationOnPrimary(shardRequest, shard, listener);
         }
 
         @Override
-        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard) throws Exception {
-            assertEquals("All permits must be acquired", 0, shard.getActiveOperationsCount());
+        protected TransportRerouteFreeReplicationAction.ReplicaResult shardOperationOnReplica(Request shardRequest, IndexShard shard)
+            throws Exception {
+
+            assertEquals("All permits must be acquired", IndexShard.OPERATIONS_BLOCKED, shard.getActiveOperationsCount());
             return super.shardOperationOnReplica(shardRequest, shard);
         }
     }
