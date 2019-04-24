@@ -151,7 +151,7 @@ public abstract class TransportRerouteFreeReplicationAction<
                                     ReplicationOperation.Replicas<ReplicaRequest> replicasProxy,
                                     ActionListener<Response> listener) throws Exception {
 
-        // TODO NOCOMMIT assert primaryShard.getActiveOperationsCount() != 0 : "should be running under a primary permit";
+        assert primaryShard.getActiveOperationsCount() != 0 : "must perform shard operation under a permit";
         assert primaryShard.routingEntry().primary() : "should be primary";
         assert primaryShard.isRelocatedPrimary() == false : "should not be a relocated primary";
 
@@ -389,6 +389,7 @@ public abstract class TransportRerouteFreeReplicationAction<
         @Override
         public void onResponse(Releasable releasable) {
             try {
+                assert replica.getActiveOperationsCount() != 0 : "must perform shard operation under a permit";
                 final ReplicaResult replicaResult = shardOperationOnReplica(replicaRequest.getRequest(), replica);
                 releasable.close(); // release shard operation lock before responding to caller
                 final ReplicaResponse response =
