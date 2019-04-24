@@ -824,6 +824,7 @@ public class TransportReplicationActionTests extends ESTestCase {
             = new TransportReplicationAction.ConcreteShardRequest<>(request, primaryShard.allocationId().getId(), primaryTerm);
 
         new TestAction(Settings.EMPTY, "internal:testAction2", transportService, clusterService, shardStateAction, threadPool) {
+            @Override
             protected void shardOperationOnPrimary(
                 Request shardRequest, IndexShard primary,
                 ActionListener<TransportRerouteFreeReplicationAction.PrimaryResult<Request, TestResponse>> listener) {
