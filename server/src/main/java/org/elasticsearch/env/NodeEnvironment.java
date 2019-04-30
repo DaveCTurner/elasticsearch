@@ -31,6 +31,7 @@ import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.NativeFSLockFactory;
 import org.apache.lucene.store.SimpleFSDirectory;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.CheckedFunction;
@@ -248,7 +249,7 @@ public final class NodeEnvironment  implements Closeable {
             sharedDataPath = null;
             locks = null;
             nodeLockId = -1;
-            nodeMetaData = new NodeMetaData(generateNodeId(settings));
+            nodeMetaData = new NodeMetaData(generateNodeId(settings), Version.CURRENT);
             return;
         }
         boolean success = false;
@@ -412,10 +413,29 @@ public final class NodeEnvironment  implements Closeable {
                 throw new IllegalStateException("node metadata is missing but data path is not empty: found " + dataPathContents);
             }
 
-            metaData = new NodeMetaData(generateNodeId(settings));
+            metaData = new NodeMetaData(generateNodeId(settings), Version.CURRENT);
+
+        } else if (metaData.nodeVersion().equals(Version.V_EMPTY)) {
+            assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 : "version is required in the node metadata from v9 onwards";
+            metaData = new NodeMetaData(metaData.nodeId(), Version.CURRENT);
+
+        } else if (metaData.nodeVersion().major < Version.CURRENT.major - 1) {
+            throw new IllegalStateException("cannot upgrade a data path from version ["
+                + metaData.nodeVersion() + "] directly to version [" + Version.CURRENT + "]");
+
+        } else if (metaData.nodeVersion().before(Version.CURRENT)) {
+            metaData = new NodeMetaData(metaData.nodeId(), Version.CURRENT);
+
+        } else if (metaData.nodeVersion().after(Version.CURRENT)) {
+            throw new IllegalStateException("cannot downgrade a data path from version ["
+                + metaData.nodeVersion() + "] to version [" + Version.CURRENT + "]");
+
         }
+
         // we write again to make sure all paths have the latest state file
+        assert metaData.nodeVersion().equals(Version.CURRENT) : metaData.nodeVersion() + " != " + Version.CURRENT;
         NodeMetaData.FORMAT.writeAndCleanup(metaData, paths);
+
         return metaData;
     }
 
