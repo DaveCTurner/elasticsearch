@@ -414,22 +414,8 @@ public final class NodeEnvironment  implements Closeable {
             }
 
             metaData = new NodeMetaData(generateNodeId(settings), Version.CURRENT);
-
-        } else if (metaData.nodeVersion().equals(Version.V_EMPTY)) {
-            assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 : "version is required in the node metadata from v9 onwards";
-            metaData = new NodeMetaData(metaData.nodeId(), Version.CURRENT);
-
-        } else if (metaData.nodeVersion().major < Version.CURRENT.major - 1) {
-            throw new IllegalStateException("cannot upgrade a data path from version ["
-                + metaData.nodeVersion() + "] directly to version [" + Version.CURRENT + "]");
-
-        } else if (metaData.nodeVersion().before(Version.CURRENT)) {
-            metaData = new NodeMetaData(metaData.nodeId(), Version.CURRENT);
-
-        } else if (metaData.nodeVersion().after(Version.CURRENT)) {
-            throw new IllegalStateException("cannot downgrade a data path from version ["
-                + metaData.nodeVersion() + "] to version [" + Version.CURRENT + "]");
-
+        } else {
+            metaData = metaData.upgradeToCurrentVersion();
         }
 
         // we write again to make sure all paths have the latest state file

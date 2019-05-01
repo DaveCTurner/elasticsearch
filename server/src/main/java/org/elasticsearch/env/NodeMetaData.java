@@ -75,7 +75,7 @@ public final class NodeMetaData {
 
     static {
         PARSER.declareString(Builder::setNodeId, new ParseField(NODE_ID_KEY));
-        PARSER.declareString(Builder::setNodeVersion, new ParseField(NODE_VERSION_KEY));
+        PARSER.declareInt(Builder::setNodeVersionId, new ParseField(NODE_VERSION_KEY));
     }
 
     public String nodeId() {
@@ -86,6 +86,25 @@ public final class NodeMetaData {
         return nodeVersion;
     }
 
+    NodeMetaData upgradeToCurrentVersion() {
+        if (nodeVersion.equals(Version.V_EMPTY)) {
+            assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 : "version is required in the node metadata from v9 onwards";
+            return new NodeMetaData(nodeId, Version.CURRENT);
+        }
+
+        if (nodeVersion.major < Version.CURRENT.major - 1) {
+            throw new IllegalStateException(
+                "cannot upgrade a data path from version [" + nodeVersion + "] directly to version [" + Version.CURRENT + "]");
+        }
+
+        if (nodeVersion.after(Version.CURRENT)) {
+            throw new IllegalStateException(
+                "cannot downgrade a data path from version [" + nodeVersion + "] to version [" + Version.CURRENT + "]");
+        }
+
+        return nodeVersion.equals(Version.CURRENT) ? this : new NodeMetaData(nodeId, Version.CURRENT);
+    }
+
     private static class Builder {
         String nodeId;
         Version nodeVersion;
@@ -94,8 +113,8 @@ public final class NodeMetaData {
             this.nodeId = nodeId;
         }
 
-        public void setNodeVersion(String nodeVersion) {
-            this.nodeVersion = Version.fromString(nodeVersion);
+        public void setNodeVersionId(int nodeVersionId) {
+            this.nodeVersion = Version.fromId(nodeVersionId);
         }
 
         public NodeMetaData build() {
@@ -123,7 +142,7 @@ public final class NodeMetaData {
         @Override
         public void toXContent(XContentBuilder builder, NodeMetaData nodeMetaData) throws IOException {
             builder.field(NODE_ID_KEY, nodeMetaData.nodeId);
-            builder.field(NODE_VERSION_KEY, nodeMetaData.nodeVersion.toString());
+            builder.field(NODE_VERSION_KEY, nodeMetaData.nodeVersion.id);
         }
 
         @Override
