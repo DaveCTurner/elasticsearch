@@ -86,20 +86,20 @@ public final class NodeMetaData {
         return nodeVersion;
     }
 
-    NodeMetaData upgradeToCurrentVersion() {
+    public NodeMetaData upgradeToCurrentVersion() {
         if (nodeVersion.equals(Version.V_EMPTY)) {
             assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 : "version is required in the node metadata from v9 onwards";
             return new NodeMetaData(nodeId, Version.CURRENT);
         }
 
-        if (nodeVersion.major < Version.CURRENT.major - 1) {
+        if (nodeVersion.before(Version.CURRENT.minimumIndexCompatibilityVersion())) {
             throw new IllegalStateException(
-                "cannot upgrade a data path from version [" + nodeVersion + "] directly to version [" + Version.CURRENT + "]");
+                "cannot upgrade a node from version [" + nodeVersion + "] directly to version [" + Version.CURRENT + "]");
         }
 
         if (nodeVersion.after(Version.CURRENT)) {
             throw new IllegalStateException(
-                "cannot downgrade a data path from version [" + nodeVersion + "] to version [" + Version.CURRENT + "]");
+                "cannot downgrade a node from version [" + nodeVersion + "] to version [" + Version.CURRENT + "]");
         }
 
         return nodeVersion.equals(Version.CURRENT) ? this : new NodeMetaData(nodeId, Version.CURRENT);

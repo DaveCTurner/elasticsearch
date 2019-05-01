@@ -412,6 +412,7 @@ public final class NodeEnvironment  implements Closeable {
             if (dataPathContents.isEmpty() == false) {
                 throw new IllegalStateException("node metadata is missing but data path is not empty: found " + dataPathContents);
             }
+            logger.info("no node metadata found in {}, creating anew", Arrays.asList(paths));
 
             metaData = new NodeMetaData(generateNodeId(settings), Version.CURRENT);
         } else {

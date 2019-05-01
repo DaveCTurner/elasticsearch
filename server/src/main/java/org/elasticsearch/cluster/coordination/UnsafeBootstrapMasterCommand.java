@@ -88,6 +88,7 @@ public class UnsafeBootstrapMasterCommand extends ElasticsearchNodeCommand {
         if (nodeMetaData == null) {
             throw new ElasticsearchException(NO_NODE_METADATA_FOUND_MSG);
         }
+        nodeMetaData.upgradeToCurrentVersion(); // verify no downgrade or invalid upgrade
 
         String nodeId = nodeMetaData.nodeId();
         terminal.println(Terminal.Verbosity.VERBOSE, "Current nodeId is " + nodeId);
