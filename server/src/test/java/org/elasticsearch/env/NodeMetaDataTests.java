@@ -33,6 +33,8 @@ import java.nio.file.Path;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -60,6 +62,10 @@ public class NodeMetaDataTests extends ESTestCase {
     }
 
     public void testReadsFormatWithoutVersion() throws IOException {
+        // the behaviour tested here is only for compatibility with versions 7 and earlier
+        // so it (and testReadsFormatWithoutVersion.dat) can be removed once this compatibility is no longer required
+        assertTrue(Version.CURRENT.minimumIndexCompatibilityVersion().onOrBefore(Version.V_7_0_0));
+
         final Path tempDir = createTempDir();
         final Path stateDir = Files.createDirectory(tempDir.resolve(MetaDataStateFormat.STATE_DIR_NAME));
         final InputStream resource = this.getClass().getResourceAsStream("testReadsFormatWithoutVersion.dat");
