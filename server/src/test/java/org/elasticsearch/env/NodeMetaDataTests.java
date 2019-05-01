@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.endsWith;
@@ -92,17 +93,25 @@ public class NodeMetaDataTests extends ESTestCase {
 
     public void testDoesNotUpgradeFutureVersion() {
         final IllegalStateException illegalStateException = expectThrows(IllegalStateException.class,
-            () -> new NodeMetaData(randomAlphaOfLength(10), Version.fromId(between(Version.CURRENT.id + 1, 99999999)))
+            () -> new NodeMetaData(randomAlphaOfLength(10), tooNewVersion())
                 .upgradeToCurrentVersion());
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot downgrade a node from version ["), endsWith("] to version [" + Version.CURRENT + "]")));
     }
 
+
     public void testDoesNotUpgradeAncientVersion() {
         final IllegalStateException illegalStateException = expectThrows(IllegalStateException.class,
-            () -> new NodeMetaData(randomAlphaOfLength(10),
-                Version.fromId(between(1, Version.CURRENT.minimumIndexCompatibilityVersion().id - 1))).upgradeToCurrentVersion());
+            () -> new NodeMetaData(randomAlphaOfLength(10), tooOldVersion()).upgradeToCurrentVersion());
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot upgrade a node from version ["), endsWith("] directly to version [" + Version.CURRENT + "]")));
+    }
+
+    public static Version tooNewVersion() {
+        return Version.fromId(between(Version.CURRENT.id + 1, 99999999));
+    }
+
+    public static Version tooOldVersion() {
+        return Version.fromId(between(1, Version.CURRENT.minimumIndexCompatibilityVersion().id - 1));
     }
 }

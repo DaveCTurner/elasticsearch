@@ -124,23 +124,16 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
             }));
     }
 
-    public void testFailsToStartIfNodeMetadataDeleted() {
-        final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths -> { });
-        assertThat(illegalStateException.getMessage(), startsWith("node metadata is missing but data path is not empty: found ["));
-    }
-
     public void testFailsToStartIfDowngraded() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10),
-                Version.fromId(between(Version.CURRENT.id + 1, 99999999))), dataPaths));
+            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10), NodeMetaDataTests.tooNewVersion()), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot downgrade a node from version ["), endsWith("] to version [" + Version.CURRENT + "]")));
     }
 
     public void testFailsToStartIfUpgradedTooFar() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10),
-                Version.fromId(between(1, Version.CURRENT.minimumIndexCompatibilityVersion().id - 1))), dataPaths));
+            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10), NodeMetaDataTests.tooOldVersion()), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot upgrade a node from version ["), endsWith("] directly to version [" + Version.CURRENT + "]")));
     }

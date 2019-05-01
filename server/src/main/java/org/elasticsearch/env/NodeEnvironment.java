@@ -403,17 +403,6 @@ public final class NodeEnvironment  implements Closeable {
         final Path[] paths = Arrays.stream(nodePaths).map(np -> np.path).toArray(Path[]::new);
         NodeMetaData metaData = NodeMetaData.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, paths);
         if (metaData == null) {
-            final List<Path> dataPathContents = new ArrayList<>();
-            for (final Path path : paths) {
-                try (final Stream<Path> pathStream = Files.list(path)) {
-                    pathStream.filter(p -> p.getFileName().toString().equals(NODE_LOCK_FILENAME) == false).forEach(dataPathContents::add);
-                }
-            }
-            if (dataPathContents.isEmpty() == false) {
-                throw new IllegalStateException("node metadata is missing but data path is not empty: found " + dataPathContents);
-            }
-            logger.info("no node metadata found in {}, creating anew", Arrays.asList(paths));
-
             metaData = new NodeMetaData(generateNodeId(settings), Version.CURRENT);
         } else {
             metaData = metaData.upgradeToCurrentVersion();
