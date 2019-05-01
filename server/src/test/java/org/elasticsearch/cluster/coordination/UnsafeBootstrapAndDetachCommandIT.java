@@ -20,6 +20,7 @@ package org.elasticsearch.cluster.coordination;
 
 import joptsimple.OptionSet;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.cli.MockTerminal;
 import org.elasticsearch.cli.Terminal;
@@ -51,6 +52,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitC
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.startsWith;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0, autoMinMasterNodes = false)
 @TestLogging("_root:DEBUG,org.elasticsearch.cluster.service:TRACE,org.elasticsearch.cluster.coordination:TRACE")
@@ -148,6 +150,18 @@ public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
         }
 
         expectThrows(() -> unsafeBootstrap(environment), UnsafeBootstrapMasterCommand.NO_NODE_METADATA_FOUND_MSG);
+    }
+
+    public void testBootstrapChecksForDowngrades() throws IOException {
+        Settings envSettings = buildEnvSettings(Settings.EMPTY);
+        Environment environment = TestEnvironment.newEnvironment(envSettings);
+        try (NodeEnvironment nodeEnvironment = new NodeEnvironment(envSettings, environment)) {
+            NodeMetaData.FORMAT.write(new NodeMetaData(randomAlphaOfLength(10), Version.fromId(Version.CURRENT.id + 1)),
+                nodeEnvironment.nodeDataPaths());
+        }
+
+        final IllegalStateException illegalStateException = expectThrows(IllegalStateException.class, () -> unsafeBootstrap(environment));
+        assertThat(illegalStateException.getMessage(), startsWith("cannot downgrade a node"));
     }
 
     public void testBootstrapNotBootstrappedCluster() throws Exception {
