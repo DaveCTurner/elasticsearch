@@ -94,6 +94,8 @@ public class RemoveCorruptedShardDataCommandTests extends IndexShardTestCase {
         // create same directory structure as prod does
         final Path path = NodeEnvironment.resolveNodePath(dataDir, 0);
         Files.createDirectories(path);
+        NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(nodeId, Version.CURRENT), path);
+
         settings = Settings.builder()
             .put(IndexMetaData.SETTING_VERSION_CREATED, Version.CURRENT)
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)

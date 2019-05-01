@@ -481,7 +481,6 @@ public class RemoveCorruptedShardDataCommand extends EnvironmentAwareCommand {
         if (nodeMetaData == null) {
             throw new ElasticsearchException("No node meta data at " + nodePath);
         }
-        nodeMetaData.upgradeToCurrentVersion(); // verify no downgrade or invalid upgrade
 
         final String nodeId = nodeMetaData.nodeId();
         final String index = indexMetaData.getIndex().getName();
