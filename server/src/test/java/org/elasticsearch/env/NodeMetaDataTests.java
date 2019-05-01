@@ -33,8 +33,6 @@ import java.nio.file.Path;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.lessThan;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -47,7 +45,7 @@ public class NodeMetaDataTests extends ESTestCase {
         final Path tempDir = createTempDir();
         EqualsHashCodeTestUtils.checkEqualsAndHashCode(new NodeMetaData(randomAlphaOfLength(10), randomVersion()),
             nodeMetaData -> {
-                final long generation = NodeMetaData.FORMAT.write(nodeMetaData, tempDir);
+                final long generation = NodeMetaData.FORMAT.writeAndCleanup(nodeMetaData, tempDir);
                 final Tuple<NodeMetaData, Long> nodeMetaDataLongTuple
                     = NodeMetaData.FORMAT.loadLatestStateWithGeneration(logger, xContentRegistry(), tempDir);
                 assertThat(nodeMetaDataLongTuple.v2(), equalTo(generation));

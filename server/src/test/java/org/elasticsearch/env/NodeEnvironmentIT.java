@@ -28,7 +28,6 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
@@ -132,7 +131,7 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
 
     public void testFailsToStartIfDowngraded() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            NodeMetaData.FORMAT.write(new NodeMetaData(randomAlphaOfLength(10),
+            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10),
                 Version.fromId(between(Version.CURRENT.id + 1, 99999999))), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot downgrade a node from version ["), endsWith("] to version [" + Version.CURRENT + "]")));
@@ -140,7 +139,7 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
 
     public void testFailsToStartIfUpgradedTooFar() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            NodeMetaData.FORMAT.write(new NodeMetaData(randomAlphaOfLength(10),
+            NodeMetaData.FORMAT.writeAndCleanup(new NodeMetaData(randomAlphaOfLength(10),
                 Version.fromId(between(1, Version.CURRENT.minimumIndexCompatibilityVersion().id - 1))), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot upgrade a node from version ["), endsWith("] directly to version [" + Version.CURRENT + "]")));
