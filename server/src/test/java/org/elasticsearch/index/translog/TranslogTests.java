@@ -847,7 +847,7 @@ public class TranslogTests extends ESTestCase {
         }
         translog.close();
 
-        TestTranslog.corruptRandomTranslogFile(logger, random(), translogDir, 0);
+        TestTranslog.corruptRandomTranslogFile(logger, random(), translogDir, 0, false);
         int corruptionsCaught = 0;
 
         try (Translog translog = openTranslog(config, uuid)) {

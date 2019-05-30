@@ -61,14 +61,15 @@ public class TestTranslog {
     public static void corruptRandomTranslogFile(Logger logger, Random random, Collection<Path> translogDirs) throws IOException {
         for (Path translogDir : translogDirs) {
             final long minTranslogGen = minTranslogGenUsedInRecovery(translogDir);
-            corruptRandomTranslogFile(logger, random, translogDir, minTranslogGen);
+            corruptRandomTranslogFile(logger, random, translogDir, minTranslogGen, true);
         }
     }
 
     /**
      * Corrupts random translog file (translog-N.tlog) from the given translog directory.
      */
-    public static void corruptRandomTranslogFile(Logger logger, Random random, Path translogDir, long minGeneration) throws IOException {
+    public static void corruptRandomTranslogFile(Logger logger, Random random, Path translogDir, long minGeneration, boolean maybeDelete)
+            throws IOException {
         Set<Path> candidates = new TreeSet<>(); // TreeSet makes sure iteration order is deterministic
         logger.info("--> corruptRandomTranslogFile: translogDir [{}], minUsedTranslogGen [{}]", translogDir, minGeneration);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(translogDir)) {
@@ -84,7 +85,7 @@ public class TestTranslog {
         assertThat("no translog files found in " + translogDir, candidates, is(not(empty())));
 
         Path corruptedFile = RandomPicks.randomFrom(random, candidates);
-        corruptFile(logger, random, corruptedFile, true);
+        corruptFile(logger, random, corruptedFile, maybeDelete);
     }
 
     static void corruptFile(Logger logger, Random random, Path fileToCorrupt, boolean maybeDelete) throws IOException {
