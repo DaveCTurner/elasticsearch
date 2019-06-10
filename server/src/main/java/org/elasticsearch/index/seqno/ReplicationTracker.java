@@ -193,6 +193,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     private long persistedRetentionLeasesVersion;
 
     /**
+     * The version in which this index was created
+     */
+    private final Version indexCreatedVersion;
+
+    /**
      * Get all retention leases tracked on this shard.
      *
      * @return the retention leases
@@ -644,6 +649,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * @param operationPrimaryTerm  the current primary term
      * @param globalCheckpoint      the last known global checkpoint for this shard, or {@link SequenceNumbers#UNASSIGNED_SEQ_NO}
      * @param onSyncRetentionLeases a callback when a new retention lease is created or an existing retention lease expires
+     * @param indexCreatedVersion   the version in which this index was created
      */
     public ReplicationTracker(
             final ShardId shardId,
@@ -653,7 +659,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             final long globalCheckpoint,
             final LongConsumer onGlobalCheckpointUpdated,
             final LongSupplier currentTimeMillisSupplier,
-            final BiConsumer<RetentionLeases, ActionListener<ReplicationResponse>> onSyncRetentionLeases) {
+            final BiConsumer<RetentionLeases, ActionListener<ReplicationResponse>> onSyncRetentionLeases,
+            final Version indexCreatedVersion) {
         super(shardId, indexSettings);
         assert globalCheckpoint >= SequenceNumbers.UNASSIGNED_SEQ_NO : "illegal initial global checkpoint: " + globalCheckpoint;
         this.shardAllocationId = allocationId;
@@ -669,6 +676,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         this.pendingInSync = new HashSet<>();
         this.routingTable = null;
         this.replicationGroup = null;
+        assert Version.V_EMPTY.equals(indexCreatedVersion) == false;
+        this.indexCreatedVersion = indexCreatedVersion;
         assert invariant();
     }
 

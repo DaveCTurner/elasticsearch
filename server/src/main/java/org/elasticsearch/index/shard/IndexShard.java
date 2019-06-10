@@ -329,7 +329,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         UNASSIGNED_SEQ_NO,
                         globalCheckpointListeners::globalCheckpointUpdated,
                         threadPool::absoluteTimeInMillis,
-                        (retentionLeases, listener) -> retentionLeaseSyncer.sync(shardId, retentionLeases, listener));
+                        (retentionLeases, listener) -> retentionLeaseSyncer.sync(shardId, retentionLeases, listener),
+                        IndexMetaData.SETTING_INDEX_VERSION_CREATED.get(indexSettings.getSettings()));
         this.replicationTracker = replicationTracker;
 
         // the query cache is a node-level thing, however we want the most popular filters
