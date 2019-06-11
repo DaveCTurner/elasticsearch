@@ -245,6 +245,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             .map(lease -> leaseIdsForCurrentPeers.contains(lease.id()) ?
                 new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
             .collect(Collectors.toList()));
+        // This means we now always update the retention leases version, so it's persisted at each sync, undoing #42299.
+        // TODO NOCOMMIT
         return Tuple.tuple(partitionByExpiration.containsKey(true), retentionLeases);
     }
 
