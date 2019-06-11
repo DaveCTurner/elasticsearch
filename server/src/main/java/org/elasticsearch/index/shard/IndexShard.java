@@ -39,6 +39,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeRequest;
@@ -2414,6 +2415,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public boolean isRelocatedPrimary() {
         assert shardRouting.primary() : "only call isRelocatedPrimary on primary shard";
         return replicationTracker.isRelocated();
+    }
+
+    public void addPeerRecoveryRetentionLease(String nodeId, long startingSeqNo, ActionListener<Void> listener) {
+        assert assertPrimaryMode();
+        replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
     class ShardEventListener implements Engine.EventListener {

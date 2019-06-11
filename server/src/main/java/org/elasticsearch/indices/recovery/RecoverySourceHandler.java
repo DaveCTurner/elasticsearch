@@ -49,6 +49,7 @@ import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.engine.RecoveryEngineException;
 import org.elasticsearch.index.seqno.LocalCheckpointTracker;
+import org.elasticsearch.index.seqno.RetentionLeaseAlreadyExistsException;
 import org.elasticsearch.index.seqno.RetentionLeases;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
@@ -188,10 +189,23 @@ public class RecoverySourceHandler {
             }
             assert startingSeqNo >= 0 : "startingSeqNo must be non negative. got: " + startingSeqNo;
 
+            final StepListener<Void> establishRetentionLeaseStep = new StepListener<>();
+            runUnderPrimaryPermit(() -> {
+                try {
+                    // blindly create the lease. TODO integrate this with the recovery process
+                    shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, establishRetentionLeaseStep);
+                } catch (RetentionLeaseAlreadyExistsException e) {
+                    logger.debug("peer-recovery retention lease already exists", e);
+                    establishRetentionLeaseStep.onResponse(null);
+                }
+            }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]", shard, cancellableThreads, logger);
+
             final StepListener<TimeValue> prepareEngineStep = new StepListener<>();
-            // For a sequence based recovery, the target can keep its local translog
-            prepareTargetForTranslog(isSequenceNumberBasedRecovery == false,
-                shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo), prepareEngineStep);
+            establishRetentionLeaseStep.whenComplete(r -> {
+                // For a sequence based recovery, the target can keep its local translog
+                prepareTargetForTranslog(isSequenceNumberBasedRecovery == false,
+                    shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo), prepareEngineStep);
+            }, onFailure);
             final StepListener<SendSnapshotResult> sendSnapshotStep = new StepListener<>();
             prepareEngineStep.whenComplete(prepareEngineTime -> {
                 /*
