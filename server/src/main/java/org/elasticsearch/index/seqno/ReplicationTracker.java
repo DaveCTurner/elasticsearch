@@ -246,7 +246,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 new RetentionLease(lease.id(), lease.retainingSequenceNumber(), currentTimeMillis, lease.source()) : lease)
             .collect(Collectors.toList()));
         // This means we now always update the retention leases version, so it's persisted at each sync, undoing #42299.
-        // TODO NOCOMMIT
+        // TODO NOCOMMIT fix this
+        // On an idle shard, no real need to renew these leases? If restarted, replicas already have all ops up to the GCP so will recover
+        // locally.
+        // On an active shard, need to renew these leases _reasonably_ often. Maybe every op? Every time the GCP advances?
+        // What about transitions? Idle shard, restarts, becomes active before all replicas are ready?
         return Tuple.tuple(partitionByExpiration.containsKey(true), retentionLeases);
     }
 
