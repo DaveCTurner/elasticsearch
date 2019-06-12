@@ -245,7 +245,8 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
                 final IndexShard replica = internalCluster()
                         .getInstance(IndicesService.class, replicaShardNodeName)
                         .getShardOrNull(new ShardId(resolveIndex("index"), 0));
-                assertThat(replica.getRetentionLeases().leases(), anyOf(empty(), contains(currentRetentionLease)));
+                assertThat(RetentionLeases.toMapExcludingPeerRecoveryRetentionLeases(replica.getRetentionLeases()).values(),
+                    anyOf(empty(), contains(currentRetentionLease)));
             }
 
             // update the index for retention leases to short a long time, to force expiration
@@ -262,7 +263,8 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
             // sleep long enough that the current retention lease has expired
             final long later = System.nanoTime();
             Thread.sleep(Math.max(0, retentionLeaseTimeToLive.millis() - TimeUnit.NANOSECONDS.toMillis(later - now)));
-            assertBusy(() -> assertThat(primary.getRetentionLeases().leases(), empty()));
+            assertBusy(() -> assertThat(
+                RetentionLeases.toMapExcludingPeerRecoveryRetentionLeases(primary.getRetentionLeases()).entrySet(), empty()));
 
             // now that all retention leases are expired should have been synced to all replicas
             assertBusy(() -> {
@@ -272,7 +274,7 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
                     final IndexShard replica = internalCluster()
                             .getInstance(IndicesService.class, replicaShardNodeName)
                             .getShardOrNull(new ShardId(resolveIndex("index"), 0));
-                    assertThat(replica.getRetentionLeases().leases(), empty());
+                    assertThat(RetentionLeases.toMapExcludingPeerRecoveryRetentionLeases(replica.getRetentionLeases()).entrySet(), empty());
                 }
             });
         }
@@ -482,7 +484,9 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
                          * way for the current retention leases to end up written to disk so we assume that if they are written to disk, it
                          * implies that the background sync was able to execute under a block.
                          */
-                        assertBusy(() -> assertThat(primary.loadRetentionLeases().leases(), contains(retentionLease.get())));
+                        assertBusy(() -> assertThat(
+                            RetentionLeases.toMapExcludingPeerRecoveryRetentionLeases(primary.loadRetentionLeases()).values(),
+                            contains(retentionLease.get())));
                     } catch (final Exception e) {
                         failWithException(e);
                     }
@@ -601,7 +605,9 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
                          * way for the current retention leases to end up written to disk so we assume that if they are written to disk, it
                          * implies that the background sync was able to execute despite wait for shards being set on the index.
                          */
-                        assertBusy(() -> assertThat(primary.loadRetentionLeases().leases(), contains(retentionLease.get())));
+                        assertBusy(() -> assertThat(
+                            RetentionLeases.toMapExcludingPeerRecoveryRetentionLeases(primary.loadRetentionLeases()).values(),
+                            contains(retentionLease.get())));
                     } catch (final Exception e) {
                         failWithException(e);
                     }
