@@ -24,6 +24,7 @@ import com.carrotsearch.hppc.ObjectLongMap;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.AllocationId;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -747,10 +748,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             assert checkpoints.get(aId) != null : "aId [" + aId + "] is pending in sync but isn't tracked";
         }
 
-        // all tracked shard copies have a corresponding peer-recovery retention lease
         if (primaryMode
             && indexSettings.isSoftDeleteEnabled()
+            && indexSettings.getIndexMetaData().getState() == IndexMetaData.State.OPEN
             && indexSettings.getIndexVersionCreated().onOrAfter(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)) {
+            // all tracked shard copies have a corresponding peer-recovery retention lease
             for (final ShardRouting shardRouting : routingTable.assignedShards()) {
                 assert checkpoints.get(shardRouting.allocationId().getId()).tracked == false
                     || retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) :

@@ -32,6 +32,7 @@ import org.apache.lucene.util.ArrayUtil;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.CheckedSupplier;
@@ -190,7 +191,8 @@ public class RecoverySourceHandler {
             assert startingSeqNo >= 0 : "startingSeqNo must be non negative. got: " + startingSeqNo;
 
             final StepListener<Void> establishRetentionLeaseStep = new StepListener<>();
-            if (shard.indexSettings().isSoftDeleteEnabled()) {
+            if (shard.indexSettings().isSoftDeleteEnabled()
+                && shard.indexSettings().getIndexMetaData().getState() != IndexMetaData.State.CLOSE) {
                 runUnderPrimaryPermit(() -> {
                     try {
                         // blindly create the lease. TODO integrate this with the recovery process
