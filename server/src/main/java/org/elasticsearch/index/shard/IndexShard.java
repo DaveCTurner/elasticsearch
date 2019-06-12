@@ -2421,6 +2421,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         replicationTracker.addPeerRecoveryRetentionLease(nodeId, startingSeqNo, listener);
     }
 
+    public void renewPeerRecoveryRetentionLease() {
+        replicationTracker.renewPeerRecoveryRetentionLease(routingEntry(), getGlobalCheckpoint());
+    }
+
     class ShardEventListener implements Engine.EventListener {
         private final CopyOnWriteArrayList<Consumer<ShardFailure>> delegates = new CopyOnWriteArrayList<>();
 

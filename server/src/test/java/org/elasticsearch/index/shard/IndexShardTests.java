@@ -2918,16 +2918,15 @@ public class IndexShardTests extends IndexShardTestCase {
                 final long newGlobalCheckpoint = indexShard.getLocalCheckpoint();
                 if (indexShard.routingEntry().primary()) {
                     indexShard.updateGlobalCheckpointForShard(indexShard.routingEntry().allocationId().getId(), newGlobalCheckpoint);
-                    indexShard.renewRetentionLease(ReplicationTracker.getPeerRecoveryRetentionLeaseId(indexShard.routingEntry()),
-                        newGlobalCheckpoint, ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+                    indexShard.renewPeerRecoveryRetentionLease();
                 } else {
                     indexShard.updateGlobalCheckpointOnReplica(newGlobalCheckpoint, "test");
 
                     final RetentionLeases retentionLeases = indexShard.getRetentionLeases();
                     indexShard.updateRetentionLeasesOnReplica(new RetentionLeases(
                         retentionLeases.primaryTerm(), retentionLeases.version() + 1,
-                        retentionLeases.leases().stream().map(lease -> new RetentionLease(lease.id(), newGlobalCheckpoint, lease.timestamp(),
-                            ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE)).collect(Collectors.toList())));
+                        retentionLeases.leases().stream().map(lease -> new RetentionLease(lease.id(), newGlobalCheckpoint + 1,
+                            lease.timestamp(), ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE)).collect(Collectors.toList())));
                 }
                 indexShard.sync();
             }
@@ -3514,8 +3513,7 @@ public class IndexShardTests extends IndexShardTestCase {
         // In order to instruct the merge policy not to keep a fully deleted segment,
         // we need to flush and make that commit safe so that the SoftDeletesPolicy can drop everything.
         if (IndexSettings.INDEX_SOFT_DELETES_SETTING.get(settings)) {
-            primary.renewRetentionLease(ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry()),
-                primary.getGlobalCheckpoint(), ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+            primary.renewPeerRecoveryRetentionLease();
             primary.sync();
             flushShard(primary);
         }

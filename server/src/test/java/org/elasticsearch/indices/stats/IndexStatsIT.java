@@ -51,6 +51,7 @@ import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.cache.query.QueryCacheStats;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.IndicesQueryCache;
@@ -81,6 +82,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -1052,6 +1054,10 @@ public class IndexStatsIT extends ESIntegTestCase {
         // we need to flush and make that commit safe so that the SoftDeletesPolicy can drop everything.
         if (IndexSettings.INDEX_SOFT_DELETES_SETTING.get(settings)) {
             persistGlobalCheckpoint("index");
+            internalCluster().nodesInclude("index").stream()
+                .flatMap(n -> StreamSupport.stream(internalCluster().getInstance(IndicesService.class, n).spliterator(), false))
+                .flatMap(n -> StreamSupport.stream(n.spliterator(), false))
+                .forEach(IndexShard::renewPeerRecoveryRetentionLease);
             flush("index");
         }
         ForceMergeResponse forceMergeResponse =
