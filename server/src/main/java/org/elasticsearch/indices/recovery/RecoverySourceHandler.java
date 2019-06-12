@@ -190,15 +190,19 @@ public class RecoverySourceHandler {
             assert startingSeqNo >= 0 : "startingSeqNo must be non negative. got: " + startingSeqNo;
 
             final StepListener<Void> establishRetentionLeaseStep = new StepListener<>();
-            runUnderPrimaryPermit(() -> {
-                try {
-                    // blindly create the lease. TODO integrate this with the recovery process
-                    shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, establishRetentionLeaseStep);
-                } catch (RetentionLeaseAlreadyExistsException e) {
-                    logger.debug("peer-recovery retention lease already exists", e);
-                    establishRetentionLeaseStep.onResponse(null);
-                }
-            }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]", shard, cancellableThreads, logger);
+            if (shard.indexSettings().isSoftDeleteEnabled()) {
+                runUnderPrimaryPermit(() -> {
+                    try {
+                        // blindly create the lease. TODO integrate this with the recovery process
+                        shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), startingSeqNo, establishRetentionLeaseStep);
+                    } catch (RetentionLeaseAlreadyExistsException e) {
+                        logger.debug("peer-recovery retention lease already exists", e);
+                        establishRetentionLeaseStep.onResponse(null);
+                    }
+                }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]", shard, cancellableThreads, logger);
+            } else {
+                establishRetentionLeaseStep.onResponse(null);
+            }
 
             final StepListener<TimeValue> prepareEngineStep = new StepListener<>();
             establishRetentionLeaseStep.whenComplete(r -> {
