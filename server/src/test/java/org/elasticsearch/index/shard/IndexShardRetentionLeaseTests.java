@@ -296,7 +296,7 @@ public class IndexShardRetentionLeaseTests extends IndexShardTestCase {
                     stats.retentionLeases(),
                     length,
                     minimumRetainingSequenceNumbers,
-                    length == 0 ? RetentionLeases.EMPTY.primaryTerm() : indexShard.getOperationPrimaryTerm(),
+                    indexShard.getOperationPrimaryTerm(),
                     length + 1);
         } finally {
             closeShards(indexShard);
