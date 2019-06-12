@@ -281,7 +281,7 @@ public class RetentionLeases implements ToXContentFragment, Writeable {
      * @param retentionLeases the retention lease collection
      * @return the map from retention lease ID to retention lease
      */
-    static Map<String, RetentionLease> toMapExcludingPeerRecoveryRetentionLeases(final RetentionLeases retentionLeases) {
+    public static Map<String, RetentionLease> toMapExcludingPeerRecoveryRetentionLeases(final RetentionLeases retentionLeases) {
         return retentionLeases.leases.values().stream()
             .filter(l -> ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE.equals(l.source()) == false)
             .collect(Collectors.toMap(RetentionLease::id, Function.identity(),
