@@ -3514,6 +3514,8 @@ public class IndexShardTests extends IndexShardTestCase {
         // In order to instruct the merge policy not to keep a fully deleted segment,
         // we need to flush and make that commit safe so that the SoftDeletesPolicy can drop everything.
         if (IndexSettings.INDEX_SOFT_DELETES_SETTING.get(settings)) {
+            primary.renewRetentionLease(ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry()),
+                primary.getGlobalCheckpoint(), ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE);
             primary.sync();
             flushShard(primary);
         }
