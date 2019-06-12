@@ -2078,7 +2078,8 @@ public class IndexShardTests extends IndexShardTestCase {
         }
         IndexShardTestCase.updateRoutingEntry(primarySource,
             primarySource.routingEntry().relocate(randomAlphaOfLength(10), -1));
-        final IndexShard primaryTarget = newShard(primarySource.routingEntry().getTargetRelocatingShard());
+        final IndexShard primaryTarget = newShard(primarySource.routingEntry().getTargetRelocatingShard(), Settings.builder()
+                .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), primarySource.indexSettings().isSoftDeleteEnabled()).build());
         updateMappings(primaryTarget, primarySource.indexSettings().getIndexMetaData());
         recoverReplica(primaryTarget, primarySource, true);
 
