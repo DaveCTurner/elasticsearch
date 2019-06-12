@@ -195,11 +195,6 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     private long persistedRetentionLeasesVersion;
 
     /**
-     * The version in which this index was created
-     */
-    private final Version indexCreatedVersion;
-
-    /**
      * Get all retention leases tracked on this shard.
      *
      * @return the retention leases
@@ -466,7 +461,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                         cps.globalCheckpoint + 1,
                         PEER_RECOVERY_RETENTION_LEASE_SOURCE);
                 } else {
-                    assert indexCreatedVersion.before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED) : indexCreatedVersion;
+                    assert indexSettings.getIndexVersionCreated().before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)
+                        : indexSettings.getIndexVersionCreated();
                 }
             }
         }
@@ -489,7 +485,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
              * copy. But the replica we're dealing with now has been upgraded and is retaining history while we asynchronously make it a
              * retention lease.
              */
-            assert indexCreatedVersion.before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED) : indexCreatedVersion;
+            assert indexSettings.getIndexVersionCreated().before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)
+                : indexSettings.getIndexVersionCreated();
             try {
                 innerAddRetentionLease(getPeerRecoveryRetentionLeaseId(replicaShardRouting.currentNodeId()), startingSeqNo,
                     PEER_RECOVERY_RETENTION_LEASE_SOURCE);
@@ -516,7 +513,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                      * shard copy. These missing leases are created lazily if they're found to be missing during a
                      * TransportReplicationAction, such as the peer recovery retention lease sync, so let's trigger a sync.
                      */
-                    assert indexCreatedVersion.before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED) : indexCreatedVersion;
+                    assert indexSettings.getIndexVersionCreated().before(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)
+                        : indexSettings.getIndexVersionCreated();
                     return true;
                 }
                 return retentionLease.retainingSequenceNumber() < localCheckpointOfSafeCommit + 1;
@@ -750,7 +748,9 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         }
 
         // all tracked shard copies have a corresponding peer-recovery retention lease
-        if (primaryMode && indexCreatedVersion.onOrAfter(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)) {
+        if (primaryMode
+            && indexSettings.isSoftDeleteEnabled()
+            && indexSettings.getIndexVersionCreated().onOrAfter(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)) {
             for (final ShardRouting shardRouting : routingTable.assignedShards()) {
                 assert checkpoints.get(shardRouting.allocationId().getId()).tracked == false
                     || retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) :
@@ -790,7 +790,6 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * @param operationPrimaryTerm  the current primary term
      * @param globalCheckpoint      the last known global checkpoint for this shard, or {@link SequenceNumbers#UNASSIGNED_SEQ_NO}
      * @param onSyncRetentionLeases a callback when a new retention lease is created or an existing retention lease expires
-     * @param indexCreatedVersion   the version in which this index was created
      */
     public ReplicationTracker(
             final ShardId shardId,
@@ -800,8 +799,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             final long globalCheckpoint,
             final LongConsumer onGlobalCheckpointUpdated,
             final LongSupplier currentTimeMillisSupplier,
-            final BiConsumer<RetentionLeases, ActionListener<ReplicationResponse>> onSyncRetentionLeases,
-            final Version indexCreatedVersion) {
+            final BiConsumer<RetentionLeases, ActionListener<ReplicationResponse>> onSyncRetentionLeases) {
         super(shardId, indexSettings);
         assert globalCheckpoint >= SequenceNumbers.UNASSIGNED_SEQ_NO : "illegal initial global checkpoint: " + globalCheckpoint;
         this.shardAllocationId = allocationId;
@@ -817,8 +815,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         this.pendingInSync = new HashSet<>();
         this.routingTable = null;
         this.replicationGroup = null;
-        assert Version.V_EMPTY.equals(indexCreatedVersion) == false;
-        this.indexCreatedVersion = indexCreatedVersion;
+        assert Version.V_EMPTY.equals(indexSettings.getIndexVersionCreated()) == false;
         assert invariant();
     }
 
@@ -930,7 +927,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
              * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention leases
              * for every shard copy. The missing leases are created in a more relaxed fashion, and offer weaker guarantees.
              */
-            if (indexCreatedVersion.onOrAfter(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)) {
+            if (indexSettings.getIndexVersionCreated().onOrAfter(VERSION_PEER_RECOVERY_RETENTION_LEASES_INTRODUCED)) {
                 // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
                 // this copy must already be in-sync and active and therefore holds a retention lease for itself.
                 assert routingTable.activeShards().equals(Collections.singletonList(primaryShard)) : routingTable.activeShards();

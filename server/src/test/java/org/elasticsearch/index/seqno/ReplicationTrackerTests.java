@@ -19,7 +19,6 @@
 
 package org.elasticsearch.index.seqno;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.routing.AllocationId;
@@ -691,11 +690,9 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         final BiConsumer<RetentionLeases, ActionListener<ReplicationResponse>> onNewRetentionLease =
                 (leases, listener) -> {};
         ReplicationTracker oldPrimary = new ReplicationTracker(
-                shardId, aId.getId(), indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease,
-                Version.CURRENT);
+                shardId, aId.getId(), indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease);
         ReplicationTracker newPrimary = new ReplicationTracker(
-                shardId, aId.getRelocationId(), indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease,
-                Version.CURRENT);
+                shardId, aId.getRelocationId(), indexSettings, primaryTerm, globalCheckpoint, onUpdate, () -> 0L, onNewRetentionLease);
 
         Set<String> allocationIds = new HashSet<>(Arrays.asList(oldPrimary.shardAllocationId, newPrimary.shardAllocationId));
 

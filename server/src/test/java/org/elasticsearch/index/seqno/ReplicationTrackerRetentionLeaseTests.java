@@ -19,7 +19,6 @@
 
 package org.elasticsearch.index.seqno;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.routing.AllocationId;
 import org.elasticsearch.common.collect.Tuple;
@@ -69,8 +68,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -111,8 +109,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -140,8 +137,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -176,8 +172,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                                     .stream()
                                     .collect(Collectors.toMap(RetentionLease::id, RetentionLease::retainingSequenceNumber)),
                             equalTo(retainingSequenceNumbers));
-                },
-                Version.CURRENT);
+                });
         reference.set(replicationTracker);
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
@@ -213,8 +208,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -264,8 +258,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -300,8 +293,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                                     .stream()
                                     .collect(Collectors.toMap(RetentionLease::id, RetentionLease::retainingSequenceNumber)),
                             equalTo(retainingSequenceNumbers));
-                },
-                Version.CURRENT);
+                });
         reference.set(replicationTracker);
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
@@ -354,8 +346,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 currentTimeMillis::get,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -429,8 +420,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -483,8 +473,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -517,8 +506,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
@@ -566,8 +554,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
                 UNASSIGNED_SEQ_NO,
                 value -> {},
                 () -> 0L,
-                (leases, listener) -> {},
-                Version.CURRENT);
+                (leases, listener) -> {});
         replicationTracker.updateFromMaster(
                 randomNonNegativeLong(),
                 Collections.singleton(allocationId.getId()),
