@@ -880,10 +880,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                         : routingTable.activeShards() + " vs " + shardAllocationId;
                     assert replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard));
 
-                    // Safe to call innerAddRetentionLease() without a subsequent sync since there are no other members of this replication
-                    // group.
-                    innerAddRetentionLease(leaseId, Math.max(0L, checkpoints.get(shardAllocationId).globalCheckpoint + 1),
-                        PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+                    addPeerRecoveryRetentionLease(primaryShard.currentNodeId(),checkpoints.get(shardAllocationId).globalCheckpoint + 1,
+                        ActionListener.wrap(() -> {}));
                 }
             }
         }
