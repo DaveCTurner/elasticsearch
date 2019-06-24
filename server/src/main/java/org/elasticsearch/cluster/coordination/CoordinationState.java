@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -426,6 +427,10 @@ public class CoordinationState {
         assert publishVotes.isEmpty() || electionWon();
     }
 
+    public void close() throws IOException {
+        persistedState.close();
+    }
+
     /**
      * Pluggable persistence layer for {@link CoordinationState}.
      *
@@ -485,6 +490,9 @@ public class CoordinationState {
             if (metaDataBuilder != null) {
                 setLastAcceptedState(ClusterState.builder(lastAcceptedState).metaData(metaDataBuilder).build());
             }
+        }
+
+        default void close() throws IOException {
         }
     }
 
