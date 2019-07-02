@@ -428,13 +428,13 @@ public class RecoveryIT extends AbstractRollingTestCase {
                     final List<?> shardCopiesList = (List<?>) shardCopiesEntry.getValue();
 
                     final Set<String> expectedLeaseIds = new HashSet<>();
-                    for (Object shardCopyStats : ((List<?>) shardCopiesList)) {
+                    for (Object shardCopyStats : shardCopiesList) {
                         expectedLeaseIds.add(ReplicationTracker.getPeerRecoveryRetentionLeaseId(
                             Objects.requireNonNull((String) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("routing"))).get("node"))));
                     }
 
                     final Set<String> actualLeaseIds = new HashSet<>();
-                    for (Object shardCopyStats : ((List<?>) shardCopiesList)) {
+                    for (Object shardCopyStats : shardCopiesList) {
                         final List<?> leases
                             = (List<?>) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("retention_leases"))).get("leases");
                         for (Object lease : leases) {
