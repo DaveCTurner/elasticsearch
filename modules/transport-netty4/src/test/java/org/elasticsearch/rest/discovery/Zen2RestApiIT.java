@@ -34,14 +34,23 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.index.IndexSettings;
+import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.rest.yaml.ObjectPath;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.core.Is.is;
 
 // These tests are here today so they have access to a proper REST client. They cannot be in :server:integTest since the REST client needs a
@@ -173,5 +182,38 @@ public class Zen2RestApiIT extends ESNetty4IntegTestCase {
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(nodes.get(0)));
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(nodes.get(2)));
         ensureStableCluster(1);
+    }
+
+    public void testIndexStatsAPI() throws Exception {
+        internalCluster().setBootstrapMasterNodeIndex(0);
+        internalCluster().startNode();
+
+        createIndex("test_index", Settings.builder()
+            .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)
+            .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 0)
+            .build());
+        ensureGreen("test_index");
+        final Request statsRequest = new Request("GET", "/test_index/_stats");
+        statsRequest.addParameter("level", "shards");
+        final Map<?, ?> shardsStats = ObjectPath.createFromResponse(getRestClient().performRequest(statsRequest))
+            .evaluate("indices.test_index.shards");
+        for (Object shardCopiesList : shardsStats.values()) {
+            final Set<String> expectedLeaseIds = new HashSet<>();
+            for (Object shardCopyStats : ((List<?>) shardCopiesList)) {
+                expectedLeaseIds.add(ReplicationTracker.getPeerRecoveryRetentionLeaseId(
+                    Objects.requireNonNull((String) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("routing"))).get("node"))));
+            }
+
+            final Set<String> actualLeaseIds = new HashSet<>();
+            for (Object shardCopyStats : ((List<?>) shardCopiesList)) {
+                for (Object lease : ((List<?>) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("retention_leases"))).get("leases"))) {
+                    actualLeaseIds.add(Objects.requireNonNull((String) (((Map<?, ?>) lease).get("id"))));
+                }
+            }
+
+            assertThat(actualLeaseIds, hasItems(expectedLeaseIds.toArray(new String[0])));
+        }
+
+        fail("this test was only for exploration");
     }
 }

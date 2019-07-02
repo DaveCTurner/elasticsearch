@@ -445,7 +445,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     /**
      * Id for a peer recovery retention lease for the given node. See {@link ReplicationTracker#addPeerRecoveryRetentionLease}.
      */
-    static String getPeerRecoveryRetentionLeaseId(String nodeId) {
+    public static String getPeerRecoveryRetentionLeaseId(String nodeId) {
         return "peer_recovery/" + nodeId;
     }
 
@@ -904,14 +904,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             final ShardRouting primaryShard = routingTable.primaryShard();
             final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
             if (retentionLeases.get(leaseId) == null) {
-                /*
-                 * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
-                 * leases for every shard copy, but in this case we do not expect any leases to exist.
-                 */
-                if (indexSettings.getIndexVersionCreated().onOrAfter(Version.V_7_3_0)) {
-                    // We are starting up the whole replication group from scratch: if we were not (i.e. this is a replica promotion) then
-                    // this copy must already be in-sync and active and therefore holds a retention lease for itself.
-                    assert routingTable.activeShards().equals(Collections.singletonList(primaryShard)) : routingTable.activeShards();
+                if (routingTable.activeShards().equals(Collections.singletonList(primaryShard))) {
                     assert primaryShard.allocationId().getId().equals(shardAllocationId)
                         : routingTable.activeShards() + " vs " + shardAllocationId;
                     assert replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard));
@@ -920,6 +913,12 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                     // group.
                     innerAddRetentionLease(leaseId, Math.max(0L, checkpoints.get(shardAllocationId).globalCheckpoint + 1),
                         PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+                } else {
+                    /*
+                     * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
+                     * leases for every shard copy, but in this case we do not expect any leases to exist.
+                     */
+                    assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0) : indexSettings.getIndexVersionCreated();
                 }
             }
         }
