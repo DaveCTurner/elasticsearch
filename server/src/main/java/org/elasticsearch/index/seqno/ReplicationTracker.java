@@ -1242,7 +1242,6 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         for (Map.Entry<String, CheckpointState> entry : primaryContext.checkpoints.entrySet()) {
             checkpoints.put(entry.getKey(), entry.getValue().copy());
         }
-
         routingTable = primaryContext.getRoutingTable();
         replicationGroup = calculateReplicationGroup();
         updateGlobalCheckpointOnPrimary();
