@@ -386,16 +386,12 @@ public class RecoveryIT extends AbstractRollingTestCase {
         ensureGreen(index);
     }
 
-    public void testRetentionLeasesEstablished() throws Exception {
-        final String index = "recover_and_create_leases";
+    public void testRetentionLeasesEstablishedWhenPromotingPrimary() throws Exception {
+        final String index = "recover_and_create_leases_in_promotion";
         if (CLUSTER_TYPE == ClusterType.OLD) {
             Settings.Builder settings = Settings.builder()
-                .put(IndexMetaData.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 2)
-                .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)
-                // if the node with the replica is the first to be restarted, while a replica is still recovering
-                // then delayed allocation will kick in. When the node comes back, the master will search for a copy
-                // but the recovering copy will be seen as invalid and the cluster health won't return to GREEN
-                // before timing out
+                .put(IndexMetaData.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 5))
+                .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 2) // triggers nontrivial promotion
                 .put(INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), "100ms")
                 .put(SETTING_ALLOCATION_MAX_RETRY.getKey(), "0") // fail faster
                 .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true);
@@ -405,47 +401,90 @@ public class RecoveryIT extends AbstractRollingTestCase {
             if (randomBoolean()) {
                 client().performRequest(new Request("POST", "/" + index + "/_flush"));
             }
-            for (int i = 0; i < numDocs; i++) {
-                if (randomBoolean()) {
-                    indexDocs(index, i, 1); // update
-                } else if (randomBoolean()) {
-                    if (getNodeId(v -> v.onOrAfter(Version.V_7_0_0)) == null) {
-                        client().performRequest(new Request("DELETE", index + "/test/" + i));
-                    } else {
-                        client().performRequest(new Request("DELETE", index + "/_doc/" + i));
-                    }
-                }
-            }
         }
         ensureGreen(index);
         if (CLUSTER_TYPE == ClusterType.UPGRADED) {
-            assertBusy(() -> {
-                final Request statsRequest = new Request("GET", "/" + index + "/_stats");
-                statsRequest.addParameter("level", "shards");
-                final Map<?, ?> shardsStats = ObjectPath.createFromResponse(client().performRequest(statsRequest))
-                    .evaluate("indices." + index + ".shards");
-                for (Map.Entry<?,?> shardCopiesEntry : shardsStats.entrySet()) {
-                    final List<?> shardCopiesList = (List<?>) shardCopiesEntry.getValue();
-
-                    final Set<String> expectedLeaseIds = new HashSet<>();
-                    for (Object shardCopyStats : shardCopiesList) {
-                        expectedLeaseIds.add(ReplicationTracker.getPeerRecoveryRetentionLeaseId(
-                            Objects.requireNonNull((String) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("routing"))).get("node"))));
-                    }
-
-                    final Set<String> actualLeaseIds = new HashSet<>();
-                    for (Object shardCopyStats : shardCopiesList) {
-                        final List<?> leases
-                            = (List<?>) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("retention_leases"))).get("leases");
-                        for (Object lease : leases) {
-                            actualLeaseIds.add(Objects.requireNonNull((String) (((Map<?, ?>) lease).get("id"))));
-                        }
-                    }
-                    assertThat("[" + index + "][" + shardCopiesEntry.getKey() + "] does not have expected leases",
-                        actualLeaseIds, hasItems(expectedLeaseIds.toArray(new String[0])));
-                }
-            });
+            assertAllCopiesHaveRetentionLeases(index);
         }
+    }
+
+    public void testRetentionLeasesEstablishedWhenRelocatingPrimary() throws Exception {
+        final String index = "recover_and_create_leases_in_relocation";
+        switch (CLUSTER_TYPE) {
+            case OLD:
+                Settings.Builder settings = Settings.builder()
+                    .put(IndexMetaData.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 5))
+                    .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)
+                    .put(INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), "100ms")
+                    .put(SETTING_ALLOCATION_MAX_RETRY.getKey(), "0") // fail faster
+                    .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true);
+                createIndex(index, settings.build());
+                int numDocs = randomInt(10);
+                indexDocs(index, 0, numDocs);
+                if (randomBoolean()) {
+                    client().performRequest(new Request("POST", "/" + index + "/_flush"));
+                }
+                ensureGreen(index);
+                break;
+
+            case MIXED:
+                // trigger a primary relocation by excluding the last old node with a shard filter
+                final Map<?, ?> nodesMap
+                    = ObjectPath.createFromResponse(client().performRequest(new Request("GET", "/_nodes"))).evaluate("nodes");
+                final List<String> oldNodeNames = new ArrayList<>();
+                for (Object nodeDetails : nodesMap.values()) {
+                    final Map<?, ?> nodeDetailsMap = (Map<?, ?>) nodeDetails;
+                    final String versionString = (String) nodeDetailsMap.get("version");
+                    if (versionString.equals(Version.CURRENT.toString()) == false) {
+                        oldNodeNames.add((String) nodeDetailsMap.get("name"));
+                    }
+                }
+
+                if (oldNodeNames.size() == 1) {
+                    final String oldNodeName = oldNodeNames.get(0);
+                    logger.info("--> excluding index [{}] from node [{}]", index, oldNodeName);
+                    final Request putSettingsRequest = new Request("PUT", "/" + index + "/_settings");
+                    putSettingsRequest.setJsonEntity("{\"index.routing.allocation.exclude._name\":\"" + oldNodeName + "\"}");
+                    assertOK(client().performRequest(putSettingsRequest));
+                }
+                ensureGreen(index);
+                assertAllCopiesHaveRetentionLeases(index);
+                break;
+
+            case UPGRADED:
+                ensureGreen(index);
+                assertAllCopiesHaveRetentionLeases(index);
+                break;
+        }
+    }
+
+    private void assertAllCopiesHaveRetentionLeases(String index) throws Exception {
+        assertBusy(() -> {
+            final Request statsRequest = new Request("GET", "/" + index + "/_stats");
+            statsRequest.addParameter("level", "shards");
+            final Map<?, ?> shardsStats = ObjectPath.createFromResponse(client().performRequest(statsRequest))
+                .evaluate("indices." + index + ".shards");
+            for (Map.Entry<?, ?> shardCopiesEntry : shardsStats.entrySet()) {
+                final List<?> shardCopiesList = (List<?>) shardCopiesEntry.getValue();
+
+                final Set<String> expectedLeaseIds = new HashSet<>();
+                for (Object shardCopyStats : shardCopiesList) {
+                    expectedLeaseIds.add(ReplicationTracker.getPeerRecoveryRetentionLeaseId(
+                        Objects.requireNonNull((String) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("routing"))).get("node"))));
+                }
+
+                final Set<String> actualLeaseIds = new HashSet<>();
+                for (Object shardCopyStats : shardCopiesList) {
+                    final List<?> leases
+                        = (List<?>) ((Map<?, ?>) (((Map<?, ?>) shardCopyStats).get("retention_leases"))).get("leases");
+                    for (Object lease : leases) {
+                        actualLeaseIds.add(Objects.requireNonNull((String) (((Map<?, ?>) lease).get("id"))));
+                    }
+                }
+                assertThat("[" + index + "][" + shardCopiesEntry.getKey() + "] does not have expected leases",
+                    actualLeaseIds, hasItems(expectedLeaseIds.toArray(new String[0])));
+            }
+        });
     }
 
     /**

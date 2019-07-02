@@ -919,6 +919,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                      * leases for every shard copy, but in this case we do not expect any leases to exist.
                      */
                     assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0) : indexSettings.getIndexVersionCreated();
+                    logger.info("activatePrimaryMode: {} becoming primary of {} without a retention lease", primaryShard, routingTable);
                 }
             }
         }
@@ -1219,6 +1220,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         for (Map.Entry<String, CheckpointState> entry : primaryContext.checkpoints.entrySet()) {
             checkpoints.put(entry.getKey(), entry.getValue().copy());
         }
+
         routingTable = primaryContext.getRoutingTable();
         replicationGroup = calculateReplicationGroup();
         updateGlobalCheckpointOnPrimary();
@@ -1226,6 +1228,15 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         // note that if there was no cluster state update between start of the engine of this shard and the call to
         // initializeWithPrimaryContext, we might still have missed a cluster state update. This is best effort.
         runAfter.run();
+
+        if (indexSettings.getIndexVersionCreated().before(Version.V_7_3_0)) {
+            if (routingTable.assignedShards().stream().anyMatch(shardRouting
+                -> checkpoints.get(shardRouting.allocationId().getId()).tracked
+                && retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) == false)) {
+                logger.info("activateWithPrimaryContext: becoming primary of [{}] without all leases: [{}]", routingTable, retentionLeases);
+            }
+        }
+
         assert invariant();
     }
 

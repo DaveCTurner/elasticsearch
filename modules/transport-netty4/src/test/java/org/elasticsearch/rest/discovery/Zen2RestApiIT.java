@@ -188,6 +188,14 @@ public class Zen2RestApiIT extends ESNetty4IntegTestCase {
         internalCluster().setBootstrapMasterNodeIndex(0);
         internalCluster().startNode();
 
+        final ObjectPath nodesResponse = ObjectPath.createFromResponse(getRestClient().performRequest(new Request("GET", "/_nodes")));
+        final Map<String, ?> nodesAsMap = nodesResponse.evaluate("nodes");
+        for (final String nodeId : nodesAsMap.keySet()) {
+            final String version = nodesResponse.evaluate("nodes." + nodeId + ".version");
+            final String name = nodesResponse.evaluate("nodes." + nodeId + ".name");
+            logger.info("--> {} {}", version, name);
+        }
+
         createIndex("test_index", Settings.builder()
             .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)
             .put(IndexMetaData.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 0)
@@ -195,8 +203,9 @@ public class Zen2RestApiIT extends ESNetty4IntegTestCase {
         ensureGreen("test_index");
         final Request statsRequest = new Request("GET", "/test_index/_stats");
         statsRequest.addParameter("level", "shards");
-        final Map<?, ?> shardsStats = ObjectPath.createFromResponse(getRestClient().performRequest(statsRequest))
-            .evaluate("indices.test_index.shards");
+        final ObjectPath statsResponse = ObjectPath.createFromResponse(getRestClient().performRequest(statsRequest));
+        final Map<String, ?> shardsStats = statsResponse.evaluate("indices.test_index.shards");
+
         for (Object shardCopiesList : shardsStats.values()) {
             final Set<String> expectedLeaseIds = new HashSet<>();
             for (Object shardCopyStats : ((List<?>) shardCopiesList)) {
