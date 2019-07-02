@@ -929,7 +929,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
 
         final ShardRouting primaryShard = routingTable.primaryShard();
         final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
-        if (retentionLeases.get(leaseId) == null) {
+        if (retentionLeases.get(leaseId) == null && indexSettings().getIndexMetaData().getState() == IndexMetaData.State.OPEN) {
             if (replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard))) {
                 assert primaryShard.allocationId().getId().equals(shardAllocationId)
                     : routingTable.assignedShards() + " vs " + shardAllocationId;
@@ -945,7 +945,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                  * leases for every shard copy, but in this case we do not expect any leases to exist.
                  */
                 assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0)
-                    : indexSettings.getIndexVersionCreated() + " vs " + routingTable;
+                    : indexSettings.getIndexVersionCreated() + " vs " + routingTable + " vs " + retentionLeases;
                 logger.debug("{} becoming primary of {} without a retention lease", primaryShard, routingTable);
             }
         }
