@@ -40,6 +40,7 @@ import org.hamcrest.Matcher;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -483,7 +484,8 @@ public class RecoveryIT extends AbstractRollingTestCase {
                         actualLeaseIds.add(Objects.requireNonNull((String) (((Map<?, ?>) lease).get("id"))));
                     }
                 }
-                assertThat("[" + index + "][" + shardCopiesEntry.getKey() + "] does not have expected leases",
+                assertThat("[" + index + "][" + shardCopiesEntry.getKey() + "] has leases " + actualLeaseIds
+                        + " but expected " + expectedLeaseIds,
                     actualLeaseIds, hasItems(expectedLeaseIds.toArray(new String[0])));
             }
         });

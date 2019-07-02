@@ -21,8 +21,10 @@ package org.elasticsearch.index.seqno;
 
 import com.carrotsearch.hppc.ObjectLongHashMap;
 import com.carrotsearch.hppc.ObjectLongMap;
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.AllocationId;
@@ -200,6 +202,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
      * leases.
      */
     private long persistedRetentionLeasesVersion;
+
+    /**
+     * Whether there should be a peer recovery retention lease (PRRL) for every tracked shard copy. Always true on indices created from
+     * {@link Version#V_7_3_0} onwards, because these versions create PRRLs properly. May be false on indices created in an earlier version
+     * if we recently did a rolling upgrade and {@link ReplicationTracker#createMissingPeerRecoveryRetentionLeases(ActionListener)} has not
+     * yet completed. Is only permitted to change from false to true; can be removed once support for pre-PRRL indices is no longer needed.
+     */
+    private boolean hasAllPeerRecoveryRetentionLeases;
 
     /**
      * Get all retention leases tracked on this shard.
@@ -740,7 +750,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         if (primaryMode
             && indexSettings.isSoftDeleteEnabled()
             && indexSettings.getIndexMetaData().getState() == IndexMetaData.State.OPEN
-            && indexSettings.getIndexVersionCreated().onOrAfter(Version.V_7_3_0)) {
+            && hasAllPeerRecoveryRetentionLeases) {
             // all tracked shard copies have a corresponding peer-recovery retention lease
             for (final ShardRouting shardRouting : routingTable.assignedShards()) {
                 if (checkpoints.get(shardRouting.allocationId().getId()).tracked) {
@@ -807,6 +817,7 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         this.pendingInSync = new HashSet<>();
         this.routingTable = null;
         this.replicationGroup = null;
+        this.hasAllPeerRecoveryRetentionLeases = indexSettings.getIndexVersionCreated().onOrAfter(Version.V_7_3_0);
         assert Version.V_EMPTY.equals(indexSettings.getIndexVersionCreated()) == false;
         assert invariant();
     }
@@ -901,30 +912,44 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         updateGlobalCheckpointOnPrimary();
 
         if (indexSettings.isSoftDeleteEnabled()) {
-            final ShardRouting primaryShard = routingTable.primaryShard();
-            final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
-            if (retentionLeases.get(leaseId) == null) {
-                if (routingTable.activeShards().equals(Collections.singletonList(primaryShard))) {
-                    assert primaryShard.allocationId().getId().equals(shardAllocationId)
-                        : routingTable.activeShards() + " vs " + shardAllocationId;
-                    assert replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard));
-
-                    // Safe to call innerAddRetentionLease() without a subsequent sync since there are no other members of this replication
-                    // group.
-                    innerAddRetentionLease(leaseId, Math.max(0L, checkpoints.get(shardAllocationId).globalCheckpoint + 1),
-                        PEER_RECOVERY_RETENTION_LEASE_SOURCE);
-                } else {
-                    /*
-                     * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
-                     * leases for every shard copy, but in this case we do not expect any leases to exist.
-                     */
-                    assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0) : indexSettings.getIndexVersionCreated();
-                    logger.info("activatePrimaryMode: {} becoming primary of {} without a retention lease", primaryShard, routingTable);
-                }
-            }
+            addPeerRecoveryRetentionLeaseForSolePrimary();
         }
 
         assert invariant();
+    }
+
+    /**
+     * Creates a peer recovery retention lease for this shard, if one does not already exist and this shard is the sole shard copy in the
+     * replication group. If one does not already exist and yet there are other shard copies in this group then we must have just done
+     * a rolling upgrade from a version before {@link Version#V_7_3_0}, in which case the missing leases are created asynchronously.
+     */
+    private void addPeerRecoveryRetentionLeaseForSolePrimary() {
+        assert primaryMode;
+        assert Thread.holdsLock(this);
+
+        final ShardRouting primaryShard = routingTable.primaryShard();
+        final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
+        if (retentionLeases.get(leaseId) == null) {
+            if (routingTable.assignedShards().equals(Collections.singletonList(primaryShard))) {
+                assert primaryShard.allocationId().getId().equals(shardAllocationId)
+                    : routingTable.activeShards() + " vs " + shardAllocationId;
+                assert replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard));
+
+                // Safe to call innerAddRetentionLease() without a subsequent sync since there are no other members of this replication
+                // group.
+                logger.trace("addPeerRecoveryRetentionLeaseForSolePrimary: adding lease [{}]", leaseId);
+                innerAddRetentionLease(leaseId, Math.max(0L, checkpoints.get(shardAllocationId).globalCheckpoint + 1),
+                    PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+                hasAllPeerRecoveryRetentionLeases = true;
+            } else {
+                /*
+                 * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
+                 * leases for every shard copy, but in this case we do not expect any leases to exist.
+                 */
+                assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0) : indexSettings.getIndexVersionCreated();
+                logger.debug("{} becoming primary of {} without a retention lease", primaryShard, routingTable);
+            }
+        }
     }
 
     /**
@@ -1229,15 +1254,53 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         // initializeWithPrimaryContext, we might still have missed a cluster state update. This is best effort.
         runAfter.run();
 
-        if (indexSettings.getIndexVersionCreated().before(Version.V_7_3_0)) {
-            if (routingTable.assignedShards().stream().anyMatch(shardRouting
-                -> checkpoints.get(shardRouting.allocationId().getId()).tracked
-                && retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting)) == false)) {
-                logger.info("activateWithPrimaryContext: becoming primary of [{}] without all leases: [{}]", routingTable, retentionLeases);
-            }
+        if (indexSettings.isSoftDeleteEnabled()) {
+            addPeerRecoveryRetentionLeaseForSolePrimary();
         }
 
         assert invariant();
+    }
+
+    private synchronized void setHasAllPeerRecoveryRetentionLeases() {
+        hasAllPeerRecoveryRetentionLeases = true;
+        assert invariant();
+    }
+
+    public synchronized void createMissingPeerRecoveryRetentionLeases(ActionListener<Void> listener) {
+        if (hasAllPeerRecoveryRetentionLeases == false) {
+            final List<ShardRouting> shardRoutings = routingTable.assignedShards();
+            final GroupedActionListener<ReplicationResponse> groupedActionListener = new GroupedActionListener<>(ActionListener.wrap(vs -> {
+                setHasAllPeerRecoveryRetentionLeases();
+                logger.trace("createMissingPeerRecoveryRetentionLeases: finished");
+                listener.onResponse(null);
+            }, listener::onFailure), shardRoutings.size());
+            logger.trace("createMissingPeerRecoveryRetentionLeases: checking {} leases", shardRoutings.size());
+            for (ShardRouting shardRouting : shardRoutings) {
+                if (retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting))) {
+                    logger.trace("createMissingPeerRecoveryRetentionLeases: already have a lease for {}", shardRouting);
+                    groupedActionListener.onResponse(null);
+                } else {
+                    final CheckpointState checkpointState = checkpoints.get(shardRouting.allocationId().getId());
+                    if (checkpointState.tracked == false) {
+                        logger.trace("createMissingPeerRecoveryRetentionLeases: not tracking {}", shardRouting);
+                        groupedActionListener.onResponse(null);
+                    } else {
+                        logger.trace("createMissingPeerRecoveryRetentionLeases: adding missing lease for {}", shardRouting);
+                        try {
+                            addPeerRecoveryRetentionLease(shardRouting.currentNodeId(),
+                                Math.max(SequenceNumbers.NO_OPS_PERFORMED, checkpointState.globalCheckpoint), groupedActionListener);
+                        } catch (Exception e) {
+                            logger.debug(new ParameterizedMessage(
+                                "createMissingPeerRecoveryRetentionLeases: adding missing lease for {} failed", shardRouting), e);
+                            groupedActionListener.onFailure(e);
+                        }
+                    }
+                }
+            }
+        } else {
+            logger.trace("createMissingPeerRecoveryRetentionLeases: nothing to do");
+            listener.onResponse(null);
+        }
     }
 
     private Runnable getMasterUpdateOperationFromCurrentState() {

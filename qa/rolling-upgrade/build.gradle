@@ -85,6 +85,8 @@ for (Version version : bwcVersions.wireCompatible) {
       setting 'repositories.url.allowed_urls', 'http://snapshot.test*'
       setting 'node.name', "upgraded-node-${stopNode}"
       setting 'logger.org.elasticsearch.indices.recovery', 'TRACE'
+      setting 'logger.org.elasticsearch.index.seqno.ReplicationTracker', 'TRACE'
+      setting 'logger.org.elasticsearch.index.shard.IndexShard', 'DEBUG'
     }
   }
 
