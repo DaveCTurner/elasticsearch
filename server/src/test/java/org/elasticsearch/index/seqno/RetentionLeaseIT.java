@@ -695,4 +695,3 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
     }
 
 }
-
