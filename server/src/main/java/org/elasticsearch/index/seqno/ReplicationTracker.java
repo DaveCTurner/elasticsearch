@@ -492,10 +492,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 if (retentionLease == null) {
                     /*
                      * If this shard copy is tracked then we got here here via a rolling upgrade from an older version that doesn't
-                     * create peer recovery retention leases for every shard copy. TODO create leases lazily in that situation.
+                     * create peer recovery retention leases for every shard copy.
                      */
                     assert checkpoints.get(shardRouting.allocationId().getId()).tracked == false
-                        || indexSettings.getIndexVersionCreated().before(Version.V_7_3_0);
+                        || hasAllPeerRecoveryRetentionLeases == false;
                     return false;
                 }
                 return retentionLease.timestamp() <= renewalTimeMillis
@@ -944,9 +944,8 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                  * We got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
                  * leases for every shard copy, but in this case we do not expect any leases to exist.
                  */
-                assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0)
-                    : indexSettings.getIndexVersionCreated() + " vs " + routingTable + " vs " + retentionLeases;
-                logger.debug("{} becoming primary of {} without a retention lease", primaryShard, routingTable);
+                assert hasAllPeerRecoveryRetentionLeases == false : routingTable + " vs " + retentionLeases;
+                logger.debug("{} becoming primary of {} with missing lease: {}", primaryShard, routingTable, retentionLeases);
             }
         }
     }
@@ -1270,18 +1269,14 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             final List<ShardRouting> shardRoutings = routingTable.assignedShards();
             final GroupedActionListener<ReplicationResponse> groupedActionListener = new GroupedActionListener<>(ActionListener.wrap(vs -> {
                 setHasAllPeerRecoveryRetentionLeases();
-                logger.trace("createMissingPeerRecoveryRetentionLeases: finished");
                 listener.onResponse(null);
             }, listener::onFailure), shardRoutings.size());
-            logger.trace("createMissingPeerRecoveryRetentionLeases: checking {} leases", shardRoutings.size());
             for (ShardRouting shardRouting : shardRoutings) {
                 if (retentionLeases.contains(getPeerRecoveryRetentionLeaseId(shardRouting))) {
-                    logger.trace("createMissingPeerRecoveryRetentionLeases: already have a lease for {}", shardRouting);
                     groupedActionListener.onResponse(null);
                 } else {
                     final CheckpointState checkpointState = checkpoints.get(shardRouting.allocationId().getId());
                     if (checkpointState.tracked == false) {
-                        logger.trace("createMissingPeerRecoveryRetentionLeases: not tracking {}", shardRouting);
                         groupedActionListener.onResponse(null);
                     } else {
                         logger.trace("createMissingPeerRecoveryRetentionLeases: adding missing lease for {}", shardRouting);
@@ -1289,8 +1284,6 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                             addPeerRecoveryRetentionLease(shardRouting.currentNodeId(),
                                 Math.max(SequenceNumbers.NO_OPS_PERFORMED, checkpointState.globalCheckpoint), groupedActionListener);
                         } catch (Exception e) {
-                            logger.debug(new ParameterizedMessage(
-                                "createMissingPeerRecoveryRetentionLeases: adding missing lease for {} failed", shardRouting), e);
                             groupedActionListener.onFailure(e);
                         }
                     }
