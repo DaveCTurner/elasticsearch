@@ -930,11 +930,9 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
         final ShardRouting primaryShard = routingTable.primaryShard();
         final String leaseId = getPeerRecoveryRetentionLeaseId(primaryShard);
         if (retentionLeases.get(leaseId) == null) {
-            if (routingTable.assignedShards().equals(Collections.singletonList(primaryShard))) {
+            if (replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard))) {
                 assert primaryShard.allocationId().getId().equals(shardAllocationId)
-                    : routingTable.activeShards() + " vs " + shardAllocationId;
-                assert replicationGroup.getReplicationTargets().equals(Collections.singletonList(primaryShard));
-
+                    : routingTable.assignedShards() + " vs " + shardAllocationId;
                 // Safe to call innerAddRetentionLease() without a subsequent sync since there are no other members of this replication
                 // group.
                 logger.trace("addPeerRecoveryRetentionLeaseForSolePrimary: adding lease [{}]", leaseId);
@@ -943,10 +941,11 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 hasAllPeerRecoveryRetentionLeases = true;
             } else {
                 /*
-                 * We might have got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
+                 * We got here here via a rolling upgrade from an older version that doesn't create peer recovery retention
                  * leases for every shard copy, but in this case we do not expect any leases to exist.
                  */
-                assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0) : indexSettings.getIndexVersionCreated();
+                assert indexSettings.getIndexVersionCreated().before(Version.V_7_3_0)
+                    : indexSettings.getIndexVersionCreated() + " vs " + routingTable;
                 logger.debug("{} becoming primary of {} without a retention lease", primaryShard, routingTable);
             }
         }
