@@ -28,6 +28,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.shard.IndexShard;
@@ -36,12 +37,14 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -692,6 +695,28 @@ public class RetentionLeaseIT extends ESIntegTestCase  {
 
     private static ActionListener<ReplicationResponse> countDownLatchListener(CountDownLatch latch) {
         return ActionListener.wrap(r -> latch.countDown(), RetentionLeaseIT::failWithException);
+    }
+
+    public void testCanRecoverFromStoreWithoutPeerRecoveryRetentionLease() throws Exception {
+        /*
+         * In a full cluster restart from a version without peer-recovery retention leases, the leases on disk will not include a lease for
+         * the local node. This test ensures that a primary that is recovering from store creates a lease for itself.
+         */
+
+        assertAcked(prepareCreate("index"));
+        ensureYellowAndNoInitializingShards("index");
+
+        final List<Settings> dataPathSettings = Arrays.stream(internalCluster().getNodeNames())
+            .map(internalCluster()::dataPathSettings).collect(Collectors.toList());
+
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback(){
+            @Override
+            public void onAllNodesStopped() throws Exception {
+                new NodeEnvironment()
+            }
+        });
+
+
     }
 
 }
