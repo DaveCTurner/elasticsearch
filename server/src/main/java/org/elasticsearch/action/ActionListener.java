@@ -19,6 +19,7 @@
 
 package org.elasticsearch.action;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.CheckedConsumer;
 import org.elasticsearch.common.CheckedFunction;
@@ -26,6 +27,7 @@ import org.elasticsearch.common.CheckedSupplier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -56,17 +58,33 @@ public interface ActionListener<Response> {
     static <Response> ActionListener<Response> wrap(CheckedConsumer<Response, ? extends Exception> onResponse,
             Consumer<Exception> onFailure) {
         return new ActionListener<Response>() {
+            private final AtomicReference<Exception> caller = new AtomicReference<>();
+
+            private boolean assertCalledOnce() {
+                final Exception currentCaller = new ElasticsearchException("listener called");
+                final Exception previousCaller = caller.compareAndExchange(null, currentCaller);
+                if (previousCaller != null) {
+                    final AssertionError e = new AssertionError("wrapped listener called twice");
+                    e.addSuppressed(currentCaller);
+                    e.addSuppressed(previousCaller);
+                    throw e;
+                }
+                return true;
+            }
+
             @Override
             public void onResponse(Response response) {
                 try {
+                    assert assertCalledOnce();
                     onResponse.accept(response);
                 } catch (Exception e) {
-                    onFailure(e);
+                    onFailure.accept(e);
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
+                assert assertCalledOnce();
                 onFailure.accept(e);
             }
         };
