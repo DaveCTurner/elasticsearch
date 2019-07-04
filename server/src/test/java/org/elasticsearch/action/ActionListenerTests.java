@@ -80,7 +80,7 @@ public class ActionListenerTests extends ESTestCase {
                 }
                 reference.set(o);
             };
-            listeners.add(ActionListener.wrap(handler, exReference::set));
+            listeners.add(ActionListener.wrapReentrant(handler, exReference::set));
         }
 
         ActionListener.onResponse(listeners, Boolean.TRUE);
