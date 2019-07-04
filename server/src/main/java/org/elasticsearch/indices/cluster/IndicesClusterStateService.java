@@ -114,7 +114,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
     private final ShardStateAction shardStateAction;
     private final NodeMappingRefreshAction nodeMappingRefreshAction;
 
-    private static final ActionListener<Void> SHARD_STATE_ACTION_LISTENER = ActionListener.wrap(() -> {});
+    private static final ActionListener<Void> SHARD_STATE_ACTION_LISTENER = ActionListener.wrapReentrant(r -> {}, e -> {});
 
     private final Settings settings;
     // a list of shards that failed during recovery
