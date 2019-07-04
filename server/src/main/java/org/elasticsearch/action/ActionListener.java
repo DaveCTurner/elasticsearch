@@ -56,35 +56,21 @@ public interface ActionListener<Response> {
      */
     static <Response> ActionListener<Response> wrap(CheckedConsumer<Response, ? extends Exception> onResponse,
             Consumer<Exception> onFailure) {
-        return new ActionListener<Response>() {
-            private final AtomicReference<AssertionError> caller = new AtomicReference<>();
-
-            private boolean notAlreadyCalled() {
-                final AssertionError currentCaller = new AssertionError("wrapped listener called more than once");
-                final AssertionError previousCaller = caller.compareAndExchange(null, currentCaller);
-                if (previousCaller != null) {
-                    currentCaller.addSuppressed(previousCaller);
-                    throw currentCaller;
-                }
-                return true;
-            }
-
+        return assertNotifiedOnce(new ActionListener<Response>() {
             @Override
             public void onResponse(Response response) {
                 try {
-                    assert notAlreadyCalled();
                     onResponse.accept(response);
                 } catch (Exception e) {
-                    onFailure.accept(e);
+                    onFailure(e);
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
-                assert notAlreadyCalled();
                 onFailure.accept(e);
             }
-        };
+        });
     }
 
     /**
@@ -96,7 +82,7 @@ public interface ActionListener<Response> {
      * @return Delegating listener
      */
     static <T> ActionListener<T> delegateResponse(ActionListener<T> delegate, BiConsumer<ActionListener<T>, Exception> bc) {
-        return new ActionListener<T>() {
+        return assertNotifiedOnce(new ActionListener<T>() {
 
             @Override
             public void onResponse(T r) {
@@ -107,7 +93,7 @@ public interface ActionListener<Response> {
             public void onFailure(Exception e) {
                 bc.accept(delegate, e);
             }
-        };
+        });
     }
 
     /**
@@ -120,7 +106,7 @@ public interface ActionListener<Response> {
      * @return Delegating listener
      */
     static <T, R> ActionListener<T> delegateFailure(ActionListener<R> delegate, BiConsumer<ActionListener<R>, T> bc) {
-        return new ActionListener<T>() {
+        return assertNotifiedOnce(new ActionListener<T>() {
 
             @Override
             public void onResponse(T r) {
@@ -131,7 +117,7 @@ public interface ActionListener<Response> {
             public void onFailure(Exception e) {
                 delegate.onFailure(e);
             }
-        };
+        });
     }
 
     /**
@@ -254,6 +240,34 @@ public interface ActionListener<Response> {
 
             @Override
             protected void innerOnFailure(Exception e) {
+                delegate.onFailure(e);
+            }
+        };
+    }
+
+    static <Response> ActionListener<Response> assertNotifiedOnce(ActionListener<Response> delegate) {
+        return new ActionListener<Response>() {
+            private final AtomicReference<AssertionError> caller = new AtomicReference<>();
+
+            private boolean notAlreadyCalled() {
+                final AssertionError currentCaller = new AssertionError("wrapped listener called more than once");
+                final AssertionError previousCaller = caller.compareAndExchange(null, currentCaller);
+                if (previousCaller != null) {
+                    currentCaller.addSuppressed(previousCaller);
+                    throw currentCaller;
+                }
+                return true;
+            }
+
+            @Override
+            public void onResponse(Response response) {
+                assert notAlreadyCalled();
+                delegate.onResponse(response);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                assert notAlreadyCalled();
                 delegate.onFailure(e);
             }
         };
