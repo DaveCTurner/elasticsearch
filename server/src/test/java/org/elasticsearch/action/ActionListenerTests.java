@@ -45,7 +45,7 @@ public class ActionListenerTests extends ESTestCase {
             }
             reference.set(o);
         };
-        ActionListener<Boolean> wrap = ActionListener.wrap(handler, exReference::set);
+        ActionListener<Boolean> wrap = ActionListener.wrapReentrant(handler, exReference::set);
         wrap.onResponse(Boolean.FALSE);
         assertNull(reference.get());
         assertNotNull(exReference.get());
