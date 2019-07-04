@@ -58,16 +58,14 @@ public interface ActionListener<Response> {
     static <Response> ActionListener<Response> wrap(CheckedConsumer<Response, ? extends Exception> onResponse,
             Consumer<Exception> onFailure) {
         return new ActionListener<Response>() {
-            private final AtomicReference<Exception> caller = new AtomicReference<>();
+            private final AtomicReference<AssertionError> caller = new AtomicReference<>();
 
             private boolean assertCalledOnce() {
-                final Exception currentCaller = new ElasticsearchException("listener called");
-                final Exception previousCaller = caller.compareAndExchange(null, currentCaller);
+                final AssertionError currentCaller = new AssertionError("wrapped listener called twice");
+                final AssertionError previousCaller = caller.compareAndExchange(null, currentCaller);
                 if (previousCaller != null) {
-                    final AssertionError e = new AssertionError("wrapped listener called twice");
-                    e.addSuppressed(currentCaller);
-                    e.addSuppressed(previousCaller);
-                    throw e;
+                    currentCaller.addSuppressed(previousCaller);
+                    throw currentCaller;
                 }
                 return true;
             }
