@@ -240,7 +240,8 @@ public class RecoverySourceHandler {
                     runUnderPrimaryPermit(() -> {
                         try {
                             // conservative estimate of the GCP for creating the lease. TODO use the actual GCP once it's appropriate
-                            final long globalCheckpoint = startingSeqNo - 1;
+                            //noinspection UnnecessaryLocalVariable
+                            final long globalCheckpoint = NO_OPS_PERFORMED;
                             // blindly create the lease. TODO integrate this with the recovery process
                             shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), globalCheckpoint,
                                 new ThreadedActionListener<>(logger, shard.getThreadPool(),
