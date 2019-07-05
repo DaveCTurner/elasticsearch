@@ -752,6 +752,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                         retentionLeases.get(getPeerRecoveryRetentionLeaseId(shardRouting)).source())
                         : "incorrect source [" + retentionLeases.get(getPeerRecoveryRetentionLeaseId(shardRouting)).source()
                         + "] for [" + shardRouting + "] in " + retentionLeases;
+                    assert retentionLeases.get(getPeerRecoveryRetentionLeaseId(shardRouting)).retainingSequenceNumber()
+                        <= Math.max(checkpoints.get(shardRouting.allocationId().getId()).globalCheckpoint + 1L, 0L)
+                        : "lease " + retentionLeases.get(getPeerRecoveryRetentionLeaseId(shardRouting)) + " for " + shardRouting
+                        + " is not retaining all operations required by " + checkpoints.get(shardRouting.allocationId().getId());
                 }
             }
         }

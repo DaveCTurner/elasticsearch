@@ -75,18 +75,25 @@ public class PeerRecoveryRetentionLeaseExpiryTests extends ReplicationTrackerTes
             (leases, listener) -> { });
         replicationTracker.updateFromMaster(1L, Collections.singleton(primaryAllocationId.getId()),
             routingTable(Collections.emptySet(), primaryAllocationId));
-        replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED);
+
+        final long primaryCheckpoint = randomCheckpoint();
+        replicationTracker.activatePrimaryMode(primaryCheckpoint);
 
         final AllocationId replicaAllocationId = AllocationId.newInitializing();
         final IndexShardRoutingTable routingTableWithReplica
             = routingTable(Collections.singleton(replicaAllocationId), primaryAllocationId);
         replicationTracker.updateFromMaster(2L, Collections.singleton(primaryAllocationId.getId()), routingTableWithReplica);
-        replicationTracker.addPeerRecoveryRetentionLease(
-            routingTableWithReplica.getByAllocationId(replicaAllocationId.getId()).currentNodeId(), randomCheckpoint(),
-            EMPTY_LISTENER);
+        final long replicaPersistedCheckpoint = randomLongBetween(primaryCheckpoint, Long.MAX_VALUE);
 
+        final long replicaLeasedCheckpoint = randomLongBetween(SequenceNumbers.NO_OPS_PERFORMED, replicaPersistedCheckpoint);
+        replicationTracker.addPeerRecoveryRetentionLease(
+            routingTableWithReplica.getByAllocationId(replicaAllocationId.getId()).currentNodeId(),
+            replicaLeasedCheckpoint, EMPTY_LISTENER);
+
+        replicationTracker.updateLocalCheckpoint(replicaAllocationId.getId(), replicaPersistedCheckpoint);
+        replicationTracker.updateGlobalCheckpointForShard(replicaAllocationId.getId(), replicaPersistedCheckpoint);
         replicationTracker.initiateTracking(replicaAllocationId.getId());
-        replicationTracker.markAllocationIdAsInSync(replicaAllocationId.getId(), randomCheckpoint());
+        replicationTracker.markAllocationIdAsInSync(replicaAllocationId.getId(), replicaPersistedCheckpoint);
     }
 
     private long randomCheckpoint() {
