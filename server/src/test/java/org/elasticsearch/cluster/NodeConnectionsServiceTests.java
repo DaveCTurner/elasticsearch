@@ -71,6 +71,7 @@ import static org.elasticsearch.cluster.NodeConnectionsService.CLUSTER_NODE_RECO
 import static org.elasticsearch.common.settings.Settings.builder;
 import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentSet;
 import static org.elasticsearch.node.Node.NODE_NAME_SETTING;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -221,7 +222,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
     @TestLogging("org.elasticsearch.cluster.NodeConnectionsService:TRACE") // for https://github.com/elastic/elasticsearch/issues/40170
     public void testOnlyBlocksOnConnectionsToNewNodes() throws Exception {
-        final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
+        final NodeConnectionsService service = new NodeConnectionsService(Settings.builder().put(CLUSTER_NODE_RECONNECT_INTERVAL_SETTING.getKey(), between(1,1000) + "ms").build(), threadPool, transportService); // NOCOMMIT
 
         // connect to one node
         final DiscoveryNode node0 = new DiscoveryNode("node0", buildNewFakeTransportAddress(), Version.CURRENT);
@@ -274,6 +275,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
             service.disconnectFromNodesExcept(nodes1);
             connectionBarrier.await();
+            logger.info("--> completed previous barrier");
             if (randomBoolean()) {
                 // assertBusy because the connection completes before disconnecting, so we might briefly observe a connection to node0
                 assertBusy(() -> assertConnectedExactlyToNodes(nodes1));
@@ -282,6 +284,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             // use ensureConnections() to wait until the service is idle
             ensureConnections(service);
             assertConnectedExactlyToNodes(nodes1);
+            logger.info("--> service is idle");
 
             // if we disconnect from a node while blocked trying to connect to it then the listener is notified
             final PlainActionFuture<Void> future6 = new PlainActionFuture<>();
@@ -293,6 +296,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             assertConnectedExactlyToNodes(nodes1);
 
             nodeConnectionBlocks.clear();
+            logger.info("--> entering failing barrier");
             connectionBarrier.await(10, TimeUnit.SECONDS);
             ensureConnections(service);
             assertConnectedExactlyToNodes(nodes1);
@@ -394,6 +398,8 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
         @Override
         public void connectToNode(DiscoveryNode node) throws ConnectTransportException {
+            final String connectUUID = UUIDs.randomBase64UUID(random());
+            logger.info("--> TestTransportService#connectToNode[{}] uuid [{}] starting", node, connectUUID);
             final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
             if (connectionBlock != null) {
                 try {
@@ -403,17 +409,20 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                 }
             }
             super.connectToNode(node);
+            logger.info("--> TestTransportService#connectToNode[{}] uuid [{}] completed", node, connectUUID);
         }
     }
 
     private final class MockTransport implements Transport {
         private ResponseHandlers responseHandlers = new ResponseHandlers();
         private volatile boolean randomConnectionExceptions = false;
+        private Set<DiscoveryNode> inFlightConnectionAttempts = newConcurrentSet();
 
         @Override
         public <Request extends TransportRequest> void registerRequestHandler(RequestHandlerRegistry<Request> reg) {
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         public RequestHandlerRegistry getRequestHandler(String action) {
             return null;
@@ -440,33 +449,40 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
         @Override
         public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
+            assertTrue("concurrent connection attempts to " + node, inFlightConnectionAttempts.add(node));
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
-                threadPool.generic().execute(() -> listener.onFailure(new ConnectTransportException(node, "simulated")));
+                threadPool.generic().execute(() -> {
+                    assertTrue("completing unknown connection attempt to " + node, inFlightConnectionAttempts.remove(node));
+                    listener.onFailure(new ConnectTransportException(node, "simulated"));
+                });
             } else {
-                threadPool.generic().execute(() -> listener.onResponse(new Connection() {
-                    @Override
-                    public DiscoveryNode getNode() {
-                        return node;
-                    }
+                threadPool.generic().execute(() -> {
+                    assertTrue("completing unknown connection attempt to " + node, inFlightConnectionAttempts.remove(node));
+                    listener.onResponse(new Connection() {
+                        @Override
+                        public DiscoveryNode getNode() {
+                            return node;
+                        }
 
-                    @Override
-                    public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
-                        throws TransportException {
-                    }
+                        @Override
+                        public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
+                            throws TransportException {
+                        }
 
-                    @Override
-                    public void addCloseListener(ActionListener<Void> listener) {
-                    }
+                        @Override
+                        public void addCloseListener(ActionListener<Void> listener) {
+                        }
 
-                    @Override
-                    public void close() {
-                    }
+                        @Override
+                        public void close() {
+                        }
 
-                    @Override
-                    public boolean isClosed() {
-                        return false;
-                    }
-                }));
+                        @Override
+                        public boolean isClosed() {
+                            return false;
+                        }
+                    });
+                });
             }
         }
 

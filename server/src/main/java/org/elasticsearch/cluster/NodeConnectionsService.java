@@ -303,7 +303,11 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 assert Thread.holdsLock(mutex) == false : "mutex unexpectedly held";
                 transportService.connectToNode(discoveryNode);
                 consecutiveFailureCount.set(0);
-                logger.debug("connected to {}", discoveryNode);
+                if (logger.isTraceEnabled()) {
+                    logger.debug(new ParameterizedMessage("connected to {}", discoveryNode), new ElasticsearchException("trace"));
+                } else {
+                    logger.debug("connected to {}", discoveryNode);
+                }
                 onCompletion(ActivityType.CONNECTING, null, disconnectActivity);
             }
 
@@ -330,7 +334,11 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 assert Thread.holdsLock(mutex) == false : "mutex unexpectedly held";
                 transportService.disconnectFromNode(discoveryNode);
                 consecutiveFailureCount.set(0);
-                logger.debug("disconnected from {}", discoveryNode);
+                if (logger.isTraceEnabled()) {
+                    logger.debug(new ParameterizedMessage("disconnected from {}", discoveryNode), new ElasticsearchException("trace"));
+                } else {
+                    logger.debug("disconnected from {}", discoveryNode);
+                }
                 onCompletion(ActivityType.DISCONNECTING, null, connectActivity);
             }
 
