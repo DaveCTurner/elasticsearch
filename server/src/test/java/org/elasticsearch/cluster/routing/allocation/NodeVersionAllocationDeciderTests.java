@@ -123,7 +123,7 @@ public class NodeVersionAllocationDeciderTests extends ESAllocationTestCase {
 
         logger.info("start all the primary shards, replicas will start initializing");
         RoutingNodes routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         for (int i = 0; i < clusterState.routingTable().index("test").shards().size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).shards().size(), equalTo(3));
@@ -133,7 +133,7 @@ public class NodeVersionAllocationDeciderTests extends ESAllocationTestCase {
         }
 
         routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         for (int i = 0; i < clusterState.routingTable().index("test").shards().size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).shards().size(), equalTo(3));
@@ -168,7 +168,7 @@ public class NodeVersionAllocationDeciderTests extends ESAllocationTestCase {
         }
 
         routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         for (int i = 0; i < clusterState.routingTable().index("test").shards().size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).shards().size(), equalTo(3));
@@ -396,7 +396,7 @@ public class NodeVersionAllocationDeciderTests extends ESAllocationTestCase {
         boolean changed;
         do {
             logger.trace("RoutingNodes: {}", clusterState.getRoutingNodes());
-            ClusterState newState = service.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+            ClusterState newState = startInitializingShardsAndReroute(service, clusterState, routingNodes);
             changed = newState.equals(clusterState) == false;
             clusterState = newState;
             routingNodes = clusterState.getRoutingNodes();

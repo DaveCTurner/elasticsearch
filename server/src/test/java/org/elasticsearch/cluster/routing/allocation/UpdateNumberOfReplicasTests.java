@@ -76,11 +76,11 @@ public class UpdateNumberOfReplicasTests extends ESAllocationTestCase {
 
         logger.info("Start all the primary shards");
         RoutingNodes routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("Start all the replica shards");
         routingNodes = clusterState.getRoutingNodes();
-        ClusterState newState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        ClusterState newState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
         assertThat(newState, not(equalTo(clusterState)));
         clusterState = newState;
 
@@ -138,7 +138,7 @@ public class UpdateNumberOfReplicasTests extends ESAllocationTestCase {
             equalTo("node3"));
 
         routingNodes = clusterState.getRoutingNodes();
-        newState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        newState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
         assertThat(newState, not(equalTo(clusterState)));
         clusterState = newState;
 

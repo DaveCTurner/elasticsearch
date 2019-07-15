@@ -94,9 +94,9 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
 
 
         if (startShards) {
-            clusterState = strategy.applyStartedShards(clusterState,
-                Arrays.asList(routingTable.index("source").shard(0).shards().get(0),
-                    routingTable.index("source").shard(1).shards().get(0)));
+            clusterState = startShardsAndReroute(strategy, clusterState,
+                routingTable.index("source").shard(0).shards().get(0),
+                routingTable.index("source").shard(1).shards().get(0));
             routingTable = clusterState.routingTable();
             assertEquals(routingTable.index("source").shards().size(), 2);
             assertEquals(routingTable.index("source").shard(0).shards().get(0).state(), STARTED);

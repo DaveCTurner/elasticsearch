@@ -146,11 +146,11 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
 
         logger.info("restart all the primary shards, replicas will start initializing");
         RoutingNodes routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("start the replica shards");
         routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("complete rebalancing");
         return applyStartedShardsUntilNoChange(clusterState, strategy);
@@ -186,11 +186,11 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
 
         logger.info("start all the primary shards, replicas will start initializing");
         RoutingNodes routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("start the replica shards");
         routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("rebalancing");
         clusterState = strategy.reroute(clusterState, "reroute");
@@ -385,7 +385,7 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
 
         logger.info("use the new allocator and check if it moves shards");
         routingNodes = clusterState.getRoutingNodes();
-        routingTable = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        routingTable = startInitializingShardsAndReroute(strategy, clusterState, routingNodes).routingTable();
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
         routingNodes = clusterState.getRoutingNodes();
         for (RoutingNode routingNode : routingNodes) {
@@ -395,7 +395,7 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
         }
 
         logger.info("start the replica shards");
-        routingTable = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        routingTable = startInitializingShardsAndReroute(strategy, clusterState, routingNodes).routingTable();
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
         routingNodes = clusterState.getRoutingNodes();
 

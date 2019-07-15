@@ -64,11 +64,11 @@ public class ElectReplicaAsPrimaryDuringRelocationTests extends ESAllocationTest
 
         logger.info("Start the primary shards");
         RoutingNodes routingNodes = clusterState.getRoutingNodes();
-        clusterState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
 
         logger.info("Start the replica shards");
         routingNodes = clusterState.getRoutingNodes();
-        ClusterState resultingState = strategy.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING));
+        ClusterState resultingState = startInitializingShardsAndReroute(strategy, clusterState, routingNodes);
         assertThat(resultingState, not(equalTo(clusterState)));
         clusterState = resultingState;
 

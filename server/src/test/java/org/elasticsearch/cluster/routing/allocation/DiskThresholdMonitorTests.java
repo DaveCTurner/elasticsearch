@@ -73,7 +73,7 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
             .add(newNode("node2"))).build();
         clusterState = allocation.reroute(clusterState, "reroute");
         logger.info("start primary shard");
-        clusterState = allocation.applyStartedShards(clusterState, clusterState.getRoutingNodes().shardsWithState(INITIALIZING));
+        clusterState = startInitializingShardsAndReroute(allocation, clusterState, clusterState.getRoutingNodes());
         ClusterState finalState = clusterState;
         AtomicBoolean reroute = new AtomicBoolean(false);
         AtomicReference<Set<String>> indices = new AtomicReference<>();
