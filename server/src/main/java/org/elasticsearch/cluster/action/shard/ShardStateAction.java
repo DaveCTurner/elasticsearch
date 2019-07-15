@@ -95,7 +95,8 @@ public class ShardStateAction {
         this.threadPool = threadPool;
 
         transportService.registerRequestHandler(SHARD_STARTED_ACTION_NAME, ThreadPool.Names.SAME, StartedShardEntry::new,
-            new ShardStartedTransportHandler(clusterService, new ShardStartedClusterStateTaskExecutor(allocationService, logger), logger));
+            new ShardStartedTransportHandler(clusterService,
+                new ShardStartedClusterStateTaskExecutor(allocationService, logger, rerouteService), logger));
         transportService.registerRequestHandler(SHARD_FAILED_ACTION_NAME, ThreadPool.Names.SAME, FailedShardEntry::new,
             new ShardFailedTransportHandler(clusterService,
                 new ShardFailedClusterStateTaskExecutor(allocationService, rerouteService, logger), logger));
@@ -511,10 +512,12 @@ public class ShardStateAction {
             implements ClusterStateTaskExecutor<StartedShardEntry>, ClusterStateTaskListener {
         private final AllocationService allocationService;
         private final Logger logger;
+        private final RerouteService rerouteService;
 
-        public ShardStartedClusterStateTaskExecutor(AllocationService allocationService, Logger logger) {
+        public ShardStartedClusterStateTaskExecutor(AllocationService allocationService, Logger logger, RerouteService rerouteService) {
             this.allocationService = allocationService;
             this.logger = logger;
+            this.rerouteService = rerouteService;
         }
 
         @Override
@@ -587,6 +590,15 @@ public class ShardStateAction {
                 logger.debug(() -> new ParameterizedMessage("failure during [{}]", source), e);
             } else {
                 logger.error(() -> new ParameterizedMessage("unexpected failure during [{}]", source), e);
+            }
+        }
+
+        @Override
+        public void clusterStatePublished(ClusterChangedEvent clusterChangedEvent) {
+            if (clusterChangedEvent.previousState() != clusterChangedEvent.state()) {
+                rerouteService.reroute("reroute after starting shards", Priority.NORMAL, ActionListener.wrap(
+                    r -> logger.trace("reroute after starting shards succeeded"),
+                    e -> logger.debug("reroute after starting shards succeeded", e)));
             }
         }
     }
