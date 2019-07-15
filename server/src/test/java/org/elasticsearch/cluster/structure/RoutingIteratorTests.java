@@ -47,7 +47,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import static java.util.Collections.singletonMap;
-import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
