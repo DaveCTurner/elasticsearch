@@ -166,13 +166,14 @@ public class ShardFailedClusterStateTaskExecutorTests extends ESAllocationTestCa
         final MockAllocationService allocation = createAllocationService();
         ClusterState clusterState = createClusterStateWithStartedShards("test markAsStale");
         clusterState = allocation.applyStartedShards(clusterState, clusterState.getRoutingNodes().shardsWithState(INITIALIZING));
+        clusterState = allocation.reroute(clusterState, "post-start reroute");
         IndexShardRoutingTable shardRoutingTable = clusterState.routingTable().index(INDEX).shard(0);
         long primaryTerm = clusterState.metaData().index(INDEX).primaryTerm(0);
         final Set<String> oldInSync = clusterState.metaData().index(INDEX).inSyncAllocationIds(0);
         {
             ShardStateAction.FailedShardEntry failShardOnly = new ShardStateAction.FailedShardEntry(shardRoutingTable.shardId(),
                 randomFrom(oldInSync), primaryTerm, "dummy", null, false);
-            ClusterState appliedState = executor.execute(clusterState, Arrays.asList(failShardOnly)).resultingState;
+            ClusterState appliedState = executor.execute(clusterState, Collections.singletonList(failShardOnly)).resultingState;
             Set<String> newInSync = appliedState.metaData().index(INDEX).inSyncAllocationIds(0);
             assertThat(newInSync, equalTo(oldInSync));
         }
@@ -180,7 +181,7 @@ public class ShardFailedClusterStateTaskExecutorTests extends ESAllocationTestCa
             final String failedAllocationId = randomFrom(oldInSync);
             ShardStateAction.FailedShardEntry failAndMarkAsStale = new ShardStateAction.FailedShardEntry(shardRoutingTable.shardId(),
                 failedAllocationId, primaryTerm, "dummy", null, true);
-            ClusterState appliedState = executor.execute(clusterState, Arrays.asList(failAndMarkAsStale)).resultingState;
+            ClusterState appliedState = executor.execute(clusterState, Collections.singletonList(failAndMarkAsStale)).resultingState;
             Set<String> newInSync = appliedState.metaData().index(INDEX).inSyncAllocationIds(0);
             assertThat(Sets.difference(oldInSync, newInSync), contains(failedAllocationId));
         }
@@ -196,7 +197,9 @@ public class ShardFailedClusterStateTaskExecutorTests extends ESAllocationTestCa
             allocationService.reroute(stateAfterAddingNode, reason).routingTable();
         ClusterState stateAfterReroute = ClusterState.builder(stateAfterAddingNode).routingTable(afterReroute).build();
         RoutingNodes routingNodes = stateAfterReroute.getRoutingNodes();
-        return allocationService.applyStartedShards(stateAfterReroute, routingNodes.shardsWithState(ShardRoutingState.INITIALIZING));
+        return allocationService.reroute(
+            allocationService.applyStartedShards(stateAfterReroute, routingNodes.shardsWithState(ShardRoutingState.INITIALIZING)),
+            "reroute after starting shards");
     }
 
     private List<ShardStateAction.FailedShardEntry> createExistingShards(ClusterState currentState, String reason) {
