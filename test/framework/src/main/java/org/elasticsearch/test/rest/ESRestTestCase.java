@@ -817,6 +817,7 @@ public abstract class ESRestTestCase extends ESTestCase {
         Request request = new Request("GET", "/_cluster/health/" + index);
         request.addParameter("wait_for_status", "green");
         request.addParameter("wait_for_no_relocating_shards", "true");
+        request.addParameter("wait_for_events", "languid");
         request.addParameter("timeout", "70s");
         request.addParameter("level", "shards");
         try {

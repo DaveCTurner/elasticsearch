@@ -220,6 +220,7 @@ public class ESCCRRestTestCase extends ESRestTestCase {
         request.addParameter("wait_for_active_shards", "1");
         request.addParameter("wait_for_no_relocating_shards", "true");
         request.addParameter("wait_for_no_initializing_shards", "true");
+        request.addParameter("wait_for_events", "languid");
         request.addParameter("timeout", "5s");
         request.addParameter("level", "shards");
         client.performRequest(request);

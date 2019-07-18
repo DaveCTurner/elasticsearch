@@ -20,6 +20,7 @@ package org.elasticsearch.test.disruption;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Random;
@@ -80,6 +81,7 @@ public abstract class SingleNodeDisruption implements ServiceDisruptionScheme {
         assertFalse("cluster failed to form after disruption was healed", cluster.client().admin().cluster().prepareHealth()
                 .setWaitForNodes(String.valueOf(cluster.size()))
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get().isTimedOut());
     }
 }

@@ -37,6 +37,7 @@ import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDeci
 import org.elasticsearch.cluster.service.ClusterApplier.ClusterApplyListener;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
@@ -119,6 +120,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         ClusterHealthResponse clusterHealth = client().admin().cluster().prepareHealth()
                 .setWaitForNodes("4")
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
 
@@ -142,6 +144,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         }
         clusterHealth = client().admin().cluster().prepareHealth()
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
 
@@ -233,6 +236,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         shardActiveRequestSent.await();
         ClusterHealthResponse clusterHealth = client().admin().cluster().prepareHealth()
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
         logClusterState();
@@ -273,6 +277,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
         ClusterHealthResponse clusterHealth = client().admin().cluster().prepareHealth()
                 .setWaitForNodes("3")
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
 
@@ -288,6 +293,7 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
                 .setWaitForGreenStatus()
                 .setWaitForNodes("2")
                 .setWaitForNoRelocatingShards(true)
+                .setWaitForEvents(Priority.LANGUID)
                 .get();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
         logger.info("--> done cluster_health, status {}", clusterHealth.getStatus());
@@ -327,8 +333,12 @@ public class IndicesStoreIntegrationIT extends ESIntegTestCase {
                         .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
                         .put(IndexMetaData.INDEX_ROUTING_EXCLUDE_GROUP_SETTING.getKey() + "_name", node4)
         ));
-        assertFalse(client().admin().cluster().prepareHealth().setWaitForNoRelocatingShards(true).setWaitForGreenStatus()
-            .setWaitForNodes("5").get().isTimedOut());
+        assertFalse(client().admin().cluster().prepareHealth()
+            .setWaitForGreenStatus()
+            .setWaitForNodes("5")
+            .setWaitForNoRelocatingShards(true)
+            .setWaitForEvents(Priority.LANGUID)
+            .get().isTimedOut());
 
         // disable allocation to control the situation more easily
         assertAcked(client().admin().cluster().prepareUpdateSettings().setTransientSettings(Settings.builder()

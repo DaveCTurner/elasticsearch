@@ -158,6 +158,7 @@ public class ClusterHealthIT extends ESIntegTestCase {
 
         {
             ClusterHealthResponse response = client().admin().cluster().prepareHealth()
+                .setWaitForEvents(Priority.LANGUID)
                 .setWaitForNoRelocatingShards(true)
                 .setWaitForNoInitializingShards(true)
                 .setWaitForYellowStatus()

@@ -46,6 +46,7 @@ import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider;
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.PathUtils;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -179,7 +180,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
         ClusterHealthResponse health = client().admin().cluster()
             .health(Requests.clusterHealthRequest("test").waitForGreenStatus()
                 .timeout("5m") // sometimes due to cluster rebalacing and random settings default timeout is just not enough.
-                .waitForNoRelocatingShards(true)).actionGet();
+                .waitForNoRelocatingShards(true).waitForEvents(Priority.LANGUID)).actionGet();
         if (health.isTimedOut()) {
             logger.info("cluster state:\n{}\n{}",
                 client().admin().cluster().prepareState().get().getState(), client().admin().cluster().preparePendingClusterTasks().get());

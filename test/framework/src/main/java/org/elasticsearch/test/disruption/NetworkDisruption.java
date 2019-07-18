@@ -26,6 +26,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.test.InternalTestCluster;
@@ -122,6 +123,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         assertFalse("cluster failed to form after disruption was healed", cluster.client().admin().cluster().prepareHealth()
             .setWaitForNodes(String.valueOf(cluster.size()))
             .setWaitForNoRelocatingShards(true)
+            .setWaitForEvents(Priority.LANGUID)
             .get().isTimedOut());
     }
 

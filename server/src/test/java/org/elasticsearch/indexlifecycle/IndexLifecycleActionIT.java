@@ -92,8 +92,8 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         // explicitly call reroute, so shards will get relocated to the new node (we delay it in ES in case other nodes join)
         client().admin().cluster().prepareReroute().execute().actionGet();
 
-        clusterHealth = client().admin().cluster().health(
-            clusterHealthRequest().waitForGreenStatus().waitForNodes("2").waitForNoRelocatingShards(true)).actionGet();
+        clusterHealth = client().admin().cluster().health(clusterHealthRequest()
+            .waitForGreenStatus().waitForNodes("2").waitForNoRelocatingShards(true).waitForEvents(Priority.LANGUID)).actionGet();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
         assertThat(clusterHealth.getStatus(), equalTo(ClusterHealthStatus.GREEN));
         assertThat(clusterHealth.getNumberOfDataNodes(), equalTo(2));

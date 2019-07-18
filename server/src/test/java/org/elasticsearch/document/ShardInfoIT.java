@@ -30,6 +30,7 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -137,6 +138,7 @@ public class ShardInfoIT extends ESIntegTestCase {
 
             ClusterHealthResponse healthResponse = client().admin().cluster().prepareHealth("idx")
                     .setWaitForNoRelocatingShards(true)
+                    .setWaitForEvents(Priority.LANGUID)
                     .get();
             assertThat(healthResponse.isTimedOut(), equalTo(false));
 

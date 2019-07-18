@@ -28,6 +28,7 @@
       cluster.health:
         wait_for_status: green
         wait_for_no_relocating_shards: true
+        wait_for_events: languid
 
   - is_true:   cluster_name
   - is_false:  timed_out
@@ -54,6 +55,7 @@
       cluster.health:
         wait_for_active_shards: 1
         wait_for_no_relocating_shards: true
+        wait_for_events: languid
 
   - is_true:   cluster_name
   - is_false:  timed_out
@@ -80,6 +82,7 @@
       cluster.health:
         wait_for_active_shards: all
         wait_for_no_relocating_shards: true
+        wait_for_events: languid
 
   - is_true:   cluster_name
   - is_false:  timed_out
@@ -160,6 +163,7 @@
       cluster.health:
         wait_for_status: yellow
         wait_for_no_relocating_shards: true
+        wait_for_events: languid
   - match:     { status:     yellow }
 
   - do:
@@ -234,6 +238,7 @@
       cluster.health:
         wait_for_status: yellow
         wait_for_no_relocating_shards: true
+        wait_for_events: languid
   - match:     { status:     yellow }
 
   - do:

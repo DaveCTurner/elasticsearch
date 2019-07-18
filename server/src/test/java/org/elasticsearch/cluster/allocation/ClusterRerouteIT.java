@@ -477,6 +477,7 @@ public class ClusterRerouteIT extends ESIntegTestCase {
                     .setIndices("test-blocks")
                     .setWaitForYellowStatus()
                     .setWaitForNoRelocatingShards(true)
+                    .setWaitForEvents(Priority.LANGUID)
                     .execute().actionGet();
                 assertThat(healthResponse.isTimedOut(), equalTo(false));
             } finally {
