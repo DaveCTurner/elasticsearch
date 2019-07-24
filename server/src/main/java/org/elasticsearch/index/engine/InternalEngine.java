@@ -514,10 +514,15 @@ public class InternalEngine extends Engine {
     }
 
     /**
-     * Creates a new history snapshot for reading operations since the provided seqno from the translog.
+     * Creates a new history snapshot for reading operations since the provided seqno.
+     * The returned snapshot can be retrieved from either Lucene index or translog files.
      */
     @Override
     public Translog.Snapshot readHistoryOperations(String source, MapperService mapperService, long startingSeqNo) throws IOException {
+        if (engineConfig.getIndexSettings().isSoftDeleteEnabled()) {
+            return newChangesSnapshot(source, mapperService, Math.max(0, startingSeqNo), Long.MAX_VALUE, false);
+        }
+
         return getTranslog().newSnapshotFromMinSeqNo(startingSeqNo);
     }
 
@@ -531,9 +536,9 @@ public class InternalEngine extends Engine {
                 Long.MAX_VALUE, false)) {
                 return snapshot.totalOperations();
             }
-        } else {
-            return getTranslog().estimateTotalOperationsFromMinSeq(startingSeqNo);
         }
+
+        return getTranslog().estimateTotalOperationsFromMinSeq(startingSeqNo);
     }
 
     @Override
@@ -2575,6 +2580,10 @@ public class InternalEngine extends Engine {
 
     @Override
     public boolean hasCompleteOperationHistory(String source, MapperService mapperService, long startingSeqNo) throws IOException {
+        if (engineConfig.getIndexSettings().isSoftDeleteEnabled()) {
+            return getMinRetainedSeqNo() <= startingSeqNo;
+        }
+
         final long currentLocalCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
         // avoid scanning translog if not necessary
         if (startingSeqNo > currentLocalCheckpoint) {
@@ -2604,15 +2613,7 @@ public class InternalEngine extends Engine {
     @Override
     public Closeable acquireRetentionLock() {
         if (softDeleteEnabled) {
-            final Releasable softDeletesRetentionLock = softDeletesPolicy.acquireRetentionLock();
-            final Closeable translogRetentionLock;
-            try {
-                translogRetentionLock = translog.acquireRetentionLock();
-            } catch (Exception e) {
-                softDeletesRetentionLock.close();
-                throw e;
-            }
-            return () -> IOUtils.close(translogRetentionLock, softDeletesRetentionLock);
+            return softDeletesPolicy.acquireRetentionLock();
         } else {
             return translog.acquireRetentionLock();
         }
