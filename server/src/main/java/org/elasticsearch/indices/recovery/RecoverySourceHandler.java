@@ -181,12 +181,14 @@ public class RecoverySourceHandler {
             if (isSequenceNumberBasedRecovery && useRetentionLeases) {
                 // all the history we need is retained by an existing retention lease, so we do not need a separate retention lock
                 retentionLock = () -> {};
+                logger.trace("history is retained by {}", retentionLeaseRef.get());
             } else {
                 // temporarily prevent any history from being discarded, and do this before acquiring the safe commit so that we can
                 // be certain that all operations after the safe commit's local checkpoint will be retained for the duration of this
                 // recovery.
                 retentionLock = shard.acquireRetentionLock();
                 resources.add(retentionLock);
+                logger.trace("history is retained by retention lock");
             }
 
             final StepListener<SendFileResult> sendFileStep = new StepListener<>();
@@ -221,6 +223,7 @@ public class RecoverySourceHandler {
                 startingSeqNo = useRetentionLeases
                     ? Long.parseLong(safeCommitRef.getIndexCommit().getUserData().get(SequenceNumbers.LOCAL_CHECKPOINT_KEY)) + 1L
                     : 0;
+                logger.trace("performing file-based recovery followed by history replay starting at [{}]", startingSeqNo);
 
                 try {
                     final int estimateNumOps = shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo);
@@ -276,6 +279,7 @@ public class RecoverySourceHandler {
                             // repeat phase 1 to recover this replica.
                             // TODO TBD maybe do this earlier?
                             final long localCheckpointOfSafeCommit = startingSeqNo - 1;
+                            logger.trace("creating new retention lease at [{}]", localCheckpointOfSafeCommit);
                             shard.addPeerRecoveryRetentionLease(request.targetNode().getId(), localCheckpointOfSafeCommit,
                                 new ThreadedActionListener<>(logger, shard.getThreadPool(),
                                     ThreadPool.Names.GENERIC, establishRetentionLeaseStep, false));
@@ -310,10 +314,8 @@ public class RecoverySourceHandler {
                     shardId + " initiating tracking of " + request.targetAllocationId(), shard, cancellableThreads, logger);
 
                 final long endingSeqNo = shard.seqNoStats().getMaxSeqNo();
-                if (logger.isTraceEnabled()) {
-                    logger.trace("snapshot translog for recovery; current size is [{}]",
-                        shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo));
-                }
+                logger.trace("snapshot translog for recovery; current size is [{}]",
+                    shard.estimateNumberOfHistoryOperations("peer-recovery", startingSeqNo));
                 final Translog.Snapshot phase2Snapshot = shard.getHistoryOperations("peer-recovery", startingSeqNo);
                 resources.add(phase2Snapshot);
 
