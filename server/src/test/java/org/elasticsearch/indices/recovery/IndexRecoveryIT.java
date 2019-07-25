@@ -47,6 +47,7 @@ import org.elasticsearch.cluster.routing.RecoverySource.PeerRecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
+import org.elasticsearch.cluster.routing.allocation.command.AllocateEmptyPrimaryAllocationCommand;
 import org.elasticsearch.cluster.routing.allocation.command.MoveAllocationCommand;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
@@ -58,6 +59,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
+import org.elasticsearch.index.MockEngineFactoryPlugin;
 import org.elasticsearch.index.analysis.AbstractTokenFilterFactory;
 import org.elasticsearch.index.analysis.TokenFilterFactory;
 import org.elasticsearch.index.engine.Engine;
@@ -84,6 +86,7 @@ import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.store.MockFSIndexStore;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.test.transport.StubbableTransport;
@@ -92,7 +95,6 @@ import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportService;
-import org.junit.After;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -106,7 +108,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -146,12 +147,16 @@ public class IndexRecoveryIT extends ESIntegTestCase {
             MockFSIndexStore.TestPlugin.class,
             RecoverySettingsChunkSizePlugin.class,
             TestAnalysisPlugin.class,
-            InternalSettingsPlugin.class);
+            InternalSettingsPlugin.class,
+            MockEngineFactoryPlugin.class);
     }
 
-    @After
-    public void assertConsistentHistoryInLuceneIndex() throws Exception {
+    @Override
+    protected void beforeIndexDeletion() throws Exception {
+        super.beforeIndexDeletion();
         internalCluster().assertConsistentHistoryBetweenTranslogAndLuceneIndex();
+        internalCluster().assertSeqNos();
+        internalCluster().assertSameDocIdsOnShards();
     }
 
     private void assertRecoveryStateWithoutStage(RecoveryState state, int shardId, RecoverySource recoverySource, boolean primary,
@@ -1058,7 +1063,8 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         for (RecoveryState recoveryState : client().admin().indices().prepareRecoveries().get().shardRecoveryStates().get(indexName)) {
             if (startRecoveryRequest.targetNode().equals(recoveryState.getTargetNode())) {
                 assertThat("total recovered translog operations must include both local and remote recovery",
-                    recoveryState.getTranslog().recoveredOperations(), equalTo(Math.toIntExact(maxSeqNo - localCheckpointOfSafeCommit)));
+                    recoveryState.getTranslog().recoveredOperations(),
+                    greaterThanOrEqualTo(Math.toIntExact(maxSeqNo - localCheckpointOfSafeCommit)));
             }
         }
         for (String node : nodes) {
@@ -1258,4 +1264,30 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         ensureGreen(indexName);
     }
 
+    public void testAllocateEmptyPrimaryResetsGlobalCheckpoint() throws Exception {
+        internalCluster().startMasterOnlyNode(Settings.EMPTY);
+        final List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
+        final Settings randomNodeDataPathSettings = internalCluster().dataPathSettings(randomFrom(dataNodes));
+        final String indexName = "test";
+        assertAcked(client().admin().indices().prepareCreate(indexName).setSettings(Settings.builder()
+            .put("index.number_of_shards", 1).put("index.number_of_replicas", 1)
+            .put(MockEngineSupport.DISABLE_FLUSH_ON_CLOSE.getKey(), randomBoolean())).get());
+        final List<IndexRequestBuilder> indexRequests = IntStream.range(0, between(10, 500))
+            .mapToObj(n -> client().prepareIndex(indexName, "type").setSource("foo", "bar"))
+            .collect(Collectors.toList());
+        indexRandom(randomBoolean(), true, true, indexRequests);
+        ensureGreen();
+        internalCluster().stopRandomDataNode();
+        internalCluster().stopRandomDataNode();
+        final String nodeWithoutData = internalCluster().startDataOnlyNode();
+        assertAcked(client().admin().cluster().prepareReroute()
+            .add(new AllocateEmptyPrimaryAllocationCommand(indexName, 0, nodeWithoutData, true)).get());
+        internalCluster().startDataOnlyNode(randomNodeDataPathSettings);
+        ensureGreen();
+        for (ShardStats shardStats : client().admin().indices().prepareStats(indexName).get().getIndex(indexName).getShards()) {
+            assertThat(shardStats.getSeqNoStats().getMaxSeqNo(), equalTo(SequenceNumbers.NO_OPS_PERFORMED));
+            assertThat(shardStats.getSeqNoStats().getLocalCheckpoint(), equalTo(SequenceNumbers.NO_OPS_PERFORMED));
+            assertThat(shardStats.getSeqNoStats().getGlobalCheckpoint(), equalTo(SequenceNumbers.NO_OPS_PERFORMED));
+        }
+    }
 }
