@@ -19,7 +19,6 @@
 package org.elasticsearch.cluster.coordination;
 
 import joptsimple.OptionSet;
-import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.cli.MockTerminal;

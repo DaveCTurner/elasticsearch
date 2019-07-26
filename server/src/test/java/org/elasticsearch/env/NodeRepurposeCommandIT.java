@@ -18,7 +18,6 @@
  */
 package org.elasticsearch.env;
 
-import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.NoShardAvailableActionException;
 import org.elasticsearch.common.settings.Settings;
