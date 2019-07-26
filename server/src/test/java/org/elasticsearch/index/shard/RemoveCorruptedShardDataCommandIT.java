@@ -269,7 +269,9 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
             .put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "-1")
             .put(MockEngineSupport.DISABLE_FLUSH_ON_CLOSE.getKey(), true) // never flush - always recover from translog
+            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), true)
             .put("index.routing.allocation.exclude._name", node2)));
+
         ensureYellow();
 
         assertAcked(client().admin().indices().prepareUpdateSettings(indexName).setSettings(Settings.builder()
@@ -444,6 +446,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             .put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "-1")
             .put(MockEngineSupport.DISABLE_FLUSH_ON_CLOSE.getKey(), true) // never flush - always recover from translog
             .put("index.routing.allocation.exclude._name", node2)
+            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), true)
         ));
         ensureYellow();
 
