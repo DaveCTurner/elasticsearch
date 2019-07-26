@@ -387,9 +387,7 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
     public static Set<Index> getRelevantIndices(ClusterState state, ClusterState previousState, Set<Index> previouslyWrittenIndices) {
         Set<Index> relevantIndices;
-        if (isDataOnlyNode(state)) {
-            relevantIndices = getRelevantIndicesOnDataOnlyNode(state, previousState, previouslyWrittenIndices);
-        } else if (state.nodes().getLocalNode().isMasterNode()) {
+        if (state.nodes().getLocalNode().isMasterNode()) {
             relevantIndices = getRelevantIndicesForMasterEligibleNode(state);
         } else {
             relevantIndices = Collections.emptySet();
