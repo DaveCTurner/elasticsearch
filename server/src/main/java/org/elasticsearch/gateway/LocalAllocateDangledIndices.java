@@ -84,8 +84,7 @@ public class LocalAllocateDangledIndices {
             listener.onFailure(new MasterNotDiscoveredException("no master to send allocate dangled request"));
             return;
         }
-        AllocateDangledRequest request = new AllocateDangledRequest(clusterService.localNode(),
-            indices.toArray(new IndexMetaData[indices.size()]));
+        AllocateDangledRequest request = new AllocateDangledRequest(clusterService.localNode(), indices.toArray(new IndexMetaData[0]));
         transportService.sendRequest(masterNode, ACTION_NAME, request, new TransportResponseHandler<AllocateDangledResponse>() {
             @Override
             public AllocateDangledResponse read(StreamInput in) throws IOException {

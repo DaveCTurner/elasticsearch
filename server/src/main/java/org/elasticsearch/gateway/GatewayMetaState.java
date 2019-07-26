@@ -45,6 +45,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
 
@@ -389,6 +390,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
         Set<Index> relevantIndices;
         if (state.nodes().getLocalNode().isMasterNode()) {
             relevantIndices = getRelevantIndicesForMasterEligibleNode(state);
+        } else if (state.nodes().getLocalNode().isDataNode()) {
+            relevantIndices = getRelevantIndicesOnDataOnlyNode(state, previousState, previouslyWrittenIndices);
         } else {
             relevantIndices = Collections.emptySet();
         }
@@ -505,7 +508,12 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
         }
         Set<Index> indices = new HashSet<>();
         for (ShardRouting routing : newRoutingNode) {
-            indices.add(routing.index());
+            if (previouslyWrittenIndices.contains(routing.index()) == false
+                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(state.metaData().index(routing.index()).getSettings())
+                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(previousState.metaData().index(routing.index()).getSettings())) {
+
+                indices.add(routing.index());
+            }
         }
         // we have to check the meta data also: closed indices will not appear in the routing table, but we must still write the state if
         // we have it written on disk previously
@@ -517,7 +525,10 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
             if (previousMetaData != null) {
                 isOrWasClosed = isOrWasClosed || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
             }
-            if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed) {
+            if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed
+                && (IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(indexMetaData.getSettings())
+                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(
+                    previousState.metaData().index(indexMetaData.getIndex()).getSettings()))) {
                 indices.add(indexMetaData.getIndex());
             }
         }

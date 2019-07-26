@@ -256,6 +256,13 @@ public class IndexMetaData implements Diffable<IndexMetaData>, ToXContentFragmen
     public static final Setting<Integer> INDEX_FORMAT_SETTING =
             Setting.intSetting(INDEX_FORMAT, 0, Setting.Property.IndexScope, Setting.Property.Final);
 
+    /**
+     * Indicates whether updated copies of the index metadata should be persisted alongside the shard data on data nodes, so that it might
+     * be possible to import this index as a dangling index in future.
+     */
+    public static final Setting<Boolean> INDEX_SUPPORTS_DANGLING_IMPORT = Setting.boolSetting("index.dangling_import_supported", false,
+        Property.IndexScope, Property.Dynamic);
+
     public static final String KEY_IN_SYNC_ALLOCATIONS = "in_sync_allocations";
     static final String KEY_VERSION = "version";
     static final String KEY_MAPPING_VERSION = "mapping_version";

@@ -32,7 +32,6 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.Matchers.contains;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
-@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class NodeRepurposeCommandIT extends ESIntegTestCase {
 
     public void testRepurpose() throws Exception {
