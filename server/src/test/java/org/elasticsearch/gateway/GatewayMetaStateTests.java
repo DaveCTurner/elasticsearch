@@ -174,7 +174,6 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
         assertThat(indices.size(), equalTo(1));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testGetRelevantIndicesWithUnassignedShardsOnDataOnlyNode() {
         IndexMetaData indexMetaData = createIndexMetaData("test");
         Set<Index> indices = GatewayMetaState.getRelevantIndices(
@@ -191,7 +190,7 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
                 clusterStateWithAssignedIndex(indexMetaData, masterEligible),
                 clusterStateWithUnassignedIndex(indexMetaData, masterEligible),
                 randomPrevWrittenIndices(indexMetaData));
-        assertThat(indices.size(), equalTo(masterEligible ? 1 : 0));
+        assertThat(indices.size(), equalTo(1));
     }
 
     public void testGetRelevantIndicesForClosedPrevWrittenIndexOnDataOnlyNode() {
@@ -200,7 +199,7 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
                 clusterStateWithClosedIndex(indexMetaData, false),
                 clusterStateWithAssignedIndex(indexMetaData, false),
                 Collections.singleton(indexMetaData.getIndex()));
-        assertThat(indices.size(), equalTo(0));
+        assertThat(indices.size(), equalTo(1));
     }
 
     public void testGetRelevantIndicesForClosedPrevNotWrittenIndexOnDataOnlyNode() {
@@ -218,7 +217,7 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
                 clusterStateWithJustOpenedIndex(indexMetaData, false),
                 clusterStateWithClosedIndex(indexMetaData, false),
                 Collections.singleton(indexMetaData.getIndex()));
-        assertThat(indices.size(), equalTo(0));
+        assertThat(indices.size(), equalTo(1));
     }
 
     public void testResolveStatesToBeWritten() throws WriteStateException {
@@ -254,7 +253,7 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
         IndexMetaData newVersionChangedIndex = newMetaData.index(versionChangedIndex.getIndex());
 
         List<GatewayMetaState.IndexMetaDataAction> actions =
-                GatewayMetaState.resolveIndexMetaDataActions(indices, relevantIndices, oldMetaData, newMetaData);
+                GatewayMetaState.resolveIndexMetaDataActions(indices, relevantIndices, oldMetaData, newMetaData, true);
 
         assertThat(actions, hasSize(3));
 

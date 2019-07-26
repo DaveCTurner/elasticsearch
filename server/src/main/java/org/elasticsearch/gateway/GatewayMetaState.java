@@ -367,7 +367,7 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
         MetaData previousMetaData = incrementalWrite ? previousState.metaData() : null;
         Iterable<IndexMetaDataAction> actions = resolveIndexMetaDataActions(previouslyWrittenIndices, relevantIndices, previousMetaData,
-                newState.metaData());
+                newState.metaData(), newState.nodes().getLocalNode().isMasterNode());
 
         for (IndexMetaDataAction action : actions) {
             long generation = action.execute(writer);
@@ -387,10 +387,10 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
     public static Set<Index> getRelevantIndices(ClusterState state, ClusterState previousState, Set<Index> previouslyWrittenIndices) {
         Set<Index> relevantIndices;
-        if (state.nodes().getLocalNode().isMasterNode()) {
-            relevantIndices = getRelevantIndicesForMasterEligibleNode(state);
-        } else if (state.nodes().getLocalNode().isDataNode()) {
+        if (isDataOnlyNode(state)) {
             relevantIndices = getRelevantIndicesOnDataOnlyNode(state, previousState, previouslyWrittenIndices);
+        } else if (state.nodes().getLocalNode().isMasterNode()) {
+            relevantIndices = getRelevantIndicesForMasterEligibleNode(state);
         } else {
             relevantIndices = Collections.emptySet();
         }
@@ -482,7 +482,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
     public static List<IndexMetaDataAction> resolveIndexMetaDataActions(Map<Index, Long> previouslyWrittenIndices,
                                                                         Set<Index> relevantIndices,
                                                                         MetaData previousMetaData,
-                                                                        MetaData newMetaData) {
+                                                                        MetaData newMetaData,
+                                                                        boolean isMasterEligible) {
         List<IndexMetaDataAction> actions = new ArrayList<>();
         for (Index index : relevantIndices) {
             IndexMetaData newIndexMetaData = newMetaData.getIndexSafe(index);
@@ -490,7 +491,10 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
             if (previouslyWrittenIndices.containsKey(index) == false || previousIndexMetaData == null) {
                 actions.add(new WriteNewIndexMetaData(newIndexMetaData));
-            } else if (previousIndexMetaData.getVersion() != newIndexMetaData.getVersion()) {
+            } else if (previousIndexMetaData.getVersion() != newIndexMetaData.getVersion()
+                && (isMasterEligible
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousIndexMetaData.getSettings())
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(newIndexMetaData.getSettings()))) {
                 actions.add(new WriteChangedIndexMetaData(previousIndexMetaData, newIndexMetaData));
             } else {
                 actions.add(new KeepPreviousGeneration(index, previouslyWrittenIndices.get(index)));
@@ -501,39 +505,26 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
     private static Set<Index> getRelevantIndicesOnDataOnlyNode(ClusterState state, ClusterState previousState, Set<Index>
             previouslyWrittenIndices) {
-        final RoutingNode newRoutingNode = state.getRoutingNodes().node(state.nodes().getLocalNodeId());
+        RoutingNode newRoutingNode = state.getRoutingNodes().node(state.nodes().getLocalNodeId());
         if (newRoutingNode == null) {
             throw new IllegalStateException("cluster state does not contain this node - cannot write index meta state");
         }
-        final Set<Index> indices = new HashSet<>();
+        Set<Index> indices = new HashSet<>();
         for (ShardRouting routing : newRoutingNode) {
-            if (previouslyWrittenIndices.contains(routing.index()) == false) {
-                // newly-allocated index, so we need to write some metadata
-                indices.add(routing.index());
-            } else {
-                final IndexMetaData currentMetaData = state.metaData().index(routing.index());
-                final IndexMetaData previousMetaData = previousState.metaData().index(routing.index());
-                if (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(currentMetaData.getSettings())
-                    || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousMetaData.getSettings())) {
-                    // index is persisting metadata on data nodes, or just stopped doing so
-                    indices.add(routing.index());
-                }
-            }
+            indices.add(routing.index());
         }
-        // we have to check the metadata for non-replicated closed indices too, since these do not appear in the routing table and yet we
-        // must still maintain the state on disk if we have it written on disk previously
+        // we have to check the meta data also: closed indices will not appear in the routing table, but we must still write the state if
+        // we have it written on disk previously
         for (IndexMetaData indexMetaData : state.metaData()) {
-            if (previouslyWrittenIndices.contains(indexMetaData.getIndex())) {
-                final IndexMetaData previousMetaData = previousState.metaData().index(indexMetaData.getIndex());
-
-                boolean isOrWasClosed = indexMetaData.getState().equals(IndexMetaData.State.CLOSE)
-                    || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
-
-                if (isOrWasClosed &&
-                    (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(indexMetaData.getSettings())
-                    || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousMetaData.getSettings()))) {
-                    indices.add(indexMetaData.getIndex());
-                }
+            boolean isOrWasClosed = indexMetaData.getState().equals(IndexMetaData.State.CLOSE);
+            // if the index is open we might still have to write the state if it just transitioned from closed to open
+            // so we have to check for that as well.
+            IndexMetaData previousMetaData = previousState.metaData().index(indexMetaData.getIndex());
+            if (previousMetaData != null) {
+                isOrWasClosed = isOrWasClosed || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
+            }
+            if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed) {
+                indices.add(indexMetaData.getIndex());
             }
         }
         return indices;
