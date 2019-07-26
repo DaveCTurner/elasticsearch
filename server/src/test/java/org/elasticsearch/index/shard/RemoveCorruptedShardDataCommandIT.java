@@ -103,7 +103,6 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
-@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
     @Override
