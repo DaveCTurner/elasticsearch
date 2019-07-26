@@ -45,7 +45,6 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
 
@@ -509,8 +508,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
         Set<Index> indices = new HashSet<>();
         for (ShardRouting routing : newRoutingNode) {
             if (previouslyWrittenIndices.contains(routing.index()) == false
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(state.metaData().index(routing.index()).getSettings())
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(previousState.metaData().index(routing.index()).getSettings())) {
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(state.metaData().index(routing.index()).getSettings())
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousState.metaData().index(routing.index()).getSettings())) {
 
                 indices.add(routing.index());
             }
@@ -526,8 +525,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
                 isOrWasClosed = isOrWasClosed || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
             }
             if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed
-                && (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(indexMetaData.getSettings())
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(
+                && (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(indexMetaData.getSettings())
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(
                     previousState.metaData().index(indexMetaData.getIndex()).getSettings()))) {
                 indices.add(indexMetaData.getIndex());
             }

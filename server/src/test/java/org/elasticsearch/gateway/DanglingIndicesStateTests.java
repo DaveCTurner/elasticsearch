@@ -43,7 +43,7 @@ public class DanglingIndicesStateTests extends ESTestCase {
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
             .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 0)
             .put(IndexMetaData.SETTING_VERSION_CREATED, Version.CURRENT)
-            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.getKey(), true)
+            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), true)
             .build();
 
     public void testCleanupWhenEmpty() throws Exception {
