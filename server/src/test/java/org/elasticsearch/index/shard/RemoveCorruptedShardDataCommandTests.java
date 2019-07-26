@@ -98,6 +98,7 @@ public class RemoveCorruptedShardDataCommandTests extends IndexShardTestCase {
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
             .put(MergePolicyConfig.INDEX_MERGE_ENABLED, false)
             .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 0)
+            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), true)
             .build();
 
         final NodeEnvironment.NodePath nodePath = new NodeEnvironment.NodePath(dataDir);
