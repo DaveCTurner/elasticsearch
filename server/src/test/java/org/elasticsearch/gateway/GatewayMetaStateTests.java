@@ -174,6 +174,7 @@ public class GatewayMetaStateTests extends ESAllocationTestCase {
         assertThat(indices.size(), equalTo(1));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testGetRelevantIndicesWithUnassignedShardsOnDataOnlyNode() {
         IndexMetaData indexMetaData = createIndexMetaData("test");
         Set<Index> indices = GatewayMetaState.getRelevantIndices(
