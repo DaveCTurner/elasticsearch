@@ -442,6 +442,10 @@ public abstract class ESIntegTestCase extends ESTestCase {
             builder.put(Store.FORCE_RAM_TERM_DICT.getKey(), true);
         }
 
+        if (randomBoolean()) {
+            builder.put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), randomBoolean());
+        }
+
         return builder;
     }
 
@@ -680,6 +684,9 @@ public abstract class ESIntegTestCase extends ESTestCase {
         if (randomBoolean()) {
             builder.put(INDEX_SOFT_DELETES_RETENTION_LEASE_PERIOD_SETTING.getKey(), timeValueMillis(randomLongBetween(0, randomBoolean()
                     ? 1000 : INDEX_SOFT_DELETES_RETENTION_LEASE_PERIOD_SETTING.get(Settings.EMPTY).millis())).getStringRep());
+        }
+        if (randomBoolean()) {
+            builder.put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), randomBoolean());
         }
         return builder.build();
     }
