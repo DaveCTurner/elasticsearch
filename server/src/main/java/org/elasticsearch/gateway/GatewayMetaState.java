@@ -509,8 +509,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
         Set<Index> indices = new HashSet<>();
         for (ShardRouting routing : newRoutingNode) {
             if (previouslyWrittenIndices.contains(routing.index()) == false
-                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(state.metaData().index(routing.index()).getSettings())
-                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(previousState.metaData().index(routing.index()).getSettings())) {
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(state.metaData().index(routing.index()).getSettings())
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(previousState.metaData().index(routing.index()).getSettings())) {
 
                 indices.add(routing.index());
             }
@@ -526,8 +526,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
                 isOrWasClosed = isOrWasClosed || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
             }
             if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed
-                && (IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(indexMetaData.getSettings())
-                || IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(
+                && (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(indexMetaData.getSettings())
+                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(
                     previousState.metaData().index(indexMetaData.getIndex()).getSettings()))) {
                 indices.add(indexMetaData.getIndex());
             }

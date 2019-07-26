@@ -257,11 +257,12 @@ public class IndexMetaData implements Diffable<IndexMetaData>, ToXContentFragmen
             Setting.intSetting(INDEX_FORMAT, 0, Setting.Property.IndexScope, Setting.Property.Final);
 
     /**
-     * Indicates whether updated copies of the index metadata should be persisted alongside the shard data on data nodes, so that it might
-     * be possible to import this index as a dangling index in future.
+     * Indicates whether updated copies of the index metadata should be persisted alongside the shard data on data nodes, so that external
+     * tools (e.g. {@link org.elasticsearch.index.shard.RemoveCorruptedShardDataCommand} can load the translog correctly and so that it
+     * might be possible to import this index as a dangling index in future.
      */
-    public static final Setting<Boolean> INDEX_SUPPORTS_DANGLING_IMPORT = Setting.boolSetting("index.dangling_import_supported", false,
-        Property.IndexScope, Property.Dynamic);
+    public static final Setting<Boolean> INDEX_PERSIST_METADATA_WITH_SHARDS = Setting.boolSetting("index.persist_metadata_with_shards",
+        false, Property.IndexScope, Property.Dynamic);
 
     public static final String KEY_IN_SYNC_ALLOCATIONS = "in_sync_allocations";
     static final String KEY_VERSION = "version";

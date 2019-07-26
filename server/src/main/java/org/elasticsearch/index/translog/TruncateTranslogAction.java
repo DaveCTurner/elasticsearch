@@ -173,6 +173,12 @@ public class TruncateTranslogAction {
             final long translogGlobalCheckpoint = Translog.readGlobalCheckpoint(translogPath, translogUUID);
             final IndexMetaData indexMetaData =
                 IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry, shardPath.getDataPath().getParent());
+
+            if (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(indexMetaData.getSettings()) == false) {
+                throw new IllegalStateException("cannot verify translog since [" + IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.getKey()
+                    + "] is set to [false] on this index");
+            }
+
             final IndexSettings indexSettings = new IndexSettings(indexMetaData, Settings.EMPTY);
             final TranslogConfig translogConfig = new TranslogConfig(shardPath.getShardId(), translogPath,
                 indexSettings, BigArrays.NON_RECYCLING_INSTANCE);

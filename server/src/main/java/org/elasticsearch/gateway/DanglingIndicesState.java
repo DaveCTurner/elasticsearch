@@ -140,9 +140,9 @@ public class DanglingIndicesState implements ClusterStateListener {
                     logger.warn("[{}] cannot be imported as a dangling index, as an index with the same name and UUID exist in the " +
                         "index tombstones.  This situation is likely caused by copying over the data directory for an index " +
                         "that was previously deleted.", indexMetaData.getIndex());
-                } else if (IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.get(indexMetaData.getSettings()) == false) {
+                } else if (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.get(indexMetaData.getSettings()) == false) {
                     logger.warn("[{}] cannot be imported as a dangling index because [{}] is set to false", indexMetaData.getIndex(),
-                        IndexMetaData.INDEX_SUPPORTS_DANGLING_IMPORT.getKey());
+                        IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS.getKey());
                 } else {
                     logger.info("[{}] dangling index exists on local file system, but not in cluster metadata, " +
                                 "auto import to cluster state", indexMetaData.getIndex());
