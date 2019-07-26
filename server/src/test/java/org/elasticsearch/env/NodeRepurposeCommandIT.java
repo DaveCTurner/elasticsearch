@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.env;
 
+import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.NoShardAvailableActionException;
 import org.elasticsearch.common.settings.Settings;
@@ -31,6 +32,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.Matchers.contains;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0)
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class NodeRepurposeCommandIT extends ESIntegTestCase {
 
     public void testRepurpose() throws Exception {
