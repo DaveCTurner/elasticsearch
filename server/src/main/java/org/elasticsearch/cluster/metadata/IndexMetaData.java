@@ -260,7 +260,7 @@ public class IndexMetaData implements Diffable<IndexMetaData>, ToXContentFragmen
      * Indicates whether updated copies of the index metadata should be persisted alongside the shard data on data nodes, so that external
      * tools (e.g. {@link org.elasticsearch.index.shard.RemoveCorruptedShardDataCommand} can load the translog correctly and so that it
      * might be possible to import this index as a dangling index in future. If {@code false} then the index metadata is still written
-     * alongside the shards on data nodes but it is not maintained after the first time it is written.
+     * alongside the shards on data nodes but it is not maintained after the first time it is written, so may contain stale information.
      */
     public static final Setting<Boolean> INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING
         = Setting.boolSetting("index.persist_metadata_with_shards", false, Property.IndexScope, Property.Dynamic);

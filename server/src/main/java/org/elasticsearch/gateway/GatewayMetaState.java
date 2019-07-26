@@ -501,34 +501,39 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
     private static Set<Index> getRelevantIndicesOnDataOnlyNode(ClusterState state, ClusterState previousState, Set<Index>
             previouslyWrittenIndices) {
-        RoutingNode newRoutingNode = state.getRoutingNodes().node(state.nodes().getLocalNodeId());
+        final RoutingNode newRoutingNode = state.getRoutingNodes().node(state.nodes().getLocalNodeId());
         if (newRoutingNode == null) {
             throw new IllegalStateException("cluster state does not contain this node - cannot write index meta state");
         }
-        Set<Index> indices = new HashSet<>();
+        final Set<Index> indices = new HashSet<>();
         for (ShardRouting routing : newRoutingNode) {
-            if (previouslyWrittenIndices.contains(routing.index()) == false
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(state.metaData().index(routing.index()).getSettings())
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousState.metaData().index(routing.index()).getSettings())) {
-
+            if (previouslyWrittenIndices.contains(routing.index()) == false) {
+                // newly-allocated index, so we need to write some metadata
                 indices.add(routing.index());
+            } else {
+                final IndexMetaData currentMetaData = state.metaData().index(routing.index());
+                final IndexMetaData previousMetaData = previousState.metaData().index(routing.index());
+                if (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(currentMetaData.getSettings())
+                    || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousMetaData.getSettings())) {
+                    // index is persisting metadata on data nodes, or just stopped doing so
+                    indices.add(routing.index());
+                }
             }
         }
-        // we have to check the meta data also: closed indices will not appear in the routing table, but we must still write the state if
-        // we have it written on disk previously
+        // we have to check the metadata for non-replicated closed indices too, since these do not appear in the routing table and yet we
+        // must still maintain the state on disk if we have it written on disk previously
         for (IndexMetaData indexMetaData : state.metaData()) {
-            boolean isOrWasClosed = indexMetaData.getState().equals(IndexMetaData.State.CLOSE);
-            // if the index is open we might still have to write the state if it just transitioned from closed to open
-            // so we have to check for that as well.
-            IndexMetaData previousMetaData = previousState.metaData().index(indexMetaData.getIndex());
-            if (previousMetaData != null) {
-                isOrWasClosed = isOrWasClosed || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
-            }
-            if (previouslyWrittenIndices.contains(indexMetaData.getIndex()) && isOrWasClosed
-                && (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(indexMetaData.getSettings())
-                || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(
-                    previousState.metaData().index(indexMetaData.getIndex()).getSettings()))) {
-                indices.add(indexMetaData.getIndex());
+            if (previouslyWrittenIndices.contains(indexMetaData.getIndex())) {
+                final IndexMetaData previousMetaData = previousState.metaData().index(indexMetaData.getIndex());
+
+                boolean isOrWasClosed = indexMetaData.getState().equals(IndexMetaData.State.CLOSE)
+                    || previousMetaData.getState().equals(IndexMetaData.State.CLOSE);
+
+                if (isOrWasClosed &&
+                    (IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(indexMetaData.getSettings())
+                    || IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.get(previousMetaData.getSettings()))) {
+                    indices.add(indexMetaData.getIndex());
+                }
             }
         }
         return indices;

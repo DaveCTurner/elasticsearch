@@ -116,6 +116,8 @@ public class TransportNodesListGatewayStartedShards extends
                     // in such cases we can load it from disk
                     metaData = IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry,
                         nodeEnv.indexPaths(shardId.getIndex()));
+                    // metadata may be stale if index.persist_metadata_with_shards is false, but we only use the UUID and any custom data
+                    // path, both of which are immutable, so these values are ok for our purposes.
                 }
                 if (metaData == null) {
                     ElasticsearchException e = new ElasticsearchException("failed to find local IndexMetaData");

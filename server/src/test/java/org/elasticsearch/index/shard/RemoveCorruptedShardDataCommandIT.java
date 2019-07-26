@@ -121,6 +121,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             .put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "-1")
             .put(MockEngineSupport.DISABLE_FLUSH_ON_CLOSE.getKey(), true)
             .put(IndexSettings.INDEX_CHECK_ON_STARTUP.getKey(), "checksum")
+            .put(IndexMetaData.INDEX_PERSIST_METADATA_WITH_SHARDS_SETTING.getKey(), true)
         ));
 
         // index some docs in several segments

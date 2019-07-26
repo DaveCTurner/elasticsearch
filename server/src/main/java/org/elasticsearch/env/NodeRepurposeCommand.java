@@ -166,6 +166,7 @@ public class NodeRepurposeCommand extends ElasticsearchNodeCommand {
         }
         try {
             IndexMetaData metaData = IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry, indexPaths);
+            // metadata may be stale if index.persist_metadata_with_shards is false, but the name is immutable so it's safe to read that
             return metaData.getIndex().getName();
         } catch (Exception e) {
             return "no name for uuid: " + uuid + ": " + e;

@@ -138,6 +138,7 @@ public class RemoveCorruptedShardDataCommand extends EnvironmentAwareCommand {
 
             final IndexMetaData indexMetaData =
                 IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry, shardParent);
+            // metadata may be stale if index.persist_metadata_with_shards is false, but the name is immutable so it's safe to read that
 
             final String shardIdFileName = path.getFileName().toString();
             if (Files.isDirectory(path) && shardIdFileName.chars().allMatch(Character::isDigit) // SHARD-ID path element check
@@ -168,6 +169,8 @@ public class RemoveCorruptedShardDataCommand extends EnvironmentAwareCommand {
 
                             final IndexMetaData indexMetaData =
                                 IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry, file);
+                            // metadata may be stale if index.persist_metadata_with_shards is false, but the name and UUID and custom path
+                            // settings are immutable so it's safe enough to read these
                             if (indexMetaData == null) {
                                 continue;
                             }
@@ -454,6 +457,7 @@ public class RemoveCorruptedShardDataCommand extends EnvironmentAwareCommand {
         final IndexMetaData indexMetaData =
             IndexMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry,
                 shardPath.getDataPath().getParent());
+        // metadata may be stale if index.persist_metadata_with_shards is false, but the name is immutable so it's safe enough to read this
 
         final Path nodePath = getNodePath(shardPath);
         final NodeMetaData nodeMetaData =
