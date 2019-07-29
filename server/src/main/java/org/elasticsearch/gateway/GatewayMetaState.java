@@ -22,13 +22,11 @@ package org.elasticsearch.gateway;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
-import org.elasticsearch.cluster.coordination.CoordinationState;
 import org.elasticsearch.cluster.coordination.CoordinationState.PersistedState;
 import org.elasticsearch.cluster.coordination.InMemoryPersistedState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -49,6 +47,7 @@ import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,7 +70,7 @@ import java.util.function.UnaryOperator;
  * elected as master, it requests metaData from other master eligible nodes. After that, master node performs re-conciliation on the
  * gathered results, re-creates {@link ClusterState} and broadcasts this state to other nodes in the cluster.
  */
-public class GatewayMetaState implements ClusterStateApplier, CoordinationState.PersistedState {
+public class GatewayMetaState implements ClusterStateApplier {
     protected static final Logger logger = LogManager.getLogger(GatewayMetaState.class);
 
     private final MetaStateService metaStateService;
@@ -83,6 +82,8 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
     protected Manifest previousManifest;
     protected ClusterState previousClusterState;
     protected boolean incrementalWrite;
+
+    private PersistedState persistedState;
 
     public GatewayMetaState(Settings settings, MetaStateService metaStateService,
                             MetaDataIndexUpgradeService metaDataIndexUpgradeService, MetaDataUpgrader metaDataUpgrader,
@@ -99,13 +100,35 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
 
     public PersistedState getPersistedState(Settings settings, ClusterApplierService clusterApplierService) {
         applyClusterStateUpdaters();
-        if (DiscoveryNode.isMasterNode(settings) == false) {
-            // use Zen1 way of writing cluster state for non-master-eligible nodes
-            // this avoids concurrent manipulating of IndexMetadata with IndicesStore
+
+        if (DiscoveryNode.isDataNode(settings)) {
+            // keep cluster state alongside indices in case they need to be imported as dangling indices
             clusterApplierService.addLowPriorityApplier(this);
-            return new InMemoryPersistedState(getCurrentTerm(), getLastAcceptedState());
         }
-        return this;
+
+        if (DiscoveryNode.isMasterNode(settings)) {
+            try {
+                persistedState = metaStateService.getPersistedState(this::clusterStateFromMetaData);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            // TODO NOCOMMIT if there's on-disk master state then we should do _something_ about it.
+            // If there's on-disk master state then this node used to be a master, and may still be in the voting configuration. It's
+            // a little unsafe to proceed if so, because it's no longer a master node so no longer writes the important things to disk.
+            persistedState = new InMemoryPersistedState(previousClusterState.term(), previousClusterState);
+        }
+
+        return persistedState;
+    }
+
+    protected ClusterState clusterStateFromMetaData(long version, MetaData metadata) {
+        return Function.<ClusterState>identity()
+            .andThen(ClusterStateUpdaters::addStateNotRecoveredBlock)
+            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, transportService.getLocalNode()))
+            .andThen(state -> ClusterStateUpdaters.upgradeAndArchiveUnknownOrInvalidSettings(state, clusterService.getClusterSettings()))
+            .andThen(ClusterStateUpdaters::recoverClusterBlocks)
+            .apply(ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings)).metaData(metadata).version(version).build());
     }
 
     private void initializeClusterState(ClusterName clusterName) throws IOException {
@@ -182,14 +205,12 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
     }
 
     public MetaData getMetaData() {
-        return previousClusterState.metaData();
+        return (persistedState == null ? previousClusterState : persistedState.getLastAcceptedState()).metaData();
     }
 
     @Override
     public void applyClusterState(ClusterChangedEvent event) {
-        if (isMasterOrDataNode() == false) {
-            return;
-        }
+        assert DiscoveryNode.isDataNode(settings);
 
         if (event.state().blocks().disableStatePersistence()) {
             incrementalWrite = false;
@@ -200,53 +221,15 @@ public class GatewayMetaState implements ClusterStateApplier, CoordinationState.
             // Hack: This is to ensure that non-master-eligible Zen2 nodes always store a current term
             // that's higher than the last accepted term.
             // TODO: can we get rid of this hack?
-            if (event.state().term() > getCurrentTerm()) {
-                innerSetCurrentTerm(event.state().term());
-            }
+//            if (event.state().term() > getCurrentTerm()) {
+//                innerSetCurrentTerm(event.state().term());
+//            }
 
+            // TODO NOCOMMIT only write relevant index metadata here, not the global metadata
             updateClusterState(event.state(), event.previousState());
             incrementalWrite = true;
         } catch (WriteStateException e) {
             logger.warn("Exception occurred when storing new meta data", e);
-        }
-    }
-
-    @Override
-    public long getCurrentTerm() {
-        return previousManifest.getCurrentTerm();
-    }
-
-    @Override
-    public ClusterState getLastAcceptedState() {
-        assert previousClusterState.nodes().getLocalNode() != null : "Cluster state is not fully built yet";
-        return previousClusterState;
-    }
-
-    @Override
-    public void setCurrentTerm(long currentTerm) {
-        try {
-            innerSetCurrentTerm(currentTerm);
-        } catch (WriteStateException e) {
-            logger.error(new ParameterizedMessage("Failed to set current term to {}", currentTerm), e);
-            e.rethrowAsErrorOrUncheckedException();
-        }
-    }
-
-    private void innerSetCurrentTerm(long currentTerm) throws WriteStateException {
-        Manifest manifest = new Manifest(currentTerm, previousManifest.getClusterStateVersion(), previousManifest.getGlobalGeneration(),
-            new HashMap<>(previousManifest.getIndexGenerations()));
-        metaStateService.writeManifestAndCleanup("current term changed", manifest);
-        previousManifest = manifest;
-    }
-
-    @Override
-    public void setLastAcceptedState(ClusterState clusterState) {
-        try {
-            incrementalWrite = previousClusterState.term() == clusterState.term();
-            updateClusterState(clusterState, previousClusterState);
-        } catch (WriteStateException e) {
-            logger.error(new ParameterizedMessage("Failed to set last accepted state with version {}", clusterState.version()), e);
-            e.rethrowAsErrorOrUncheckedException();
         }
     }
 

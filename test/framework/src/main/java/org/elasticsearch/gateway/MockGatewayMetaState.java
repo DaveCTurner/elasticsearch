@@ -19,6 +19,9 @@
 
 package org.elasticsearch.gateway;
 
+import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.metadata.MetaDataIndexUpgradeService;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -29,6 +32,7 @@ import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.function.Function;
 
 import static org.mockito.Mockito.mock;
 
@@ -40,6 +44,7 @@ import static org.mockito.Mockito.mock;
  */
 public class MockGatewayMetaState extends GatewayMetaState {
     private final DiscoveryNode localNode;
+    private ClusterName clusterName;
 
     public MockGatewayMetaState(Settings settings, NodeEnvironment nodeEnvironment,
                                 NamedXContentRegistry xContentRegistry, DiscoveryNode localNode) throws IOException {
@@ -47,6 +52,7 @@ public class MockGatewayMetaState extends GatewayMetaState {
                 mock(MetaDataIndexUpgradeService.class), mock(MetaDataUpgrader.class),
                 mock(TransportService.class), mock(ClusterService.class));
         this.localNode = localNode;
+        clusterName = ClusterName.CLUSTER_NAME_SETTING.get(settings);
     }
 
     @Override
@@ -58,5 +64,14 @@ public class MockGatewayMetaState extends GatewayMetaState {
     public void applyClusterStateUpdaters() {
         // Just set localNode here, not to mess with ClusterService and IndicesService mocking
         previousClusterState = ClusterStateUpdaters.setLocalNode(previousClusterState, localNode);
+    }
+
+    @Override
+    protected ClusterState clusterStateFromMetaData(long version, MetaData metadata) {
+        return Function.<ClusterState>identity()
+            .andThen(ClusterStateUpdaters::addStateNotRecoveredBlock)
+            .andThen(state -> ClusterStateUpdaters.setLocalNode(state, localNode))
+            .andThen(ClusterStateUpdaters::recoverClusterBlocks)
+            .apply(ClusterState.builder(clusterName).metaData(metadata).version(version).build());
     }
 }

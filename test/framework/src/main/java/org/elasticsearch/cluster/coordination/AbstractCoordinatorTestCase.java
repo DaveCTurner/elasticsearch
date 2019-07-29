@@ -46,6 +46,7 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -133,6 +134,7 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.mockito.Mockito.mock;
 
 public class AbstractCoordinatorTestCase extends ESTestCase {
 
@@ -224,7 +226,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             // then wait for the new leader to commit a state without the old leader
             + DEFAULT_CLUSTER_STATE_UPDATE_DELAY;
 
-    class Cluster {
+    class Cluster implements AutoCloseable {
 
         static final long EXTREME_DELAY_VARIABILITY = 10000L;
         static final long DEFAULT_DELAY_VARIABILITY = 100L;
@@ -680,6 +682,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             blackholedConnections.clear();
         }
 
+        @Override
+        public void close() {
+            clusterNodes.forEach(ClusterNode::close);
+        }
+
         class MockPersistedState implements CoordinationState.PersistedState {
             private final CoordinationState.PersistedState delegate;
             private final NodeEnvironment nodeEnvironment;
@@ -690,7 +697,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         nodeEnvironment = newNodeEnvironment();
                         nodeEnvironments.add(nodeEnvironment);
                         delegate = new MockGatewayMetaState(Settings.EMPTY, nodeEnvironment, xContentRegistry(), localNode)
-                            .getPersistedState(Settings.EMPTY, null);
+                            .getPersistedState(Settings.EMPTY, mock(ClusterApplierService.class));
                     } else {
                         nodeEnvironment = null;
                         delegate = new InMemoryPersistedState(0L,
@@ -721,7 +728,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                                     manifest.getIndexGenerations()));
                         }
                         delegate = new MockGatewayMetaState(Settings.EMPTY, nodeEnvironment, xContentRegistry(), newLocalNode)
-                            .getPersistedState(Settings.EMPTY, null);
+                            .getPersistedState(Settings.EMPTY, mock(ClusterApplierService.class));
                     } else {
                         nodeEnvironment = null;
                         BytesStreamOutput outStream = new BytesStreamOutput();
@@ -905,13 +912,17 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             void close() {
                 onNode(() -> {
                     logger.trace("taking down [{}]", localNode);
-                    coordinator.stop();
-                    clusterService.stop();
+                    if (coordinator.lifecycleState() != Lifecycle.State.CLOSED) {
+                        coordinator.stop();
+                    }
+                    if (coordinator.lifecycleState() != Lifecycle.State.CLOSED) {
+                        clusterService.stop();
+                    }
                     //transportService.stop(); // does blocking stuff :/
                     clusterService.close();
                     coordinator.close();
                     //transportService.close(); // does blocking stuff :/
-                });
+                }).run();
             }
 
             ClusterNode restartedNode() {
