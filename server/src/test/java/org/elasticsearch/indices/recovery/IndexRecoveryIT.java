@@ -88,6 +88,7 @@ import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.store.MockFSIndexStore;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.test.transport.StubbableTransport;
@@ -984,6 +985,7 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         ensureGreen(indexName);
     }
 
+    @TestLogging(value="org.elasticsearch.indices.recovery:TRACE", reason="nocommit")
     public void testRecoveryFlushReplica() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(3);
         String indexName = "test-index";
@@ -1049,6 +1051,52 @@ public class IndexRecoveryIT extends ESIntegTestCase {
             });
 
         ensureGreen(indexName);
+    }
+
+    public void testRecoveryWithoutSyncedFlushWithoutRetentionLease() throws Exception {
+        internalCluster().ensureAtLeastNumDataNodes(2);
+        String indexName = "test-index";
+        createIndex(indexName, Settings.builder()
+            .put("index.number_of_shards", 1)
+            .put("index.number_of_replicas", 1)
+            .put(UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), "24h") // do not reallocate the lost shard
+            .put(IndexSettings.INDEX_SOFT_DELETES_RETENTION_LEASE_PERIOD_SETTING.getKey(), "100ms") // expire leases quickly
+            .put(IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "100ms") // sync frequently
+            .build());
+        int numDocs = randomIntBetween(0, 10);
+        indexRandom(randomBoolean(), false, randomBoolean(), IntStream.range(0, numDocs)
+            .mapToObj(n -> client().prepareIndex(indexName, "_doc").setSource("num", n)).collect(toList()));
+        ensureGreen(indexName);
+        assertThat(flush(indexName).getSuccessfulShards(), equalTo(2));
+
+        final long maxSeqNo = client().admin().indices().prepareStats(indexName).get()
+            .getShards()[0].getSeqNoStats().getMaxSeqNo();
+        assertBusy(() -> client().admin().indices().prepareStats(indexName).get()
+            .getShards()[0].getRetentionLeaseStats().retentionLeases().leases().forEach(
+                l -> assertThat(l.toString(), l.retainingSequenceNumber(), equalTo(maxSeqNo + 1))));
+
+        final ShardId shardId = new ShardId(resolveIndex(indexName), 0);
+
+        final ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        final ShardRouting shardToRebuild = randomFrom(clusterState.routingTable().shardRoutingTable(shardId).activeShards());
+        internalCluster().restartNode(clusterState.nodes().get(shardToRebuild.currentNodeId()).getName(),
+            new InternalTestCluster.RestartCallback() {
+                @Override
+                public Settings onNodeStopped(String nodeName) throws Exception {
+                    assertBusy(() -> assertFalse(client().admin().indices().prepareStats(indexName).get()
+                        .getShards()[0].getRetentionLeaseStats().retentionLeases().contains(
+                        ReplicationTracker.getPeerRecoveryRetentionLeaseId(shardToRebuild))));
+                    return super.onNodeStopped(nodeName);
+                }
+            });
+
+        ensureGreen(indexName);
+
+        for (RecoveryState recoveryState : client().admin().indices().prepareRecoveries().get().shardRecoveryStates().get(indexName)) {
+            if (recoveryState.getTargetNode().getId().equals(shardToRebuild.currentNodeId())) {
+                assertThat("skipped phase 1", recoveryState.getIndex().totalFileCount(), equalTo(0));
+            }
+        }
     }
 
     public void testRecoverLocallyUpToGlobalCheckpoint() throws Exception {
@@ -1143,6 +1191,17 @@ public class IndexRecoveryIT extends ESIntegTestCase {
                     primary.removeRetentionLease(ReplicationTracker.getPeerRecoveryRetentionLeaseId(replicaShardRouting), future);
                     future.get();
 
+                    // also advance the primary's retention lease so we can't just clone it and do a seqno-based recovery that way
+                    indexRandom(randomBoolean(), randomBoolean(), randomBoolean(), IntStream.range(0, between(1, 100))
+                        .mapToObj(n -> client().prepareIndex(indexName, "_doc").setSource("num", n)).collect(toList()));
+                    assertThat(flush(indexName).getSuccessfulShards(), equalTo(1));
+                    assertBusy(() -> {
+                        primary.syncRetentionLeases();
+                        assertThat(primary.getRetentionLeases()
+                                .get(ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry())).retainingSequenceNumber(),
+                            equalTo(primary.seqNoStats().getMaxSeqNo() + 1));
+                    });
+
                     return super.onNodeStopped(nodeName);
                 }
             });
@@ -1193,6 +1252,15 @@ public class IndexRecoveryIT extends ESIntegTestCase {
                     // some operations that are not being retained. Emulate this by advancing the lease ahead of the replica's GCP:
                     primary.renewRetentionLease(ReplicationTracker.getPeerRecoveryRetentionLeaseId(replicaShardRouting),
                         primary.seqNoStats().getMaxSeqNo() + 1, ReplicationTracker.PEER_RECOVERY_RETENTION_LEASE_SOURCE);
+
+                    // also advance the primary's retention lease so we can't just clone it and do a seqno-based recovery that way
+                    assertThat(flush(indexName).getSuccessfulShards(), equalTo(1));
+                    assertBusy(() -> {
+                        primary.syncRetentionLeases();
+                        assertThat(primary.getRetentionLeases()
+                            .get(ReplicationTracker.getPeerRecoveryRetentionLeaseId(primary.routingEntry())).retainingSequenceNumber(),
+                            equalTo(primary.seqNoStats().getMaxSeqNo() + 1));
+                    });
 
                     return super.onNodeStopped(nodeName);
                 }

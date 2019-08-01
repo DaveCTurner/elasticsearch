@@ -286,7 +286,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
         final long cloneTime = randomLongBetween(timeReference.get(), Long.MAX_VALUE);
         timeReference.set(cloneTime);
         final PlainActionFuture<ReplicationResponse> cloneFuture = new PlainActionFuture<>();
-        final RetentionLease clonedLease = replicationTracker.cloneRetentionLease("source", "target", cloneFuture);
+        final RetentionLease clonedLease = replicationTracker.cloneRetentionLease("source", "target", Long.MAX_VALUE, cloneFuture);
         cloneFuture.actionGet();
         assertTrue(synced.get());
         synced.set(false);
@@ -317,7 +317,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
         replicationTracker.activatePrimaryMode(SequenceNumbers.NO_OPS_PERFORMED);
 
         assertThat(expectThrows(RetentionLeaseNotFoundException.class,
-            () -> replicationTracker.cloneRetentionLease("nonexistent-lease-id", "target", ActionListener.wrap(() -> {}))).getMessage(),
+            () -> replicationTracker.cloneRetentionLease("nonexistent-lease-id", "target", Long.MAX_VALUE, ActionListener.wrap(() -> {}))).getMessage(),
             equalTo("retention lease with ID [nonexistent-lease-id] not found"));
     }
 
@@ -342,7 +342,7 @@ public class ReplicationTrackerRetentionLeaseTests extends ReplicationTrackerTes
         replicationTracker.addRetentionLease("exists", randomLongBetween(0L, Long.MAX_VALUE), "test-source", ActionListener.wrap(() -> {}));
 
         assertThat(expectThrows(RetentionLeaseAlreadyExistsException.class,
-            () -> replicationTracker.cloneRetentionLease("source", "exists", ActionListener.wrap(() -> {}))).getMessage(),
+            () -> replicationTracker.cloneRetentionLease("source", "exists", Long.MAX_VALUE, ActionListener.wrap(() -> {}))).getMessage(),
             equalTo("retention lease with ID [exists] already exists"));
     }
 

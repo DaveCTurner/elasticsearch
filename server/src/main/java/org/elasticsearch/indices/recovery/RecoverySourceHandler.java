@@ -81,6 +81,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.stream.StreamSupport;
@@ -241,8 +242,8 @@ public class RecoverySourceHandler {
                         }
                     });
 
-                    final StepListener<ReplicationResponse> deleteRetentionLeaseStep = new StepListener<>();
                     if (useRetentionLeases) {
+                        final StepListener<ReplicationResponse> deleteRetentionLeaseStep = new StepListener<>();
                         runUnderPrimaryPermit(() -> {
                                 try {
                                     // If the target previously had a copy of this shard then a file-based recovery might move its global
@@ -255,25 +256,41 @@ public class RecoverySourceHandler {
                                     logger.debug("no peer-recovery retention lease for " + request.targetAllocationId());
                                     deleteRetentionLeaseStep.onResponse(null);
                                 }
-                            }, shardId + " removing retention leaes for [" + request.targetAllocationId() + "]",
+                            }, shardId + " removing retention lease for [" + request.targetAllocationId() + "]",
                             shard, cancellableThreads, logger);
+
+                        final StepListener<ReplicationResponse> clonePrimaryLeaseIfSyncedStep = new StepListener<>();
+                        final SetOnce<RetentionLease> clonedLeaseIfSynced = new SetOnce<>();
+                        deleteRetentionLeaseStep.whenComplete(r -> {
+                            assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[phase1/clonePrimaryLeaseIfSynced]");
+                            if (request.metadataSnapshot().getHistoryUUID() != null && isTargetSameHistory()) {
+                                runUnderPrimaryPermit(() -> {
+                                        clonedLeaseIfSynced.set(shard.cloneLocalPeerRecoveryRetentionLease(request.targetNode().getId(),
+                                            request.startingSeqNo(),
+                                            new ThreadedActionListener<>(logger, shard.getThreadPool(), ThreadPool.Names.GENERIC,
+                                                clonePrimaryLeaseIfSyncedStep, false)));
+                                    }, shardId + " removing retention lease for [" + request.targetAllocationId() + "]",
+                                    shard, cancellableThreads, logger);
+                            } else {
+                                clonePrimaryLeaseIfSyncedStep.onResponse(null);
+                            }
+                        }, onFailure);
+
+                        clonePrimaryLeaseIfSyncedStep.whenComplete(r -> {
+                            assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[phase1]");
+                            final RetentionLease retentionLease = clonedLeaseIfSynced.get();
+                            if (retentionLease == null) {
+                                phase1(safeCommitRef.getIndexCommit(), l -> createRetentionLease(startingSeqNo, l), () -> estimateNumOps,
+                                    sendFileStep);
+                            } else {
+                                logger.info("cloned primary lease as [{}], performing operations-based recovery", retentionLease);
+                                sendFileStep.onResponse(SendFileResult.EMPTY);
+                            }
+                        }, onFailure);
+
                     } else {
-                        deleteRetentionLeaseStep.onResponse(null);
+                        phase1(safeCommitRef.getIndexCommit(), l -> l.onResponse(null), () -> estimateNumOps, sendFileStep);
                     }
-
-                    deleteRetentionLeaseStep.whenComplete(ignored -> {
-                        assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[phase1]");
-
-                        final Consumer<ActionListener<RetentionLease>> createRetentionLeaseAsync;
-                        if (useRetentionLeases) {
-                            createRetentionLeaseAsync = l -> createRetentionLease(startingSeqNo, l);
-                        } else {
-                            createRetentionLeaseAsync = l -> l.onResponse(null);
-                        }
-
-                        phase1(safeCommitRef.getIndexCommit(), createRetentionLeaseAsync, () -> estimateNumOps, sendFileStep);
-                    }, onFailure);
-
                 } catch (final Exception e) {
                     throw new RecoveryEngineException(shard.shardId(), 1, "sendFileStep failed", e);
                 }
@@ -557,7 +574,7 @@ public class RecoverySourceHandler {
                 try {
                     final StepListener<ReplicationResponse> cloneRetentionLeaseStep = new StepListener<>();
                     final RetentionLease clonedLease
-                        = shard.cloneLocalPeerRecoveryRetentionLease(request.targetNode().getId(),
+                        = shard.cloneLocalPeerRecoveryRetentionLease(request.targetNode().getId(), Long.MAX_VALUE,
                         new ThreadedActionListener<>(logger, shard.getThreadPool(),
                             ThreadPool.Names.GENERIC, cloneRetentionLeaseStep, false));
                     logger.trace("cloned primary's retention lease as [{}]", clonedLease);

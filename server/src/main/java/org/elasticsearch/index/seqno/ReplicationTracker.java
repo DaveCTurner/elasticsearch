@@ -291,16 +291,18 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
     }
 
     /**
-     * Atomically clones an existing retention lease to a new ID.
+     * Atomically clones an existing retention lease to a new ID, as long as the source lease is retaining the given seqno
      *
      * @param sourceLeaseId the identifier of the source retention lease
      * @param targetLeaseId the identifier of the retention lease to create
      * @param listener      the callback when the retention lease is successfully added and synced to replicas
-     * @return the new retention lease
+     * @param ifRetainingSeqNo sequence number that must be retained
+     * @return the new retention lease, or null if {@code ifRetainingSeqNo} is not retained
      * @throws RetentionLeaseNotFoundException      if the specified source retention lease does not exist
      * @throws RetentionLeaseAlreadyExistsException if the specified target retention lease already exists
      */
-    RetentionLease cloneRetentionLease(String sourceLeaseId, String targetLeaseId, ActionListener<ReplicationResponse> listener) {
+    RetentionLease cloneRetentionLease(String sourceLeaseId, String targetLeaseId, long ifRetainingSeqNo,
+                                       ActionListener<ReplicationResponse> listener) {
         Objects.requireNonNull(listener);
         final RetentionLease retentionLease;
         final RetentionLeases currentRetentionLeases;
@@ -310,6 +312,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
                 throw new RetentionLeaseNotFoundException(sourceLeaseId);
             }
             final RetentionLease sourceLease = getRetentionLeases().get(sourceLeaseId);
+            if (ifRetainingSeqNo < sourceLease.retainingSequenceNumber()) {
+                listener.onResponse(null);
+                return null;
+            }
             retentionLease = innerAddRetentionLease(targetLeaseId, sourceLease.retainingSequenceNumber(), sourceLease.source());
             currentRetentionLeases = retentionLeases;
         }
@@ -478,10 +484,10 @@ public class ReplicationTracker extends AbstractIndexShardComponent implements L
             PEER_RECOVERY_RETENTION_LEASE_SOURCE, listener);
     }
 
-    public RetentionLease cloneLocalPeerRecoveryRetentionLease(String nodeId, ActionListener<ReplicationResponse> listener) {
+    public RetentionLease cloneLocalPeerRecoveryRetentionLease(String nodeId, long ifRetainingSeqNo, ActionListener<ReplicationResponse> listener) {
         return cloneRetentionLease(
             getPeerRecoveryRetentionLeaseId(routingTable.primaryShard()),
-            getPeerRecoveryRetentionLeaseId(nodeId), listener);
+            getPeerRecoveryRetentionLeaseId(nodeId), ifRetainingSeqNo, listener);
     }
 
     public void removePeerRecoveryRetentionLease(String nodeId, ActionListener<ReplicationResponse> listener) {

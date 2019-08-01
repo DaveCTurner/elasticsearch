@@ -2606,9 +2606,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return replicationTracker.addPeerRecoveryRetentionLease(nodeId, globalCheckpoint, listener);
     }
 
-    public RetentionLease cloneLocalPeerRecoveryRetentionLease(String nodeId, ActionListener<ReplicationResponse> listener) {
+    public RetentionLease cloneLocalPeerRecoveryRetentionLease(String nodeId, long ifRetainingSeqNo, ActionListener<ReplicationResponse> listener) {
         assert assertPrimaryMode();
-        return replicationTracker.cloneLocalPeerRecoveryRetentionLease(nodeId, listener);
+        return replicationTracker.cloneLocalPeerRecoveryRetentionLease(nodeId, ifRetainingSeqNo, listener);
     }
 
     public void removePeerRecoveryRetentionLease(String nodeId, ActionListener<ReplicationResponse> listener) {
