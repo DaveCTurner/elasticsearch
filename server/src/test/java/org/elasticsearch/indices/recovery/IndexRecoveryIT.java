@@ -1212,6 +1212,52 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         assertThat(recoveryState.getIndex().totalFileCount(), greaterThan(0));
     }
 
+    public void testUsesNoOpRecoveryWhenOpeningUnchangedClosedIndex() throws Exception {
+        internalCluster().ensureAtLeastNumDataNodes(3);
+        if (client().admin().cluster().prepareNodesInfo("master:true").get().getNodes().size() == 1) {
+            internalCluster().startMasterOnlyNode();
+        }
+
+        String indexName = "test-index";
+        createIndex(indexName, Settings.builder()
+            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
+            .put(IndexSettings.INDEX_SOFT_DELETES_SETTING.getKey(), true)
+            .put(IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "100ms")
+            .put(UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), TimeValue.ZERO)
+            .build());
+        indexRandom(randomBoolean(), randomBoolean(), randomBoolean(), IntStream.range(0, between(0, 100))
+            .mapToObj(n -> client().prepareIndex(indexName, "_doc").setSource("num", n)).collect(toList()));
+        ensureGreen(indexName);
+
+        // wait for all history to be discarded
+        assertBusy(() -> {
+            for (ShardStats shardStats : client().admin().indices().prepareStats(indexName).get().getShards()) {
+                final long maxSeqNo = shardStats.getSeqNoStats().getMaxSeqNo();
+                assertTrue(shardStats.getRetentionLeaseStats().retentionLeases() + " should discard history up to " + maxSeqNo,
+                    shardStats.getRetentionLeaseStats().retentionLeases().leases().stream().allMatch(
+                        l -> l.retainingSequenceNumber() == maxSeqNo + 1));
+            }
+        });
+
+        assertAcked(client().admin().indices().prepareClose(indexName));
+        ensureGreen(indexName);
+
+        // possibly relocate some shards while the index is closed
+        internalCluster().stopRandomDataNode();
+        ensureGreen(indexName);
+
+        assertAcked(client().admin().indices().prepareOpen(indexName));
+        ensureGreen(indexName);
+
+        //noinspection OptionalGetWithoutIsPresent because it fails the test if absent
+        final RecoveryState recoveryState = client().admin().indices().prepareRecoveries(indexName).get()
+            .shardRecoveryStates().get(indexName).stream().filter(rs -> rs.getPrimary() == false).findFirst().get();
+        assertThat(recoveryState.getIndex().toString(), recoveryState.getIndex().totalFileCount(), equalTo(0));
+        assertThat(recoveryState.getTranslog().toString(), recoveryState.getTranslog().totalOperations(), equalTo(0));
+    }
+
+
     public void testDoesNotCopyOperationsInSafeCommit() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(2);
 
