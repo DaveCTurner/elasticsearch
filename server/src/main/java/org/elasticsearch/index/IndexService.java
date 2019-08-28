@@ -408,6 +408,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
             store = new Store(shardId, this.indexSettings, directory, lock,
                     new StoreCloseListener(shardId, () -> eventListener.onStoreClosed(shardId)));
             eventListener.onStoreCreated(shardId);
+            logger.info("creating IndexShard[{}]", routing);
             indexShard = new IndexShard(
                     routing,
                     this.indexSettings,
@@ -428,15 +429,20 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                     () -> globalCheckpointSyncer.accept(shardId),
                     retentionLeaseSyncer,
                     circuitBreakerService);
+            logger.info("calling eventListener.indexShardStateChanged for [{}]", routing);
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
+            logger.info("calling eventListener.afterIndexShardCreated for [{}]", routing);
             eventListener.afterIndexShardCreated(indexShard);
+            logger.info("adding shard to map for [{}]", routing);
             shards = Maps.copyMapWithAddedEntry(shards, shardId.id(), indexShard);
+            logger.info("recording success for [{}]", routing);
             success = true;
             return indexShard;
         } catch (ShardLockObtainFailedException e) {
             throw new IOException("failed to obtain in-memory shard lock", e);
         } finally {
             if (success == false) {
+                logger.info("failed to create IndexShard for [{}]", routing);
                 if (lock != null) {
                     IOUtils.closeWhileHandlingException(lock);
                 }
