@@ -822,12 +822,14 @@ public final class NodeEnvironment  implements Closeable {
         private final ShardId shardId;
 
         InternalShardLock(final ShardId shardId, final String details) {
+            logger.trace(new ParameterizedMessage("InternalShardLock[{}] constructed (details=[{}])", shardId, details), new ElasticsearchException("stack trace"));
             this.shardId = shardId;
             mutex.acquireUninterruptibly();
             lockDetails = details;
         }
 
         protected void release() {
+            logger.trace(new ParameterizedMessage("InternalShardLock[{}] released (details=[{}])", shardId, lockDetails), new ElasticsearchException("stack trace"));
             mutex.release();
             decWaitCount();
         }
@@ -835,6 +837,7 @@ public final class NodeEnvironment  implements Closeable {
         void incWaitCount() {
             synchronized (shardLocks) {
                 assert waitCount > 0 : "waitCount is " + waitCount + " but should be > 0";
+                logger.trace(new ParameterizedMessage("InternalShardLock[{}] incWaitCount (details=[{}])", shardId, lockDetails), new ElasticsearchException("stack trace"));
                 waitCount++;
             }
         }
@@ -842,6 +845,7 @@ public final class NodeEnvironment  implements Closeable {
         private void decWaitCount() {
             synchronized (shardLocks) {
                 assert waitCount > 0 : "waitCount is " + waitCount + " but should be > 0";
+                logger.trace(new ParameterizedMessage("InternalShardLock[{}] decWaitCount (details=[{}])", shardId, lockDetails), new ElasticsearchException("stack trace"));
                 --waitCount;
                 logger.trace("shard lock wait count for {} is now [{}]", shardId, waitCount);
                 if (waitCount == 0) {
@@ -855,6 +859,7 @@ public final class NodeEnvironment  implements Closeable {
         void acquire(long timeoutInMillis, final String details) throws ShardLockObtainFailedException {
             try {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS)) {
+                    logger.trace(new ParameterizedMessage("InternalShardLock[{}] acquired (details=[{}])", shardId, lockDetails), new ElasticsearchException("stack trace"));
                     lockDetails = details;
                 } else {
                     throw new ShardLockObtainFailedException(shardId,

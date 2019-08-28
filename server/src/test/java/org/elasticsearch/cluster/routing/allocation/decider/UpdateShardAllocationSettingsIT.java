@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Set;
 
@@ -96,6 +97,7 @@ public class UpdateShardAllocationSettingsIT extends ESIntegTestCase {
     /**
      * Tests that updating the {@link SameShardAllocationDecider#CLUSTER_ROUTING_ALLOCATION_SAME_HOST_SETTING} setting works as expected.
      */
+    @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE")
     public void testUpdateSameHostSetting() {
         internalCluster().startNodes(2);
         // same same_host to true, since 2 nodes are started on the same host,
