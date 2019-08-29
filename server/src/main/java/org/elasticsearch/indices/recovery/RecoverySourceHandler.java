@@ -593,8 +593,8 @@ public class RecoverySourceHandler {
                     final RetentionLease newLease = shard.addPeerRecoveryRetentionLease(request.targetNode().getId(),
                         estimatedGlobalCheckpoint, new ThreadedActionListener<>(logger, shard.getThreadPool(),
                             ThreadPool.Names.GENERIC, addRetentionLeaseStep, false));
-                    addRetentionLeaseStep.whenComplete(rr -> listener.onResponse(newLease), listener::onFailure);
                     logger.trace("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);
+                    addRetentionLeaseStep.whenComplete(rr -> listener.onResponse(newLease), listener::onFailure);
                 }
             }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]",
             shard, cancellableThreads, logger);
@@ -913,6 +913,7 @@ public class RecoverySourceHandler {
 
     private void cleanFiles(Store store, Store.MetadataSnapshot sourceMetadata, IntSupplier translogOps,
                             long globalCheckpoint, ActionListener<Void> listener) {
+        logger.trace("calling cleanFiles");
         // Send the CLEAN_FILES request, which takes all of the files that
         // were transferred and renames them from their temporary file
         // names to the actual file names. It also writes checksums for
@@ -922,12 +923,15 @@ public class RecoverySourceHandler {
         // related to this recovery (out of date segments, for example)
         // are deleted
         cancellableThreads.execute(() -> recoveryTarget.cleanFiles(translogOps.getAsInt(), globalCheckpoint, sourceMetadata,
-            ActionListener.delegateResponse(listener, (l, e) -> ActionListener.completeWith(l, () -> {
-                StoreFileMetaData[] mds = StreamSupport.stream(sourceMetadata.spliterator(), false).toArray(StoreFileMetaData[]::new);
-                ArrayUtil.timSort(mds, Comparator.comparingLong(StoreFileMetaData::length)); // check small files first
-                handleErrorOnSendFiles(store, e, mds);
-                throw e;
-            }))));
+            ActionListener.delegateResponse(listener, (l, e) -> {
+                logger.trace("handling exception in cleanFiles", e);
+                ActionListener.completeWith(l, () -> {
+                    StoreFileMetaData[] mds = StreamSupport.stream(sourceMetadata.spliterator(), false).toArray(StoreFileMetaData[]::new);
+                    ArrayUtil.timSort(mds, Comparator.comparingLong(StoreFileMetaData::length)); // check small files first
+                    handleErrorOnSendFiles(store, e, mds);
+                    throw e;
+                });
+            })));
     }
 
     private void handleErrorOnSendFiles(Store store, Exception e, StoreFileMetaData[] mds) throws Exception {
