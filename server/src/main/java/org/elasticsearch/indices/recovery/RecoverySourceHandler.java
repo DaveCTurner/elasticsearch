@@ -405,10 +405,12 @@ public class RecoverySourceHandler {
             threadPool.generic().execute(new ActionRunnable<>(future) {
                 @Override
                 protected void doRun() {
+                    logger.trace("calling store.decRef");
                     store.decRef();
                     listener.onResponse(null);
                 }
             });
+            logger.trace("waiting for store.decRef");
             FutureUtils.get(future);
         });
     }
@@ -913,6 +915,7 @@ public class RecoverySourceHandler {
 
     private void cleanFiles(Store store, Store.MetadataSnapshot sourceMetadata, IntSupplier translogOps,
                             long globalCheckpoint, ActionListener<Void> listener) {
+        logger.trace("waiting before cleanFiles");
         // Send the CLEAN_FILES request, which takes all of the files that
         // were transferred and renames them from their temporary file
         // names to the actual file names. It also writes checksums for
@@ -921,6 +924,12 @@ public class RecoverySourceHandler {
         // Once the files have been renamed, any other files that are not
         // related to this recovery (out of date segments, for example)
         // are deleted
+        try {
+            Thread.sleep(1000); // NOCOMMIT
+        } catch (InterruptedException e) {
+            throw new AssertionError(e);
+        }
+        logger.trace("calling cleanFiles");
         cancellableThreads.execute(() -> recoveryTarget.cleanFiles(translogOps.getAsInt(), globalCheckpoint, sourceMetadata,
             ActionListener.delegateResponse(listener, (l, e) -> ActionListener.completeWith(l, () -> {
                 StoreFileMetaData[] mds = StreamSupport.stream(sourceMetadata.spliterator(), false).toArray(StoreFileMetaData[]::new);
