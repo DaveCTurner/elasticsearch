@@ -151,6 +151,7 @@ public class RecoverySourceHandler {
             });
             final Consumer<Exception> onFailure = e -> {
                 assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[onFailure]");
+                logger.info("recoverToTarget#onFailure", e);
                 IOUtils.closeWhileHandlingException(releaseResources, () -> wrappedListener.onFailure(e));
             };
 
