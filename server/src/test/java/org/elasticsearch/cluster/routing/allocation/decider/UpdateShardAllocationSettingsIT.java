@@ -97,7 +97,11 @@ public class UpdateShardAllocationSettingsIT extends ESIntegTestCase {
     /**
      * Tests that updating the {@link SameShardAllocationDecider#CLUSTER_ROUTING_ALLOCATION_SAME_HOST_SETTING} setting works as expected.
      */
-    @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE,org.elasticsearch.index.IndexService:TRACE,org.elasticsearch.indices.IndicesService:TRACE,org.elasticsearch.indices.cluster.IndicesClusterStateService:TRACE")
+    @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE" +
+        ",org.elasticsearch.index.IndexService:TRACE" +
+        ",org.elasticsearch.indices.IndicesService:TRACE" +
+        ",org.elasticsearch.indices.IndicesService:TRACE" +
+        ",org.elasticsearch.indices.recovery:TRACE")
     public void testUpdateSameHostSetting() {
         internalCluster().startNodes(2);
         // same same_host to true, since 2 nodes are started on the same host,
