@@ -147,9 +147,20 @@ public class AllocationBenchmark {
         for (int i = 1; i <= numNodes; i++) {
             nb.add(Allocators.newNode("node" + i, Collections.singletonMap("tag", "tag_" + (i % numTags))));
         }
-        initialClusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
-            .metaData(metaData).routingTable(routingTable).nodes
-                (nb).build();
+        ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
+            .metaData(metaData).routingTable(routingTable).nodes(nb).build();
+        while (clusterState.getRoutingNodes().hasUnassignedShards()) {
+            clusterState = strategy.applyStartedShards(clusterState, clusterState.getRoutingNodes()
+                .shardsWithState(ShardRoutingState.INITIALIZING));
+            clusterState = strategy.reroute(clusterState, "reroute");
+        }
+        final MetaData newMetaData = MetaData.builder(clusterState.metaData())
+            .put(IndexMetaData.builder("test_new")
+                .settings(Settings.builder().put("index.version.created", Version.CURRENT))
+                .numberOfShards(numShards)
+                .numberOfReplicas(numReplicas)).build();
+        initialClusterState = ClusterState.builder(clusterState).metaData(newMetaData)
+            .routingTable(RoutingTable.builder(clusterState.routingTable()).addAsNew(newMetaData.index("test_new")).build()).build();
     }
 
     private int toInt(String v) {
