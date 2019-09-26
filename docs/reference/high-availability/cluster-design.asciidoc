@@ -35,7 +35,7 @@ failures. This section gives some guidance on making your cluster as resilient
 as possible to the failure of an individual node.
 
 [[high-availability-cluster-design-one-node]]
-==== One node
+==== One node clusters
 
 If you have one node then this node must do everything so it must have all
 roles, which is the default.  A single node cluster is not resilient: if the
@@ -49,7 +49,7 @@ recommended for production deployments since it is not resilient to any
 failures.
 
 [[high-availability-cluster-design-two-nodes]]
-==== Two nodes
+==== Two node clusters
 
 If you have two nodes then they should both be data nodes and you should ensure
 that every shard is stored redundantly on both nodes by setting
@@ -83,7 +83,7 @@ A two-node cluster is not recommended for production deployments since it is
 not resilient to failures.
 
 [[high-availability-cluster-design-two-nodes-plus]]
-==== Two nodes and a tiebreaker
+==== Two node clusters with a tiebreaker
 
 The two-node cluster described above is tolerant to the loss of one of its
 nodes but not to the loss of the other one, because master elections are
@@ -134,7 +134,7 @@ A two-node cluster with an additional tiebreaker node is the smallest possible
 cluster that is suitable for production deployments.
 
 [[high-availability-cluster-design-three-nodes]]
-==== Three nodes
+==== Three node clusters
 
 If you have three nodes then they should normally all be <<data-node,data
 nodes>>, and every index should have at least one replica. Nodes are data nodes
@@ -154,7 +154,7 @@ cluster. Alternatively you can use a resilient load balancer to balance client
 requests across your cluster. The http://www.elastic.co/cloud[Elastic Cloud]
 service provides such a load balancer.
 
-==== More than three nodes
+==== Clusters with more than three nodes
 
 Once your cluster grows to more than three nodes, you can start to specialise
 these nodes according to their responsibilities, allowing you to scale their
@@ -238,7 +238,7 @@ order to function. The following sections explore the options for placing
 master-eligible nodes across multiple zones.
 
 [[high-availability-cluster-design-two-zones]]
-==== Two-zone deployments
+==== Two-zone clusters
 
 If you have two zones then you should have a different number of
 master-eligible nodes in each zone so that the zone with more nodes will
@@ -251,7 +251,7 @@ then it is possible that the cluster may not survive the loss of either zone,
 since neither zone has a majority on its own.
 
 [[high-availability-cluster-design-two-zones-plus]]
-==== Two-zone deployments with a tiebreaker
+==== Two-zone clusters with a tiebreaker
 
 The two-zone deployment described above is tolerant to the loss of one of its
 zones but not to the loss of the other one because master elections are
@@ -288,7 +288,7 @@ independent zone then you must make sure it has adequate resources and good
 connectivity to the rest of the cluster.
 
 [[high-availability-cluster-design-three-zones]]
-==== Three-or-more-zone deployments
+==== Clusters with three or more zones
 
 If you have three zones then you should have one master-eligible node in each
 zone. If you have more than three zones then you should choose three of the
