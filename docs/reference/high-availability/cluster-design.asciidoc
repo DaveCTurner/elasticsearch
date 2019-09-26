@@ -35,7 +35,7 @@ failures. This section gives some guidance on making your cluster as resilient
 as possible to the failure of an individual node.
 
 [[high-availability-cluster-design-one-node]]
-==== One node clusters
+==== One-node clusters
 
 If you have one node then this node must do everything so it must have all
 roles, which is the default.  A single node cluster is not resilient: if the
@@ -49,7 +49,7 @@ recommended for production deployments since it is not resilient to any
 failures.
 
 [[high-availability-cluster-design-two-nodes]]
-==== Two node clusters
+==== Two-node clusters
 
 If you have two nodes then they should both be data nodes and you should ensure
 that every shard is stored redundantly on both nodes by setting
@@ -83,7 +83,7 @@ A two-node cluster is not recommended for production deployments since it is
 not resilient to failures.
 
 [[high-availability-cluster-design-two-nodes-plus]]
-==== Two node clusters with a tiebreaker
+==== Two-node clusters with a tiebreaker
 
 The two-node cluster described above is tolerant to the loss of one of its
 nodes but not to the loss of the other one, because master elections are
@@ -134,7 +134,7 @@ A two-node cluster with an additional tiebreaker node is the smallest possible
 cluster that is suitable for production deployments.
 
 [[high-availability-cluster-design-three-nodes]]
-==== Three node clusters
+==== Three-node clusters
 
 If you have three nodes then they should normally all be <<data-node,data
 nodes>>, and every index should have at least one replica. Nodes are data nodes
