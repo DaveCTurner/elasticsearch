@@ -57,8 +57,8 @@ public class RepurposeIT extends ESIntegTestCase {
         // Master-ineligible data nodes do not persist the index metadata for indices that have no shards on that node. However we can
         // change the roles of nodes when they are restarted, so must be careful not to allow a situation where a master node seems to have
         // the latest cluster state but really it is incomplete because it was written when the node was a data node. We do not strongly
-        // guarantee that the voting configuration only contains master-eligible nodes, and with failures at exactly the right times we can
-        // start a data node.
+        // guarantee that the voting configuration only contains master-eligible nodes, and with failures at exactly the right times we
+        // risk a node winning an election with an incomplete cluster state.
         //
         // This test engineers such a situation, creating a cluster of three master-eligible data nodes, restarting one of them as a
         // master-ineligible data node and then immediately back as a master-eligible data node again so that there is not time for it to
