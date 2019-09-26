@@ -30,6 +30,10 @@ resilient clusters of various sizes.
 
 === Resilience in small clusters
 
+In smaller clusters it is most important to be resilient to single-node
+failures. This section gives some guidance on making your cluster as resilient
+as possible to the failure of an individual node.
+
 [[high-availability-cluster-design-one-node]]
 ==== One node
 
@@ -156,7 +160,9 @@ Once your cluster grows to more than three nodes, you can start to specialise
 these nodes according to their responsibilities, allowing you to scale their
 resources independently as needed. You can have as many <<data-node,data
 nodes>>, <<ingest,ingest nodes>>, <<ml-node,ML nodes>>, etc. as needed to
-support your workload.
+support your workload. As your cluster grows larger it is a good idea to use
+dedicated nodes for each role, allowing you to independently scale out the
+resources available for each task.
 
 However, it is good practice to limit the number of master-eligible nodes in
 the cluster to three. Master nodes do not scale out like other node types since
