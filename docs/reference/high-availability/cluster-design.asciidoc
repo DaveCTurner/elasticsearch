@@ -48,6 +48,8 @@ indices from a <<modules-snapshots,snapshot>>. A one-node cluster is not
 recommended for production deployments since it is not resilient to any
 failures.
 
+image:images/high-availability/one-node-all-roles.png[]
+
 [[high-availability-cluster-design-two-nodes]]
 ==== Two-node clusters
 
@@ -81,6 +83,8 @@ across the nodes in your cluster.
 
 A two-node cluster is not recommended for production deployments since it is
 not resilient to failures.
+
+image:images/high-availability/two-node-cluster.png[]
 
 [[high-availability-cluster-design-two-nodes-plus]]
 ==== Two-node clusters with a tiebreaker
@@ -133,6 +137,8 @@ provides such a load balancer.
 A two-node cluster with an additional tiebreaker node is the smallest possible
 cluster that is suitable for production deployments.
 
+image:images/high-availability/two-node-cluster-with-tiebreaker.png[]
+
 [[high-availability-cluster-design-three-nodes]]
 ==== Three-node clusters
 
@@ -153,6 +159,8 @@ addresses of multiple nodes when configuring your client to connect to your
 cluster. Alternatively you can use a resilient load balancer to balance client
 requests across your cluster. The http://www.elastic.co/cloud[Elastic Cloud]
 service provides such a load balancer.
+
+image:images/high-availability/three-node-cluster.png[]
 
 ==== Clusters with more than three nodes
 
@@ -180,6 +188,8 @@ master node. For instance you may have two dedicated master nodes and a third
 node that is both a data node and a voting-only master-eligible node. This
 third voting-only node will act as a tiebreaker in master elections but will
 never become the master itself.
+
+image:images/high-availability/more-than-three-nodes.png[]
 
 ==== Summary
 
