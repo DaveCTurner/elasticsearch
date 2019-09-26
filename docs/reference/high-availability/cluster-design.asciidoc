@@ -21,8 +21,6 @@ failure. Finally, the cluster needs three master-eligible nodes so that if one
 of them fails then the remaining two still form a majority and can hold a
 successful election.
 
-=== Examples of resilient architectures
-
 Depending on your needs and budget your {es} cluster may be a single node, or
 hundreds of nodes, or anywhere in between. When designing a smaller cluster you
 should typically focus on making it resilient to single-node failures.
@@ -30,6 +28,9 @@ Designers of larger clusters must also consider cases where multiple nodes all
 fail at the same time. This section gives some recommendations for building
 resilient clusters of various sizes.
 
+=== Resilience in small clusters
+
+[[high-availability-cluster-design-one-node]]
 ==== One node
 
 If you have one node then this node must do everything so it must have all
@@ -43,6 +44,7 @@ indices from a <<modules-snapshots,snapshot>>. A one-node cluster is not
 recommended for production deployments since it is not resilient to any
 failures.
 
+[[high-availability-cluster-design-two-nodes]]
 ==== Two nodes
 
 If you have two nodes then they should both be data nodes and you should ensure
@@ -76,6 +78,7 @@ across the nodes in your cluster.
 A two-node cluster is not recommended for production deployments since it is
 not resilient to failures.
 
+[[high-availability-cluster-design-two-nodes-plus]]
 ==== Two nodes and a tiebreaker
 
 The two-node cluster described above is tolerant to the loss of one of its
@@ -126,6 +129,7 @@ provides such a load balancer.
 A two-node cluster with an additional tiebreaker node is the smallest possible
 cluster that is suitable for production deployments.
 
+[[high-availability-cluster-design-three-nodes]]
 ==== Three nodes
 
 If you have three nodes then they should normally all be <<data-node,data
@@ -185,10 +189,10 @@ The cluster will be resilient to the loss of any node as long as:
   appropriate set of nodes. The [Elastic Cloud] service provides such a load
   balancer.
 
-=== Multi-zone deployments
+=== Resilience in larger clusters
 
 It is not unusual for nodes to share some common infrastructure such as a power
-supply or network router. If so, you should also plan for the failure of this
+supply or network router. If so, you should plan for the failure of this
 infrastructure and ensure that such a failure would not affect too many of your
 nodes. It is common practice to group all the nodes sharing some infrastructure
 into _zones_ and to plan for the failure of any whole zone at once.
@@ -227,6 +231,7 @@ resilient cluster needs at least two of the three master-eligible nodes in
 order to function. The following sections explore the options for placing
 master-eligible nodes across multiple zones.
 
+[[high-availability-cluster-design-two-zones]]
 ==== Two-zone deployments
 
 If you have two zones then you should have a different number of
@@ -239,6 +244,7 @@ each zone. If you place the same number of master-eligible nodes in each zone
 then it is possible that the cluster may not survive the loss of either zone,
 since neither zone has a majority on its own.
 
+[[high-availability-cluster-design-two-zones-plus]]
 ==== Two-zone deployments with a tiebreaker
 
 The two-zone deployment described above is tolerant to the loss of one of its
@@ -275,6 +281,7 @@ publishing cluster state updates. If you add a tiebreaker node in a third
 independent zone then you must make sure it has adequate resources and good
 connectivity to the rest of the cluster.
 
+[[high-availability-cluster-design-three-zones]]
 ==== Three-or-more-zone deployments
 
 If you have three zones then you should have one master-eligible node in each
