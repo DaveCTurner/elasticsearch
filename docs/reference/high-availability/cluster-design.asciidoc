@@ -105,10 +105,10 @@ two of the three master-eligible nodes, so can tolerate the loss of any single
 node. In effect this third node acts as a tiebreaker in cases where the two
 original nodes are disconnected from each other. You can reduce the resource
 requirements of this extra node by making it a <<voting-only-node,dedicated
-voting-only master-eligible node>>. A dedicated tiebreaker need not be as
-powerful as the other two nodes since it has no other roles and will not
-perform any searches nor coordinate any client requests nor be elected as the
-master of the cluster.
+voting-only master-eligible node>>, also known as a dedicated tiebreaker. A
+dedicated tiebreaker need not be as powerful as the other two nodes since it
+has no other roles and will not perform any searches nor coordinate any client
+requests nor be elected as the master of the cluster.
 
 The two original nodes should not be voting-only master-eligible nodes since *a
 resilient cluster requires at least three master-eligible nodes, at least two
@@ -272,9 +272,10 @@ zones and adding a single extra master-eligible node in an independent third
 zone. In effect the extra master-eligible node acts as a tiebreaker in cases
 where the two original zones are disconnected from each other. The extra
 tiebreaker node should be a <<voting-only-node,dedicated voting-only
-master-eligible node>>. A dedicated tiebreaker need not be as powerful as the
-other two nodes since it has no other roles and will not perform any searches
-nor coordinate any client requests nor be elected as the master of the cluster.
+master-eligible node>>, also known as a dedicated tiebreaker. A dedicated
+tiebreaker need not be as powerful as the other two nodes since it has no other
+roles and will not perform any searches nor coordinate any client requests nor
+be elected as the master of the cluster.
 
 You should use <<allocation-awareness,shard allocation awareness>> to ensure
 that there is a copy of each shard in each zone, so that either zone can remain
