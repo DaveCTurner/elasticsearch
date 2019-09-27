@@ -48,6 +48,8 @@ indices from a <<modules-snapshots,snapshot>>. A one-node cluster is not
 recommended for production deployments since it is not resilient to any
 failures.
 
+We can illustrate a single node having all four roles as follows.
+
 image:images/high-availability/one-node-all-roles.png[]
 
 [[high-availability-cluster-design-two-nodes]]
@@ -83,6 +85,9 @@ across the nodes in your cluster.
 
 A two-node cluster is not recommended for production deployments since it is
 not resilient to failures.
+
+We can illustrate a two-node cluster as follows. Notice that only one of the nodes
+is master-eligible, but both nodes have all other roles.
 
 image:images/high-availability/two-node-cluster.png[]
 
@@ -137,6 +142,8 @@ provides such a load balancer.
 A two-node cluster with an additional tiebreaker node is the smallest possible
 cluster that is suitable for production deployments.
 
+We can illustrate a two-node cluster with a dedicated tiebreaker as follows.
+
 image:images/high-availability/two-node-cluster-with-tiebreaker.png[]
 
 [[high-availability-cluster-design-three-nodes]]
@@ -159,6 +166,8 @@ addresses of multiple nodes when configuring your client to connect to your
 cluster. Alternatively you can use a resilient load balancer to balance client
 requests across your cluster. The http://www.elastic.co/cloud[Elastic Cloud]
 service provides such a load balancer.
+
+We can illustrate a three-node cluster in which all nodes have all roles as follows.
 
 image:images/high-availability/three-node-cluster.png[]
 
@@ -188,6 +197,11 @@ master node. For instance you may have two dedicated master nodes and a third
 node that is both a data node and a voting-only master-eligible node. This
 third voting-only node will act as a tiebreaker in master elections but will
 never become the master itself.
+
+We can illustrate a larger cluster with more specialized nodes as follows. Here
+there are three dedicated master-eligible nodes, two nodes that can perform
+data and ingest, two dedicated ML nodes and one dedicated coordinating node
+that has no specific roles.
 
 image:images/high-availability/more-than-three-nodes.png[]
 
@@ -260,6 +274,11 @@ each zone. If you place the same number of master-eligible nodes in each zone
 then it is possible that the cluster may not survive the loss of either zone,
 since neither zone has a majority on its own.
 
+For instance, here is an illustration of a cluster split across zones A and B
+in which zone A has a single master-eligible node and zone B has the other two.
+Each zone also has four dedicated data nodes, a dedicated ingest node, a
+dedicated machine learning node, and two dedicated coordinating nodes.
+
 image:images/high-availability/two-zone-cluster.png[]
 
 [[high-availability-cluster-design-two-zones-plus]]
@@ -299,6 +318,11 @@ connection to the rest of the cluster, since they are on the critical path for
 publishing cluster state updates. If you add a tiebreaker node in a third
 independent zone then you must make sure it has adequate resources and good
 connectivity to the rest of the cluster.
+
+For instance, here is an illustration of a cluster which is mostly split across
+zones A and B which has a dedicated tiebreaker in the independent zone C for
+additional resilience.
+
 image:images/high-availability/two-zone-cluster-with-tiebreaker.png[]
 
 [[high-availability-cluster-design-three-zones]]
@@ -317,6 +341,9 @@ ensure that the replicas of the shard are in a different zone from the primary.
 This means that a copy of every shard will still be available even if one zone
 fails, so that the availability of this shard will not be affected by such a
 failure.
+
+For instance, here is an illustration of a cluster which is split evenly across
+three zones.
 
 image:images/high-availability/three-zone-cluster.png[]
 
