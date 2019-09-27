@@ -260,6 +260,8 @@ each zone. If you place the same number of master-eligible nodes in each zone
 then it is possible that the cluster may not survive the loss of either zone,
 since neither zone has a majority on its own.
 
+image:images/high-availability/two-zone-cluster.png[]
+
 [[high-availability-cluster-design-two-zones-plus]]
 ==== Two-zone clusters with a tiebreaker
 
@@ -297,6 +299,7 @@ connection to the rest of the cluster, since they are on the critical path for
 publishing cluster state updates. If you add a tiebreaker node in a third
 independent zone then you must make sure it has adequate resources and good
 connectivity to the rest of the cluster.
+image:images/high-availability/two-zone-cluster-with-tiebreaker.png[]
 
 [[high-availability-cluster-design-three-zones]]
 ==== Clusters with three or more zones
@@ -314,6 +317,8 @@ ensure that the replicas of the shard are in a different zone from the primary.
 This means that a copy of every shard will still be available even if one zone
 fails, so that the availability of this shard will not be affected by such a
 failure.
+
+image:images/high-availability/three-zone-cluster.png[]
 
 === Summary
 
