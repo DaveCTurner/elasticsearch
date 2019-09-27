@@ -347,7 +347,7 @@ three zones.
 
 image:images/high-availability/three-zone-cluster.png[]
 
-=== Summary
+==== Summary
 
 The cluster will be resilient to the loss of any zone as long as:
 
