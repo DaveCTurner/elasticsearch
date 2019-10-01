@@ -93,6 +93,7 @@ import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.store.MockFSIndexStore;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.test.transport.StubbableTransport;
@@ -324,18 +325,17 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         assertHitCount(client().prepareSearch(INDEX_NAME).setSize(0).get(), numOfDocs);
     }
 
+    @TestLogging(value="org.elasticsearch.indices.recovery:TRACE", reason="nocommit")
     public void testCancelNewShardRecoveryAndUsesExistingShardCopy() throws Exception {
         logger.info("--> start node A");
         final String nodeA = internalCluster().startNode();
 
         logger.info("--> create index on node: {}", nodeA);
-        ByteSizeValue shardSize = createAndPopulateIndex(INDEX_NAME, 1, SHARD_COUNT, REPLICA_COUNT)
-            .getShards()[0].getStats().getStore().size();
+        createAndPopulateIndex(INDEX_NAME, 1, SHARD_COUNT, REPLICA_COUNT).getShards()[0].getStats().getStore().size();
 
         logger.info("--> start node B");
         // force a shard recovery from nodeA to nodeB
         final String nodeB = internalCluster().startNode();
-        Settings nodeBDataPathSettings = internalCluster().dataPathSettings(nodeB);
 
         logger.info("--> add replica for {} on node: {}", INDEX_NAME, nodeB);
         assertAcked(client().admin().indices().prepareUpdateSettings(INDEX_NAME)
@@ -346,18 +346,21 @@ public class IndexRecoveryIT extends ESIntegTestCase {
 
         logger.info("--> start node C");
         final String nodeC = internalCluster().startNode();
-        assertFalse(client().admin().cluster().prepareHealth().setWaitForNodes("3").get().isTimedOut());
 
         // do sync flush to gen sync id
         assertThat(client().admin().indices().prepareSyncedFlush(INDEX_NAME).get().failedShards(), equalTo(0));
 
         // hold peer recovery on phase 2 after nodeB down
         CountDownLatch allowToCompletePhase1Latch = new CountDownLatch(1);
+        CountDownLatch cleanFilesBlocked = new CountDownLatch(1);
         MockTransportService transportService = (MockTransportService) internalCluster().getInstance(TransportService.class, nodeA);
         transportService.addSendBehavior((connection, requestId, action, request, options) -> {
             if (PeerRecoveryTargetService.Actions.CLEAN_FILES.equals(action)) {
                 try {
+                    logger.info("--> blocking CLEAN_FILES");
+                    cleanFilesBlocked.countDown();
                     allowToCompletePhase1Latch.await();
+                    logger.info("--> unblocked CLEAN_FILES");
                 } catch (InterruptedException e) {
                     throw new AssertionError(e);
                 }
@@ -370,6 +373,8 @@ public class IndexRecoveryIT extends ESIntegTestCase {
             new InternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) throws Exception {
+
+                    cleanFilesBlocked.await();
 
                     // nodeB stopped, peer recovery from nodeA to nodeC, it will be cancelled after nodeB get started.
                     RecoveryResponse response = client().admin().indices().prepareRecoveries(INDEX_NAME).execute().actionGet();
@@ -391,8 +396,11 @@ public class IndexRecoveryIT extends ESIntegTestCase {
                 }
             });
 
-        // wait for peer recovering from nodeA to nodeB to be finished
+        logger.info("--> ensureGreen at end");
+        // wait for peer recovery from nodeA to nodeB which is a no-op recovery so it skips the CLEAN_FILES stage and hence is not blocked
         ensureGreen();
+
+        logger.info("--> unblocking recovery");
         allowToCompletePhase1Latch.countDown();
         transportService.clearAllRules();
     }
