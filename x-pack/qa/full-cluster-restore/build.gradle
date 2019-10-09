@@ -30,6 +30,10 @@ testClusters {
         setting 'path.repo', "${buildDir}/cluster/shared/repo"
         setting 'xpack.monitoring.collection.enabled', 'true'
         setting 'xpack.monitoring.collection.interval', '1s'
+
+        // disable components that affect our ability to restore the snapshot
+        setting 'xpack.monitoring.enabled', 'false'
+
         extraConfigFile 'roles.yml', file('roles.yml')
         user username: "test_admin", password: "x-pack-test-password"
         user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
@@ -61,7 +65,10 @@ tasks.register("restoredClusterTestRunner", RestTestRunnerTask) {
     useCluster testClusters."restoredCluster"
     doFirst {
         testClusters."restoredCluster" {
-            setting 'xpack.security.enabled', 'true'
+
+            // re-enable components that affect our ability to restore the snapshot
+            setting 'xpack.monitoring.enabled', null
+
             restart()
         }
     }
