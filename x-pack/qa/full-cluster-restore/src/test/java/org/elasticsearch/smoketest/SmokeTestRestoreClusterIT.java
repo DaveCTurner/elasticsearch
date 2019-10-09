@@ -107,6 +107,10 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
                 healthRequest.addParameter("wait_for_status", "green");
                 assertOK(client().performRequest(healthRequest));
 
+                final long delayMillis = between(0, 20000);
+                logger.info("delaying for {}ms", delayMillis);
+                Thread.sleep(delayMillis);
+
                 final Request createSnapshot = new Request("PUT", "/_snapshot/repo/full_snapshot");
                 createSnapshot.addParameter("wait_for_completion", "true");
                 assertOK(client().performRequest(createSnapshot));
