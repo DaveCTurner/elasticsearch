@@ -13,6 +13,8 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.test.rest.ESRestTestCase;
 
+import java.util.Objects;
+
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.xpack.test.SecuritySettingsSourceField.basicAuthHeaderValue;
 import static org.hamcrest.Matchers.equalTo;
@@ -38,7 +40,12 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
         }
     }
 
-    protected static final ClusterPhase CLUSTER_PHASE = ClusterPhase.parse(System.getProperty("tests.test_cluster_phase"));
+    private static final ClusterPhase CLUSTER_PHASE = ClusterPhase.parse(System.getProperty("tests.test_cluster_phase"));
+
+    @Override
+    protected boolean preserveSnapshotsUponCompletion() {
+        return true;
+    }
 
     @Override
     protected Settings restClientSettings() {
@@ -57,42 +64,77 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
     }
 
     public void testClusterEmitsNoSmoke() throws Exception {
+        logger.info("running in phase [{}]", CLUSTER_PHASE);
+
         assertOK(client().performRequest(new Request("GET", "/_cluster/health")));
+
+        if (CLUSTER_PHASE != ClusterPhase.RESTORED) {
+            final XContentBuilder createRepositoryBody = jsonBuilder();
+            createRepositoryBody.startObject();
+            createRepositoryBody.field("type", "fs");
+            createRepositoryBody.startObject("settings");
+            createRepositoryBody.field("location", Objects.requireNonNull(System.getProperty("tests.path.repo")));
+            createRepositoryBody.endObject();
+            createRepositoryBody.endObject();
+
+            final Request createRepository = new Request("PUT", "/_snapshot/repo");
+            createRepository.setJsonEntity(Strings.toString(createRepositoryBody));
+            assertOK(client().performRequest(createRepository));
+        }
 
         switch(CLUSTER_PHASE) {
             case ORIGINAL:
             {
-                XContentBuilder settings = jsonBuilder();
-                settings.startObject();
+                final XContentBuilder createIndexBody = jsonBuilder();
+                createIndexBody.startObject();
                 {
-                    settings.startObject("settings");
-                    settings.field("number_of_shards", 1);
-                    settings.field("number_of_replicas", 0);
-                    settings.endObject();
+                    createIndexBody.startObject("settings");
+                    createIndexBody.field("number_of_shards", 1);
+                    createIndexBody.field("number_of_replicas", 0);
+                    createIndexBody.endObject();
                 }
-                settings.endObject();
+                createIndexBody.endObject();
 
-                Request createIndex = new Request("PUT", "/test-index");
-                createIndex.setJsonEntity(Strings.toString(settings));
+                final Request createIndex = new Request("PUT", "/test-index");
+                createIndex.setJsonEntity(Strings.toString(createIndexBody));
                 assertOK(client().performRequest(createIndex));
 
                 final Request healthRequest = new Request("GET", "/_cluster/health");
                 healthRequest.addParameter("wait_for_status", "green");
                 assertOK(client().performRequest(healthRequest));
+
+                final Request createSnapshot = new Request("PUT", "/_snapshot/repo/full_snapshot");
+                createSnapshot.addParameter("wait_for_completion", "true");
+                assertOK(client().performRequest(createSnapshot));
+
                 break;
             }
 
             case RESTORING:
             {
                 assertThat(client().performRequest(new Request("HEAD", "/test-index")).getStatusLine().getStatusCode(), equalTo(404));
+
+                final XContentBuilder restoreSnapshotBody = jsonBuilder();
+                restoreSnapshotBody.startObject();
+                restoreSnapshotBody.field("include_global_state", "true");
+                restoreSnapshotBody.endObject();
+
+                final Request restoreSnapshot = new Request("POST", "/_snapshot/repo/full_snapshot/_restore");
+                restoreSnapshot.addParameter("wait_for_completion", "true");
+                restoreSnapshot.setJsonEntity(Strings.toString(restoreSnapshotBody));
+                assertOK(client().performRequest(restoreSnapshot));
+
                 break;
             }
 
             case RESTORED:
             {
-                final Request healthRequest = new Request("GET", "/_cluster/health/test-index");
+                final Request healthRequest = new Request("GET", "/_cluster/health");
                 healthRequest.addParameter("wait_for_status", "green");
                 assertOK(client().performRequest(healthRequest));
+
+                assertThat(client().performRequest(new Request("HEAD", "/test-index")).getStatusLine().getStatusCode(), equalTo(200));
+
                 break;
             }
         }

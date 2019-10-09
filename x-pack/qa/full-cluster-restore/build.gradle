@@ -20,17 +20,6 @@ testClusters {
         user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
     }
 
-    restoringCluster {
-        testDistribution = 'DEFAULT'
-        numberOfNodes = 2
-        setting 'xpack.security.enabled', 'true'
-        setting 'xpack.license.self_generated.type', 'trial'
-        setting 'path.repo', "${buildDir}/cluster/shared/repo"
-        extraConfigFile 'roles.yml', file('roles.yml')
-        user username: "test_admin", password: "x-pack-test-password"
-        user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
-    }
-
     restoredCluster {
         testDistribution = 'DEFAULT'
         numberOfNodes = 2
@@ -50,26 +39,32 @@ tasks.register("originalClusterTestRunner", RestTestRunnerTask) {
         project.delete("${buildDir}/cluster/shared/repo")
     }
     systemProperty 'tests.test_cluster_phase', 'original'
+    systemProperty 'tests.path.repo', "${buildDir}/cluster/shared/repo"
     nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."originalCluster".allHttpSocketURI.join(",") }")
-    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."originalCluster".getName() }")
 }
 
 tasks.register("restoringClusterTestRunner", RestTestRunnerTask) {
     mustRunAfter(precommit)
-    useCluster testClusters."restoringCluster"
+    useCluster testClusters."restoredCluster"
     dependsOn "originalClusterTestRunner"
     systemProperty 'tests.test_cluster_phase', 'restoring'
-    nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."restoringCluster".allHttpSocketURI.join(",") }")
-    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."restoringCluster".getName() }")
+    systemProperty 'tests.path.repo', "${buildDir}/cluster/shared/repo"
+    nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."restoredCluster".allHttpSocketURI.join(",") }")
 }
 
 tasks.register("restoredClusterTestRunner", RestTestRunnerTask) {
     mustRunAfter(precommit)
     useCluster testClusters."restoredCluster"
+    doFirst {
+        testClusters."restoredCluster" {
+            setting 'xpack.security.enabled', 'true'
+            restart()
+        }
+    }
     dependsOn "restoringClusterTestRunner"
     systemProperty 'tests.test_cluster_phase', 'restored'
+    systemProperty 'tests.path.repo', "${buildDir}/cluster/shared/repo"
     nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."restoredCluster".allHttpSocketURI.join(",") }")
-    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."restoredCluster".getName() }")
 }
 
 check.dependsOn("restoredClusterTestRunner")
