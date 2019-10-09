@@ -67,7 +67,7 @@ tasks.register("restoredClusterTestRunner", RestTestRunnerTask) {
         testClusters."restoredCluster" {
 
             // re-enable components that affect our ability to restore the snapshot
-            setting 'xpack.monitoring.enabled', null
+            setting 'xpack.monitoring.enabled', 'true' // TODO remove this setting instead
 
             restart()
         }
