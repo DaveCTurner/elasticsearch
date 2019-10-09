@@ -1,18 +1,75 @@
+import org.elasticsearch.gradle.testclusters.RestTestRunnerTask
+
 apply plugin: 'elasticsearch.testclusters'
 apply plugin: 'elasticsearch.standalone-rest-test'
 apply plugin: 'elasticsearch.rest-test'
 
 dependencies {
-  testCompile project(':x-pack:qa')
+    testCompile project(':x-pack:qa')
 }
 
-testClusters.integTest {
-  testDistribution = 'DEFAULT'
-  setting 'xpack.security.enabled', 'true'
-  setting 'xpack.license.self_generated.type', 'trial'
-  extraConfigFile 'roles.yml', file('roles.yml')
-  user username: "test_admin", password: "x-pack-test-password"
-  user username: "x_pack_rest_user", password: "x-pack-test-password", role: "watcher_manager"
-  user username: "watcher_manager", password: "x-pack-test-password", role: "watcher_manager"
-  user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
+testClusters {
+    originalCluster {
+        testDistribution = 'DEFAULT'
+        numberOfNodes = 2
+        setting 'xpack.security.enabled', 'true'
+        setting 'xpack.license.self_generated.type', 'trial'
+        setting 'path.repo', "${buildDir}/cluster/shared/repo"
+        extraConfigFile 'roles.yml', file('roles.yml')
+        user username: "test_admin", password: "x-pack-test-password"
+        user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
+    }
+
+    restoringCluster {
+        testDistribution = 'DEFAULT'
+        numberOfNodes = 2
+        setting 'xpack.security.enabled', 'true'
+        setting 'xpack.license.self_generated.type', 'trial'
+        setting 'path.repo', "${buildDir}/cluster/shared/repo"
+        extraConfigFile 'roles.yml', file('roles.yml')
+        user username: "test_admin", password: "x-pack-test-password"
+        user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
+    }
+
+    restoredCluster {
+        testDistribution = 'DEFAULT'
+        numberOfNodes = 2
+        setting 'xpack.security.enabled', 'true'
+        setting 'xpack.license.self_generated.type', 'trial'
+        setting 'path.repo', "${buildDir}/cluster/shared/repo"
+        extraConfigFile 'roles.yml', file('roles.yml')
+        user username: "test_admin", password: "x-pack-test-password"
+        user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
+    }
 }
+
+tasks.register("originalClusterTestRunner", RestTestRunnerTask) {
+    mustRunAfter(precommit)
+    useCluster testClusters."originalCluster"
+    doFirst {
+        project.delete("${buildDir}/cluster/shared/repo")
+    }
+    systemProperty 'tests.test_cluster_phase', 'original'
+    nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."originalCluster".allHttpSocketURI.join(",") }")
+    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."originalCluster".getName() }")
+}
+
+tasks.register("restoringClusterTestRunner", RestTestRunnerTask) {
+    mustRunAfter(precommit)
+    useCluster testClusters."restoringCluster"
+    dependsOn "originalClusterTestRunner"
+    systemProperty 'tests.test_cluster_phase', 'restoring'
+    nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."restoringCluster".allHttpSocketURI.join(",") }")
+    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."restoringCluster".getName() }")
+}
+
+tasks.register("restoredClusterTestRunner", RestTestRunnerTask) {
+    mustRunAfter(precommit)
+    useCluster testClusters."restoredCluster"
+    dependsOn "restoringClusterTestRunner"
+    systemProperty 'tests.test_cluster_phase', 'restored'
+    nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."restoredCluster".allHttpSocketURI.join(",") }")
+    nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."restoredCluster".getName() }")
+}
+
+check.dependsOn("restoredClusterTestRunner")

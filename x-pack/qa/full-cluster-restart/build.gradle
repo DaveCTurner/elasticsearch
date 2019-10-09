@@ -101,7 +101,6 @@ for (Version bwcVersion : bwcVersions.indexCompatible) {
         exclude 'org/elasticsearch/upgrades/QueryBuilderBWCIT.class'
     }
 
-
     tasks.register("${baseName}#upgradedClusterTest", RestTestRunnerTask) {
         mustRunAfter(precommit)
         useCluster testClusters."${baseName}"

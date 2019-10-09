@@ -32,6 +32,7 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
     }
 
     public void testClusterEmitsNoSmoke() throws Exception {
+        logger.warn("running with [tests.test_cluster_phase]=[{}]", System.getProperty("tests.test_cluster_phase"));
         assertOK(client().performRequest(new Request("GET", "/_cluster/health")));
     }
 }
