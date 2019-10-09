@@ -16,7 +16,7 @@ testClusters {
         setting 'xpack.license.self_generated.type', 'trial'
         setting 'path.repo', "${buildDir}/cluster/shared/repo"
         setting 'xpack.monitoring.collection.enabled', 'true'
-        setting 'xpack.monitoring.collection.interval', '500ms'
+        setting 'xpack.monitoring.collection.interval', '1s'
         extraConfigFile 'roles.yml', file('roles.yml')
         user username: "test_admin", password: "x-pack-test-password"
         user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
@@ -29,7 +29,7 @@ testClusters {
         setting 'xpack.license.self_generated.type', 'trial'
         setting 'path.repo', "${buildDir}/cluster/shared/repo"
         setting 'xpack.monitoring.collection.enabled', 'true'
-        setting 'xpack.monitoring.collection.interval', '500ms'
+        setting 'xpack.monitoring.collection.interval', '1s'
         extraConfigFile 'roles.yml', file('roles.yml')
         user username: "test_admin", password: "x-pack-test-password"
         user username: "powerless_user", password: "x-pack-test-password", role: "crappy_role"
