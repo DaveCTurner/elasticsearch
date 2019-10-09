@@ -43,8 +43,13 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
     private static final ClusterPhase CLUSTER_PHASE = ClusterPhase.parse(System.getProperty("tests.test_cluster_phase"));
 
     @Override
+    protected boolean preserveClusterUponCompletion() {
+        return CLUSTER_PHASE == ClusterPhase.RESTORING;
+    }
+
+    @Override
     protected boolean preserveSnapshotsUponCompletion() {
-        return true;
+        return CLUSTER_PHASE == ClusterPhase.ORIGINAL;
     }
 
     @Override
@@ -82,9 +87,8 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
             assertOK(client().performRequest(createRepository));
         }
 
-        switch(CLUSTER_PHASE) {
-            case ORIGINAL:
-            {
+        switch (CLUSTER_PHASE) {
+            case ORIGINAL: {
                 final XContentBuilder createIndexBody = jsonBuilder();
                 createIndexBody.startObject();
                 {
@@ -110,9 +114,12 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
                 break;
             }
 
-            case RESTORING:
-            {
+            case RESTORING: {
                 assertThat(client().performRequest(new Request("HEAD", "/test-index")).getStatusLine().getStatusCode(), equalTo(404));
+
+                final long delayMillis = between(0, 20000);
+                logger.info("delaying for {}ms", delayMillis);
+                Thread.sleep(delayMillis);
 
                 final XContentBuilder restoreSnapshotBody = jsonBuilder();
                 restoreSnapshotBody.startObject();
@@ -127,8 +134,7 @@ public class SmokeTestRestoreClusterIT extends ESRestTestCase {
                 break;
             }
 
-            case RESTORED:
-            {
+            case RESTORED: {
                 final Request healthRequest = new Request("GET", "/_cluster/health");
                 healthRequest.addParameter("wait_for_status", "green");
                 assertOK(client().performRequest(healthRequest));
