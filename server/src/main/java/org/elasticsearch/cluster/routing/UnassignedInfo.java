@@ -209,7 +209,7 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
     private final Reason reason;
     private final long unassignedTimeMillis; // used for display and log messages, in milliseconds
     private final long unassignedTimeNanos; // in nanoseconds, used to calculate delay for delayed shard allocation
-    private final boolean delayed; // if allocation of this shard is delayed due to INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING
+    private final boolean delayed; // if allocation of this shard is delayed due to INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING or TODO
     private final String message;
     private final Exception failure;
     private final int failedAllocations;
@@ -232,7 +232,7 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
      * @param failure              the shard level failure that caused this shard to be unassigned, if exists.
      * @param unassignedTimeNanos  the time to use as the base for any delayed re-assignment calculation
      * @param unassignedTimeMillis the time of unassignment used to display to in our reporting.
-     * @param delayed              if allocation of this shard is delayed due to INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.
+     * @param delayed              if allocation of this shard is delayed due to INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING or TODO
      * @param lastAllocationStatus the result of the last allocation attempt for this shard
      */
     public UnassignedInfo(Reason reason, @Nullable String message, @Nullable Exception failure, int failedAllocations,
@@ -248,7 +248,8 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
         assert (failedAllocations > 0) == (reason == Reason.ALLOCATION_FAILED) :
             "failedAllocations: " + failedAllocations + " for reason " + reason;
         assert !(message == null && failure != null) : "provide a message if a failure exception is provided";
-        assert !(delayed && reason != Reason.NODE_LEFT) : "shard can only be delayed if it is unassigned due to a node leaving";
+        assert !(delayed && reason != Reason.NODE_LEFT && reason != Reason.ALLOCATION_FAILED)
+            : "shard can only be delayed if it is unassigned due to a node leaving or an allocation failure, but got " + reason;
     }
 
     public UnassignedInfo(StreamInput in) throws IOException {
@@ -283,7 +284,7 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
     }
 
     /**
-     * Returns true if allocation of this shard is delayed due to {@link #INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING}
+     * Returns true if allocation of this shard is delayed due to {@link #INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING} or TODO
      */
     public boolean isDelayed() {
         return delayed;
@@ -355,8 +356,19 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
      * @return calculated delay in nanoseconds
      */
     public long getRemainingDelay(final long nanoTimeNow, final Settings indexSettings) {
-        long delayTimeoutNanos = INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.get(indexSettings).nanos();
         assert nanoTimeNow >= unassignedTimeNanos;
+        final long delayTimeoutNanos;
+        if (failedAllocations == 0) {
+            assert reason == Reason.NODE_LEFT : reason;
+            delayTimeoutNanos = INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.get(indexSettings).nanos();
+        } else if (failedAllocations < 12) {
+            assert reason == Reason.ALLOCATION_FAILED : reason;
+            delayTimeoutNanos = Math.min(TimeValue.timeValueHours(1).nanos(),
+                TimeValue.timeValueSeconds(1).nanos() * (1L << failedAllocations));
+        } else {
+            assert reason == Reason.ALLOCATION_FAILED : reason;
+            delayTimeoutNanos = TimeValue.timeValueHours(1).nanos();
+        }
         return Math.max(0L, delayTimeoutNanos - (nanoTimeNow - unassignedTimeNanos));
     }
 

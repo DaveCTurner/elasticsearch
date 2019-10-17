@@ -196,7 +196,7 @@ public class AllocationService {
                 int failedAllocations = failedShard.unassignedInfo() != null ? failedShard.unassignedInfo().getNumFailedAllocations() : 0;
                 String message = "failed shard on node [" + shardToFail.currentNodeId() + "]: " + failedShardEntry.getMessage();
                 UnassignedInfo unassignedInfo = new UnassignedInfo(UnassignedInfo.Reason.ALLOCATION_FAILED, message,
-                    failedShardEntry.getFailure(), failedAllocations + 1, currentNanoTime, System.currentTimeMillis(), false,
+                    failedShardEntry.getFailure(), failedAllocations + 1, currentNanoTime, System.currentTimeMillis(), true,
                     AllocationStatus.NO_ATTEMPT);
                 if (failedShardEntry.markAsStale()) {
                     allocation.removeAllocationId(failedShard);
@@ -307,7 +307,7 @@ public class AllocationService {
             unassignedIterator.updateUnassigned(new UnassignedInfo(unassignedInfo.getNumFailedAllocations() > 0 ?
                 UnassignedInfo.Reason.MANUAL_ALLOCATION : unassignedInfo.getReason(), unassignedInfo.getMessage(),
                 unassignedInfo.getFailure(), 0, unassignedInfo.getUnassignedTimeInNanos(),
-                unassignedInfo.getUnassignedTimeInMillis(), unassignedInfo.isDelayed(),
+                unassignedInfo.getUnassignedTimeInMillis(), unassignedInfo.isDelayed() && unassignedInfo.getNumFailedAllocations() == 0,
                 unassignedInfo.getLastAllocationStatus()), shardRouting.recoverySource(), allocation.changes());
         }
     }
