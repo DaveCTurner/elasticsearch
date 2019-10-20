@@ -19,6 +19,7 @@
 
 package org.elasticsearch.cluster.routing;
 
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -26,6 +27,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -55,8 +57,12 @@ public class OperationRouting {
 
     public OperationRouting(Settings settings, ClusterSettings clusterSettings) {
         // whether to ignore awareness attributes when routing requests
-        boolean ignoreAwarenessAttr = parseBoolean(System.getProperty("es.search.ignore_awareness_attributes"), false);
+        final String ignoreAwarenessAttributeName = "es.search.ignore_awareness_attributes";
+        final boolean ignoreAwarenessAttr = parseBoolean(System.getProperty(ignoreAwarenessAttributeName), false);
         if (ignoreAwarenessAttr == false) {
+            new DeprecationLogger(LogManager.getLogger(OperationRouting.class)).deprecated(
+                "searches will not be routed based on awareness attributes starting in version {}.0.0; to opt into this behaviour now " +
+                    "please set the system property [{}] to [true]", Version.V_7_0_0.major + 1, ignoreAwarenessAttributeName);
             awarenessAttributes = AwarenessAllocationDecider.CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTE_SETTING.get(settings);
             clusterSettings.addSettingsUpdateConsumer(AwarenessAllocationDecider.CLUSTER_ROUTING_ALLOCATION_AWARENESS_ATTRIBUTE_SETTING,
                 this::setAwarenessAttributes);
