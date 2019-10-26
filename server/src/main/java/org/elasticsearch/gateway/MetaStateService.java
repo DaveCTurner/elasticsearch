@@ -21,6 +21,8 @@ package org.elasticsearch.gateway;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.coordination.CoordinationState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.Manifest;
 import org.elasticsearch.cluster.metadata.MetaData;
@@ -35,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 /**
@@ -290,5 +293,10 @@ public class MetaStateService {
         manifest = new Manifest(manifest.getCurrentTerm(), manifest.getClusterStateVersion(), generation, manifest.getIndexGenerations());
         writeManifestAndCleanup(reason, manifest);
         cleanupGlobalState(generation);
+    }
+
+    CoordinationState.PersistedState getPersistedState(BiFunction<Long, MetaData, ClusterState> clusterStateFromMetaData)
+        throws IOException {
+        return new LucenePersistedStateFactory(nodeEnv, namedXContentRegistry, clusterStateFromMetaData).loadPersistedState();
     }
 }
