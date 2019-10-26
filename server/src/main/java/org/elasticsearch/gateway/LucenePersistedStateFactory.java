@@ -168,7 +168,6 @@ public class LucenePersistedStateFactory {
         long maxCurrentTerm = 0L;
         String committedClusterUuid = null;
         OnDiskState bestOnDiskState = new OnDiskState(null, 0L, 0L, MetaData.EMPTY_META_DATA);
-        String nodeId = null;
         // TODO NOCOMMIT also look at the MetaDataStateFormat-based metadata
 
         // We use a write-all-read-one strategy: metadata is written to every data path when accepting it, which means it is mostly
@@ -182,11 +181,9 @@ public class LucenePersistedStateFactory {
                          final DirectoryReader directoryReader = DirectoryReader.open(directory)) {
                         final OnDiskState onDiskState = loadOnDiskState(directoryReader);
 
-                        if (nodeId == null) {
-                            nodeId = onDiskState.nodeId;
-                        } else if (nodeId.equals(onDiskState.nodeId) == false) {
-                            throw new ElasticsearchException("mismatched node IDs in metadata, found [{}] and [{}]",
-                                nodeId, onDiskState.nodeId);
+                        if (nodeEnvironment.nodeId().equals(onDiskState.nodeId) == false) {
+                            throw new ElasticsearchException("unexpected node ID in metadata, found [{}] but expected [{}]",
+                                onDiskState.nodeId, nodeEnvironment.nodeId());
                         }
 
                         if (onDiskState.metaData.clusterUUIDCommitted()) {
