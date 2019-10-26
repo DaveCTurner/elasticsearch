@@ -47,6 +47,7 @@ import org.apache.lucene.store.SimpleFSDirectory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationState;
@@ -83,6 +84,8 @@ public class LucenePersistedStateFactory {
     private static final Logger logger = LogManager.getLogger(LucenePersistedStateFactory.class);
     private static final String CURRENT_TERM_KEY = "current_term";
     private static final String LAST_ACCEPTED_VERSION_KEY = "last_accepted_version";
+    private static final String NODE_ID_KEY = "node_id";
+    private static final String NODE_VERSION_KEY = "node_version";
     private static final String TYPE_FIELD_NAME = "type";
     private static final String DATA_FIELD_NAME = "data";
     private static final String GLOBAL_TYPE_NAME = "global";
@@ -128,7 +131,8 @@ public class LucenePersistedStateFactory {
         }
 
         final ClusterState clusterState = clusterStateFromMetaData.apply(onDiskState.lastAcceptedVersion, onDiskState.metaData);
-        final LucenePersistedState lucenePersistedState = new LucenePersistedState(onDiskState.currentTerm, clusterState, metaDataIndices);
+        final LucenePersistedState lucenePersistedState
+            = new LucenePersistedState(nodeEnvironment.nodeId(), metaDataIndices, onDiskState.currentTerm, clusterState);
         success = false;
         try {
             lucenePersistedState.persistInitialState();
@@ -147,11 +151,13 @@ public class LucenePersistedStateFactory {
     }
 
     private static class OnDiskState {
+        private final String nodeId;
         final long currentTerm;
         final long lastAcceptedVersion;
         final MetaData metaData;
 
-        private OnDiskState(long currentTerm, long lastAcceptedVersion, MetaData metaData) {
+        private OnDiskState(String nodeId, long currentTerm, long lastAcceptedVersion, MetaData metaData) {
+            this.nodeId = nodeId;
             this.currentTerm = currentTerm;
             this.lastAcceptedVersion = lastAcceptedVersion;
             this.metaData = metaData;
@@ -160,10 +166,14 @@ public class LucenePersistedStateFactory {
 
     private OnDiskState loadBestOnDiskState() throws IOException {
         long maxCurrentTerm = 0L;
-        long maxAcceptedTerm = 0L;
-        OnDiskState bestOnDiskState = new OnDiskState(0L, 0L, MetaData.EMPTY_META_DATA);
+        String committedClusterUuid = null;
+        OnDiskState bestOnDiskState = new OnDiskState(null, 0L, 0L, MetaData.EMPTY_META_DATA);
+        String nodeId = null;
         // TODO NOCOMMIT also look at the MetaDataStateFormat-based metadata
 
+        // We use a write-all-read-one strategy: metadata is written to every data path when accepting it, which means it is mostly
+        // sufficient to read _any_ copy. "Mostly" sufficient because the user can change the set of data paths when restarting, and may
+        // add a data path containing a stale copy of the metadata. We deal with this by using the freshest copy we can find.
         for (final Path dataPath : nodeEnvironment.nodeDataPaths()) {
             for (int majorVersion = Version.CURRENT.major - 1; majorVersion <= Version.CURRENT.major; majorVersion++) {
                 final Path indexPath = getMetaDataIndexPath(dataPath, majorVersion);
@@ -171,14 +181,31 @@ public class LucenePersistedStateFactory {
                     try (final Directory directory = new SimpleFSDirectory(indexPath);
                          final DirectoryReader directoryReader = DirectoryReader.open(directory)) {
                         final OnDiskState onDiskState = loadOnDiskState(directoryReader);
+
+                        if (nodeId == null) {
+                            nodeId = onDiskState.nodeId;
+                        } else if (nodeId.equals(onDiskState.nodeId) == false) {
+                            throw new ElasticsearchException("mismatched node IDs in metadata, found [{}] and [{}]",
+                                nodeId, onDiskState.nodeId);
+                        }
+
+                        if (onDiskState.metaData.clusterUUIDCommitted()) {
+                            if (committedClusterUuid == null) {
+                                committedClusterUuid = onDiskState.metaData.clusterUUID();
+                            } else if (committedClusterUuid.equals(onDiskState.metaData.clusterUUID()) == false) {
+                                throw new ElasticsearchException("mismatched cluster UUIDs in metadata, found [{}] and [{}]",
+                                    committedClusterUuid, onDiskState.metaData.clusterUUID());
+                            }
+                        }
+
                         maxCurrentTerm = Math.max(maxCurrentTerm, onDiskState.currentTerm);
 
                         long acceptedTerm = onDiskState.metaData.coordinationMetaData().term();
-
+                        long maxAcceptedTerm = bestOnDiskState.metaData.coordinationMetaData().term();
                         if (acceptedTerm > maxAcceptedTerm
-                            || (acceptedTerm == maxAcceptedTerm && onDiskState.lastAcceptedVersion > bestOnDiskState.lastAcceptedVersion)) {
+                            || (acceptedTerm == maxAcceptedTerm
+                                && onDiskState.lastAcceptedVersion > bestOnDiskState.lastAcceptedVersion)) {
 
-                            maxAcceptedTerm = acceptedTerm;
                             bestOnDiskState = onDiskState;
                         }
                     } catch (IndexNotFoundException e) {
@@ -188,7 +215,7 @@ public class LucenePersistedStateFactory {
             }
         }
 
-        return new OnDiskState(maxCurrentTerm, bestOnDiskState.lastAcceptedVersion, bestOnDiskState.metaData);
+        return new OnDiskState(bestOnDiskState.nodeId, maxCurrentTerm, bestOnDiskState.lastAcceptedVersion, bestOnDiskState.metaData);
     }
 
     private static Path getMetaDataIndexPath(Path path, int majorVersion) {
@@ -214,10 +241,7 @@ public class LucenePersistedStateFactory {
         });
 
         final MetaData.Builder builder = builderReference.get();
-        if (builder == null) {
-            logger.trace("no global metadata found");
-            return new OnDiskState(0L, 0L, MetaData.EMPTY_META_DATA);
-        }
+        assert builder != null : "no global metadata found";
 
         logger.trace("got global metadata, now reading index metadata");
 
@@ -233,11 +257,14 @@ public class LucenePersistedStateFactory {
         });
 
         final Map<String, String> userData = reader.getIndexCommit().getUserData();
-        assert userData.size() == 2 : userData;
+        logger.trace("loaded metadata [{}] from [{}]", userData, reader.directory());
+        assert userData.size() == 4 : userData;
         assert userData.get(CURRENT_TERM_KEY) != null;
         assert userData.get(LAST_ACCEPTED_VERSION_KEY) != null;
-        return new OnDiskState(Long.parseLong(userData.get(CURRENT_TERM_KEY)), Long.parseLong(userData.get(LAST_ACCEPTED_VERSION_KEY)),
-            builder.build());
+        assert userData.get(NODE_ID_KEY) != null;
+        assert userData.get(NODE_VERSION_KEY) != null;
+        return new OnDiskState(userData.get(NODE_ID_KEY), Long.parseLong(userData.get(CURRENT_TERM_KEY)),
+            Long.parseLong(userData.get(LAST_ACCEPTED_VERSION_KEY)), builder.build());
     }
 
     private static void consumeBinaryDocValuesFromType(IndexSearcher indexSearcher, String type,
@@ -290,7 +317,7 @@ public class LucenePersistedStateFactory {
             logger = Loggers.getLogger(MetaDataIndex.class, directory.toString());
         }
 
-        void persistInitialState(long currentTerm, ClusterState lastAcceptedState) throws IOException {
+        void persistInitialState(String nodeId, long currentTerm, ClusterState lastAcceptedState) throws IOException {
             // Write the whole state out again to be sure it's fresh. Called during initialisation, so throwing an IOException is enough
             // to halt the node.
 
@@ -299,7 +326,7 @@ public class LucenePersistedStateFactory {
             // version of Elasticsearch. TODO TBD should we avoid indexing when possible?
 
             overwriteMetaData(lastAcceptedState.metaData());
-            persist(currentTerm, lastAcceptedState.version());
+            persist(nodeId, currentTerm, lastAcceptedState.version());
         }
 
         void overwriteMetaData(MetaData metaData) throws IOException {
@@ -362,10 +389,12 @@ public class LucenePersistedStateFactory {
             indexWriter.flush();
         }
 
-        void persist(long currentTerm, long lastAcceptedVersion) throws IOException {
+        void persist(String nodeId, long currentTerm, long lastAcceptedVersion) throws IOException {
             final Map<String, String> commitData = new HashMap<>(2);
             commitData.put(CURRENT_TERM_KEY, Long.toString(currentTerm));
             commitData.put(LAST_ACCEPTED_VERSION_KEY, Long.toString(lastAcceptedVersion));
+            commitData.put(NODE_VERSION_KEY, Integer.toString(Version.CURRENT.id));
+            commitData.put(NODE_ID_KEY, nodeId);
             indexWriter.setLiveCommitData(commitData.entrySet());
             indexWriter.commit();
         }
@@ -417,11 +446,13 @@ public class LucenePersistedStateFactory {
         private long currentTerm;
         private ClusterState lastAcceptedState;
         private final List<MetaDataIndex> metaDataIndices;
+        private final String nodeId;
 
-        LucenePersistedState(long currentTerm, ClusterState lastAcceptedState, List<MetaDataIndex> metaDataIndices) {
+        LucenePersistedState(String nodeId, List<MetaDataIndex> metaDataIndices, long currentTerm, ClusterState lastAcceptedState) {
             this.currentTerm = currentTerm;
             this.lastAcceptedState = lastAcceptedState;
             this.metaDataIndices = metaDataIndices;
+            this.nodeId = nodeId;
         }
 
         @Override
@@ -436,7 +467,7 @@ public class LucenePersistedStateFactory {
 
         void persistInitialState() throws IOException {
             for (MetaDataIndex metaDataIndex : metaDataIndices) {
-                metaDataIndex.persistInitialState(currentTerm, lastAcceptedState);
+                metaDataIndex.persistInitialState(nodeId, currentTerm, lastAcceptedState);
             }
         }
 
@@ -473,7 +504,7 @@ public class LucenePersistedStateFactory {
         private void persist(long currentTerm, long lastAcceptedVersion) {
             try {
                 for (MetaDataIndex metaDataIndex : metaDataIndices) {
-                    metaDataIndex.persist(currentTerm, lastAcceptedVersion);
+                    metaDataIndex.persist(nodeId, currentTerm, lastAcceptedVersion);
                 }
             } catch (IOException e) {
                 // The persist() call has similar semantics to a fsync(): although it's atomic, if it fails then we've no idea whether the
