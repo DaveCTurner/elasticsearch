@@ -836,6 +836,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             @Override
             public void close() {
                 assertTrue(openPersistedStates.remove(this));
+                try {
+                    delegate.close();
+                } catch (IOException e) {
+                    throw new AssertionError("unexpected", e);
+                }
             }
         }
 
