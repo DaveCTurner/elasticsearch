@@ -386,8 +386,7 @@ public final class NodeEnvironment  implements Closeable {
                     // node state directory, also containing MetaDataStateFormat-based global metadata
                     MetaDataStateFormat.STATE_DIR_NAME,
 
-                    // Lucene-based metadata folders
-                    LucenePersistedStateFactory.getMetaDataIndexDirectoryName(Version.CURRENT.major - 1),
+                    // Lucene-based metadata folder
                     LucenePersistedStateFactory.getMetaDataIndexDirectoryName(Version.CURRENT.major),
 
                     // indices

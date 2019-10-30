@@ -69,6 +69,7 @@ import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -139,7 +140,13 @@ public class LucenePersistedStateFactory {
 
             for (final Path path : nodeEnvironment.nodeDataPaths()) {
                 IOUtils.rm(getMetaDataIndexPath(path, Version.CURRENT.major - 1));
-                // NOCOMMIT TODO also clean up any unnecessary MetaDataStateFormat-based metadata
+
+                try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(path.resolve(MetaDataStateFormat.STATE_DIR_NAME),
+                    MetaData.FORMAT.getPrefix() + "*")) {
+                    for (Path stateFile : directoryStream) {
+                        assert false : stateFile + " should be cleaned up"; // TODO
+                    }
+                }
             }
             success = true;
             return lucenePersistedState;
@@ -168,7 +175,6 @@ public class LucenePersistedStateFactory {
         long maxCurrentTerm = 0L;
         String committedClusterUuid = null;
         OnDiskState bestOnDiskState = new OnDiskState(null, 0L, 0L, MetaData.EMPTY_META_DATA);
-        // TODO NOCOMMIT also look at the MetaDataStateFormat-based metadata
 
         // We use a write-all-read-one strategy: metadata is written to every data path when accepting it, which means it is mostly
         // sufficient to read _any_ copy. "Mostly" sufficient because the user can change the set of data paths when restarting, and may
