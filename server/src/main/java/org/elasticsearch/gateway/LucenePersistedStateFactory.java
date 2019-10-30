@@ -138,7 +138,7 @@ public class LucenePersistedStateFactory {
             lucenePersistedState.persistInitialState();
 
             for (final Path path : nodeEnvironment.nodeDataPaths()) {
-                IOUtils.rm(getMetaDataIndexPath(path, Version.CURRENT.major - 1));
+                assert Files.exists(getMetaDataIndexPath(path, Version.CURRENT.major - 1)) == false;
             }
             success = true;
             return lucenePersistedState;
