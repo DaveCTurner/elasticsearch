@@ -295,8 +295,4 @@ public class MetaStateService {
         cleanupGlobalState(generation);
     }
 
-    CoordinationState.PersistedState getPersistedState(BiFunction<Long, MetaData, ClusterState> clusterStateFromMetaData)
-        throws IOException {
-        return new LucenePersistedStateFactory(nodeEnv, namedXContentRegistry, clusterStateFromMetaData).loadPersistedState();
-    }
 }

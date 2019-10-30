@@ -54,6 +54,7 @@ import org.elasticsearch.cluster.coordination.CoordinationState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.CheckedConsumer;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -95,16 +96,14 @@ public class LucenePersistedStateFactory {
 
     private final NodeEnvironment nodeEnvironment;
     private final NamedXContentRegistry namedXContentRegistry;
-    private final BiFunction<Long, MetaData, ClusterState> clusterStateFromMetaData;
 
-    LucenePersistedStateFactory(NodeEnvironment nodeEnvironment, NamedXContentRegistry namedXContentRegistry,
-                                BiFunction<Long, MetaData, ClusterState> clusterStateFromMetaData) {
+    public LucenePersistedStateFactory(NodeEnvironment nodeEnvironment, NamedXContentRegistry namedXContentRegistry) {
         this.nodeEnvironment = nodeEnvironment;
         this.namedXContentRegistry = namedXContentRegistry;
-        this.clusterStateFromMetaData = clusterStateFromMetaData;
     }
 
-    CoordinationState.PersistedState loadPersistedState() throws IOException {
+    CoordinationState.PersistedState loadPersistedState(BiFunction<Long, MetaData, ClusterState> clusterStateFromMetaData)
+        throws IOException {
 
         final OnDiskState onDiskState = loadBestOnDiskState();
 
@@ -140,13 +139,6 @@ public class LucenePersistedStateFactory {
 
             for (final Path path : nodeEnvironment.nodeDataPaths()) {
                 IOUtils.rm(getMetaDataIndexPath(path, Version.CURRENT.major - 1));
-
-                try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(path.resolve(MetaDataStateFormat.STATE_DIR_NAME),
-                    MetaData.FORMAT.getPrefix() + "*")) {
-                    for (Path stateFile : directoryStream) {
-                        assert false : stateFile + " should be cleaned up"; // TODO
-                    }
-                }
             }
             success = true;
             return lucenePersistedState;
