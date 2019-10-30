@@ -43,7 +43,6 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.discovery.Discovery;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
@@ -91,7 +90,8 @@ public class GatewayMetaState {
                     prepareInitialClusterState(transportService, clusterService,
                         ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings))
                             .version(version)
-                            .metaData(upgradeMetaData(metadata, metaDataIndexUpgradeService, metaDataUpgrader)).build())));
+                            .metaData(upgradeMetaDataForMasterEligibleNode(metadata, metaDataIndexUpgradeService, metaDataUpgrader))
+                            .build())));
             } catch (IOException e) {
                 throw new ElasticsearchException("failed to load metadata", e);
             }
@@ -134,6 +134,13 @@ public class GatewayMetaState {
             .andThen(state -> ClusterStateUpdaters.upgradeAndArchiveUnknownOrInvalidSettings(state, clusterService.getClusterSettings()))
             .andThen(ClusterStateUpdaters::recoverClusterBlocks)
             .apply(clusterState);
+    }
+
+    // exposed so it can be overridden by tests
+    MetaData upgradeMetaDataForMasterEligibleNode(MetaData metaData,
+                                                  MetaDataIndexUpgradeService metaDataIndexUpgradeService,
+                                                  MetaDataUpgrader metaDataUpgrader) {
+        return upgradeMetaData(metaData, metaDataIndexUpgradeService, metaDataUpgrader);
     }
 
     // exposed so it can be overridden by tests

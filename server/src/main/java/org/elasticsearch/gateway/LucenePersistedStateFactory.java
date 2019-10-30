@@ -476,7 +476,7 @@ public class LucenePersistedStateFactory {
         public void setLastAcceptedState(ClusterState clusterState) {
             try {
                 if (clusterState.term() != lastAcceptedState.term()) {
-                    assert clusterState.term() > lastAcceptedState.term();
+                    assert clusterState.term() > lastAcceptedState.term() : clusterState.term() + " vs " + lastAcceptedState.term();
                     // In a new currentTerm, we cannot compare the persisted metadata's lastAcceptedVersion to those in the new state, so
                     // it's simplest just to write everything again.
                     for (MetaDataIndex metaDataIndex : metaDataIndices) {

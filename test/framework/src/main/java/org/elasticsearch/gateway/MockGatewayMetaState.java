@@ -20,6 +20,7 @@
 package org.elasticsearch.gateway;
 
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.metadata.MetaDataIndexUpgradeService;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -51,6 +52,13 @@ public class MockGatewayMetaState extends GatewayMetaState {
     void upgradeMetaData(Settings settings, MetaStateService metaStateService, MetaDataIndexUpgradeService metaDataIndexUpgradeService,
                          MetaDataUpgrader metaDataUpgrader) {
         // MetaData upgrade is tested in GatewayMetaStateTests, we override this method to NOP to make mocking easier
+    }
+
+    @Override
+    MetaData upgradeMetaDataForMasterEligibleNode(MetaData metaData, MetaDataIndexUpgradeService metaDataIndexUpgradeService,
+                                                  MetaDataUpgrader metaDataUpgrader) {
+        // MetaData upgrade is tested in GatewayMetaStateTests, we override this method to NOP to make mocking easier
+        return metaData;
     }
 
     @Override
