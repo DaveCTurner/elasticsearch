@@ -19,6 +19,7 @@
 package org.elasticsearch.cluster.coordination;
 
 import joptsimple.OptionSet;
+import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.cli.MockTerminal;
@@ -51,6 +52,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO unsafe bootstrapping is not yet adjusted to work with the new storage format")
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, numDataNodes = 0, autoManageMasterNodes = false)
 public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
 
@@ -270,7 +272,6 @@ public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
         expectThrows(() -> detachCluster(environment, true), ElasticsearchNodeCommand.ABORTED_BY_USER_MSG);
     }
 
-    @AwaitsFix(bugUrl = "TODO assumes that index metadata files matter")
     public void test3MasterNodes2Failed() throws Exception {
         internalCluster().setBootstrapMasterNodeIndex(2);
         List<String> masterNodes = new ArrayList<>();
@@ -411,7 +412,6 @@ public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
         assertThat(client().prepareGet("test", "1").execute().actionGet().isExists(), equalTo(true));
     }
 
-    @AwaitsFix(bugUrl = "TODO assumes that index metadata files matter")
     public void testNoInitialBootstrapAfterDetach() throws Exception {
         internalCluster().setBootstrapMasterNodeIndex(0);
         String masterNode = internalCluster().startMasterOnlyNode();
@@ -435,7 +435,6 @@ public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
         internalCluster().stopRandomNode(InternalTestCluster.nameFilter(node));
     }
 
-    @AwaitsFix(bugUrl = "TODO assumes that index metadata files matter")
     public void testCanRunUnsafeBootstrapAfterErroneousDetachWithoutLoosingMetaData() throws Exception {
         internalCluster().setBootstrapMasterNodeIndex(0);
         String masterNode = internalCluster().startMasterOnlyNode();
