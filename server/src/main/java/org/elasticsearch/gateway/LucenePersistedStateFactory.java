@@ -47,14 +47,12 @@ import org.apache.lucene.store.SimpleFSDirectory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.CheckedConsumer;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -70,7 +68,6 @@ import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -112,7 +109,7 @@ public class LucenePersistedStateFactory {
         boolean success = false;
         try {
             for (final Path path : nodeEnvironment.nodeDataPaths()) {
-                final Directory directory = new SimpleFSDirectory(getMetaDataIndexPath(path, Version.CURRENT.major));
+                final Directory directory = createDirectory(getMetaDataIndexPath(path, Version.CURRENT.major));
                 closeables.add(directory);
                 final IndexWriterConfig indexWriterConfig = new IndexWriterConfig(new KeywordAnalyzer());
                 final ConcurrentMergeScheduler concurrentMergeScheduler = new ConcurrentMergeScheduler();
@@ -147,6 +144,11 @@ public class LucenePersistedStateFactory {
                 IOUtils.closeWhileHandlingException(lucenePersistedState);
             }
         }
+    }
+
+    // exposed for tests
+    Directory createDirectory(Path path) throws IOException {
+        return new SimpleFSDirectory(path);
     }
 
     private static class OnDiskState {
@@ -418,6 +420,7 @@ public class LucenePersistedStateFactory {
 
         private void addIndexMetaData(IndexMetaData metaData) throws IOException {
             final Document document = buildDocument(INDEX_TYPE_NAME, metaData);
+            assert metaData.getIndexUUID().equals(IndexMetaData.INDEX_UUID_NA_VALUE) == false;
             document.add(new StringField(INDEX_UUID_FIELD_NAME, metaData.getIndexUUID(), Field.Store.NO));
             indexWriter.addDocument(document);
         }
