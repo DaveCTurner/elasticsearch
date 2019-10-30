@@ -47,6 +47,7 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,7 +64,7 @@ import java.util.function.UnaryOperator;
  * ClusterState#metaData()} because it might be stale or incomplete. Master-eligible nodes must perform an election to find a complete and
  * non-stale state, and master-ineligible nodes receive the real cluster state from the elected master after joining the cluster.
  */
-public class GatewayMetaState {
+public class GatewayMetaState implements Closeable {
     private static final Logger logger = LogManager.getLogger(GatewayMetaState.class);
 
     // Set by calling start()
@@ -254,6 +255,14 @@ public class GatewayMetaState {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public void close() throws IOException {
+        final PersistedState persistedState = this.persistedState.get();
+        if (persistedState != null) {
+            persistedState.close();
+        }
     }
 
 
