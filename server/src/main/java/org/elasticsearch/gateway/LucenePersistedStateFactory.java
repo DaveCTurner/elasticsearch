@@ -180,16 +180,17 @@ public class LucenePersistedStateFactory {
                         final OnDiskState onDiskState = loadOnDiskState(directoryReader);
 
                         if (nodeEnvironment.nodeId().equals(onDiskState.nodeId) == false) {
-                            throw new ElasticsearchException("unexpected node ID in metadata, found [{}] but expected [{}]",
-                                onDiskState.nodeId, nodeEnvironment.nodeId());
+                            throw new IllegalStateException("unexpected node ID in metadata, found [" + onDiskState.nodeId +
+                                "] but expected [" + nodeEnvironment.nodeId() + "]");
                         }
 
                         if (onDiskState.metaData.clusterUUIDCommitted()) {
                             if (committedClusterUuid == null) {
                                 committedClusterUuid = onDiskState.metaData.clusterUUID();
                             } else if (committedClusterUuid.equals(onDiskState.metaData.clusterUUID()) == false) {
-                                throw new ElasticsearchException("mismatched cluster UUIDs in metadata, found [{}] and [{}]",
-                                    committedClusterUuid, onDiskState.metaData.clusterUUID());
+                                throw new IllegalStateException("mismatched cluster UUIDs in metadata, found [" + committedClusterUuid +
+                                    "] and [" + onDiskState.metaData.clusterUUID() +
+                                    "]");
                             }
                         }
 
