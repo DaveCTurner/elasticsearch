@@ -50,6 +50,7 @@ import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.Version;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -383,6 +384,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     @Override
     public final void incRef() {
+        logger.trace("Store#incRef", new ElasticsearchException("stack trace"));
         refCounter.incRef();
     }
 
@@ -401,6 +403,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     @Override
     public final boolean tryIncRef() {
+        logger.trace("Store#tryIncRef", new ElasticsearchException("stack trace"));
         return refCounter.tryIncRef();
     }
 
@@ -412,6 +415,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      */
     @Override
     public final void decRef() {
+        logger.trace("Store#decRef", new ElasticsearchException("stack trace"));
         refCounter.decRef();
     }
 

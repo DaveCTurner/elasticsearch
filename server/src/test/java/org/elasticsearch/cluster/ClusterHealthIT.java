@@ -88,7 +88,7 @@ public class ClusterHealthIT extends ESIntegTestCase {
         assertThat(healthResponse.getIndices().size(), equalTo(1));
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.IndexService:TRACE")
+    @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.IndexService:TRACE,org.elasticsearch.index.store.Store:TRACE")
     public void testHealthWithClosedIndices() {
         createIndex("index-1", Settings.builder()
             .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, "0")
