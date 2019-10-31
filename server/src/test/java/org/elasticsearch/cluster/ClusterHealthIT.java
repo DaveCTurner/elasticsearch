@@ -37,7 +37,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-@ESIntegTestCase.ClusterScope(numDataNodes = 1)
+@ESIntegTestCase.ClusterScope(numDataNodes = 2)
 public class ClusterHealthIT extends ESIntegTestCase {
 
     public void testSimpleLocalHealth() {
@@ -91,7 +91,7 @@ public class ClusterHealthIT extends ESIntegTestCase {
     @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE,org.elasticsearch.index.shard:TRACE,org.elasticsearch.index.IndexService:TRACE,org.elasticsearch.index.store.Store:TRACE")
     public void testHealthWithClosedIndices() {
         createIndex("index-1", Settings.builder()
-            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, "0")
+            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, "1")
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, "1").build());
         logger.info("--> closing index");
         assertAcked(client().admin().indices().prepareClose("index-1"));
