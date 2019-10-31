@@ -63,6 +63,8 @@ import org.elasticsearch.node.Node;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
@@ -857,6 +859,17 @@ public final class NodeEnvironment  implements Closeable {
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS)) {
                     lockDetails = details;
                 } else {
+                    if (lockDetails.equals("shard creation") && timeoutInMillis > 0) {
+                        logger.warn("shard lock for [{}] still held by previous shard creation, thread dump follows", shardId);
+                        for (ThreadInfo threadInfo : ManagementFactory.getThreadMXBean().dumpAllThreads(true, true)) {
+                            final StringBuilder stringBuilder = new StringBuilder();
+                            for (StackTraceElement stackTraceElement : threadInfo.getStackTrace()) {
+                                stringBuilder.append(stackTraceElement).append("\n");
+                            }
+                            logger.warn("thread [{}] is at\n{}", threadInfo.getThreadName(), stringBuilder.toString());
+                        }
+                    }
+
                     throw new ShardLockObtainFailedException(shardId,
                         "obtaining shard lock timed out after " + timeoutInMillis + "ms, previous lock details: [" + lockDetails +
                             "] trying to lock for [" + details + "]");

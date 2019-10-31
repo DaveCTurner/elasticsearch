@@ -334,14 +334,14 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 ActionListener.wrap(
                     r -> {},
                     e -> {
-                        if (ExceptionsHelper.isTransportStoppedForAction(e, RetentionLeaseBackgroundSyncAction.ACTION_NAME + "[p]")) {
-                            // we are likely shutting down
-                            return;
-                        }
-                        if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) != null) {
-                            // the shard is closed
-                            return;
-                        }
+//                        if (ExceptionsHelper.isTransportStoppedForAction(e, RetentionLeaseBackgroundSyncAction.ACTION_NAME + "[p]")) {
+//                            // we are likely shutting down
+//                            return;
+//                        }
+//                        if (ExceptionsHelper.unwrap(e, AlreadyClosedException.class, IndexShardClosedException.class) != null) {
+//                            // the shard is closed
+//                            return;
+//                        }
                         getLogger().warn(new ParameterizedMessage("{} retention lease background sync failed", shardId), e);
                     }));
         }
