@@ -37,6 +37,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
+@ESIntegTestCase.ClusterScope(numDataNodes = 2)
 public class ClusterHealthIT extends ESIntegTestCase {
 
     public void testSimpleLocalHealth() {
@@ -85,6 +86,11 @@ public class ClusterHealthIT extends ESIntegTestCase {
         assertThat(healthResponse.getStatus(), equalTo(ClusterHealthStatus.RED));
         assertThat(healthResponse.getIndices().get("test1").getStatus(), equalTo(ClusterHealthStatus.GREEN));
         assertThat(healthResponse.getIndices().size(), equalTo(1));
+    }
+
+    @Override
+    protected int maximumNumberOfShards() {
+        return 1;
     }
 
     @TestLogging(reason="nocommit", value="org.elasticsearch.env.NodeEnvironment:TRACE")
