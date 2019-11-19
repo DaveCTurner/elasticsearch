@@ -668,6 +668,13 @@ public class LucenePersistedStateFactory {
         }
 
         @Override
+        public void syncMetaData() throws IOException {
+            logger.trace("{} start syncing metadata", in);
+            super.syncMetaData();
+            logger.trace("{} end syncing metadata", in);
+        }
+
+        @Override
         public void rename(String source, String dest) throws IOException {
             logger.trace("{} start renaming {} to {}", in, source, dest);
             super.rename(source, dest);
