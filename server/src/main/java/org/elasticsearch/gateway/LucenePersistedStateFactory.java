@@ -665,6 +665,13 @@ public class LucenePersistedStateFactory {
         }
 
         @Override
+        public void rename(String source, String dest) throws IOException {
+            logger.trace("{} start renaming {} to {}", in, source, dest);
+            super.rename(source, dest);
+            logger.trace("{} end renaming {} to {}", in, source, dest);
+        }
+
+        @Override
         public void sync(Collection<String> names) throws IOException {
             logger.trace("{} start syncing {}", in, names);
             super.sync(names);
