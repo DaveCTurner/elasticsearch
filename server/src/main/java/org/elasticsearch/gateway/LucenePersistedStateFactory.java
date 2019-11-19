@@ -56,6 +56,7 @@ import org.elasticsearch.common.CheckedConsumer;
 import org.elasticsearch.common.io.stream.ReleasableBytesStreamOutput;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.lucene.LoggerInfoStream;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -156,6 +157,8 @@ public class LucenePersistedStateFactory {
                 indexWriterConfig.setRAMBufferSizeMB(1.0);
                 // merge on the write thread (e.g. while flushing)
                 indexWriterConfig.setMergeScheduler(new SerialMergeScheduler());
+                // trace logging
+                indexWriterConfig.setInfoStream(new LoggerInfoStream(logger));
 
                 final IndexWriter indexWriter = new IndexWriter(new ProfilingFilterDirectory(directory), indexWriterConfig);
                 closeables.add(indexWriter);
