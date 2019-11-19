@@ -410,6 +410,7 @@ public class LucenePersistedStateFactory {
         }
 
         void commit(String nodeId, long currentTerm, long lastAcceptedVersion) throws IOException {
+            this.logger.trace("committing");
             final Map<String, String> commitData = new HashMap<>(COMMIT_DATA_SIZE);
             commitData.put(CURRENT_TERM_KEY, Long.toString(currentTerm));
             commitData.put(LAST_ACCEPTED_VERSION_KEY, Long.toString(lastAcceptedVersion));
@@ -417,6 +418,7 @@ public class LucenePersistedStateFactory {
             commitData.put(NODE_ID_KEY, nodeId);
             indexWriter.setLiveCommitData(commitData.entrySet());
             indexWriter.commit();
+            this.logger.trace("commit finished");
         }
 
         @Override
@@ -501,9 +503,11 @@ public class LucenePersistedStateFactory {
             assert lastAcceptedState.term() == clusterState.term();
             logger.trace("currentTerm [{}] matches previous currentTerm, writing changes only", clusterState.term());
 
-            try (ReleasableDocument globalMetaDataDocument = makeGlobalMetaDataDocument(clusterState)) {
-                for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
-                    metaDataIndexWriter.updateGlobalMetaData(globalMetaDataDocument.getDocument());
+            if (MetaData.isGlobalStateEquals(lastAcceptedState.metaData(), clusterState.metaData()) == false) {
+                try (ReleasableDocument globalMetaDataDocument = makeGlobalMetaDataDocument(clusterState)) {
+                    for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
+                        metaDataIndexWriter.updateGlobalMetaData(globalMetaDataDocument.getDocument());
+                    }
                 }
             }
 
@@ -532,6 +536,7 @@ public class LucenePersistedStateFactory {
             }
 
             for (String removedIndexUUID : indexMetaDataVersionByUUID.keySet()) {
+                logger.trace("removing metadata for [{}]", removedIndexUUID);
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                     metaDataIndexWriter.deleteIndexMetaData(removedIndexUUID);
                 }
@@ -539,6 +544,7 @@ public class LucenePersistedStateFactory {
 
             // Flush, to try and expose a failure (e.g. out of disk space) before committing, because we can handle a failure here more
             // gracefully than one that occurs during the commit process.
+            logger.trace("flushing metadata changes");
             for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                 metaDataIndexWriter.flush();
             }
@@ -582,9 +588,11 @@ public class LucenePersistedStateFactory {
 
         private void commit(long currentTerm, long lastAcceptedVersion) {
             try {
+                logger.trace("committing metadata changes");
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                     metaDataIndexWriter.commit(nodeId, currentTerm, lastAcceptedVersion);
                 }
+                logger.trace("finished committing metadata changes");
             } catch (IOException e) {
                 // The commit() call has similar semantics to a fsync(): although it's atomic, if it fails then we've no idea whether the
                 // data on disk is now the old version or the new version, and this is a disaster. It's safest to fail the whole node and

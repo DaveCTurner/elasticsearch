@@ -1048,8 +1048,11 @@ public class ElasticsearchNode implements TestClusterConfiguration {
         defaultConfig.put("discovery.initial_state_timeout", "0s");
 
         if (getVersion().getMajor() >= 8) {
-            defaultConfig.put("cluster.service.slow_task_logging_threshold", "5s");
-            defaultConfig.put("cluster.service.slow_master_task_logging_threshold", "5s");
+            defaultConfig.put("cluster.service.slow_task_logging_threshold", "0s");
+            defaultConfig.put("cluster.service.slow_master_task_logging_threshold", "0s");
+            defaultConfig.put("thread_pool.estimated_time_interval", "0s");
+            defaultConfig.put("logger.org.elasticsearch.cluster.coordination.Coordinator.CoordinatorPublication", "TRACE");
+            defaultConfig.put("logger.org.elasticsearch.gateway.LucenePersistedStateFactory", "TRACE");
         }
 
         HashSet<String> overriden = new HashSet<>(defaultConfig.keySet());
