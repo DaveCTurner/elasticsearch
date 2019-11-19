@@ -42,6 +42,7 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
@@ -74,6 +75,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -155,7 +157,7 @@ public class LucenePersistedStateFactory {
                 // merge on the write thread (e.g. while flushing)
                 indexWriterConfig.setMergeScheduler(new SerialMergeScheduler());
 
-                final IndexWriter indexWriter = new IndexWriter(directory, indexWriterConfig);
+                final IndexWriter indexWriter = new IndexWriter(new ProfilingFilterDirectory(directory), indexWriterConfig);
                 closeables.add(indexWriter);
                 metaDataIndexWriters.add(new MetaDataIndexWriter(directory, indexWriter));
             }
@@ -588,11 +590,11 @@ public class LucenePersistedStateFactory {
 
         private void commit(long currentTerm, long lastAcceptedVersion) {
             try {
-                logger.trace("committing metadata changes");
+                logger.trace("start committing metadata changes");
                 for (MetaDataIndexWriter metaDataIndexWriter : metaDataIndexWriters) {
                     metaDataIndexWriter.commit(nodeId, currentTerm, lastAcceptedVersion);
                 }
-                logger.trace("finished committing metadata changes");
+                logger.trace("end committing metadata changes");
             } catch (IOException e) {
                 // The commit() call has similar semantics to a fsync(): although it's atomic, if it fails then we've no idea whether the
                 // data on disk is now the old version or the new version, and this is a disaster. It's safest to fail the whole node and
@@ -654,6 +656,19 @@ public class LucenePersistedStateFactory {
                     IOUtils.closeWhileHandlingException(releasableBytesStreamOutput);
                 }
             }
+        }
+    }
+
+    private class ProfilingFilterDirectory extends FilterDirectory {
+        ProfilingFilterDirectory(Directory directory) {
+            super(directory);
+        }
+
+        @Override
+        public void sync(Collection<String> names) throws IOException {
+            logger.trace("{} start syncing {}", in, names);
+            super.sync(names);
+            logger.trace("{} end syncing {}", in, names);
         }
     }
 }
