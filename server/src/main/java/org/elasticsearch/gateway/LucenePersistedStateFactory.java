@@ -158,7 +158,10 @@ public class LucenePersistedStateFactory {
                 // merge on the write thread (e.g. while flushing)
                 indexWriterConfig.setMergeScheduler(new SerialMergeScheduler());
                 // trace logging
-                indexWriterConfig.setInfoStream(new LoggerInfoStream(logger));
+                //indexWriterConfig.setInfoStream(new LoggerInfoStream(logger));
+
+                // disable compression entirely
+                indexWriterConfig.setCodec(new MetaDataCodec());
 
                 final IndexWriter indexWriter = new IndexWriter(new ProfilingFilterDirectory(directory), indexWriterConfig);
                 closeables.add(indexWriter);
@@ -689,3 +692,4 @@ public class LucenePersistedStateFactory {
         }
     }
 }
+

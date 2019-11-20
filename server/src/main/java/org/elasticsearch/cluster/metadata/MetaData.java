@@ -708,6 +708,9 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, To
     }
 
     public static boolean isGlobalStateEquals(MetaData metaData1, MetaData metaData2) {
+        if (metaData1.version != metaData2.version) {
+            return false;
+        }
         if (!metaData1.coordinationMetaData.equals(metaData2.coordinationMetaData)) {
             return false;
         }
