@@ -30,7 +30,11 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.routing.RecoverySource;
+import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -45,9 +49,11 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.ConcurrentMapLong;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.Engine;
+import org.elasticsearch.index.fielddata.IndexFieldDataCache;
 import org.elasticsearch.index.query.InnerHitContextBuilder;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.MatchNoneQueryBuilder;
@@ -55,11 +61,14 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryRewriteContext;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.Rewriteable;
+import org.elasticsearch.index.seqno.RetentionLeaseSyncer;
 import org.elasticsearch.index.shard.IndexEventListener;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.SearchOperationListener;
+import org.elasticsearch.indices.IndicesQueryCache;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.cluster.IndicesClusterStateService.AllocatedIndices.IndexRemovalReason;
+import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.node.ResponseCollectorService;
 import org.elasticsearch.script.FieldScript;
 import org.elasticsearch.script.ScriptService;
@@ -123,6 +132,9 @@ import java.util.function.Supplier;
 import static org.elasticsearch.common.unit.TimeValue.timeValueHours;
 import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
 import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
+import static org.elasticsearch.indices.IndicesQueryCache.INDICES_CACHE_QUERY_COUNT_SETTING;
+import static org.elasticsearch.indices.IndicesQueryCache.INDICES_CACHE_QUERY_SIZE_SETTING;
+import static org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache.INDICES_FIELDDATA_CACHE_SIZE_KEY;
 
 public class SearchService extends AbstractLifecycleComponent implements IndexEventListener {
     private static final Logger logger = LogManager.getLogger(SearchService.class);
@@ -622,9 +634,40 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     private DefaultSearchContext createSearchContext(ShardSearchRequest request, TimeValue timeout,
                                                      boolean assertAsyncActions, String source)
-            throws IOException {
-        IndexService indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
-        IndexShard indexShard = indexService.getShard(request.shardId().getId());
+        throws IOException {
+
+        final IndexService indexService;
+        final IndexShard indexShard;
+
+        if (request.shardId().snapshot() == null) {
+            indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
+            indexShard = indexService.getShard(request.shardId().getId());
+        } else {
+            indexService = indicesService.createIndexService(IndexService.IndexCreationContext.CREATE_INDEX,
+                clusterService.state().metaData().index(request.shardId().getIndex()),
+                new IndicesQueryCache(Settings.builder()
+                    .put(INDICES_CACHE_QUERY_SIZE_SETTING.getKey(), "0b")
+                    .put(INDICES_CACHE_QUERY_COUNT_SETTING.getKey(), 1).build()),
+                new IndicesFieldDataCache(Settings.builder()
+                    .put(INDICES_FIELDDATA_CACHE_SIZE_KEY.getKey(), "0b").build(),
+                    new IndexFieldDataCache.Listener() {
+                    }),
+                Collections.emptyList());
+            // TODO close this IndexService on exception
+
+            final ShardRouting unassigned = ShardRouting.newUnassigned(request.shardId(), true,
+                new RecoverySource.SnapshotRecoverySource(
+                    "_na_", request.shardId().snapshot(), Version.CURRENT, request.shardId().getIndex().getName()),
+                new UnassignedInfo(UnassignedInfo.Reason.EXISTING_INDEX_RESTORED, "ephemeral"));
+            final ShardRouting initializing = unassigned.initialize(clusterService.localNode().getId(), null, 0L);
+
+            indexShard = indexService.createShard(initializing, shardId -> {
+                },
+                new RetentionLeaseSyncer((shardId, primaryAllocationId, primaryTerm, retentionLeases, listener) -> {
+                }, (shardId, primaryAllocationId, primaryTerm, retentionLeases) -> {
+                }));
+            // TODO close this IndexShard on exception
+        }
         SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().getId(),
                 indexShard.shardId(), request.getClusterAlias(), OriginalIndices.NONE);
         Engine.Searcher searcher = indexShard.acquireSearcher(source);
@@ -1063,12 +1106,20 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
      * The action listener is guaranteed to be executed on the search thread-pool
      */
     private void rewriteShardRequest(ShardSearchRequest request, ActionListener<ShardSearchRequest> listener) {
-        IndexShard shard = indicesService.indexServiceSafe(request.shardId().getIndex()).getShard(request.shardId().id());
-        Executor executor = getExecutor(shard);
-        ActionListener<Rewriteable> actionListener = ActionListener.wrap(r ->
-                // now we need to check if there is a pending refresh and register
-                shard.awaitShardSearchActive(b -> executor.execute(ActionRunnable.supply(listener, () -> request))),
-            listener::onFailure);
+        final ActionListener<Rewriteable> actionListener;
+
+        if (request.shardId().snapshot() == null) {
+            IndexShard shard = indicesService.indexServiceSafe(request.shardId().getIndex()).getShard(request.shardId().id());
+            Executor executor = getExecutor(shard);
+            actionListener = ActionListener.wrap(r ->
+                    // now we need to check if there is a pending refresh and register
+                    shard.awaitShardSearchActive(b -> executor.execute(ActionRunnable.supply(listener, () -> request))),
+                listener::onFailure);
+        } else {
+            // ephemeral shard does not need to wait to become search-active
+            actionListener = ActionListener.wrap(r -> threadPool.executor(Names.SEARCH_THROTTLED)
+                    .execute(ActionRunnable.supply(listener, () -> request)), listener::onFailure);
+        }
         // we also do rewrite on the coordinating node (TransportSearchService) but we also need to do it here for BWC as well as
         // AliasFilters that might need to be rewritten. These are edge-cases but we are every efficient doing the rewrite here so it's not
         // adding a lot of overhead

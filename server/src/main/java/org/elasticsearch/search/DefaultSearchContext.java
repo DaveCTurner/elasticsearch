@@ -34,6 +34,7 @@ import org.elasticsearch.common.lucene.search.function.FunctionScoreQuery;
 import org.elasticsearch.common.lucene.search.function.WeightFactorFunction;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.cache.bitset.BitsetFilterCache;
@@ -181,7 +182,19 @@ final class DefaultSearchContext extends SearchContext {
 
     @Override
     public void doClose() {
-        Releasables.close(engineSearcher);
+        Releasables.close(engineSearcher, this::closeIndexServiceIfEphemeral);
+    }
+
+    private void closeIndexServiceIfEphemeral() {
+        if (request.shardId().snapshot() != null) {
+            try {
+                IOUtils.close(
+                    () -> indexService.removeShard(request.shardId().id(), "after search"),
+                    () -> indexService.close("after search", true));
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 
     /**

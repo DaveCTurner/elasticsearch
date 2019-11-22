@@ -521,7 +521,7 @@ public class IndicesService extends AbstractLifecycleComponent
     /**
      * This creates a new IndexService without registering it
      */
-    private synchronized IndexService createIndexService(IndexService.IndexCreationContext indexCreationContext,
+    public synchronized IndexService createIndexService(IndexService.IndexCreationContext indexCreationContext,
                                                          IndexMetaData indexMetaData,
                                                          IndicesQueryCache indicesQueryCache,
                                                          IndicesFieldDataCache indicesFieldDataCache,

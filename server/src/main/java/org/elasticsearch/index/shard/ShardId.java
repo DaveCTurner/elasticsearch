@@ -20,14 +20,17 @@
 package org.elasticsearch.index.shard;
 
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentFragment;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.snapshots.Snapshot;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Allows for shard level components to be injected with the shard id.
@@ -37,11 +40,18 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
     private final Index index;
     private final int shardId;
     private final int hashCode;
+    @Nullable // if not an ephemeral shard
+    private final Snapshot snapshot;
 
     public ShardId(Index index, int shardId) {
+        this(index, shardId, null);
+    }
+
+    public ShardId(Index index, int shardId, Snapshot snapshot) {
         this.index = index;
         this.shardId = shardId;
         this.hashCode = computeHashCode();
+        this.snapshot = snapshot;
     }
 
     public ShardId(String index, String indexUUID, int shardId) {
@@ -51,6 +61,7 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
     public ShardId(StreamInput in) throws IOException {
         index = new Index(in);
         shardId = in.readVInt();
+        snapshot = in.readOptionalWriteable(Snapshot::new);
         hashCode = computeHashCode();
     }
 
@@ -58,6 +69,7 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
     public void writeTo(StreamOutput out) throws IOException {
         index.writeTo(out);
         out.writeVInt(shardId);
+        out.writeOptionalWriteable(snapshot);
     }
 
     public Index getIndex() {
@@ -76,9 +88,18 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
         return id();
     }
 
+    @Nullable // if not an ephemeral shard
+    public Snapshot snapshot() {
+        return snapshot;
+    }
+
     @Override
     public String toString() {
-        return "[" + index.getName() + "][" + shardId + "]";
+        if (snapshot == null) {
+            return "[" + index.getName() + "][" + shardId + "]";
+        } else {
+            return "[" + index.getName() + "][" + shardId + "][snapshot=[" + snapshot + "]]";
+        }
     }
 
     /**
@@ -102,7 +123,7 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ShardId shardId1 = (ShardId) o;
-        return shardId == shardId1.shardId && index.equals(shardId1.index);
+        return shardId == shardId1.shardId && index.equals(shardId1.index) && Objects.equals(snapshot, shardId1.snapshot);
     }
 
     @Override
@@ -113,6 +134,9 @@ public class ShardId implements Comparable<ShardId>, ToXContentFragment, Writeab
     private int computeHashCode() {
         int result = index != null ? index.hashCode() : 0;
         result = 31 * result + shardId;
+        if (snapshot != null) {
+            result = 31 * result + snapshot.hashCode();
+        }
         return result;
     }
 
