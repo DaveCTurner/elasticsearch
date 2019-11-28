@@ -4,7 +4,7 @@ apply plugin: 'elasticsearch.esplugin'
 esplugin {
   name 'searchable-snapshots'
   description 'A plugin for the searchable snapshots functionality'
-  classname 'org.elasticsearch.xpack.frozen.FrozenIndices'
+  classname 'org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots'
   extendedPlugins = ['x-pack-core']
 }
 archivesBaseName = 'x-pack-searchable-snapshots'
