@@ -117,7 +117,7 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                         .orElseThrow(() -> new ElasticsearchException(
                             "snapshot [" + snapshotName + "] not found in repository [" + repositoryName + "]"));
 
-                    final IndexId indexId = repositoryData.getIndices().get(indexSettings.getIndex().getName());
+                    final IndexId indexId = repositoryData.resolveIndexId(indexSettings.getIndex().getName());
 
                     final BlobContainer shardContainer = repository.blobStore().blobContainer(repository.basePath()
                         .add("indices").add(indexId.getId()).add(Integer.toString(shardPath.getShardId().id())));

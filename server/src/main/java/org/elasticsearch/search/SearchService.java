@@ -31,7 +31,6 @@ import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -50,7 +49,6 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.ConcurrentMapLong;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.Engine;
@@ -115,6 +113,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.TransportRequest;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -645,40 +644,36 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
             indexShard = indexService.getShard(request.shardId().getId());
         } else {
-            indexService = indicesService.createIndexService(IndexService.IndexCreationContext.CREATE_INDEX,
-                clusterService.state().metaData().index(request.shardId().getIndex()),
-                new IndicesQueryCache(Settings.builder()
-                    .put(INDICES_CACHE_QUERY_SIZE_SETTING.getKey(), "0b")
-                    .put(INDICES_CACHE_QUERY_COUNT_SETTING.getKey(), 1).build()),
-                new IndicesFieldDataCache(Settings.builder()
-                    .put(INDICES_FIELDDATA_CACHE_SIZE_KEY.getKey(), "0b").build(),
-                    new IndexFieldDataCache.Listener() {
-                    }),
-                Collections.emptyList());
-            // TODO close this IndexService on exception
-
-            final RecoverySource.SnapshotRecoverySource snapshotRecoverySource = new RecoverySource.SnapshotRecoverySource(
-                "_na_", request.shardId().snapshot(), Version.CURRENT, request.shardId().getIndex().getName());
-            final ShardRouting unassigned = ShardRouting.newUnassigned(request.shardId(), true,
-                RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-                new UnassignedInfo(UnassignedInfo.Reason.EXISTING_INDEX_RESTORED, "ephemeral"));
-            final ShardRouting initializing = unassigned.initialize(clusterService.localNode().getId(), null, 0L);
-
-            indexShard = indexService.createShard(initializing, shardId -> {
-                },
-                new RetentionLeaseSyncer((shardId, primaryAllocationId, primaryTerm, retentionLeases, listener) -> {
-                }, (shardId, primaryAllocationId, primaryTerm, retentionLeases) -> {
-                }));
-            // TODO close this IndexShard on exception
-
-            indexShard.markAsRecovering("ephemeral shard", new RecoveryState(initializing, clusterService.localNode(), null));
-
-            final PlainActionFuture<Boolean> future = new PlainActionFuture<>();
-            indexShard.recoverFromStore(future);
+            final List<Closeable> closeables = new ArrayList<>(2);
             try {
-                future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new IOException("failed to recover from store", e);
+                indexService = indicesService.createIndexService(IndexService.IndexCreationContext.CREATE_INDEX,
+                    clusterService.state().metaData().index(request.shardId().getIndex()),
+                    new IndicesQueryCache(Settings.builder()
+                        .put(INDICES_CACHE_QUERY_SIZE_SETTING.getKey(), "0b")
+                        .put(INDICES_CACHE_QUERY_COUNT_SETTING.getKey(), 1).build()),
+                    new IndicesFieldDataCache(Settings.builder()
+                        .put(INDICES_FIELDDATA_CACHE_SIZE_KEY.getKey(), "0b").build(),
+                        new IndexFieldDataCache.Listener() {
+                        }),
+                    Collections.emptyList());
+                closeables.add(() -> indexService.removeShard(request.shardId().id(), "failed to create search context"));
+                closeables.add(() -> indexService.close("failed to create search context", true));
+
+                final ShardRouting unassigned = ShardRouting.newUnassigned(request.shardId(), true,
+                    RecoverySource.ExistingStoreRecoverySource.INSTANCE,
+                    new UnassignedInfo(UnassignedInfo.Reason.EXISTING_INDEX_RESTORED, "ephemeral"));
+                final ShardRouting initializing = unassigned.initialize(clusterService.localNode().getId(), null, 0L);
+
+                final PlainActionFuture<Boolean> recoveryCompleteListener = new PlainActionFuture<>();
+                indexShard = indexService.createShard(initializing, shardId -> { }, RetentionLeaseSyncer.EMPTY);
+                indexShard.markAsRecovering("ephemeral shard", new RecoveryState(initializing, clusterService.localNode(), null));
+                indexShard.recoverFromStore(recoveryCompleteListener);
+                recoveryCompleteListener.actionGet();
+                closeables.clear();
+            } finally {
+                if (closeables.isEmpty() == false) {
+                    IOUtils.closeWhileHandlingException(closeables);
+                }
             }
         }
         SearchShardTarget shardTarget = new SearchShardTarget(clusterService.localNode().getId(),
