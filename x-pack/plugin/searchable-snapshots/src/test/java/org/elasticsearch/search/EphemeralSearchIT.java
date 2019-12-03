@@ -11,6 +11,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
+import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
@@ -31,6 +32,7 @@ import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.EngineFactory;
 import org.elasticsearch.index.engine.ReadOnlyEngine;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.store.SearchableSnapshotDirectory;
 import org.elasticsearch.index.translog.TranslogStats;
@@ -53,8 +55,10 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -62,6 +66,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
+import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.SNAPSHOT_CODEC;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.SNAPSHOT_NAME_FORMAT;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
@@ -174,11 +179,18 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                 .put("location", repo)
                 .put("chunk_size", randomIntBetween(100, 1000), ByteSizeUnit.BYTES)));
 
-        createIndex(indexName);
-        indexRandom(true, client().prepareIndex(indexName).setSource("foo", "bar"));
+        createIndex(indexName, Settings.builder().put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1).build()); // TODO any number of shards
+        final List<IndexRequestBuilder> indexRequestBuilders = new ArrayList<>();
+        for (int i = between(10, 50); i >= 0; i--) {
+            indexRequestBuilders.add(client().prepareIndex(indexName).setSource("foo", randomBoolean() ? "bar" : "baz"));
+        }
+        indexRandom(true, indexRequestBuilders);
         flushAndRefresh(indexName);
 
-        final TotalHits originalTotalHits = internalCluster().client().prepareSearch(indexName).get().getHits().getTotalHits();
+        final TotalHits originalAllHits = internalCluster().client().prepareSearch(indexName).get().getHits().getTotalHits();
+        final TotalHits originalBarHits = internalCluster().client().prepareSearch(indexName)
+            .setQuery(matchQuery("foo", "bar")).get().getHits().getTotalHits();
+        logger.info("--> [{}] in total, of which [{}] match the query", originalAllHits, originalBarHits);
 
         CreateSnapshotResponse createSnapshotResponse = client().admin().cluster().prepareCreateSnapshot(repoName, snapshotName)
             .setWaitForCompletion(true).get();
@@ -221,8 +233,13 @@ public class EphemeralSearchIT extends ESIntegTestCase {
 
         indexCreatedLatch.await();
 
-        final TotalHits newTotalHits = internalCluster().client().prepareSearch(indexName).get().getHits().getTotalHits();
+        final TotalHits newAllHits = internalCluster().client().prepareSearch(indexName).get().getHits().getTotalHits();
+        final TotalHits newBarHits = internalCluster().client().prepareSearch(indexName)
+            .setQuery(matchQuery("foo", "bar")).get().getHits().getTotalHits();
 
-        assertThat(newTotalHits.value, equalTo(originalTotalHits.value));
+        logger.info("--> [{}] in total, of which [{}] match the query", newAllHits, newBarHits);
+
+        assertThat(newAllHits, equalTo(originalAllHits));
+        assertThat(newBarHits, equalTo(originalBarHits));
     }
 }

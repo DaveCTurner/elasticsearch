@@ -32,6 +32,7 @@ import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
@@ -646,8 +647,9 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         } else {
             final List<Closeable> closeables = new ArrayList<>(2);
             try {
+                final IndexMetaData indexMetaData = clusterService.state().metaData().index(request.shardId().getIndex());
                 indexService = indicesService.createIndexService(IndexService.IndexCreationContext.CREATE_INDEX,
-                    clusterService.state().metaData().index(request.shardId().getIndex()),
+                    indexMetaData,
                     new IndicesQueryCache(Settings.builder()
                         .put(INDICES_CACHE_QUERY_SIZE_SETTING.getKey(), "0b")
                         .put(INDICES_CACHE_QUERY_COUNT_SETTING.getKey(), 1).build()),
@@ -658,6 +660,9 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                     Collections.emptyList());
                 closeables.add(() -> indexService.removeShard(request.shardId().id(), "failed to create search context"));
                 closeables.add(() -> indexService.close("failed to create search context", true));
+
+                indexService.updateMetaData(indexMetaData, indexMetaData);
+                indexService.updateMapping(indexMetaData, indexMetaData);
 
                 final ShardRouting unassigned = ShardRouting.newUnassigned(request.shardId(), true,
                     RecoverySource.ExistingStoreRecoverySource.INSTANCE,
