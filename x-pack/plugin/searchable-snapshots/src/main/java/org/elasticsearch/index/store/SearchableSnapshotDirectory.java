@@ -36,7 +36,7 @@ public class SearchableSnapshotDirectory extends BaseDirectory {
     private final BlobStoreIndexShardSnapshot snapshot;
     private final BlobBytesReader reader;
 
-    protected SearchableSnapshotDirectory(final BlobStoreIndexShardSnapshot snapshot, final BlobBytesReader reader) {
+    public SearchableSnapshotDirectory(final BlobStoreIndexShardSnapshot snapshot, final BlobBytesReader reader) {
         super(new SingleInstanceLockFactory());
         this.snapshot = Objects.requireNonNull(snapshot);
         this.reader = Objects.requireNonNull(reader);

@@ -50,6 +50,7 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
+import org.elasticsearch.cluster.routing.OperationRouting;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -1520,7 +1521,13 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         // acquiring a snapshot from the translog causes a sync which causes the global checkpoint to be pulled in,
         // and an engine can be forced to close in ctor which also causes the global checkpoint to be pulled in.
         final String translogUUID = store.readLastCommittedSegmentsInfo().getUserData().get(Translog.TRANSLOG_UUID_KEY);
-        final long globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID);
+
+        final long globalCheckpoint;
+        if (indexSettings.getSettings().hasValue(OperationRouting.EPHEMERAL_INDEX_REPOSITORY_SETTING.getKey())) {
+            globalCheckpoint = Long.parseLong(store.readLastCommittedSegmentsInfo().getUserData().get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
+        } else {
+            globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID);
+        }
         replicationTracker.updateGlobalCheckpointOnReplica(globalCheckpoint, "read from translog checkpoint");
     }
 
