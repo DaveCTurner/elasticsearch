@@ -19,6 +19,7 @@
 
 package org.elasticsearch.cluster.routing;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -50,10 +51,12 @@ public class OperationRouting {
             Setting.boolSetting("cluster.routing.use_adaptive_replica_selection", true,
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
-    public static final Setting<String> EPHEMERAL_INDEX_SNAPSHOT_SETTING =
-        Setting.simpleString("index.ephemeral.snapshot", Setting.Property.IndexScope, Setting.Property.PrivateIndex);
     public static final Setting<String> EPHEMERAL_INDEX_REPOSITORY_SETTING =
         Setting.simpleString("index.ephemeral.repository", Setting.Property.IndexScope, Setting.Property.PrivateIndex);
+    public static final Setting<String> EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING =
+        Setting.simpleString("index.ephemeral.snapshot_name", Setting.Property.IndexScope, Setting.Property.PrivateIndex);
+    public static final Setting<String> EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING =
+        Setting.simpleString("index.ephemeral.snapshot_uuid", Setting.Property.IndexScope, Setting.Property.PrivateIndex);
 
     private boolean useAdaptiveReplicaSelection;
 
@@ -119,22 +122,26 @@ public class OperationRouting {
 
             final IndexMetaData indexMetaData = indexMetaData(clusterState, index);
             if (indexMetaData.getSettings().hasValue(EPHEMERAL_INDEX_REPOSITORY_SETTING.getKey())
-                && indexMetaData.getSettings().hasValue(EPHEMERAL_INDEX_SNAPSHOT_SETTING.getKey())) {
+                && indexMetaData.getSettings().hasValue(EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING.getKey())
+                && indexMetaData.getSettings().hasValue(EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING.getKey())) {
 
                 final List<DiscoveryNode> dataNodes
                     = StreamSupport.stream(clusterState.nodes().getDataNodes().values().spliterator(), false)
                     .map(c -> c.value).collect(Collectors.toList());
 
                 if (dataNodes.size() > 0) {
+                    final RecoverySource.SnapshotRecoverySource snapshotRecoverySource = new RecoverySource.SnapshotRecoverySource("_na_",
+                        new Snapshot(EPHEMERAL_INDEX_REPOSITORY_SETTING.get(indexMetaData.getSettings()),
+                            new SnapshotId(EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING.get(indexMetaData.getSettings()),
+                                EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING.get(indexMetaData.getSettings()))),
+                        Version.CURRENT, index);
+
                     for (int shardNumber = 0; shardNumber < indexMetaData.getNumberOfShards(); shardNumber++) {
-                        final ShardId shardId = new ShardId(indexMetaData.getIndex(), shardNumber,
-                            new Snapshot(EPHEMERAL_INDEX_REPOSITORY_SETTING.get(indexMetaData.getSettings()),
-                                new SnapshotId(EPHEMERAL_INDEX_SNAPSHOT_SETTING.get(indexMetaData.getSettings()), "_na_")));
-                        final ShardRouting unassigned = ShardRouting.newUnassigned(shardId, true,
-                            RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-                            new UnassignedInfo(UnassignedInfo.Reason.EXISTING_INDEX_RESTORED, "ephemeral"));
-                        final ShardRouting initializing = unassigned.initialize(dataNodes.get(0).getId(), null, 0L);
-                        set.add(new IndexShardRoutingTable.Builder(shardId).addShard(initializing).build());
+                        final ShardId shardId = new ShardId(indexMetaData.getIndex(), shardNumber);
+                        final ShardRouting shardRouting = ShardRouting.newUnassigned(shardId, true, snapshotRecoverySource,
+                            new UnassignedInfo(UnassignedInfo.Reason.REINITIALIZED, "ephemeral"))
+                            .initialize(dataNodes.get(0).getId(), null, 0L);
+                        set.add(new IndexShardRoutingTable.Builder(shardId).addShard(shardRouting).build());
                     }
                     continue;
                 }

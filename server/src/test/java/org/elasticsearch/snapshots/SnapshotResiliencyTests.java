@@ -1177,7 +1177,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 final SearchTransportService searchTransportService = new SearchTransportService(transportService,
                     SearchExecutionStatsCollector.makeWrapper(responseCollectorService));
                 final SearchService searchService = new SearchService(clusterService, indicesService, threadPool, scriptService,
-                    bigArrays, new FetchPhase(Collections.emptyList()), responseCollectorService);
+                    bigArrays, new FetchPhase(Collections.emptyList()), responseCollectorService, repositoriesService);
                 actions.put(SearchAction.INSTANCE,
                     new TransportSearchAction(threadPool, transportService, searchService,
                         searchTransportService, new SearchPhaseController(searchService::createReduceContext), clusterService,

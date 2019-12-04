@@ -30,11 +30,14 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.search.TransportSearchAction.SearchTimeProvider;
 import org.elasticsearch.action.support.TransportActions;
 import org.elasticsearch.cluster.routing.GroupShardsIterator;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.search.SearchPhaseResult;
+import org.elasticsearch.search.SearchService;
 import org.elasticsearch.search.SearchShardTarget;
 import org.elasticsearch.search.internal.AliasFilter;
 import org.elasticsearch.search.internal.InternalSearchResponse;
@@ -53,6 +56,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyMap;
 
 /**
  * This is an abstract base class that encapsulates the logic to fan out to all shards in provided {@link GroupShardsIterator}
@@ -591,8 +596,27 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         String indexName = shardIt.shardId().getIndex().getName();
         final String[] routings = indexRoutings.getOrDefault(indexName, Collections.emptySet())
             .toArray(new String[0]);
+
+        final Map<String, String> extraContext;
+        final ShardRouting shardRouting = shardIt.getShardRoutings().get(0);
+        if (shardRouting.initializing() &&
+            shardRouting.unassignedInfo().getReason() == UnassignedInfo.Reason.REINITIALIZED &&
+            shardRouting.recoverySource() instanceof RecoverySource.SnapshotRecoverySource) {
+
+            RecoverySource.SnapshotRecoverySource snapshotRecoverySource
+                = (RecoverySource.SnapshotRecoverySource) shardRouting.recoverySource();
+
+            extraContext = Map.of(
+                SearchService.EXTRA_CONTEXT_TYPE_KEY, SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL,
+                SearchService.EXTRA_CONTEXT_REPOSITORY_KEY, snapshotRecoverySource.snapshot().getRepository(),
+                SearchService.EXTRA_CONTEXT_SNAPSHOT_NAME_KEY, snapshotRecoverySource.snapshot().getSnapshotId().getName(),
+                SearchService.EXTRA_CONTEXT_SNAPSHOT_UUID_KEY, snapshotRecoverySource.snapshot().getSnapshotId().getUUID());
+        } else {
+            extraContext = emptyMap();
+        }
+
         return new ShardSearchRequest(shardIt.getOriginalIndices(), request, shardIt.shardId(), getNumShards(),
-            filter, indexBoost, timeProvider.getAbsoluteStartMillis(), shardIt.getClusterAlias(), routings);
+            filter, indexBoost, timeProvider.getAbsoluteStartMillis(), shardIt.getClusterAlias(), routings, extraContext);
     }
 
     /**

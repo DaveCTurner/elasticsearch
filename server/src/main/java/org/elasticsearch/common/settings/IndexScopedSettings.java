@@ -165,7 +165,8 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
             IndexSettings.FINAL_PIPELINE,
             MetaDataIndexStateService.VERIFIED_BEFORE_CLOSE_SETTING,
             OperationRouting.EPHEMERAL_INDEX_REPOSITORY_SETTING,
-            OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_SETTING,
+            OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING,
+            OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING,
 
             // validate that built-in similarities don't get redefined
             Setting.groupSetting(

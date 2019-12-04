@@ -186,7 +186,7 @@ final class DefaultSearchContext extends SearchContext {
     }
 
     private void closeIndexServiceIfEphemeral() {
-        if (request.shardId().snapshot() != null) {
+        if (SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL.equals(request.extraContext().get(SearchService.EXTRA_CONTEXT_TYPE_KEY))) {
             try {
                 IOUtils.close(
                     () -> indexService.removeShard(request.shardId().id(), "after search"),
@@ -194,6 +194,8 @@ final class DefaultSearchContext extends SearchContext {
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+        } else {
+            assert request.extraContext().get(SearchService.EXTRA_CONTEXT_TYPE_KEY) == null;
         }
     }
 

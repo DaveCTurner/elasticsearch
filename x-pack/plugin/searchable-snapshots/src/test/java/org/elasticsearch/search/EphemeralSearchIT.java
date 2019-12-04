@@ -32,7 +32,6 @@ import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.EngineFactory;
 import org.elasticsearch.index.engine.ReadOnlyEngine;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.store.SearchableSnapshotDirectory;
 import org.elasticsearch.index.translog.TranslogStats;
@@ -114,7 +113,7 @@ public class EphemeralSearchIT extends ESIntegTestCase {
 
                 repositoryDataFuture.whenComplete(repositoryData -> ActionListener.completeWith(directoryFuture, () -> {
 
-                    final String snapshotName = OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_SETTING.get(indexSettings.getSettings());
+                    final String snapshotName = OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING.get(indexSettings.getSettings());
 
                     final SnapshotId snapshotId = repositoryData.getSnapshotIds().stream()
                         .filter(s -> s.getName().equals(snapshotName))
@@ -198,6 +197,12 @@ public class EphemeralSearchIT extends ESIntegTestCase {
         assertThat(snapshotInfo.successfulShards(), greaterThan(0));
         assertThat(snapshotInfo.successfulShards(), equalTo(snapshotInfo.totalShards()));
 
+        final PlainActionFuture<RepositoryData> repositoryDataFuture = new PlainActionFuture<>();
+        final String masterName = internalCluster().getMasterName();
+        internalCluster().getInstance(ThreadPool.class, masterName).generic().execute(() ->
+            internalCluster().getInstance(RepositoriesService.class, masterName).repository(repoName).getRepositoryData(repositoryDataFuture));
+        final IndexId indexId = repositoryDataFuture.actionGet().resolveIndexId(indexName);
+
         final IndexMetaData indexMetaData = client().admin().cluster().prepareState().get().getState().metaData().index(indexName);
 
         assertAcked(client().admin().indices().prepareDelete(indexName));
@@ -205,16 +210,22 @@ public class EphemeralSearchIT extends ESIntegTestCase {
         final AllocationService allocationService = internalCluster().getInstance(AllocationService.class, internalCluster().getMasterName());
         final ClusterService clusterService = internalCluster().getInstance(ClusterService.class, internalCluster().getMasterName());
 
+        logger.info("--> repo at [{}]", repo);
+
         final CountDownLatch indexCreatedLatch = new CountDownLatch(1);
         clusterService.submitStateUpdateTask("test",
             new ClusterStateUpdateTask() {
                 @Override
                 public ClusterState execute(ClusterState currentState) {
                     return allocationService.reroute(ClusterState.builder(currentState).metaData(MetaData.builder(currentState.metaData())
-                        .put(IndexMetaData.builder(indexMetaData).settings(Settings.builder()
-                            .put(indexMetaData.getSettings())
+                        .put(IndexMetaData.builder(indexName).settings(Settings.builder()
+                            .put(IndexMetaData.SETTING_INDEX_UUID, indexId.getId())
+                            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, indexMetaData.getNumberOfShards())
+                            .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 0)
+                            .put(IndexMetaData.SETTING_VERSION_CREATED, indexMetaData.getCreationVersion())
                             .put(OperationRouting.EPHEMERAL_INDEX_REPOSITORY_SETTING.getKey(), repoName)
-                            .put(OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_SETTING.getKey(), snapshotName)
+                            .put(OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING.getKey(), snapshotName)
+                            .put(OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING.getKey(), snapshotInfo.snapshotId().getUUID())
                             .put(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), "ephemeral")
                             .build()
                         ))).build(), "adding ephemeral index");

@@ -56,6 +56,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Function;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
 /**
  * Shard level request that represents a search.
  * It provides all the methods that the {@link SearchContext} needs.
@@ -74,6 +77,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
     private final String[] indexRoutings;
     private final String preference;
     private final OriginalIndices originalIndices;
+    private final Map<String, String> extraContext;
 
     //these are the only two mutable fields, as they are subject to rewriting
     private AliasFilter aliasFilter;
@@ -88,6 +92,20 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
                               long nowInMillis,
                               @Nullable String clusterAlias,
                               String[] indexRoutings) {
+        this(originalIndices, searchRequest, shardId, numberOfShards, aliasFilter, indexBoost, nowInMillis, clusterAlias, indexRoutings,
+            emptyMap());
+    }
+
+    public ShardSearchRequest(OriginalIndices originalIndices,
+                              SearchRequest searchRequest,
+                              ShardId shardId,
+                              int numberOfShards,
+                              AliasFilter aliasFilter,
+                              float indexBoost,
+                              long nowInMillis,
+                              @Nullable String clusterAlias,
+                              String[] indexRoutings,
+                              Map<String, String> extraContext) {
         this(originalIndices,
             shardId,
             numberOfShards,
@@ -101,7 +119,8 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
             searchRequest.preference(),
             searchRequest.scroll(),
             nowInMillis,
-            clusterAlias);
+            clusterAlias,
+            extraContext);
         // If allowPartialSearchResults is unset (ie null), the cluster-level default should have been substituted
         // at this stage. Any NPEs in the above are therefore an error in request preparation logic.
         assert searchRequest.allowPartialSearchResults() != null;
@@ -111,7 +130,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
                               long nowInMillis,
                               AliasFilter aliasFilter) {
         this(OriginalIndices.NONE, shardId, -1, null, null, null,
-            aliasFilter, 1.0f, false, Strings.EMPTY_ARRAY, null, null, nowInMillis, null);
+            aliasFilter, 1.0f, false, Strings.EMPTY_ARRAY, null, null, nowInMillis, null, emptyMap());
     }
 
     private ShardSearchRequest(OriginalIndices originalIndices,
@@ -127,7 +146,8 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
                                String preference,
                                Scroll scroll,
                                long nowInMillis,
-                               @Nullable String clusterAlias) {
+                               @Nullable String clusterAlias,
+                               Map<String, String> extraContext) {
         this.shardId = shardId;
         this.numberOfShards = numberOfShards;
         this.searchType = searchType;
@@ -142,6 +162,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.nowInMillis = nowInMillis;
         this.clusterAlias = clusterAlias;
         this.originalIndices = originalIndices;
+        this.extraContext = unmodifiableMap(extraContext);
     }
 
     public ShardSearchRequest(StreamInput in) throws IOException {
@@ -167,6 +188,11 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         allowPartialSearchResults = in.readBoolean();
         indexRoutings = in.readStringArray();
         preference = in.readOptionalString();
+        if (in.getVersion().before(Version.V_8_0_0)) {
+            extraContext = emptyMap();
+        } else {
+            extraContext = unmodifiableMap(in.readMap(StreamInput::readString, StreamInput::readString));
+        }
         originalIndices = OriginalIndices.readOriginalIndices(in);
     }
 
@@ -200,6 +226,9 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         if (asKey == false) {
             out.writeStringArray(indexRoutings);
             out.writeOptionalString(preference);
+        }
+        if (out.getVersion().onOrAfter(Version.V_8_0_0)) {
+            out.writeMap(extraContext, StreamOutput::writeString, StreamOutput::writeString);
         }
     }
 
@@ -273,6 +302,10 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
 
     public String preference() {
         return preference;
+    }
+
+    public Map<String, String> extraContext() {
+        return extraContext;
     }
 
     /**
