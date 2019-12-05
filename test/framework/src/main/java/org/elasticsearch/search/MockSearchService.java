@@ -24,7 +24,6 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.fetch.FetchPhase;
 import org.elasticsearch.search.internal.SearchContext;
@@ -68,9 +67,9 @@ public class MockSearchService extends SearchService {
     }
 
     public MockSearchService(ClusterService clusterService,
-                             IndicesService indicesService, ThreadPool threadPool, ScriptService scriptService,
-                             BigArrays bigArrays, FetchPhase fetchPhase, RepositoriesService repositoriesService) {
-        super(clusterService, indicesService, threadPool, scriptService, bigArrays, fetchPhase, null, repositoriesService);
+            IndicesService indicesService, ThreadPool threadPool, ScriptService scriptService,
+            BigArrays bigArrays, FetchPhase fetchPhase) {
+        super(clusterService, indicesService, threadPool, scriptService, bigArrays, fetchPhase, null);
     }
 
     @Override

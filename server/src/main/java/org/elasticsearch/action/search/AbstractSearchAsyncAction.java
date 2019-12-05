@@ -36,6 +36,7 @@ import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.SearchPhaseResult;
 import org.elasticsearch.search.SearchService;
 import org.elasticsearch.search.SearchShardTarget;
@@ -591,6 +592,9 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     @Override
     public final ShardSearchRequest buildShardSearchRequest(SearchShardIterator shardIt) {
         AliasFilter filter = aliasFilter.get(shardIt.shardId().getIndex().getUUID());
+        if (filter == null) {
+            filter = new AliasFilter((QueryBuilder)null); // TODO need plumbing for ephemeral alias filters too
+        }
         assert filter != null;
         float indexBoost = concreteIndexBoosts.getOrDefault(shardIt.shardId().getIndex().getUUID(), DEFAULT_INDEX_BOOST);
         String indexName = shardIt.shardId().getIndex().getName();

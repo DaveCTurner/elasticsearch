@@ -72,6 +72,7 @@ import org.elasticsearch.search.slice.SliceBuilder;
 import org.elasticsearch.search.sort.SortAndFormats;
 import org.elasticsearch.search.suggest.SuggestionSearchContext;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -90,6 +91,7 @@ final class DefaultSearchContext extends SearchContext {
     private SearchType searchType;
     private final Engine.Searcher engineSearcher;
     private final BigArrays bigArrays;
+    private final Closeable releaseIndexService;
     private final IndexShard indexShard;
     private final ClusterService clusterService;
     private final IndexService indexService;
@@ -156,7 +158,7 @@ final class DefaultSearchContext extends SearchContext {
     DefaultSearchContext(long id, ShardSearchRequest request, SearchShardTarget shardTarget,
                          Engine.Searcher engineSearcher, ClusterService clusterService, IndexService indexService,
                          IndexShard indexShard, BigArrays bigArrays, LongSupplier relativeTimeSupplier, TimeValue timeout,
-                         FetchPhase fetchPhase) {
+                         FetchPhase fetchPhase, Closeable releaseIndexService) {
         this.id = id;
         this.request = request;
         this.fetchPhase = fetchPhase;
@@ -170,6 +172,7 @@ final class DefaultSearchContext extends SearchContext {
         this.fetchResult = new FetchSearchResult(id, shardTarget);
         this.indexShard = indexShard;
         this.indexService = indexService;
+        this.releaseIndexService = releaseIndexService;
         this.clusterService = clusterService;
         this.searcher = new ContextIndexSearcher(engineSearcher.getIndexReader(), engineSearcher.getSimilarity(),
             engineSearcher.getQueryCache(), engineSearcher.getQueryCachingPolicy());
@@ -182,20 +185,14 @@ final class DefaultSearchContext extends SearchContext {
 
     @Override
     public void doClose() {
-        Releasables.close(engineSearcher, this::closeIndexServiceIfEphemeral);
+        Releasables.close(engineSearcher, this::closeIndexService);
     }
 
-    private void closeIndexServiceIfEphemeral() {
-        if (SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL.equals(request.extraContext().get(SearchService.EXTRA_CONTEXT_TYPE_KEY))) {
-            try {
-                IOUtils.close(
-                    () -> indexService.removeShard(request.shardId().id(), "after search"),
-                    () -> indexService.close("after search", true));
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        } else {
-            assert request.extraContext().get(SearchService.EXTRA_CONTEXT_TYPE_KEY) == null;
+    private void closeIndexService() {
+        try {
+            IOUtils.close(releaseIndexService);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

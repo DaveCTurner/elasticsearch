@@ -20,7 +20,6 @@ package org.elasticsearch.common.settings;
 
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaDataIndexStateService;
-import org.elasticsearch.cluster.routing.OperationRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.MaxRetryAllocationDecider;
@@ -164,9 +163,6 @@ public final class IndexScopedSettings extends AbstractScopedSettings {
             IndexSettings.DEFAULT_PIPELINE,
             IndexSettings.FINAL_PIPELINE,
             MetaDataIndexStateService.VERIFIED_BEFORE_CLOSE_SETTING,
-            OperationRouting.EPHEMERAL_INDEX_REPOSITORY_SETTING,
-            OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_NAME_SETTING,
-            OperationRouting.EPHEMERAL_INDEX_SNAPSHOT_UUID_SETTING,
 
             // validate that built-in similarities don't get redefined
             Setting.groupSetting(

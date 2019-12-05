@@ -39,7 +39,6 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.MockSearchService;
 import org.elasticsearch.search.SearchService;
@@ -125,13 +124,12 @@ public class MockNode extends Node {
     @Override
     protected SearchService newSearchService(ClusterService clusterService, IndicesService indicesService,
                                              ThreadPool threadPool, ScriptService scriptService, BigArrays bigArrays,
-                                             FetchPhase fetchPhase, ResponseCollectorService responseCollectorService,
-                                             RepositoriesService repositoriesService) {
+                                             FetchPhase fetchPhase, ResponseCollectorService responseCollectorService) {
         if (getPluginsService().filterPlugins(MockSearchService.TestPlugin.class).isEmpty()) {
             return super.newSearchService(clusterService, indicesService, threadPool, scriptService, bigArrays, fetchPhase,
-                responseCollectorService, repositoriesService);
+                responseCollectorService);
         }
-        return new MockSearchService(clusterService, indicesService, threadPool, scriptService, bigArrays, fetchPhase, repositoriesService);
+        return new MockSearchService(clusterService, indicesService, threadPool, scriptService, bigArrays, fetchPhase);
     }
 
     @Override
