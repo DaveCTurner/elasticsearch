@@ -53,6 +53,7 @@ import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.CheckedConsumer;
 import org.elasticsearch.common.CheckedFunction;
@@ -1522,8 +1523,12 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         final String translogUUID = store.readLastCommittedSegmentsInfo().getUserData().get(Translog.TRANSLOG_UUID_KEY);
 
         final long globalCheckpoint;
-        if (indexSettings.getSettings().hasValue("index.ephemeral.repository")) {
-            globalCheckpoint = Long.parseLong(store.readLastCommittedSegmentsInfo().getUserData().get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
+        final UnassignedInfo unassignedInfo = shardRouting.unassignedInfo();
+        assert unassignedInfo != null : shardRouting;
+        if (unassignedInfo.getReason() == UnassignedInfo.Reason.EXISTING_INDEX_RESTORED) {
+            // if recovering from a snapshot we have created a translog with a global checkpoint set to the local checkpoint of the commit
+            globalCheckpoint = Long.parseLong(
+                store.readLastCommittedSegmentsInfo().getUserData().get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
         } else {
             globalCheckpoint = Translog.readGlobalCheckpoint(translogConfig.getTranslogPath(), translogUUID);
         }
