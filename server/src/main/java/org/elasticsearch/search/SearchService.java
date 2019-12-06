@@ -32,6 +32,7 @@ import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.search.SearchShardIterator;
 import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
@@ -709,7 +710,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     @FunctionalInterface
     public interface ExtraIndicesResolver {
-        void resolveExtraIndices(ClusterState clusterState, OriginalIndices originalIndices,
+        void resolveExtraIndices(ClusterState clusterState, long absoluteStartTimeMillis, OriginalIndices originalIndices,
                                  ActionListener<ExtraIndicesResolverResponse> listener);
     }
 
@@ -723,7 +724,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         }
     }
 
-    public void resolveExtraIndices(ClusterState clusterState, OriginalIndices allLocalIndices,
+    public void resolveExtraIndices(ClusterState clusterState, long absoluteStartTimeMillis, OriginalIndices allLocalIndices,
                                     ActionListener<ExtraIndicesResolverResponse> listener) {
 
         final List<SearchShardIterator> iterators = new ArrayList<>();
@@ -736,7 +737,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             final StepListener<OriginalIndices> nextFuture = new StepListener<>();
 
             future.whenComplete(originalIndices -> {
-                extraIndicesResolver.resolveExtraIndices(clusterState, originalIndices, ActionListener.wrap(t -> {
+                extraIndicesResolver.resolveExtraIndices(clusterState, absoluteStartTimeMillis, originalIndices, ActionListener.wrap(t -> {
                     synchronized (iterators) {
                         iterators.addAll(t.extraIndices);
                     }

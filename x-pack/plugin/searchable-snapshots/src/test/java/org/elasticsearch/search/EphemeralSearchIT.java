@@ -16,6 +16,8 @@ import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.search.AbstractSearchAsyncAction;
+import org.elasticsearch.action.search.SearchPhaseContext;
 import org.elasticsearch.action.search.SearchShardIterator;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.Client;
@@ -48,6 +50,7 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.EngineFactory;
 import org.elasticsearch.index.engine.ReadOnlyEngine;
 import org.elasticsearch.index.fielddata.IndexFieldDataCache;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.seqno.RetentionLeaseSyncer;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
@@ -69,6 +72,7 @@ import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.repositories.blobstore.ChecksumBlobStoreFormat;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.internal.AliasFilter;
 import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotId;
@@ -97,6 +101,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.elasticsearch.cluster.metadata.MetaData.ALL_CONTEXTS;
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
@@ -280,7 +285,8 @@ public class EphemeralSearchIT extends ESIntegTestCase {
             }
         }
 
-        void resolveExtraIndices(ClusterState clusterState, OriginalIndices originalIndices, ActionListener<SearchService.ExtraIndicesResolverResponse> listener) {
+        void resolveExtraIndices(ClusterState clusterState, long absoluteStartTimeMillis, OriginalIndices originalIndices,
+                                 ActionListener<SearchService.ExtraIndicesResolverResponse> listener) {
             final EphemeralIndexDescription ephemeralIndexDescription = clusterState.metaData().custom(EphemeralIndexDescription.NAME);
             if (ephemeralIndexDescription == null
                 || Arrays.stream(originalIndices.indices()).anyMatch(s -> s.equals(ephemeralIndexDescription.alias)) == false) {
@@ -305,7 +311,23 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                         final ShardRouting shardRouting = ShardRouting.newUnassigned(shardId, true, snapshotRecoverySource,
                             new UnassignedInfo(UnassignedInfo.Reason.REINITIALIZED, "ephemeral"))
                             .initialize(discoveryNode.getId(), null, 0L);
-                        shardIterators.add(new SearchShardIterator(null, shardId, singletonList(shardRouting), ephemeralIndex));
+                        shardIterators.add(new SearchShardIterator(null, shardId, singletonList(shardRouting), ephemeralIndex) {
+                            @Override
+                            public ShardSearchRequest buildShardSearchRequest(SearchPhaseContext searchPhaseContext) {
+
+                                final Map<String, String> extraContext = Map.of(
+                                    SearchService.EXTRA_CONTEXT_TYPE_KEY, SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL,
+                                    SearchService.EXTRA_CONTEXT_REPOSITORY_KEY, ephemeralIndexDescription.repositoryName,
+                                    SearchService.EXTRA_CONTEXT_SNAPSHOT_NAME_KEY, snapshotId.getName(),
+                                    SearchService.EXTRA_CONTEXT_SNAPSHOT_UUID_KEY, snapshotId.getUUID());
+
+                                // default to no AliasFilter and an IndexBoost of 1.0f here, TODO TBD do we want to support other values here?
+
+                                return new ShardSearchRequest(getOriginalIndices(), searchPhaseContext.getRequest(), shardId,
+                                    searchPhaseContext.getNumShards(), new AliasFilter((QueryBuilder) null), 1.0f, absoluteStartTimeMillis,
+                                    null, new String[0], extraContext);
+                            }
+                        });
                     }
 
                     final OriginalIndices remainingIndices = new OriginalIndices(Arrays.stream(originalIndices.indices())

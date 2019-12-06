@@ -30,15 +30,11 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.search.TransportSearchAction.SearchTimeProvider;
 import org.elasticsearch.action.support.TransportActions;
 import org.elasticsearch.cluster.routing.GroupShardsIterator;
-import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
-import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.SearchPhaseResult;
-import org.elasticsearch.search.SearchService;
 import org.elasticsearch.search.SearchShardTarget;
 import org.elasticsearch.search.internal.AliasFilter;
 import org.elasticsearch.search.internal.InternalSearchResponse;
@@ -58,8 +54,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import static java.util.Collections.emptyMap;
-
 /**
  * This is an abstract base class that encapsulates the logic to fan out to all shards in provided {@link GroupShardsIterator}
  * and collect the results. If a shard request returns a failure this class handles the advance to the next replica of the shard until
@@ -68,7 +62,7 @@ import static java.util.Collections.emptyMap;
  * The fan out and collect algorithm is traditionally used as the initial phase which can either be a query execution or collection of
  * distributed frequencies
  */
-abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> extends SearchPhase implements SearchPhaseContext {
+public abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> extends SearchPhase implements SearchPhaseContext {
     private static final float DEFAULT_INDEX_BOOST = 1.0f;
     private final Logger logger;
     private final SearchTransportService searchTransportService;
@@ -592,35 +586,13 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     @Override
     public final ShardSearchRequest buildShardSearchRequest(SearchShardIterator shardIt) {
         AliasFilter filter = aliasFilter.get(shardIt.shardId().getIndex().getUUID());
-        if (filter == null) {
-            filter = new AliasFilter((QueryBuilder)null); // TODO need plumbing for ephemeral alias filters too
-        }
         assert filter != null;
         float indexBoost = concreteIndexBoosts.getOrDefault(shardIt.shardId().getIndex().getUUID(), DEFAULT_INDEX_BOOST);
         String indexName = shardIt.shardId().getIndex().getName();
         final String[] routings = indexRoutings.getOrDefault(indexName, Collections.emptySet())
             .toArray(new String[0]);
-
-        final Map<String, String> extraContext;
-        final ShardRouting shardRouting = shardIt.getShardRoutings().get(0);
-        if (shardRouting.initializing() &&
-            shardRouting.unassignedInfo().getReason() == UnassignedInfo.Reason.REINITIALIZED &&
-            shardRouting.recoverySource() instanceof RecoverySource.SnapshotRecoverySource) {
-
-            RecoverySource.SnapshotRecoverySource snapshotRecoverySource
-                = (RecoverySource.SnapshotRecoverySource) shardRouting.recoverySource();
-
-            extraContext = Map.of(
-                SearchService.EXTRA_CONTEXT_TYPE_KEY, SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL,
-                SearchService.EXTRA_CONTEXT_REPOSITORY_KEY, snapshotRecoverySource.snapshot().getRepository(),
-                SearchService.EXTRA_CONTEXT_SNAPSHOT_NAME_KEY, snapshotRecoverySource.snapshot().getSnapshotId().getName(),
-                SearchService.EXTRA_CONTEXT_SNAPSHOT_UUID_KEY, snapshotRecoverySource.snapshot().getSnapshotId().getUUID());
-        } else {
-            extraContext = emptyMap();
-        }
-
         return new ShardSearchRequest(shardIt.getOriginalIndices(), request, shardIt.shardId(), getNumShards(),
-            filter, indexBoost, timeProvider.getAbsoluteStartMillis(), shardIt.getClusterAlias(), routings, extraContext);
+            filter, indexBoost, timeProvider.getAbsoluteStartMillis(), shardIt.getClusterAlias(), routings);
     }
 
     /**

@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.search.SearchShardTarget;
+import org.elasticsearch.search.internal.ShardSearchRequest;
 
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +37,7 @@ import java.util.Objects;
  * the cluster alias.
  * @see OriginalIndices
  */
-public final class SearchShardIterator extends PlainShardIterator {
+public class SearchShardIterator extends PlainShardIterator {
 
     private final OriginalIndices originalIndices;
     private final String clusterAlias;
@@ -78,6 +79,10 @@ public final class SearchShardIterator extends PlainShardIterator {
      */
     SearchShardTarget newSearchShardTarget(String nodeId) {
         return new SearchShardTarget(nodeId, shardId(), clusterAlias, originalIndices);
+    }
+
+    public ShardSearchRequest buildShardSearchRequest(SearchPhaseContext searchPhaseContext) {
+        return searchPhaseContext.buildShardSearchRequest(this);
     }
 
     /**

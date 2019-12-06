@@ -210,38 +210,39 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                 searchRequest.indices());
             final OriginalIndices allLocalIndices = remoteClusterIndices.remove(RemoteClusterAware.LOCAL_CLUSTER_GROUP_KEY);
 
-            searchService.resolveExtraIndices(clusterState, allLocalIndices, ActionListener.wrap(localAndExtraIndices -> {
-                final OriginalIndices localIndices = localAndExtraIndices.originalIndices;
-                final List<SearchShardIterator> extraShardIterators = localAndExtraIndices.extraIndices;
+            searchService.resolveExtraIndices(clusterState, timeProvider.getAbsoluteStartMillis(), allLocalIndices,
+                ActionListener.wrap(localAndExtraIndices -> {
+                    final OriginalIndices localIndices = localAndExtraIndices.originalIndices;
+                    final List<SearchShardIterator> extraShardIterators = localAndExtraIndices.extraIndices;
 
-                if (remoteClusterIndices.isEmpty()) {
-                    executeLocalSearch(task, timeProvider, searchRequest, localIndices, extraShardIterators, clusterState, listener);
-                } else {
-                    if (shouldMinimizeRoundtrips(searchRequest)) {
-                        ccsRemoteReduce(searchRequest, localIndices, remoteClusterIndices, timeProvider, searchService::createReduceContext,
-                            remoteClusterService, threadPool, listener,
-                            (r, l) -> executeLocalSearch(task, timeProvider, r, localIndices, extraShardIterators, clusterState, l));
+                    if (remoteClusterIndices.isEmpty()) {
+                        executeLocalSearch(task, timeProvider, searchRequest, localIndices, extraShardIterators, clusterState, listener);
                     } else {
-                        AtomicInteger skippedClusters = new AtomicInteger(0);
-                        collectSearchShards(searchRequest.indicesOptions(), searchRequest.preference(), searchRequest.routing(),
-                            skippedClusters, remoteClusterIndices, remoteClusterService, threadPool,
-                            ActionListener.wrap(
-                                searchShardsResponses -> {
-                                    List<SearchShardIterator> remoteShardIterators = new ArrayList<>(extraShardIterators);
-                                    Map<String, AliasFilter> remoteAliasFilters = new HashMap<>();
-                                    BiFunction<String, String, DiscoveryNode> clusterNodeLookup = processRemoteShards(
-                                        searchShardsResponses, remoteClusterIndices, remoteShardIterators, remoteAliasFilters);
-                                    int localClusters = localIndices == null ? 0 : 1;
-                                    int totalClusters = remoteClusterIndices.size() + localClusters;
-                                    int successfulClusters = searchShardsResponses.size() + localClusters;
-                                    executeSearch((SearchTask) task, timeProvider, searchRequest, localIndices,
-                                        remoteShardIterators, clusterNodeLookup, clusterState, remoteAliasFilters, listener,
-                                        new SearchResponse.Clusters(totalClusters, successfulClusters, skippedClusters.get()));
-                                },
-                                listener::onFailure));
+                        if (shouldMinimizeRoundtrips(searchRequest)) {
+                            ccsRemoteReduce(searchRequest, localIndices, remoteClusterIndices, timeProvider, searchService::createReduceContext,
+                                remoteClusterService, threadPool, listener,
+                                (r, l) -> executeLocalSearch(task, timeProvider, r, localIndices, extraShardIterators, clusterState, l));
+                        } else {
+                            AtomicInteger skippedClusters = new AtomicInteger(0);
+                            collectSearchShards(searchRequest.indicesOptions(), searchRequest.preference(), searchRequest.routing(),
+                                skippedClusters, remoteClusterIndices, remoteClusterService, threadPool,
+                                ActionListener.wrap(
+                                    searchShardsResponses -> {
+                                        List<SearchShardIterator> remoteShardIterators = new ArrayList<>(extraShardIterators);
+                                        Map<String, AliasFilter> remoteAliasFilters = new HashMap<>();
+                                        BiFunction<String, String, DiscoveryNode> clusterNodeLookup = processRemoteShards(
+                                            searchShardsResponses, remoteClusterIndices, remoteShardIterators, remoteAliasFilters);
+                                        int localClusters = localIndices == null ? 0 : 1;
+                                        int totalClusters = remoteClusterIndices.size() + localClusters;
+                                        int successfulClusters = searchShardsResponses.size() + localClusters;
+                                        executeSearch((SearchTask) task, timeProvider, searchRequest, localIndices,
+                                            remoteShardIterators, clusterNodeLookup, clusterState, remoteAliasFilters, listener,
+                                            new SearchResponse.Clusters(totalClusters, successfulClusters, skippedClusters.get()));
+                                    },
+                                    listener::onFailure));
+                        }
                     }
-                }
-            }, listener::onFailure));
+                }, listener::onFailure));
         }, listener::onFailure);
         if (searchRequest.source() == null) {
             rewriteListener.onResponse(searchRequest.source());

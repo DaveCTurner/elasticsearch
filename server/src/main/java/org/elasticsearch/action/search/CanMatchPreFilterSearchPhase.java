@@ -81,7 +81,7 @@ final class CanMatchPreFilterSearchPhase extends AbstractSearchAsyncAction<CanMa
     protected void executePhaseOnShard(SearchShardIterator shardIt, ShardRouting shard,
                                        SearchActionListener<CanMatchResponse> listener) {
         getSearchTransport().sendCanMatch(getConnection(shardIt.getClusterAlias(), shard.currentNodeId()),
-            buildShardSearchRequest(shardIt), getTask(), listener);
+            shardIt.buildShardSearchRequest(this), getTask(), listener);
     }
 
     @Override

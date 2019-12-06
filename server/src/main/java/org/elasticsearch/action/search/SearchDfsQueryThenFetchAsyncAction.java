@@ -54,7 +54,7 @@ final class SearchDfsQueryThenFetchAsyncAction extends AbstractSearchAsyncAction
     protected void executePhaseOnShard(final SearchShardIterator shardIt, final ShardRouting shard,
                                        final SearchActionListener<DfsSearchResult> listener) {
         getSearchTransport().sendExecuteDfs(getConnection(shardIt.getClusterAlias(), shard.currentNodeId()),
-            buildShardSearchRequest(shardIt) , getTask(), listener);
+            shardIt.buildShardSearchRequest(this), getTask(), listener);
     }
 
     @Override
