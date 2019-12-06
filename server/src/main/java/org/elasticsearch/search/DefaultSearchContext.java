@@ -28,6 +28,7 @@ import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.lucene.search.Queries;
 import org.elasticsearch.common.lucene.search.function.FunctionScoreQuery;
@@ -91,7 +92,7 @@ final class DefaultSearchContext extends SearchContext {
     private SearchType searchType;
     private final Engine.Searcher engineSearcher;
     private final BigArrays bigArrays;
-    private final Closeable releaseIndexService;
+    private final Releasable releaseIndexService;
     private final IndexShard indexShard;
     private final ClusterService clusterService;
     private final IndexService indexService;
@@ -158,7 +159,7 @@ final class DefaultSearchContext extends SearchContext {
     DefaultSearchContext(long id, ShardSearchRequest request, SearchShardTarget shardTarget,
                          Engine.Searcher engineSearcher, ClusterService clusterService, IndexService indexService,
                          IndexShard indexShard, BigArrays bigArrays, LongSupplier relativeTimeSupplier, TimeValue timeout,
-                         FetchPhase fetchPhase, Closeable releaseIndexService) {
+                         FetchPhase fetchPhase, Releasable releaseIndexService) {
         this.id = id;
         this.request = request;
         this.fetchPhase = fetchPhase;
@@ -185,15 +186,7 @@ final class DefaultSearchContext extends SearchContext {
 
     @Override
     public void doClose() {
-        Releasables.close(engineSearcher, this::closeIndexService);
-    }
-
-    private void closeIndexService() {
-        try {
-            IOUtils.close(releaseIndexService);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        Releasables.close(engineSearcher, releaseIndexService);
     }
 
     /**

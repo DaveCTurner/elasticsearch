@@ -35,6 +35,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
@@ -219,7 +220,7 @@ public class EphemeralSearchIT extends ESIntegTestCase {
             });
         }
 
-        Tuple<IndexService, Closeable> makeEphemeralIndexService(ShardSearchRequest request) {
+        Tuple<IndexService, Releasable> makeEphemeralIndexService(ShardSearchRequest request) {
 
             assert request.extraContext().get(EXTRA_CONTEXT_REPOSITORY_KEY) != null;
             assert request.extraContext().get(EXTRA_CONTEXT_SNAPSHOT_NAME_KEY) != null;
@@ -271,9 +272,15 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                 indexShard.recoverFromStore(recoveryCompleteListener);
                 recoveryCompleteListener.actionGet();
 
-                final Tuple<IndexService, Closeable> result = Tuple.tuple(indexService, () -> IOUtils.close(
-                    () -> indexService.removeShard(request.shardId().id(), "after search"),
-                    () -> indexService.close("after search", true)));
+                final Tuple<IndexService, Releasable> result = Tuple.tuple(indexService, () -> {
+                    try {
+                        IOUtils.close(
+                            () -> indexService.removeShard(request.shardId().id(), "after search"),
+                            () -> indexService.close("after search", true));
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
 
                 closeables.clear();
                 return result;
@@ -426,7 +433,7 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                     }
 
                     @Override
-                    public Tuple<IndexService, Closeable> getIndexService(ShardSearchRequest shardSearchRequest) {
+                    public Tuple<IndexService, Releasable> getIndexService(ShardSearchRequest shardSearchRequest) {
                         return ephemeralStorePlugin.makeEphemeralIndexService(shardSearchRequest);
                     }
                 });

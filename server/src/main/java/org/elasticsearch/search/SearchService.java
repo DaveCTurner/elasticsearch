@@ -38,6 +38,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
@@ -644,17 +645,17 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
         final IndexService indexService;
         final Closeable releaseIndexService;
-        final String extraContextType = request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY);
-        if (extraContextType == null) {
+        final String customIndexServiceSupplierType = request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY);
+        if (customIndexServiceSupplierType == null) {
             indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
             releaseIndexService = () -> {};
         } else {
-            final CustomIndexServiceSupplier customIndexServiceSupplier = customIndexServiceSuppliers.get(extraContextType);
+            final CustomIndexServiceSupplier customIndexServiceSupplier = customIndexServiceSuppliers.get(customIndexServiceSupplierType);
             if (customIndexServiceSupplier == null) {
-                throw new IllegalStateException("unknown index service supplier [" + extraContextType + "]");
+                throw new IllegalStateException("unknown index service supplier [" + customIndexServiceSupplierType + "]");
             }
 
-            final Tuple<IndexService, Closeable> indexServiceAndCloseable = customIndexServiceSupplier.getIndexService(request);
+            final Tuple<IndexService, Releasable> indexServiceAndCloseable = customIndexServiceSupplier.getIndexService(request);
             indexService = indexServiceAndCloseable.v1();
             releaseIndexService = indexServiceAndCloseable.v2();
         }
@@ -705,7 +706,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     public interface CustomIndexServiceSupplier {
         String executorName();
-        Tuple<IndexService, Closeable> getIndexService(ShardSearchRequest shardSearchRequest);
+        Tuple<IndexService, Releasable> getIndexService(ShardSearchRequest shardSearchRequest);
     }
 
     public static class ExtraIndicesResolverResponse {
@@ -1176,6 +1177,11 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             assert customIndexServiceSupplier != null
                 : "expected [" + request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY)
                 + "] to be registered, but got " + customIndexServiceSuppliers.keySet();
+            //noinspection ConstantConditions better exception even if assertions disabled
+            if (customIndexServiceSupplier == null) {
+                throw new IllegalStateException("unknown index service supplier ["
+                    + customIndexServiceSuppliers.get(request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY)) + "]");
+            }
             actionListener = ActionListener.wrap(r -> threadPool.executor(customIndexServiceSupplier.executorName())
                     .execute(ActionRunnable.supply(listener, () -> request)), listener::onFailure);
         }
