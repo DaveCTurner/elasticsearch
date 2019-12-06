@@ -16,7 +16,6 @@ import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.action.search.AbstractSearchAsyncAction;
 import org.elasticsearch.action.search.SearchPhaseContext;
 import org.elasticsearch.action.search.SearchShardIterator;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -101,7 +100,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.elasticsearch.cluster.metadata.MetaData.ALL_CONTEXTS;
 import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
@@ -110,9 +108,7 @@ import static org.elasticsearch.indices.IndicesQueryCache.INDICES_CACHE_QUERY_SI
 import static org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache.INDICES_FIELDDATA_CACHE_SIZE_KEY;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.SNAPSHOT_CODEC;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.SNAPSHOT_NAME_FORMAT;
-import static org.elasticsearch.search.SearchService.EXTRA_CONTEXT_REPOSITORY_KEY;
-import static org.elasticsearch.search.SearchService.EXTRA_CONTEXT_SNAPSHOT_NAME_KEY;
-import static org.elasticsearch.search.SearchService.EXTRA_CONTEXT_SNAPSHOT_UUID_KEY;
+import static org.elasticsearch.search.EphemeralSearchIT.EphemeralStorePlugin.EXTRA_CONTEXT_TYPE_EPHEMERAL;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -122,6 +118,11 @@ public class EphemeralSearchIT extends ESIntegTestCase {
     public static class EphemeralStorePlugin extends Plugin implements IndexStorePlugin, EnginePlugin {
 
         private static final Logger logger = LogManager.getLogger(EphemeralStorePlugin.class);
+
+        static final String EXTRA_CONTEXT_TYPE_EPHEMERAL = "ephemeral";
+        private static final String EXTRA_CONTEXT_REPOSITORY_KEY = "repository";
+        private static final String EXTRA_CONTEXT_SNAPSHOT_NAME_KEY = "snapshot_name";
+        private static final String EXTRA_CONTEXT_SNAPSHOT_UUID_KEY = "snapshot_uuid";
 
         public static final Setting<String> EPHEMERAL_INDEX_REPOSITORY_SETTING =
             Setting.simpleString("index.ephemeral.repository", Setting.Property.IndexScope, Setting.Property.PrivateIndex);
@@ -316,10 +317,10 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                             public ShardSearchRequest buildShardSearchRequest(SearchPhaseContext searchPhaseContext) {
 
                                 final Map<String, String> extraContext = Map.of(
-                                    SearchService.EXTRA_CONTEXT_TYPE_KEY, SearchService.EXTRA_CONTEXT_TYPE_EPHEMERAL,
-                                    SearchService.EXTRA_CONTEXT_REPOSITORY_KEY, ephemeralIndexDescription.repositoryName,
-                                    SearchService.EXTRA_CONTEXT_SNAPSHOT_NAME_KEY, snapshotId.getName(),
-                                    SearchService.EXTRA_CONTEXT_SNAPSHOT_UUID_KEY, snapshotId.getUUID());
+                                    SearchService.CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY, EXTRA_CONTEXT_TYPE_EPHEMERAL,
+                                    EXTRA_CONTEXT_REPOSITORY_KEY, ephemeralIndexDescription.repositoryName,
+                                    EXTRA_CONTEXT_SNAPSHOT_NAME_KEY, snapshotId.getName(),
+                                    EXTRA_CONTEXT_SNAPSHOT_UUID_KEY, snapshotId.getUUID());
 
                                 // default to no AliasFilter and an IndexBoost of 1.0f here, TODO TBD do we want to support other values here?
 
@@ -418,7 +419,17 @@ public class EphemeralSearchIT extends ESIntegTestCase {
                     internalCluster().getInstance(IndicesService.class, nodeName));
 
                 final SearchService searchService = internalCluster().getInstance(SearchService.class, nodeName);
-                searchService.addIndexServiceSupplier("ephemeral", ephemeralStorePlugin::makeEphemeralIndexService);
+                searchService.addIndexServiceSupplier(EXTRA_CONTEXT_TYPE_EPHEMERAL, new SearchService.CustomIndexServiceSupplier() {
+                    @Override
+                    public String executorName() {
+                        return ThreadPool.Names.SEARCH_THROTTLED;
+                    }
+
+                    @Override
+                    public Tuple<IndexService, Closeable> getIndexService(ShardSearchRequest shardSearchRequest) {
+                        return ephemeralStorePlugin.makeEphemeralIndexService(shardSearchRequest);
+                    }
+                });
                 searchService.addExtraIndicesResolver(ephemeralStorePlugin::resolveExtraIndices);
             }
         }

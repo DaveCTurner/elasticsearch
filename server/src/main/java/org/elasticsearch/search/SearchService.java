@@ -32,7 +32,6 @@ import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.search.SearchShardIterator;
 import org.elasticsearch.action.search.SearchTask;
 import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
@@ -123,7 +122,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -132,13 +130,6 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueMillis;
 import static org.elasticsearch.common.unit.TimeValue.timeValueMinutes;
 
 public class SearchService extends AbstractLifecycleComponent implements IndexEventListener {
-
-    public static final String EXTRA_CONTEXT_TYPE_KEY = "type";
-    public static final String EXTRA_CONTEXT_TYPE_EPHEMERAL = "ephemeral";
-    public static final String EXTRA_CONTEXT_REPOSITORY_KEY = "repository";
-    public static final String EXTRA_CONTEXT_SNAPSHOT_NAME_KEY = "snapshot_name";
-    public static final String EXTRA_CONTEXT_SNAPSHOT_UUID_KEY = "snapshot_uuid";
-
     private static final Logger logger = LogManager.getLogger(SearchService.class);
 
     // we can have 5 minutes here, since we make sure to clean with search requests and when shard/index closes
@@ -209,8 +200,9 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
     private final AtomicInteger openScrollContexts = new AtomicInteger();
 
-    private final Map<String, Function<ShardSearchRequest, Tuple<IndexService, Closeable>>> customIndexServiceSuppliers
-        = ConcurrentCollections.newConcurrentMap();
+    private final Map<String, CustomIndexServiceSupplier> customIndexServiceSuppliers = ConcurrentCollections.newConcurrentMap();
+
+    public static final String CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY = "type";
 
     public SearchService(ClusterService clusterService, IndicesService indicesService,
                          ThreadPool threadPool, ScriptService scriptService, BigArrays bigArrays, FetchPhase fetchPhase,
@@ -304,7 +296,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         return activeContexts.remove(id);
     }
 
-    public void addIndexServiceSupplier(String key, Function<ShardSearchRequest, Tuple<IndexService, Closeable>> supplier) {
+    public void addIndexServiceSupplier(String key, CustomIndexServiceSupplier supplier) {
         customIndexServiceSuppliers.compute(key, (k, s) -> {
             if (s != null) {
                 throw new IllegalArgumentException("duplicate custom index service supplier [" + key + "]");
@@ -652,20 +644,17 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
 
         final IndexService indexService;
         final Closeable releaseIndexService;
-        final String extraContextType = request.extraContext().get(EXTRA_CONTEXT_TYPE_KEY);
+        final String extraContextType = request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY);
         if (extraContextType == null) {
             indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
             releaseIndexService = () -> {};
         } else {
-
-            final Function<ShardSearchRequest, Tuple<IndexService, Closeable>> indexServiceSupplier
-                = customIndexServiceSuppliers.get(extraContextType);
-
-            if (indexServiceSupplier == null) {
+            final CustomIndexServiceSupplier customIndexServiceSupplier = customIndexServiceSuppliers.get(extraContextType);
+            if (customIndexServiceSupplier == null) {
                 throw new IllegalStateException("unknown index service supplier [" + extraContextType + "]");
             }
 
-            final Tuple<IndexService, Closeable> indexServiceAndCloseable = indexServiceSupplier.apply(request);
+            final Tuple<IndexService, Closeable> indexServiceAndCloseable = customIndexServiceSupplier.getIndexService(request);
             indexService = indexServiceAndCloseable.v1();
             releaseIndexService = indexServiceAndCloseable.v2();
         }
@@ -712,6 +701,11 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     public interface ExtraIndicesResolver {
         void resolveExtraIndices(ClusterState clusterState, long absoluteStartTimeMillis, OriginalIndices originalIndices,
                                  ActionListener<ExtraIndicesResolverResponse> listener);
+    }
+
+    public interface CustomIndexServiceSupplier {
+        String executorName();
+        Tuple<IndexService, Closeable> getIndexService(ShardSearchRequest shardSearchRequest);
     }
 
     public static class ExtraIndicesResolverResponse {
@@ -1168,7 +1162,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private void rewriteShardRequest(ShardSearchRequest request, ActionListener<ShardSearchRequest> listener) {
         final ActionListener<Rewriteable> actionListener;
 
-        if (request.extraContext().get(EXTRA_CONTEXT_TYPE_KEY) == null) {
+        if (request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY) == null) {
             IndexShard shard = indicesService.indexServiceSafe(request.shardId().getIndex()).getShard(request.shardId().id());
             Executor executor = getExecutor(shard);
             actionListener = ActionListener.wrap(r ->
@@ -1176,9 +1170,13 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                     shard.awaitShardSearchActive(b -> executor.execute(ActionRunnable.supply(listener, () -> request))),
                 listener::onFailure);
         } else {
-            // ephemeral shard does not need to wait to become search-active -- TODO move this logic to plugin
-            assert request.extraContext().get(EXTRA_CONTEXT_TYPE_KEY).equals(EXTRA_CONTEXT_TYPE_EPHEMERAL);
-            actionListener = ActionListener.wrap(r -> threadPool.executor(Names.SEARCH_THROTTLED)
+            // shards of a custom-supplied index service do not need to wait to become search-active since they are not writeable
+            final CustomIndexServiceSupplier customIndexServiceSupplier
+                = customIndexServiceSuppliers.get(request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY));
+            assert customIndexServiceSupplier != null
+                : "expected [" + request.extraContext().get(CUSTOM_INDEX_SERVICE_SUPPLIER_TYPE_KEY)
+                + "] to be registered, but got " + customIndexServiceSuppliers.keySet();
+            actionListener = ActionListener.wrap(r -> threadPool.executor(customIndexServiceSupplier.executorName())
                     .execute(ActionRunnable.supply(listener, () -> request)), listener::onFailure);
         }
         // we also do rewrite on the coordinating node (TransportSearchService) but we also need to do it here for BWC as well as
