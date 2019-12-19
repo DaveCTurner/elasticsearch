@@ -19,9 +19,14 @@
 
 package org.elasticsearch.gateway;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -31,6 +36,8 @@ import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateObserver;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -38,10 +45,9 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
 import org.elasticsearch.index.shard.ShardStateMetaData;
@@ -66,22 +72,22 @@ public class TransportNodesListGatewayStartedShards extends
         TransportNodesListGatewayStartedShards.NodeRequest,
         TransportNodesListGatewayStartedShards.NodeGatewayStartedShards> {
 
+    private static final Logger logger = LogManager.getLogger(TransportNodesListGatewayStartedShards.class);
+
     public static final String ACTION_NAME = "internal:gateway/local/started_shards";
     public static final ActionType<NodesGatewayStartedShards> TYPE = new ActionType<>(ACTION_NAME, NodesGatewayStartedShards::new);
 
-    private final Settings settings;
     private final NodeEnvironment nodeEnv;
     private final IndicesService indicesService;
     private final NamedXContentRegistry namedXContentRegistry;
 
     @Inject
-    public TransportNodesListGatewayStartedShards(Settings settings, ThreadPool threadPool, ClusterService clusterService,
+    public TransportNodesListGatewayStartedShards(ThreadPool threadPool, ClusterService clusterService,
                                                   TransportService transportService, ActionFilters actionFilters,
                                                   NodeEnvironment env, IndicesService indicesService,
                                                   NamedXContentRegistry namedXContentRegistry) {
         super(ACTION_NAME, threadPool, clusterService, transportService, actionFilters,
             Request::new, NodeRequest::new, ThreadPool.Names.FETCH_SHARD_STARTED, NodeGatewayStartedShards.class);
-        this.settings = settings;
         this.nodeEnv = env;
         this.indicesService = indicesService;
         this.namedXContentRegistry = namedXContentRegistry;
@@ -104,27 +110,53 @@ public class TransportNodesListGatewayStartedShards extends
     }
 
     @Override
+    protected void asyncNodeOperation(NodeRequest request, Task task, ActionListener<NodeGatewayStartedShards> listener) {
+        final ClusterState initialClusterSate = clusterService.state();
+        final IndexMetaData indexMetaData = initialClusterSate.metaData().index(request.shardId.getIndex());
+        if (indexMetaData != null) {
+            ActionListener.completeWith(listener, () -> getNodeGatewayStartedShards(request.getShardId(), indexMetaData));
+        } else {
+            final ClusterStateObserver clusterStateObserver = new ClusterStateObserver(initialClusterSate, clusterService,
+                TimeValue.timeValueSeconds(30L), logger, threadPool.getThreadContext());
+
+            clusterStateObserver.waitForNextChange(new ClusterStateObserver.Listener() {
+                @Override
+                public void onNewClusterState(ClusterState state) {
+                    final IndexMetaData indexMetaData = state.metaData().index(request.shardId.getIndex());
+                    assert indexMetaData != null;
+                    threadPool.executor(ThreadPool.Names.FETCH_SHARD_STARTED).execute(ActionRunnable.supply(listener,
+                        () -> getNodeGatewayStartedShards(request.getShardId(), indexMetaData)));
+                }
+
+                @Override
+                public void onClusterServiceClose() {
+                    listener.onFailure(new ElasticsearchException(
+                        "cluster service closed while waiting to receive index metadata for " + request.getShardId()));
+                }
+
+                @Override
+                public void onTimeout(TimeValue timeout) {
+                    listener.onFailure(new ElasticsearchTimeoutException(
+                        "timed out waiting to receive index metadata for " + request.getShardId()));
+                }
+            }, clusterState -> clusterState.metaData().index(request.shardId.getIndex()) != null);
+        }
+    }
+
+    @Override
     protected NodeGatewayStartedShards nodeOperation(NodeRequest request, Task task) {
+        assert false : "this action is async";
+        throw new UnsupportedOperationException("this action is async");
+    }
+
+    private NodeGatewayStartedShards getNodeGatewayStartedShards(final ShardId shardId, final IndexMetaData indexMetaData) {
         try {
-            final ShardId shardId = request.getShardId();
             logger.trace("{} loading local shard state info", shardId);
             ShardStateMetaData shardStateMetaData = ShardStateMetaData.FORMAT.loadLatestState(logger, namedXContentRegistry,
-                nodeEnv.availableShardPaths(request.shardId));
+                nodeEnv.availableShardPaths(shardId));
             if (shardStateMetaData != null) {
                 if (indicesService.getShardOrNull(shardId) == null) {
-                    final String customDataPath;
-                    if (request.getCustomDataPath() != null) {
-                        customDataPath = request.getCustomDataPath();
-                    } else {
-                        // TODO: Fallback for BWC with older ES versions. Remove once request.getCustomDataPath() always returns non-null
-                        final IndexMetaData metaData = clusterService.state().metaData().index(shardId.getIndex());
-                        if (metaData != null) {
-                            customDataPath = new IndexSettings(metaData, settings).customDataPath();
-                        } else {
-                            logger.trace("{} node doesn't have meta data for the requests index", shardId);
-                            throw new ElasticsearchException("node doesn't have meta data for index " + shardId.getIndex());
-                        }
-                    }
+                    final String customDataPath = IndexMetaData.INDEX_DATA_PATH_SETTING.get(indexMetaData.getSettings());
                     // we don't have an open shard on the store, validate the files on disk are openable
                     ShardPath shardPath = null;
                     try {
@@ -156,7 +188,7 @@ public class TransportNodesListGatewayStartedShards extends
             logger.trace("{} no local shard info found", shardId);
             return new NodeGatewayStartedShards(clusterService.localNode(), null, false);
         } catch (Exception e) {
-            throw new ElasticsearchException("failed to load started shards", e);
+            throw new ElasticsearchException("failed to load started shards for " + shardId, e);
         }
     }
 

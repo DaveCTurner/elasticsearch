@@ -21,8 +21,10 @@ package org.elasticsearch.action.support.nodes;
 
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -124,6 +126,10 @@ public abstract class TransportNodesAction<NodesRequest extends BaseNodesRequest
     protected abstract NodeResponse newNodeResponse(StreamInput in) throws IOException;
 
     protected abstract NodeResponse nodeOperation(NodeRequest request, Task task);
+
+    protected void asyncNodeOperation(NodeRequest request, Task task, ActionListener<NodeResponse> listener) {
+        ActionListener.completeWith(listener, () -> nodeOperation(request, task));
+    }
 
     /**
      * resolve node ids to concrete nodes of the incoming request
@@ -237,7 +243,7 @@ public abstract class TransportNodesAction<NodesRequest extends BaseNodesRequest
 
         @Override
         public void messageReceived(NodeRequest request, TransportChannel channel, Task task) throws Exception {
-            channel.sendResponse(nodeOperation(request, task));
+            asyncNodeOperation(request, task, new ChannelActionListener<>(channel, transportNodeAction, request));
         }
     }
 
