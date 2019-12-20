@@ -54,7 +54,7 @@ public class SparseFileTrackerTests extends ESTestCase {
             final AtomicBoolean expectNotification = new AtomicBoolean();
             final AtomicBoolean wasNotified = new AtomicBoolean();
             final List<SparseFileTracker.Gap> gaps
-                = sparseFileTracker.getRange(start, end, ActionListener.wrap(ignored -> {
+                = sparseFileTracker.waitForRange(start, end, ActionListener.wrap(ignored -> {
                 assertTrue(expectNotification.get());
                 assertTrue(wasNotified.compareAndSet(false, true));
             }, e -> {
@@ -79,7 +79,7 @@ public class SparseFileTrackerTests extends ESTestCase {
 
         final AtomicBoolean wasNotified = new AtomicBoolean();
         final List<SparseFileTracker.Gap> gaps
-            = sparseFileTracker.getRange(start, end, ActionListener.wrap(
+            = sparseFileTracker.waitForRange(start, end, ActionListener.wrap(
             ignored -> assertTrue(wasNotified.compareAndSet(false, true)), e -> {
                 throw new AssertionError(e);
             }));
@@ -148,7 +148,7 @@ public class SparseFileTrackerTests extends ESTestCase {
         final AtomicBoolean listenerCalled = new AtomicBoolean();
         listenerCalledConsumer.accept(listenerCalled);
 
-        final List<SparseFileTracker.Gap> gaps = sparseFileTracker.getRange(start, end, new ActionListener<>() {
+        final List<SparseFileTracker.Gap> gaps = sparseFileTracker.waitForRange(start, end, new ActionListener<>() {
             @Override
             public void onResponse(Void aVoid) {
                 for (long i = start; i < end; i++) {

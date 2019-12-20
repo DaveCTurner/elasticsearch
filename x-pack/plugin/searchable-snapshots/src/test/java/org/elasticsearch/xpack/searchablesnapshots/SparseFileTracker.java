@@ -42,10 +42,10 @@ public class SparseFileTracker {
      *
      * @param start The (inclusive) start of the desired range
      * @param end The (exclusive) end of the desired range
-     * @param completionListener Listener for when this range is fully available
+     * @param listener Listener for when this range is fully available
      * @return A collection of gaps that the client should fill in to satisfy this range
      */
-    public List<Gap> getRange(final long start, final long end, final ActionListener<Void> completionListener) {
+    public List<Gap> waitForRange(final long start, final long end, final ActionListener<Void> listener) {
         if (end < start || start < 0L) {
             throw new IllegalArgumentException("invalid range [" + start + "-" + end + "]");
         }
@@ -111,10 +111,10 @@ public class SparseFileTracker {
 
                 if (pendingRanges.size() == 1) {
                     assert gaps.size() <= 1 : gaps;
-                    pendingRanges.get(0).completionListener.addListener(completionListener);
+                    pendingRanges.get(0).completionListener.addListener(listener);
                 } else {
                     final GroupedActionListener<Void> groupedActionListener
-                        = new GroupedActionListener<>(ActionListener.map(completionListener, ignored -> null), pendingRanges.size());
+                        = new GroupedActionListener<>(ActionListener.map(listener, ignored -> null), pendingRanges.size());
                     pendingRanges.forEach(pendingRange -> pendingRange.completionListener.addListener(groupedActionListener));
                 }
 
@@ -123,7 +123,7 @@ public class SparseFileTracker {
         }
 
         assert gaps.isEmpty(); // or else pendingMutableRanges.isEmpty() == false so we already returned
-        completionListener.onResponse(null);
+        listener.onResponse(null);
         return Collections.emptyList();
     }
 
