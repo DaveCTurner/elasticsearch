@@ -62,10 +62,10 @@ public class SparseFileTrackerTests extends ESTestCase {
             }));
             for (int gapIndex = 0; gapIndex < gaps.size(); gapIndex++) {
                 final SparseFileTracker.Gap gap = gaps.get(gapIndex);
+                assertThat(gap.start, greaterThanOrEqualTo(start));
+                assertThat(gap.end, lessThanOrEqualTo(end));
                 for (long i = gap.start; i < gap.end; i++) {
                     assertThat(fileContents[Math.toIntExact(i)], equalTo(UNAVAILABLE));
-                    assertThat(gap.start, greaterThanOrEqualTo(start));
-                    assertThat(gap.end, lessThanOrEqualTo(end));
                     fileContents[Math.toIntExact(i)] = AVAILABLE;
                 }
                 assertFalse(wasNotified.get());
