@@ -37,7 +37,7 @@ public class SparseFileTrackerTests extends ESTestCase {
 
         final Set<AtomicBoolean> listenersCalled = new HashSet<>();
         for (int i = between(0, 10); i > 0; i--) {
-            getRandomRange(fileContents, sparseFileTracker, listenersCalled::add, gap -> processGap(fileContents, gap));
+            waitForRandomRange(fileContents, sparseFileTracker, listenersCalled::add, gap -> processGap(fileContents, gap));
             assertTrue(listenersCalled.stream().allMatch(AtomicBoolean::get));
         }
 
@@ -97,7 +97,7 @@ public class SparseFileTrackerTests extends ESTestCase {
         deterministicTaskQueue.setExecutionDelayVariabilityMillis(1000);
 
         for (int i = between(1, 1000); i > 0; i--) {
-            deterministicTaskQueue.scheduleNow(() -> getRandomRange(fileContents, sparseFileTracker, listenersCalled::add,
+            deterministicTaskQueue.scheduleNow(() -> waitForRandomRange(fileContents, sparseFileTracker, listenersCalled::add,
                 gap -> deterministicTaskQueue.scheduleNow(() -> processGap(fileContents, gap))));
         }
 
@@ -122,7 +122,7 @@ public class SparseFileTrackerTests extends ESTestCase {
                 }
 
                 while (countDown.tryAcquire()) {
-                    getRandomRange(fileContents, sparseFileTracker, listenersCalled::add, gap -> processGap(fileContents, gap));
+                    waitForRandomRange(fileContents, sparseFileTracker, listenersCalled::add, gap -> processGap(fileContents, gap));
                 }
             });
         }
@@ -141,8 +141,8 @@ public class SparseFileTrackerTests extends ESTestCase {
         assertTrue(listenersCalled.stream().allMatch(AtomicBoolean::get));
     }
 
-    private static void getRandomRange(byte[] fileContents, SparseFileTracker sparseFileTracker,
-                                       Consumer<AtomicBoolean> listenerCalledConsumer, Consumer<SparseFileTracker.Gap> gapConsumer) {
+    private static void waitForRandomRange(byte[] fileContents, SparseFileTracker sparseFileTracker,
+                                           Consumer<AtomicBoolean> listenerCalledConsumer, Consumer<SparseFileTracker.Gap> gapConsumer) {
         final long start = randomLongBetween(0L, Math.max(0L, fileContents.length - 1));
         final long end = randomLongBetween(start, fileContents.length);
         final AtomicBoolean listenerCalled = new AtomicBoolean();
