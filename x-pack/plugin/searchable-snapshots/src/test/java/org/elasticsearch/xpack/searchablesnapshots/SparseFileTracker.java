@@ -122,7 +122,7 @@ public class SparseFileTracker {
             }
         }
 
-        assert gaps.isEmpty(); // or else pendingMutableRanges.isEmpty() == false so we already returned
+        assert gaps.isEmpty(); // or else pendingRanges.isEmpty() == false so we already returned
         listener.onResponse(null);
         return Collections.emptyList();
     }
