@@ -19,6 +19,7 @@
 
 package org.elasticsearch.transport;
 
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -27,6 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.After;
 import org.junit.Before;
@@ -124,17 +126,28 @@ public class ConnectionManagerTests extends ESTestCase {
         assertEquals(1, nodeDisconnectedCount.get());
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.transport.ConnectionManager:TRACE")
     public void testConcurrentConnectsAndDisconnects() throws BrokenBarrierException, InterruptedException {
         DiscoveryNode node = new DiscoveryNode("", new TransportAddress(InetAddress.getLoopbackAddress(), 0), Version.CURRENT);
         Transport.Connection connection = new TestConnect(node);
         doAnswer(invocationOnMock -> {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
+            final String currentThreadname = Thread.currentThread().getName();
             if (rarely()) {
+                logger.info("[{}] --> openConnection responding successfully on current thread", currentThreadname);
                 listener.onResponse(connection);
             } else if (frequently()) {
-                threadPool.generic().execute(() -> listener.onResponse(connection));
+                logger.info("[{}] --> openConnection deferring success to generic thread", currentThreadname);
+                threadPool.generic().execute(() -> {
+                    logger.info("[{}] --> openConnection responding successfully on generic thread", currentThreadname);
+                    listener.onResponse(connection);
+                });
             } else {
-                threadPool.generic().execute(() -> listener.onFailure(new IllegalStateException("dummy exception")));
+                logger.info("[{}] --> openConnection deferring failure to generic thread", currentThreadname);
+                threadPool.generic().execute(() -> {
+                    logger.info("[{}] --> openConnection responding with failure on generic thread", currentThreadname);
+                    listener.onFailure(new IllegalStateException("dummy exception"));
+                });
             }
             return null;
         }).when(transport).openConnection(eq(node), eq(connectionProfile), any(ActionListener.class));
@@ -142,12 +155,22 @@ public class ConnectionManagerTests extends ESTestCase {
         assertFalse(connectionManager.nodeConnected(node));
 
         ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
+            final String currentThreadname = Thread.currentThread().getName();
             if (rarely()) {
+                logger.info("[{}] --> connection validator responding successfully on current thread", currentThreadname);
                 l.onResponse(null);
             } else if (frequently()) {
-                threadPool.generic().execute(() -> l.onResponse(null));
+                logger.info("[{}] --> connection validator deferring success to generic thread", currentThreadname);
+                threadPool.generic().execute(() -> {
+                    logger.info("[{}] --> connection validator responding successfully on generic thread", currentThreadname);
+                    l.onResponse(null);
+                });
             } else {
-                threadPool.generic().execute(() -> l.onFailure(new IllegalStateException("dummy exception")));
+                logger.info("[{}] --> connection validator deferring failure to generic thread", currentThreadname);
+                threadPool.generic().execute(() -> {
+                    logger.info("[{}] --> connection validator responding with failure on generic thread", currentThreadname);
+                    l.onFailure(new IllegalStateException("dummy exception"));
+                });
             }
         };
 
@@ -164,15 +187,27 @@ public class ConnectionManagerTests extends ESTestCase {
                     throw new RuntimeException(e);
                 }
                 CountDownLatch latch = new CountDownLatch(1);
+                final String initiatingThreadName = Thread.currentThread().getName();
+                logger.info("[{}] --> connecting to node, {}", initiatingThreadName, node);
                 connectionManager.connectToNode(node, connectionProfile, validator,
                     ActionListener.wrap(c -> {
+                        final String currentThreadname = Thread.currentThread().getName();
+                        logger.info("[initiator=[{}],current=[{}]] --> connected to node {}", initiatingThreadName, currentThreadname, node);
                         nodeConnectedCount.incrementAndGet();
                         if (connectionManager.nodeConnected(node) == false) {
-                            throw new AssertionError("Expected node to be connected");
+                            logger.info("[initiator=[{}],current=[{}]] --> connected to node {} but node is not connected, throwing AssertionError", initiatingThreadName, currentThreadname, node);
+                            throw new AssertionError("[initiator=[" +
+                                initiatingThreadName +
+                                "],current=[" +
+                                currentThreadname +
+                                "]] expected node to be connected");
                         }
                         assert latch.getCount() == 1;
                         latch.countDown();
                     }, e -> {
+                        final String currentThreadname = Thread.currentThread().getName();
+                        logger.info(new ParameterizedMessage("[initiator=[{}],current=[{}]] --> failed to connect to node {}",
+                            initiatingThreadName, currentThreadname, node), e);
                         nodeFailureCount.incrementAndGet();
                         assert latch.getCount() == 1;
                         latch.countDown();
@@ -182,7 +217,8 @@ public class ConnectionManagerTests extends ESTestCase {
                 } catch (InterruptedException e) {
                     throw new IllegalStateException(e);
                 }
-            });
+                logger.info("[{}] --> finished", initiatingThreadName, node);
+            }, "connection thread " + i);
             threads.add(thread);
             thread.start();
         }

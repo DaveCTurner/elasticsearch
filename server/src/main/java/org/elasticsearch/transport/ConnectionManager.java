@@ -20,6 +20,7 @@ package org.elasticsearch.transport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
@@ -107,16 +108,21 @@ public class ConnectionManager implements Closeable {
                               ActionListener<Void> listener) throws ConnectTransportException {
         ConnectionProfile resolvedProfile = ConnectionProfile.resolveConnectionProfile(connectionProfile, defaultProfile);
         if (node == null) {
+            logger.debug("can't connect to a null node");
             listener.onFailure(new ConnectTransportException(null, "can't connect to a null node"));
             return;
         }
 
         if (connectingRefCounter.tryIncRef() == false) {
+            logger.debug("connection manager is closed");
             listener.onFailure(new IllegalStateException("connection manager is closed"));
             return;
         }
 
+        final String initiatingThreadName = Thread.currentThread().getName();
+
         if (connectedNodes.containsKey(node)) {
+            logger.debug("[{}] already connected to {}", initiatingThreadName, node);
             connectingRefCounter.decRef();
             listener.onResponse(null);
             return;
@@ -125,6 +131,7 @@ public class ConnectionManager implements Closeable {
         final ListenableFuture<Void> currentListener = new ListenableFuture<>();
         final ListenableFuture<Void> existingListener = pendingConnections.putIfAbsent(node, currentListener);
         if (existingListener != null) {
+            logger.debug("[{}] already waiting to connect to {}", initiatingThreadName, node);
             try {
                 // wait on previous entry to complete connection attempt
                 existingListener.addListener(listener, EsExecutors.newDirectExecutorService());
@@ -137,39 +144,49 @@ public class ConnectionManager implements Closeable {
         currentListener.addListener(listener, EsExecutors.newDirectExecutorService());
 
         final RunOnce releaseOnce = new RunOnce(connectingRefCounter::decRef);
+        logger.debug("[{}] starting to connect to {}", initiatingThreadName, node);
         internalOpenConnection(node, resolvedProfile, ActionListener.wrap(conn -> {
             connectionValidator.validate(conn, resolvedProfile, ActionListener.wrap(
                 ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
                     try {
                         if (connectedNodes.putIfAbsent(node, conn) != null) {
-                            logger.debug("existing connection to node [{}], closing new redundant connection", node);
+                            logger.debug("[initiator=[{}],current=[{}]] existing connection to node [{}], closing new redundant connection",
+                                initiatingThreadName, Thread.currentThread().getName(), node);
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
-                            logger.debug("connected to node [{}]", node);
+                            logger.debug("[initiator=[{}],current=[{}]] connected to node [{}]",
+                                initiatingThreadName, Thread.currentThread().getName(), node);
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
                                 final Transport.Connection finalConnection = conn;
                                 conn.addCloseListener(ActionListener.wrap(() -> {
-                                    logger.trace("unregistering {} after connection close and marking as disconnected", node);
+                                    logger.debug("[initiator=[{}],current=[{}]] unregistering {} after connection close and marking as disconnected",
+                                        initiatingThreadName, Thread.currentThread().getName(), node);
                                     connectedNodes.remove(node, finalConnection);
                                     connectionListener.onNodeDisconnected(node, conn);
                                 }));
                             }
                         }
                     } finally {
+                        logger.debug("[initiator=[{}],current=[{}]] removing pending connection to {}",
+                            initiatingThreadName, Thread.currentThread().getName(), node);
                         ListenableFuture<Void> future = pendingConnections.remove(node);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
                         releaseOnce.run();
                         future.onResponse(null);
                     }
                 }, e -> {
+                    logger.debug(new ParameterizedMessage("[initiator=[{}],current=[{}]] connection validator failure while connecting to {}",
+                        initiatingThreadName, Thread.currentThread().getName(), node), e);
                     assert Transports.assertNotTransportThread("connection validator failure");
                     IOUtils.closeWhileHandlingException(conn);
                     failConnectionListeners(node, releaseOnce, e, currentListener);
                 }));
         }, e -> {
+            logger.debug(new ParameterizedMessage("[initiator=[{}],current=[{}]] internalOpenConnection failure while connecting to {}",
+                initiatingThreadName, Thread.currentThread().getName(), node), e);
             assert Transports.assertNotTransportThread("internalOpenConnection failure");
             failConnectionListeners(node, releaseOnce, e, currentListener);
         }));
