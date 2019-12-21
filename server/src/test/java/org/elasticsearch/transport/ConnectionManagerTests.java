@@ -133,21 +133,25 @@ public class ConnectionManagerTests extends ESTestCase {
         doAnswer(invocationOnMock -> {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             final String currentThreadname = Thread.currentThread().getName();
-            if (rarely()) {
-                logger.info("[{}] --> openConnection responding successfully on current thread", currentThreadname);
-                listener.onResponse(connection);
-            } else if (frequently()) {
-                logger.info("[{}] --> openConnection deferring success to generic thread", currentThreadname);
-                threadPool.generic().execute(() -> {
-                    logger.info("[{}] --> openConnection responding successfully on generic thread", currentThreadname);
+            switch (between(1, 3)) {
+                case 1:
+                    logger.info("[{}] --> openConnection responding successfully on current thread", currentThreadname);
                     listener.onResponse(connection);
-                });
-            } else {
-                logger.info("[{}] --> openConnection deferring failure to generic thread", currentThreadname);
-                threadPool.generic().execute(() -> {
-                    logger.info("[{}] --> openConnection responding with failure on generic thread", currentThreadname);
-                    listener.onFailure(new IllegalStateException("dummy exception"));
-                });
+                    break;
+                case 2:
+                    logger.info("[{}] --> openConnection deferring success to generic thread", currentThreadname);
+                    threadPool.generic().execute(() -> {
+                        logger.info("[{}] --> openConnection responding successfully on generic thread", currentThreadname);
+                        listener.onResponse(connection);
+                    });
+                    break;
+                case 3:
+                    logger.info("[{}] --> openConnection deferring failure to generic thread", currentThreadname);
+                    threadPool.generic().execute(() -> {
+                        logger.info("[{}] --> openConnection responding with failure on generic thread", currentThreadname);
+                        listener.onFailure(new IllegalStateException("dummy exception"));
+                    });
+                    break;
             }
             return null;
         }).when(transport).openConnection(eq(node), eq(connectionProfile), any(ActionListener.class));
@@ -156,21 +160,25 @@ public class ConnectionManagerTests extends ESTestCase {
 
         ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
             final String currentThreadname = Thread.currentThread().getName();
-            if (rarely()) {
-                logger.info("[{}] --> connection validator responding successfully on current thread", currentThreadname);
-                l.onResponse(null);
-            } else if (frequently()) {
-                logger.info("[{}] --> connection validator deferring success to generic thread", currentThreadname);
-                threadPool.generic().execute(() -> {
-                    logger.info("[{}] --> connection validator responding successfully on generic thread", currentThreadname);
+            switch (between(1, 3)) {
+                case 1:
+                    logger.info("[{}] --> connection validator responding successfully on current thread", currentThreadname);
                     l.onResponse(null);
-                });
-            } else {
-                logger.info("[{}] --> connection validator deferring failure to generic thread", currentThreadname);
-                threadPool.generic().execute(() -> {
-                    logger.info("[{}] --> connection validator responding with failure on generic thread", currentThreadname);
-                    l.onFailure(new IllegalStateException("dummy exception"));
-                });
+                    break;
+                case 2:
+                    logger.info("[{}] --> connection validator deferring success to generic thread", currentThreadname);
+                    threadPool.generic().execute(() -> {
+                        logger.info("[{}] --> connection validator responding successfully on generic thread", currentThreadname);
+                        l.onResponse(null);
+                    });
+                    break;
+                case 3:
+                    logger.info("[{}] --> connection validator deferring failure to generic thread", currentThreadname);
+                    threadPool.generic().execute(() -> {
+                        logger.info("[{}] --> connection validator responding with failure on generic thread", currentThreadname);
+                        l.onFailure(new IllegalStateException("dummy exception"));
+                    });
+                    break;
             }
         };
 
