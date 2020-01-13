@@ -117,7 +117,7 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
                             UnassignedInfo.AllocationStatus.NO_ATTEMPT, failedNodeIds);
                         // don't cancel shard in the loop as it will cause a ConcurrentModificationException
                         shardCancellationActions.add(() -> routingNodes.failShard(logger, shard, unassignedInfo,
-                            metaData.getIndexSafe(shard.index()), allocation.changes()));
+                            null, metaData.getIndexSafe(shard.index()), allocation.changes()));
                     }
                 }
             }

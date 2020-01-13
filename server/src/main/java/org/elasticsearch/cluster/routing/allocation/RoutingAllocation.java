@@ -22,8 +22,10 @@ package org.elasticsearch.cluster.routing.allocation;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.RestoreInProgress;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RoutingChangesObserver;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
@@ -38,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import static java.util.Collections.emptySet;
 
@@ -71,6 +74,7 @@ public class RoutingAllocation {
     private boolean hasPendingAsyncFetch = false;
 
     private final long currentNanoTime;
+    private final Function<IndexMetaData, RecoverySource> primaryRecoverySourceFunction;
 
     private final IndexMetaDataUpdater indexMetaDataUpdater = new IndexMetaDataUpdater();
     private final RoutingNodesChangedObserver nodesChangedObserver = new RoutingNodesChangedObserver();
@@ -78,7 +82,6 @@ public class RoutingAllocation {
     private final RoutingChangesObserver routingChangesObserver = new RoutingChangesObserver.DelegatingRoutingChangesObserver(
         nodesChangedObserver, indexMetaDataUpdater, restoreInProgressUpdater
     );
-
 
     /**
      * Creates a new {@link RoutingAllocation}
@@ -89,6 +92,22 @@ public class RoutingAllocation {
      */
     public RoutingAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, ClusterState clusterState, ClusterInfo clusterInfo,
                              long currentNanoTime) {
+        this(deciders, routingNodes, clusterState, clusterInfo, currentNanoTime,
+            indexMetaData -> {
+                throw new AssertionError("should not be failing a primary");
+            });
+    }
+
+    /**
+     * Creates a new {@link RoutingAllocation}
+     * @param deciders {@link AllocationDeciders} to used to make decisions for routing allocations
+     * @param routingNodes Routing nodes in the current cluster
+     * @param clusterState cluster state before rerouting
+     * @param currentNanoTime the nano time to use for all delay allocation calculation (typically {@link System#nanoTime()})
+     * @param primaryRecoverySourceFunction a supplier of the recovery source to use for failed primaries
+     */
+    public RoutingAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, ClusterState clusterState, ClusterInfo clusterInfo,
+                             long currentNanoTime, Function<IndexMetaData, RecoverySource> primaryRecoverySourceFunction) {
         this.deciders = deciders;
         this.routingNodes = routingNodes;
         this.metaData = clusterState.metaData();
@@ -97,6 +116,7 @@ public class RoutingAllocation {
         this.customs = clusterState.customs();
         this.clusterInfo = clusterInfo;
         this.currentNanoTime = currentNanoTime;
+        this.primaryRecoverySourceFunction = primaryRecoverySourceFunction;
     }
 
     /** returns the nano time captured at the beginning of the allocation. used to make sure all time based decisions are aligned */
@@ -282,6 +302,14 @@ public class RoutingAllocation {
      */
     public void setHasPendingAsyncFetch() {
         this.hasPendingAsyncFetch = true;
+    }
+
+    public RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData, ShardRouting shardRouting) {
+        if (shardRouting.primary()) {
+            return primaryRecoverySourceFunction.apply(indexMetaData);
+        } else {
+            return null;
+        }
     }
 
     public enum DebugMode {

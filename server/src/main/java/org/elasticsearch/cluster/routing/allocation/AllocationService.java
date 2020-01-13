@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.health.ClusterStateHealth;
 import org.elasticsearch.cluster.metadata.AutoExpandReplicas;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
@@ -106,7 +107,7 @@ public class AllocationService {
         // shuffle the unassigned nodes, just so we won't have things like poison failed shards
         routingNodes.unassigned().shuffle();
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, routingNodes, clusterState,
-            clusterInfoService.getClusterInfo(), currentNanoTime());
+            clusterInfoService.getClusterInfo(), currentNanoTime(), this::failedPrimaryRecoverySource);
         // as starting a primary relocation target can reinitialize replica shards, start replicas first
         startedShards = new ArrayList<>(startedShards);
         Collections.sort(startedShards, Comparator.comparing(ShardRouting::primary));
@@ -116,6 +117,10 @@ public class AllocationService {
         String startedShardsAsString
             = firstListElementsToCommaDelimitedString(startedShards, s -> s.shardId().toString(), logger.isDebugEnabled());
         return buildResultAndLogHealthChange(clusterState, allocation, "shards started [" + startedShardsAsString + "]");
+    }
+
+    private RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData) {
+        return RecoverySource.ExistingStoreRecoverySource.INSTANCE;
     }
 
     protected ClusterState buildResultAndLogHealthChange(ClusterState oldState, RoutingAllocation allocation, String reason) {
@@ -182,7 +187,7 @@ public class AllocationService {
         routingNodes.unassigned().shuffle();
         long currentNanoTime = currentNanoTime();
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, routingNodes, tmpState,
-            clusterInfoService.getClusterInfo(), currentNanoTime);
+            clusterInfoService.getClusterInfo(), currentNanoTime, this::failedPrimaryRecoverySource);
 
         for (FailedShard failedShardEntry : failedShards) {
             ShardRouting shardToFail = failedShardEntry.getRoutingEntry();
@@ -212,7 +217,8 @@ public class AllocationService {
                     allocation.removeAllocationId(failedShard);
                 }
                 logger.warn(new ParameterizedMessage("failing shard [{}]", failedShardEntry), failedShardEntry.getFailure());
-                routingNodes.failShard(logger, failedShard, unassignedInfo, indexMetaData, allocation.changes());
+                routingNodes.failShard(logger, failedShard, unassignedInfo,
+                    allocation.failedPrimaryRecoverySource(indexMetaData, failedShard), indexMetaData, allocation.changes());
             } else {
                 logger.trace("{} shard routing failed in an earlier iteration (routing: {})", shardToFail.shardId(), shardToFail);
             }
@@ -234,7 +240,7 @@ public class AllocationService {
         // shuffle the unassigned nodes, just so we won't have things like poison failed shards
         routingNodes.unassigned().shuffle();
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, routingNodes, clusterState,
-            clusterInfoService.getClusterInfo(), currentNanoTime());
+            clusterInfoService.getClusterInfo(), currentNanoTime(), this::failedPrimaryRecoverySource);
 
         // first, clear from the shards any node id they used to belong to that is now dead
         disassociateDeadNodes(allocation);
@@ -255,7 +261,7 @@ public class AllocationService {
      */
     public ClusterState adaptAutoExpandReplicas(ClusterState clusterState) {
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, clusterState.getRoutingNodes(), clusterState,
-            clusterInfoService.getClusterInfo(), currentNanoTime());
+            clusterInfoService.getClusterInfo(), currentNanoTime(), this::failedPrimaryRecoverySource);
         final Map<Integer, List<String>> autoExpandReplicaChanges =
             AutoExpandReplicas.getAutoExpandReplicaChanges(clusterState.metaData(), allocation);
         if (autoExpandReplicaChanges.isEmpty()) {
@@ -348,7 +354,7 @@ public class AllocationService {
         // a consistent result of the effect the commands have on the routing
         // this allows systems to dry run the commands, see the resulting cluster state, and act on it
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, routingNodes, clusterState,
-            clusterInfoService.getClusterInfo(), currentNanoTime());
+            clusterInfoService.getClusterInfo(), currentNanoTime(), this::failedPrimaryRecoverySource);
         // don't short circuit deciders, we want a full explanation
         allocation.debugDecision(true);
         // we ignore disable allocation, because commands are explicit
@@ -379,7 +385,7 @@ public class AllocationService {
         // shuffle the unassigned nodes, just so we won't have things like poison failed shards
         routingNodes.unassigned().shuffle();
         RoutingAllocation allocation = new RoutingAllocation(allocationDeciders, routingNodes, fixedClusterState,
-            clusterInfoService.getClusterInfo(), currentNanoTime());
+            clusterInfoService.getClusterInfo(), currentNanoTime(), this::failedPrimaryRecoverySource);
         reroute(allocation);
         if (fixedClusterState == clusterState && allocation.routingNodesChanged() == false) {
             return clusterState;
@@ -435,7 +441,8 @@ public class AllocationService {
                 UnassignedInfo unassignedInfo = new UnassignedInfo(UnassignedInfo.Reason.NODE_LEFT, "node_left [" + node.nodeId() + "]",
                     null, 0, allocation.getCurrentNanoTime(), System.currentTimeMillis(), delayed, AllocationStatus.NO_ATTEMPT,
                     Collections.emptySet());
-                allocation.routingNodes().failShard(logger, shardRouting, unassignedInfo, indexMetaData, allocation.changes());
+                allocation.routingNodes().failShard(logger, shardRouting, unassignedInfo,
+                    allocation.failedPrimaryRecoverySource(indexMetaData, shardRouting), indexMetaData, allocation.changes());
             }
             // its a dead node, remove it, note, its important to remove it *after* we apply failed shard
             // since it relies on the fact that the RoutingNode exists in the list of nodes
