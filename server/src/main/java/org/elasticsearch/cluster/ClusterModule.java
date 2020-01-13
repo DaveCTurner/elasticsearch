@@ -232,9 +232,11 @@ public class ClusterModule extends AbstractModule {
     private static Map<String, ClusterPlugin.PrimaryRecoverySourceFactory>
         createPrimaryRecoverySourceFactories(List<ClusterPlugin> clusterPlugins) {
 
+        // TODO NOCOMMIT add tests to verify that this forbids duplicates from plugins
+
         Map<String, ClusterPlugin.PrimaryRecoverySourceFactory> recoverySourceFactories = new HashMap<>();
         recoverySourceFactories.put(AllocationService.DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
-            indexMetaData -> RecoverySource.ExistingStoreRecoverySource.INSTANCE);
+            (indexMetaData, shardId) -> RecoverySource.ExistingStoreRecoverySource.INSTANCE);
 
         for (ClusterPlugin plugin : clusterPlugins) {
             plugin.getPrimaryRecoverySourceFactories().forEach((k, v) -> {

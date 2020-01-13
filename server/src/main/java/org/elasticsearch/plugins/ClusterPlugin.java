@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.routing.allocation.allocator.ShardsAllocator;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.shard.ShardId;
 
 /**
  * An extension point for {@link Plugin} implementations to customer behavior of cluster management.
@@ -76,7 +77,7 @@ public interface ClusterPlugin {
         /**
          * Returns the recovery source for a failed primary in the case that there are no active replicas to promote.
          */
-        RecoverySource getPrimaryRecoverySource(IndexMetaData indexMetaData);
+        RecoverySource getPrimaryRecoverySource(IndexMetaData indexMetaData, ShardId shardId);
     }
 
     /**

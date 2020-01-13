@@ -40,7 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import static java.util.Collections.emptySet;
 
@@ -74,7 +74,7 @@ public class RoutingAllocation {
     private boolean hasPendingAsyncFetch = false;
 
     private final long currentNanoTime;
-    private final Function<IndexMetaData, RecoverySource> primaryRecoverySourceFunction;
+    private final BiFunction<IndexMetaData, ShardId, RecoverySource> primaryRecoverySourceFunction;
 
     private final IndexMetaDataUpdater indexMetaDataUpdater = new IndexMetaDataUpdater();
     private final RoutingNodesChangedObserver nodesChangedObserver = new RoutingNodesChangedObserver();
@@ -93,7 +93,7 @@ public class RoutingAllocation {
     public RoutingAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, ClusterState clusterState, ClusterInfo clusterInfo,
                              long currentNanoTime) {
         this(deciders, routingNodes, clusterState, clusterInfo, currentNanoTime,
-            indexMetaData -> {
+            (indexMetaData, shardId) -> {
                 throw new AssertionError("should not be failing a primary");
             });
     }
@@ -107,7 +107,7 @@ public class RoutingAllocation {
      * @param primaryRecoverySourceFunction a supplier of the recovery source to use for failed primaries
      */
     public RoutingAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, ClusterState clusterState, ClusterInfo clusterInfo,
-                             long currentNanoTime, Function<IndexMetaData, RecoverySource> primaryRecoverySourceFunction) {
+                             long currentNanoTime, BiFunction<IndexMetaData, ShardId, RecoverySource> primaryRecoverySourceFunction) {
         this.deciders = deciders;
         this.routingNodes = routingNodes;
         this.metaData = clusterState.metaData();
@@ -306,7 +306,7 @@ public class RoutingAllocation {
 
     public RecoverySource failedShardRecoverySource(IndexMetaData indexMetaData, ShardRouting shardRouting) {
         if (shardRouting.primary()) {
-            return primaryRecoverySourceFunction.apply(indexMetaData);
+            return primaryRecoverySourceFunction.apply(indexMetaData, shardRouting.shardId());
         } else {
             return RecoverySource.PeerRecoverySource.INSTANCE;
         }

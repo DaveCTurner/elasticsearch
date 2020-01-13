@@ -44,6 +44,7 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.logging.ESLogMessage;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.gateway.GatewayAllocator;
+import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.plugins.ClusterPlugin;
 
 import java.util.ArrayList;
@@ -76,7 +77,7 @@ public class AllocationService {
 
     public static final Setting<String> PRIMARY_RECOVERY_SOURCE_TYPE_SETTING
         = Setting.simpleString("index.allocation.primary_recovery_source", DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
-            Setting.Property.PrivateIndex, Setting.Property.IndexScope);
+            /* TODO NOCOMMIT Setting.Property.PrivateIndex, */ Setting.Property.IndexScope);
 
     private final AllocationDeciders allocationDeciders;
     private GatewayAllocator gatewayAllocator;
@@ -89,7 +90,7 @@ public class AllocationService {
                              ClusterInfoService clusterInfoService) {
         this(allocationDeciders, shardsAllocator, clusterInfoService,
             Collections.singletonMap(DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
-                indexMetaData -> RecoverySource.ExistingStoreRecoverySource.INSTANCE));
+                (indexMetaData, shardId) -> RecoverySource.ExistingStoreRecoverySource.INSTANCE));
         setGatewayAllocator(gatewayAllocator);
     }
 
@@ -131,7 +132,7 @@ public class AllocationService {
         return buildResultAndLogHealthChange(clusterState, allocation, "shards started [" + startedShardsAsString + "]");
     }
 
-    private RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData) {
+    private RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData, ShardId shardId) {
         final String primaryRecoverySourceType = PRIMARY_RECOVERY_SOURCE_TYPE_SETTING.get(indexMetaData.getSettings());
         ClusterPlugin.PrimaryRecoverySourceFactory primaryRecoverySourceFactory
             = primaryRecoverySourceFactories.get(primaryRecoverySourceType);
@@ -142,7 +143,7 @@ public class AllocationService {
             primaryRecoverySourceFactory = primaryRecoverySourceFactories.get(DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE);
         }
 
-        return primaryRecoverySourceFactory.getPrimaryRecoverySource(indexMetaData);
+        return primaryRecoverySourceFactory.getPrimaryRecoverySource(indexMetaData, shardId);
     }
 
     protected ClusterState buildResultAndLogHealthChange(ClusterState oldState, RoutingAllocation allocation, String reason) {
