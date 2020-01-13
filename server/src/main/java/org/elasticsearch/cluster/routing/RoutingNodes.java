@@ -776,7 +776,10 @@ public class RoutingNodes implements Iterable<RoutingNode> {
     private ShardRouting moveToUnassigned(ShardRouting shard, UnassignedInfo unassignedInfo, RecoverySource recoverySource) {
         assert shard.unassigned() == false : "only assigned shards can be moved to unassigned (" + shard + ")";
         remove(shard);
-        ShardRouting unassigned = shard.moveToUnassigned(unassignedInfo).updateUnassigned(unassignedInfo, recoverySource);
+        ShardRouting unassigned = shard.moveToUnassigned(unassignedInfo);
+        if (shard.active()) {
+            unassigned = unassigned.updateUnassigned(unassignedInfo, recoverySource);
+        }
         unassignedShards.add(unassigned);
         return unassigned;
     }
