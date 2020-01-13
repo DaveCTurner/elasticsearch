@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.allocation.allocator.ShardsAllocator;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -63,6 +65,27 @@ public interface ClusterPlugin {
      * Called when the node is started
      */
     default void onNodeStarted() {
+    }
+
+    /**
+     * An interface that describes how to set the recovery source on a failed primary in the case that there are no active replicas that can
+     * be promoted to primary instead.
+     */
+    @FunctionalInterface
+    interface PrimaryRecoverySourceFactory {
+        /**
+         * Returns the recovery source for a failed primary in the case that there are no active replicas to promote.
+         */
+        RecoverySource getPrimaryRecoverySource(IndexMetaData indexMetaData);
+    }
+
+    /**
+     * The {@link PrimaryRecoverySourceFactory} mappings for this plugin. When a primary shard fails and there are no active replicas which
+     * can be promoted to primary then the unassigned primary's recovery source is obtained from the factory according to the
+     * {@link org.elasticsearch.cluster.routing.allocation.AllocationService#PRIMARY_RECOVERY_SOURCE_TYPE_SETTING}.
+     */
+    default Map<String, PrimaryRecoverySourceFactory> getPrimaryRecoverySourceFactories() {
+        return Collections.emptyMap();
     }
 
 }

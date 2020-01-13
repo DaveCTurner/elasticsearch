@@ -42,7 +42,9 @@ import org.elasticsearch.cluster.routing.allocation.command.AllocationCommands;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.logging.ESLogMessage;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.gateway.GatewayAllocator;
+import org.elasticsearch.plugins.ClusterPlugin;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,23 +72,33 @@ public class AllocationService {
 
     private static final Logger logger = LogManager.getLogger(AllocationService.class);
 
+    public static final String DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE = "existing_copy";
+
+    public static final Setting<String> PRIMARY_RECOVERY_SOURCE_TYPE_SETTING
+        = Setting.simpleString("index.allocation.primary_recovery_source", DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
+            Setting.Property.PrivateIndex, Setting.Property.IndexScope);
+
     private final AllocationDeciders allocationDeciders;
     private GatewayAllocator gatewayAllocator;
     private final ShardsAllocator shardsAllocator;
     private final ClusterInfoService clusterInfoService;
+    private final Map<String, ClusterPlugin.PrimaryRecoverySourceFactory> primaryRecoverySourceFactories;
 
-    public AllocationService(AllocationDeciders allocationDeciders,
-                             GatewayAllocator gatewayAllocator,
-                             ShardsAllocator shardsAllocator, ClusterInfoService clusterInfoService) {
-        this(allocationDeciders, shardsAllocator, clusterInfoService);
+    // exposed for tests
+    public AllocationService(AllocationDeciders allocationDeciders, GatewayAllocator gatewayAllocator, ShardsAllocator shardsAllocator,
+                             ClusterInfoService clusterInfoService) {
+        this(allocationDeciders, shardsAllocator, clusterInfoService,
+            Collections.singletonMap(DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
+                indexMetaData -> RecoverySource.ExistingStoreRecoverySource.INSTANCE));
         setGatewayAllocator(gatewayAllocator);
     }
 
-    public AllocationService(AllocationDeciders allocationDeciders,
-                             ShardsAllocator shardsAllocator, ClusterInfoService clusterInfoService) {
+    public AllocationService(AllocationDeciders allocationDeciders, ShardsAllocator shardsAllocator, ClusterInfoService clusterInfoService,
+                             Map<String, ClusterPlugin.PrimaryRecoverySourceFactory> primaryRecoverySourceFactories) {
         this.allocationDeciders = allocationDeciders;
         this.shardsAllocator = shardsAllocator;
         this.clusterInfoService = clusterInfoService;
+        this.primaryRecoverySourceFactories = primaryRecoverySourceFactories;
     }
 
     public void setGatewayAllocator(GatewayAllocator gatewayAllocator) {
@@ -120,7 +132,17 @@ public class AllocationService {
     }
 
     private RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData) {
-        return RecoverySource.ExistingStoreRecoverySource.INSTANCE;
+        final String primaryRecoverySourceType = PRIMARY_RECOVERY_SOURCE_TYPE_SETTING.get(indexMetaData.getSettings());
+        ClusterPlugin.PrimaryRecoverySourceFactory primaryRecoverySourceFactory
+            = primaryRecoverySourceFactories.get(primaryRecoverySourceType);
+
+        if (primaryRecoverySourceFactory == null) {
+            logger.warn("recovery source factory [" + primaryRecoverySourceType + "] not found for " + indexMetaData.getIndex()
+                + ", using default recovery source instead");
+            primaryRecoverySourceFactory = primaryRecoverySourceFactories.get(DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE);
+        }
+
+        return primaryRecoverySourceFactory.getPrimaryRecoverySource(indexMetaData);
     }
 
     protected ClusterState buildResultAndLogHealthChange(ClusterState oldState, RoutingAllocation allocation, String reason) {

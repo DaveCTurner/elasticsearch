@@ -33,6 +33,7 @@ import org.elasticsearch.cluster.metadata.MetaDataMappingService;
 import org.elasticsearch.cluster.metadata.MetaDataUpdateSettingsService;
 import org.elasticsearch.cluster.metadata.RepositoriesMetaData;
 import org.elasticsearch.cluster.routing.DelayedAllocationService;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator;
 import org.elasticsearch.cluster.routing.allocation.allocator.ShardsAllocator;
@@ -76,6 +77,7 @@ import org.elasticsearch.tasks.TaskResultsService;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -108,7 +110,8 @@ public class ClusterModule extends AbstractModule {
         this.shardsAllocator = createShardsAllocator(settings, clusterService.getClusterSettings(), clusterPlugins);
         this.clusterService = clusterService;
         this.indexNameExpressionResolver = new IndexNameExpressionResolver();
-        this.allocationService = new AllocationService(allocationDeciders, shardsAllocator, clusterInfoService);
+        this.allocationService = new AllocationService(allocationDeciders, shardsAllocator, clusterInfoService,
+            createPrimaryRecoverySourceFactories(clusterPlugins));
     }
 
     public static List<Entry> getNamedWriteables() {
@@ -224,6 +227,23 @@ public class ClusterModule extends AbstractModule {
         }
         return Objects.requireNonNull(allocatorSupplier.get(),
             "ShardsAllocator factory for [" + allocatorName + "] returned null");
+    }
+
+    private static Map<String, ClusterPlugin.PrimaryRecoverySourceFactory>
+        createPrimaryRecoverySourceFactories(List<ClusterPlugin> clusterPlugins) {
+
+        Map<String, ClusterPlugin.PrimaryRecoverySourceFactory> recoverySourceFactories = new HashMap<>();
+        recoverySourceFactories.put(AllocationService.DEFAULT_PRIMARY_RECOVERY_SOURCE_TYPE,
+            indexMetaData -> RecoverySource.ExistingStoreRecoverySource.INSTANCE);
+
+        for (ClusterPlugin plugin : clusterPlugins) {
+            plugin.getPrimaryRecoverySourceFactories().forEach((k, v) -> {
+                if (recoverySourceFactories.put(k, v) != null) {
+                    throw new IllegalArgumentException("PrimaryRecoverySourceFactory [" + k + "] already defined");
+                }
+            });
+        }
+        return Collections.unmodifiableMap(recoverySourceFactories);
     }
 
     public AllocationService getAllocationService() {
