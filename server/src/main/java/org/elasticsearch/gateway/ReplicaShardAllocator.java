@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -117,7 +118,7 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
                             UnassignedInfo.AllocationStatus.NO_ATTEMPT, failedNodeIds);
                         // don't cancel shard in the loop as it will cause a ConcurrentModificationException
                         shardCancellationActions.add(() -> routingNodes.failShard(logger, shard, unassignedInfo,
-                            null, metaData.getIndexSafe(shard.index()), allocation.changes()));
+                            RecoverySource.PeerRecoverySource.INSTANCE, metaData.getIndexSafe(shard.index()), allocation.changes()));
                     }
                 }
             }
