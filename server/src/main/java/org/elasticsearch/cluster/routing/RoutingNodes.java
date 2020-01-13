@@ -617,13 +617,12 @@ public class RoutingNodes implements Iterable<RoutingNode> {
     }
 
     private void unassignPrimaryAndPromoteActiveReplicaIfExists(ShardRouting failedShard, UnassignedInfo unassignedInfo,
-                                                                RecoverySource failedPrimaryRecoverySource,
+                                                                RecoverySource recoverySource,
                                                                 RoutingChangesObserver routingChangesObserver) {
         assert failedShard.primary();
-        assert failedPrimaryRecoverySource != null;
         ShardRouting activeReplica = activeReplicaWithHighestVersion(failedShard.shardId());
         if (activeReplica == null) {
-            moveToUnassigned(failedShard, unassignedInfo, failedPrimaryRecoverySource);
+            moveToUnassigned(failedShard, unassignedInfo, recoverySource);
         } else {
             movePrimaryToUnassignedAndDemoteToReplica(failedShard, unassignedInfo);
             promoteReplicaToPrimary(activeReplica, routingChangesObserver);
