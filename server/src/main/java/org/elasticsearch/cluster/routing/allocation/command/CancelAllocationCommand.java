@@ -156,7 +156,7 @@ public class CancelAllocationCommand implements AllocationCommand {
         }
         routingNodes.failShard(LogManager.getLogger(CancelAllocationCommand.class), shardRouting,
             new UnassignedInfo(UnassignedInfo.Reason.REROUTE_CANCELLED, null),
-            allocation.failedPrimaryRecoverySource(indexMetaData, shardRouting), indexMetaData, allocation.changes());
+            allocation.failedShardRecoverySource(indexMetaData, shardRouting), indexMetaData, allocation.changes());
         // TODO: We don't have to remove a cancelled shard from in-sync set once we have a strict resync implementation.
         allocation.removeAllocationId(shardRouting);
         return new RerouteExplanation(this, allocation.decision(Decision.YES, "cancel_allocation_command",

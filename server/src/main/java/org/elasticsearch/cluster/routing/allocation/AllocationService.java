@@ -218,7 +218,7 @@ public class AllocationService {
                 }
                 logger.warn(new ParameterizedMessage("failing shard [{}]", failedShardEntry), failedShardEntry.getFailure());
                 routingNodes.failShard(logger, failedShard, unassignedInfo,
-                    allocation.failedPrimaryRecoverySource(indexMetaData, failedShard), indexMetaData, allocation.changes());
+                    allocation.failedShardRecoverySource(indexMetaData, failedShard), indexMetaData, allocation.changes());
             } else {
                 logger.trace("{} shard routing failed in an earlier iteration (routing: {})", shardToFail.shardId(), shardToFail);
             }
@@ -442,7 +442,7 @@ public class AllocationService {
                     null, 0, allocation.getCurrentNanoTime(), System.currentTimeMillis(), delayed, AllocationStatus.NO_ATTEMPT,
                     Collections.emptySet());
                 allocation.routingNodes().failShard(logger, shardRouting, unassignedInfo,
-                    allocation.failedPrimaryRecoverySource(indexMetaData, shardRouting), indexMetaData, allocation.changes());
+                    allocation.failedShardRecoverySource(indexMetaData, shardRouting), indexMetaData, allocation.changes());
             }
             // its a dead node, remove it, note, its important to remove it *after* we apply failed shard
             // since it relies on the fact that the RoutingNode exists in the list of nodes

@@ -304,11 +304,11 @@ public class RoutingAllocation {
         this.hasPendingAsyncFetch = true;
     }
 
-    public RecoverySource failedPrimaryRecoverySource(IndexMetaData indexMetaData, ShardRouting shardRouting) {
+    public RecoverySource failedShardRecoverySource(IndexMetaData indexMetaData, ShardRouting shardRouting) {
         if (shardRouting.primary()) {
             return primaryRecoverySourceFunction.apply(indexMetaData);
         } else {
-            return null;
+            return RecoverySource.PeerRecoverySource.INSTANCE;
         }
     }
 
