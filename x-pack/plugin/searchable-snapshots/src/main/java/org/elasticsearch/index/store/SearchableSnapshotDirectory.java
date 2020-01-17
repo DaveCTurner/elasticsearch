@@ -36,6 +36,7 @@ public class SearchableSnapshotDirectory extends BaseDirectory {
 
     private final BlobStoreIndexShardSnapshot snapshot;
     private final BlobContainer blobContainer;
+    private static final long MINIMUM_BLOB_STORE_READ_SIZE = 1<<25; // 32MB
 
     public SearchableSnapshotDirectory(final BlobStoreIndexShardSnapshot snapshot, final BlobContainer blobContainer) {
         super(new SingleInstanceLockFactory());
@@ -68,7 +69,7 @@ public class SearchableSnapshotDirectory extends BaseDirectory {
     @Override
     public IndexInput openInput(final String name, final IOContext context) throws IOException {
         ensureOpen();
-        return new SearchableSnapshotIndexInput(blobContainer, fileInfo(name));
+        return new SearchableSnapshotIndexInput(blobContainer, fileInfo(name), MINIMUM_BLOB_STORE_READ_SIZE);
     }
 
     @Override
