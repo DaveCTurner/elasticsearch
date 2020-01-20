@@ -170,21 +170,17 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
 
-            // due to buffering we have read as much as indexInput.getBufferSize() - 1 on top of what we wanted, and we might have requested
-            // as much as minimumReadSize - 1 on top of what we buffered, but despite those small overshoots there is a bound on the number
-            // of times we retrieved data from the blob store:
-
+            // compute the maximum expected number of ranges read from the blob store
             final int firstPart = readStart / partSize;
             final int bufferedEnd = readEnd + indexInput.getBufferSize() - 1;
             final int lastPart = (bufferedEnd - 1) / partSize; // may overshoot a part due to buffering but not due to readahead
 
-            final int requestedLen = readLen + indexInput.getBufferSize() - 1 + minimumReadSize - 1;
-
+            final int expectedRanges;
             if (firstPart == lastPart) {
-                assertThat("data was read in blocks of no less than " + minimumReadSize,
-                    readBlobCount.get() * minimumReadSize, lessThanOrEqualTo(requestedLen));
+                final int bufferedBytes = bufferedEnd - readStart;
+                expectedRanges = (bufferedBytes + minimumReadSize - 1) / minimumReadSize; // ceil(bufferedBytes/minimumReadSize)
             } else {
-                // read was split across parts; account for each part separately
+                // read was split across parts; each part involves at least one range
 
                 final int bytesInFirstPart = (firstPart + 1) * partSize - readStart;
                 final int rangesInFirstPart
@@ -197,9 +193,11 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
                 final int rangesInMiddleParts = (partSize + minimumReadSize - 1) / minimumReadSize; // ceil(partSize/minimumReadSize);
                 final int middlePartCount = lastPart - firstPart - 1;
 
-                assertThat("data was read in blocks of no less than " + minimumReadSize + " where possible",
-                    readBlobCount.get(), lessThanOrEqualTo(rangesInFirstPart + rangesInLastPart + rangesInMiddleParts * middlePartCount));
+                expectedRanges = rangesInFirstPart + rangesInLastPart + rangesInMiddleParts * middlePartCount;
             }
+
+            assertThat("data was read in blocks of no less than " + minimumReadSize + " where possible",
+                readBlobCount.get(), lessThanOrEqualTo(expectedRanges));
         }
     }
 
