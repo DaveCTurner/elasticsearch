@@ -132,11 +132,13 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
         for (int i = 0; i < 100; i++) {
             final byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
             final int minimumReadSize = randomIntBetween(1, 1000);
+            final int partSize = randomBoolean() ? input.length : randomIntBetween(1, input.length);
 
-            logger.info("--> input length is [{}], minimumReadSize is [{}]", input.length, minimumReadSize);
+            logger.info("--> *** input length is [{}] in [{}] parts of [{}], minimumReadSize is [{}] ***",
+                input.length, (input.length + partSize - 1) / partSize, partSize, minimumReadSize);
 
             final AtomicInteger readBlobCount = new AtomicInteger();
-            final BufferedIndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
+            final BufferedIndexInput indexInput = createIndexInput(input, partSize, minimumReadSize, readBlobCount::incrementAndGet);
 
             assertEquals(input.length, indexInput.length());
 
@@ -171,8 +173,33 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             // due to buffering we have read as much as indexInput.getBufferSize() - 1 on top of what we wanted, and we might have requested
             // as much as minimumReadSize - 1 on top of what we buffered, but despite those small overshoots there is a bound on the number
             // of times we retrieved data from the blob store:
-            assertThat("data was read in blocks of no less than " + minimumReadSize,
-                readBlobCount.get() * minimumReadSize, lessThanOrEqualTo(readLen + indexInput.getBufferSize() - 1 + minimumReadSize - 1));
+
+            final int firstPart = readStart / partSize;
+            final int bufferedEnd = readEnd + indexInput.getBufferSize() - 1;
+            final int lastPart = (bufferedEnd - 1) / partSize; // may overshoot a part due to buffering but not due to readahead
+
+            final int requestedLen = readLen + indexInput.getBufferSize() - 1 + minimumReadSize - 1;
+
+            if (firstPart == lastPart) {
+                assertThat("data was read in blocks of no less than " + minimumReadSize,
+                    readBlobCount.get() * minimumReadSize, lessThanOrEqualTo(requestedLen));
+            } else {
+                // read was split across parts; account for each part separately
+
+                final int bytesInFirstPart = (firstPart + 1) * partSize - readStart;
+                final int rangesInFirstPart
+                    = (bytesInFirstPart + minimumReadSize - 1) / minimumReadSize; // ceil(bytesInFirstPart/minimumReadSize)
+
+                final int bytesInLastPart = bufferedEnd - lastPart * partSize;
+                final int rangesInLastPart
+                    = (bytesInLastPart + minimumReadSize - 1) / minimumReadSize; // ceil(bytesInLastPart/minimumReadSize)
+
+                final int rangesInMiddleParts = (partSize + minimumReadSize - 1) / minimumReadSize; // ceil(partSize/minimumReadSize);
+                final int middlePartCount = lastPart - firstPart - 1;
+
+                assertThat("data was read in blocks of no less than " + minimumReadSize + " where possible",
+                    readBlobCount.get(), lessThanOrEqualTo(rangesInFirstPart + rangesInLastPart + rangesInMiddleParts * middlePartCount));
+            }
         }
     }
 
