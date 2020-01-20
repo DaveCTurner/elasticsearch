@@ -176,10 +176,10 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             assertArrayEquals(expected, output);
 
             final int bufferSize = indexInput.getBufferSize();
-            final int bufferedReadLen = (readLen + bufferSize - 1) / bufferSize * bufferSize; // round up to a whole number of buffers
+            final int bufferedReadLen = (readLen + bufferSize - 1) / bufferSize * bufferSize; // round up to a multiple of the buffer size
 
             assertThat(readBlobCount.get(),
-                equalTo((bufferedReadLen + minimumReadSize - 1) / minimumReadSize)); // ceil(bufferedReadLen/minimumReadSize)
+                lessThanOrEqualTo((bufferedReadLen + minimumReadSize - 1) / minimumReadSize)); // ceil(bufferedReadLen/minimumReadSize)
         }
     }
 
