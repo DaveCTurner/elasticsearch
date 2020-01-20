@@ -168,11 +168,11 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
 
-            // due to buffering we may overshoot by as much as a full buffer minus 1 byte:
-            final int readLenPlusOvershoot = readLen + indexInput.getBufferSize() - 1;
-
-            assertThat("data was read in blocks of no less than " + minimumReadSize, readBlobCount.get(), lessThanOrEqualTo(
-                (readLenPlusOvershoot + minimumReadSize - 1) / minimumReadSize)); // ceil(readLenPlusOvershoot/minimumReadSize)
+            // due to buffering we have read as much as indexInput.getBufferSize() - 1 on top of what we wanted, and we might have requested
+            // as much as minimumReadSize - 1 on top of what we buffered, but despite those small overshoots there is a bound on the number
+            // of times we retrieved data from the blob store:
+            assertThat("data was read in blocks of no less than " + minimumReadSize,
+                readBlobCount.get() * minimumReadSize, lessThanOrEqualTo(readLen + indexInput.getBufferSize() - 1 + minimumReadSize - 1));
         }
     }
 
