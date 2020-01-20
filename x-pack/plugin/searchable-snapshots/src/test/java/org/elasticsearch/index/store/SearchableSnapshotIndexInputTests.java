@@ -58,7 +58,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             .thenAnswer(invocationOnMock -> {
                 String name = (String) invocationOnMock.getArguments()[0];
                 long position = (long) invocationOnMock.getArguments()[1];
-                int length = (int) invocationOnMock.getArguments()[2];
+                long length = (long) invocationOnMock.getArguments()[2];
                 assertThat("Reading [" + length + "] bytes from [" + name + "] at [" + position + "] exceeds part size [" + partSize + "]",
                     position + length, lessThanOrEqualTo(partSize));
 
@@ -66,7 +66,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
 
                 if (fileInfo.numberOfParts() == 1L) {
                     assertThat("Unexpected blob name [" + name + "]", name, equalTo(fileInfo.name()));
-                    return new ByteArrayInputStream(input, Math.toIntExact(position), length);
+                    return new ByteArrayInputStream(input, Math.toIntExact(position), Math.toIntExact(length));
 
                 } else {
                     assertThat("Unexpected blob name [" + name + "]", name, allOf(startsWith(fileInfo.name()), containsString(".part")));
@@ -75,7 +75,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
                     assertThat("Unexpected part number [" + partNumber + "] for [" + name + "]", partNumber,
                         allOf(greaterThanOrEqualTo(0L), lessThan(fileInfo.numberOfParts())));
 
-                    return new ByteArrayInputStream(input, Math.toIntExact(partNumber * partSize + position), length);
+                    return new ByteArrayInputStream(input, Math.toIntExact(partNumber * partSize + position), Math.toIntExact(length));
                 }
             });
         return new SearchableSnapshotIndexInput(blobContainer, fileInfo, minimumReadSize,
@@ -133,7 +133,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
             final int minimumReadSize = randomIntBetween(1, 1000);
             final AtomicInteger readBlobCount = new AtomicInteger();
-            IndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
+            final IndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
 
             assertEquals(input.length, indexInput.length());
 
@@ -141,12 +141,19 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final int readEnd = randomIntBetween(readStart, input.length);
             final int readLen = readEnd - readStart;
 
+            final IndexInput otherInput = indexInput.clone();
+
             indexInput.seek(readStart);
 
-            // Straightforward sequential reading from `indexInput` -- no cloning, slicing or seeking since these may open new inputs
+            // Straightforward sequential reading from `indexInput` (no cloning, slicing or seeking) while also reading randomly from its
+            // clones.
             final byte[] output = new byte[readLen];
             int readPos = readStart;
             while (readPos < readEnd) {
+                if (randomBoolean()) {
+                    otherInput.seek(randomLongBetween(0, input.length));
+                    randomReadAndSlice(otherInput, randomIntBetween(Math.toIntExact(otherInput.getFilePointer()), input.length));
+                }
                 if (randomBoolean()) {
                     output[readPos++ - readStart] = indexInput.readByte();
                 } else {
@@ -161,9 +168,9 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final byte[] expected = new byte[readLen];
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
-
-            assertThat(readBlobCount.get(),
-                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
+//
+//            assertThat(readBlobCount.get(),
+//                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
         }
     }
 
