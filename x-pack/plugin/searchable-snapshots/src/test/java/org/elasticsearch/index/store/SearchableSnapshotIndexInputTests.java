@@ -129,7 +129,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
     }
 
     public void testSequentialReadsShareInputStreamFromBlobStore() throws IOException {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 100; i++) {
             final byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
             final int minimumReadSize = randomIntBetween(1, 1000);
 
@@ -144,20 +144,13 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final int readEnd = randomIntBetween(readStart, input.length);
             final int readLen = readEnd - readStart;
 
-            final IndexInput otherInput = indexInput.clone();
-
             indexInput.seek(readStart);
             logger.info("--> in total, reading [{}] bytes from [{}] to [{}]", readLen, readStart, readEnd);
 
-            // Straightforward sequential reading from `indexInput` (no cloning, slicing or seeking) while also reading randomly from its
-            // clones.
+            // Straightforward sequential reading from `indexInput` (no cloning, slicing or seeking)
             final byte[] output = new byte[readLen];
             int readPos = readStart;
             while (readPos < readEnd) {
-                if (randomBoolean()) {
-                    otherInput.seek(randomLongBetween(0, input.length));
-                    //randomReadAndSlice(otherInput, randomIntBetween(Math.toIntExact(otherInput.getFilePointer()), input.length));
-                }
                 if (randomBoolean()) {
                     logger.info("--> reading single byte at [{}]", readPos);
                     output[readPos++ - readStart] = indexInput.readByte();
@@ -175,11 +168,11 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
 
-            final int bufferSize = indexInput.getBufferSize();
-            final int bufferedReadLen = (readLen + bufferSize - 1) / bufferSize * bufferSize; // round up to a multiple of the buffer size
+            // due to buffering we may overshoot by as much as a full buffer minus 1 byte:
+            final int readLenPlusOvershoot = readLen + indexInput.getBufferSize() - 1;
 
-            assertThat(readBlobCount.get(),
-                lessThanOrEqualTo((bufferedReadLen + minimumReadSize - 1) / minimumReadSize)); // ceil(bufferedReadLen/minimumReadSize)
+            assertThat("data was read in blocks of no less than " + minimumReadSize, readBlobCount.get(), lessThanOrEqualTo(
+                (readLenPlusOvershoot + minimumReadSize - 1) / minimumReadSize)); // ceil(readLenPlusOvershoot/minimumReadSize)
         }
     }
 
