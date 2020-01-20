@@ -196,7 +196,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
                 expectedRanges = rangesInFirstPart + rangesInLastPart + rangesInMiddleParts * middlePartCount;
             }
 
-            assertThat("data was read in blocks of no less than " + minimumReadSize + " where possible",
+            assertThat("data was read in ranges of no less than " + minimumReadSize + " where possible",
                 readBlobCount.get(), lessThanOrEqualTo(expectedRanges));
         }
     }
