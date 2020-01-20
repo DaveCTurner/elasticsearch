@@ -129,11 +129,14 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
     }
 
     public void testSequentialReadsShareInputStreamFromBlobStore() throws IOException {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1; i++) {
             final byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
             final int minimumReadSize = randomIntBetween(1, 1000);
+
+            logger.info("--> input length is [{}], minimumReadSize is [{}]", input.length, minimumReadSize);
+
             final AtomicInteger readBlobCount = new AtomicInteger();
-            final IndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
+            final BufferedIndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
 
             assertEquals(input.length, indexInput.length());
 
@@ -144,6 +147,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final IndexInput otherInput = indexInput.clone();
 
             indexInput.seek(readStart);
+            logger.info("--> in total, reading [{}] bytes from [{}] to [{}]", readLen, readStart, readEnd);
 
             // Straightforward sequential reading from `indexInput` (no cloning, slicing or seeking) while also reading randomly from its
             // clones.
@@ -152,12 +156,14 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             while (readPos < readEnd) {
                 if (randomBoolean()) {
                     otherInput.seek(randomLongBetween(0, input.length));
-                    randomReadAndSlice(otherInput, randomIntBetween(Math.toIntExact(otherInput.getFilePointer()), input.length));
+                    //randomReadAndSlice(otherInput, randomIntBetween(Math.toIntExact(otherInput.getFilePointer()), input.length));
                 }
                 if (randomBoolean()) {
+                    logger.info("--> reading single byte at [{}]", readPos);
                     output[readPos++ - readStart] = indexInput.readByte();
                 } else {
                     int len = randomIntBetween(1, readEnd - readPos);
+                    logger.info("--> reading [{}] bytes from [{}] to [{}]", len, readPos, readPos + len);
                     indexInput.readBytes(output, readPos - readStart, len);
                     readPos += len;
                 }
@@ -169,8 +175,11 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
 
+            final int bufferSize = indexInput.getBufferSize();
+            final int bufferedReadLen = (readLen + bufferSize - 1) / bufferSize * bufferSize; // round up to a whole number of buffers
+
             assertThat(readBlobCount.get(),
-                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
+                equalTo((bufferedReadLen + minimumReadSize - 1) / minimumReadSize)); // ceil(bufferedReadLen/minimumReadSize)
         }
     }
 
