@@ -134,9 +134,6 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final int minimumReadSize = randomIntBetween(1, 1000);
             final int partSize = randomBoolean() ? input.length : randomIntBetween(1, input.length);
 
-            logger.info("--> *** input length is [{}] in [{}] parts of [{}], minimumReadSize is [{}] ***",
-                input.length, (input.length + partSize - 1) / partSize, partSize, minimumReadSize);
-
             final AtomicInteger readBlobCount = new AtomicInteger();
             final BufferedIndexInput indexInput = createIndexInput(input, partSize, minimumReadSize, readBlobCount::incrementAndGet);
 
@@ -147,18 +144,15 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final int readLen = readEnd - readStart;
 
             indexInput.seek(readStart);
-            logger.info("--> in total, reading [{}] bytes from [{}] to [{}]", readLen, readStart, readEnd);
 
             // Straightforward sequential reading from `indexInput` (no cloning, slicing or seeking)
             final byte[] output = new byte[readLen];
             int readPos = readStart;
             while (readPos < readEnd) {
                 if (randomBoolean()) {
-                    logger.info("--> reading single byte at [{}]", readPos);
                     output[readPos++ - readStart] = indexInput.readByte();
                 } else {
                     int len = randomIntBetween(1, readEnd - readPos);
-                    logger.info("--> reading [{}] bytes from [{}] to [{}]", len, readPos, readPos + len);
                     indexInput.readBytes(output, readPos - readStart, len);
                     readPos += len;
                 }
