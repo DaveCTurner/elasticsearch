@@ -168,9 +168,9 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
             final byte[] expected = new byte[readLen];
             System.arraycopy(input, readStart, expected, 0, readLen);
             assertArrayEquals(expected, output);
-//
-//            assertThat(readBlobCount.get(),
-//                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
+
+            assertThat(readBlobCount.get(),
+                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
         }
     }
 
