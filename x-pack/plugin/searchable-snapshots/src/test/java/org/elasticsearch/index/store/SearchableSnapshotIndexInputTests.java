@@ -5,6 +5,7 @@
  */
 package org.elasticsearch.index.store;
 
+import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.Version;
 import org.elasticsearch.common.blobstore.BlobContainer;
@@ -18,7 +19,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
@@ -35,12 +35,23 @@ import static org.mockito.Mockito.when;
 
 public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
 
-    private SearchableSnapshotIndexInput createIndexInput(final byte[] input, long minimumReadSize,
-                                                          Consumer<String> onReadBlob) throws IOException {
-        final long partSize = (long) (randomBoolean() ? input.length : randomIntBetween(1, input.length));
+    private SearchableSnapshotIndexInput createIndexInput(final byte[] input) throws IOException {
+        return createIndexInput(input, randomBoolean() ? input.length : randomIntBetween(1, input.length), randomIntBetween(1, 1000),
+            () -> {});
+    }
+
+    private SearchableSnapshotIndexInput createIndexInput(final byte[] input, long partSize, long minimumReadSize,
+                                                          Runnable onReadBlob) throws IOException {
         final FileInfo fileInfo = new FileInfo(randomAlphaOfLength(5),
             new StoreFileMetaData("test", (long) input.length, "_checksum", Version.LATEST),
-            new ByteSizeValue(partSize, ByteSizeUnit.BYTES));
+            partSize == input.length
+                ? randomFrom(
+                    new ByteSizeValue(partSize, ByteSizeUnit.BYTES),
+                    new ByteSizeValue(randomLongBetween(partSize, Long.MAX_VALUE), ByteSizeUnit.BYTES),
+                    ByteSizeValue.ZERO,
+                    new ByteSizeValue(-1, ByteSizeUnit.BYTES),
+                    null)
+                : new ByteSizeValue(partSize, ByteSizeUnit.BYTES));
 
         final BlobContainer blobContainer = mock(BlobContainer.class);
         when(blobContainer.readBlob(anyString(), anyLong(), anyInt()))
@@ -51,7 +62,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
                 assertThat("Reading [" + length + "] bytes from [" + name + "] at [" + position + "] exceeds part size [" + partSize + "]",
                     position + length, lessThanOrEqualTo(partSize));
 
-                onReadBlob.accept(name);
+                onReadBlob.run();
 
                 if (fileInfo.numberOfParts() == 1L) {
                     assertThat("Unexpected blob name [" + name + "]", name, equalTo(fileInfo.name()));
@@ -67,13 +78,14 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
                     return new ByteArrayInputStream(input, Math.toIntExact(partNumber * partSize + position), length);
                 }
             });
-        return new SearchableSnapshotIndexInput(blobContainer, fileInfo, minimumReadSize);
+        return new SearchableSnapshotIndexInput(blobContainer, fileInfo, minimumReadSize,
+            randomBoolean() ? BufferedIndexInput.BUFFER_SIZE : between(BufferedIndexInput.MIN_BUFFER_SIZE, BufferedIndexInput.BUFFER_SIZE));
     }
 
     public void testRandomReads() throws IOException {
         for (int i = 0; i < 100; i++) {
             byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
-            IndexInput indexInput = createIndexInput(input, randomIntBetween(1, 1000), name -> {});
+            IndexInput indexInput = createIndexInput(input);
             assertEquals(input.length, indexInput.length());
             assertEquals(0, indexInput.getFilePointer());
             byte[] output = randomReadAndSlice(indexInput, input.length);
@@ -84,7 +96,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
     public void testRandomOverflow() throws IOException {
         for (int i = 0; i < 100; i++) {
             byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
-            IndexInput indexInput = createIndexInput(input, randomIntBetween(1, 1000), name -> {});
+            IndexInput indexInput = createIndexInput(input);
             int firstReadLen = randomIntBetween(0, input.length - 1);
             randomReadAndSlice(indexInput, firstReadLen);
             int bytesLeft = input.length - firstReadLen;
@@ -96,7 +108,7 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
     public void testSeekOverflow() throws IOException {
         for (int i = 0; i < 100; i++) {
             byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
-            IndexInput indexInput = createIndexInput(input, randomIntBetween(1, 1000), () -> {});
+            IndexInput indexInput = createIndexInput(input);
             int firstReadLen = randomIntBetween(0, input.length - 1);
             randomReadAndSlice(indexInput, firstReadLen);
             expectThrows(IOException.class, () -> {
@@ -118,19 +130,40 @@ public class SearchableSnapshotIndexInputTests extends ESIndexInputTestCase {
 
     public void testSequentialReadsShareInputStreamFromBlobStore() throws IOException {
         for (int i = 0; i < 100; i++) {
-            byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
+            final byte[] input = randomUnicodeOfLength(randomIntBetween(1, 1000)).getBytes(StandardCharsets.UTF_8);
             final int minimumReadSize = randomIntBetween(1, 1000);
             final AtomicInteger readBlobCount = new AtomicInteger();
-            IndexInput indexInput = createIndexInput(input, minimumReadSize, readBlobCount::incrementAndGet);
-
-
-
-
+            IndexInput indexInput = createIndexInput(input, input.length, minimumReadSize, readBlobCount::incrementAndGet);
 
             assertEquals(input.length, indexInput.length());
-            assertEquals(0, indexInput.getFilePointer());
-            byte[] output = randomReadAndSlice(indexInput, input.length);
-            assertArrayEquals(input, output);
+
+            final int readStart = randomIntBetween(0, input.length);
+            final int readEnd = randomIntBetween(readStart, input.length);
+            final int readLen = readEnd - readStart;
+
+            indexInput.seek(readStart);
+
+            // Straightforward sequential reading from `indexInput` -- no cloning, slicing or seeking since these may open new inputs
+            final byte[] output = new byte[readLen];
+            int readPos = readStart;
+            while (readPos < readEnd) {
+                if (randomBoolean()) {
+                    output[readPos++ - readStart] = indexInput.readByte();
+                } else {
+                    int len = randomIntBetween(1, readEnd - readPos);
+                    indexInput.readBytes(output, readPos - readStart, len);
+                    readPos += len;
+                }
+            }
+            assertEquals(readEnd, readPos);
+            assertEquals(readEnd, indexInput.getFilePointer());
+
+            final byte[] expected = new byte[readLen];
+            System.arraycopy(input, readStart, expected, 0, readLen);
+            assertArrayEquals(expected, output);
+
+            assertThat(readBlobCount.get(),
+                lessThanOrEqualTo((readLen + minimumReadSize - 1) / minimumReadSize)); // ceil(readLen/minimumReadSize)
         }
     }
 

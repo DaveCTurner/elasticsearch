@@ -44,14 +44,15 @@ public class SearchableSnapshotIndexInput extends BufferedIndexInput {
     private long position;
     private boolean closed;
 
-    public SearchableSnapshotIndexInput(final BlobContainer blobContainer, final FileInfo fileInfo, long minimumReadSize) {
+    SearchableSnapshotIndexInput(final BlobContainer blobContainer, final FileInfo fileInfo, long minimumReadSize, int bufferSize) {
         this("SearchableSnapshotIndexInput(" + fileInfo.physicalName() + ")", blobContainer, fileInfo, 0L, 0L, fileInfo.length(),
-            minimumReadSize);
+            minimumReadSize, bufferSize);
     }
 
     private SearchableSnapshotIndexInput(final String resourceDesc, final BlobContainer blobContainer, final FileInfo fileInfo,
-                                         final long position, final long offset, final long length, final long minimumReadSize) {
-        super(resourceDesc);
+                                         final long position, final long offset, final long length, final long minimumReadSize,
+                                         final int bufferSize) {
+        super(resourceDesc, bufferSize);
         this.blobContainer = Objects.requireNonNull(blobContainer);
         this.fileInfo = Objects.requireNonNull(fileInfo);
         this.offset = offset;
@@ -116,14 +117,15 @@ public class SearchableSnapshotIndexInput extends BufferedIndexInput {
 
     @Override
     public BufferedIndexInput clone() {
-        return new SearchableSnapshotIndexInput("clone(" + this + ")", blobContainer, fileInfo, position, offset, length, minimumReadSize);
+        return new SearchableSnapshotIndexInput("clone(" + this + ")", blobContainer, fileInfo, position, offset, length, minimumReadSize,
+            getBufferSize());
     }
 
     @Override
     public IndexInput slice(String sliceDescription, long offset, long length) throws IOException {
         if ((offset >= 0L) && (length >= 0L) && (offset + length <= length())) {
             final SearchableSnapshotIndexInput slice = new SearchableSnapshotIndexInput(sliceDescription, blobContainer, fileInfo, position,
-                this.offset + offset, length, minimumReadSize);
+                this.offset + offset, length, minimumReadSize, getBufferSize());
             slice.seek(0L);
             return slice;
         } else {

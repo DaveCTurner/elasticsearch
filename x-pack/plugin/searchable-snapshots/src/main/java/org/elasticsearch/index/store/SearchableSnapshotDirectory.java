@@ -6,6 +6,7 @@
 package org.elasticsearch.index.store;
 
 import org.apache.lucene.store.BaseDirectory;
+import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
@@ -69,7 +70,8 @@ public class SearchableSnapshotDirectory extends BaseDirectory {
     @Override
     public IndexInput openInput(final String name, final IOContext context) throws IOException {
         ensureOpen();
-        return new SearchableSnapshotIndexInput(blobContainer, fileInfo(name), MINIMUM_BLOB_STORE_READ_SIZE);
+        return new SearchableSnapshotIndexInput(blobContainer, fileInfo(name), MINIMUM_BLOB_STORE_READ_SIZE,
+            BufferedIndexInput.BUFFER_SIZE);
     }
 
     @Override
