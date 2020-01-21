@@ -5,6 +5,8 @@
  */
 package org.elasticsearch.xpack.searchablesnapshots.cache;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.BufferedIndexInput;
 import org.apache.lucene.store.Directory;
@@ -28,6 +30,8 @@ import java.util.concurrent.ExecutionException;
  * {@link CacheDirectory} uses a {@link CacheService} to cache Lucene files provided by another {@link Directory}.
  */
 public class CacheDirectory extends FilterDirectory {
+
+    private static final Logger logger = LogManager.getLogger(CacheDirectory.class);
 
     private final CacheService cacheService;
     private final Path cacheDir;
@@ -102,10 +106,12 @@ public class CacheDirectory extends FilterDirectory {
 
         @Override
         public void onEviction(final CacheFile evictedCacheFile) {
+            logger.info("evicting {}", this);
             synchronized (this) {
                 assert cacheFile == evictedCacheFile || cacheFile == null;
                 releaseAndClear(evictedCacheFile);
             }
+            logger.info("evicting {}", this);
         }
 
         private void releaseAndClear(final CacheFile cacheFile) {
@@ -150,10 +156,14 @@ public class CacheDirectory extends FilterDirectory {
                 CacheFile cacheFile = null;
                 try {
                     cacheFile = getOrAcquire();
-                    assert cacheFile != null;
+                    if (cacheFile == null) {
+                        throw new AlreadyClosedException("could not acquire cacheFile");
+                    }
 
+                    logger.info("CacheFile#readInternal: acquiring channel for {}/{}", this, cacheFile);
                     final CacheFile.FileChannelRefCounted channelRef = cacheFile.getChannelRefCounter();
                     if (channelRef == null || channelRef.tryIncRef() == false) {
+                        logger.info("CacheFile#readInternal: acquiring channel failed for {}/{}", this, cacheFile);
                         throw new AlreadyClosedException("Cache file acquired correctly but evicted before increment ref count on channel");
                     }
                     try {
@@ -162,6 +172,7 @@ public class CacheDirectory extends FilterDirectory {
                             (start, end) -> writeCacheFile(channelRef.getChannel(), start, end))
                             .get();
                     } finally {
+                        logger.info("CacheFile#readInternal: releasing channel for {}/{}", this, cacheFile);
                         channelRef.decRef();
                     }
                 } catch (Exception e) {
@@ -241,6 +252,7 @@ public class CacheDirectory extends FilterDirectory {
             return "CacheBufferedIndexInput{" +
                 "fileName='" + fileName + '\'' +
                 ", fileLength=" + fileLength +
+                ", file=" + file +
                 ", offset=" + offset +
                 ", end=" + end +
                 ", length=" + length() +
