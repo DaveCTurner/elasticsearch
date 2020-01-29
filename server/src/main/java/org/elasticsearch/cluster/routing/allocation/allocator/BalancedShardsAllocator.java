@@ -239,7 +239,11 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             final float weightShard = node.numShards() - balancer.avgShardsPerNode();
             final float weightIndex = node.numShards(index) - balancer.avgShardsPerNode(index);
             final float weight = theta0 * weightShard + theta1 * weightIndex + numAdditionalShards;
-            assert Math.abs(weight - legacyWeight(balancer, node, index, numAdditionalShards)) < 1e-5;
+            assert Math.abs(weight - legacyWeight(balancer, node, index, numAdditionalShards)) < 1.0e-5f
+                : node.numShards() + " vs " + balancer.avgShardsPerNode + " * " + theta0 + " and "
+                + node.numShards(index) + " vs " + balancer.avgShardsPerNode(index) + " * " + theta1 + " gives "
+                + weight + " vs legacy " + legacyWeight(balancer, node, index, numAdditionalShards) + " with delta "
+                + Math.abs(weight - legacyWeight(balancer, node, index, numAdditionalShards));
             return weight;
         }
 
