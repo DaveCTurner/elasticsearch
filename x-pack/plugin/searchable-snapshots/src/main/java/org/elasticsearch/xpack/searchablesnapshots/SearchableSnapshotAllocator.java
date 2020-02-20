@@ -27,29 +27,32 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
     static final String ALLOCATOR_NAME = "searchable_snapshot_allocator";
 
     @Override
-    public void allocateUnassigned(RoutingAllocation allocation) {
+    public void beforeAllocation(RoutingAllocation allocation) {
+    }
 
-        final RoutingNodes.UnassignedShards.UnassignedIterator iterator = allocation.routingNodes().unassigned().iterator();
+    @Override
+    public void afterPrimariesBeforeReplicas(RoutingAllocation allocation) {
+    }
 
-        while (iterator.hasNext()) {
-            final ShardRouting shardRouting = iterator.next();
-            final AllocateUnassignedDecision allocateUnassignedDecision = decideAllocation(allocation, shardRouting);
-
-            if (allocateUnassignedDecision.isDecisionTaken()) {
-                if (allocateUnassignedDecision.getAllocationDecision() == AllocationDecision.YES) {
-                    if (shardRouting.primary() && shardRouting.recoverySource().getType() == RecoverySource.Type.EXISTING_STORE) {
-                        // we don't care what the allocation ID is since we know that these shards cannot really be stale, so we can
-                        // safely ignore the allocation ID with a forced-stale allocation
-                        iterator.updateUnassigned(shardRouting.unassignedInfo(),
-                            RecoverySource.ExistingStoreRecoverySource.FORCE_STALE_PRIMARY_INSTANCE, allocation.changes());
-                    }
-                    iterator.initialize(allocateUnassignedDecision.getTargetNode().getId(), null, 0L, allocation.changes());
-                } else {
-                    iterator.removeAndIgnore(allocateUnassignedDecision.getAllocationStatus(), allocation.changes());
+    @Override
+    public void allocateUnassigned(RoutingAllocation allocation, ShardRouting shardRouting,
+                                   RoutingNodes.UnassignedShards.UnassignedIterator iterator) {
+        final AllocateUnassignedDecision allocateUnassignedDecision = decideAllocation(allocation, shardRouting);
+        if (allocateUnassignedDecision.isDecisionTaken()) {
+            if (allocateUnassignedDecision.getAllocationDecision() == AllocationDecision.YES) {
+                if (shardRouting.primary() && shardRouting.recoverySource().getType() == RecoverySource.Type.EXISTING_STORE) {
+                    // we don't care what the allocation ID is since we know that these shards cannot really be stale, so we can
+                    // safely ignore the allocation ID with a forced-stale allocation
+                    iterator.updateUnassigned(shardRouting.unassignedInfo(),
+                        RecoverySource.ExistingStoreRecoverySource.FORCE_STALE_PRIMARY_INSTANCE, allocation.changes());
                 }
+                iterator.initialize(allocateUnassignedDecision.getTargetNode().getId(), null, 0L, allocation.changes());
+            } else {
+                iterator.removeAndIgnore(allocateUnassignedDecision.getAllocationStatus(), allocation.changes());
             }
         }
     }
+
 
     private static AllocateUnassignedDecision decideAllocation(RoutingAllocation allocation, ShardRouting shardRouting) {
         if (isResponsibleFor(allocation, shardRouting)) {
@@ -84,6 +87,7 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
     }
 
     private static boolean isResponsibleFor(RoutingAllocation allocation, ShardRouting shardRouting) {
+        // TODO NOCOMMIT we should be responsible for every shard we see
         final Settings settings = allocation.metaData().getIndexSafe(shardRouting.index()).getSettings();
         return shardRouting.unassigned() && ExistingShardsAllocator.EXISTING_SHARDS_ALLOCATOR_SETTING.get(settings).equals(ALLOCATOR_NAME);
     }

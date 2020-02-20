@@ -268,7 +268,7 @@ public abstract class ESAllocationTestCase extends ESTestCase {
         }
 
         @Override
-        public void allocateUnassigned(RoutingAllocation allocation) {
+        public void allocateUnassigned(RoutingAllocation allocation, ShardRouting shardRouting, RoutingNodes.UnassignedShards.UnassignedIterator iterator) {
             final RoutingNodes.UnassignedShards.UnassignedIterator unassignedIterator = allocation.routingNodes().unassigned().iterator();
             while (unassignedIterator.hasNext()) {
                 ShardRouting shard = unassignedIterator.next();

@@ -425,17 +425,43 @@ public class AllocationService {
 
         removeDelayMarkers(allocation);
 
-        allocation.routingNodes().unassigned().sort(PriorityComparator.getAllocationComparator(allocation)); // sort for priority ordering
-
-        // try to allocate existing shard copies first
-        // TODO TBD the order in which allocators run depends on the order of plugins so is not properly defined. Does this matter?
-        // TODO TBD this means earlier allocators allocate shards before the later allocators can allocate possibly-higher-priority ones
-        for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators) {
-            existingShardsAllocator.allocateUnassigned(allocation);
-        }
-
+        allocateExistingShards(allocation);  // try to allocate existing shard copies first
         shardsAllocator.allocate(allocation);
         assert RoutingNodes.assertShardStats(allocation.routingNodes());
+    }
+
+    private void allocateExistingShards(RoutingAllocation allocation) {
+        allocation.routingNodes().unassigned().sort(PriorityComparator.getAllocationComparator(allocation)); // sort for priority ordering
+
+        for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators) {
+            existingShardsAllocator.beforeAllocation(allocation);
+        }
+
+        final RoutingNodes.UnassignedShards.UnassignedIterator iterator = allocation.routingNodes().unassigned().iterator();
+        boolean allocatingPrimaries = true;
+        while (iterator.hasNext()) {
+            final ShardRouting shardRouting = iterator.next();
+
+            if (allocatingPrimaries && shardRouting.primary() == false) {
+                allocatingPrimaries = false;
+
+                for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators) {
+                    existingShardsAllocator.afterPrimariesBeforeReplicas(allocation);
+                }
+            }
+            assert allocatingPrimaries == shardRouting.primary() : "must try to allocate all primaries before any replicas";
+
+            for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators) {
+                // TODO NOCOMMIT only use a single allocator here according to the index settings
+                existingShardsAllocator.allocateUnassigned(allocation, shardRouting, iterator);
+            }
+        }
+
+        if (allocatingPrimaries) {
+            for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators) {
+                existingShardsAllocator.afterPrimariesBeforeReplicas(allocation);
+            }
+        }
     }
 
     private void disassociateDeadNodes(RoutingAllocation allocation) {
