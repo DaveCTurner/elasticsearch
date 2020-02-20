@@ -17,7 +17,6 @@ import org.elasticsearch.cluster.routing.allocation.FailedShard;
 import org.elasticsearch.cluster.routing.allocation.NodeAllocationResult;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
-import org.elasticsearch.common.settings.Settings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,43 +52,38 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
         }
     }
 
-
     private static AllocateUnassignedDecision decideAllocation(RoutingAllocation allocation, ShardRouting shardRouting) {
-        if (isResponsibleFor(allocation, shardRouting)) {
-            Decision.Type bestDecision = Decision.Type.NO;
-            RoutingNode bestNode = null;
-            final List<NodeAllocationResult> nodeAllocationResults
-                = allocation.debugDecision() ? new ArrayList<>(allocation.routingNodes().size()) : null;
+        assert shardRouting.unassigned();
+        assert ExistingShardsAllocator.EXISTING_SHARDS_ALLOCATOR_SETTING.get(
+            allocation.metaData().getIndexSafe(shardRouting.index()).getSettings()).equals(ALLOCATOR_NAME);
 
-            for (final RoutingNode routingNode : allocation.routingNodes()) {
-                final Decision decision = allocation.deciders().canAllocate(shardRouting, routingNode, allocation);
-                if (decision.type() == Decision.Type.YES
-                    || (decision.type() == Decision.Type.THROTTLE && bestDecision != Decision.Type.YES)) {
-                    bestDecision = decision.type();
-                    bestNode = routingNode;
-                }
-                if (nodeAllocationResults != null) {
-                    nodeAllocationResults.add(new NodeAllocationResult(routingNode.node(), null, decision));
-                }
+        Decision.Type bestDecision = Decision.Type.NO;
+        RoutingNode bestNode = null;
+        final List<NodeAllocationResult> nodeAllocationResults
+            = allocation.debugDecision() ? new ArrayList<>(allocation.routingNodes().size()) : null;
+
+        for (final RoutingNode routingNode : allocation.routingNodes()) {
+            final Decision decision = allocation.deciders().canAllocate(shardRouting, routingNode, allocation);
+            if (decision.type() == Decision.Type.YES
+                || (decision.type() == Decision.Type.THROTTLE && bestDecision != Decision.Type.YES)) {
+                bestDecision = decision.type();
+                bestNode = routingNode;
             }
-
-            switch (bestDecision) {
-                case YES:
-                    return AllocateUnassignedDecision.yes(bestNode.node(), null, nodeAllocationResults, false);
-                case THROTTLE:
-                    return AllocateUnassignedDecision.throttle(nodeAllocationResults);
-                case NO:
-                    return AllocateUnassignedDecision.no(UnassignedInfo.AllocationStatus.DECIDERS_NO, nodeAllocationResults);
+            if (nodeAllocationResults != null) {
+                nodeAllocationResults.add(new NodeAllocationResult(routingNode.node(), null, decision));
             }
         }
 
-        return AllocateUnassignedDecision.NOT_TAKEN;
-    }
+        switch (bestDecision) {
+            case YES:
+                return AllocateUnassignedDecision.yes(bestNode.node(), null, nodeAllocationResults, false);
+            case THROTTLE:
+                return AllocateUnassignedDecision.throttle(nodeAllocationResults);
+            case NO:
+                return AllocateUnassignedDecision.no(UnassignedInfo.AllocationStatus.DECIDERS_NO, nodeAllocationResults);
+        }
 
-    private static boolean isResponsibleFor(RoutingAllocation allocation, ShardRouting shardRouting) {
-        // TODO NOCOMMIT we should be responsible for every shard we see
-        final Settings settings = allocation.metaData().getIndexSafe(shardRouting.index()).getSettings();
-        return shardRouting.unassigned() && ExistingShardsAllocator.EXISTING_SHARDS_ALLOCATOR_SETTING.get(settings).equals(ALLOCATOR_NAME);
+        return AllocateUnassignedDecision.NOT_TAKEN;
     }
 
     @Override

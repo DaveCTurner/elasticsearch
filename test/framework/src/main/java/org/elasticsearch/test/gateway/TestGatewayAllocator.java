@@ -117,6 +117,14 @@ public class TestGatewayAllocator extends GatewayAllocator {
     }
 
     @Override
+    public void beforeAllocation(RoutingAllocation allocation) {
+    }
+
+    @Override
+    public void afterPrimariesBeforeReplicas(RoutingAllocation allocation) {
+    }
+
+    @Override
     public void allocateUnassigned(RoutingAllocation allocation, ShardRouting shardRouting,
                                    RoutingNodes.UnassignedShards.UnassignedIterator iterator) {
         currentNodes = allocation.nodes();

@@ -75,8 +75,8 @@ public abstract class BaseGatewayShardAllocator {
 
     /**
      * Make a decision on the allocation of an unassigned shard.  This method is used by
-     * {@link #allocateUnassigned(RoutingAllocation, ShardRouting, RoutingNodes.UnassignedShards.UnassignedIterator)} to make decisions about whether or not
-     * the shard can be allocated by this allocator and if so, to which node it will be allocated.
+     * {@link #allocateUnassigned(RoutingAllocation, ShardRouting, RoutingNodes.UnassignedShards.UnassignedIterator)} to make decisions
+     * about whether or not the shard can be allocated by this allocator and if so, to which node it will be allocated.
      *
      * @param unassignedShard  the unassigned shard to allocate
      * @param allocation       the current routing state

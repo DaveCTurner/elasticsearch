@@ -661,7 +661,8 @@ public class ClusterRebalanceRoutingTests extends ESAllocationTestCase {
             .put(ClusterRebalanceAllocationDecider.CLUSTER_ROUTING_ALLOCATION_ALLOW_REBALANCE_SETTING.getKey(),
                 ClusterRebalanceAllocationDecider.ClusterRebalanceType.ALWAYS.toString()).build(), new TestGatewayAllocator() {
             @Override
-            public void allocateUnassigned(RoutingAllocation allocation, ShardRouting shardRouting, RoutingNodes.UnassignedShards.UnassignedIterator iterator) {
+            public void allocateUnassigned(RoutingAllocation allocation, ShardRouting shardRouting,
+                                           RoutingNodes.UnassignedShards.UnassignedIterator iterator) {
                 if (hasFetches.get()) {
                     allocation.setHasPendingAsyncFetch();
                 }
