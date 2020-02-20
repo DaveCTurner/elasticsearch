@@ -441,26 +441,27 @@ public class AllocationService {
             existingShardsAllocator.beforeAllocation(allocation);
         }
 
-        final RoutingNodes.UnassignedShards.UnassignedIterator iterator = allocation.routingNodes().unassigned().iterator();
-        boolean allocatingPrimaries = true;
-        while (iterator.hasNext()) {
-            final ShardRouting shardRouting = iterator.next();
-
-            if (allocatingPrimaries && shardRouting.primary() == false) {
-                allocatingPrimaries = false;
-
-                for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators.values()) {
-                    existingShardsAllocator.afterPrimariesBeforeReplicas(allocation);
-                }
+        final RoutingNodes.UnassignedShards.UnassignedIterator primaryIterator = allocation.routingNodes().unassigned().iterator();
+        while (primaryIterator.hasNext()) {
+            final ShardRouting shardRouting = primaryIterator.next();
+            if (shardRouting.primary() == false) {
+                break;
             }
-            assert allocatingPrimaries == shardRouting.primary() : "must try to allocate all primaries before any replicas";
-            getAllocatorForShard(shardRouting, allocation).allocateUnassigned(allocation, shardRouting, iterator);
+            getAllocatorForShard(shardRouting, allocation).allocateUnassigned(allocation, shardRouting, primaryIterator);
         }
 
-        if (allocatingPrimaries) {
-            for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators.values()) {
-                existingShardsAllocator.afterPrimariesBeforeReplicas(allocation);
+        for (final ExistingShardsAllocator existingShardsAllocator : existingShardsAllocators.values()) {
+            existingShardsAllocator.afterPrimariesBeforeReplicas(allocation);
+        }
+
+        // afterPrimariesBeforeReplicas may add more unassigned shards so we need a new iterator
+        final RoutingNodes.UnassignedShards.UnassignedIterator replicaIterator = allocation.routingNodes().unassigned().iterator();
+        while (replicaIterator.hasNext()) {
+            final ShardRouting shardRouting = replicaIterator.next();
+            if (shardRouting.primary()) {
+                continue;
             }
+            getAllocatorForShard(shardRouting, allocation).allocateUnassigned(allocation, shardRouting, replicaIterator);
         }
     }
 
