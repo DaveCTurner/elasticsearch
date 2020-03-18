@@ -24,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPoolInfo;
 import org.elasticsearch.threadpool.ThreadPoolStats;
@@ -200,14 +201,14 @@ public class DeterministicTaskQueue {
     /**
      * @return A <code>ExecutorService</code> that uses this task queue.
      */
-    public ExecutorService getExecutorService() {
-        return getExecutorService(Function.identity());
+    public ExecutorService getExecutorService(ThreadContext threadContext) {
+        return getExecutorService(Function.identity(), threadContext);
     }
 
     /**
      * @return A <code>ExecutorService</code> that uses this task queue and wraps <code>Runnable</code>s in the given wrapper.
      */
-    public ExecutorService getExecutorService(Function<Runnable, Runnable> runnableWrapper) {
+    public ExecutorService getExecutorService(Function<Runnable, Runnable> runnableWrapper, ThreadContext threadContext) {
         return new ExecutorService() {
 
             @Override
@@ -272,7 +273,7 @@ public class DeterministicTaskQueue {
 
             @Override
             public void execute(Runnable command) {
-                scheduleNow(runnableWrapper.apply(command));
+                scheduleNow(threadContext.preserveContext(runnableWrapper.apply(command)));
             }
         };
     }
@@ -323,12 +324,12 @@ public class DeterministicTaskQueue {
 
             @Override
             public ExecutorService generic() {
-                return getExecutorService(runnableWrapper);
+                return getExecutorService(runnableWrapper, getThreadContext());
             }
 
             @Override
             public ExecutorService executor(String name) {
-                return getExecutorService(runnableWrapper);
+                return getExecutorService(runnableWrapper, getThreadContext());
             }
 
             @Override
@@ -342,7 +343,10 @@ public class DeterministicTaskQueue {
                     @Override
                     public void run() {
                         if (taskState.compareAndSet(NOT_STARTED, STARTED)) {
-                            command.run();
+                            // scheduled tasks are responsible for restoring their context, since they run in an empty context
+                            try (ThreadContext.StoredContext ignored = getThreadContext().stashContext()) {
+                                command.run();
+                            }
                         }
                     }
 
@@ -379,11 +383,6 @@ public class DeterministicTaskQueue {
             @Override
             public Cancellable scheduleWithFixedDelay(Runnable command, TimeValue interval, String executor) {
                 return super.scheduleWithFixedDelay(command, interval, executor);
-            }
-
-            @Override
-            public Runnable preserveContext(Runnable command) {
-                return command;
             }
 
             @Override

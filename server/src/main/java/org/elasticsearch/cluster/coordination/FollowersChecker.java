@@ -31,6 +31,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.Transport;
@@ -160,42 +161,47 @@ public class FollowersChecker {
     }
 
     private void handleFollowerCheck(FollowerCheckRequest request, TransportChannel transportChannel) throws IOException {
-        FastResponseState responder = this.fastResponseState;
+        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+            threadContext.markAsSystemContext();
 
-        if (responder.mode == Mode.FOLLOWER && responder.term == request.term) {
-            // TODO trigger a term bump if we voted for a different leader in this term
-            logger.trace("responding to {} on fast path", request);
-            transportChannel.sendResponse(Empty.INSTANCE);
-            return;
-        }
+            FastResponseState responder = this.fastResponseState;
 
-        if (request.term < responder.term) {
-            throw new CoordinationStateRejectedException("rejecting " + request + " since local state is " + this);
-        }
-
-        transportService.getThreadPool().generic().execute(new AbstractRunnable() {
-            @Override
-            protected void doRun() throws IOException {
-                logger.trace("responding to {} on slow path", request);
-                try {
-                    handleRequestAndUpdateState.accept(request);
-                } catch (Exception e) {
-                    transportChannel.sendResponse(e);
-                    return;
-                }
+            if (responder.mode == Mode.FOLLOWER && responder.term == request.term) {
+                // TODO trigger a term bump if we voted for a different leader in this term
+                logger.trace("responding to {} on fast path", request);
                 transportChannel.sendResponse(Empty.INSTANCE);
+                return;
             }
 
-            @Override
-            public void onFailure(Exception e) {
-                logger.debug(new ParameterizedMessage("exception while responding to {}", request), e);
+            if (request.term < responder.term) {
+                throw new CoordinationStateRejectedException("rejecting " + request + " since local state is " + this);
             }
 
-            @Override
-            public String toString() {
-                return "slow path response to " + request;
-            }
-        });
+            transportService.getThreadPool().generic().execute(new AbstractRunnable() {
+                @Override
+                protected void doRun() throws IOException {
+                    logger.trace("responding to {} on slow path", request);
+                    try {
+                        handleRequestAndUpdateState.accept(request);
+                    } catch (Exception e) {
+                        transportChannel.sendResponse(e);
+                        return;
+                    }
+                    transportChannel.sendResponse(Empty.INSTANCE);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.debug(new ParameterizedMessage("exception while responding to {}", request), e);
+                }
+
+                @Override
+                public String toString() {
+                    return "slow path response to " + request;
+                }
+            });
+        }
     }
 
     // TODO in the PoC a faulty node was considered non-faulty again if it sent us a PeersRequest:

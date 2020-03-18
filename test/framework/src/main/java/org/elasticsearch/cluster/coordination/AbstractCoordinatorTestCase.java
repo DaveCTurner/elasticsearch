@@ -58,6 +58,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.discovery.SeedHostsProvider;
 import org.elasticsearch.env.NodeEnvironment;
@@ -414,9 +415,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         final ClusterNode clusterNode = getAnyNode();
                         clusterNode.onNode(() -> {
                             logger.debug("----> [runRandomly {}] forcing {} to become candidate", thisStep, clusterNode.getId());
-                            synchronized (clusterNode.coordinator.mutex) {
-                                clusterNode.coordinator.becomeCandidate("runRandomly");
-                            }
+                            clusterNode.becomeCandidate("runRandomly");
                         }).run();
                     } else if (rarely()) {
                         final ClusterNode clusterNode = getAnyNode();
@@ -910,6 +909,16 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 }
             }
 
+            void becomeCandidate(String reason) {
+                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                    threadContext.markAsSystemContext();
+                    synchronized (coordinator.mutex) {
+                        coordinator.becomeCandidate(reason);
+                    }
+                }
+            }
+
             private void setUp() {
                 mockTransport = new DisruptableMockTransport(localNode, logger) {
                     @Override
@@ -933,19 +942,17 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     nodeSettings : Settings.builder().put(nodeSettings)
                     .putList(ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING.getKey(),
                         ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING.get(Settings.EMPTY)).build(); // suppress auto-bootstrap
-                transportService = mockTransport.createTransportService(
-                    settings, deterministicTaskQueue.getThreadPool(this::onNode),
-                    getTransportInterceptor(localNode, deterministicTaskQueue.getThreadPool(this::onNode)),
-                    a -> localNode, null, emptySet());
-                masterService = new AckedFakeThreadPoolMasterService(localNode.getId(), "test",
+                final ThreadPool threadPool = deterministicTaskQueue.getThreadPool(this::onNode);
+                transportService = mockTransport.createTransportService(settings, threadPool,
+                    getTransportInterceptor(localNode, threadPool), a -> localNode, null, emptySet());
+                masterService = new AckedFakeThreadPoolMasterService(localNode.getId(), "test", threadPool,
                     runnable -> deterministicTaskQueue.scheduleNow(onNode(runnable)));
                 final ClusterSettings clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
                 clusterApplierService = new DisruptableClusterApplierService(localNode.getId(), settings, clusterSettings,
-                    deterministicTaskQueue, this::onNode);
+                    deterministicTaskQueue, threadPool);
                 clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
                 clusterService.setNodeConnectionsService(
-                    new NodeConnectionsService(clusterService.getSettings(), deterministicTaskQueue.getThreadPool(this::onNode),
-                        transportService));
+                    new NodeConnectionsService(clusterService.getSettings(), threadPool, transportService));
                 final Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators =
                     Collections.singletonList((dn, cs) -> extraJoinValidators.forEach(validator -> validator.accept(dn, cs)));
                 final AllocationService allocationService = ESAllocationTestCase.createAllocationService(Settings.EMPTY);
@@ -954,8 +961,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     Cluster.this::provideSeedHosts, clusterApplierService, onJoinValidators, Randomness.get(), (s, p, r) -> {},
                     getElectionStrategy());
                 masterService.setClusterStatePublisher(coordinator);
-                final GatewayService gatewayService = new GatewayService(settings, allocationService, clusterService,
-                    deterministicTaskQueue.getThreadPool(this::onNode), coordinator, null);
+                final GatewayService gatewayService
+                    = new GatewayService(settings, allocationService, clusterService, threadPool, coordinator, null);
 
                 logger.trace("starting up [{}]", localNode);
                 transportService.start();
@@ -1194,7 +1201,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     }
                     final VotingConfiguration configurationWithPlaceholders = new VotingConfiguration(nodeIds);
                     try {
-                        coordinator.setInitialConfiguration(configurationWithPlaceholders);
+                        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+                        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                            threadContext.markAsSystemContext();
+                            coordinator.setInitialConfiguration(configurationWithPlaceholders);
+                        }
                         logger.info("successfully set initial configuration to {}", configurationWithPlaceholders);
                     } catch (CoordinationStateRejectedException e) {
                         logger.info(new ParameterizedMessage("failed to set initial configuration to {}",
@@ -1292,8 +1303,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         AckCollector nextAckCollector = new AckCollector();
 
-        AckedFakeThreadPoolMasterService(String nodeName, String serviceName, Consumer<Runnable> onTaskAvailableToRun) {
-            super(nodeName, serviceName, onTaskAvailableToRun);
+        AckedFakeThreadPoolMasterService(String nodeName, String serviceName, ThreadPool threadPool, Consumer<Runnable> onTaskAvailableToRun) {
+            super(nodeName, serviceName, threadPool, onTaskAvailableToRun);
         }
 
         @Override
@@ -1323,8 +1334,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
         private boolean applicationMayFail;
 
         DisruptableClusterApplierService(String nodeName, Settings settings, ClusterSettings clusterSettings,
-                                         DeterministicTaskQueue deterministicTaskQueue, Function<Runnable, Runnable> runnableWrapper) {
-            super(nodeName, settings, clusterSettings, deterministicTaskQueue.getThreadPool(runnableWrapper));
+                                         DeterministicTaskQueue deterministicTaskQueue, ThreadPool threadPool) {
+            super(nodeName, settings, clusterSettings, threadPool);
             this.nodeName = nodeName;
             this.deterministicTaskQueue = deterministicTaskQueue;
             addStateApplier(event -> {
@@ -1344,7 +1355,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         protected PrioritizedEsThreadPoolExecutor createThreadPoolExecutor() {
-            return new MockSinglePrioritizingExecutor(nodeName, deterministicTaskQueue);
+            return new MockSinglePrioritizingExecutor(nodeName, deterministicTaskQueue, threadPool);
         }
 
         @Override
@@ -1484,5 +1495,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
         assertThat(spec.nextState(7, null, null), equalTo(Optional.of(7))); // read times out
         assertThat(spec.nextState(7, null, 42), equalTo(Optional.empty()));
     }
+
 
 }

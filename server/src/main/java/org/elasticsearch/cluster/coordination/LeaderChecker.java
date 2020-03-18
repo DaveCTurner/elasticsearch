@@ -197,6 +197,8 @@ public class LeaderChecker {
         }
 
         void handleWakeUp() {
+            assert transportService.getThreadPool().getThreadContext().isSystemContext();
+
             if (isClosed.get()) {
                 logger.trace("closed check scheduler woken up, doing nothing");
                 return;
@@ -262,6 +264,8 @@ public class LeaderChecker {
         }
 
         void leaderFailed(Exception e) {
+            assert transportService.getThreadPool().getThreadContext().isSystemContext();
+
             if (isClosed.compareAndSet(false, true)) {
                 transportService.getThreadPool().generic().execute(new Runnable() {
                     @Override
@@ -287,8 +291,9 @@ public class LeaderChecker {
         }
 
         private void scheduleNextWakeUp() {
+            assert transportService.getThreadPool().getThreadContext().isSystemContext();
             logger.trace("scheduling next check of {} for [{}] = {}", leader, LEADER_CHECK_INTERVAL_SETTING.getKey(), leaderCheckInterval);
-            transportService.getThreadPool().schedule(new Runnable() {
+            transportService.getThreadPool().schedule(transportService.getThreadPool().preserveContext(new Runnable() {
                 @Override
                 public void run() {
                     handleWakeUp();
@@ -298,7 +303,7 @@ public class LeaderChecker {
                 public String toString() {
                     return "scheduled check of leader " + leader;
                 }
-            }, leaderCheckInterval, Names.SAME);
+            }), leaderCheckInterval, Names.SAME);
         }
     }
 

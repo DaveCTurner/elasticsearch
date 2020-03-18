@@ -155,7 +155,7 @@ public class ClusterBootstrapService {
         logger.info("no discovery configuration found, will perform best-effort cluster bootstrapping after [{}] " +
             "unless existing master is discovered", unconfiguredBootstrapTimeout);
 
-        transportService.getThreadPool().scheduleUnlessShuttingDown(unconfiguredBootstrapTimeout, Names.GENERIC, new Runnable() {
+        transportService.getThreadPool().scheduleUnlessShuttingDown(unconfiguredBootstrapTimeout, Names.GENERIC, new Runnable() { // NOCOMMIT preserve here
             @Override
             public void run() {
                 final Set<DiscoveryNode> discoveredNodes = getDiscoveredNodes();

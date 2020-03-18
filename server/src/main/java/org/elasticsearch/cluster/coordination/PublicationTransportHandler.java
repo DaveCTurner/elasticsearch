@@ -38,6 +38,7 @@ import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
@@ -161,6 +162,7 @@ public class PublicationTransportHandler {
             public void sendPublishRequest(DiscoveryNode destination, PublishRequest publishRequest,
                                            ActionListener<PublishWithJoinResponse> originalListener) {
                 assert publishRequest.getAcceptedState() == clusterChangedEvent.state() : "state got switched on us";
+                assert transportService.getThreadPool().getThreadContext().isSystemContext();
                 final ActionListener<PublishWithJoinResponse> responseActionListener;
                 if (destination.equals(nodes.getLocalNode())) {
                     // if publishing to self, use original request instead (see currentPublishRequestToSelf for explanation)
@@ -197,6 +199,7 @@ public class PublicationTransportHandler {
             @Override
             public void sendApplyCommit(DiscoveryNode destination, ApplyCommitRequest applyCommitRequest,
                                         ActionListener<TransportResponse.Empty> responseActionListener) {
+                assert transportService.getThreadPool().getThreadContext().isSystemContext();
                 transportService.sendRequest(destination, COMMIT_STATE_ACTION_NAME, applyCommitRequest, stateRequestOptions,
                     new TransportResponseHandler<TransportResponse.Empty>() {
 
@@ -341,7 +344,10 @@ public class PublicationTransportHandler {
         final Compressor compressor = CompressorFactory.compressor(request.bytes());
         StreamInput in = request.bytes().streamInput();
         in.setVersion(request.version());
-        try {
+        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+        try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+            threadContext.markAsSystemContext();
+
             if (compressor != null) {
                 in = compressor.streamInput(in);
             }

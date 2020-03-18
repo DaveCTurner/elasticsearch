@@ -143,6 +143,8 @@ public class ElectionSchedulerFactory {
         private final AtomicLong attempt = new AtomicLong();
 
         void scheduleNextElection(final TimeValue gracePeriod, final Runnable scheduledRunnable) {
+            assert threadPool.getThreadContext().isSystemContext();
+
             if (isClosed.get()) {
                 logger.debug("{} not scheduling election", this);
                 return;
@@ -181,7 +183,7 @@ public class ElectionSchedulerFactory {
             };
 
             logger.debug("scheduling {}", runnable);
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(delayMillis), Names.GENERIC, runnable);
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(delayMillis), Names.GENERIC, threadPool.preserveContext(runnable));
         }
 
         @Override

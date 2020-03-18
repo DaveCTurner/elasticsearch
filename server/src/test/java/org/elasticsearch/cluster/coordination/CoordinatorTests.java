@@ -38,6 +38,7 @@ import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.discovery.DiscoveryModule;
@@ -756,38 +757,55 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             cluster.runRandomly();
             cluster.stabilise();
 
-            final Coordinator coordinator = cluster.getAnyNode().coordinator;
-            assertFalse(coordinator.setInitialConfiguration(coordinator.getLastAcceptedState().getLastCommittedConfiguration()));
+            final ClusterNode targetNode = cluster.getAnyNode();
+            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
+            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                threadContext.markAsSystemContext();
+                final Coordinator coordinator = targetNode.coordinator;
+                assertFalse(coordinator.setInitialConfiguration(coordinator.getLastAcceptedState().getLastCommittedConfiguration()));
+            }
         }
     }
 
     public void testCannotSetInitialConfigurationWithoutQuorum() {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
-            final Coordinator coordinator = cluster.getAnyNode().coordinator;
-            final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(
-                Sets.newHashSet(coordinator.getLocalNode().getId(), "unknown-node"));
-            final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,
-                () -> coordinator.setInitialConfiguration(unknownNodeConfiguration)).getMessage();
-            assertThat(exceptionMessage,
-                startsWith("not enough nodes discovered to form a quorum in the initial configuration [knownNodes=["));
-            assertThat(exceptionMessage, containsString("unknown-node"));
-            assertThat(exceptionMessage, containsString(coordinator.getLocalNode().toString()));
+            final ClusterNode targetNode = cluster.getAnyNode();
+            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
+            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                threadContext.markAsSystemContext();
 
-            // This is VERY BAD: setting a _different_ initial configuration. Yet it works if the first attempt will never be a quorum.
-            assertTrue(coordinator.setInitialConfiguration(
-                new VotingConfiguration(Collections.singleton(coordinator.getLocalNode().getId()))));
+                final Coordinator coordinator = targetNode.coordinator;
+                final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(
+                    Sets.newHashSet(coordinator.getLocalNode().getId(), "unknown-node"));
+
+                final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,
+                    () -> coordinator.setInitialConfiguration(unknownNodeConfiguration)).getMessage();
+                assertThat(exceptionMessage,
+                    startsWith("not enough nodes discovered to form a quorum in the initial configuration [knownNodes=["));
+                assertThat(exceptionMessage, containsString("unknown-node"));
+                assertThat(exceptionMessage, containsString(coordinator.getLocalNode().toString()));
+
+                // This is VERY BAD: setting a _different_ initial configuration. Yet it works if the first attempt will never be a quorum.
+                assertTrue(coordinator.setInitialConfiguration(
+                    new VotingConfiguration(Collections.singleton(coordinator.getLocalNode().getId()))));
+            }
             cluster.stabilise();
         }
     }
 
     public void testCannotSetInitialConfigurationWithoutLocalNode() {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
-            final Coordinator coordinator = cluster.getAnyNode().coordinator;
-            final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(Sets.newHashSet("unknown-node"));
-            final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,
-                () -> coordinator.setInitialConfiguration(unknownNodeConfiguration)).getMessage();
-            assertThat(exceptionMessage,
-                equalTo("local node is not part of initial configuration"));
+            final ClusterNode targetNode = cluster.getAnyNode();
+            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
+            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                threadContext.markAsSystemContext();
+                final Coordinator coordinator = targetNode.coordinator;
+                final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(Sets.newHashSet("unknown-node"));
+                final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,
+                    () -> coordinator.setInitialConfiguration(unknownNodeConfiguration)).getMessage();
+                assertThat(exceptionMessage,
+                    equalTo("local node is not part of initial configuration"));
+            }
         }
     }
 
@@ -877,9 +895,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ClusterNode nonLeader = cluster.getAnyNodeExcept(leader);
             nonLeader.onNode(() -> {
                 logger.debug("forcing {} to become candidate", nonLeader.getId());
-                synchronized (nonLeader.coordinator.mutex) {
-                    nonLeader.coordinator.becomeCandidate("forced");
-                }
+                nonLeader.becomeCandidate("forced");
                 logger.debug("simulate follower check coming through from {} to {}", leader.getId(), nonLeader.getId());
                 expectThrows(CoordinationStateRejectedException.class, () -> nonLeader.coordinator.onFollowerCheckRequest(
                     new FollowersChecker.FollowerCheckRequest(leader.coordinator.getCurrentTerm(), leader.getLocalNode())));

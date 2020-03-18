@@ -35,6 +35,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequestOptions;
@@ -136,21 +138,26 @@ public abstract class PeerFinder {
     }
 
     PeersResponse handlePeersRequest(PeersRequest peersRequest) {
-        synchronized (mutex) {
-            assert peersRequest.getSourceNode().equals(getLocalNode()) == false;
-            final List<DiscoveryNode> knownPeers;
-            if (active) {
-                assert leader.isPresent() == false : leader;
-                if (peersRequest.getSourceNode().isMasterNode()) {
-                    startProbe(peersRequest.getSourceNode().getAddress());
+        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+            threadContext.markAsSystemContext();
+
+            synchronized (mutex) {
+                assert peersRequest.getSourceNode().equals(getLocalNode()) == false;
+                final List<DiscoveryNode> knownPeers;
+                if (active) {
+                    assert leader.isPresent() == false : leader;
+                    if (peersRequest.getSourceNode().isMasterNode()) {
+                        startProbe(peersRequest.getSourceNode().getAddress());
+                    }
+                    peersRequest.getKnownPeers().stream().map(DiscoveryNode::getAddress).forEach(this::startProbe);
+                    knownPeers = getFoundPeersUnderLock();
+                } else {
+                    assert leader.isPresent() || lastAcceptedNodes == null;
+                    knownPeers = emptyList();
                 }
-                peersRequest.getKnownPeers().stream().map(DiscoveryNode::getAddress).forEach(this::startProbe);
-                knownPeers = getFoundPeersUnderLock();
-            } else {
-                assert leader.isPresent() || lastAcceptedNodes == null;
-                knownPeers = emptyList();
+                return new PeersResponse(leader, knownPeers, currentTerm);
             }
-            return new PeersResponse(leader, knownPeers, currentTerm);
         }
     }
 
@@ -256,7 +263,8 @@ public abstract class PeerFinder {
             }
         });
 
-        transportService.getThreadPool().scheduleUnlessShuttingDown(findPeersInterval, Names.GENERIC, new AbstractRunnable() {
+        final ThreadPool threadPool = transportService.getThreadPool();
+        threadPool.scheduleUnlessShuttingDown(findPeersInterval, Names.GENERIC, threadPool.preserveContext(new AbstractRunnable() {
             @Override
             public boolean isForceExecution() {
                 return true;
@@ -282,7 +290,7 @@ public abstract class PeerFinder {
             public String toString() {
                 return "PeerFinder handling wakeup";
             }
-        });
+        }));
 
         return peersRemoved;
     }
@@ -341,6 +349,7 @@ public abstract class PeerFinder {
         }
 
         void establishConnection() {
+            assert transportService.getThreadPool().getThreadContext().isSystemContext();
             assert holdsLock() : "PeerFinder mutex not held";
             assert getDiscoveryNode() == null : "unexpectedly connected to " + getDiscoveryNode();
             assert active;
@@ -351,6 +360,9 @@ public abstract class PeerFinder {
                 public void onResponse(DiscoveryNode remoteNode) {
                     assert remoteNode.isMasterNode() : remoteNode + " is not master-eligible";
                     assert remoteNode.equals(getLocalNode()) == false : remoteNode + " is the local node";
+                    if (!transportService.getThreadPool().getThreadContext().isSystemContext()) {
+                        throw new AssertionError();
+                    }
                     synchronized (mutex) {
                         if (active == false) {
                             return;

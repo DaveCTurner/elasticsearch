@@ -41,6 +41,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
@@ -124,13 +125,23 @@ public class JoinHelper {
         };
 
         transportService.registerRequestHandler(JOIN_ACTION_NAME, ThreadPool.Names.GENERIC, false, false, JoinRequest::new,
-            (request, channel, task) -> joinHandler.accept(request, transportJoinCallback(request, channel)));
+            (request, channel, task) -> {
+                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                    threadContext.markAsSystemContext();
+                    joinHandler.accept(request, transportJoinCallback(request, channel));
+                }
+            });
 
         transportService.registerRequestHandler(START_JOIN_ACTION_NAME, Names.GENERIC, false, false,
             StartJoinRequest::new,
             (request, channel, task) -> {
                 final DiscoveryNode destination = request.getSourceNode();
-                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
+                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                    threadContext.markAsSystemContext();
+                    sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
+                }
                 channel.sendResponse(Empty.INSTANCE);
             });
 

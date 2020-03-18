@@ -58,6 +58,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.discovery.Discovery;
@@ -511,6 +512,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     void becomeCandidate(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
+        assert transportService.getThreadPool().getThreadContext().isSystemContext();
         logger.debug("{}: coordinator becoming CANDIDATE in term {} (was {}, lastKnownLeader was [{}])",
             method, getCurrentTerm(), mode, lastKnownLeader);
 
@@ -693,10 +695,14 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void startInitialJoin() {
-        synchronized (mutex) {
-            becomeCandidate("startInitialJoin");
+        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+            threadContext.markAsSystemContext();
+            synchronized (mutex) {
+                becomeCandidate("startInitialJoin");
+            }
+            clusterBootstrapService.scheduleUnconfiguredBootstrap();
         }
-        clusterBootstrapService.scheduleUnconfiguredBootstrap();
     }
 
     @Override
@@ -817,6 +823,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
      * @return whether this call successfully set the initial configuration - if false, the cluster has already been bootstrapped.
      */
     public boolean setInitialConfiguration(final VotingConfiguration votingConfiguration) {
+        assert transportService.getThreadPool().getThreadContext().isSystemContext();
         synchronized (mutex) {
             final ClusterState currentState = getStateForMasterService();
 
@@ -1010,6 +1017,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void publish(ClusterChangedEvent clusterChangedEvent, ActionListener<Void> publishListener, AckListener ackListener) {
+        assert transportService.getThreadPool().getThreadContext().isSystemContext();
+
         try {
             synchronized (mutex) {
                 if (mode != Mode.LEADER || getCurrentTerm() != clusterChangedEvent.state().term()) {
@@ -1264,7 +1273,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             this.ackListener = ackListener;
             this.publishListener = publishListener;
 
-            this.timeoutHandler = singleNodeDiscovery ? null : transportService.getThreadPool().schedule(new Runnable() {
+            this.timeoutHandler = singleNodeDiscovery ? null : transportService.getThreadPool().schedule(transportService.getThreadPool().preserveContext(new Runnable() {
                 @Override
                 public void run() {
                     synchronized (mutex) {
@@ -1276,7 +1285,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 public String toString() {
                     return "scheduled timeout for " + CoordinatorPublication.this;
                 }
-            }, publishTimeout, Names.GENERIC);
+            }), publishTimeout, Names.GENERIC);
 
             this.infoTimeoutHandler = transportService.getThreadPool().schedule(new Runnable() {
                 @Override
@@ -1314,6 +1323,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         @Override
         protected void onCompletion(boolean committed) {
             assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
+            assert transportService.getThreadPool().getThreadContext().isSystemContext();
 
             localNodeAckEvent.addListener(new ActionListener<Void>() {
                 @Override
