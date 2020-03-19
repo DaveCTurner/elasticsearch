@@ -1017,7 +1017,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void publish(ClusterChangedEvent clusterChangedEvent, ActionListener<Void> publishListener, AckListener ackListener) {
-
         try {
             synchronized (mutex) {
                 if (mode != Mode.LEADER || getCurrentTerm() != clusterChangedEvent.state().term()) {
@@ -1272,33 +1271,35 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             this.ackListener = ackListener;
             this.publishListener = publishListener;
 
-            this.timeoutHandler = singleNodeDiscovery ? null : transportService.getThreadPool().schedule(transportService.getThreadPool().preserveContext(new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (mutex) {
-                        cancel("timed out after " + publishTimeout);
+            this.timeoutHandler = singleNodeDiscovery ? null : transportService.getThreadPool().schedule(
+                transportService.getThreadPool().preserveContext(new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (mutex) {
+                            cancel("timed out after " + publishTimeout);
+                        }
                     }
-                }
 
-                @Override
-                public String toString() {
-                    return "scheduled timeout for " + CoordinatorPublication.this;
-                }
-            }), publishTimeout, Names.GENERIC);
-
-            this.infoTimeoutHandler = transportService.getThreadPool().schedule(new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (mutex) {
-                        logIncompleteNodes(Level.INFO);
+                    @Override
+                    public String toString() {
+                        return "scheduled timeout for " + CoordinatorPublication.this;
                     }
-                }
+                }), publishTimeout, Names.GENERIC);
 
-                @Override
-                public String toString() {
-                    return "scheduled timeout for reporting on " + CoordinatorPublication.this;
-                }
-            }, publishInfoTimeout, Names.GENERIC);
+            this.infoTimeoutHandler = transportService.getThreadPool().schedule(
+                transportService.getThreadPool().preserveContext(new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (mutex) {
+                            logIncompleteNodes(Level.INFO);
+                        }
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "scheduled timeout for reporting on " + CoordinatorPublication.this;
+                    }
+                }), publishInfoTimeout, Names.GENERIC);
         }
 
         private void removePublicationAndPossiblyBecomeCandidate(String reason) {
@@ -1472,5 +1473,4 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             publicationContext.sendApplyCommit(destination, applyCommit, wrapWithMutex(responseActionListener));
         }
     }
-
 }
