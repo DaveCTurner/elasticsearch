@@ -512,7 +512,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     void becomeCandidate(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-        assertPropagatedContext();
         logger.debug("{}: coordinator becoming CANDIDATE in term {} (was {}, lastKnownLeader was [{}])",
             method, getCurrentTerm(), mode, lastKnownLeader);
 
@@ -825,7 +824,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
      * @return whether this call successfully set the initial configuration - if false, the cluster has already been bootstrapped.
      */
     public boolean setInitialConfiguration(final VotingConfiguration votingConfiguration) {
-        assertPropagatedContext();
         synchronized (mutex) {
             final ClusterState currentState = getStateForMasterService();
 
@@ -1019,7 +1017,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void publish(ClusterChangedEvent clusterChangedEvent, ActionListener<Void> publishListener, AckListener ackListener) {
-        assertPropagatedContext();
 
         try {
             synchronized (mutex) {
@@ -1325,7 +1322,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         @Override
         protected void onCompletion(boolean committed) {
             assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-            assertPropagatedContext();
 
             localNodeAckEvent.addListener(new ActionListener<Void>() {
                 @Override
@@ -1477,11 +1473,4 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
     }
 
-    private void assertPropagatedContext() {
-        assertPropagatedContext(transportService.getThreadPool().getThreadContext());
-    }
-
-    public static void assertPropagatedContext(ThreadContext threadContext) {
-        assert "_system_context_propagation_marker_".equals(threadContext.getHeader("_system_context_propagation_marker_")); // TODO nocommit remove this
-    }
 }
