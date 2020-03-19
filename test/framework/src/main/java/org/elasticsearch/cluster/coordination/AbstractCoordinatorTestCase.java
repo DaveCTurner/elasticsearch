@@ -909,11 +909,12 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 }
             }
 
+            ThreadContext.StoredContext systemContext() {
+                return FakeThreadPoolMasterService.systemContext(transportService.getThreadPool().getThreadContext());
+            }
+
             void becomeCandidate(String reason) {
-                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.markAsSystemContext();
-                    threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+                try (ThreadContext.StoredContext ignored = systemContext()) {
                     synchronized (coordinator.mutex) {
                         coordinator.becomeCandidate(reason);
                     }
@@ -972,7 +973,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 clusterService.start();
                 final ThreadContext threadContext = threadPool.getThreadContext();
                 try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+                    threadContext.putHeader(FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER, FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER);
+                    // NB not marked as system context, that is done within startInitialJoin
                     coordinator.startInitialJoin();
                 }
             }
@@ -1205,10 +1207,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     }
                     final VotingConfiguration configurationWithPlaceholders = new VotingConfiguration(nodeIds);
                     try {
-                        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-                        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                            threadContext.markAsSystemContext();
-                            threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+                        try (ThreadContext.StoredContext ignored = systemContext()) {
                             coordinator.setInitialConfiguration(configurationWithPlaceholders);
                         }
                         logger.info("successfully set initial configuration to {}", configurationWithPlaceholders);
@@ -1365,10 +1364,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         public void onNewClusterState(String source, Supplier<ClusterState> clusterStateSupplier, ClusterApplyListener listener) {
-            if (threadPool.getThreadContext().getHeader("_system_context_propagation_marker_") == null
-                || !threadPool.getThreadContext().getHeader("_system_context_propagation_marker_").equals("_marked_")) {
-                throw new AssertionError();
-            }
+            assert FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER.equals(threadPool.getThreadContext().getHeader(FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER));
             if (clusterStateApplyResponse == ClusterStateApplyResponse.HANG) {
                 if (randomBoolean()) {
                     // apply cluster state, but don't notify listener

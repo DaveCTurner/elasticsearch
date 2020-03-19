@@ -758,11 +758,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             cluster.stabilise();
 
             final ClusterNode targetNode = cluster.getAnyNode();
-            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
-            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                threadContext.markAsSystemContext();
-                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
-
+            try (final ThreadContext.StoredContext ignored = targetNode.systemContext()) {
                 final Coordinator coordinator = targetNode.coordinator;
                 assertFalse(coordinator.setInitialConfiguration(coordinator.getLastAcceptedState().getLastCommittedConfiguration()));
             }
@@ -772,10 +768,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
     public void testCannotSetInitialConfigurationWithoutQuorum() {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
             final ClusterNode targetNode = cluster.getAnyNode();
-            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
-            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                threadContext.markAsSystemContext();
-                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+            try (final ThreadContext.StoredContext ignored = targetNode.systemContext()) {
 
                 final Coordinator coordinator = targetNode.coordinator;
                 final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(
@@ -799,10 +792,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
     public void testCannotSetInitialConfigurationWithoutLocalNode() {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
             final ClusterNode targetNode = cluster.getAnyNode();
-            final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
-            try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                threadContext.markAsSystemContext();
-                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+            try (final ThreadContext.StoredContext ignored = targetNode.systemContext()) {
                 final Coordinator coordinator = targetNode.coordinator;
                 final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(Sets.newHashSet("unknown-node"));
                 final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,

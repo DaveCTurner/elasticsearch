@@ -45,6 +45,11 @@ import static org.elasticsearch.test.ESTestCase.randomInt;
 public class FakeThreadPoolMasterService extends MasterService {
     private static final Logger logger = LogManager.getLogger(FakeThreadPoolMasterService.class);
 
+    /**
+     * Header for marking the originating context is a system context, since isSystemContext does not propagate over the wire.
+     */
+    public static final String SYSTEM_CONTEXT_PROPAGATION_MARKER = "_system_context_propagation_marker_";
+
     private final String name;
     private final List<Runnable> pendingTasks = new ArrayList<>();
     private final Consumer<Runnable> onTaskAvailableToRun;
@@ -100,10 +105,7 @@ public class FakeThreadPoolMasterService extends MasterService {
                     final Runnable task = pendingTasks.remove(taskIndex);
                     taskInProgress = true;
                     scheduledNextTask = false;
-                    final ThreadContext threadContext = threadPool.getThreadContext();
-                    try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                        threadContext.markAsSystemContext();
-                        threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+                    try (ThreadContext.StoredContext ignored = systemContext(threadPool.getThreadContext())) {
                         task.run();
                     }
                     if (waitForPublish == false) {
@@ -162,5 +164,12 @@ public class FakeThreadPoolMasterService extends MasterService {
 
     protected AckListener wrapAckListener(AckListener ackListener) {
         return ackListener;
+    }
+
+    public static ThreadContext.StoredContext systemContext(ThreadContext threadContext) {
+        ThreadContext.StoredContext storedContext = threadContext.stashContext();
+        threadContext.markAsSystemContext();
+        threadContext.putHeader(SYSTEM_CONTEXT_PROPAGATION_MARKER, SYSTEM_CONTEXT_PROPAGATION_MARKER);
+        return storedContext;
     }
 }

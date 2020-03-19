@@ -1482,9 +1482,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     }
 
     public static void assertPropagatedContext(ThreadContext threadContext) {
-        if (threadContext.getHeader("_system_context_propagation_marker_") == null
-            || !threadContext.getHeader("_system_context_propagation_marker_").equals("_marked_")) {
-            throw new AssertionError();
-        }
+        assert "_system_context_propagation_marker_".equals(threadContext.getHeader("_system_context_propagation_marker_")); // TODO nocommit remove this
     }
 }
