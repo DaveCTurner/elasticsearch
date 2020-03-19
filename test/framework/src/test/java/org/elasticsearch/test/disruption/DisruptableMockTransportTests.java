@@ -27,6 +27,7 @@ import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.disruption.DisruptableMockTransport.ConnectionStatus;
@@ -103,7 +104,7 @@ public class DisruptableMockTransportTests extends ESTestCase {
         deterministicTaskQueue = new DeterministicTaskQueue(
             Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "dummy").build(), random());
 
-        final DisruptableMockTransport transport1 = new DisruptableMockTransport(node1, logger) {
+        final DisruptableMockTransport transport1 = new DisruptableMockTransport(node1, logger, new ThreadContext(Settings.EMPTY)) {
             @Override
             protected ConnectionStatus getConnectionStatus(DiscoveryNode destination) {
                 return DisruptableMockTransportTests.this.getConnectionStatus(getLocalNode(), destination);
@@ -120,7 +121,7 @@ public class DisruptableMockTransportTests extends ESTestCase {
             }
         };
 
-        final DisruptableMockTransport transport2 = new DisruptableMockTransport(node2, logger) {
+        final DisruptableMockTransport transport2 = new DisruptableMockTransport(node2, logger, new ThreadContext(Settings.EMPTY)) {
             @Override
             protected ConnectionStatus getConnectionStatus(DiscoveryNode destination) {
                 return DisruptableMockTransportTests.this.getConnectionStatus(getLocalNode(), destination);

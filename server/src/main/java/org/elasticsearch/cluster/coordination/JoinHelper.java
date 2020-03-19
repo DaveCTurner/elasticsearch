@@ -125,23 +125,13 @@ public class JoinHelper {
         };
 
         transportService.registerRequestHandler(JOIN_ACTION_NAME, ThreadPool.Names.GENERIC, false, false, JoinRequest::new,
-            (request, channel, task) -> {
-                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.markAsSystemContext();
-                    joinHandler.accept(request, transportJoinCallback(request, channel));
-                }
-            });
+            (request, channel, task) -> joinHandler.accept(request, transportJoinCallback(request, channel)));
 
         transportService.registerRequestHandler(START_JOIN_ACTION_NAME, Names.GENERIC, false, false,
             StartJoinRequest::new,
             (request, channel, task) -> {
                 final DiscoveryNode destination = request.getSourceNode();
-                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.markAsSystemContext();
-                    sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
-                }
+                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
                 channel.sendResponse(Empty.INSTANCE);
             });
 

@@ -143,7 +143,7 @@ public class ElectionSchedulerFactory {
         private final AtomicLong attempt = new AtomicLong();
 
         void scheduleNextElection(final TimeValue gracePeriod, final Runnable scheduledRunnable) {
-            assert threadPool.getThreadContext().isSystemContext();
+            assertPropagatedContext();
 
             if (isClosed.get()) {
                 logger.debug("{} not scheduling election", this);
@@ -197,5 +197,9 @@ public class ElectionSchedulerFactory {
             boolean wasNotPreviouslyClosed = isClosed.compareAndSet(false, true);
             assert wasNotPreviouslyClosed;
         }
+    }
+
+    private void assertPropagatedContext() {
+        Coordinator.assertPropagatedContext(threadPool.getThreadContext());
     }
 }

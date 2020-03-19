@@ -761,6 +761,8 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
             try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                 threadContext.markAsSystemContext();
+                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+
                 final Coordinator coordinator = targetNode.coordinator;
                 assertFalse(coordinator.setInitialConfiguration(coordinator.getLastAcceptedState().getLastCommittedConfiguration()));
             }
@@ -773,6 +775,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
             try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                 threadContext.markAsSystemContext();
+                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
 
                 final Coordinator coordinator = targetNode.coordinator;
                 final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(
@@ -799,6 +802,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ThreadContext threadContext = targetNode.transportService.getThreadPool().getThreadContext();
             try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                 threadContext.markAsSystemContext();
+                threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
                 final Coordinator coordinator = targetNode.coordinator;
                 final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(Sets.newHashSet("unknown-node"));
                 final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,

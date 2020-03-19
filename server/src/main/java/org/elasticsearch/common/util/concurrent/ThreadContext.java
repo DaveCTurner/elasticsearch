@@ -685,10 +685,12 @@ public final class ThreadContext implements Writeable {
     private class ContextPreservingRunnable implements WrappedRunnable {
         private final Runnable in;
         private final ThreadContext.StoredContext ctx;
+        private final ElasticsearchException stackTrace; // TODO nocommit remove this
 
         private ContextPreservingRunnable(Runnable in) {
             ctx = newStoredContext(false);
             this.in = in;
+            stackTrace = new ElasticsearchException("stack trace");
         }
 
         @Override

@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.PeersResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -138,26 +139,21 @@ public abstract class PeerFinder {
     }
 
     PeersResponse handlePeersRequest(PeersRequest peersRequest) {
-        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-            threadContext.markAsSystemContext();
-
-            synchronized (mutex) {
-                assert peersRequest.getSourceNode().equals(getLocalNode()) == false;
-                final List<DiscoveryNode> knownPeers;
-                if (active) {
-                    assert leader.isPresent() == false : leader;
-                    if (peersRequest.getSourceNode().isMasterNode()) {
-                        startProbe(peersRequest.getSourceNode().getAddress());
-                    }
-                    peersRequest.getKnownPeers().stream().map(DiscoveryNode::getAddress).forEach(this::startProbe);
-                    knownPeers = getFoundPeersUnderLock();
-                } else {
-                    assert leader.isPresent() || lastAcceptedNodes == null;
-                    knownPeers = emptyList();
+        synchronized (mutex) {
+            assert peersRequest.getSourceNode().equals(getLocalNode()) == false;
+            final List<DiscoveryNode> knownPeers;
+            if (active) {
+                assert leader.isPresent() == false : leader;
+                if (peersRequest.getSourceNode().isMasterNode()) {
+                    startProbe(peersRequest.getSourceNode().getAddress());
                 }
-                return new PeersResponse(leader, knownPeers, currentTerm);
+                peersRequest.getKnownPeers().stream().map(DiscoveryNode::getAddress).forEach(this::startProbe);
+                knownPeers = getFoundPeersUnderLock();
+            } else {
+                assert leader.isPresent() || lastAcceptedNodes == null;
+                knownPeers = emptyList();
             }
+            return new PeersResponse(leader, knownPeers, currentTerm);
         }
     }
 
@@ -349,10 +345,10 @@ public abstract class PeerFinder {
         }
 
         void establishConnection() {
-            assert transportService.getThreadPool().getThreadContext().isSystemContext();
             assert holdsLock() : "PeerFinder mutex not held";
             assert getDiscoveryNode() == null : "unexpectedly connected to " + getDiscoveryNode();
             assert active;
+            assertPropagatedContext();
 
             logger.trace("{} attempting connection", this);
             transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<DiscoveryNode>() {
@@ -360,9 +356,7 @@ public abstract class PeerFinder {
                 public void onResponse(DiscoveryNode remoteNode) {
                     assert remoteNode.isMasterNode() : remoteNode + " is not master-eligible";
                     assert remoteNode.equals(getLocalNode()) == false : remoteNode + " is the local node";
-                    if (!transportService.getThreadPool().getThreadContext().isSystemContext()) {
-                        throw new AssertionError();
-                    }
+                    assertPropagatedContext();
                     synchronized (mutex) {
                         if (active == false) {
                             return;
@@ -458,5 +452,9 @@ public abstract class PeerFinder {
                 ", peersRequestInFlight=" + peersRequestInFlight +
                 '}';
         }
+    }
+
+    private void assertPropagatedContext() {
+        Coordinator.assertPropagatedContext(transportService.getThreadPool().getThreadContext());
     }
 }

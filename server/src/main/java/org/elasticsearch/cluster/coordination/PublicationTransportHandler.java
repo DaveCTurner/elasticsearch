@@ -344,10 +344,7 @@ public class PublicationTransportHandler {
         final Compressor compressor = CompressorFactory.compressor(request.bytes());
         StreamInput in = request.bytes().streamInput();
         in.setVersion(request.version());
-        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-        try (final ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-            threadContext.markAsSystemContext();
-
+        try {
             if (compressor != null) {
                 in = compressor.streamInput(in);
             }

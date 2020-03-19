@@ -913,6 +913,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
                 try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                     threadContext.markAsSystemContext();
+                    threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
                     synchronized (coordinator.mutex) {
                         coordinator.becomeCandidate(reason);
                     }
@@ -920,7 +921,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             }
 
             private void setUp() {
-                mockTransport = new DisruptableMockTransport(localNode, logger) {
+                final ThreadPool threadPool = deterministicTaskQueue.getThreadPool(this::onNode);
+                mockTransport = new DisruptableMockTransport(localNode, logger, threadPool.getThreadContext()) {
                     @Override
                     protected void execute(Runnable runnable) {
                         deterministicTaskQueue.scheduleNow(onNode(runnable));
@@ -937,12 +939,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                             .filter(transport -> transport.getLocalNode().getAddress().equals(address)).findAny();
                     }
                 };
-
                 final Settings settings = nodeSettings.hasValue(DiscoveryModule.DISCOVERY_TYPE_SETTING.getKey()) ?
                     nodeSettings : Settings.builder().put(nodeSettings)
                     .putList(ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING.getKey(),
                         ClusterBootstrapService.INITIAL_MASTER_NODES_SETTING.get(Settings.EMPTY)).build(); // suppress auto-bootstrap
-                final ThreadPool threadPool = deterministicTaskQueue.getThreadPool(this::onNode);
                 transportService = mockTransport.createTransportService(settings, threadPool,
                     getTransportInterceptor(localNode, threadPool), a -> localNode, null, emptySet());
                 masterService = new AckedFakeThreadPoolMasterService(localNode.getId(), "test", threadPool,
@@ -970,7 +970,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 coordinator.start();
                 gatewayService.start();
                 clusterService.start();
-                coordinator.startInitialJoin();
+                final ThreadContext threadContext = threadPool.getThreadContext();
+                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                    threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
+                    coordinator.startInitialJoin();
+                }
             }
 
             void close() {
@@ -1204,6 +1208,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
                         try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                             threadContext.markAsSystemContext();
+                            threadContext.putHeader("_system_context_propagation_marker_", "_marked_");
                             coordinator.setInitialConfiguration(configurationWithPlaceholders);
                         }
                         logger.info("successfully set initial configuration to {}", configurationWithPlaceholders);
@@ -1360,6 +1365,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         public void onNewClusterState(String source, Supplier<ClusterState> clusterStateSupplier, ClusterApplyListener listener) {
+            if (threadPool.getThreadContext().getHeader("_system_context_propagation_marker_") == null
+                || !threadPool.getThreadContext().getHeader("_system_context_propagation_marker_").equals("_marked_")) {
+                throw new AssertionError();
+            }
             if (clusterStateApplyResponse == ClusterStateApplyResponse.HANG) {
                 if (randomBoolean()) {
                     // apply cluster state, but don't notify listener

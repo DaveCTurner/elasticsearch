@@ -512,7 +512,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     void becomeCandidate(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-        assert transportService.getThreadPool().getThreadContext().isSystemContext();
+        assertPropagatedContext();
         logger.debug("{}: coordinator becoming CANDIDATE in term {} (was {}, lastKnownLeader was [{}])",
             method, getCurrentTerm(), mode, lastKnownLeader);
 
@@ -696,7 +696,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     @Override
     public void startInitialJoin() {
         final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+        try (ThreadContext.StoredContext ignored = threadContext.newStoredContext(false)) {
+            // We do not stash the context since we allow tests to set headers here to verify that the context is correctly propagated;
+            // we have to use headers to check this since the isSystemContext flag is not passed over the wire
             threadContext.markAsSystemContext();
             synchronized (mutex) {
                 becomeCandidate("startInitialJoin");
@@ -823,7 +825,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
      * @return whether this call successfully set the initial configuration - if false, the cluster has already been bootstrapped.
      */
     public boolean setInitialConfiguration(final VotingConfiguration votingConfiguration) {
-        assert transportService.getThreadPool().getThreadContext().isSystemContext();
+        assertPropagatedContext();
         synchronized (mutex) {
             final ClusterState currentState = getStateForMasterService();
 
@@ -1017,7 +1019,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void publish(ClusterChangedEvent clusterChangedEvent, ActionListener<Void> publishListener, AckListener ackListener) {
-        assert transportService.getThreadPool().getThreadContext().isSystemContext();
+        assertPropagatedContext();
 
         try {
             synchronized (mutex) {
@@ -1323,7 +1325,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         @Override
         protected void onCompletion(boolean committed) {
             assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
-            assert transportService.getThreadPool().getThreadContext().isSystemContext();
+            assertPropagatedContext();
 
             localNodeAckEvent.addListener(new ActionListener<Void>() {
                 @Override
@@ -1472,6 +1474,17 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         protected void sendApplyCommit(DiscoveryNode destination, ApplyCommitRequest applyCommit,
                                        ActionListener<Empty> responseActionListener) {
             publicationContext.sendApplyCommit(destination, applyCommit, wrapWithMutex(responseActionListener));
+        }
+    }
+
+    private void assertPropagatedContext() {
+        assertPropagatedContext(transportService.getThreadPool().getThreadContext());
+    }
+
+    public static void assertPropagatedContext(ThreadContext threadContext) {
+        if (threadContext.getHeader("_system_context_propagation_marker_") == null
+            || !threadContext.getHeader("_system_context_propagation_marker_").equals("_marked_")) {
+            throw new AssertionError();
         }
     }
 }

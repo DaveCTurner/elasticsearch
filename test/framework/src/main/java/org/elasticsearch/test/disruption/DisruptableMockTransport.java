@@ -27,6 +27,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.test.transport.MockTransport;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.CloseableConnection;
@@ -42,6 +43,7 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -51,10 +53,12 @@ import static org.elasticsearch.test.ESTestCase.copyWriteable;
 public abstract class DisruptableMockTransport extends MockTransport {
     private final DiscoveryNode localNode;
     private final Logger logger;
+    private final ThreadContext threadContext;
 
-    public DisruptableMockTransport(DiscoveryNode localNode, Logger logger) {
+    public DisruptableMockTransport(DiscoveryNode localNode, Logger logger, ThreadContext threadContext) {
         this.localNode = localNode;
         this.logger = logger;
+        this.threadContext = threadContext;
     }
 
     protected abstract ConnectionStatus getConnectionStatus(DiscoveryNode destination);
@@ -108,26 +112,31 @@ public abstract class DisruptableMockTransport extends MockTransport {
         assert destinationTransport.getLocalNode().equals(getLocalNode()) == false :
             "non-local message from " + getLocalNode() + " to itself";
 
+        final Map<String, String> headers = threadContext.getHeaders();
+
         destinationTransport.execute(new Runnable() {
             @Override
             public void run() {
-                final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
-                switch (connectionStatus) {
-                    case BLACK_HOLE:
-                    case BLACK_HOLE_REQUESTS_ONLY:
-                        onBlackholedDuringSend(requestId, action, destinationTransport);
-                        break;
+                try (ThreadContext.StoredContext ignored = destinationTransport.threadContext.stashContext()) {
+                    destinationTransport.threadContext.putHeader(headers);
+                    final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
+                    switch (connectionStatus) {
+                        case BLACK_HOLE:
+                        case BLACK_HOLE_REQUESTS_ONLY:
+                            onBlackholedDuringSend(requestId, action, destinationTransport);
+                            break;
 
-                    case DISCONNECTED:
-                        onDisconnectedDuringSend(requestId, action, destinationTransport);
-                        break;
+                        case DISCONNECTED:
+                            onDisconnectedDuringSend(requestId, action, destinationTransport);
+                            break;
 
-                    case CONNECTED:
-                        onConnectedDuringSend(requestId, action, request, destinationTransport);
-                        break;
+                        case CONNECTED:
+                            onConnectedDuringSend(requestId, action, request, destinationTransport);
+                            break;
 
-                    default:
-                        throw new AssertionError("unexpected status: " + connectionStatus);
+                        default:
+                            throw new AssertionError("unexpected status: " + connectionStatus);
+                    }
                 }
             }
 

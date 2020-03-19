@@ -1179,7 +1179,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             // don't do anything, and don't block
                         }
                     });
-                mockTransport = new DisruptableMockTransport(node, logger) {
+                mockTransport = new DisruptableMockTransport(node, logger, threadPool.getThreadContext()) {
                     @Override
                     protected ConnectionStatus getConnectionStatus(DiscoveryNode destination) {
                         if (node.equals(destination)) {
