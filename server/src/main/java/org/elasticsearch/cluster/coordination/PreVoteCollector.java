@@ -29,7 +29,6 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.lease.Releasable;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportResponseHandler;
@@ -66,15 +65,7 @@ public class PreVoteCollector {
         // TODO does this need to be on the generic threadpool or can it use SAME?
         transportService.registerRequestHandler(REQUEST_PRE_VOTE_ACTION_NAME, Names.GENERIC, false, false,
             PreVoteRequest::new,
-            (request, channel, task) -> {
-                final PreVoteResponse response;
-                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
-                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.markAsSystemContext();
-                    response = handlePreVoteRequest(request);
-                }
-                channel.sendResponse(response);
-            });
+            (request, channel, task) -> channel.sendResponse(handlePreVoteRequest(request)));
     }
 
     /**
