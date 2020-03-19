@@ -32,6 +32,7 @@ import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.NodeDisconnectedException;
@@ -105,7 +106,13 @@ public class LeaderChecker {
         transportService.addConnectionListener(new TransportConnectionListener() {
             @Override
             public void onNodeDisconnected(DiscoveryNode node, Transport.Connection connection) {
-                handleDisconnectedNode(node);
+                final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                    // nocommit this is no good, it restarts the PeerFinder in system context but the PeerFinder can trigger an election
+                    // on a remote node **not** in system context.
+                    threadContext.markAsSystemContext();
+                    handleDisconnectedNode(node);
+                }
             }
         });
     }

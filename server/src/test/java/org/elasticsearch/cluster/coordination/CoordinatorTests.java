@@ -679,12 +679,8 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ClusterNode follower1 = cluster.getAnyNodeExcept(leader, follower0);
 
             leader.blackhole();
-            try (ThreadContext.StoredContext ignored = follower0.systemContext()) {
-                follower0.onDisconnectEventFrom(leader);
-            }
-            try (ThreadContext.StoredContext ignored = follower1.systemContext()) {
-                follower1.onDisconnectEventFrom(leader);
-            }
+            follower0.onDisconnectEventFrom(leader);
+            follower1.onDisconnectEventFrom(leader);
             // let followers elect a leader among themselves before healing the leader and running the publication
             cluster.runFor(DEFAULT_DELAY_VARIABILITY // disconnect is scheduled
                 + DEFAULT_ELECTION_DELAY, "elect new leader");
