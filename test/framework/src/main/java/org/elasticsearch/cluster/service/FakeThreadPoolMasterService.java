@@ -57,7 +57,8 @@ public class FakeThreadPoolMasterService extends MasterService {
     private boolean taskInProgress = false;
     private boolean waitForPublish = false;
 
-    public FakeThreadPoolMasterService(String nodeName, String serviceName, ThreadPool threadPool, Consumer<Runnable> onTaskAvailableToRun) {
+    public FakeThreadPoolMasterService(String nodeName, String serviceName, ThreadPool threadPool,
+                                       Consumer<Runnable> onTaskAvailableToRun) {
         super(Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), nodeName).build(),
             new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS), threadPool);
         this.name = serviceName;

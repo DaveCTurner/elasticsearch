@@ -971,10 +971,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 coordinator.start();
                 gatewayService.start();
                 clusterService.start();
-                final ThreadContext threadContext = threadPool.getThreadContext();
-                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                    threadContext.putHeader(FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER, FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER);
-                    // NB not marked as system context, that is done within startInitialJoin
+                try (ThreadContext.StoredContext ignored = FakeThreadPoolMasterService.systemContext(threadPool.getThreadContext())) {
+                    // in production code we do not call startInitialJoin() in system context, but we must add the marker header to the
+                    // context for these tests so that we can assert that the system context is properly propagated. Other tests would
+                    // fail if startInitialJoin did not itself enter into system context
                     coordinator.startInitialJoin();
                 }
             }
@@ -1307,7 +1307,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         AckCollector nextAckCollector = new AckCollector();
 
-        AckedFakeThreadPoolMasterService(String nodeName, String serviceName, ThreadPool threadPool, Consumer<Runnable> onTaskAvailableToRun) {
+        AckedFakeThreadPoolMasterService(String nodeName, String serviceName, ThreadPool threadPool,
+                                         Consumer<Runnable> onTaskAvailableToRun) {
             super(nodeName, serviceName, threadPool, onTaskAvailableToRun);
         }
 

@@ -21,6 +21,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -249,7 +250,7 @@ public class DeterministicTaskQueueTests extends ESTestCase {
         final DeterministicTaskQueue taskQueue = newTaskQueue();
         final List<String> strings = new ArrayList<>(2);
 
-        final ExecutorService executorService = taskQueue.getExecutorService();
+        final ExecutorService executorService = taskQueue.getExecutorService(new ThreadContext(Settings.EMPTY));
         assertFalse(taskQueue.hasRunnableTasks());
         executorService.execute(() -> strings.add("foo"));
         assertTrue(taskQueue.hasRunnableTasks());
@@ -304,7 +305,7 @@ public class DeterministicTaskQueueTests extends ESTestCase {
             assertFalse(called.get());
             called.set(true);
             runnable.run();
-        }, getThreadContext());
+        }, new ThreadContext(Settings.EMPTY));
         executorService.execute(() -> logger.info("runnable executed"));
         assertFalse(called.get());
         taskQueue.runAllRunnableTasks();
