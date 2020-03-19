@@ -769,11 +769,9 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
             final ClusterNode targetNode = cluster.getAnyNode();
             try (final ThreadContext.StoredContext ignored = targetNode.systemContext()) {
-
                 final Coordinator coordinator = targetNode.coordinator;
                 final VotingConfiguration unknownNodeConfiguration = new VotingConfiguration(
                     Sets.newHashSet(coordinator.getLocalNode().getId(), "unknown-node"));
-
                 final String exceptionMessage = expectThrows(CoordinationStateRejectedException.class,
                     () -> coordinator.setInitialConfiguration(unknownNodeConfiguration)).getMessage();
                 assertThat(exceptionMessage,

@@ -1364,7 +1364,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         public void onNewClusterState(String source, Supplier<ClusterState> clusterStateSupplier, ClusterApplyListener listener) {
-            assert FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER.equals(threadPool.getThreadContext().getHeader(FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER));
+            assert FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER
+                .equals(threadPool.getThreadContext().getHeader(FakeThreadPoolMasterService.SYSTEM_CONTEXT_PROPAGATION_MARKER));
             if (clusterStateApplyResponse == ClusterStateApplyResponse.HANG) {
                 if (randomBoolean()) {
                     // apply cluster state, but don't notify listener
@@ -1500,6 +1501,5 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
         assertThat(spec.nextState(7, null, null), equalTo(Optional.of(7))); // read times out
         assertThat(spec.nextState(7, null, 42), equalTo(Optional.empty()));
     }
-
 
 }
