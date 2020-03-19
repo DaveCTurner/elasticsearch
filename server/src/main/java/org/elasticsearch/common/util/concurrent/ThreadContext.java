@@ -20,7 +20,6 @@ package org.elasticsearch.common.util.concurrent;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.client.OriginSettingClient;
@@ -182,20 +181,11 @@ public final class ThreadContext implements Writeable {
      */
     public StoredContext newStoredContext(boolean preserveResponseHeaders) {
         final ThreadContextStruct context = threadLocal.get();
-        final ElasticsearchException exception = new ElasticsearchException("stack trace"); // TODO nocommit revert this
-        return new StoredContext() {
-            @Override
-            public void close() {
-                if (preserveResponseHeaders && threadLocal.get() != context) {
-                    threadLocal.set(context.putResponseHeaders(threadLocal.get().responseHeaders));
-                } else {
-                    threadLocal.set(context);
-                }
-            }
-
-            @Override
-            public String toString() {
-                return exception.toString();
+        return ()  -> {
+            if (preserveResponseHeaders && threadLocal.get() != context) {
+                threadLocal.set(context.putResponseHeaders(threadLocal.get().responseHeaders));
+            } else {
+                threadLocal.set(context);
             }
         };
     }
@@ -685,12 +675,10 @@ public final class ThreadContext implements Writeable {
     private class ContextPreservingRunnable implements WrappedRunnable {
         private final Runnable in;
         private final ThreadContext.StoredContext ctx;
-        private final ElasticsearchException stackTrace; // TODO nocommit remove this
 
         private ContextPreservingRunnable(Runnable in) {
             ctx = newStoredContext(false);
             this.in = in;
-            stackTrace = new ElasticsearchException("stack trace");
         }
 
         @Override

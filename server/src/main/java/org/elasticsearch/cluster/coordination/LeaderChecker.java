@@ -197,7 +197,6 @@ public class LeaderChecker {
         }
 
         void handleWakeUp() {
-
             if (isClosed.get()) {
                 logger.trace("closed check scheduler woken up, doing nothing");
                 return;
@@ -263,7 +262,6 @@ public class LeaderChecker {
         }
 
         void leaderFailed(Exception e) {
-
             if (isClosed.compareAndSet(false, true)) {
                 transportService.getThreadPool().generic().execute(new Runnable() {
                     @Override
@@ -347,6 +345,5 @@ public class LeaderChecker {
                 '}';
         }
     }
-
 }
 
