@@ -19,6 +19,8 @@
 
 package org.elasticsearch.search.sort;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexReader;
@@ -26,6 +28,7 @@ import org.apache.lucene.index.MultiTerms;
 import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.search.SortField;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.ParseField;
@@ -72,6 +75,8 @@ import static org.elasticsearch.search.sort.NestedSortBuilder.NESTED_FIELD;
  * A sort builder to sort based on a document field.
  */
 public class FieldSortBuilder extends SortBuilder<FieldSortBuilder> {
+
+    private static final Logger logger = LogManager.getLogger(FieldSortBuilder.class);
 
     public static final String NAME = "field_sort";
     public static final ParseField MISSING = new ParseField("missing");
@@ -521,6 +526,7 @@ public class FieldSortBuilder extends SortBuilder<FieldSortBuilder> {
                                                         SortField sortField,
                                                         MappedFieldType fieldType,
                                                         FieldSortBuilder sortBuilder) throws IOException {
+        logger.info("FieldSortBuilder#extractNumericMinAndMax", new ElasticsearchException("stack trace"));
         String fieldName = fieldType.name();
         if (PointValues.size(reader, fieldName) == 0) {
             return null;
