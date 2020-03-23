@@ -599,7 +599,6 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                                                         SearchResponse.Clusters clusters) {
         Executor executor = threadPool.executor(ThreadPool.Names.SEARCH);
         if (preFilter) {
-            logger.info("--> can match phase running", new ElasticsearchException("stack trace"));
             return new CanMatchPreFilterSearchPhase(logger, searchTransportService, connectionLookup,
                 aliasFilter, concreteIndexBoosts, indexRoutings, executor, searchRequest, listener, shardIterators,
                 timeProvider, clusterState, task, (iter) -> {
@@ -624,7 +623,6 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                 };
             }, clusters);
         } else {
-            logger.info("--> can match phase NOT running", new ElasticsearchException("stack trace"));
             AbstractSearchAsyncAction<? extends SearchPhaseResult> searchAsyncAction;
             switch (searchRequest.searchType()) {
                 case DFS_QUERY_THEN_FETCH:

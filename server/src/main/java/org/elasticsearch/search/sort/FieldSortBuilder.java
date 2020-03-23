@@ -526,16 +526,19 @@ public class FieldSortBuilder extends SortBuilder<FieldSortBuilder> {
                                                         SortField sortField,
                                                         MappedFieldType fieldType,
                                                         FieldSortBuilder sortBuilder) throws IOException {
-        logger.info("FieldSortBuilder#extractNumericMinAndMax", new ElasticsearchException("stack trace"));
+        logger.info("FieldSortBuilder#extractNumericMinAndMax: " + sortField, new ElasticsearchException("stack trace"));
         String fieldName = fieldType.name();
         if (PointValues.size(reader, fieldName) == 0) {
+            logger.info("FieldSortBuilder#extractNumericMinAndMax: " + sortField + " -- no points");
             return null;
         }
         if (fieldType instanceof NumberFieldType) {
             NumberFieldType numberFieldType = (NumberFieldType) fieldType;
             Number minPoint = numberFieldType.parsePoint(PointValues.getMinPackedValue(reader, fieldName));
             Number maxPoint = numberFieldType.parsePoint(PointValues.getMaxPackedValue(reader, fieldName));
-            switch (IndexSortConfig.getSortFieldType(sortField)) {
+            final SortField.Type sortFieldType = IndexSortConfig.getSortFieldType(sortField);
+            logger.info("FieldSortBuilder#extractNumericMinAndMax: " + sortField + " -- numeric type " + sortFieldType);
+            switch (sortFieldType) {
                 case LONG:
                     return new MinAndMax<>(minPoint.longValue(), maxPoint.longValue());
                 case INT:
@@ -549,6 +552,7 @@ public class FieldSortBuilder extends SortBuilder<FieldSortBuilder> {
             }
         } else if (fieldType instanceof DateFieldType) {
             DateFieldType dateFieldType = (DateFieldType) fieldType;
+            logger.info("FieldSortBuilder#extractNumericMinAndMax: " + sortField + " -- date type " + dateFieldType);
             Function<byte[], Long> dateConverter = createDateConverter(sortBuilder, dateFieldType);
             Long min = dateConverter.apply(PointValues.getMinPackedValue(reader, fieldName));
             Long max = dateConverter.apply(PointValues.getMaxPackedValue(reader, fieldName));
