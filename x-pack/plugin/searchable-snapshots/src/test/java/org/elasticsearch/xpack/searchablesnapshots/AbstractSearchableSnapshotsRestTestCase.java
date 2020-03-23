@@ -113,6 +113,11 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
 
         ensureGreen(restoredIndexName);
 
+        if (randomBoolean()) {
+            logger.info("clearing cache for [{}]", restoredIndexName);
+            clearCache(restoredIndexName);
+        }
+
         final Number count = count(restoredIndexName);
         assertThat("Wrong index count for index " + restoredIndexName, count.intValue(), equalTo(numDocs));
 
@@ -267,6 +272,13 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
             }
             throw e;
         }
+    }
+
+    protected static void clearCache(String indexName) throws IOException {
+        final Response response
+            = client().performRequest(new Request(HttpPost.METHOD_NAME, "/" + indexName + "/_searchable_snapshots/cache/clear"));
+        assertThat("Failed to clear cache for [" + indexName + "]: " + response,
+            response.getStatusLine().getStatusCode(), equalTo(RestStatus.OK.getStatus()));
     }
 
     protected static void mountSnapshot(String repository, String snapshot, boolean waitForCompletion,
