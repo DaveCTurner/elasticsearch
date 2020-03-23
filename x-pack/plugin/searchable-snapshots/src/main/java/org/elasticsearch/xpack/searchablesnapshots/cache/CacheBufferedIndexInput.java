@@ -57,7 +57,7 @@ public class CacheBufferedIndexInput extends BaseSearchableSnapshotIndexInput {
     private CacheBufferedIndexInput(String resourceDesc, CacheDirectory directory, FileInfo fileInfo, IOContext context,
                                     IndexInputStats stats, long offset, long length, boolean isClone,
                                     CacheFileReference cacheFileReference) {
-        super(resourceDesc, directory.blobContainer(), fileInfo, context);
+        super(resourceDesc, directory.blobContainer(), fileInfo, context, 2);
         this.directory = directory;
         this.offset = offset;
         this.stats = stats;

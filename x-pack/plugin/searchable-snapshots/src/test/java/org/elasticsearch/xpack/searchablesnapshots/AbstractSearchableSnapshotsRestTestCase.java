@@ -113,13 +113,13 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
 
         ensureGreen(restoredIndexName);
 
+        final Number count = count(restoredIndexName);
+        assertThat("Wrong index count for index " + restoredIndexName, count.intValue(), equalTo(numDocs));
+
         if (randomBoolean()) {
             logger.info("clearing cache for [{}]", restoredIndexName);
             clearCache(restoredIndexName);
         }
-
-        final Number count = count(restoredIndexName);
-        assertThat("Wrong index count for index " + restoredIndexName, count.intValue(), equalTo(numDocs));
 
         testCaseBody.runTest(restoredIndexName, numDocs);
 
@@ -325,7 +325,11 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
 
     protected static Map<String, Object> search(String index, QueryBuilder query, Boolean ignoreThrottled) throws IOException {
         final Request request = new Request(HttpPost.METHOD_NAME, '/' + index + "/_search");
-        request.setJsonEntity(new SearchSourceBuilder().trackTotalHits(true).query(query).toString());
+        final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().trackTotalHits(true).query(query);
+        if (randomBoolean()) {
+            searchSourceBuilder.sort("field");
+        }
+        request.setJsonEntity(searchSourceBuilder.toString());
         if (ignoreThrottled != null) {
             request.addParameter("ignore_throttled", ignoreThrottled.toString());
         }
