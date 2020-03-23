@@ -19,6 +19,9 @@
 
 package org.elasticsearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsGroup;
@@ -85,6 +88,8 @@ import static org.elasticsearch.action.search.SearchType.DFS_QUERY_THEN_FETCH;
 import static org.elasticsearch.action.search.SearchType.QUERY_THEN_FETCH;
 
 public class TransportSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
+
+    private static final Logger logger = LogManager.getLogger(TransportSearchAction.class);
 
     /** The maximum number of shards for a single search request. */
     public static final Setting<Long> SHARD_COUNT_LIMIT_SETTING = Setting.longSetting(
@@ -542,9 +547,32 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
     private static boolean shouldPreFilterSearchShards(SearchRequest searchRequest,
                                                        GroupShardsIterator<SearchShardIterator> shardIterators) {
         SearchSourceBuilder source = searchRequest.source();
-        return searchRequest.searchType() == QUERY_THEN_FETCH // we can't do this for DFS it needs to fan out to all shards all the time
-                    && (SearchService.canRewriteToMatchNone(source) || FieldSortBuilder.hasPrimaryFieldSort(source))
-                    && searchRequest.getPreFilterShardSize() < shardIterators.size();
+        logger.info("shouldPreFilterSearchShards: source={}", source);
+        if (searchRequest.searchType() == QUERY_THEN_FETCH) {
+            logger.info("shouldPreFilterSearchShards: type is {}, ok", searchRequest.searchType());
+            if (SearchService.canRewriteToMatchNone(source)) {
+                logger.info("shouldPreFilterSearchShards: can rewrite to match-none");
+                if (searchRequest.getPreFilterShardSize() < shardIterators.size()) {
+                    logger.info("shouldPreFilterSearchShards: {} < {}", searchRequest.getPreFilterShardSize(), shardIterators.size());
+                    return true;// we can't do this for DFS it needs to fan out to all shards all the time
+                } else {
+                    logger.info("shouldPreFilterSearchShards: {} >= {}", searchRequest.getPreFilterShardSize(), shardIterators.size());
+                }
+            } else if (FieldSortBuilder.hasPrimaryFieldSort(source)) {
+                logger.info("shouldPreFilterSearchShards: hasPrimaryFieldSort");
+                if (searchRequest.getPreFilterShardSize() < shardIterators.size()) {
+                    logger.info("shouldPreFilterSearchShards: {} < {}", searchRequest.getPreFilterShardSize(), shardIterators.size());
+                    return true;// we can't do this for DFS it needs to fan out to all shards all the time
+                } else {
+                    logger.info("shouldPreFilterSearchShards: {} >= {}", searchRequest.getPreFilterShardSize(), shardIterators.size());
+                }
+            } else {
+                logger.info("shouldPreFilterSearchShards: neither rewriteable nor hasPrimaryFieldSort");
+            }
+        } else {
+            logger.info("shouldPreFilterSearchShards: type is {}, not ok", searchRequest.searchType());
+        }
+        return false;
     }
 
     static GroupShardsIterator<SearchShardIterator> mergeShardsIterators(GroupShardsIterator<ShardIterator> localShardsIterator,
@@ -571,6 +599,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                                                         SearchResponse.Clusters clusters) {
         Executor executor = threadPool.executor(ThreadPool.Names.SEARCH);
         if (preFilter) {
+            logger.info("--> can match phase running", new ElasticsearchException("stack trace"));
             return new CanMatchPreFilterSearchPhase(logger, searchTransportService, connectionLookup,
                 aliasFilter, concreteIndexBoosts, indexRoutings, executor, searchRequest, listener, shardIterators,
                 timeProvider, clusterState, task, (iter) -> {
@@ -595,6 +624,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                 };
             }, clusters);
         } else {
+            logger.info("--> can match phase NOT running", new ElasticsearchException("stack trace"));
             AbstractSearchAsyncAction<? extends SearchPhaseResult> searchAsyncAction;
             switch (searchRequest.searchType()) {
                 case DFS_QUERY_THEN_FETCH:

@@ -116,7 +116,7 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
         final Number count = count(restoredIndexName);
         assertThat("Wrong index count for index " + restoredIndexName, count.intValue(), equalTo(numDocs));
 
-        if (randomBoolean()) {
+        if (randomBoolean() || true) {
             logger.info("clearing cache for [{}]", restoredIndexName);
             clearCache(restoredIndexName);
         }
@@ -326,7 +326,7 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
     protected static Map<String, Object> search(String index, QueryBuilder query, Boolean ignoreThrottled) throws IOException {
         final Request request = new Request(HttpPost.METHOD_NAME, '/' + index + "/_search");
         final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().trackTotalHits(true).query(query);
-        if (randomBoolean()) {
+        if (randomBoolean() || true) {
             searchSourceBuilder.sort("field");
         }
         request.setJsonEntity(searchSourceBuilder.toString());
