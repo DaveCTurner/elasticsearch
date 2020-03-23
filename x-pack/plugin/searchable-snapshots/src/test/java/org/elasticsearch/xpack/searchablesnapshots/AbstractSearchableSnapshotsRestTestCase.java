@@ -329,6 +329,9 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
         if (ignoreThrottled != null) {
             request.addParameter("ignore_throttled", ignoreThrottled.toString());
         }
+        if (randomBoolean()) {
+            request.addParameter("pre_filter_shard_size", "1");
+        }
 
         final Response response = client().performRequest(request);
         assertThat("Failed to execute search request on index [" + index + "]: " + response,
