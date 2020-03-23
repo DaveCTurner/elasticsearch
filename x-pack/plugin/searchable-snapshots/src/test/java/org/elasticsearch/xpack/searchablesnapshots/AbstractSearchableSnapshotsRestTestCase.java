@@ -333,7 +333,7 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
         if (ignoreThrottled != null) {
             request.addParameter("ignore_throttled", ignoreThrottled.toString());
         }
-        if (randomBoolean()) {
+        if (randomBoolean() || true) {
             request.addParameter("pre_filter_shard_size", "1");
         }
 
