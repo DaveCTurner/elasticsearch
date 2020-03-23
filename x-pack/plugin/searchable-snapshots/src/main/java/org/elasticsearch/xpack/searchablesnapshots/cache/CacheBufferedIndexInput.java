@@ -86,6 +86,7 @@ public class CacheBufferedIndexInput extends BaseSearchableSnapshotIndexInput {
 
     @Override
     protected void readInternal(final byte[] buffer, final int offset, final int length) throws IOException {
+        // NOCOMMIT TODO test logging
         logger.info(() -> new ParameterizedMessage("readInternal [{}-{}] on cache file [{}] on thread [{}]",
             offset, offset+length, cacheFileReference, Thread.currentThread().getName()), new ElasticsearchException("stack trace"));
 
