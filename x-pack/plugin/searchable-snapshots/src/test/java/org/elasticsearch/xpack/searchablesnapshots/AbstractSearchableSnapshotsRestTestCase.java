@@ -56,9 +56,9 @@ public abstract class AbstractSearchableSnapshotsRestTestCase extends ESRestTest
         registerRepository(repository, repositoryType, true, repositorySettings);
 
         final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
-        final int numberOfShards = randomIntBetween(1, 5);
+        final int numberOfShards = randomIntBetween(3, 5);
 
-        logger.info("creating index [{}]", indexName);
+        logger.info("creating index [{}] with [{}] shards", indexName, numberOfShards);
         createIndex(indexName, Settings.builder()
             .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, numberOfShards)
             .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 0)
