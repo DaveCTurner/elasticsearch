@@ -12,6 +12,7 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.SuppressForbidden;
 import org.elasticsearch.common.io.Channels;
@@ -85,6 +86,9 @@ public class CacheBufferedIndexInput extends BaseSearchableSnapshotIndexInput {
 
     @Override
     protected void readInternal(final byte[] buffer, final int offset, final int length) throws IOException {
+        logger.info(() -> new ParameterizedMessage("readInternal [{}-{}] on cache file [{}] on thread [{}]",
+            offset, offset+length, cacheFileReference, Thread.currentThread().getName()), new ElasticsearchException("stack trace"));
+
         final long position = getFilePointer() + this.offset;
 
         int totalBytesRead = 0;
