@@ -93,7 +93,7 @@ public final class ShardRouting implements Writeable, ToXContentObject {
             "replica shards always recover from primary";
         assert (currentNodeId == null) == (state == ShardRoutingState.UNASSIGNED)  :
             "unassigned shard must not be assigned to a node " + this;
-        if (expectedShardSize == UNAVAILABLE_EXPECTED_SHARD_SIZE && state != ShardRoutingState.UNASSIGNED) {
+        if (expectedShardSize == UNAVAILABLE_EXPECTED_SHARD_SIZE && state == ShardRoutingState.INITIALIZING) {
             logger.info(this.toString(), new ElasticsearchException("stack trace"));
         }
     }
