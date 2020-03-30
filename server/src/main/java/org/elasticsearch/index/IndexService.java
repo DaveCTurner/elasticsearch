@@ -371,6 +371,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
         long sum = 0;
         int count = 0;
         for (IndexShard indexShard : this) {
+            logger.info("--> computing sizeInBytes for [{}]", indexShard.routingEntry());
             sum += indexShard.store().stats().sizeInBytes();
             count++;
         }
