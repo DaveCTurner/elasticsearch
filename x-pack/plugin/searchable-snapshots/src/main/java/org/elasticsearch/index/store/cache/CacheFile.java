@@ -5,6 +5,8 @@
  */
 package org.elasticsearch.index.store.cache;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.CheckedBiConsumer;
@@ -28,6 +30,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class CacheFile {
+
+    private static final Logger logger = LogManager.getLogger(CacheFile.class);
 
     @FunctionalInterface
     public interface EvictionListener {
@@ -107,6 +111,7 @@ public class CacheFile {
         ensureOpen();
         boolean success = false;
         if (refCounter.tryIncRef()) {
+            logger.trace("acquired [{}]", this);
             try (ReleasableLock ignored = evictionLock.acquire()) {
                 try {
                     ensureOpen();
@@ -122,6 +127,8 @@ public class CacheFile {
                     }
                 }
             }
+        } else {
+            logger.trace("failed to acquire [{}]", this);
         }
         assert invariant();
         return success;
@@ -144,7 +151,10 @@ public class CacheFile {
                 success = true;
             } finally {
                 if (success) {
+                    logger.trace("released [{}]", this);
                     refCounter.decRef();
+                } else {
+                    logger.trace("failed to release [{}]", this);
                 }
             }
         }
@@ -153,6 +163,7 @@ public class CacheFile {
     }
 
     private void finishEviction() {
+        logger.trace("finishing evicting [{}]", this);
         assert evictionLock.isHeldByCurrentThread();
         assert listeners.isEmpty();
         assert channel == null;
@@ -161,10 +172,12 @@ public class CacheFile {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        logger.trace("finished evicting [{}]", this);
     }
 
     public void startEviction() {
         if (evicted == false) {
+            logger.trace("evicting [{}]", this);
             final Set<EvictionListener> evictionListeners = new HashSet<>();
             try (ReleasableLock ignored = evictionLock.acquire()) {
                 if (evicted == false) {
@@ -248,6 +261,8 @@ public class CacheFile {
             final long rangeStart = (position / rangeSize) * rangeSize;
             final long rangeEnd = Math.min(rangeStart + rangeSize, tracker.getLength());
 
+            logger.trace("fetchRange({}) fetching [{}-{}] for {}", position, rangeStart, rangeEnd, this);
+
             final List<SparseFileTracker.Gap> gaps = tracker.waitForRange(rangeStart, rangeEnd,
                 ActionListener.wrap(
                     rangeReady -> future.complete(onRangeAvailable.apply(rangeStart, rangeEnd)),
@@ -260,6 +275,8 @@ public class CacheFile {
                     : "range/gap start mismatch (" + range.start + ',' + rangeStart + ')';
                 assert range.end == rangeEnd
                     : "range/gap end mismatch (" + range.end + ',' + rangeEnd + ')';
+
+                logger.trace("fetchRange({}) filling gap [{}] for {}", position, range, this);
 
                 try {
                     ensureOpen();

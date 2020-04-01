@@ -84,7 +84,7 @@ public class SearchableSnapshotsIntegTests extends ESIntegTestCase {
         return builder.build();
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE,org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE,org.elasticsearch.common.blobstore.fs.FsBlobContainer:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE,org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE,org.elasticsearch.common.blobstore.fs.FsBlobContainer:TRACE,org.elasticsearch.index.store.cache.CacheFile:TRACE")
     public void testCreateAndRestoreSearchableSnapshot() throws Exception {
         final String fsRepoName = randomAlphaOfLength(10);
         final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
