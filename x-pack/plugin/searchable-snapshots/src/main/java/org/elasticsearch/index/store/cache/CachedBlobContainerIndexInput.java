@@ -105,6 +105,7 @@ public class CachedBlobContainerIndexInput extends BaseSearchableSnapshotIndexIn
             try {
                 final CacheFile cacheFile = cacheFileReference.get();
                 if (cacheFile == null) {
+                    logger.trace("could not acquire cacheFileReference [{}]", this);
                     throw new AlreadyClosedException("Failed to acquire a non-evicted cache file");
                 }
 
@@ -117,6 +118,7 @@ public class CachedBlobContainerIndexInput extends BaseSearchableSnapshotIndexIn
             } catch (final Exception e) {
                 if (e instanceof AlreadyClosedException || (e.getCause() != null && e.getCause() instanceof AlreadyClosedException)) {
                     try {
+                        logger.trace(new ParameterizedMessage("reading directly [{}]", this), e);
                         // cache file was evicted during the range fetching, read bytes directly from source
                         bytesRead = readDirectly(pos, pos + len, buffer, off);
                         continue;
