@@ -54,6 +54,7 @@ public abstract class BaseSearchableSnapshotIndexInput extends BufferedIndexInpu
                 @Override
                 protected InputStream openSlice(long slice) throws IOException {
                     final long currentPart = startPart + slice;
+
                     return blobContainer.readBlob(
                         fileInfo.partName(currentPart),
                         (currentPart == startPart) ? getRelativePositionInPart(position) : 0L,

@@ -5,6 +5,8 @@
  */
 package org.elasticsearch.xpack.searchablesnapshots.cache;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.cache.Cache;
 import org.elasticsearch.common.cache.CacheBuilder;
@@ -28,6 +30,8 @@ import java.util.function.Predicate;
  * see {@link org.elasticsearch.index.store.SearchableSnapshotDirectory})
  */
 public class CacheService extends AbstractLifecycleComponent {
+
+    private static final Logger logger = LogManager.getLogger(CacheService.class);
 
     private static final String SETTINGS_PREFIX = "xpack.searchable.snapshot.cache.";
 
@@ -66,6 +70,7 @@ public class CacheService extends AbstractLifecycleComponent {
 
     @Override
     protected void doStart() {
+        logger.debug("starting with cacheSize[{}] and rangeSize[{}]", cacheSize, rangeSize);
         // NORELEASE TODO clean up (or rebuild) cache from disk as a node crash may leave cached files
     }
 

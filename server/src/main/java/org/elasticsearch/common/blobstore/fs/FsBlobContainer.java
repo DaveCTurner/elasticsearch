@@ -165,7 +165,7 @@ public class FsBlobContainer extends AbstractBlobContainer {
     @Override
     public InputStream readBlob(String blobName, long position, long length) throws IOException {
         final Path blobPath = path.resolve(blobName);
-        logger.trace("readBlob({}, {}, {})", blobPath, blobName, position, length);
+        logger.trace("readBlob({}, {}, {})", blobPath, position, length);
         final SeekableByteChannel channel = Files.newByteChannel(blobPath);
         if (position > 0L) {
             channel.position(position);

@@ -84,7 +84,7 @@ public class SearchableSnapshotsIntegTests extends ESIntegTestCase {
         return builder.build();
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE,org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE,org.elasticsearch.common.blobstore.fs.FsBlobContainer:TRACE,org.elasticsearch.index.store.cache.CacheFile:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE,org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE,org.elasticsearch.common.blobstore.fs.FsBlobContainer:TRACE,org.elasticsearch.index.store.cache.CacheFile:TRACE,org.elasticsearch.xpack.searchablesnapshots.cache.CacheService:TRACE")
     public void testCreateAndRestoreSearchableSnapshot() throws Exception {
         final String fsRepoName = randomAlphaOfLength(10);
         final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
@@ -92,11 +92,14 @@ public class SearchableSnapshotsIntegTests extends ESIntegTestCase {
         final String snapshotName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
 
         final Path repo = randomRepoPath();
+        final Settings repoSettings = Settings.builder()
+            .put("location", repo)
+            .put("chunk_size", randomIntBetween(100, 1000), ByteSizeUnit.BYTES)
+            .build();
+        logger.info("--> repo settings: {}", repoSettings);
         assertAcked(client().admin().cluster().preparePutRepository(fsRepoName)
             .setType("fs")
-            .setSettings(Settings.builder()
-                .put("location", repo)
-                .put("chunk_size", randomIntBetween(100, 1000), ByteSizeUnit.BYTES)));
+            .setSettings(repoSettings));
 
         createIndex(indexName);
         final List<IndexRequestBuilder> indexRequestBuilders = new ArrayList<>();
