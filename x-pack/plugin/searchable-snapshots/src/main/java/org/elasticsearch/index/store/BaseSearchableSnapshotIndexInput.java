@@ -75,10 +75,6 @@ public abstract class BaseSearchableSnapshotIndexInput extends BufferedIndexInpu
             // addressing. TODO NORELEASE
             || threadName.contains('[' + ThreadPool.Names.FETCH_SHARD_STORE + ']')
 
-            // Today for as-yet-unknown reasons we sometimes try and compute the snapshot size on the cluster applier thread, which needs
-            // addressing. TODO NORELEASE
-            || threadName.contains('[' + ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME + ']')
-
             // Unit tests access the blob store on the main test thread; simplest just to permit this rather than have them override this
             // method somehow.
             || threadName.startsWith("TEST-")
