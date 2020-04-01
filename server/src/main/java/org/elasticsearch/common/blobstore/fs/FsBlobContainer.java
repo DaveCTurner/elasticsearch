@@ -19,6 +19,8 @@
 
 package org.elasticsearch.common.blobstore.fs;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobMetaData;
@@ -63,6 +65,8 @@ import static java.util.Collections.unmodifiableMap;
  * does not permit read and/or write access to the underlying files.
  */
 public class FsBlobContainer extends AbstractBlobContainer {
+
+    private static final Logger logger = LogManager.getLogger(FsBlobContainer.class);
 
     private static final String TEMP_FILE_PREFIX = "pending-";
 
@@ -160,7 +164,9 @@ public class FsBlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String blobName, long position, long length) throws IOException {
-        final SeekableByteChannel channel = Files.newByteChannel(path.resolve(blobName));
+        final Path blobPath = path.resolve(blobName);
+        logger.trace("readBlob({}, {}, {})", blobPath, blobName, position, length);
+        final SeekableByteChannel channel = Files.newByteChannel(blobPath);
         if (position > 0L) {
             channel.position(position);
         }
