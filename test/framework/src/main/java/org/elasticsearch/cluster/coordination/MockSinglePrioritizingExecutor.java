@@ -59,7 +59,17 @@ public class MockSinglePrioritizingExecutor extends PrioritizedEsThreadPoolExecu
     protected void afterExecute(Runnable r, Throwable t) {
         super.afterExecute(r, t);
         // kill worker so that next one will be scheduled
-        throw new KillWorkerError();
+        if (t == null) {
+            throw new KillWorkerError();
+        }
+
+        if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+        } else if (t instanceof Error) {
+            throw (Error) t;
+        } else {
+            throw new RuntimeException(t);
+        }
     }
 
     @Override

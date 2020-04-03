@@ -102,8 +102,9 @@ public class DisruptableMockTransportTests extends ESTestCase {
 
         deterministicTaskQueue = new DeterministicTaskQueue(
             Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "dummy").build(), random());
+        final ThreadPool threadPool = deterministicTaskQueue.getThreadPool();
 
-        final DisruptableMockTransport transport1 = new DisruptableMockTransport(node1, logger) {
+        final DisruptableMockTransport transport1 = new DisruptableMockTransport(node1, logger, threadPool.getThreadContext()) {
             @Override
             protected ConnectionStatus getConnectionStatus(DiscoveryNode destination) {
                 return DisruptableMockTransportTests.this.getConnectionStatus(getLocalNode(), destination);
@@ -120,7 +121,7 @@ public class DisruptableMockTransportTests extends ESTestCase {
             }
         };
 
-        final DisruptableMockTransport transport2 = new DisruptableMockTransport(node2, logger) {
+        final DisruptableMockTransport transport2 = new DisruptableMockTransport(node2, logger, threadPool.getThreadContext()) {
             @Override
             protected ConnectionStatus getConnectionStatus(DiscoveryNode destination) {
                 return DisruptableMockTransportTests.this.getConnectionStatus(getLocalNode(), destination);
@@ -140,9 +141,9 @@ public class DisruptableMockTransportTests extends ESTestCase {
         transports.add(transport1);
         transports.add(transport2);
 
-        service1 = transport1.createTransportService(Settings.EMPTY, deterministicTaskQueue.getThreadPool(),
+        service1 = transport1.createTransportService(Settings.EMPTY, threadPool,
             NOOP_TRANSPORT_INTERCEPTOR, a -> node1, null, Collections.emptySet());
-        service2 = transport2.createTransportService(Settings.EMPTY, deterministicTaskQueue.getThreadPool(),
+        service2 = transport2.createTransportService(Settings.EMPTY, threadPool,
             NOOP_TRANSPORT_INTERCEPTOR, a -> node2, null, Collections.emptySet());
 
         service1.start();

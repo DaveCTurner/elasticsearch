@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
+import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
@@ -908,7 +909,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             private void setUp() {
                 final ThreadPool threadPool = deterministicTaskQueue.getThreadPool(this::onNode);
-                mockTransport = new DisruptableMockTransport(localNode, logger) {
+                mockTransport = new DisruptableMockTransport(localNode, logger, threadPool.getThreadContext()) {
                     @Override
                     protected void execute(Runnable runnable) {
                         deterministicTaskQueue.scheduleNow(onNode(runnable));
@@ -936,6 +937,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 final ClusterSettings clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
                 clusterApplierService = new DisruptableClusterApplierService(localNode.getId(), settings, clusterSettings,
                     deterministicTaskQueue, threadPool);
+                clusterApplierService.addStateApplier(this::assertSystemContext);
+                clusterApplierService.addListener(this::assertSystemContext);
                 clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
                 clusterService.setNodeConnectionsService(
                     new NodeConnectionsService(clusterService.getSettings(), threadPool, transportService));
@@ -957,6 +960,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 gatewayService.start();
                 clusterService.start();
                 coordinator.startInitialJoin();
+            }
+
+            private void assertSystemContext(ClusterChangedEvent event) {
+                mockTransport.assertPropagatedSystemContext();
             }
 
             void close() {

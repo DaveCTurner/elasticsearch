@@ -58,6 +58,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.discovery.Discovery;
@@ -691,10 +692,14 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     @Override
     public void startInitialJoin() {
-        synchronized (mutex) {
-            becomeCandidate("startInitialJoin");
+        final ThreadContext threadContext = transportService.getThreadPool().getThreadContext();
+        try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+            threadContext.markAsSystemContext();
+            synchronized (mutex) {
+                becomeCandidate("startInitialJoin");
+            }
+            clusterBootstrapService.scheduleUnconfiguredBootstrap();
         }
-        clusterBootstrapService.scheduleUnconfiguredBootstrap();
     }
 
     @Override

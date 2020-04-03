@@ -27,6 +27,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.test.transport.MockTransport;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.CloseableConnection;
@@ -42,6 +43,8 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -51,10 +54,12 @@ import static org.elasticsearch.test.ESTestCase.copyWriteable;
 public abstract class DisruptableMockTransport extends MockTransport {
     private final DiscoveryNode localNode;
     private final Logger logger;
+    private final ThreadContext threadContext;
 
-    public DisruptableMockTransport(DiscoveryNode localNode, Logger logger) {
+    public DisruptableMockTransport(DiscoveryNode localNode, Logger logger, ThreadContext threadContext) {
         this.localNode = localNode;
         this.logger = logger;
+        this.threadContext = threadContext;
     }
 
     protected abstract ConnectionStatus getConnectionStatus(DiscoveryNode destination);
@@ -108,26 +113,40 @@ public abstract class DisruptableMockTransport extends MockTransport {
         assert destinationTransport.getLocalNode().equals(getLocalNode()) == false :
             "non-local message from " + getLocalNode() + " to itself";
 
+        final Map<String, String> headers = new HashMap<>(threadContext.getHeaders());
+        if (isPropagatedSystemContext()) {
+            // if security is enabled then system context becomes an auth header for `_system`; if not then it's dropped. We simulate the
+            // security-enabled behaviour by adding a special header indicating that the calling context was originally in system context
+            headers.put(PROPAGATED_SYSTEM_CONTEXT_HEADER, PROPAGATED_SYSTEM_CONTEXT_HEADER);
+        }
+
+        //
+        final ThreadContext.StoredContext storedContext = threadContext.newStoredContext(true);
+
         destinationTransport.execute(new Runnable() {
             @Override
             public void run() {
-                final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
-                switch (connectionStatus) {
-                    case BLACK_HOLE:
-                    case BLACK_HOLE_REQUESTS_ONLY:
-                        onBlackholedDuringSend(requestId, action, destinationTransport);
-                        break;
+                try (ThreadContext.StoredContext ignored = destinationTransport.threadContext.stashContext()) {
+                    destinationTransport.threadContext.putHeader(headers);
 
-                    case DISCONNECTED:
-                        onDisconnectedDuringSend(requestId, action, destinationTransport);
-                        break;
+                    final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
+                    switch (connectionStatus) {
+                        case BLACK_HOLE:
+                        case BLACK_HOLE_REQUESTS_ONLY:
+                            onBlackholedDuringSend(requestId, action, destinationTransport);
+                            break;
 
-                    case CONNECTED:
-                        onConnectedDuringSend(requestId, action, request, destinationTransport);
-                        break;
+                        case DISCONNECTED:
+                            onDisconnectedDuringSend(requestId, action, destinationTransport);
+                            break;
 
-                    default:
-                        throw new AssertionError("unexpected status: " + connectionStatus);
+                        case CONNECTED:
+                            onConnectedDuringSend(requestId, action, request, destinationTransport, storedContext::close);
+                            break;
+
+                        default:
+                            throw new AssertionError("unexpected status: " + connectionStatus);
+                    }
                 }
             }
 
@@ -166,7 +185,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     protected void onConnectedDuringSend(long requestId, String action, TransportRequest request,
-                                         DisruptableMockTransport destinationTransport) {
+                                         DisruptableMockTransport destinationTransport, Runnable restoreContext) {
         final RequestHandlerRegistry<TransportRequest> requestHandler =
             destinationTransport.getRequestHandler(action);
 
@@ -194,7 +213,10 @@ public abstract class DisruptableMockTransport extends MockTransport {
                         switch (connectionStatus) {
                             case CONNECTED:
                             case BLACK_HOLE_REQUESTS_ONLY:
-                                handleResponse(requestId, response);
+                                try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                                    restoreContext.run();
+                                    handleResponse(requestId, response);
+                                }
                                 break;
 
                             case BLACK_HOLE:
@@ -261,6 +283,20 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 logger.warn("failed to send failure", e);
             }
         }
+    }
+
+    private static final String PROPAGATED_SYSTEM_CONTEXT_HEADER = "_propagated_system_context_";
+
+    /**
+     * Asserts that the thread context is either system context or a propagated equivalent
+     */
+    public void assertPropagatedSystemContext() {
+        assert isPropagatedSystemContext() : "should be in system context";
+    }
+
+    private boolean isPropagatedSystemContext() {
+        return PROPAGATED_SYSTEM_CONTEXT_HEADER.equals(threadContext.getHeader(PROPAGATED_SYSTEM_CONTEXT_HEADER))
+            || threadContext.isSystemContext();
     }
 
     /**
