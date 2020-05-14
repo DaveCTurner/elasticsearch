@@ -27,10 +27,12 @@ import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata;
 import org.elasticsearch.cluster.coordination.CoordinationState.PersistedState;
+import org.elasticsearch.cluster.coordination.CoordinationStateRejectedException;
 import org.elasticsearch.cluster.coordination.InMemoryPersistedState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -41,7 +43,9 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;
@@ -66,6 +70,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
+import static org.elasticsearch.cluster.coordination.Coordinator.PUBLISH_TIMEOUT_SETTING;
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
 
 /**
@@ -518,6 +523,108 @@ public class GatewayMetaState implements Closeable {
         @Override
         public void close() throws IOException {
             IOUtils.close(persistenceWriter.getAndSet(null));
+        }
+    }
+
+    /**
+     * Implementation of {@link PersistedState} which fails if any write operation takes longer than the publish timeout, and also fails
+     * any other operations while such a write operation is still ongoing.
+     */
+    static class TimeLimitedPersistedState implements PersistedState {
+        private static final String THREAD_NAME = "TimeLimitedPersistedState#runTask";
+
+        private final EsThreadPoolExecutor threadPoolExecutor;
+
+        private final PersistedState persistedState;
+        private final TimeValue timeout;
+
+        TimeLimitedPersistedState(Settings settings, ThreadPool threadPool, PersistedState persistedState) {
+            this.persistedState = persistedState;
+            this.timeout = PUBLISH_TIMEOUT_SETTING.get(settings);
+            final String nodeName = Objects.requireNonNull(Node.NODE_NAME_SETTING.get(settings));
+            threadPoolExecutor = EsExecutors.newFixed(
+                nodeName + "/" + THREAD_NAME,
+                1, 1,
+                daemonThreadFactory(nodeName, THREAD_NAME),
+                threadPool.getThreadContext(), false);
+        }
+
+        @Override
+        public long getCurrentTerm() {
+            try (Releasable ignored = startTask("get current term")) {
+                return persistedState.getCurrentTerm();
+            }
+        }
+
+        @Override
+        public ClusterState getLastAcceptedState() {
+            try (Releasable ignored = startTask("get last-accepted state")) {
+                return persistedState.getLastAcceptedState();
+            }
+        }
+
+        @Override
+        public void setCurrentTerm(long currentTerm) {
+            runTask("set current term to [" + currentTerm + "]", () -> persistedState.setCurrentTerm(currentTerm));
+        }
+
+        @Override
+        public void setLastAcceptedState(ClusterState clusterState) {
+            runTask("accept state version [" + clusterState.version() + "] in term [" + clusterState.term() + "]",
+                () -> persistedState.setLastAcceptedState(clusterState));
+        }
+
+        @Override
+        public void markLastAcceptedStateAsCommitted() {
+            runTask("mark last-accepted state as committed", persistedState::markLastAcceptedStateAsCommitted);
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                ThreadPool.terminate(threadPoolExecutor, 10, TimeUnit.SECONDS);
+            } finally {
+                persistedState.close();
+            }
+        }
+
+        private final AtomicReference<String> activeTaskDescription = new AtomicReference<>(); // null if no active task
+
+        private Releasable startTask(String taskDescription) {
+            final String currentTaskDescription = activeTaskDescription.compareAndExchange(null, taskDescription);
+            if (currentTaskDescription != null) {
+                throw new CoordinationStateRejectedException(
+                    "failed to [" + taskDescription + "] as this node is still busy with [" + currentTaskDescription + "]");
+            }
+
+            return () -> {
+                final boolean completedTask = activeTaskDescription.compareAndSet(taskDescription, null);
+                assert completedTask;
+            };
+        }
+
+        private void runTask(String taskDescription, Runnable task) {
+            final Releasable releasable = startTask(taskDescription);
+            final PlainActionFuture<Void> listener = new PlainActionFuture<>();
+            threadPoolExecutor.execute(new AbstractRunnable() {
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(e);
+                }
+
+                @Override
+                protected void doRun() {
+                    task.run();
+                    listener.onResponse(null);
+                }
+
+                @Override
+                public void onAfter() {
+                    releasable.close();
+                }
+            });
+
+            listener.actionGet(timeout);
         }
     }
 }
