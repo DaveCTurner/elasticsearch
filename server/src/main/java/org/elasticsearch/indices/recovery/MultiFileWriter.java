@@ -192,6 +192,11 @@ public class MultiFileWriter extends AbstractRefCounted implements Releasable {
             this.position = position;
             this.lastChunk = lastChunk;
         }
+
+        @Override
+        public String toString() {
+            return "FileChunk[" + md.name() + ":" + position + "-" + (position + content.length()) + "]";
+        }
     }
 
     private final class FileChunkWriter {
