@@ -39,11 +39,14 @@ public class RecoverySettings {
         Setting.byteSizeSetting("indices.recovery.max_bytes_per_sec", new ByteSizeValue(40, ByteSizeUnit.MB),
             Property.Dynamic, Property.NodeScope);
 
+    public static final int MAX_CONCURRENT_FILE_CHUNKS_LIMIT = 5;
+
     /**
      * Controls the maximum number of file chunk requests that can be sent concurrently from the source node to the target node.
      */
     public static final Setting<Integer> INDICES_RECOVERY_MAX_CONCURRENT_FILE_CHUNKS_SETTING =
-        Setting.intSetting("indices.recovery.max_concurrent_file_chunks", 2, 1, 5, Property.Dynamic, Property.NodeScope);
+        Setting.intSetting("indices.recovery.max_concurrent_file_chunks", 2, 1, MAX_CONCURRENT_FILE_CHUNKS_LIMIT,
+            Property.Dynamic, Property.NodeScope);
 
     /**
      * how long to wait before retrying after issues cause by cluster state syncing between nodes

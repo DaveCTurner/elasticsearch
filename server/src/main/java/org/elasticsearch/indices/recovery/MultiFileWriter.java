@@ -43,6 +43,8 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.elasticsearch.indices.recovery.RecoverySettings.MAX_CONCURRENT_FILE_CHUNKS_LIMIT;
+
 public class MultiFileWriter extends AbstractRefCounted implements Releasable {
 
     public MultiFileWriter(Store store, RecoveryState.Index indexState, String tempFilePrefix, Logger logger, Runnable ensureOpen) {
@@ -200,6 +202,7 @@ public class MultiFileWriter extends AbstractRefCounted implements Releasable {
         void writeChunk(FileChunk newChunk) throws IOException {
             synchronized (this) {
                 pendingChunks.add(newChunk);
+                assert pendingChunks.size() <= MAX_CONCURRENT_FILE_CHUNKS_LIMIT;
             }
             while (true) {
                 final FileChunk chunk;
