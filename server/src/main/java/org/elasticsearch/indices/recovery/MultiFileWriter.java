@@ -202,7 +202,8 @@ public class MultiFileWriter extends AbstractRefCounted implements Releasable {
         void writeChunk(FileChunk newChunk) throws IOException {
             synchronized (this) {
                 pendingChunks.add(newChunk);
-                assert pendingChunks.size() <= MAX_CONCURRENT_FILE_CHUNKS_LIMIT;
+                assert pendingChunks.size() <= MAX_CONCURRENT_FILE_CHUNKS_LIMIT
+                    : "[" + pendingChunks.size() + "] pending chunks: " + pendingChunks;
             }
             while (true) {
                 final FileChunk chunk;
