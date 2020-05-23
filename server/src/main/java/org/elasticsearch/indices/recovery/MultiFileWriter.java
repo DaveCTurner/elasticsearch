@@ -24,6 +24,7 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.lease.Releasable;
@@ -207,8 +208,10 @@ public class MultiFileWriter extends AbstractRefCounted implements Releasable {
         void writeChunk(FileChunk newChunk) throws IOException {
             synchronized (this) {
                 pendingChunks.add(newChunk);
-                assert pendingChunks.size() <= MAX_CONCURRENT_FILE_CHUNKS_LIMIT
-                    : "[" + pendingChunks.size() + "] pending chunks: " + pendingChunks;
+                if (pendingChunks.size() > MAX_CONCURRENT_FILE_CHUNKS_LIMIT) {
+                    logger.error("[" + pendingChunks.size() + "] pending chunks: " + pendingChunks, new ElasticsearchException("stack trace"));
+                    throw new AssertionError("[" + pendingChunks.size() + "] pending chunks: " + pendingChunks);
+                }
             }
             while (true) {
                 final FileChunk chunk;
