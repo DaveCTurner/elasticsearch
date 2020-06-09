@@ -30,8 +30,8 @@ public class ClusterInfoTests extends ESTestCase {
 
     public void testSerialization() throws Exception {
         ClusterInfo clusterInfo = new ClusterInfo(
-                randomDiskUsage(), randomDiskUsage(), randomShardSizes(), randomRoutingToDataPath()
-        );
+                randomDiskUsage(), randomDiskUsage(), randomShardSizes(), randomRoutingToDataPath(),
+                randomReservedSpace());
         BytesStreamOutput output = new BytesStreamOutput();
         clusterInfo.writeTo(output);
 
@@ -76,6 +76,11 @@ public class ClusterInfoTests extends ESTestCase {
             builder.put(shardRouting, randomAlphaOfLength(32));
         }
         return builder.build();
+    }
+
+    private static ImmutableOpenMap<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace> randomReservedSpace() {
+        // TODO NOCOMMIT
+        return ImmutableOpenMap.of();
     }
 
 }

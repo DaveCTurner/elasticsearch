@@ -268,6 +268,8 @@ public final class ShardPath {
             long usableBytes = fileStore.getUsableSpace();
             assert usableBytes >= 0 : "usable bytes must be >= 0, got: " + usableBytes;
 
+            // TODO NOCOMMIT should we account for reserved space here too?
+
             if (bestPath == null || usableBytes > maxUsableBytes) {
                 // This path has been determined to be "better" based on the usable bytes
                 maxUsableBytes = usableBytes;

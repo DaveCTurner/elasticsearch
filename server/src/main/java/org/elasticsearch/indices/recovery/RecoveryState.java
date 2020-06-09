@@ -864,6 +864,19 @@ public class RecoveryState implements ToXContentFragment, Writeable {
         }
 
         /**
+         * number of bytes still to recover, i.e. {@link Index#totalRecoverBytes()} minus {@link Index#recoveredBytes()}.
+         */
+        public synchronized long bytesStillToRecover() {
+            long total = 0;
+            for (File file : fileDetails.values()) {
+                if (file.reused() == false) {
+                    total += file.length() - file.recovered();
+                }
+            }
+            return total;
+        }
+
+        /**
          * percent of bytes recovered out of total files bytes *to be* recovered
          */
         public synchronized float recoveredBytesPercent() {

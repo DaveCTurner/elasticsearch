@@ -74,6 +74,7 @@ import org.elasticsearch.index.shard.ShardNotInPrimaryModeException;
 import org.elasticsearch.index.shard.ShardPath;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.index.store.Store;
+import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.cluster.IndicesClusterStateService;
@@ -371,7 +372,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
         long sum = 0;
         int count = 0;
         for (IndexShard indexShard : this) {
-            sum += indexShard.store().stats().sizeInBytes();
+            sum += indexShard.store().stats(StoreStats.UNKNOWN_RESERVED_BYTES).sizeInBytes();
             count++;
         }
         if (count == 0) {

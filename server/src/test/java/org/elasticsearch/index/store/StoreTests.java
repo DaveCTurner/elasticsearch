@@ -463,7 +463,7 @@ public class StoreTests extends ESTestCase {
     public void assertDeleteContent(Store store, Directory dir) throws IOException {
         deleteContent(store.directory());
         assertThat(Arrays.toString(store.directory().listAll()), store.directory().listAll().length, equalTo(0));
-        assertThat(store.stats().sizeInBytes(), equalTo(0L));
+        assertThat(store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).sizeInBytes(), equalTo(0L));
         assertThat(dir.listAll().length, equalTo(0));
     }
 
@@ -748,8 +748,10 @@ public class StoreTests extends ESTestCase {
             assertTrue("expected extraFS file but got: " + extraFiles, extraFiles.startsWith("extra"));
             initialStoreSize += store.directory().fileLength(extraFiles);
         }
-        StoreStats stats = store.stats();
+        final long reservedBytes = randomBoolean() ? StoreStats.UNKNOWN_RESERVED_BYTES : randomNonNegativeLong();
+        StoreStats stats = store.stats(reservedBytes);
         assertEquals(stats.getSize().getBytes(), initialStoreSize);
+        assertEquals(stats.getReservedSize().getBytes(), reservedBytes);
 
         Directory dir = store.directory();
         final long length;
@@ -763,7 +765,7 @@ public class StoreTests extends ESTestCase {
         }
 
         assertTrue(numNonExtraFiles(store) > 0);
-        stats = store.stats();
+        stats = store.stats(StoreStats.UNKNOWN_RESERVED_BYTES);
         assertEquals(stats.getSizeInBytes(), length + initialStoreSize);
 
         deleteContent(store.directory());
