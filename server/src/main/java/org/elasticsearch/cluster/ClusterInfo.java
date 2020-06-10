@@ -315,6 +315,20 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
             return shardIds.contains(shardId);
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ReservedSpace that = (ReservedSpace) o;
+            return total == that.total &&
+                shardIds.equals(that.shardIds);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(total, shardIds);
+        }
+
         void shardIdsToXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startArray("shards"); {
                 for (ObjectCursor<ShardId> shardIdCursor : shardIds) {
@@ -337,6 +351,7 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
 
             public void add(ShardId shardId, long reservedBytes) {
                 assert shardIds != null : "already built";
+                assert reservedBytes >= 0 : reservedBytes;
                 shardIds.add(shardId);
                 total += reservedBytes;
             }
