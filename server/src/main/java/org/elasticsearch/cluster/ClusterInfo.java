@@ -175,8 +175,7 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
                 builder.startObject(); {
                     builder.field("node_id", c.key.nodeId);
                     builder.field("path", c.key.path);
-                    builder.field("total", c.value.total);
-                    c.value.shardIdsToXContent(builder, params);
+                    c.value.toXContent(builder, params);
                 }
                 builder.endObject(); // NodeAndPath
             }
@@ -329,7 +328,8 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
             return Objects.hash(total, shardIds);
         }
 
-        void shardIdsToXContent(XContentBuilder builder, Params params) throws IOException {
+        void toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.field("total", total);
             builder.startArray("shards"); {
                 for (ObjectCursor<ShardId> shardIdCursor : shardIds) {
                     shardIdCursor.value.toXContent(builder, params);
