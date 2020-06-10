@@ -186,7 +186,7 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
 
     /**
      * Returns a node id to disk usage mapping for the path that has the least available space on the node.
-     * TODO NOCOMMIT TBD this may not be the least-available path after accounting for reserved space -- does this matter?
+     * Note that this does not take account of reserved space: there may be another path with less available _and unreserved_ space.
      */
     public ImmutableOpenMap<String, DiskUsage> getNodeLeastAvailableDiskUsages() {
         return this.leastAvailableSpaceUsage;
@@ -194,7 +194,7 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
 
     /**
      * Returns a node id to disk usage mapping for the path that has the most available space on the node.
-     * TODO NOCOMMIT TBD this may not be the most-available path after accounting for reserved space -- does this matter?
+     * Note that this does not take account of reserved space: there may be another path with more available _and unreserved_ space.
      */
     public ImmutableOpenMap<String, DiskUsage> getNodeMostAvailableDiskUsages() {
         return this.mostAvailableSpaceUsage;
