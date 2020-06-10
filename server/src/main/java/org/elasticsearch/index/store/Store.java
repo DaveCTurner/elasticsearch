@@ -347,7 +347,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
     }
 
     /**
-     * @param reservedBytes a prediction of how much larger the store is expected to grow, or {@code -1} if unknown.
+     * @param reservedBytes a prediction of how much larger the store is expected to grow, or {@link StoreStats#UNKNOWN_RESERVED_BYTES}.
      */
     public StoreStats stats(long reservedBytes) throws IOException {
         ensureOpen();

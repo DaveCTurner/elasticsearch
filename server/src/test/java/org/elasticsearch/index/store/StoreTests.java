@@ -748,10 +748,21 @@ public class StoreTests extends ESTestCase {
             assertTrue("expected extraFS file but got: " + extraFiles, extraFiles.startsWith("extra"));
             initialStoreSize += store.directory().fileLength(extraFiles);
         }
-        final long reservedBytes = randomBoolean() ? StoreStats.UNKNOWN_RESERVED_BYTES : randomNonNegativeLong();
+        final long reservedBytes =  randomBoolean() ? StoreStats.UNKNOWN_RESERVED_BYTES :randomLongBetween(0L, Integer.MAX_VALUE);
         StoreStats stats = store.stats(reservedBytes);
-        assertEquals(stats.getSize().getBytes(), initialStoreSize);
-        assertEquals(stats.getReservedSize().getBytes(), reservedBytes);
+        assertEquals(initialStoreSize, stats.getSize().getBytes());
+        assertEquals(reservedBytes, stats.getReservedSize().getBytes());
+
+        stats.add(null);
+        assertEquals(initialStoreSize, stats.getSize().getBytes());
+        assertEquals(reservedBytes, stats.getReservedSize().getBytes());
+
+        final long otherStatsBytes = randomLongBetween(0L, Integer.MAX_VALUE);
+        final long otherStatsReservedBytes = randomBoolean() ? StoreStats.UNKNOWN_RESERVED_BYTES :randomLongBetween(0L, Integer.MAX_VALUE);
+        stats.add(new StoreStats(otherStatsBytes, otherStatsReservedBytes));
+        assertEquals(initialStoreSize + otherStatsBytes, stats.getSize().getBytes());
+        assertEquals(reservedBytes == StoreStats.UNKNOWN_RESERVED_BYTES || otherStatsReservedBytes == StoreStats.UNKNOWN_RESERVED_BYTES
+            ? StoreStats.UNKNOWN_RESERVED_BYTES : reservedBytes + otherStatsReservedBytes, stats.getReservedSize().getBytes());
 
         Directory dir = store.directory();
         final long length;
