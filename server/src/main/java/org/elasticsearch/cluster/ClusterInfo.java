@@ -225,7 +225,7 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
     /**
      * Returns the reserved space for each shard on the given node/path pair
      */
-    public ReservedSpace reservedSpaceByShardId(String nodeId, String dataPath) {
+    public ReservedSpace getReservedSpace(String nodeId, String dataPath) {
         final ReservedSpace result = reservedSpace.get(new NodeAndPath(nodeId, dataPath));
         return result == null ? ReservedSpace.EMPTY : result;
     }
@@ -349,11 +349,12 @@ public class ClusterInfo implements ToXContentFragment, Writeable {
                 return reservedSpace;
             }
 
-            public void add(ShardId shardId, long reservedBytes) {
+            public Builder add(ShardId shardId, long reservedBytes) {
                 assert shardIds != null : "already built";
                 assert reservedBytes >= 0 : reservedBytes;
                 shardIds.add(shardId);
                 total += reservedBytes;
+                return this;
             }
         }
     }

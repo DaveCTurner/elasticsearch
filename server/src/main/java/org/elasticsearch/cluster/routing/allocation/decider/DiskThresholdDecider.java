@@ -100,7 +100,7 @@ public class DiskThresholdDecider extends AllocationDecider {
     public static long sizeOfRelocatingShards(RoutingNode node, boolean subtractShardsMovingAway, String dataPath, ClusterInfo clusterInfo,
                                               Metadata metadata, RoutingTable routingTable) {
         // Account for reserved space wherever it is available
-        final ClusterInfo.ReservedSpace reservedSpace = clusterInfo.reservedSpaceByShardId(node.nodeId(), dataPath);
+        final ClusterInfo.ReservedSpace reservedSpace = clusterInfo.getReservedSpace(node.nodeId(), dataPath);
         long totalSize = reservedSpace.getTotal();
 
         // Where reserved space is unavailable (e.g. stats are out-of-sync) compute a conservative estimate for initialising shards

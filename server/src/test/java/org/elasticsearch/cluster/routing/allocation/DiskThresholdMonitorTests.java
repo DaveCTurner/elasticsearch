@@ -41,6 +41,7 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 
@@ -232,6 +233,19 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
         currentTime.addAndGet(randomLongBetween(0, 120000));
         monitor.onNewInfo(clusterInfo(allDisksOk));
         assertNull(listenerReference.get());
+
+        // should reroute again when one disk has reserved space that pushes it over the high watermark
+        final ImmutableOpenMap.Builder<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace> builder = ImmutableOpenMap.builder(1);
+        builder.put(new ClusterInfo.NodeAndPath("node1", "/foo/bar"),
+            new ClusterInfo.ReservedSpace.Builder().add(new ShardId("baz", "quux", 0), between(41, 100)).build());
+        final ImmutableOpenMap<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace> reservedSpaces = builder.build();
+
+        currentTime.addAndGet(randomLongBetween(
+            DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_REROUTE_INTERVAL_SETTING.get(Settings.EMPTY).millis() + 1, 120000));
+        monitor.onNewInfo(new ClusterInfo(allDisksOk, null, null, null, reservedSpaces));
+        assertNotNull(listenerReference.get());
+        listenerReference.getAndSet(null).onResponse(null);
+
     }
 
     public void testAutoReleaseIndices() {
@@ -492,7 +506,6 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
 
         assertSingleInfoMessage(monitor, aboveLowWatermark,
             "high disk watermark [90%] no longer exceeded on * but low disk watermark [85%] is still exceeded");
-
     }
 
     private void assertNoLogging(DiskThresholdMonitor monitor,

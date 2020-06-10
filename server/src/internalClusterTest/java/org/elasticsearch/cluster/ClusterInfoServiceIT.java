@@ -164,7 +164,7 @@ public class ClusterInfoServiceIT extends ESIntegTestCase {
             IndexShard indexShard = indexService.getShardOrNull(shard.id());
             assertEquals(indexShard.shardPath().getRootDataPath().toString(), dataPath);
 
-            assertTrue(info.reservedSpaceByShardId(nodeId, dataPath).containsShardId(shard.shardId()));
+            assertTrue(info.getReservedSpace(nodeId, dataPath).containsShardId(shard.shardId()));
         }
     }
 
@@ -248,7 +248,7 @@ public class ClusterInfoServiceIT extends ESIntegTestCase {
 
         RoutingTable routingTable = client().admin().cluster().prepareState().clear().setRoutingTable(true).get().getState().routingTable();
         for (ShardRouting shard : routingTable.allShards()) {
-            assertTrue(info.reservedSpaceByShardId(shard.currentNodeId(), info.getDataPath(shard)).containsShardId(shard.shardId()));
+            assertTrue(info.getReservedSpace(shard.currentNodeId(), info.getDataPath(shard)).containsShardId(shard.shardId()));
         }
 
     }
