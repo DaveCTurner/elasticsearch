@@ -242,6 +242,7 @@ public class RecoveryTargetTests extends ESTestCase {
         assertThat(index.recoveredBytes(), equalTo(0L));
         assertThat(index.recoveredFilesPercent(), equalTo(filesToRecover.size() == 0 ? 100.0f : 0.0f));
         assertThat(index.recoveredBytesPercent(), equalTo(filesToRecover.size() == 0 ? 100.0f : 0.0f));
+        assertThat(index.bytesStillToRecover(), equalTo(totalFileBytes - totalReusedBytes));
 
 
         long bytesToRecover = totalFileBytes - totalReusedBytes;
@@ -322,6 +323,7 @@ public class RecoveryTargetTests extends ESTestCase {
         assertThat(index.recoveredBytes(), equalTo(recoveredBytes));
         assertThat(index.targetThrottling().nanos(), equalTo(targetThrottling));
         assertThat(index.sourceThrottling().nanos(), equalTo(sourceThrottling));
+        assertThat(index.bytesStillToRecover(), equalTo(totalFileBytes - totalReusedBytes - recoveredBytes));
         if (index.totalRecoverFiles() == 0) {
             assertThat((double) index.recoveredFilesPercent(), equalTo(100.0));
             assertThat((double) index.recoveredBytesPercent(), equalTo(100.0));
