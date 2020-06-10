@@ -38,7 +38,6 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.DiskThresholdSettings;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
@@ -50,7 +49,6 @@ import org.elasticsearch.monitor.fs.FsInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ReceiveTimeoutTransportException;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -333,14 +331,12 @@ public class InternalClusterInfoService implements ClusterInfoService, LocalNode
                 final Map<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace.Builder> reservedSpaceBuilders = new HashMap<>();
                 buildShardLevelInfo(logger, stats, shardSizeByIdentifierBuilder, dataPathByShardRoutingBuilder, reservedSpaceBuilders);
 
-                final ImmutableOpenMap.Builder<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace> reservedSpaceByShardAndPath
-                    = ImmutableOpenMap.builder();
-                reservedSpaceBuilders.forEach(
-                    (nodeAndPath, builder) -> reservedSpaceByShardAndPath.put(nodeAndPath, builder.build()));
+                final ImmutableOpenMap.Builder<ClusterInfo.NodeAndPath, ClusterInfo.ReservedSpace> rsrvdSpace = ImmutableOpenMap.builder();
+                reservedSpaceBuilders.forEach((nodeAndPath, builder) -> rsrvdSpace.put(nodeAndPath, builder.build()));
 
                 shardSizes = shardSizeByIdentifierBuilder.build();
                 shardRoutingToDataPath = dataPathByShardRoutingBuilder.build();
-                reservedSpace = reservedSpaceByShardAndPath.build();
+                reservedSpace = rsrvdSpace.build();
             }
 
             @Override
