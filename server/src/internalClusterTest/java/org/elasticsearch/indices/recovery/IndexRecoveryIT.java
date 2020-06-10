@@ -25,6 +25,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequestBuilder;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
@@ -1757,4 +1758,60 @@ public class IndexRecoveryIT extends ESIntegTestCase {
             }
         });
     }
+
+    public void testReservesBytesDuringPeerRecoveryPhaseOne() throws Exception {
+        internalCluster().startNode();
+        List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
+        String indexName = "test-index";
+        createIndex(indexName, Settings.builder()
+            .put("index.number_of_shards", 1).put("index.number_of_replicas", 0)
+            .put("index.routing.allocation.include._name", String.join(",", dataNodes)).build());
+        ensureGreen(indexName);
+        final List<IndexRequestBuilder> indexRequests = IntStream.range(0, between(10, 500))
+            .mapToObj(n -> client().prepareIndex(indexName).setSource("foo", "bar"))
+            .collect(Collectors.toList());
+        indexRandom(randomBoolean(), true, true, indexRequests);
+        assertThat(client().admin().indices().prepareFlush(indexName).get().getFailedShards(), equalTo(0));
+
+        ClusterState clusterState = client().admin().cluster().prepareState().get().getState();
+        DiscoveryNode nodeWithPrimary = clusterState.nodes().get(clusterState.routingTable()
+            .index(indexName).shard(0).primaryShard().currentNodeId());
+        MockTransportService transportService = (MockTransportService) internalCluster()
+            .getInstance(TransportService.class, nodeWithPrimary.getName());
+        final AtomicBoolean fileChunkIntercepted = new AtomicBoolean();
+        transportService.addSendBehavior((connection, requestId, action, request, options) -> {
+            if (fileChunkIntercepted.get() == false && action.equals(PeerRecoveryTargetService.Actions.FILE_CHUNK)) {
+                fileChunkIntercepted.set(true);
+                try {
+                    assertBusy(() -> {
+                        final NodesStatsRequestBuilder nodesStatsRequestBuilder = client().admin().cluster().prepareNodesStats();
+                        if (randomBoolean()) {
+                            nodesStatsRequestBuilder.clear().setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store));
+                        }
+                        final List<NodeStats> nodesStats = nodesStatsRequestBuilder.get().getNodes();
+                        assertThat(nodesStats.stream().mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(),
+                            greaterThan(0L));
+                    });
+                } catch (Exception e) {
+                    throw new AssertionError("unexpected", e);
+                }
+            }
+            connection.sendRequest(requestId, action, request, options);
+        });
+
+        assertAcked(client().admin().indices().prepareUpdateSettings(indexName)
+            .setSettings(Settings.builder().put("index.number_of_replicas", 1)));
+        ensureGreen();
+        assertTrue(fileChunkIntercepted.get());
+
+        {
+            final NodesStatsRequestBuilder nodesStatsRequestBuilder = client().admin().cluster().prepareNodesStats();
+            if (randomBoolean()) {
+                nodesStatsRequestBuilder.clear().setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store));
+            }
+            final List<NodeStats> nodesStats = nodesStatsRequestBuilder.get().getNodes();
+            assertThat(nodesStats.stream().mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(), equalTo(0L));
+        }
+    }
+
 }
