@@ -265,10 +265,8 @@ public final class ShardPath {
         long maxUsableBytes = Long.MIN_VALUE;
         for (NodeEnvironment.NodePath nodePath : paths) {
             FileStore fileStore = nodePath.fileStore;
-            long usableBytes = fileStore.getUsableSpace();
+            long usableBytes = fileStore.getUsableSpace(); // NB usable bytes doesn't account for reserved space (e.g. incoming recoveries)
             assert usableBytes >= 0 : "usable bytes must be >= 0, got: " + usableBytes;
-
-            // TODO NOCOMMIT should we account for reserved space here too?
 
             if (bestPath == null || usableBytes > maxUsableBytes) {
                 // This path has been determined to be "better" based on the usable bytes
