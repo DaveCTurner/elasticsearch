@@ -57,7 +57,7 @@ public class StoreStats implements Writeable, ToXContentFragment {
 
     /**
      * @param sizeInBytes the size of the store in bytes
-     * @param reservedSize a prediction of how much larger the store is expected to grow, or {@code -1} if unknown.
+     * @param reservedSize a prediction of how much larger the store is expected to grow, or {@link StoreStats#UNKNOWN_RESERVED_BYTES}.
      */
     public StoreStats(long sizeInBytes, long reservedSize) {
         assert reservedSize == UNKNOWN_RESERVED_BYTES || reservedSize >= 0 : reservedSize;
