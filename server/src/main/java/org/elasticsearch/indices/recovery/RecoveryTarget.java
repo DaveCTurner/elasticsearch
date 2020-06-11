@@ -287,6 +287,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     @Override
     public void prepareForTranslogOperations(int totalTranslogOps, ActionListener<Void> listener) {
         ActionListener.completeWith(listener, () -> {
+            state().getIndex().setFileDetailsComplete();
             state().getTranslog().totalOperations(totalTranslogOps);
             indexShard().openEngineAndSkipTranslogRecovery();
             return null;
