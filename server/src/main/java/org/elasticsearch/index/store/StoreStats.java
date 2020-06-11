@@ -33,7 +33,7 @@ public class StoreStats implements Writeable, ToXContentFragment {
 
     /**
      * Sentinel value for cases where the shard does not yet know its reserved size so we must fall back to an estimate, for instance
-     * in the INIT stage of recovery, or BWC.
+     * prior to receiving the list of files in a peer recovery.
      */
     public static final long UNKNOWN_RESERVED_BYTES = -1L;
 

@@ -714,7 +714,8 @@ public class RecoveryState implements ToXContentFragment, Writeable {
             } else {
                 // This flag is used by disk-based allocation to decide whether the remaining bytes measurement is accurate or not; if not
                 // then it falls back on an estimate. There's only a very short window in which the file details are present but incomplete
-                // so this is a reasonable approximation.
+                // so this is a reasonable approximation, and the stats reported to the disk-based allocator don't hit this code path
+                // anyway since they always use IndexShard#getRecoveryState which is never transported over the wire.
                 fileDetailsComplete = fileDetails.isEmpty() == false;
             }
             sourceThrottlingInNanos = in.readLong();
