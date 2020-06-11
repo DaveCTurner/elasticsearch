@@ -82,6 +82,7 @@ import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.index.seqno.RetentionLeases;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
+import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.IndicesService;
@@ -1782,19 +1783,10 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         transportService.addSendBehavior((connection, requestId, action, request, options) -> {
             if (fileChunkIntercepted.get() == false && action.equals(PeerRecoveryTargetService.Actions.FILE_CHUNK)) {
                 fileChunkIntercepted.set(true);
-                try {
-                    assertBusy(() -> {
-                        final NodesStatsRequestBuilder nodesStatsRequestBuilder = client().admin().cluster().prepareNodesStats();
-                        if (randomBoolean()) {
-                            nodesStatsRequestBuilder.clear().setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store));
-                        }
-                        final List<NodeStats> nodesStats = nodesStatsRequestBuilder.get().getNodes();
-                        assertThat(nodesStats.stream().mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(),
-                            greaterThan(0L));
-                    });
-                } catch (Exception e) {
-                    throw new AssertionError("unexpected", e);
-                }
+                assertThat(client().admin().cluster().prepareNodesStats(connection.getNode().getId()).clear()
+                    .setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store)).get().getNodes().stream()
+                        .mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(),
+                    greaterThan(0L));
             }
             connection.sendRequest(requestId, action, request, options);
         });
@@ -1804,14 +1796,8 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         ensureGreen();
         assertTrue(fileChunkIntercepted.get());
 
-        {
-            final NodesStatsRequestBuilder nodesStatsRequestBuilder = client().admin().cluster().prepareNodesStats();
-            if (randomBoolean()) {
-                nodesStatsRequestBuilder.clear().setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store));
-            }
-            final List<NodeStats> nodesStats = nodesStatsRequestBuilder.get().getNodes();
-            assertThat(nodesStats.stream().mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(), equalTo(0L));
-        }
+        assertThat(client().admin().cluster().prepareNodesStats().get().getNodes().stream()
+            .mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(), equalTo(0L));
     }
 
 }
