@@ -1398,7 +1398,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         }
         assert recoveryState.getStage() == RecoveryState.Stage.INDEX : "unexpected recovery stage [" + recoveryState.getStage() + "]";
         assert routingEntry().recoverySource().getType() == RecoverySource.Type.PEER : "not a peer recovery [" + routingEntry() + "]";
-        recoveryState.getIndex().setFileDetailsComplete();
         final Optional<SequenceNumbers.CommitInfo> safeCommit;
         final long globalCheckpoint;
         try {

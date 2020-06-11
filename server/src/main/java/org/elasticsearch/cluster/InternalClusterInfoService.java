@@ -98,6 +98,7 @@ public class InternalClusterInfoService implements ClusterInfoService, LocalNode
         this.leastAvailableSpaceUsages = ImmutableOpenMap.of();
         this.mostAvailableSpaceUsages = ImmutableOpenMap.of();
         this.shardRoutingToDataPath = ImmutableOpenMap.of();
+        this.reservedSpace = ImmutableOpenMap.of();
         this.shardSizes = ImmutableOpenMap.of();
         this.clusterService = clusterService;
         this.threadPool = threadPool;

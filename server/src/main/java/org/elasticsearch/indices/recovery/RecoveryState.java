@@ -19,6 +19,8 @@
 
 package org.elasticsearch.indices.recovery;
 
+import org.apache.logging.log4j.LogManager;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RecoverySource;
@@ -192,7 +194,6 @@ public class RecoveryState implements ToXContentFragment, Writeable {
                 break;
             case VERIFY_INDEX:
                 validateAndSetStage(Stage.INDEX, stage);
-                assert getIndex().bytesStillToRecover() >= 0 : "moving to stage VERIFY_INDEX without completing file details";
                 getIndex().stop();
                 getVerifyIndex().start();
                 break;
@@ -202,6 +203,7 @@ public class RecoveryState implements ToXContentFragment, Writeable {
                 getTranslog().start();
                 break;
             case FINALIZE:
+                assert getIndex().bytesStillToRecover() >= 0 : "moving to stage FINALIZE without completing file details";
                 validateAndSetStage(Stage.TRANSLOG, stage);
                 getTranslog().stop();
                 break;
@@ -757,6 +759,7 @@ public class RecoveryState implements ToXContentFragment, Writeable {
         }
 
         public synchronized void setFileDetailsComplete() {
+            assert fileDetailsComplete == false;
             fileDetailsComplete = true;
         }
 
