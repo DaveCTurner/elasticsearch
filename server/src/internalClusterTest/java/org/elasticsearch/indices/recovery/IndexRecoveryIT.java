@@ -85,6 +85,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.Store;
+import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.indices.recovery.RecoveryState.Stage;
@@ -106,6 +107,7 @@ import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.store.MockFSIndexStore;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.test.transport.StubbableTransport;
@@ -1779,14 +1781,24 @@ public class IndexRecoveryIT extends ESIntegTestCase {
             .index(indexName).shard(0).primaryShard().currentNodeId());
         MockTransportService transportService = (MockTransportService) internalCluster()
             .getInstance(TransportService.class, nodeWithPrimary.getName());
+
+        final AtomicBoolean fileInfoIntercepted = new AtomicBoolean();
         final AtomicBoolean fileChunkIntercepted = new AtomicBoolean();
         transportService.addSendBehavior((connection, requestId, action, request, options) -> {
-            if (fileChunkIntercepted.get() == false && action.equals(PeerRecoveryTargetService.Actions.FILE_CHUNK)) {
-                fileChunkIntercepted.set(true);
-                assertThat(client().admin().cluster().prepareNodesStats(connection.getNode().getId()).clear()
-                    .setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store)).get().getNodes().stream()
-                        .mapToLong(n -> n.getIndices().getStore().getReservedSize().getBytes()).sum(),
-                    greaterThan(0L));
+            if (action.equals(PeerRecoveryTargetService.Actions.FILES_INFO)) {
+                if (fileInfoIntercepted.compareAndSet(false, true)) {
+                    assertThat(client().admin().cluster().prepareNodesStats(connection.getNode().getId()).clear()
+                            .setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store)).get().getNodes().get(0)
+                            .getIndices().getStore().getReservedSize().getBytes(),
+                        equalTo(StoreStats.UNKNOWN_RESERVED_BYTES));
+                }
+            } else if (action.equals(PeerRecoveryTargetService.Actions.FILE_CHUNK)) {
+                if (fileChunkIntercepted.compareAndSet(false, true)) {
+                    assertThat(client().admin().cluster().prepareNodesStats(connection.getNode().getId()).clear()
+                            .setIndices(new CommonStatsFlags(CommonStatsFlags.Flag.Store)).get().getNodes().get(0)
+                            .getIndices().getStore().getReservedSize().getBytes(),
+                        greaterThan(0L));
+                }
             }
             connection.sendRequest(requestId, action, request, options);
         });
@@ -1794,6 +1806,7 @@ public class IndexRecoveryIT extends ESIntegTestCase {
         assertAcked(client().admin().indices().prepareUpdateSettings(indexName)
             .setSettings(Settings.builder().put("index.number_of_replicas", 1)));
         ensureGreen();
+        assertTrue(fileInfoIntercepted.get());
         assertTrue(fileChunkIntercepted.get());
 
         assertThat(client().admin().cluster().prepareNodesStats().get().getNodes().stream()
