@@ -200,6 +200,7 @@ public class RecoveryTargetTests extends ESTestCase {
 
         Collections.shuffle(Arrays.asList(files), random());
         final RecoveryState.Index index = new RecoveryState.Index();
+        assertThat(index.bytesStillToRecover(), equalTo(-1L));
 
         if (randomBoolean()) {
             // initialize with some data and then reset
@@ -218,7 +219,6 @@ public class RecoveryTargetTests extends ESTestCase {
             }
             index.reset();
         }
-
 
         // before we start we must report 0
         assertThat(index.recoveredFilesPercent(), equalTo((float) 0.0));
@@ -242,8 +242,10 @@ public class RecoveryTargetTests extends ESTestCase {
         assertThat(index.recoveredBytes(), equalTo(0L));
         assertThat(index.recoveredFilesPercent(), equalTo(filesToRecover.size() == 0 ? 100.0f : 0.0f));
         assertThat(index.recoveredBytesPercent(), equalTo(filesToRecover.size() == 0 ? 100.0f : 0.0f));
-        assertThat(index.bytesStillToRecover(), equalTo(totalFileBytes - totalReusedBytes));
+        assertThat(index.bytesStillToRecover(), equalTo(-1L));
 
+        index.setFileDetailsComplete();
+        assertThat(index.bytesStillToRecover(), equalTo(totalFileBytes - totalReusedBytes));
 
         long bytesToRecover = totalFileBytes - totalReusedBytes;
         boolean completeRecovery = bytesToRecover == 0 || randomBoolean();

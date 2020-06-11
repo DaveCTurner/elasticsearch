@@ -403,6 +403,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
             for (int i = 0; i < phase1FileNames.size(); i++) {
                 index.addFileDetail(phase1FileNames.get(i), phase1FileSizes.get(i), false);
             }
+            index.setFileDetailsComplete();
             state().getTranslog().totalOperations(totalTranslogOps);
             state().getTranslog().totalOperationsOnStart(totalTranslogOps);
             return null;

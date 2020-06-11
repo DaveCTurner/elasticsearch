@@ -171,6 +171,7 @@ final class StoreRecovery {
 
         try (IndexWriter writer = new IndexWriter(new StatsDirectoryWrapper(hardLinkOrCopyTarget, indexRecoveryStats), iwc)) {
             writer.addIndexes(sources);
+            indexRecoveryStats.setFileDetailsComplete();
             if (split) {
                 writer.deleteDocuments(new ShardSplittingQuery(indexMetadata, shardId, hasNested));
             }
@@ -418,6 +419,7 @@ final class StoreRecovery {
                     indexShard.getPendingPrimaryTerm());
                 store.associateIndexWithNewTranslog(translogUUID);
                 writeEmptyRetentionLeasesFile(indexShard);
+                indexShard.recoveryState().getIndex().setFileDetailsComplete();
             }
             indexShard.openEngineAndRecoverFromTranslog();
             indexShard.getEngine().fillSeqNoGaps(indexShard.getPendingPrimaryTerm());
@@ -442,6 +444,7 @@ final class StoreRecovery {
             long length = directory.fileLength(name);
             index.addFileDetail(name, length, true);
         }
+        index.setFileDetailsComplete();
     }
 
     /**

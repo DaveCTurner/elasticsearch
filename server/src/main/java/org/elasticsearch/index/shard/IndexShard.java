@@ -1012,7 +1012,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 remainingRecoveryBytesSupplier = () -> StoreStats.UNKNOWN_RESERVED_BYTES;
             } else if (recoveryState.getStage() == RecoveryState.Stage.INDEX) {
                 final RecoveryState.Index indexStageRecoveryState = recoveryState.getIndex();
-                remainingRecoveryBytesSupplier = indexStageRecoveryState::bytesStillToRecover;
+                remainingRecoveryBytesSupplier = () -> {
+                    final long bytesStillToRecover = indexStageRecoveryState.bytesStillToRecover();
+                    return bytesStillToRecover == -1 ? StoreStats.UNKNOWN_RESERVED_BYTES : bytesStillToRecover;
+                };
             } else {
                 remainingRecoveryBytesSupplier = () -> 0L;
             }
