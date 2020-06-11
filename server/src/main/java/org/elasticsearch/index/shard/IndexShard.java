@@ -1004,19 +1004,21 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public StoreStats storeStats() {
-        final RecoveryState.Index indexStageRecoveryState;
+        final LongSupplier remainingRecoveryBytesSupplier;
         synchronized (mutex) {
-            if (recoveryState != null &&
-                    (recoveryState.getStage() == RecoveryState.Stage.INIT
-                    || recoveryState.getStage() == RecoveryState.Stage.INDEX)) {
-                indexStageRecoveryState = recoveryState.getIndex();
+            if (recoveryState == null) {
+                remainingRecoveryBytesSupplier = () -> 0L;
+            } else if (recoveryState.getStage() == RecoveryState.Stage.INIT) {
+                remainingRecoveryBytesSupplier = () -> StoreStats.UNKNOWN_RESERVED_BYTES;
+            } else if (recoveryState.getStage() == RecoveryState.Stage.INDEX) {
+                final RecoveryState.Index indexStageRecoveryState = recoveryState.getIndex();
+                remainingRecoveryBytesSupplier = indexStageRecoveryState::bytesStillToRecover;
             } else {
-                indexStageRecoveryState = null;
+                remainingRecoveryBytesSupplier = () -> 0L;
             }
         }
-        final long remainingRecoveryBytes = indexStageRecoveryState == null ? 0L : indexStageRecoveryState.bytesStillToRecover();
         try {
-            return store.stats(remainingRecoveryBytes);
+            return store.stats(remainingRecoveryBytesSupplier.getAsLong());
         } catch (IOException e) {
             failShard("Failing shard because of exception during storeStats", e);
             throw new ElasticsearchException("io exception while building 'store stats'", e);

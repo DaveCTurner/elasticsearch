@@ -32,11 +32,11 @@ import java.io.IOException;
 public class StoreStats implements Writeable, ToXContentFragment {
 
     /**
-     * Sentinel value for BWC cases where the remote node does not report any reserved size so we must fall back to an estimate.
+     * Sentinel value for cases where the shard does not yet know its reserved size so we must fall back to an estimate, for instance
+     * in the INIT stage of recovery, or BWC.
      */
     public static final long UNKNOWN_RESERVED_BYTES = -1L;
 
-    // TODO Drop UNKNOWN_RESERVED_BYTES when we no longer need wire compatibility with this version
     public static final Version RESERVED_BYTES_VERSION = Version.V_8_0_0;
 
     private long sizeInBytes;
