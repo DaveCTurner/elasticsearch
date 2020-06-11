@@ -759,7 +759,6 @@ public class RecoveryState implements ToXContentFragment, Writeable {
         }
 
         public synchronized void setFileDetailsComplete() {
-            assert fileDetailsComplete == false;
             fileDetailsComplete = true;
         }
 
