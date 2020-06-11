@@ -404,15 +404,16 @@ final class StoreRecovery {
                     writeEmptyRetentionLeasesFile(indexShard);
                 }
                 // since we recover from local, just fill the files and size
+                final RecoveryState.Index index = recoveryState.getIndex();
                 try {
-                    final RecoveryState.Index index = recoveryState.getIndex();
                     if (si != null) {
                         addRecoveredFileDetails(si, store, index);
-                    } else {
-                        index.setFileDetailsComplete();
                     }
                 } catch (IOException e) {
                     logger.debug("failed to list file details", e);
+                } finally {
+                    index.setFileDetailsComplete();
+
                 }
             } else {
                 store.createEmpty(indexShard.indexSettings().getIndexVersionCreated().luceneVersion);
@@ -446,7 +447,6 @@ final class StoreRecovery {
             long length = directory.fileLength(name);
             index.addFileDetail(name, length, true);
         }
-        index.setFileDetailsComplete();
     }
 
     /**
