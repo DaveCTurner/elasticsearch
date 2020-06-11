@@ -743,6 +743,7 @@ public class RecoveryState implements ToXContentFragment, Writeable {
         public synchronized void reset() {
             super.reset();
             fileDetails.clear();
+            fileDetailsComplete = false;
             sourceThrottlingInNanos = UNKNOWN;
             targetThrottleTimeInNanos = UNKNOWN;
         }

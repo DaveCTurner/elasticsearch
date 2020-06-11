@@ -215,6 +215,9 @@ public class RecoveryTargetTests extends ESTestCase {
                 }
             }
             if (randomBoolean()) {
+                index.setFileDetailsComplete();
+            }
+            if (randomBoolean()) {
                 index.stop();
             }
             index.reset();
@@ -354,6 +357,7 @@ public class RecoveryTargetTests extends ESTestCase {
                 randomBoolean(), ShardRoutingState.INITIALIZING);
             RecoveryState state = new RecoveryState(shardRouting, discoveryNode,
                 shardRouting.recoverySource().getType() == RecoverySource.Type.PEER ? discoveryNode : null);
+            state.getIndex().setFileDetailsComplete();
             for (Stage stage : stages) {
                 state.setStage(stage);
             }
@@ -371,6 +375,7 @@ public class RecoveryTargetTests extends ESTestCase {
             randomBoolean(), ShardRoutingState.INITIALIZING);
         RecoveryState state = new RecoveryState(shardRouting, discoveryNode,
             shardRouting.recoverySource().getType() == RecoverySource.Type.PEER ? discoveryNode : null);
+        state.getIndex().setFileDetailsComplete();
         for (Stage stage : list) {
             state.setStage(stage);
         }
