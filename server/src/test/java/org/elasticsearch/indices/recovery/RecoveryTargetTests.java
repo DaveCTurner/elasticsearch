@@ -357,9 +357,11 @@ public class RecoveryTargetTests extends ESTestCase {
                 randomBoolean(), ShardRoutingState.INITIALIZING);
             RecoveryState state = new RecoveryState(shardRouting, discoveryNode,
                 shardRouting.recoverySource().getType() == RecoverySource.Type.PEER ? discoveryNode : null);
-            state.getIndex().setFileDetailsComplete();
             for (Stage stage : stages) {
                 state.setStage(stage);
+                if (stage == Stage.INDEX) {
+                    state.getIndex().setFileDetailsComplete();
+                }
             }
             fail("succeeded in performing the illegal sequence [" + Strings.arrayToCommaDelimitedString(stages) + "]");
         } catch (IllegalStateException e) {
@@ -375,9 +377,11 @@ public class RecoveryTargetTests extends ESTestCase {
             randomBoolean(), ShardRoutingState.INITIALIZING);
         RecoveryState state = new RecoveryState(shardRouting, discoveryNode,
             shardRouting.recoverySource().getType() == RecoverySource.Type.PEER ? discoveryNode : null);
-        state.getIndex().setFileDetailsComplete();
         for (Stage stage : list) {
             state.setStage(stage);
+            if (stage == Stage.INDEX) {
+                state.getIndex().setFileDetailsComplete();
+            }
         }
 
         assertThat(state.getStage(), equalTo(Stage.DONE));
