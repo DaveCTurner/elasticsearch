@@ -11,7 +11,8 @@
 
   - do:
       nodes.stats:
-        metric: [ store ]
+        metric: [ indices ]
+        index_metric: [ store ]
 
   - is_false: nodes.$master.discovery
   - is_true:  nodes.$master.store
