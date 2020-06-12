@@ -358,10 +358,10 @@ public class RecoveryTargetTests extends ESTestCase {
             RecoveryState state = new RecoveryState(shardRouting, discoveryNode,
                 shardRouting.recoverySource().getType() == RecoverySource.Type.PEER ? discoveryNode : null);
             for (Stage stage : stages) {
-                state.setStage(stage);
-                if (stage == Stage.INDEX) {
+                if (stage == Stage.FINALIZE) {
                     state.getIndex().setFileDetailsComplete();
                 }
+                state.setStage(stage);
             }
             fail("succeeded in performing the illegal sequence [" + Strings.arrayToCommaDelimitedString(stages) + "]");
         } catch (IllegalStateException e) {

@@ -102,6 +102,8 @@ public class DiskThresholdDecider extends AllocationDecider {
         // Account for reserved space wherever it is available
         final ClusterInfo.ReservedSpace reservedSpace = clusterInfo.getReservedSpace(node.nodeId(), dataPath);
         long totalSize = reservedSpace.getTotal();
+        // NB this counts all shards on the node when the ClusterInfoService retrieved the node stats, which may include shards that are
+        // no longer initializing because their recovery failed or was cancelled.
 
         // Where reserved space is unavailable (e.g. stats are out-of-sync) compute a conservative estimate for initialising shards
         final List<ShardRouting> initializingShards = node.shardsWithState(ShardRoutingState.INITIALIZING);
