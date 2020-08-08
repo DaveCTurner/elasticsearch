@@ -434,7 +434,9 @@ public class SearchableSnapshotDirectory extends BaseDirectory {
         final GroupedActionListener<Void> completionListener = new GroupedActionListener<>(ActionListener.wrap(voids -> {
             logger.trace("{} prewarming complete", shardId);
             recoveryState.preWarmFinished();
-        }, e -> {}), // Ignore pre-warm errors
+        }, e -> {
+            logger.info(new ParameterizedMessage("{} prewarming failed", shardId), e); // TODO debug? warn?
+        }), // Ignore pre-warm errors
             snapshot().totalFileCount()
         );
 
