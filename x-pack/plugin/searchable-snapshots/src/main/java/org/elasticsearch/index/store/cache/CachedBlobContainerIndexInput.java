@@ -178,6 +178,7 @@ public class CachedBlobContainerIndexInput extends BaseSearchableSnapshotIndexIn
                         position
                     );
                     b.put(BytesReference.toBytes(cachedBlob.bytes().slice(Math.toIntExact(position), length)));
+                    stats.addCachedBytesRead(cachedBlob.length());
                     return;
                 }
 
