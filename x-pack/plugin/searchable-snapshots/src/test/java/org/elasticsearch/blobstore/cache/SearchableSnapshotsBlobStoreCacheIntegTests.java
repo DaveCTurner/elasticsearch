@@ -69,8 +69,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 
-@TestLogging(reason="nocommit", value="org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE," +
-        "org.elasticsearch.blobstore.cache.BlobStoreCacheService:TRACE")
+@TestLogging(reason = "debugging", value = "org.elasticsearch.index.store.cache.CachedBlobContainerIndexInput:TRACE,"
+    + "org.elasticsearch.blobstore.cache.BlobStoreCacheService:TRACE")
 public class SearchableSnapshotsBlobStoreCacheIntegTests extends BaseSearchableSnapshotsIntegTestCase {
 
     @Override
