@@ -43,9 +43,10 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.elasticsearch.test.ESTestCase.copyWriteable;
@@ -54,6 +55,14 @@ public abstract class DisruptableMockTransport extends MockTransport {
     private final DiscoveryNode localNode;
     private final Logger logger;
     private final DeterministicTaskQueue deterministicTaskQueue;
+
+    /**
+     * It's important that all requests _eventually_ get a response, but black-holed requests may not complete for a very long time. We
+     * don't schedule the delivery of these responses, so they don't interfere with any tests, but we keep track of them here so that we can
+     * resolve them all at once when needed (e.g. at the end of a runRandomly() execution, or at the end of a test). See also
+     * {@link DisruptableMockTransport#deliverBlackholedResponses()}.
+     */
+    private final List<Runnable> responsesToBlackholedRequests = new ArrayList<>();
 
     public DisruptableMockTransport(DiscoveryNode localNode, Logger logger, DeterministicTaskQueue deterministicTaskQueue) {
         this.localNode = localNode;
@@ -161,11 +170,33 @@ public abstract class DisruptableMockTransport extends MockTransport {
             requestId, action, getLocalNode(), destination).getFormattedMessage();
     }
 
+    public void deliverBlackholedResponses() {
+        for (Runnable runnable : responsesToBlackholedRequests) {
+            deterministicTaskQueue.scheduleNow(runnable);
+        }
+        responsesToBlackholedRequests.clear();
+    }
+
+    @Override
+    public void close() {
+        assert responsesToBlackholedRequests.isEmpty() : "pending responses to blackholed requests: " + responsesToBlackholedRequests;
+        super.close();
+    }
+
     protected void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
         logger.trace("dropping {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
-        // Delaying the request for one day and then disconnect to simulate a very long pause
-        deterministicTaskQueue.scheduleAt(deterministicTaskQueue.getCurrentTimeMillis() + TimeUnit.DAYS.toMillis(1L),
-                () -> onDisconnectedDuringSend(requestId, action, destinationTransport));
+        responsesToBlackholedRequests.add(new Runnable() {
+            @Override
+            public void run() {
+                DisruptableMockTransport.this.onDisconnectedDuringSend(requestId, action, destinationTransport);
+            }
+
+            @Override
+            public String toString() {
+                return "notification of delivery failure of [" + action + "][" + requestId + "] from [" + localNode + "] to ["
+                        + destinationTransport.getLocalNode() + "] due to black hole";
+            }
+        });
     }
 
     protected void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {

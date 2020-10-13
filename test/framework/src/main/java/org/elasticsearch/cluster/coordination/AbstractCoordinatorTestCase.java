@@ -379,6 +379,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         disconnectedNodes.clear();
                         blackholedNodes.clear();
                         deterministicTaskQueue.setExecutionDelayVariabilityMillis(DEFAULT_DELAY_VARIABILITY);
+                        clusterNodes.forEach(ClusterNode::deliverBlackholedResponses);
                         logger.debug("----> [runRandomly {}] reducing delay variability and running until [{}ms]", step, finishTime);
                     } else {
                         logger.debug("----> [runRandomly {}] running until [{}ms] with delay variability of [{}ms]", step, finishTime,
@@ -739,8 +740,15 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             blackholedConnections.clear();
         }
 
+        void deliverBlackholedResponses() {
+            clusterNodes.forEach(ClusterNode::deliverBlackholedResponses);
+            runFor(deterministicTaskQueue.getLatestDeferredExecutionTime() - deterministicTaskQueue.getCurrentTimeMillis(),
+                    "delivering responses to black-holed connections");
+        }
+
         @Override
         public void close() {
+            deliverBlackholedResponses();
             clusterNodes.forEach(ClusterNode::close);
         }
 
@@ -907,7 +915,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             private ClusterService clusterService;
             TransportService transportService;
             private DisruptableMockTransport mockTransport;
-            private NodeHealthService nodeHealthService;
+            private final NodeHealthService nodeHealthService;
             List<BiConsumer<DiscoveryNode, ClusterState>> extraJoinValidators = new ArrayList<>();
 
 
@@ -1192,6 +1200,10 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 boolean blackholed = blackholedNodes.add(localNode.getId());
                 assert blackholed || unDisconnected == false;
                 return blackholed;
+            }
+
+            void deliverBlackholedResponses() {
+                mockTransport.deliverBlackholedResponses();
             }
 
             void onDisconnectEventFrom(ClusterNode clusterNode) {
