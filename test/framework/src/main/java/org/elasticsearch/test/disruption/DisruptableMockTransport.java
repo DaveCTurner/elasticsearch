@@ -30,6 +30,7 @@ import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.test.transport.MockTransport;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.BytesTransportRequest;
 import org.elasticsearch.transport.CloseableConnection;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.ConnectionProfile;
@@ -120,6 +121,12 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
         assert destinationTransport.getLocalNode().equals(getLocalNode()) == false :
             "non-local message from " + getLocalNode() + " to itself";
+
+        if (request instanceof BytesTransportRequest) {
+            final BytesTransportRequest bytesTransportRequest = (BytesTransportRequest) request;
+            logger.info("--> releasing [{}] on clone for transmission", System.identityHashCode(bytesTransportRequest.bytes()));
+            bytesTransportRequest.cloneAndReleaseBytes();
+        }
 
         destinationTransport.execute(new Runnable() {
             @Override

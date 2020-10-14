@@ -453,7 +453,7 @@ public class PublicationTransportHandler {
 
             //noinspection ConstantConditions this assertion is always true but it's here for the benefit of readers
             assert bytes != null;
-            sendClusterState(destination, bytes, false, listener); // releases retained bytes on completion
+            sendClusterState(destination, bytes, false, listener); // releases retained bytes after transmission
         }
 
         private void sendClusterStateDiff(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {
@@ -477,7 +477,7 @@ public class PublicationTransportHandler {
             } else {
                 //noinspection ConstantConditions this assertion is always true but it's here for the benefit of readers
                 assert bytes != null;
-                sendClusterState(destination, bytes, true, listener); // releases retained bytes on completion
+                sendClusterState(destination, bytes, true, listener); // releases retained bytes after transmission
             }
         }
 
@@ -504,15 +504,11 @@ public class PublicationTransportHandler {
 
                         @Override
                         public void handleResponse(PublishWithJoinResponse response) {
-                            logger.info("--> releasing [{}] on response from [{}]", System.identityHashCode(bytes), destination);
-                            bytes.close();
                             listener.onResponse(response);
                         }
 
                         @Override
                         public void handleException(TransportException exp) {
-                            logger.info("--> releasing [{}] on exception from [{}]", System.identityHashCode(bytes), destination);
-                            bytes.close();
                             transportExceptionHandler.accept(exp);
                         }
 

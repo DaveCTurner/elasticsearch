@@ -22,6 +22,7 @@ package org.elasticsearch.transport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
@@ -29,6 +30,9 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -730,6 +734,17 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     }
 
     private void sendLocalRequest(long requestId, final String action, final TransportRequest request, TransportRequestOptions options) {
+
+        if (request instanceof BytesTransportRequest) {
+            // We must release the bytes after "transmission", but for local transmissions we re-use the request instance on the
+            // receiver too, so we must clone them.
+            //
+            // Sending a BytesTransportRequest locally seems worth avoiding entirely, since it implies that the data goes through a
+            // serialization/deserialization cycle which must be unnecessary on the local node. #58416 will mean that we don't need to
+            // copy very much on the local node, at least
+            ((BytesTransportRequest) request).cloneAndReleaseBytes();
+        }
+
         final DirectResponseChannel channel = new DirectResponseChannel(localNode, action, requestId, this, threadPool);
         try {
             onRequestSent(localNode, requestId, action, request, options);
@@ -738,6 +753,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             if (reg == null) {
                 throw new ActionNotFoundTransportException("Action [" + action + "] not found");
             }
+
             final String executor = reg.getExecutor();
             if (ThreadPool.Names.SAME.equals(executor)) {
                 //noinspection unchecked

@@ -742,7 +742,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         void deliverBlackholedResponses() {
             clusterNodes.forEach(ClusterNode::deliverBlackholedResponses);
-            runFor(deterministicTaskQueue.getLatestDeferredExecutionTime() - deterministicTaskQueue.getCurrentTimeMillis(),
+            runFor(deterministicTaskQueue.getLatestDeferredExecutionTime() + DEFAULT_STABILISATION_TIME
+                            - deterministicTaskQueue.getCurrentTimeMillis(),
                     "delivering responses to black-holed connections");
         }
 

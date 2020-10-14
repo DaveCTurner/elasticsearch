@@ -18,19 +18,25 @@
  */
 package org.elasticsearch.transport;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import java.io.IOException;
 
 abstract class OutboundMessage extends NetworkMessage {
+
+    private static final Logger logger = LogManager.getLogger(OutboundMessage.class);
 
     private final Writeable message;
 
@@ -39,12 +45,13 @@ abstract class OutboundMessage extends NetworkMessage {
         this.message = message;
     }
 
-    BytesReference serialize(BytesStreamOutput bytesStream) throws IOException {
+    ReleasableBytesReference serialize(BytesStreamOutput bytesStream) throws IOException {
+
         bytesStream.setVersion(version);
         bytesStream.skip(TcpHeader.headerSize(version));
 
         // The compressible bytes stream will not close the underlying bytes stream
-        BytesReference reference;
+        ReleasableBytesReference reference;
         int variableHeaderLength = -1;
         final long preHeaderPosition = bytesStream.position();
 
@@ -62,40 +69,56 @@ abstract class OutboundMessage extends NetworkMessage {
             reference = writeMessage(stream);
         }
 
-        bytesStream.seek(0);
-        final int contentSize = reference.length() - TcpHeader.headerSize(version);
-        TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength);
-        return reference;
+        boolean success = false;
+        try {
+            bytesStream.seek(0);
+            final int contentSize = reference.length() - TcpHeader.headerSize(version);
+            TcpHeader.writeHeader(bytesStream, requestId, status, version, contentSize, variableHeaderLength);
+            success = true;
+            return reference;
+        } finally {
+            if (success == false) {
+                reference.close();
+            }
+        }
     }
 
     protected void writeVariableHeader(StreamOutput stream) throws IOException {
         threadContext.writeTo(stream);
     }
 
-    protected BytesReference writeMessage(CompressibleBytesOutputStream stream) throws IOException {
-        final BytesReference zeroCopyBuffer;
+    protected ReleasableBytesReference writeMessage(CompressibleBytesOutputStream stream) throws IOException {
         if (message instanceof BytesTransportRequest) {
+            boolean success = false;
             BytesTransportRequest bRequest = (BytesTransportRequest) message;
-            bRequest.writeThin(stream);
-            zeroCopyBuffer = bRequest.bytes;
-        } else if (message instanceof RemoteTransportException) {
+            try {
+                bRequest.writeThin(stream);
+                final ReleasableBytesReference zeroCopyBuf = bRequest.bytes;
+                final ReleasableBytesReference result
+                        = new ReleasableBytesReference(CompositeBytesReference.of(stream.materializeBytes(), zeroCopyBuf), () -> {
+                    logger.info("--> releasing [{}] after transmission", System.identityHashCode(zeroCopyBuf));
+                    zeroCopyBuf.close();
+                });
+                success = true;
+                return result;
+            } finally {
+                if (success == false) {
+                    bRequest.bytes.close();
+                }
+            }
+        }
+
+        if (message instanceof RemoteTransportException) {
             stream.writeException((RemoteTransportException) message);
-            zeroCopyBuffer = BytesArray.EMPTY;
         } else {
             message.writeTo(stream);
-            zeroCopyBuffer = BytesArray.EMPTY;
         }
         // we have to call materializeBytes() here before accessing the bytes. A CompressibleBytesOutputStream
         // might be implementing compression. And materializeBytes() ensures that some marker bytes (EOS marker)
         // are written. Otherwise we barf on the decompressing end when we read past EOF on purpose in the
         // #validateRequest method. this might be a problem in deflate after all but it's important to write
         // the marker bytes.
-        final BytesReference message = stream.materializeBytes();
-        if (zeroCopyBuffer.length() == 0) {
-            return message;
-        } else {
-            return CompositeBytesReference.of(message, zeroCopyBuffer);
-        }
+        return ReleasableBytesReference.wrap(stream.materializeBytes());
     }
 
     static class Request extends OutboundMessage {

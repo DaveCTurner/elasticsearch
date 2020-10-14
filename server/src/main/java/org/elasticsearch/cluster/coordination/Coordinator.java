@@ -719,6 +719,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             // is synchronized on AbstractLifecycleComponent#lifestyle, as is the doStart() method that creates the CoordinationState, so
             // it's all ok.
             synchronized (mutex) {
+                currentPublication.ifPresent(p -> p.cancel("closing"));
                 coordinationState.close();
             }
         }

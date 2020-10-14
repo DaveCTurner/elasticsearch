@@ -28,6 +28,9 @@ import org.elasticsearch.action.NotifyOnceListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
+import org.elasticsearch.common.io.stream.BytesStream;
+import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.ReleasableBytesStreamOutput;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
@@ -61,6 +64,7 @@ public final class OutboundHandler {
     }
 
     void sendBytes(TcpChannel channel, BytesReference bytes, ActionListener<Void> listener) {
+        assert bytes instanceof ReleasableBytesReference == false : "do not use this method if the bytes need releasing";
         SendContext sendContext = new SendContext(channel, () -> bytes, listener);
         internalSend(channel, sendContext);
     }
@@ -140,7 +144,8 @@ public final class OutboundHandler {
 
         private OutboundMessage message;
         private final BigArrays bigArrays;
-        private volatile ReleasableBytesStreamOutput bytesStreamOutput;
+        private volatile BytesStreamOutput bytesStreamOutput;
+        private volatile ReleasableBytesReference messageBytes;
 
         private MessageSerializer(OutboundMessage message, BigArrays bigArrays) {
             this.message = message;
@@ -151,7 +156,8 @@ public final class OutboundHandler {
         public BytesReference get() throws IOException {
             try {
                 bytesStreamOutput = new ReleasableBytesStreamOutput(bigArrays);
-                return message.serialize(bytesStreamOutput);
+                messageBytes = message.serialize(bytesStreamOutput);
+                return messageBytes;
             } finally {
                 message = null;
             }
@@ -159,7 +165,7 @@ public final class OutboundHandler {
 
         @Override
         public void close() {
-            IOUtils.closeWhileHandlingException(bytesStreamOutput);
+            IOUtils.closeWhileHandlingException(bytesStreamOutput, messageBytes);
         }
     }
 
