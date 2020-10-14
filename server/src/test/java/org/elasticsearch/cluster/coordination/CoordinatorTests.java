@@ -46,6 +46,7 @@ import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.test.MockLogAppender;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -1579,6 +1580,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.test.disruption:TRACE")
     public void testImproveConfigurationPerformsVotingConfigExclusionStateCheck() {
         try (Cluster cluster = new Cluster(1)) {
             cluster.runRandomly();

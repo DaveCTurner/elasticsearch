@@ -21,6 +21,8 @@ package org.elasticsearch.common.util;
 
 import com.carrotsearch.randomizedtesting.RandomizedContext;
 import com.carrotsearch.randomizedtesting.SeedUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.BytesRef;
@@ -48,7 +50,7 @@ public class MockBigArrays extends BigArrays {
      * Tracking allocations is useful when debugging a leak but shouldn't be enabled by default as this would also be very costly
      * since it creates a new Exception every time a new array is created.
      */
-    private static final boolean TRACK_ALLOCATIONS = false;
+    private static final boolean TRACK_ALLOCATIONS = true; // TODO NOCOMMIT
 
     private static final ConcurrentMap<Object, Object> ACQUIRED_ARRAYS = new ConcurrentHashMap<>();
 
@@ -255,6 +257,8 @@ public class MockBigArrays extends BigArrays {
         return arr;
     }
 
+    private static final Logger logger = LogManager.getLogger(MockBigArrays.class);
+
     private abstract static class AbstractArrayWrapper {
 
         final boolean clearOnResize;
@@ -263,8 +267,11 @@ public class MockBigArrays extends BigArrays {
         AbstractArrayWrapper(boolean clearOnResize) {
             this.clearOnResize = clearOnResize;
             this.originalRelease = new AtomicReference<>();
+            final int identityHashCode = System.identityHashCode(this);
+            logger.info("--> acquiring array [" + identityHashCode + "]");
             ACQUIRED_ARRAYS.put(this,
-                    TRACK_ALLOCATIONS ? new RuntimeException("Unreleased array from test: " + LuceneTestCase.getTestClass().getName())
+                    TRACK_ALLOCATIONS
+                            ? new RuntimeException("Unreleased array [" + identityHashCode + "] from test: " + LuceneTestCase.getTestClass().getName())
                             : Boolean.TRUE);
         }
 
@@ -284,6 +291,7 @@ public class MockBigArrays extends BigArrays {
             if (originalRelease.compareAndSet(null, new AssertionError()) == false) {
                 throw new IllegalStateException("Double release. Original release attached as cause", originalRelease.get());
             }
+            logger.info("--> releasing array [" + System.identityHashCode(this) + "]");
             ACQUIRED_ARRAYS.remove(this);
             randomizeContent(0, size());
             getDelegate().close();

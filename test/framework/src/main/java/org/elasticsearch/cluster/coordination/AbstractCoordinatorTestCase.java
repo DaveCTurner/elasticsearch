@@ -278,7 +278,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         Cluster(int initialNodeCount, boolean allNodesMasterEligible, Settings nodeSettings, NodeHealthService nodeHealthService) {
             this.nodeHealthService = nodeHealthService;
-            bigArrays = usually()
+            bigArrays = false // TOOD NOCOMMIT usually()
                     ? BigArrays.NON_RECYCLING_INSTANCE
                     : new MockBigArrays(new MockPageCacheRecycler(Settings.EMPTY), new NoneCircuitBreakerService());
             deterministicTaskQueue.setExecutionDelayVariabilityMillis(DEFAULT_DELAY_VARIABILITY);
@@ -748,6 +748,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         public void close() {
+            disconnectedNodes.clear();
+            blackholedNodes.clear();
+            blackholedConnections.clear();
             deliverBlackholedResponses();
             clusterNodes.forEach(ClusterNode::close);
         }
@@ -997,6 +1000,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             }
 
             void close() {
+                mockTransport.deliverBlackholedResponses();
                 assertThat("must add nodes to a cluster before closing them", clusterNodes, hasItem(ClusterNode.this));
                 onNode(() -> {
                     logger.trace("closing");

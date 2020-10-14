@@ -305,8 +305,10 @@ public class PublicationTransportHandler {
                     try {
                         if (sendFullVersion || previousState.nodes().nodeExists(node) == false) {
                             if (serializedStates.containsKey(node.getVersion()) == false) {
+                                final ReleasableBytesReference serializedState = serializeFullClusterState(newState, node.getVersion());
+                                logger.info("--> caching full state [{}]", System.identityHashCode(serializedState));
                                 final ReleasableBytesReference previousBytes
-                                        = serializedStates.put(node.getVersion(), serializeFullClusterState(newState, node.getVersion()));
+                                        = serializedStates.put(node.getVersion(), serializedState);
                                 assert previousBytes == null : "leaked a bytes ref";
                             }
                         } else {
@@ -316,6 +318,7 @@ public class PublicationTransportHandler {
                             }
                             if (serializedDiffs.containsKey(node.getVersion()) == false) {
                                 final ReleasableBytesReference serializedDiff = serializeDiffClusterState(diff, node.getVersion());
+                                logger.info("--> caching state diff [{}]", System.identityHashCode(serializedDiff));
                                 final ReleasableBytesReference previousDiff = serializedDiffs.put(node.getVersion(), serializedDiff);
                                 assert previousDiff == null : "leaked a bytes ref";
                                 logger.trace("serialized cluster state diff for version [{}] in for node version [{}] with size [{}]",
@@ -403,6 +406,7 @@ public class PublicationTransportHandler {
                 } else {
                     bytes = serializedStates.get(destination.getVersion());
                     if (bytes != null) {
+                        logger.info("--> retaining full state [{}] to send to [{}]", System.identityHashCode(bytes), destination);
                         bytes.retain();
                     }
                 }
@@ -436,6 +440,7 @@ public class PublicationTransportHandler {
                             bytes.close();
                             bytes = existingBytes;
                         }
+                        logger.info("--> retaining new full state [{}] to send to [{}]", System.identityHashCode(bytes), destination);
                         bytes.retain();
                     }
                 }
@@ -462,6 +467,7 @@ public class PublicationTransportHandler {
                     bytes = serializedDiffs.get(destination.getVersion());
                     assert bytes != null
                             : "failed to find serialized diff for node " + destination + " of version [" + destination.getVersion() + "]";
+                    logger.info("--> retaining diff [{}] to send to [{}]", System.identityHashCode(bytes), destination);
                     bytes.retain();
                 }
             }
@@ -498,12 +504,14 @@ public class PublicationTransportHandler {
 
                         @Override
                         public void handleResponse(PublishWithJoinResponse response) {
+                            logger.info("--> releasing [{}] on response from [{}]", System.identityHashCode(bytes), destination);
                             bytes.close();
                             listener.onResponse(response);
                         }
 
                         @Override
                         public void handleException(TransportException exp) {
+                            logger.info("--> releasing [{}] on exception from [{}]", System.identityHashCode(bytes), destination);
                             bytes.close();
                             transportExceptionHandler.accept(exp);
                         }
@@ -516,6 +524,7 @@ public class PublicationTransportHandler {
                 transportService.sendRequest(destination, PUBLISH_STATE_ACTION_NAME, request, stateRequestOptions, responseHandler);
             } catch (Exception e) {
                 logger.warn(() -> new ParameterizedMessage("error sending cluster state to {}", destination), e);
+                logger.info("--> releasing [{}] on failure to send to [{}]", System.identityHashCode(bytes), destination);
                 bytes.close();
                 listener.onFailure(e);
             }
@@ -525,11 +534,16 @@ public class PublicationTransportHandler {
             synchronized (mutex) {
                 assert serializedStatesReleased == false;
                 serializedStatesReleased = true;
-                serializedStates.values().forEach(ReleasableBytesReference::close);
-                serializedDiffs.values().forEach(ReleasableBytesReference::close);
+                serializedStates.values().forEach(this::logAndClose);
+                serializedDiffs.values().forEach(this::logAndClose);
                 serializedStates.clear();
                 serializedDiffs.clear();
             }
+        }
+
+        private void logAndClose(ReleasableBytesReference releasableBytesReference) {
+            logger.info("--> releasing [{}] on close", System.identityHashCode(releasableBytesReference));
+            releasableBytesReference.close();
         }
     }
 
