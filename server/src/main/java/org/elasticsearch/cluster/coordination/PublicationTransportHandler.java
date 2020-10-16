@@ -46,6 +46,7 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
+import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequestOptions;
@@ -509,6 +510,11 @@ public class PublicationTransportHandler {
 
                         @Override
                         public void handleException(TransportException exp) {
+                            if (exp instanceof NodeNotConnectedException) {
+                                logger.info("--> releasing [{}] on NodeNotConnectedException for [{}]", System.identityHashCode(bytes),
+                                        destination);
+                                bytes.close();
+                            }
                             transportExceptionHandler.accept(exp);
                         }
 
