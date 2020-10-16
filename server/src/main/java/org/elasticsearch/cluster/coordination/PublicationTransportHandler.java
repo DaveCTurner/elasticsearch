@@ -57,6 +57,7 @@ import org.elasticsearch.transport.TransportService;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -484,8 +485,17 @@ public class PublicationTransportHandler {
 
         private void sendClusterState(DiscoveryNode destination, ReleasableBytesReference bytes, boolean retryWithFullClusterStateOnFailure,
                                       ActionListener<PublishWithJoinResponse> listener) {
+            final AtomicBoolean released = new AtomicBoolean();
+            final ReleasableBytesReference safeBytes = new ReleasableBytesReference(bytes, () -> {
+                // The response handler may be called before or after the message has been sent and the bytes released by the transport
+                // service, and in some error cases the transport service doesn't release the bytes. Avoid double-releasing the bytes here:
+                if (released.compareAndSet(false, true)) {
+                    bytes.close();
+                }
+            });
+
             try {
-                final BytesTransportRequest request = new BytesTransportRequest(bytes, destination.getVersion());
+                final BytesTransportRequest request = new BytesTransportRequest(safeBytes, destination.getVersion());
                 final Consumer<TransportException> transportExceptionHandler = exp -> {
                     if (retryWithFullClusterStateOnFailure && exp.unwrapCause() instanceof IncompatibleClusterStateVersionException) {
                         logger.debug("resending full cluster state to node {} reason {}", destination, exp.getDetailedMessage());
@@ -505,16 +515,13 @@ public class PublicationTransportHandler {
 
                         @Override
                         public void handleResponse(PublishWithJoinResponse response) {
+                            safeBytes.close();
                             listener.onResponse(response);
                         }
 
                         @Override
                         public void handleException(TransportException exp) {
-                            if (exp instanceof NodeNotConnectedException) {
-                                logger.info("--> releasing [{}] on NodeNotConnectedException for [{}]", System.identityHashCode(bytes),
-                                        destination);
-                                bytes.close();
-                            }
+                            safeBytes.close();
                             transportExceptionHandler.accept(exp);
                         }
 
@@ -527,7 +534,7 @@ public class PublicationTransportHandler {
             } catch (Exception e) {
                 logger.warn(() -> new ParameterizedMessage("error sending cluster state to {}", destination), e);
                 logger.info("--> releasing [{}] on failure to send to [{}]", System.identityHashCode(bytes), destination);
-                bytes.close();
+                safeBytes.close();
                 listener.onFailure(e);
             }
         }
