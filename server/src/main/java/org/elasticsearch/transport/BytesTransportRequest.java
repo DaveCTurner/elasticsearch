@@ -71,11 +71,16 @@ public class BytesTransportRequest extends TransportRequest {
     }
 
     /**
-     * Copies the underlying bytes ref to a new array and then releases it.
+     * Copies the underlying bytes ref to a new array and then releases it. Very inefficient, must only be used sparingly.
      */
     public void cloneAndReleaseBytes() {
         ReleasableBytesReference newBytes = ReleasableBytesReference.wrap(new BytesArray(bytes.toBytesRef()));
         bytes.close();
         bytes = newBytes;
+    }
+
+    @Override
+    public void onSendComplete() {
+        bytes.close();
     }
 }

@@ -22,7 +22,6 @@ package org.elasticsearch.transport;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
@@ -30,9 +29,6 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -531,7 +527,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
-            releaseRequest(request);
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -547,7 +543,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
-            releaseRequest(request);
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -607,7 +603,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             }
             asyncSender.sendRequest(connection, action, request, options, delegate);
         } catch (final Exception ex) {
-            releaseRequest(request);
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             final TransportException te;
             if (ex instanceof TransportException) {
@@ -616,12 +612,6 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                 te = new TransportException("failure to send", ex);
             }
             handler.handleException(te);
-        }
-    }
-
-    public static void releaseRequest(TransportRequest transportRequest) {
-        if (transportRequest instanceof BytesTransportRequest) {
-            ((BytesTransportRequest) transportRequest).bytes.close();
         }
     }
 
@@ -671,7 +661,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                                                                    final TransportRequestOptions options,
                                                                    TransportResponseHandler<T> handler) {
         if (connection == null) {
-            releaseRequest(request);
+            request.onSendComplete();
             throw new IllegalStateException("can't send request to a null connection");
         }
         DiscoveryNode node = connection.getNode();
@@ -693,7 +683,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                  * If we are not started the exception handling will remove the request holder again and calls the handler to notify the
                  * caller. It will only notify if toStop hasn't done the work yet.
                  */
-                releaseRequest(request);
+                request.onSendComplete();
                 throw new NodeClosedException(localNode);
             }
             if (timeoutHandler != null) {
@@ -704,7 +694,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         } catch (final Exception e) {
             // usually happen either because we failed to connect to the node
             // or because we failed serializing the message
-            releaseRequest(request);
+            request.onSendComplete();
             final Transport.ResponseContext<? extends TransportResponse> contextToNotify = responseHandlers.remove(requestId);
             // If holderToNotify == null then handler has already been taken care of.
             if (contextToNotify != null) {

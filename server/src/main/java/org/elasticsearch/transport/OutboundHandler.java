@@ -64,7 +64,8 @@ public final class OutboundHandler {
     }
 
     void sendBytes(TcpChannel channel, BytesReference bytes, ActionListener<Void> listener) {
-        assert bytes instanceof ReleasableBytesReference == false : "do not use this method if the bytes need releasing";
+        assert bytes instanceof ReleasableBytesReference == false
+                : "do not use this method on a ReleasableBytesReference since it does not release the bytes";
         SendContext sendContext = new SendContext(channel, () -> bytes, listener);
         internalSend(channel, sendContext);
     }
