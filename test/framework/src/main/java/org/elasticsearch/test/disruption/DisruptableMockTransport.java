@@ -124,7 +124,8 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
         if (request instanceof BytesTransportRequest) {
             final BytesTransportRequest bytesTransportRequest = (BytesTransportRequest) request;
-            logger.info("--> releasing [{}] on clone for transmission", System.identityHashCode(bytesTransportRequest.bytes()));
+            logger.info("--> releasing [{}] on clone for transmission to [{}]", System.identityHashCode(bytesTransportRequest.bytes()),
+                    destinationTransport.getLocalNode());
             bytesTransportRequest.cloneAndReleaseBytes();
         }
 
