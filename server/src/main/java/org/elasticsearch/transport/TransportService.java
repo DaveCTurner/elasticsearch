@@ -527,6 +527,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -542,6 +543,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -601,6 +603,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             }
             asyncSender.sendRequest(connection, action, request, options, delegate);
         } catch (final Exception ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             final TransportException te;
             if (ex instanceof TransportException) {
@@ -658,6 +661,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                                                                    final TransportRequestOptions options,
                                                                    TransportResponseHandler<T> handler) {
         if (connection == null) {
+            request.onSendComplete();
             throw new IllegalStateException("can't send request to a null connection");
         }
         DiscoveryNode node = connection.getNode();
@@ -679,6 +683,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                  * If we are not started the exception handling will remove the request holder again and calls the handler to notify the
                  * caller. It will only notify if toStop hasn't done the work yet.
                  */
+                request.onSendComplete();
                 throw new NodeClosedException(localNode);
             }
             if (timeoutHandler != null) {
@@ -689,6 +694,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         } catch (final Exception e) {
             // usually happen either because we failed to connect to the node
             // or because we failed serializing the message
+            request.onSendComplete();
             final Transport.ResponseContext<? extends TransportResponse> contextToNotify = responseHandlers.remove(requestId);
             // If holderToNotify == null then handler has already been taken care of.
             if (contextToNotify != null) {
@@ -730,6 +736,16 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     }
 
     private void sendLocalRequest(long requestId, final String action, final TransportRequest request, TransportRequestOptions options) {
+
+        if (request instanceof BytesTransportRequest) {
+            // We must release the bytes after "transmission", but for local transmissions we re-use the request instance on the
+            // receiver too, so we must clone them.
+            //
+            // Sending a BytesTransportRequest locally is worth avoiding entirely, since it implies that the data goes through a
+            // serialization/deserialization cycle which must be unnecessary on the local node. TODO see #58416 for a way to avoid this cost
+            ((BytesTransportRequest) request).cloneAndReleaseBytes();
+        }
+
         final DirectResponseChannel channel = new DirectResponseChannel(localNode, action, requestId, this, threadPool);
         try {
             onRequestSent(localNode, requestId, action, request, options);

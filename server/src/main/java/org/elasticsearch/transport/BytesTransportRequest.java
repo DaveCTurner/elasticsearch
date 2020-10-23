@@ -20,7 +20,8 @@
 package org.elasticsearch.transport;
 
 import org.elasticsearch.Version;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
@@ -32,16 +33,16 @@ import java.io.IOException;
  */
 public class BytesTransportRequest extends TransportRequest {
 
-    BytesReference bytes;
+    ReleasableBytesReference bytes;
     Version version;
 
     public BytesTransportRequest(StreamInput in) throws IOException {
         super(in);
-        bytes = in.readBytesReference();
+        bytes = ReleasableBytesReference.wrap(in.readBytesReference());
         version = in.getVersion();
     }
 
-    public BytesTransportRequest(BytesReference bytes, Version version) {
+    public BytesTransportRequest(ReleasableBytesReference bytes, Version version) {
         this.bytes = bytes;
         this.version = version;
     }
@@ -50,7 +51,7 @@ public class BytesTransportRequest extends TransportRequest {
         return this.version;
     }
 
-    public BytesReference bytes() {
+    public ReleasableBytesReference bytes() {
         return this.bytes;
     }
 
@@ -67,5 +68,19 @@ public class BytesTransportRequest extends TransportRequest {
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeBytesReference(bytes);
+    }
+
+    /**
+     * Copies the underlying bytes ref to a new array and then releases it. Very inefficient, must only be used sparingly.
+     */
+    public void cloneAndReleaseBytes() {
+        final ReleasableBytesReference newBytes = ReleasableBytesReference.wrap(new BytesArray(bytes.toBytesRef()));
+        bytes.close();
+        bytes = newBytes;
+    }
+
+    @Override
+    public void onSendComplete() {
+        bytes.close();
     }
 }
