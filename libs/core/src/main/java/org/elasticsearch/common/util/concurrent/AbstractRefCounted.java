@@ -19,6 +19,8 @@
 
 package org.elasticsearch.common.util.concurrent;
 
+//import org.apache.logging.log4j.message.ParameterizedMessage;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -27,10 +29,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * a 0 ref count
  */
 public abstract class AbstractRefCounted implements RefCounted {
+//    private static final org.apache.logging.log4j.Logger logger = org.apache.logging.log4j.LogManager.getLogger(AbstractRefCounted.class);
+
     private final AtomicInteger refCount = new AtomicInteger(1);
     private final String name;
 
     public AbstractRefCounted(String name) {
+//        logger.info(new ParameterizedMessage("--> [{}] created, refcount now [1]", System.identityHashCode(this)), new Exception("stack trace"));
         this.name = name;
     }
 
@@ -47,9 +52,11 @@ public abstract class AbstractRefCounted implements RefCounted {
             int i = refCount.get();
             if (i > 0) {
                 if (refCount.compareAndSet(i, i + 1)) {
+//                    logger.info(new ParameterizedMessage("--> [{}] tryIncRef succeeded, refcount now [{}]", System.identityHashCode(this), i + 1), new Exception("stack trace"));
                     return true;
                 }
             } else {
+//                logger.info(new ParameterizedMessage("--> [{}] tryIncRef failed", System.identityHashCode(this)), new Exception("stack trace"));
                 return false;
             }
         } while (true);
@@ -58,7 +65,8 @@ public abstract class AbstractRefCounted implements RefCounted {
     @Override
     public final void decRef() {
         int i = refCount.decrementAndGet();
-        assert i >= 0;
+//        logger.info(new ParameterizedMessage("--> [{}] decref, refcount now [{}]", System.identityHashCode(this), i), new Exception("stack trace"));
+        assert i >= 0 : "[" + System.identityHashCode(this) + "] has negative refcount";
         if (i == 0) {
             closeInternal();
         }

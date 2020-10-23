@@ -249,7 +249,6 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
             throws IOException, TransportException {
             if (isClosing.get()) {
-                request.onSendComplete();
                 throw new NodeNotConnectedException(node, "connection already closed");
             }
             TcpChannel channel = channel(options.type());

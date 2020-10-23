@@ -1503,6 +1503,11 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         @Override
         protected void sendPublishRequest(DiscoveryNode destination, PublishRequest publishRequest,
                                           ActionListener<PublishWithJoinResponse> responseActionListener) {
+//            try {
+//                Thread.sleep(250);
+//            } catch (InterruptedException e) {
+//                throw new AssertionError(e);
+//            }
             publicationContext.sendPublishRequest(destination, publishRequest, wrapWithMutex(responseActionListener));
         }
 
