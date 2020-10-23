@@ -96,7 +96,7 @@ abstract class OutboundMessage extends NetworkMessage {
                 final ReleasableBytesReference zeroCopyBuf = bRequest.bytes;
                 final ReleasableBytesReference result
                         = new ReleasableBytesReference(CompositeBytesReference.of(stream.materializeBytes(), zeroCopyBuf), () -> {
-                    logger.info("--> releasing [{}] after transmission", System.identityHashCode(zeroCopyBuf));
+                    logger.info("--> releasing [{}] after transmission of request [{}]", System.identityHashCode(zeroCopyBuf), requestId);
                     zeroCopyBuf.close();
                 });
                 success = true;

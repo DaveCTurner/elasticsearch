@@ -744,6 +744,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             // Sending a BytesTransportRequest locally seems worth avoiding entirely, since it implies that the data goes through a
             // serialization/deserialization cycle which must be unnecessary on the local node. #58416 will mean that we don't need to
             // copy very much on the local node, at least
+            logger.info("--> releasing [{}] after cloning for local transmission of request id [{}]", System.identityHashCode(request), requestId);
             ((BytesTransportRequest) request).cloneAndReleaseBytes();
         }
 
