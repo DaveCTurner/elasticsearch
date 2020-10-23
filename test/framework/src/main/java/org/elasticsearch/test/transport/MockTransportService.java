@@ -297,6 +297,7 @@ public final class MockTransportService extends TransportService {
             public void sendRequest(Transport.Connection connection, long requestId, String action,
                                     TransportRequest request, TransportRequestOptions options) {
                 // don't send anything, the receiving node is unresponsive
+                request.onSendComplete();
                 toClose.add(connection);
             }
 
