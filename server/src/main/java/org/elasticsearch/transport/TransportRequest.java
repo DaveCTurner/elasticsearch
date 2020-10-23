@@ -69,4 +69,10 @@ public abstract class TransportRequest extends TransportMessage implements TaskA
     public void writeTo(StreamOutput out) throws IOException {
         parentTaskId.writeTo(out);
     }
+
+    /**
+     * Called by the {@link TransportService} when this request has been completely sent (or the transmission has completely failed)
+     */
+    public void onSendComplete() {
+    }
 }
