@@ -387,6 +387,7 @@ public final class MockTransportService extends TransportService {
                 RequestHandlerRegistry reg = MockTransportService.this.getRequestHandler(action);
                 BytesStreamOutput bStream = new BytesStreamOutput();
                 request.writeTo(bStream);
+                request.onSendComplete();
                 final TransportRequest clonedRequest = reg.newRequest(bStream.bytes().streamInput());
 
                 final RunOnce runnable = new RunOnce(new AbstractRunnable() {
