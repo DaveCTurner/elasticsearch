@@ -40,6 +40,7 @@ import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.NetworkLinkDisruptionType;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
 import org.elasticsearch.test.disruption.SingleNodeDisruption;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 
 import java.util.ArrayList;
@@ -170,6 +171,7 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
      * Tests that emulates a frozen elected master node that unfreezes and pushes its cluster state to other nodes that already are
      * following another elected master node. These nodes should reject this cluster state and prevent them from following the stale master.
      */
+    @TestLogging(reason="nocommit", value="org.elasticsearch.action.support.master.TransportMasterNodeAction:DEBUG,org.elasticsearch.discovery:DEBUG")
     public void testStaleMasterNotHijackingMajority() throws Exception {
         final List<String> nodes = internalCluster().startNodes(3, Settings.builder()
             .put(LeaderChecker.LEADER_CHECK_TIMEOUT_SETTING.getKey(), "1s")

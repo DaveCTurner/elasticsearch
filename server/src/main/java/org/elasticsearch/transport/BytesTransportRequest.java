@@ -19,6 +19,8 @@
 
 package org.elasticsearch.transport;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
@@ -32,6 +34,8 @@ import java.io.IOException;
  * layer, specifically for the same large buffer send to several nodes.
  */
 public class BytesTransportRequest extends TransportRequest {
+
+    private static final Logger logger = LogManager.getLogger(BytesTransportRequest.class);
 
     ReleasableBytesReference bytes;
     Version version;
@@ -75,12 +79,14 @@ public class BytesTransportRequest extends TransportRequest {
      */
     public void cloneAndReleaseBytes() {
         final ReleasableBytesReference newBytes = ReleasableBytesReference.wrap(new BytesArray(bytes.toBytesRef()));
+        logger.info("----> releasing [{}] on clone as [{}]", System.identityHashCode(bytes), System.identityHashCode(newBytes));
         bytes.close();
         bytes = newBytes;
     }
 
     @Override
     public void onSendComplete() {
+        logger.info("----> releasing [{}] on send complete", System.identityHashCode(bytes));
         bytes.close();
     }
 }
