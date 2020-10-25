@@ -458,6 +458,7 @@ public class PublicationTransportHandler {
                     }
                 }
                 if (alreadyReleasedWhenWritingCache) {
+                    bytes.close();
                     listener.onFailure(
                             new ElasticsearchException("publication of cluster state version [" + newState.version() + "] has completed"));
                     return;
