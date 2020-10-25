@@ -309,7 +309,6 @@ public class PublicationTransportHandler {
                                 final ReleasableBytesReference serializedState = serializeFullClusterState(newState, node.getVersion());
                                 final ReleasableBytesReference previousBytes
                                         = serializedStates.put(node.getVersion(), serializedState);
-                                logger.info("----> serialized full state [{}] for version [{}] and publication [{}]", System.identityHashCode(serializedState), node.getVersion(), PublicationContext.this);
                                 assert previousBytes == null : "leaked a bytes ref";
                             }
                         } else {
@@ -320,7 +319,6 @@ public class PublicationTransportHandler {
                             if (serializedDiffs.containsKey(node.getVersion()) == false) {
                                 final ReleasableBytesReference serializedDiff = serializeDiffClusterState(diff, node.getVersion());
                                 final ReleasableBytesReference previousDiff = serializedDiffs.put(node.getVersion(), serializedDiff);
-                                logger.info("----> serialized diff [{}] for version [{}] and publication [{}]", System.identityHashCode(serializedDiff), node.getVersion(), PublicationContext.this);
                                 assert previousDiff == null : "leaked a bytes ref";
                                 logger.trace("serialized cluster state diff for version [{}] in for node version [{}] with size [{}]",
                                         newState.version(), node.getVersion(), serializedDiff.length());
@@ -331,14 +329,6 @@ public class PublicationTransportHandler {
                     }
                 }
             }
-        }
-
-        @Override
-        public String toString() {
-            return "PublicationContext{" +
-                    "newState=" + newState.term() + "/" + newState.version() + "/" + newState.stateUUID() +
-                    ", previousState=" + previousState.term() + "/" + previousState.version() + "/" + previousState.stateUUID() +
-                    '}';
         }
 
         public void sendPublishRequest(DiscoveryNode destination, PublishRequest publishRequest,
@@ -415,9 +405,7 @@ public class PublicationTransportHandler {
                 } else {
                     bytes = serializedStates.get(destination.getVersion());
                     if (bytes != null) {
-                        final int bytesId = System.identityHashCode(bytes);
-                        bytes = bytes.retainedSlice(0, bytes.length());
-                        logger.info("----> retaining [{}] as [{}] for full state transmission to [{}]", bytesId, System.identityHashCode(bytes), destination);
+                        bytes.retain();
                     }
                 }
             }
@@ -432,7 +420,6 @@ public class PublicationTransportHandler {
                 // we weren't expecting to send a full state to this node, but the diff didn't work, so serialize the full cluster state...
                 try {
                     bytes = serializeFullClusterState(newState, destination.getVersion());
-                    logger.info("----> ad-hoc serialized full state [{}] for version [{}] and publication [{}]", System.identityHashCode(bytes), destination.getVersion(), PublicationContext.this);
                 } catch (Exception e) {
                     logger.warn(() -> new ParameterizedMessage(
                         "failed to serialize cluster state before publishing it to node {}", destination), e);
@@ -451,10 +438,7 @@ public class PublicationTransportHandler {
                             bytes.close();
                             bytes = existingBytes;
                         }
-
-                        final int bytesId = System.identityHashCode(bytes);
-                        bytes = bytes.retainedSlice(0, bytes.length());
-                        logger.info("----> retaining [{}] as [{}] for ad-hoc full state transmission to [{}]", bytesId, System.identityHashCode(bytes), destination);
+                        bytes.retain();
                     }
                 }
                 if (alreadyReleasedWhenWritingCache) {
@@ -478,11 +462,10 @@ public class PublicationTransportHandler {
                 if (alreadyReleased) {
                     bytes = null; // not used
                 } else {
-                    final ReleasableBytesReference tmpBytes = serializedDiffs.get(destination.getVersion());
-                    assert tmpBytes != null
+                    bytes = serializedDiffs.get(destination.getVersion());
+                    assert bytes != null
                             : "failed to find serialized diff for node " + destination + " of version [" + destination.getVersion() + "]";
-                    bytes = tmpBytes.retainedSlice(0, tmpBytes.length());
-                    logger.info("----> retaining [{}] as [{}] for diff transmission to [{}]", System.identityHashCode(tmpBytes), System.identityHashCode(bytes), destination);
+                    bytes.retain();
                 }
             }
             if (alreadyReleased) {
@@ -491,10 +474,6 @@ public class PublicationTransportHandler {
             } else {
                 //noinspection ConstantConditions this assertion is always true but it's here for the benefit of readers
                 assert bytes != null;
-                if (newState.version() == 14 && destination.equals(newState.nodes().getMasterNode()) == false) {
-                    logger.info("----> state 14");
-                }
-
                 sendClusterState(destination, bytes, true, listener); // releases retained bytes after transmission
             }
         }
@@ -557,7 +536,6 @@ public class PublicationTransportHandler {
         }
 
         private void logAndClose(ReleasableBytesReference releasableBytesReference) {
-            logger.info("----> releasing [{}] on close of [{}]", System.identityHashCode(releasableBytesReference), PublicationContext.this);
             releasableBytesReference.close();
         }
     }
