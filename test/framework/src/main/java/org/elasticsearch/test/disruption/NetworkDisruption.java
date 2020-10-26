@@ -105,6 +105,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         final CountDownLatch countDownLatch = new CountDownLatch(nodeNames.length);
         for (String node : nodeNames) {
             ClusterState stateOnNode = cluster.getInstance(ClusterService.class, node).state();
+            logger.info("ensureFullyConnectedCluster: ensuring [{}] is connected to [{}]", node, stateOnNode.nodes());
             cluster.getInstance(NodeConnectionsService.class, node).reconnectToNodes(stateOnNode.nodes(), countDownLatch::countDown);
         }
 
@@ -113,6 +114,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         } catch (InterruptedException e) {
             throw new AssertionError(e);
         }
+        logger.info("ensureFullyConnectedCluster: done");
     }
 
     protected void ensureNodeCount(InternalTestCluster cluster) {

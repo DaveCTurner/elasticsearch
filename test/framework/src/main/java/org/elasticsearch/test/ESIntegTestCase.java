@@ -1173,6 +1173,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             .setLocal(local)
             .setWaitForNoRelocatingShards(true)
             .get();
+        logger.info("ensureStableCluster: got health response [{}]", clusterHealthResponse);
         if (clusterHealthResponse.isTimedOut()) {
             ClusterStateResponse stateResponse = client(viaNode).admin().cluster().prepareState().get();
             fail("failed to reach a stable cluster of [" + nodeCount + "] nodes. Tried via [" + viaNode + "]. last cluster state:\n"
