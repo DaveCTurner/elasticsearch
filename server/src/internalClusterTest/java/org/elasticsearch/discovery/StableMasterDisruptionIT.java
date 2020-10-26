@@ -171,7 +171,9 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
      * Tests that emulates a frozen elected master node that unfreezes and pushes its cluster state to other nodes that already are
      * following another elected master node. These nodes should reject this cluster state and prevent them from following the stale master.
      */
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.discovery:TRACE,org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.action.support.master.TransportMasterNodeAction:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.discovery:TRACE,org.elasticsearch.cluster.coordination:TRACE," +
+            "org.elasticsearch.action.support.master.TransportMasterNodeAction:TRACE," +
+            "org.elasticsearch.cluster.service:TRACE")
     public void testStaleMasterNotHijackingMajority() throws Exception {
         final List<String> nodes = internalCluster().startNodes(3, Settings.builder()
             .put(LeaderChecker.LEADER_CHECK_TIMEOUT_SETTING.getKey(), "1s")
