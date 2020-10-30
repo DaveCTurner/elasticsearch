@@ -411,7 +411,8 @@ public class PublicationTransportHandler {
             }
 
             if (alreadyReleasedWhenReadingCache) {
-                sendStartJoinRequest(destination, listener);
+                listener.onFailure(
+                        new ElasticsearchException("publication of cluster state version [" + newState.version() + "] has completed"));
                 return;
             }
 
@@ -442,7 +443,8 @@ public class PublicationTransportHandler {
                 }
                 if (alreadyReleasedWhenWritingCache) {
                     bytes.close();
-                    sendStartJoinRequest(destination, listener);
+                    listener.onFailure(
+                            new ElasticsearchException("publication of cluster state version [" + newState.version() + "] has completed"));
                     return;
                 }
             }
@@ -452,49 +454,12 @@ public class PublicationTransportHandler {
             sendClusterState(destination, bytes, false, listener); // releases retained bytes after transmission
         }
 
-        private void sendStartJoinRequest(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {
-            // We already released the serialized states (e.g. on timeout) and then a node sent an IncompatibleClusterStateVersionException
-            // requesting a full cluster state instead of a diff. Rather than doing so we get the node to join again.
-            logger.info("[{}] requested full copy of cluster state version [{}] in term [{}] after completion of publication, " +
-                            "sending rejoin request instead", destination, newState.version(), newState.term());
-            transportService.sendRequest(destination, JoinHelper.START_JOIN_ACTION_NAME,
-                    new StartJoinRequest(transportService.getLocalNode(), newState.term()),
-                    new TransportResponseHandler<TransportResponse.Empty>() {
-                        @Override
-                        public void handleResponse(TransportResponse.Empty response) {
-                            notifyListener();
-                        }
-
-                        @Override
-                        public void handleException(TransportException exp) {
-                            logger.warn(new ParameterizedMessage("failure when sending rejoin request to [{}]", destination), exp);
-                            notifyListener();
-                        }
-
-                        private void notifyListener() {
-                            listener.onFailure(new ElasticsearchException("publication of cluster state version [" + newState.version()
-                                    + "] has completed"));
-                        }
-
-                        @Override
-                        public String executor() {
-                            return ThreadPool.Names.SAME;
-                        }
-
-                        @Override
-                        public TransportResponse.Empty read(StreamInput in) {
-                            return TransportResponse.Empty.INSTANCE;
-                        }
-                    });
-        }
-
         private void sendClusterStateDiff(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {
             final ReleasableBytesReference bytes;
             final boolean alreadyReleased;
             synchronized (mutex) {
                 alreadyReleased = serializedStatesReleased;
                 if (alreadyReleased) {
-                    assert false : "serialized states should be retained until all diffs sent";
                     bytes = null; // not used
                 } else {
                     bytes = serializedDiffs.get(destination.getVersion());
@@ -515,6 +480,8 @@ public class PublicationTransportHandler {
 
         private void sendClusterState(DiscoveryNode destination, ReleasableBytesReference bytes, boolean retryWithFullClusterStateOnFailure,
                                       ActionListener<PublishWithJoinResponse> listener) {
+            final AtomicBoolean released = new AtomicBoolean();
+
             try {
                 final BytesTransportRequest request = new BytesTransportRequest(bytes, destination.getVersion());
                 final Consumer<TransportException> transportExceptionHandler = exp -> {
