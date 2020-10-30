@@ -411,6 +411,8 @@ public class PublicationTransportHandler {
             }
 
             if (alreadyReleasedWhenReadingCache) {
+                logger.info("[{}] requested a full cluster state for version [{}] in term [{}] but the publication completed " +
+                                "before receiving this request", destination, newState.version(), newState.term());
                 listener.onFailure(
                         new ElasticsearchException("publication of cluster state version [" + newState.version() + "] has completed"));
                 return;
@@ -442,6 +444,8 @@ public class PublicationTransportHandler {
                     }
                 }
                 if (alreadyReleasedWhenWritingCache) {
+                    logger.info("[{}] requested a full cluster state for version [{}] in term [{}] but the publication completed " +
+                                    "while processing this request", destination, newState.version(), newState.term());
                     bytes.close();
                     listener.onFailure(
                             new ElasticsearchException("publication of cluster state version [" + newState.version() + "] has completed"));
