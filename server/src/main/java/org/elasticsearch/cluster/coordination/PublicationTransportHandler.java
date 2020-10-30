@@ -480,8 +480,6 @@ public class PublicationTransportHandler {
 
         private void sendClusterState(DiscoveryNode destination, ReleasableBytesReference bytes, boolean retryWithFullClusterStateOnFailure,
                                       ActionListener<PublishWithJoinResponse> listener) {
-            final AtomicBoolean released = new AtomicBoolean();
-
             try {
                 final BytesTransportRequest request = new BytesTransportRequest(bytes, destination.getVersion());
                 final Consumer<TransportException> transportExceptionHandler = exp -> {
@@ -528,16 +526,13 @@ public class PublicationTransportHandler {
             synchronized (mutex) {
                 assert serializedStatesReleased == false;
                 serializedStatesReleased = true;
-                serializedStates.values().forEach(this::logAndClose);
-                serializedDiffs.values().forEach(this::logAndClose);
+                serializedStates.values().forEach(ReleasableBytesReference::close);
+                serializedDiffs.values().forEach(ReleasableBytesReference::close);
                 serializedStates.clear();
                 serializedDiffs.clear();
             }
         }
 
-        private void logAndClose(ReleasableBytesReference releasableBytesReference) {
-            releasableBytesReference.close();
-        }
     }
 
 }
