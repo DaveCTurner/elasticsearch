@@ -292,11 +292,12 @@ public final class MockTransportService extends TransportService {
             listener.onFailure(new ConnectTransportException(discoveryNode, "UNRESPONSIVE: simulated")));
 
         transport().addSendBehavior(transportAddress, new StubbableTransport.SendRequestBehavior() {
-            private Set<Transport.Connection> toClose = ConcurrentHashMap.newKeySet();
+            private final Set<Transport.Connection> toClose = ConcurrentHashMap.newKeySet();
             @Override
             public void sendRequest(Transport.Connection connection, long requestId, String action,
                                     TransportRequest request, TransportRequestOptions options) {
                 // don't send anything, the receiving node is unresponsive
+                request.onSendComplete();
                 toClose.add(connection);
             }
 
@@ -386,6 +387,7 @@ public final class MockTransportService extends TransportService {
                 RequestHandlerRegistry reg = MockTransportService.this.getRequestHandler(action);
                 BytesStreamOutput bStream = new BytesStreamOutput();
                 request.writeTo(bStream);
+                request.onSendComplete();
                 final TransportRequest clonedRequest = reg.newRequest(bStream.bytes().streamInput());
 
                 final RunOnce runnable = new RunOnce(new AbstractRunnable() {

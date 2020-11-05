@@ -112,6 +112,16 @@ public abstract class DisruptableMockTransport extends MockTransport {
         assert destinationTransport.getLocalNode().equals(getLocalNode()) == false :
             "non-local message from " + getLocalNode() + " to itself";
 
+        final TransportRequest copiedRequest;
+        try {
+            final RequestHandlerRegistry<TransportRequest> requestHandler =
+                    destinationTransport.getRequestHandlers().getHandler(action);
+            copiedRequest = copyWriteable(request, writeableRegistry(), requestHandler::newRequest);
+        } catch (IOException e) {
+            throw new AssertionError("exception de/serializing request", e);
+        }
+        request.onSendComplete();
+
         destinationTransport.execute(new Runnable() {
             @Override
             public void run() {
@@ -127,7 +137,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                         break;
 
                     case CONNECTED:
-                        onConnectedDuringSend(requestId, action, request, destinationTransport);
+                        onConnectedDuringSend(requestId, action, copiedRequest, destinationTransport);
                         break;
 
                     default:
@@ -255,15 +265,8 @@ public abstract class DisruptableMockTransport extends MockTransport {
             }
         };
 
-        final TransportRequest copiedRequest;
         try {
-            copiedRequest = copyWriteable(request, writeableRegistry(), requestHandler::newRequest);
-        } catch (IOException e) {
-            throw new AssertionError("exception de/serializing request", e);
-        }
-
-        try {
-            requestHandler.processMessageReceived(copiedRequest, transportChannel);
+            requestHandler.processMessageReceived(request, transportChannel);
         } catch (Exception e) {
             try {
                 transportChannel.sendResponse(e);

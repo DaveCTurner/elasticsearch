@@ -69,4 +69,15 @@ public abstract class TransportRequest extends TransportMessage implements TaskA
     public void writeTo(StreamOutput out) throws IOException {
         parentTaskId.writeTo(out);
     }
+
+    /**
+     * Called by the {@link TransportService} when this request has been completely sent (or the transmission has completely failed) so that
+     * resources held by this request can be released.
+     *
+     * If a request is sent to the local node then the request handler receives the same request object that the sender sent. In this case
+     * this method is called after the request handler completes. Take care if the request object needs to outlive the execution of the
+     * request handler: in this case, you need to take extra steps to prevent this method from releasing resources too early.
+     */
+    public void onSendComplete() {
+    }
 }

@@ -741,6 +741,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         @Override
         public void close() {
+            disconnectedNodes.clear();
+            blackholedNodes.clear();
+            blackholedConnections.clear();
             clusterNodes.forEach(ClusterNode::close);
         }
 
@@ -907,7 +910,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             private ClusterService clusterService;
             TransportService transportService;
             private DisruptableMockTransport mockTransport;
-            private NodeHealthService nodeHealthService;
+            private final NodeHealthService nodeHealthService;
             List<BiConsumer<DiscoveryNode, ClusterState>> extraJoinValidators = new ArrayList<>();
 
 
@@ -974,7 +977,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 coordinator = new Coordinator("test_node", settings, clusterSettings, transportService, writableRegistry(),
                     allocationService, masterService, this::getPersistedState,
                     Cluster.this::provideSeedHosts, clusterApplierService, onJoinValidators, Randomness.get(), (s, p, r) -> {},
-                    getElectionStrategy(), nodeHealthService);
+                    getElectionStrategy(), nodeHealthService, bigArrays);
                 masterService.setClusterStatePublisher(coordinator);
                 final GatewayService gatewayService
                     = new GatewayService(settings, allocationService, clusterService, threadPool, coordinator, null);

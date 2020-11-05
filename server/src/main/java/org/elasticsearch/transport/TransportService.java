@@ -527,6 +527,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -542,6 +543,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -601,6 +603,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             }
             asyncSender.sendRequest(connection, action, request, options, delegate);
         } catch (final Exception ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             final TransportException te;
             if (ex instanceof TransportException) {
@@ -632,6 +635,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         try {
             connection = getConnection(node);
         } catch (final NodeNotConnectedException ex) {
+            request.onSendComplete();
             // the caller might not handle this so we invoke the handler
             handler.handleException(ex);
             return;
@@ -658,6 +662,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                                                                    final TransportRequestOptions options,
                                                                    TransportResponseHandler<T> handler) {
         if (connection == null) {
+            request.onSendComplete();
             throw new IllegalStateException("can't send request to a null connection");
         }
         DiscoveryNode node = connection.getNode();
@@ -679,6 +684,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                  * If we are not started the exception handling will remove the request holder again and calls the handler to notify the
                  * caller. It will only notify if toStop hasn't done the work yet.
                  */
+                request.onSendComplete();
                 throw new NodeClosedException(localNode);
             }
             if (timeoutHandler != null) {
@@ -689,6 +695,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         } catch (final Exception e) {
             // usually happen either because we failed to connect to the node
             // or because we failed serializing the message
+            request.onSendComplete();
             final Transport.ResponseContext<? extends TransportResponse> contextToNotify = responseHandlers.remove(requestId);
             // If holderToNotify == null then handler has already been taken care of.
             if (contextToNotify != null) {
@@ -742,6 +749,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             if (ThreadPool.Names.SAME.equals(executor)) {
                 //noinspection unchecked
                 reg.processMessageReceived(request, channel);
+                request.onSendComplete(); // also called if an exception is thrown, see catch() block below
             } else {
                 threadPool.executor(executor).execute(new AbstractRunnable() {
                     @Override
@@ -767,6 +775,11 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                     }
 
                     @Override
+                    public void onAfter() {
+                        request.onSendComplete();
+                    }
+
+                    @Override
                     public String toString() {
                         return "processing of [" + requestId + "][" + action + "]: " + request;
                     }
@@ -781,6 +794,8 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                 logger.warn(
                     () -> new ParameterizedMessage(
                         "failed to notify channel of error message for action [{}]", action), inner);
+            } finally {
+                request.onSendComplete();
             }
         }
     }
