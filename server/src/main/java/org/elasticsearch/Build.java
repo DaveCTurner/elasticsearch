@@ -121,6 +121,8 @@ public class Build {
 
     }
 
+    public static final String UNKNOWN_HASH = "unknown";
+
     static {
         final Flavor flavor;
         final Type type;
@@ -151,7 +153,7 @@ public class Build {
             }
         } else {
             // not running from the official elasticsearch jar file (unit tests, IDE, uber client jar, shadiness)
-            hash = "unknown";
+            hash = UNKNOWN_HASH;
             date = "unknown";
             version = Version.CURRENT.toString();
             final String buildSnapshot = System.getProperty("build.snapshot");

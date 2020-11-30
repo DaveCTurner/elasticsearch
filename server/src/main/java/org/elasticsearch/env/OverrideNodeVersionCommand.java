@@ -20,6 +20,7 @@ package org.elasticsearch.env;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import org.elasticsearch.Build;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cli.Terminal;
@@ -60,6 +61,25 @@ public class OverrideNodeVersionCommand extends ElasticsearchNodeCommand {
             "\n" +
             "Do you want to proceed?\n";
 
+    private static final String DIFFERENT_BUILD_MESSAGE =
+            DELIMITER +
+            "\n" +
+            "This data path was written by build [B_OLD]\n" +
+            "of Elasticsearch version [V_CUR] and may not be compatible with build\n" +
+            "[B_CUR] of version [V_CUR]. This tool will\n" +
+            "bypass this compatibility check, allowing a build\n" +
+            "[B_CUR] node to start on this data path, but\n" +
+            "this build may not be able to read this data or may read it incorrectly leading\n" +
+            "to data loss.\n" +
+            "\n" +
+            "You should not use this tool. Instead, continue to use build\n" +
+            "[B_OLD] of version [V_CUR] on this data\n" +
+            "path. If necessary, you can use reindex-from-remote to copy the data from here\n" +
+            "into a different cluster.\n" +
+            "\n" +
+            "Do you want to proceed?\n";
+
+
     static final String NO_METADATA_MESSAGE = "no node metadata found, so there is no version to override";
     static final String SUCCESS_MESSAGE = "Successfully overwrote this node's metadata to bypass its version compatibility checks.";
 
@@ -84,12 +104,23 @@ public class OverrideNodeVersionCommand extends ElasticsearchNodeCommand {
             // ok, means the version change is not supported
         }
 
-        confirm(terminal, (nodeMetadata.nodeVersion().before(Version.CURRENT) ? TOO_OLD_MESSAGE : TOO_NEW_MESSAGE)
-            .replace("V_OLD", nodeMetadata.nodeVersion().toString())
-            .replace("V_NEW", nodeMetadata.nodeVersion().toString())
-            .replace("V_CUR", Version.CURRENT.toString()));
 
-        PersistedClusterStateService.overrideVersion(Version.CURRENT, dataPaths);
+        final String message;
+        if (nodeMetadata.nodeVersion().equals(Version.CURRENT)) {
+            message = DIFFERENT_BUILD_MESSAGE;
+        } else if (nodeMetadata.nodeVersion().before(Version.CURRENT)) {
+            message = TOO_OLD_MESSAGE;
+        } else {
+            message = TOO_NEW_MESSAGE;
+        }
+        confirm(terminal, message
+                .replace("V_OLD", nodeMetadata.nodeVersion().toString())
+                .replace("V_NEW", nodeMetadata.nodeVersion().toString())
+                .replace("V_CUR", Version.CURRENT.toString())
+                .replace("B_OLD", nodeMetadata.buildHash())
+                .replace("B_CUR", Build.CURRENT.hash()));
+
+        PersistedClusterStateService.overrideVersion(Version.CURRENT, Build.CURRENT.hash(), dataPaths);
 
         terminal.println(SUCCESS_MESSAGE);
     }

@@ -48,6 +48,7 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Build;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -115,7 +116,10 @@ import java.util.function.Supplier;
  * | LAST_ACCEPTED_VERSION_KEY | "last_accepted_version" | The cluster state version corresponding with the persisted metadata           |
  * | NODE_ID_KEY               | "node_id"               | The (persistent) ID of the node that wrote this metadata                      |
  * | NODE_VERSION_KEY          | "node_version"          | The (ID of the) version of the node that wrote this metadata                  |
+ * | NODE_BUILD_HASH_KEY       | "node_build"            | The build hash of the node that wrote this metadata (*)                       |
  * +---------------------------+-------------------------+-------------------------------------------------------------------------------+
+ *
+ * (*) NODE_BUILD_KEY was added in {@link PersistedClusterStateService#VERSION_BUILD_HASH_ADDED}.
  *
  * (the last-accepted term is recorded in Metadata → CoordinationMetadata so does not need repeating here)
  */
@@ -125,12 +129,15 @@ public class PersistedClusterStateService {
     private static final String LAST_ACCEPTED_VERSION_KEY = "last_accepted_version";
     private static final String NODE_ID_KEY = "node_id";
     private static final String NODE_VERSION_KEY = "node_version";
+    private static final String NODE_BUILD_HASH_KEY = "node_build";
     private static final String TYPE_FIELD_NAME = "type";
     private static final String DATA_FIELD_NAME = "data";
     private static final String GLOBAL_TYPE_NAME = "global";
     private static final String INDEX_TYPE_NAME = "index";
     private static final String INDEX_UUID_FIELD_NAME = "index_uuid";
-    private static final int COMMIT_DATA_SIZE = 4;
+    private static final int COMMIT_DATA_SIZE = 5;
+
+    public static final Version VERSION_BUILD_HASH_ADDED = Version.V_8_0_0;
 
     public static final String METADATA_DIRECTORY_NAME = MetadataStateFormat.STATE_DIR_NAME;
 
@@ -261,6 +268,7 @@ public class PersistedClusterStateService {
     public static NodeMetadata nodeMetadata(Path... dataPaths) throws IOException {
         String nodeId = null;
         Version version = null;
+        String buildHash = null;
         for (final Path dataPath : dataPaths) {
             final Path indexPath = dataPath.resolve(METADATA_DIRECTORY_NAME);
             if (Files.exists(indexPath)) {
@@ -276,6 +284,12 @@ public class PersistedClusterStateService {
                     } else if (nodeId == null) {
                         nodeId = thisNodeId;
                         version = Version.fromId(Integer.parseInt(userData.get(NODE_VERSION_KEY)));
+                        if (version.onOrAfter(VERSION_BUILD_HASH_ADDED)) {
+                            assert userData.get(NODE_BUILD_HASH_KEY) != null;
+                            buildHash = userData.get(NODE_BUILD_HASH_KEY);
+                        } else {
+                            buildHash = Build.UNKNOWN_HASH;
+                        }
                     }
                 } catch (IndexNotFoundException e) {
                     logger.debug(new ParameterizedMessage("no on-disk state at {}", indexPath), e);
@@ -285,13 +299,13 @@ public class PersistedClusterStateService {
         if (nodeId == null) {
             return null;
         }
-        return new NodeMetadata(nodeId, version);
+        return new NodeMetadata(nodeId, version, buildHash);
     }
 
     /**
      * Overrides the version field for the metadata in the given data path
      */
-    public static void overrideVersion(Version newVersion, Path... dataPaths) throws IOException {
+    public static void overrideVersion(Version newVersion, String newBuildHash, Path... dataPaths) throws IOException {
         for (final Path dataPath : dataPaths) {
             final Path indexPath = dataPath.resolve(METADATA_DIRECTORY_NAME);
             if (Files.exists(indexPath)) {
@@ -303,6 +317,11 @@ public class PersistedClusterStateService {
                              createIndexWriter(new SimpleFSDirectory(dataPath.resolve(METADATA_DIRECTORY_NAME)), true)) {
                         final Map<String, String> commitData = new HashMap<>(userData);
                         commitData.put(NODE_VERSION_KEY, Integer.toString(newVersion.id));
+                        if (newVersion.onOrAfter(PersistedClusterStateService.VERSION_BUILD_HASH_ADDED)) {
+                            commitData.put(NODE_BUILD_HASH_KEY, newBuildHash);
+                        } else {
+                            commitData.remove(NODE_BUILD_HASH_KEY);
+                        }
                         indexWriter.setLiveCommitData(commitData.entrySet());
                         indexWriter.commit();
                     }
@@ -414,11 +433,15 @@ public class PersistedClusterStateService {
 
         final Map<String, String> userData = reader.getIndexCommit().getUserData();
         logger.trace("loaded metadata [{}] from [{}]", userData, reader.directory());
-        assert userData.size() == COMMIT_DATA_SIZE : userData;
+        assert userData.get(NODE_VERSION_KEY) != null : userData;
+        assert userData.size() == COMMIT_DATA_SIZE
+                - (Version.fromId(Integer.parseInt(userData.get(NODE_VERSION_KEY))).onOrAfter(VERSION_BUILD_HASH_ADDED) ? 0 : 1)
+                : userData;
         assert userData.get(CURRENT_TERM_KEY) != null;
         assert userData.get(LAST_ACCEPTED_VERSION_KEY) != null;
         assert userData.get(NODE_ID_KEY) != null;
-        assert userData.get(NODE_VERSION_KEY) != null;
+        assert Version.fromId(Integer.parseInt(userData.get(NODE_VERSION_KEY))).before(VERSION_BUILD_HASH_ADDED)
+                || userData.get(NODE_BUILD_HASH_KEY) != null;
         return new OnDiskState(userData.get(NODE_ID_KEY), dataPath, Long.parseLong(userData.get(CURRENT_TERM_KEY)),
             Long.parseLong(userData.get(LAST_ACCEPTED_VERSION_KEY)), builder.build());
     }
@@ -503,6 +526,7 @@ public class PersistedClusterStateService {
             commitData.put(CURRENT_TERM_KEY, Long.toString(currentTerm));
             commitData.put(LAST_ACCEPTED_VERSION_KEY, Long.toString(lastAcceptedVersion));
             commitData.put(NODE_VERSION_KEY, Integer.toString(Version.CURRENT.id));
+            commitData.put(NODE_BUILD_HASH_KEY, Build.CURRENT.hash());
             commitData.put(NODE_ID_KEY, nodeId);
             indexWriter.setLiveCommitData(commitData.entrySet());
             indexWriter.prepareCommit();

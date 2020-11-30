@@ -24,6 +24,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Build;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
@@ -142,7 +143,8 @@ public class GatewayMetaState implements Closeable {
                         metaStateService.deleteAll(); // delete legacy files
                     }
                     // write legacy node metadata to prevent accidental downgrades from spawning empty cluster state
-                    NodeMetadata.FORMAT.writeAndCleanup(new NodeMetadata(persistedClusterStateService.getNodeId(), Version.CURRENT),
+                    NodeMetadata.FORMAT.writeAndCleanup(
+                            new NodeMetadata(persistedClusterStateService.getNodeId(), Version.CURRENT, Build.CURRENT.hash()),
                         persistedClusterStateService.getDataPaths());
                     success = true;
                 } finally {
@@ -170,7 +172,8 @@ public class GatewayMetaState implements Closeable {
                     // delete legacy cluster state files
                     metaStateService.deleteAll();
                     // write legacy node metadata to prevent downgrades from spawning empty cluster state
-                    NodeMetadata.FORMAT.writeAndCleanup(new NodeMetadata(persistedClusterStateService.getNodeId(), Version.CURRENT),
+                    NodeMetadata.FORMAT.writeAndCleanup(
+                            new NodeMetadata(persistedClusterStateService.getNodeId(), Version.CURRENT, Build.CURRENT.hash()),
                         persistedClusterStateService.getDataPaths());
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);

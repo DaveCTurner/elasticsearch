@@ -19,6 +19,7 @@
 
 package org.elasticsearch.env;
 
+import org.elasticsearch.Build;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ObjectParser;
@@ -41,12 +42,13 @@ public final class NodeMetadata {
     static final String NODE_VERSION_KEY = "node_version";
 
     private final String nodeId;
-
     private final Version nodeVersion;
+    private final String buildHash;
 
-    public NodeMetadata(final String nodeId, final Version nodeVersion) {
+    public NodeMetadata(final String nodeId, final Version nodeVersion, final String buildHash) {
         this.nodeId = Objects.requireNonNull(nodeId);
         this.nodeVersion = Objects.requireNonNull(nodeVersion);
+        this.buildHash = Objects.requireNonNull(buildHash);
     }
 
     @Override
@@ -55,12 +57,13 @@ public final class NodeMetadata {
         if (o == null || getClass() != o.getClass()) return false;
         NodeMetadata that = (NodeMetadata) o;
         return nodeId.equals(that.nodeId) &&
-            nodeVersion.equals(that.nodeVersion);
+            nodeVersion.equals(that.nodeVersion) &&
+            buildHash.equals(that.buildHash);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(nodeId, nodeVersion);
+        return Objects.hash(nodeId, nodeVersion, buildHash);
     }
 
     @Override
@@ -68,6 +71,7 @@ public final class NodeMetadata {
         return "NodeMetadata{" +
             "nodeId='" + nodeId + '\'' +
             ", nodeVersion=" + nodeVersion +
+            ", buildHash=" + buildHash +
             '}';
     }
 
@@ -79,10 +83,12 @@ public final class NodeMetadata {
         return nodeVersion;
     }
 
+    public String buildHash() { return buildHash; }
+
     public NodeMetadata upgradeToCurrentVersion() {
         if (nodeVersion.equals(Version.V_EMPTY)) {
             assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 : "version is required in the node metadata from v9 onwards";
-            return new NodeMetadata(nodeId, Version.CURRENT);
+            return new NodeMetadata(nodeId, Version.CURRENT, Build.CURRENT.hash());
         }
 
         if (nodeVersion.before(Version.CURRENT.minimumIndexCompatibilityVersion())) {
@@ -95,7 +101,14 @@ public final class NodeMetadata {
                 "cannot downgrade a node from version [" + nodeVersion + "] to version [" + Version.CURRENT + "]");
         }
 
-        return nodeVersion.equals(Version.CURRENT) ? this : new NodeMetadata(nodeId, Version.CURRENT);
+        if (nodeVersion.equals(Version.CURRENT)
+                && buildHash.equals(Build.UNKNOWN_HASH) == false
+                && buildHash.equals(Build.CURRENT.hash()) == false) {
+            throw new IllegalStateException("cannot migrate a node of version [" + nodeVersion + "] between builds ["
+                    + buildHash + "] and [" + Build.CURRENT.hash() + "]");
+        }
+
+        return nodeVersion.equals(Version.CURRENT) ? this : new NodeMetadata(nodeId, Version.CURRENT, Build.CURRENT.hash());
     }
 
     private static class Builder {
@@ -119,13 +132,14 @@ public final class NodeMetadata {
                 nodeVersion = this.nodeVersion;
             }
 
-            return new NodeMetadata(nodeId, nodeVersion);
+            // MetadataStateFormat is for legacy use, no need to validate build hash
+            return new NodeMetadata(nodeId, nodeVersion, Build.UNKNOWN_HASH);
         }
     }
 
     static class NodeMetadataStateFormat extends MetadataStateFormat<NodeMetadata> {
 
-        private ObjectParser<Builder, Void> objectParser;
+        private final ObjectParser<Builder, Void> objectParser;
 
         /**
          * @param ignoreUnknownFields whether to ignore unknown fields or not. Normally we are strict about this, but

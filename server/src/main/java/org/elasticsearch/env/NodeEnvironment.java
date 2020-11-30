@@ -31,6 +31,7 @@ import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.NativeFSLockFactory;
 import org.apache.lucene.store.SimpleFSDirectory;
+import org.elasticsearch.Build;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -512,7 +513,7 @@ public final class NodeEnvironment  implements Closeable {
             final NodeMetadata legacyMetadata = NodeMetadata.FORMAT.loadLatestState(logger, NamedXContentRegistry.EMPTY, paths);
             if (legacyMetadata == null) {
                 assert nodeIds.isEmpty() : nodeIds;
-                metadata = new NodeMetadata(generateNodeId(settings), Version.CURRENT);
+                metadata = new NodeMetadata(generateNodeId(settings), Version.CURRENT, Build.CURRENT.hash());
             } else {
                 assert nodeIds.equals(Collections.singleton(legacyMetadata.nodeId())) : nodeIds + " doesn't match " + legacyMetadata;
                 metadata = legacyMetadata;
@@ -520,6 +521,7 @@ public final class NodeEnvironment  implements Closeable {
         }
         metadata = metadata.upgradeToCurrentVersion();
         assert metadata.nodeVersion().equals(Version.CURRENT) : metadata.nodeVersion() + " != " + Version.CURRENT;
+        assert metadata.buildHash().equals(Build.CURRENT.hash()) : metadata.buildHash() + " != " + Build.CURRENT.hash();
 
         return metadata;
     }

@@ -127,16 +127,23 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
 
     public void testFailsToStartIfDowngraded() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            PersistedClusterStateService.overrideVersion(NodeMetadataTests.tooNewVersion(), dataPaths));
+            PersistedClusterStateService.overrideVersion(NodeMetadataTests.tooNewVersion(), randomAlphaOfLength(10), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot downgrade a node from version ["), endsWith("] to version [" + Version.CURRENT + "]")));
     }
 
     public void testFailsToStartIfUpgradedTooFar() {
         final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
-            PersistedClusterStateService.overrideVersion(NodeMetadataTests.tooOldVersion(), dataPaths));
+            PersistedClusterStateService.overrideVersion(NodeMetadataTests.tooOldVersion(), randomAlphaOfLength(10), dataPaths));
         assertThat(illegalStateException.getMessage(),
             allOf(startsWith("cannot upgrade a node from version ["), endsWith("] directly to version [" + Version.CURRENT + "]")));
+    }
+
+    public void testFailsToStartIfBuildHashChanges() {
+        final IllegalStateException illegalStateException = expectThrowsOnRestart(dataPaths ->
+                PersistedClusterStateService.overrideVersion(Version.CURRENT, "fake-build-hash", dataPaths));
+        assertThat(illegalStateException.getMessage(),
+                allOf(startsWith("cannot upgrade a node from version ["), endsWith("] directly to version [" + Version.CURRENT + "]")));
     }
 
     public void testUpgradeDataFolder() throws IOException, InterruptedException {
