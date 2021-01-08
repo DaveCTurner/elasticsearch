@@ -622,11 +622,6 @@ public class IndicesRequestCacheTests extends ESTestCase {
         public long ramBytesUsed() {
             return 0;
         }
-
-        @Override
-        public boolean isFragment() {
-            return false;
-        }
     }
 
     private class TestEntity extends AbstractIndexShardCacheEntity {

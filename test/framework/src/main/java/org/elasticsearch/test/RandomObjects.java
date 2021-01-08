@@ -23,7 +23,6 @@ import com.carrotsearch.randomizedtesting.RandomizedTest;
 import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import com.carrotsearch.randomizedtesting.generators.RandomPicks;
 import com.carrotsearch.randomizedtesting.generators.RandomStrings;
-
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction.AnalyzeToken;
@@ -45,7 +44,6 @@ import org.elasticsearch.index.shard.ShardNotFoundException;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -88,7 +86,7 @@ public final class RandomObjects {
 
     private static List<Object> randomStoredFieldValues(Random random, int numValues) {
         List<Object> values = new ArrayList<>(numValues);
-        int dataType = randomIntBetween(random, 0, 8);
+        int dataType = randomIntBetween(random, 0, 7);
         for (int i = 0; i < numValues; i++) {
             switch(dataType) {
                 case 0:
@@ -115,10 +113,6 @@ public final class RandomObjects {
                 case 7:
                     values.add(random.nextBoolean() ? RandomStrings.randomAsciiLettersOfLengthBetween(random, 3, 10) :
                         randomUnicodeOfLengthBetween(random, 3, 10));
-                    break;
-                case 8:
-                    byte[] randomBytes = RandomStrings.randomUnicodeOfLengthBetween(random, 10, 50).getBytes(StandardCharsets.UTF_8);
-                    values.add(new BytesArray(randomBytes));
                     break;
                 default:
                     throw new UnsupportedOperationException();

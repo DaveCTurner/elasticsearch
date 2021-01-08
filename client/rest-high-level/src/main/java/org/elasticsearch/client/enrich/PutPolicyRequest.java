@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.client.enrich;
 
+import org.apache.commons.codec.binary.Base64;
 import org.elasticsearch.client.Validatable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -81,7 +82,7 @@ public final class PutPolicyRequest implements Validatable, ToXContentObject {
     // package private for testing only
     void setQuery(BytesReference query) {
         assert query == null || XContentHelper.xContentType(query).canonical() == XContentType.JSON :
-                "Only accepts JSON encoded query but received [" + Strings.toString(query) + "]";
+                "Only accepts JSON encoded query but received [" + Base64.encodeBase64String(BytesReference.toBytes(query)) + "]";
         this.query = query;
     }
 

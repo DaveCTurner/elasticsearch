@@ -25,7 +25,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 import org.elasticsearch.common.util.concurrent.RefCounted;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -162,17 +161,6 @@ public final class ReleasableBytesReference implements RefCounted, Releasable, B
     @Override
     public int compareTo(BytesReference o) {
         return delegate.compareTo(o);
-    }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        assert refCount() > 0;
-        return delegate.toXContent(builder, params);
-    }
-
-    @Override
-    public boolean isFragment() {
-        return delegate.isFragment();
     }
 
     @Override

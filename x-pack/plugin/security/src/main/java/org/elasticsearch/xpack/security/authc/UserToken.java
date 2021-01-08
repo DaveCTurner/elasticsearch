@@ -5,6 +5,7 @@
  */
 package org.elasticsearch.xpack.security.authc;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -130,7 +131,8 @@ public final class UserToken implements Writeable, ToXContentObject {
         try (BytesStreamOutput output = new BytesStreamOutput()) {
             output.setVersion(version);
             authentication.writeTo(output);
-            builder.field("authentication", output.bytes().toBytesRef().bytes);
+            final BytesRef bytesRef = output.bytes().toBytesRef();
+            builder.field("authentication", bytesRef.bytes, bytesRef.offset, bytesRef.length);
         }
         return builder.endObject();
     }
