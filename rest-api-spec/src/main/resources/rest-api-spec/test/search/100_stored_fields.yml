@@ -2,11 +2,20 @@ setup:
   - do:
       indices.create:
           index:  test
+          body:
+            mappings:
+              dynamic: false
+              properties:
+                bin:
+                  type: binary
+                  store: true
   - do:
       index:
           index:  test
           id:     1
-          body:   { foo: bar }
+          body:
+            foo: "bar"
+            bin: !!binary "YWJjZGUxMjM0"
   - do:
       indices.refresh:
           index: [test]
@@ -40,3 +49,13 @@ setup:
 
   - is_false: hits.hits.0._id
   - is_false: hits.hits.0._source
+
+  - do:
+      search:
+        rest_total_hits_as_int: true
+        index: test
+        body:
+          stored_fields: "bin"
+
+  - is_true: hits.hits.0.fields.bin
+
