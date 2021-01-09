@@ -21,13 +21,15 @@ package org.elasticsearch.common.bytes;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.xcontent.ToXContentFragment;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Objects;
 
-public final class BytesArray extends AbstractBytesReference {
+public final class BytesArray extends AbstractBytesReference implements ToXContentFragment {
 
     public static final BytesArray EMPTY = new BytesArray(BytesRef.EMPTY_BYTES, 0, 0);
     private final byte[] bytes;
@@ -122,4 +124,10 @@ public final class BytesArray extends AbstractBytesReference {
     public void writeTo(OutputStream os) throws IOException {
         os.write(bytes, offset, length);
     }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        return builder.value(bytes, offset, length);
+    }
+
 }
