@@ -19,6 +19,7 @@
 
 package org.elasticsearch.common.document;
 
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -56,6 +57,7 @@ public class DocumentField implements Writeable, ToXContentFragment, Iterable<Ob
     public DocumentField(String name, List<Object> values) {
         this.name = Objects.requireNonNull(name, "name must not be null");
         this.values = Objects.requireNonNull(values, "values must not be null");
+        assert values.stream().allMatch(v -> v instanceof BytesReference == false) : values;
     }
 
     /**
