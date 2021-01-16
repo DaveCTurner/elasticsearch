@@ -1073,6 +1073,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             .build());
 
         MockLogAppender appender = new MockLogAppender();
+        boolean success = false;
         try {
             appender.start();
             Loggers.addAppender(LogManager.getLogger("org.elasticsearch.transport.TransportService.tracer"), appender);
@@ -1116,9 +1117,12 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             appender.addExpectation(errorResponseSentExpectation);
             appender.addExpectation(errorResponseReceivedExpectation);
 
+            logger.info("--> before sending internal:testError");
             serviceA.sendRequest(nodeB, "internal:testError", new StringMessageRequest(""), noopResponseHandler);
+            logger.info("--> after sending internal:testError");
 
             assertBusy(appender::assertAllExpectationsMatched);
+            logger.info("--> after assertAllExpectationsMatched for internal:testError");
 
             final String notSeenSent = "*[internal:testNotSeen]*sent to*";
             final MockLogAppender.LoggingExpectation notSeenSentExpectation =
@@ -1132,14 +1136,22 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             appender.addExpectation(notSeenSentExpectation);
             appender.addExpectation(notSeenReceivedExpectation);
 
+            logger.info("--> before sending internal:testNotSeen");
             PlainTransportFuture<StringMessageResponse> future = new PlainTransportFuture<>(noopResponseHandler);
             serviceA.sendRequest(nodeB, "internal:testNotSeen", new StringMessageRequest(""), future);
             future.txGet();
+            logger.info("--> after sending internal:testNotSeen");
 
             assertBusy(appender::assertAllExpectationsMatched);
+            logger.info("--> after assertAllExpectationsMatched for internal:testNotSeen");
+
+            success = true;
         } finally {
+            logger.info("--> in finally block, success=[{}]", success);
             Loggers.removeAppender(LogManager.getLogger("org.elasticsearch.transport.TransportService.tracer"), appender);
+            logger.info("--> removed appender");
             appender.stop();
+            logger.info("--> appender stopped");
         }
     }
 
