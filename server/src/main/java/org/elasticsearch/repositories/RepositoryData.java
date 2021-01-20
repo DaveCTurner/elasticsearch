@@ -603,10 +603,13 @@ public final class RepositoryData {
         }
 
         if (shouldWriteRepoUuid) {
-            assert isForCache || uuid.equals(MISSING_UUID) == false : "missing uuid";
-            builder.field(UUID, uuid);
+            if (uuid.equals(MISSING_UUID)) {
+                assert isForCache : "missing uuid";
+            } else {
+                builder.field(UUID, uuid);
+            }
         } else {
-            assert uuid.equals(MISSING_UUID) : uuid;
+            assert uuid.equals(MISSING_UUID) : "lost uuid " + uuid;
         }
 
         // write the snapshots list

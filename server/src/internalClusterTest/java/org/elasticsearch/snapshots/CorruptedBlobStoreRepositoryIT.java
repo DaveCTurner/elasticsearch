@@ -333,19 +333,19 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         assertFileExists(initialShardMetaPath);
         Files.move(initialShardMetaPath, shardPath.resolve(BlobStoreRepository.INDEX_FILE_PREFIX + randomIntBetween(1, 1000)));
 
-        final RepositoryData repoData1 = getRepositoryData(repoName);
+        final RepositoryData repositoryData = getRepositoryData(repoName);
         final Map<String, SnapshotId> snapshotIds =
-                repoData1.getSnapshotIds().stream().collect(Collectors.toMap(SnapshotId::getUUID, Function.identity()));
+                repositoryData.getSnapshotIds().stream().collect(Collectors.toMap(SnapshotId::getUUID, Function.identity()));
         final RepositoryData brokenRepoData = new RepositoryData(
-                repoData1.getUuid(),
-                repoData1.getGenId(),
+                repositoryData.getUuid(),
+                repositoryData.getGenId(),
                 snapshotIds,
-                snapshotIds.values().stream().collect(Collectors.toMap(SnapshotId::getUUID, repoData1::getSnapshotState)),
-                snapshotIds.values().stream().collect(Collectors.toMap(SnapshotId::getUUID, repoData1::getVersion)),
-                repoData1.getIndices().values().stream().collect(Collectors.toMap(Function.identity(), repoData1::getSnapshots)),
-                ShardGenerations.builder().putAll(repoData1.shardGenerations()).put(indexId, 0, "0").build(),
-                repoData1.indexMetaDataGenerations());
-        Files.write(repoPath.resolve(BlobStoreRepository.INDEX_FILE_PREFIX + repoData1.getGenId()),
+                snapshotIds.values().stream().collect(Collectors.toMap(SnapshotId::getUUID, repositoryData::getSnapshotState)),
+                snapshotIds.values().stream().collect(Collectors.toMap(SnapshotId::getUUID, repositoryData::getVersion)),
+                repositoryData.getIndices().values().stream().collect(Collectors.toMap(Function.identity(), repositoryData::getSnapshots)),
+                ShardGenerations.builder().putAll(repositoryData.shardGenerations()).put(indexId, 0, "0").build(),
+                repositoryData.indexMetaDataGenerations());
+        Files.write(repoPath.resolve(BlobStoreRepository.INDEX_FILE_PREFIX + repositoryData.getGenId()),
                 BytesReference.toBytes(BytesReference.bytes(
                         brokenRepoData.snapshotsToXContent(XContentFactory.jsonBuilder(), Version.CURRENT))),
                 StandardOpenOption.TRUNCATE_EXISTING);
