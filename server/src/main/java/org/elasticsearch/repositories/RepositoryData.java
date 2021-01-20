@@ -577,6 +577,8 @@ public final class RepositoryData {
         if (shouldWriteRepoUuid) {
             assert uuid.equals(MISSING_UUID) == false : "missing uuid";
             builder.field(UUID, uuid);
+        } else {
+            assert uuid.equals(MISSING_UUID) : uuid;
         }
 
         // write the snapshots list
