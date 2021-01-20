@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -49,6 +50,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.internal.io.IOUtils;
+import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.repositories.blobstore.MeteredBlobStoreRepository;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -60,9 +62,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.Set;
 
 /**
  * Service responsible for maintaining and providing access to snapshot repositories on nodes.
@@ -563,5 +565,35 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
         repos.addAll(internalRepositories.values());
         repos.addAll(repositories.values());
         IOUtils.close(repos);
+    }
+
+    public void getRepositoryUuids(ActionListener<Map<String, BlobStoreRepository>> listener) {
+        final StepListener<Map<String, BlobStoreRepository>> firstStep = new StepListener<>();
+        StepListener<Map<String, BlobStoreRepository>> previousStep = firstStep;
+        for (BlobStoreRepository repository : repositories.values().stream()
+                .filter(r -> r instanceof BlobStoreRepository)
+                .map(r -> (BlobStoreRepository) r)
+                .collect(Collectors.toList())) {
+            final StepListener<Map<String, BlobStoreRepository>> thisStep = new StepListener<>();
+            previousStep.whenComplete(
+                    repositoriesByUuid -> repository.getRepositoryData(new ActionListener<>() {
+                        @Override
+                        public void onResponse(RepositoryData repositoryData) {
+                            final String uuid = repositoryData.getUuid();
+                            if (uuid.equals(RepositoryData.MISSING_UUID) == false) {
+                                repositoriesByUuid.put(uuid, repository);
+                            }
+                            thisStep.onResponse(repositoriesByUuid);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            thisStep.onResponse(repositoriesByUuid);
+                        }
+                    }), listener::onFailure);
+            previousStep = thisStep;
+        }
+        previousStep.whenComplete(listener::onResponse, listener::onFailure);
+        firstStep.onResponse(new HashMap<>());
     }
 }

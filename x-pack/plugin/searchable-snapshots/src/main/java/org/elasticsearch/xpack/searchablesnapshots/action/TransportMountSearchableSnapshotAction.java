@@ -51,7 +51,7 @@ import static org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots.DA
 
 /**
  * Action that mounts a snapshot as a searchable snapshot, by converting the mount request into a restore request with specific settings
- * using {@link TransportMountSearchableSnapshotAction#buildIndexSettings(String, SnapshotId, IndexId)}.
+ * using {@link TransportMountSearchableSnapshotAction#buildIndexSettings(String, String, SnapshotId, IndexId)}.
  *
  * This action doesn't technically need to run on the master node, but it needs to get metadata from the repository and we only expect the
  * repository to be accessible from data and master-eligible nodes so we can't run it everywhere.  Given that we already have a way to run
@@ -106,18 +106,21 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
     /**
      * Return the index settings required to make a snapshot searchable
      */
-    private static Settings buildIndexSettings(String repoName, SnapshotId snapshotId, IndexId indexId) {
-        return Settings.builder()
-            .put(SearchableSnapshots.SNAPSHOT_REPOSITORY_SETTING.getKey(), repoName)
-            .put(SearchableSnapshots.SNAPSHOT_SNAPSHOT_NAME_SETTING.getKey(), snapshotId.getName())
-            .put(SearchableSnapshots.SNAPSHOT_SNAPSHOT_ID_SETTING.getKey(), snapshotId.getUUID())
-            .put(SearchableSnapshots.SNAPSHOT_INDEX_NAME_SETTING.getKey(), indexId.getName())
-            .put(SearchableSnapshots.SNAPSHOT_INDEX_ID_SETTING.getKey(), indexId.getId())
-            .put(INDEX_STORE_TYPE_SETTING.getKey(), SearchableSnapshotsConstants.SNAPSHOT_DIRECTORY_FACTORY_KEY)
-            .put(IndexMetadata.SETTING_BLOCKS_WRITE, true)
-            .put(ExistingShardsAllocator.EXISTING_SHARDS_ALLOCATOR_SETTING.getKey(), SearchableSnapshotAllocator.ALLOCATOR_NAME)
-            .put(INDEX_RECOVERY_TYPE_SETTING.getKey(), SearchableSnapshotsConstants.SNAPSHOT_RECOVERY_STATE_FACTORY_KEY)
-            .build();
+    private static Settings buildIndexSettings(String repoName, String repositoryUuid, SnapshotId snapshotId, IndexId indexId) {
+        final Settings.Builder settings = Settings.builder();
+        if (repositoryUuid.equals(RepositoryData.MISSING_UUID) == false) {
+            settings.put(SearchableSnapshots.SNAPSHOT_REPOSITORY_UUID_SETTING.getKey(), repositoryUuid);
+        }
+        settings.put(SearchableSnapshots.SNAPSHOT_REPOSITORY_SETTING.getKey(), repoName)
+                .put(SearchableSnapshots.SNAPSHOT_SNAPSHOT_NAME_SETTING.getKey(), snapshotId.getName())
+                .put(SearchableSnapshots.SNAPSHOT_SNAPSHOT_ID_SETTING.getKey(), snapshotId.getUUID())
+                .put(SearchableSnapshots.SNAPSHOT_INDEX_NAME_SETTING.getKey(), indexId.getName())
+                .put(SearchableSnapshots.SNAPSHOT_INDEX_ID_SETTING.getKey(), indexId.getId())
+                .put(INDEX_STORE_TYPE_SETTING.getKey(), SearchableSnapshotsConstants.SNAPSHOT_DIRECTORY_FACTORY_KEY)
+                .put(IndexMetadata.SETTING_BLOCKS_WRITE, true)
+                .put(ExistingShardsAllocator.EXISTING_SHARDS_ALLOCATOR_SETTING.getKey(), SearchableSnapshotAllocator.ALLOCATOR_NAME)
+                .put(INDEX_RECOVERY_TYPE_SETTING.getKey(), SearchableSnapshotsConstants.SNAPSHOT_RECOVERY_STATE_FACTORY_KEY);
+        return settings.build();
     }
 
     @Override
@@ -159,6 +162,8 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
             }
             final SnapshotId snapshotId = matchingSnapshotId.get();
 
+            final String repositoryUuid = repoData.getUuid();
+
             final String[] ignoreIndexSettings = Arrays.copyOf(request.ignoreIndexSettings(), request.ignoreIndexSettings().length + 1);
             ignoreIndexSettings[ignoreIndexSettings.length - 1] = IndexMetadata.SETTING_DATA_PATH;
 
@@ -174,11 +179,14 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
                         // Pass through index settings, adding the index-level settings required to use searchable snapshots
                         .indexSettings(
                             Settings.builder()
-                                .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0) // can be overridden
-                                .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, false) // can be overridden
+                                    // first, settings that can be overridden by the request
+                                .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
+                                .put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, false)
                                 .put(DataTierAllocationDecider.INDEX_ROUTING_PREFER, DATA_TIERS_PREFERENCE)
+                                    // then the settings from the request
                                 .put(request.indexSettings())
-                                .put(buildIndexSettings(request.repositoryName(), snapshotId, indexId))
+                                    // and finally the settings that cannot be overridden
+                                .put(buildIndexSettings(request.repositoryName(), repositoryUuid, snapshotId, indexId))
                                 .build()
                         )
                         // Pass through ignored index settings
