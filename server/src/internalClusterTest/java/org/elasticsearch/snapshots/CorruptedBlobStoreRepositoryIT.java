@@ -207,7 +207,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
 
         logger.info("--> strip version information from index-N blob");
         final RepositoryData withoutVersions = new RepositoryData(
-                repositoryData.getUuid(),
+                RepositoryData.MISSING_UUID, // old-format repository data has no UUID
                 repositoryData.getGenId(),
                 repositoryData.getSnapshotIds().stream().collect(Collectors.toMap(SnapshotId::getUUID, Function.identity())),
                 repositoryData.getSnapshotIds().stream().collect(Collectors.toMap(SnapshotId::getUUID, repositoryData::getSnapshotState)),
@@ -218,7 +218,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
 
         Files.write(repo.resolve(BlobStoreRepository.INDEX_FILE_PREFIX + withoutVersions.getGenId()),
             BytesReference.toBytes(BytesReference.bytes(
-                withoutVersions.snapshotsToXContent(XContentFactory.jsonBuilder(), Version.CURRENT))),
+                withoutVersions.snapshotsToXContent(XContentFactory.jsonBuilder(), Version.CURRENT, true))),
             StandardOpenOption.TRUNCATE_EXISTING);
 
         logger.info("--> verify that repo is assumed in old metadata format");

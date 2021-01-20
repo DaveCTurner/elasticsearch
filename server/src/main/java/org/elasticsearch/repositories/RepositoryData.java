@@ -573,12 +573,13 @@ public final class RepositoryData {
 
     /**
      * Writes the snapshots metadata and the related indices metadata to x-content.
-     * @param isForCache indicates whether we are serializing for the in-memory cache, which has weaker invariants.
+     * @param permitMissingUuid indicates whether we permit the repository UUID to be missing, e.g. we are serializing for the in-memory
+     *                          cache or running tests
      */
     public XContentBuilder snapshotsToXContent(
             final XContentBuilder builder,
             final Version repoMetaVersion,
-            boolean isForCache) throws IOException {
+            boolean permitMissingUuid) throws IOException {
 
         final boolean shouldWriteRepoUuid = SnapshotsService.includesRepositoryUuid(repoMetaVersion);
         final boolean shouldWriteIndexGens = SnapshotsService.useIndexGenerations(repoMetaVersion);
@@ -604,7 +605,7 @@ public final class RepositoryData {
 
         if (shouldWriteRepoUuid) {
             if (uuid.equals(MISSING_UUID)) {
-                assert isForCache : "missing uuid";
+                assert permitMissingUuid : "missing uuid";
             } else {
                 builder.field(UUID, uuid);
             }
