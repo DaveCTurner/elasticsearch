@@ -76,7 +76,7 @@ public class RepositoryDataTests extends ESTestCase {
     }
 
     public void testXContent() throws IOException {
-        RepositoryData repositoryData = generateRandomRepoData();
+        RepositoryData repositoryData = generateRandomRepoData().withUuid(UUIDs.randomBase64UUID());
         XContentBuilder builder = JsonXContent.contentBuilder();
         repositoryData.snapshotsToXContent(builder, Version.CURRENT);
         try (XContentParser parser = createParser(JsonXContent.jsonXContent, BytesReference.bytes(builder))) {
@@ -206,7 +206,7 @@ public class RepositoryDataTests extends ESTestCase {
 
     public void testIndexThatReferencesAnUnknownSnapshot() throws IOException {
         final XContent xContent = randomFrom(XContentType.values()).xContent();
-        final RepositoryData repositoryData = generateRandomRepoData();
+        final RepositoryData repositoryData = generateRandomRepoData().withUuid(UUIDs.randomBase64UUID());
 
         XContentBuilder builder = XContentBuilder.builder(xContent);
         repositoryData.snapshotsToXContent(builder, Version.CURRENT);

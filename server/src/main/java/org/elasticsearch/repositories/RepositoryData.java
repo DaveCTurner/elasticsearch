@@ -393,6 +393,24 @@ public final class RepositoryData {
     }
 
     /**
+     * Make a copy of this instance with the given UUID and all other fields unchanged.
+     */
+    public RepositoryData withUuid(String uuid) {
+        assert this.uuid.equals(MISSING_UUID) : this.uuid;
+        assert uuid.equals(MISSING_UUID) == false;
+        return new RepositoryData(
+                uuid,
+                genId,
+                snapshotIds,
+                snapshotStates,
+                snapshotVersions,
+                indices,
+                indexSnapshots,
+                shardGenerations,
+                indexMetaDataGenerations);
+    }
+
+    /**
      * Remove snapshots and remove any indices that no longer exist in the repository due to the deletion of the snapshots.
      *
      * @param snapshots               Snapshot ids to remove
