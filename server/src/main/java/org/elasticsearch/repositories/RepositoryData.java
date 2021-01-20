@@ -411,6 +411,22 @@ public final class RepositoryData {
     }
 
     /**
+     * For test purposes, make a copy of this instance with the UUID removed and all other fields unchanged, as if from an older version.
+     */
+    public RepositoryData withoutUuid() {
+        return new RepositoryData(
+                MISSING_UUID,
+                genId,
+                snapshotIds,
+                snapshotStates,
+                snapshotVersions,
+                indices,
+                indexSnapshots,
+                shardGenerations,
+                indexMetaDataGenerations);
+    }
+
+    /**
      * Remove snapshots and remove any indices that no longer exist in the repository due to the deletion of the snapshots.
      *
      * @param snapshots               Snapshot ids to remove
@@ -552,6 +568,18 @@ public final class RepositoryData {
      * Writes the snapshots metadata and the related indices metadata to x-content.
      */
     public XContentBuilder snapshotsToXContent(final XContentBuilder builder, final Version repoMetaVersion) throws IOException {
+        return snapshotsToXContent(builder, repoMetaVersion, false);
+    }
+
+    /**
+     * Writes the snapshots metadata and the related indices metadata to x-content.
+     * @param isForCache indicates whether we are serializing for the in-memory cache, which has weaker invariants.
+     */
+    public XContentBuilder snapshotsToXContent(
+            final XContentBuilder builder,
+            final Version repoMetaVersion,
+            boolean isForCache) throws IOException {
+
         final boolean shouldWriteRepoUuid = SnapshotsService.includesRepositoryUuid(repoMetaVersion);
         final boolean shouldWriteIndexGens = SnapshotsService.useIndexGenerations(repoMetaVersion);
         final boolean shouldWriteShardGens = SnapshotsService.useShardGenerations(repoMetaVersion);
@@ -575,7 +603,7 @@ public final class RepositoryData {
         }
 
         if (shouldWriteRepoUuid) {
-            assert uuid.equals(MISSING_UUID) == false : "missing uuid";
+            assert isForCache || uuid.equals(MISSING_UUID) == false : "missing uuid";
             builder.field(UUID, uuid);
         } else {
             assert uuid.equals(MISSING_UUID) : uuid;

@@ -1486,7 +1486,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         // since we're only caching the information that we just wrote and thus won't accidentally cache any information
                         // that isn't safe
                         cacheRepositoryData(compressRepoDataForCache(BytesReference.bytes(
-                                loaded.snapshotsToXContent(XContentFactory.jsonBuilder(), Version.CURRENT))), genToLoad);
+                                loaded.snapshotsToXContent(XContentFactory.jsonBuilder(), Version.CURRENT, true))), genToLoad);
                     }
                 }
                 listener.onResponse(loaded);
