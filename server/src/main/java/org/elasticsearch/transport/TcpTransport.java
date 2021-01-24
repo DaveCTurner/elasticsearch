@@ -255,6 +255,11 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             TcpChannel channel = channel(options.type());
             outboundHandler.sendRequest(node, channel, requestId, action, request, options, getVersion(), compress, false);
         }
+
+        @Override
+        public String toString() {
+            return "NodeChannels{" + channels + "}";
+        }
     }
 
     // This allows transport implementations to potentially override specific connection profiles. This

@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
@@ -145,7 +146,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                             logger.debug("existing connection to node [{}], closing new redundant connection", node);
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
-                            logger.debug("connected to node [{}]", node);
+                            logger.debug("connected to node [{}]: {}", node, conn);
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
@@ -279,4 +280,9 @@ public class ClusterConnectionManager implements ConnectionManager {
         return defaultProfile;
     }
 
+
+    @Override
+    public DiscoveryNode findConnectedNode(TransportAddress transportAddress) {
+        return connectedNodes.keySet().stream().filter(n -> n.getAddress().equals(transportAddress)).findFirst().orElse(null);
+    }
 }

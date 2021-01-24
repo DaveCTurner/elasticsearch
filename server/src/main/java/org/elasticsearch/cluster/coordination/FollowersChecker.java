@@ -22,6 +22,7 @@ package org.elasticsearch.cluster.coordination;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.coordination.Coordinator.Mode;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -52,6 +53,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -241,10 +243,14 @@ public class FollowersChecker {
         }
     }
 
+    private static final AtomicLong disconnectionIdRef = new AtomicLong();
+
     private void handleDisconnectedNode(DiscoveryNode discoveryNode) {
         FollowerChecker followerChecker = followerCheckers.get(discoveryNode);
         if (followerChecker != null) {
-            followerChecker.failNode("disconnected");
+            final long disconnectionId = disconnectionIdRef.incrementAndGet();
+            logger.info(new ParameterizedMessage("--> handleDisconnectedNode[{}] for node [{}]", disconnectionId, discoveryNode), new ElasticsearchException("stack trace"));
+            followerChecker.failNode("disconnected [" + disconnectionId + "]");
         }
     }
 

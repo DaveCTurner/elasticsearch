@@ -19,6 +19,8 @@
 
 package org.elasticsearch.action.main;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Build;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -26,27 +28,50 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
+import java.nio.file.Files;
+import java.util.Random;
+
 public class TransportMainAction extends HandledTransportAction<MainRequest, MainResponse> {
+
+    private static final Logger logger = LogManager.getLogger(TransportMainAction.class);
 
     private final String nodeName;
     private final ClusterService clusterService;
+    private final Environment environment;
 
     @Inject
     public TransportMainAction(Settings settings, TransportService transportService,
-                               ActionFilters actionFilters, ClusterService clusterService) {
+                               ActionFilters actionFilters, ClusterService clusterService, Environment environment) {
         super(MainAction.NAME, transportService, actionFilters, MainRequest::new);
         this.nodeName = Node.NODE_NAME_SETTING.get(settings);
         this.clusterService = clusterService;
+        this.environment = environment;
     }
 
     @Override
     protected void doExecute(Task task, MainRequest request, ActionListener<MainResponse> listener) {
+
+        final Random random = Randomness.get();
+
+        if (random.nextInt(5) < 5 && Files.exists(environment.configFile().resolve("go-slow"))) {
+            final int sleepTime = 35000;
+            logger.info("sleeping for [{}ms]", sleepTime);
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                listener.onFailure(e);
+                return;
+            }
+        }
+
         ClusterState clusterState = clusterService.state();
         listener.onResponse(
             new MainResponse(nodeName, Version.CURRENT, clusterState.getClusterName(),

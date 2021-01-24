@@ -43,6 +43,7 @@ import org.elasticsearch.transport.TransportService;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.list;
 
 public class HandshakingTransportAddressConnector implements TransportAddressConnector {
 
@@ -74,6 +75,13 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
 
             @Override
             protected void doRun() {
+
+                final DiscoveryNode existingNode = transportService.findConnectedNode(transportAddress);
+                if (existingNode != null) {
+                    listener.onResponse(existingNode);
+                    return;
+                }
+
                 // We could skip this if the transportService were already connected to the given address, but the savings would be minimal
                 // so we open a new connection anyway.
 
@@ -86,7 +94,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                 transportService.openConnection(targetNode,
                     ConnectionProfile.buildSingleChannelProfile(Type.REG, probeConnectTimeout, probeHandshakeTimeout,
                         TimeValue.MINUS_ONE, null), ActionListener.delegateFailure(listener, (l, connection) -> {
-                        logger.trace("[{}] opened probe connection", thisConnectionAttempt);
+                        logger.trace("[{}] opened probe connection: {}", thisConnectionAttempt, connection);
 
                         // use NotifyOnceListener to make sure the following line does not result in onFailure being called when
                         // the connection is closed in the onResponse handler

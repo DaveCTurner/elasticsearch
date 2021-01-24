@@ -21,6 +21,7 @@ package org.elasticsearch.transport;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.transport.TransportAddress;
 
 import java.io.Closeable;
 import java.util.Set;
@@ -54,6 +55,10 @@ public interface ConnectionManager extends Closeable {
     void closeNoBlock();
 
     ConnectionProfile getConnectionProfile();
+
+    default DiscoveryNode findConnectedNode(TransportAddress transportAddress) {
+        return null;
+    }
 
     @FunctionalInterface
     interface ConnectionValidator {

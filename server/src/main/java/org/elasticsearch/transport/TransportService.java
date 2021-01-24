@@ -455,6 +455,10 @@ public class TransportService extends AbstractLifecycleComponent
         return connectionManager;
     }
 
+    public DiscoveryNode findConnectedNode(TransportAddress transportAddress) {
+        return connectionManager.findConnectedNode(transportAddress);
+    }
+
     static class HandshakeRequest extends TransportRequest {
 
         public static final HandshakeRequest INSTANCE = new HandshakeRequest();
