@@ -62,7 +62,7 @@ public class TransportMainAction extends HandledTransportAction<MainRequest, Mai
         final Random random = Randomness.get();
 
         if (random.nextInt(5) < 4 && Files.exists(environment.configFile().resolve("go-slow"))) {
-            final int sleepTime = random.nextInt(60000);
+            final int sleepTime = random.nextInt(10000);
             logger.info("sleeping for [{}ms]", sleepTime);
             try {
                 Thread.sleep(sleepTime);
