@@ -329,8 +329,9 @@ public class FollowersChecker {
                         final String reason;
                         if (exp instanceof ConnectTransportException
                             || exp.getCause() instanceof ConnectTransportException) {
-                            logger.debug(() -> new ParameterizedMessage("{} disconnected", FollowerChecker.this), exp);
-                            reason = "disconnected";
+                            final long disconnectionId = disconnectionIdRef.incrementAndGet();
+                            logger.info(() -> new ParameterizedMessage("{} disconnected [{}]", FollowerChecker.this, disconnectionId), exp);
+                            reason = "disconnected [" + disconnectionId + "]";
                         } else if (exp.getCause() instanceof NodeHealthCheckFailureException) {
                             logger.debug(() -> new ParameterizedMessage("{} health check failed", FollowerChecker.this), exp);
                             reason = "health check failed";
