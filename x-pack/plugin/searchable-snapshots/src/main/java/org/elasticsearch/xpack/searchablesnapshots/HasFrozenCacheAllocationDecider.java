@@ -1,0 +1,80 @@
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
+ */
+
+package org.elasticsearch.xpack.searchablesnapshots;
+
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.routing.RoutingNode;
+import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
+import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.Decision;
+import org.elasticsearch.common.settings.Settings;
+
+import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
+import static org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots.SNAPSHOT_PARTIAL_SETTING;
+
+public class HasFrozenCacheAllocationDecider extends AllocationDecider {
+
+    private static final String NAME = "has_frozen_cache";
+
+    private static final Decision STILL_FETCHING = Decision.single(Decision.Type.THROTTLE, NAME,
+            "state of frozen cache on this node is not known yet");
+
+    private static final Decision HAS_FROZEN_CACHE = Decision.single(Decision.Type.YES, NAME,
+            "this node has a frozen searchable snapshot shard cache");
+
+    private static final Decision NO_FROZEN_CACHE = Decision.single(Decision.Type.NO, NAME,
+            "this node has no frozen searchable snapshot shard cache, which is controlled by setting [" +
+                    SNAPSHOT_CACHE_SIZE_SETTING.getKey() + "]");
+
+    private final FrozenCacheSizeService frozenCacheService;
+
+    public HasFrozenCacheAllocationDecider(FrozenCacheSizeService frozenCacheService) {
+        this.frozenCacheService = frozenCacheService;
+    }
+
+    @Override
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+        return canAllocateToNode(allocation.metadata().getIndexSafe(shardRouting.index()), node.node());
+    }
+
+    @Override
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+        return canAllocateToNode(allocation.metadata().getIndexSafe(shardRouting.index()), node.node());
+    }
+
+    @Override
+    public Decision canAllocate(IndexMetadata indexMetadata, RoutingNode node, RoutingAllocation allocation) {
+        return canAllocateToNode(indexMetadata, node.node());
+    }
+
+    @Override
+    public Decision shouldAutoExpandToNode(IndexMetadata indexMetadata, DiscoveryNode node, RoutingAllocation allocation) {
+        return canAllocateToNode(indexMetadata, node);
+    }
+
+    private Decision canAllocateToNode(IndexMetadata indexMetadata, DiscoveryNode discoveryNode) {
+        final Settings indexSettings = indexMetadata.getSettings();
+
+        if (SearchableSnapshotsConstants.isSearchableSnapshotStore(indexSettings) == false
+                || SNAPSHOT_PARTIAL_SETTING.get(indexSettings) == false) {
+            return Decision.ALWAYS;
+        }
+
+        final Boolean hasFrozenCache = frozenCacheService.hasFrozenCache(discoveryNode);
+        if (hasFrozenCache == null) {
+            return STILL_FETCHING;
+        } else if (hasFrozenCache) {
+            return HAS_FROZEN_CACHE;
+        } else {
+            return NO_FROZEN_CACHE;
+        }
+    }
+
+}

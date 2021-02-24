@@ -249,6 +249,7 @@ public class SearchableSnapshots extends Plugin implements IndexStorePlugin, Eng
     private final SetOnce<FailShardsOnInvalidLicenseClusterListener> failShardsListener = new SetOnce<>();
     private final SetOnce<SearchableSnapshotAllocator> allocator = new SetOnce<>();
     private final Settings settings;
+    private final FrozenCacheSizeService frozenCacheSizeService = new FrozenCacheSizeService();
 
     public SearchableSnapshots(final Settings settings) {
         this.settings = settings;
@@ -344,6 +345,7 @@ public class SearchableSnapshots extends Plugin implements IndexStorePlugin, Eng
         }
         this.allocator.set(new SearchableSnapshotAllocator(client, clusterService.getRerouteService()));
         components.add(new CacheServiceSupplier(cacheService.get()));
+        frozenCacheSizeService.initialize(client, clusterService);
         return Collections.unmodifiableList(components);
     }
 
@@ -511,7 +513,8 @@ public class SearchableSnapshots extends Plugin implements IndexStorePlugin, Eng
     public Collection<AllocationDecider> createAllocationDeciders(Settings settings, ClusterSettings clusterSettings) {
         return List.of(
             new SearchableSnapshotAllocationDecider(() -> getLicenseState().isAllowed(XPackLicenseState.Feature.SEARCHABLE_SNAPSHOTS)),
-            new SearchableSnapshotEnableAllocationDecider(settings, clusterSettings)
+            new SearchableSnapshotEnableAllocationDecider(settings, clusterSettings),
+            new HasFrozenCacheAllocationDecider(frozenCacheSizeService)
         );
     }
 
