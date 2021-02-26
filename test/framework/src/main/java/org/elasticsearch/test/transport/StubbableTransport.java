@@ -115,6 +115,11 @@ public class StubbableTransport implements Transport {
     }
 
     @Override
+    public void acceptIncomingRequests() {
+        delegate.acceptIncomingRequests();
+    }
+
+    @Override
     public void setMessageListener(TransportMessageListener listener) {
         delegate.setMessageListener(listener);
     }

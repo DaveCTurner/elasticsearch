@@ -520,6 +520,10 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         }
 
         @Override
+        public void acceptIncomingRequests() {
+        }
+
+        @Override
         public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
                 threadPool.generic().execute(() -> listener.onFailure(new ConnectTransportException(node, "simulated")));

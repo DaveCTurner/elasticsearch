@@ -58,6 +58,7 @@ public class Netty4SizeHeaderFrameDecoderTests extends ESTestCase {
         nettyTransport = new Netty4Transport(settings, Version.CURRENT, threadPool, networkService, recycler,
             new NamedWriteableRegistry(Collections.emptyList()), new NoneCircuitBreakerService(), new SharedGroupFactory(settings));
         nettyTransport.start();
+        nettyTransport.acceptIncomingRequests();
 
         TransportAddress[] boundAddresses = nettyTransport.boundAddress().boundAddresses();
         TransportAddress transportAddress = randomFrom(boundAddresses);

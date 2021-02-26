@@ -78,6 +78,10 @@ public class FakeTransport extends AbstractLifecycleComponent implements Transpo
     }
 
     @Override
+    public void acceptIncomingRequests() {
+    }
+
+    @Override
     public TransportStats getStats() {
         return null;
     }

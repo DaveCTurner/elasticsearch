@@ -279,12 +279,17 @@ public class TransportService extends AbstractLifecycleComponent
     }
 
     /**
-     * start accepting incoming requests.
-     * when the transport layer starts up it will block any incoming requests until
-     * this method is called
+     * Start accepting incoming requests.
+     *
+     * The transport service starts before it's ready to accept incoming requests because we need to know the address(es) to which we are
+     * bound, which means we have to actually bind to them and start accepting incoming connections. However until this method is called we
+     * close any incoming connections as soon as they are accepted.
      */
     public final void acceptIncomingRequests() {
-        handleIncomingRequests.set(true);
+        final boolean startedWithThisCall = handleIncomingRequests.compareAndSet(false, true);
+        assert startedWithThisCall : "transport service was already accepting incoming requests";
+        logger.debug("now accepting incoming requests");
+        transport.acceptIncomingRequests();
     }
 
     @Override
@@ -928,6 +933,8 @@ public class TransportService extends AbstractLifecycleComponent
     @Override
     public void onRequestReceived(long requestId, String action) {
         if (handleIncomingRequests.get() == false) {
+            // shouldn't happen: the transport should have closed the connection before receiving this request
+            assert false : "transport not ready yet to handle incoming requests";
             throw new IllegalStateException("transport not ready yet to handle incoming requests");
         }
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {

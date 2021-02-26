@@ -81,6 +81,12 @@ public interface Transport extends LifecycleComponent {
     RequestHandlers getRequestHandlers();
 
     /**
+     * Called when we are ready to start accepting incoming requests; prior to calling this, incoming connections are accepted and then
+     * immediately closed.
+     */
+    void acceptIncomingRequests();
+
+    /**
      * A unidirectional connection to a {@link DiscoveryNode}
      */
     interface Connection extends Closeable {

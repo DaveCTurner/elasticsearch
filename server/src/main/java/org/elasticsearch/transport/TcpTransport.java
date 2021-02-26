@@ -108,6 +108,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     private final ConcurrentMap<String, BoundTransportAddress> profileBoundAddresses = newConcurrentMap();
     private final Map<String, List<TcpServerChannel>> serverChannels = newConcurrentMap();
     private final Set<TcpChannel> acceptedChannels = ConcurrentCollections.newConcurrentSet();
+    private final AtomicBoolean handleIncomingRequests = new AtomicBoolean();
 
     // this lock is here to make sure we close this transport and disconnect all the client nodes
     // connections while no connect operations is going on
@@ -633,13 +634,25 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         }
     }
 
+    @Override
+    public void acceptIncomingRequests() {
+        final boolean startedWithThisCall = handleIncomingRequests.compareAndSet(false, true);
+        assert startedWithThisCall : "transport was already accepting incoming requests";
+        logger.debug("now accepting incoming requests");
+    }
+
     protected void serverAcceptedChannel(TcpChannel channel) {
-        boolean addedOnThisCall = acceptedChannels.add(channel);
-        assert addedOnThisCall : "Channel should only be added to accepted channel set once";
-        // Mark the channel init time
-        channel.getChannelStats().markAccessed(threadPool.relativeTimeInMillis());
-        channel.addCloseListener(ActionListener.wrap(() -> acceptedChannels.remove(channel)));
-        logger.trace(() -> new ParameterizedMessage("Tcp transport channel accepted: {}", channel));
+        if (handleIncomingRequests.get()) {
+            boolean addedOnThisCall = acceptedChannels.add(channel);
+            assert addedOnThisCall : "Channel should only be added to accepted channel set once";
+            // Mark the channel init time
+            channel.getChannelStats().markAccessed(threadPool.relativeTimeInMillis());
+            channel.addCloseListener(ActionListener.wrap(() -> acceptedChannels.remove(channel)));
+            logger.trace("Tcp transport channel accepted: {}", channel);
+        } else {
+            logger.debug("Tcp transport channel accepted before we are ready, closing: {}", channel);
+            channel.close();
+        }
     }
 
     /**
