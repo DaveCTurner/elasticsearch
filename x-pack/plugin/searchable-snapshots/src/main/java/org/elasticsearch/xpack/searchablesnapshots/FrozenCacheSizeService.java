@@ -22,6 +22,8 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,6 +88,8 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                 final NodeStateHolder prevState = nodeStates.put(newNode, nodeStateHolder);
                 assert prevState == null;
 
+                logger.trace("fetching frozen cache state for {}", newNode);
+
                 runnables.add(() -> clientRef.get().admin().cluster()
                         .prepareNodesInfo(newNode.getId())
                         .clear()
@@ -100,7 +104,6 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                             final NodeInfo nodeInfo = nodesInfoResponse.getNodes().get(0);
                             assert nodeInfo.getNode().getId().equals(newNode.getId());
                             final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
-                            logger.trace("updating entry for {} to {}", newNode, hasFrozenCache);
                             updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
                             clusterService.getRerouteService().reroute("frozen cache state retrieved", Priority.LOW,
                                     ActionListener.wrap(() -> {}));
@@ -120,6 +123,7 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                     private void updateEntry(NodeState nodeState) {
                         assert nodeStateHolder.nodeState == NodeState.FETCHING : newNode + " already set to " + nodeStateHolder.nodeState;
                         assert nodeState != NodeState.FETCHING : "cannot set " + newNode + " to " + nodeState;
+                        logger.trace("updating entry for {} to {}", newNode, nodeState);
                         nodeStateHolder.nodeState = nodeState;
                     }
 
