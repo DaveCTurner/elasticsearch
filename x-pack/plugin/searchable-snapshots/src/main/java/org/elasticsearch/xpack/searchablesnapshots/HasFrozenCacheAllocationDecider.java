@@ -14,6 +14,8 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
+import org.elasticsearch.cluster.service.ClusterApplier;
+import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.common.settings.Settings;
 
 import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
@@ -67,13 +69,13 @@ public class HasFrozenCacheAllocationDecider extends AllocationDecider {
             return Decision.ALWAYS;
         }
 
-        final Boolean hasFrozenCache = frozenCacheService.hasFrozenCache(discoveryNode);
-        if (hasFrozenCache == null) {
-            return STILL_FETCHING;
-        } else if (hasFrozenCache) {
-            return HAS_FROZEN_CACHE;
-        } else {
-            return NO_FROZEN_CACHE;
+        switch (frozenCacheService.getNodeState(discoveryNode)) {
+            case HAS_CACHE:
+                return HAS_FROZEN_CACHE;
+            case NO_CACHE:
+                return NO_FROZEN_CACHE;
+            default:
+                return STILL_FETCHING;
         }
     }
 

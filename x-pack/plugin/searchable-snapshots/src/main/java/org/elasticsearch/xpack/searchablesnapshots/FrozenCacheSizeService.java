@@ -136,25 +136,12 @@ public class FrozenCacheSizeService implements ClusterStateListener {
         runnables.forEach(Runnable::run);
     }
 
-    @Nullable // if state not known yet
-    public Boolean hasFrozenCache(DiscoveryNode discoveryNode) {
+    public NodeState getNodeState(DiscoveryNode discoveryNode) {
         final NodeStateHolder nodeStateHolder;
         synchronized (mutex) {
             nodeStateHolder = nodeStates.get(discoveryNode);
         }
-
-        if (nodeStateHolder == null) {
-            return null;
-        }
-
-        switch (nodeStateHolder.nodeState) {
-            case HAS_CACHE:
-                return true;
-            case NO_CACHE:
-                return false;
-            default:
-                return null;
-        }
+        return nodeStateHolder == null ? NodeState.UNKNOWN : nodeStateHolder.nodeState;
     }
 
     /**
@@ -165,10 +152,11 @@ public class FrozenCacheSizeService implements ClusterStateListener {
         volatile NodeState nodeState = NodeState.FETCHING;
     }
 
-    private enum NodeState {
+    public enum NodeState {
+        UNKNOWN,
         FETCHING,
         HAS_CACHE,
         NO_CACHE,
-        FAILED
+        FAILED,
     }
 }
