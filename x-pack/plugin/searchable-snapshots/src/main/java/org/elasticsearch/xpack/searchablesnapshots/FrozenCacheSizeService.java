@@ -91,6 +91,7 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                         .clear()
                         .setSettings(true)
                         .execute(new ActionListener<NodesInfoResponse>() {
+
                     @Override
                     public void onResponse(NodesInfoResponse nodesInfoResponse) {
                         if (nodesInfoResponse.getNodesMap().isEmpty() == false) {
@@ -105,31 +106,28 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                                     ActionListener.wrap(() -> {}));
                         } else if (nodesInfoResponse.hasFailures()) {
                             assert nodesInfoResponse.failures().size() == 1;
-                            removeEntry(nodesInfoResponse.failures().get(0));
+                            recordFailure(nodesInfoResponse.failures().get(0));
                         } else {
-                            removeEntry(new ElasticsearchException("node not found"));
+                            recordFailure(new ElasticsearchException("node not found"));
                         }
                     }
 
                     @Override
                     public void onFailure(Exception e) {
-                        removeEntry(e);
+                        recordFailure(e);
                     }
 
                     private void updateEntry(NodeState nodeState) {
-                        assert nodeStateHolder.nodeState == NodeState.FETCHING : "already set for " + newNode;
+                        assert nodeStateHolder.nodeState == NodeState.FETCHING : newNode + " already set to " + nodeStateHolder.nodeState;
                         assert nodeState != NodeState.FETCHING : "cannot set " + newNode + " to " + nodeState;
                         nodeStateHolder.nodeState = nodeState;
                     }
 
-                    private void removeEntry(Exception e) {
+                    private void recordFailure(Exception e) {
                         assert nodeStateHolder.nodeState == null : "already set for " + newNode;
                         logger.debug(new ParameterizedMessage("failed to retrieve node settings from node {}", newNode), e);
-                        synchronized (mutex) {
-                            nodeStates.remove(newNode, nodeStateHolder);
-                        }
-                        // will retry on a subsequent cluster state update
-                        // TBD should we retry more enthusiastically? should we stop retrying after a while?
+                        updateEntry(NodeState.FAILED);
+                        // TODO should a failure be permanent?
                     }
                 }));
             }
@@ -145,8 +143,18 @@ public class FrozenCacheSizeService implements ClusterStateListener {
             nodeStateHolder = nodeStates.get(discoveryNode);
         }
 
+        if (nodeStateHolder == null) {
+            return null;
+        }
 
-        return nodeStateHolder == null ? null : nodeStateHolder.nodeState == NodeState.HAS_CACHE;
+        switch (nodeStateHolder.nodeState) {
+            case HAS_CACHE:
+                return true;
+            case NO_CACHE:
+                return false;
+            default:
+                return null;
+        }
     }
 
     /**
