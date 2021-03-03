@@ -27,7 +27,6 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.searchablesnapshots.MountSearchableSnapshotAction;
@@ -94,7 +93,6 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
         );
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.xpack.searchablesnapshots.FrozenCacheSizeService:TRACE")
     public void testPartialSearchableSnapshotNotAllocatedToNodesWithoutCache() throws Exception {
         final MountSearchableSnapshotRequest req = prepareMountRequest();
         final RestoreSnapshotResponse restoreSnapshotResponse = client().execute(MountSearchableSnapshotAction.INSTANCE, req).get();
@@ -124,7 +122,6 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
         }
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.xpack.searchablesnapshots.FrozenCacheSizeService:TRACE")
     public void testPartialSearchableSnapshotAllocatedToNodesWithCache() throws Exception {
         final MountSearchableSnapshotRequest req = prepareMountRequest();
 
@@ -146,7 +143,6 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
         }
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.xpack.searchablesnapshots.FrozenCacheSizeService:TRACE")
     public void testPartialSearchableSnapshotDelaysAllocationUntilNodeCacheStatesKnown() throws Exception {
         final MountSearchableSnapshotRequest req = prepareMountRequest();
 
