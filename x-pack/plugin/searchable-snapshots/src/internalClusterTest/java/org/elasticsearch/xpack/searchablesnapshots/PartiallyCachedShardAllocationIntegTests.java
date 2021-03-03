@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -226,15 +227,20 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
             TransportService.class,
             newNodes.get(0)
         );
-        transportService.addRequestHandlingBehavior(
-            NodesInfoAction.NAME + "[n]",
-            (handler, request, channel, task) -> channel.sendResponse(new ElasticsearchException("simulated"))
-        );
+        final Semaphore failurePermits = new Semaphore(2);
+        transportService.addRequestHandlingBehavior(NodesInfoAction.NAME + "[n]", (handler, request, channel, task) -> {
+            if (failurePermits.tryAcquire()) {
+                channel.sendResponse(new ElasticsearchException("simulated"));
+            } else {
+                handler.messageReceived(request, channel, task);
+            }
+        });
 
         nodeInfoBlock.onResponse(null);
         final RestoreSnapshotResponse restoreSnapshotResponse = responseFuture.actionGet(10, TimeUnit.SECONDS);
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
         ensureGreen(req.mountedIndexName());
+        assertFalse("should have failed before success", failurePermits.tryAcquire());
     }
 
 }

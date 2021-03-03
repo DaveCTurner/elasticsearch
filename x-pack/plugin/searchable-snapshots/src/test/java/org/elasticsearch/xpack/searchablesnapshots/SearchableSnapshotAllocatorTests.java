@@ -293,8 +293,7 @@ public class SearchableSnapshotAllocatorTests extends ESAllocationTestCase {
     private static FrozenCacheSizeService testFrozenCacheSizeService() {
         return new FrozenCacheSizeService() {
             @Override
-            public void updateNodes(Set<DiscoveryNode> nodes, RerouteService rerouteService) {
-            }
+            public void updateNodes(Client client, Set<DiscoveryNode> nodes, RerouteService rerouteService) {}
         };
     }
 }

@@ -10,22 +10,25 @@ package org.elasticsearch.xpack.searchablesnapshots;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RerouteService;
-import org.elasticsearch.common.Nullable;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
@@ -34,23 +37,36 @@ import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_S
  * Keeps track of the nodes in the cluster and whether they do or do not have a frozen-tier shared cache, because we can only allocate
  * frozen-tier shards to such nodes.
  */
-public class FrozenCacheSizeService {
+public class FrozenCacheSizeService implements ClusterStateListener {
 
     private static final Logger logger = LogManager.getLogger(FrozenCacheSizeService.class);
 
+    private volatile boolean isElectedMaster;
     private final Object mutex = new Object();
-    private final SetOnce<Client> clientRef = new SetOnce<>();
 
     /**
      * The known data nodes, along with an indication whether they have a frozen cache or not
      */
     private final Map<DiscoveryNode, NodeStateHolder> nodeStates = new HashMap<>();
 
-    public void initialize(Client client) {
-        clientRef.set(Objects.requireNonNull(client));
+    public void initialize(ClusterService clusterService) {
+        clusterService.addListener(this);
     }
 
-    public void updateNodes(Set<DiscoveryNode> nodes, RerouteService rerouteService) {
+    @Override
+    public void clusterChanged(ClusterChangedEvent event) {
+        isElectedMaster = event.localNodeMaster();
+        synchronized (mutex) {
+            if (isElectedMaster == false) {
+                nodeStates.clear();
+            }
+        }
+    }
+
+    public void updateNodes(Client client, Set<DiscoveryNode> nodes, RerouteService rerouteService) {
+        if (isElectedMaster == false) {
+            return;
+        }
 
         final List<Runnable> runnables;
         synchronized (mutex) {
@@ -68,55 +84,7 @@ public class FrozenCacheSizeService {
                 assert prevState == null;
 
                 logger.trace("fetching frozen cache state for {}", newNode);
-
-                runnables.add(
-                    () -> clientRef.get()
-                        .admin()
-                        .cluster()
-                        .prepareNodesInfo(newNode.getId())
-                        .clear()
-                        .setSettings(true)
-                        .execute(new ActionListener<NodesInfoResponse>() {
-
-                            @Override
-                            public void onResponse(NodesInfoResponse nodesInfoResponse) {
-                                if (nodesInfoResponse.getNodesMap().isEmpty() == false) {
-                                    assert nodesInfoResponse.hasFailures() == false;
-                                    assert nodesInfoResponse.getNodes().size() == 1;
-                                    final NodeInfo nodeInfo = nodesInfoResponse.getNodes().get(0);
-                                    assert nodeInfo.getNode().getId().equals(newNode.getId());
-                                    final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
-                                    updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
-                                    rerouteService.reroute("frozen cache state retrieved", Priority.LOW, ActionListener.wrap(() -> {}));
-                                } else if (nodesInfoResponse.hasFailures()) {
-                                    assert nodesInfoResponse.failures().size() == 1;
-                                    recordFailure(nodesInfoResponse.failures().get(0));
-                                } else {
-                                    recordFailure(new ElasticsearchException("node not found"));
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                recordFailure(e);
-                            }
-
-                            private void updateEntry(NodeState nodeState) {
-                                assert nodeStateHolder.nodeState == NodeState.FETCHING : newNode
-                                    + " already set to "
-                                    + nodeStateHolder.nodeState;
-                                assert nodeState != NodeState.FETCHING : "cannot set " + newNode + " to " + nodeState;
-                                logger.trace("updating entry for {} to {}", newNode, nodeState);
-                                nodeStateHolder.nodeState = nodeState;
-                            }
-
-                            private void recordFailure(Exception e) {
-                                logger.debug(new ParameterizedMessage("failed to retrieve node settings from node {}", newNode), e);
-                                updateEntry(NodeState.FAILED);
-                                // TODO should a failure be permanent?
-                            }
-                        })
-                );
+                runnables.add(new AsyncNodeFetch(client, rerouteService, newNode, nodeStateHolder));
             }
         }
 
@@ -135,7 +103,6 @@ public class FrozenCacheSizeService {
      * Records whether a particular data node does/doesn't have a nonzero frozen cache.
      */
     private static class NodeStateHolder {
-        @Nullable // if not known yet
         volatile NodeState nodeState = NodeState.FETCHING;
     }
 
@@ -146,4 +113,81 @@ public class FrozenCacheSizeService {
         NO_CACHE,
         FAILED,
     }
+
+    private class AsyncNodeFetch extends AbstractRunnable {
+
+        private final Client client;
+        private final RerouteService rerouteService;
+        private final DiscoveryNode discoveryNode;
+        private final NodeStateHolder nodeStateHolder;
+
+        public AsyncNodeFetch(Client client, RerouteService rerouteService, DiscoveryNode discoveryNode, NodeStateHolder nodeStateHolder) {
+            this.client = client;
+            this.rerouteService = rerouteService;
+            this.discoveryNode = discoveryNode;
+            this.nodeStateHolder = nodeStateHolder;
+        }
+
+        @Override
+        protected void doRun() {
+            client.admin()
+                .cluster()
+                .prepareNodesInfo(discoveryNode.getId())
+                .clear()
+                .setSettings(true)
+                .execute(new ActionListener<NodesInfoResponse>() {
+
+                    @Override
+                    public void onResponse(NodesInfoResponse nodesInfoResponse) {
+                        if (nodesInfoResponse.getNodesMap().isEmpty() == false) {
+                            assert nodesInfoResponse.hasFailures() == false;
+                            assert nodesInfoResponse.getNodes().size() == 1;
+                            final NodeInfo nodeInfo = nodesInfoResponse.getNodes().get(0);
+                            assert nodeInfo.getNode().getId().equals(discoveryNode.getId());
+                            final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
+                            updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
+                            rerouteService.reroute("frozen cache state retrieved", Priority.LOW, ActionListener.wrap(() -> {}));
+                        } else if (nodesInfoResponse.hasFailures()) {
+                            assert nodesInfoResponse.failures().size() == 1;
+                            recordFailure(nodesInfoResponse.failures().get(0));
+                        } else {
+                            recordFailure(new ElasticsearchException("node not found"));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        recordFailure(e);
+                    }
+                });
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            updateEntry(NodeState.FAILED);
+        }
+
+        private void recordFailure(Exception e) {
+            logger.debug(new ParameterizedMessage("failed to retrieve node settings from node {}", discoveryNode), e);
+            final boolean shouldRetry;
+            synchronized (mutex) {
+                shouldRetry = isElectedMaster && nodeStates.get(discoveryNode) == nodeStateHolder;
+            }
+            if (shouldRetry) {
+                client.threadPool()
+                    .scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(1), ThreadPool.Names.GENERIC, AsyncNodeFetch.this);
+            } else {
+                updateEntry(NodeState.FAILED);
+            }
+        }
+
+        private void updateEntry(NodeState nodeState) {
+            assert nodeStateHolder.nodeState == NodeState.FETCHING : discoveryNode + " already set to " + nodeStateHolder.nodeState;
+            assert nodeState != NodeState.FETCHING : "cannot set " + discoveryNode + " to " + nodeState;
+            logger.trace("updating entry for {} to {}", discoveryNode, nodeState);
+            nodeStateHolder.nodeState = nodeState;
+        }
+
+    }
+
 }

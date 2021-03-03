@@ -345,7 +345,7 @@ public class SearchableSnapshots extends Plugin implements IndexStorePlugin, Eng
         }
         this.allocator.set(new SearchableSnapshotAllocator(client, clusterService.getRerouteService(), frozenCacheSizeService));
         components.add(new CacheServiceSupplier(cacheService.get()));
-        frozenCacheSizeService.initialize(client);
+        frozenCacheSizeService.initialize(clusterService);
         return Collections.unmodifiableList(components);
     }
 
