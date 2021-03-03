@@ -61,7 +61,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotsService;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.cluster.routing.allocation.DataTierAllocationDecider;
 import org.elasticsearch.xpack.core.DataTier;
 import org.elasticsearch.xpack.core.searchablesnapshots.MountSearchableSnapshotAction;
@@ -398,7 +397,6 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.xpack.searchablesnapshots.FrozenCacheSizeService:TRACE")
     public void testCreateAndRestorePartialSearchableSnapshot() throws Exception {
         final String fsRepoName = randomAlphaOfLength(10);
         final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);

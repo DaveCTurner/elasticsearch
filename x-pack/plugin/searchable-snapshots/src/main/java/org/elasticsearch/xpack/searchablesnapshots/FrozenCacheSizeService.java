@@ -22,8 +22,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,7 +69,8 @@ public class FrozenCacheSizeService implements ClusterStateListener {
         }
 
         final Set<DiscoveryNode> nodes = StreamSupport.stream(event.state().nodes().getDataNodes().values().spliterator(), false)
-                .map(c -> c.value).collect(Collectors.toSet());
+            .map(c -> c.value)
+            .collect(Collectors.toSet());
 
         final List<Runnable> runnables;
         synchronized (mutex) {
@@ -90,50 +89,55 @@ public class FrozenCacheSizeService implements ClusterStateListener {
 
                 logger.trace("fetching frozen cache state for {}", newNode);
 
-                runnables.add(() -> clientRef.get().admin().cluster()
+                runnables.add(
+                    () -> clientRef.get()
+                        .admin()
+                        .cluster()
                         .prepareNodesInfo(newNode.getId())
                         .clear()
                         .setSettings(true)
                         .execute(new ActionListener<NodesInfoResponse>() {
 
-                    @Override
-                    public void onResponse(NodesInfoResponse nodesInfoResponse) {
-                        if (nodesInfoResponse.getNodesMap().isEmpty() == false) {
-                            assert nodesInfoResponse.hasFailures() == false;
-                            assert nodesInfoResponse.getNodes().size() == 1;
-                            final NodeInfo nodeInfo = nodesInfoResponse.getNodes().get(0);
-                            assert nodeInfo.getNode().getId().equals(newNode.getId());
-                            final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
-                            updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
-                            clusterService.getRerouteService().reroute("frozen cache state retrieved", Priority.LOW,
-                                    ActionListener.wrap(() -> {}));
-                        } else if (nodesInfoResponse.hasFailures()) {
-                            assert nodesInfoResponse.failures().size() == 1;
-                            recordFailure(nodesInfoResponse.failures().get(0));
-                        } else {
-                            recordFailure(new ElasticsearchException("node not found"));
-                        }
-                    }
+                            @Override
+                            public void onResponse(NodesInfoResponse nodesInfoResponse) {
+                                if (nodesInfoResponse.getNodesMap().isEmpty() == false) {
+                                    assert nodesInfoResponse.hasFailures() == false;
+                                    assert nodesInfoResponse.getNodes().size() == 1;
+                                    final NodeInfo nodeInfo = nodesInfoResponse.getNodes().get(0);
+                                    assert nodeInfo.getNode().getId().equals(newNode.getId());
+                                    final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
+                                    updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
+                                    clusterService.getRerouteService()
+                                        .reroute("frozen cache state retrieved", Priority.LOW, ActionListener.wrap(() -> {}));
+                                } else if (nodesInfoResponse.hasFailures()) {
+                                    assert nodesInfoResponse.failures().size() == 1;
+                                    recordFailure(nodesInfoResponse.failures().get(0));
+                                } else {
+                                    recordFailure(new ElasticsearchException("node not found"));
+                                }
+                            }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        recordFailure(e);
-                    }
+                            @Override
+                            public void onFailure(Exception e) {
+                                recordFailure(e);
+                            }
 
-                    private void updateEntry(NodeState nodeState) {
-                        assert nodeStateHolder.nodeState == NodeState.FETCHING : newNode + " already set to " + nodeStateHolder.nodeState;
-                        assert nodeState != NodeState.FETCHING : "cannot set " + newNode + " to " + nodeState;
-                        logger.trace("updating entry for {} to {}", newNode, nodeState);
-                        nodeStateHolder.nodeState = nodeState;
-                    }
+                            private void updateEntry(NodeState nodeState) {
+                                assert nodeStateHolder.nodeState == NodeState.FETCHING : newNode
+                                    + " already set to "
+                                    + nodeStateHolder.nodeState;
+                                assert nodeState != NodeState.FETCHING : "cannot set " + newNode + " to " + nodeState;
+                                logger.trace("updating entry for {} to {}", newNode, nodeState);
+                                nodeStateHolder.nodeState = nodeState;
+                            }
 
-                    private void recordFailure(Exception e) {
-                        assert nodeStateHolder.nodeState == null : "already set for " + newNode;
-                        logger.debug(new ParameterizedMessage("failed to retrieve node settings from node {}", newNode), e);
-                        updateEntry(NodeState.FAILED);
-                        // TODO should a failure be permanent?
-                    }
-                }));
+                            private void recordFailure(Exception e) {
+                                logger.debug(new ParameterizedMessage("failed to retrieve node settings from node {}", newNode), e);
+                                updateEntry(NodeState.FAILED);
+                                // TODO should a failure be permanent?
+                            }
+                        })
+                );
             }
         }
 

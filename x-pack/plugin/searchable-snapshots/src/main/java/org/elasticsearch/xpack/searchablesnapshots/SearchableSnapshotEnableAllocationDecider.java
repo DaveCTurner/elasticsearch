@@ -14,12 +14,9 @@ import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
-import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
-
-import java.io.IOException;
 
 public class SearchableSnapshotEnableAllocationDecider extends AllocationDecider {
 
@@ -100,4 +97,3 @@ public class SearchableSnapshotEnableAllocationDecider extends AllocationDecider
         }
     }
 }
-

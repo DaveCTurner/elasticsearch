@@ -14,8 +14,6 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
-import org.elasticsearch.cluster.service.ClusterApplier;
-import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.common.settings.Settings;
 
 import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
@@ -25,15 +23,25 @@ public class HasFrozenCacheAllocationDecider extends AllocationDecider {
 
     private static final String NAME = "has_frozen_cache";
 
-    private static final Decision STILL_FETCHING = Decision.single(Decision.Type.THROTTLE, NAME,
-            "state of frozen cache on this node is not known yet");
+    private static final Decision STILL_FETCHING = Decision.single(
+        Decision.Type.THROTTLE,
+        NAME,
+        "value of [" + SNAPSHOT_CACHE_SIZE_SETTING.getKey() + "] on this node is not known yet"
+    );
 
-    private static final Decision HAS_FROZEN_CACHE = Decision.single(Decision.Type.YES, NAME,
-            "this node has a frozen searchable snapshot shard cache");
+    private static final Decision HAS_FROZEN_CACHE = Decision.single(
+        Decision.Type.YES,
+        NAME,
+        "this node has a frozen searchable snapshot shard cache"
+    );
 
-    private static final Decision NO_FROZEN_CACHE = Decision.single(Decision.Type.NO, NAME,
-            "this node has no frozen searchable snapshot shard cache, which is controlled by setting [" +
-                    SNAPSHOT_CACHE_SIZE_SETTING.getKey() + "]");
+    private static final Decision NO_FROZEN_CACHE = Decision.single(
+        Decision.Type.NO,
+        NAME,
+        "node setting ["
+            + SNAPSHOT_CACHE_SIZE_SETTING.getKey()
+            + "] is set to zero, so frozen searchable snapshot shards cannot be allocated to this node"
+    );
 
     private final FrozenCacheSizeService frozenCacheService;
 
@@ -65,7 +73,7 @@ public class HasFrozenCacheAllocationDecider extends AllocationDecider {
         final Settings indexSettings = indexMetadata.getSettings();
 
         if (SearchableSnapshotsConstants.isSearchableSnapshotStore(indexSettings) == false
-                || SNAPSHOT_PARTIAL_SETTING.get(indexSettings) == false) {
+            || SNAPSHOT_PARTIAL_SETTING.get(indexSettings) == false) {
             return Decision.ALWAYS;
         }
 
