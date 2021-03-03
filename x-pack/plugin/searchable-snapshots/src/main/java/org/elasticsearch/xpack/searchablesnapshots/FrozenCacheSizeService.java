@@ -160,8 +160,7 @@ public class FrozenCacheSizeService implements ClusterStateListener {
             }
             if (shouldRetry) {
                 // failure is likely something like a CircuitBreakingException, so there's no sense in an immediate retry
-                client.threadPool()
-                    .scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(1), ThreadPool.Names.SAME, AsyncNodeFetch.this);
+                client.threadPool().scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(1), ThreadPool.Names.SAME, AsyncNodeFetch.this);
             } else {
                 updateEntry(NodeState.FAILED);
             }

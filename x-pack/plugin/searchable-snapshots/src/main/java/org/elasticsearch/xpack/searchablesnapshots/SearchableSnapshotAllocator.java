@@ -108,9 +108,7 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
         if (hasPartialIndices) {
             frozenCacheSizeService.updateNodes(
                 client,
-                StreamSupport.stream(allocation.nodes().getDataNodes().values().spliterator(), false)
-                    .map(c -> c.value)
-                    .collect(Collectors.toSet()),
+                StreamSupport.stream(allocation.routingNodes().spliterator(), false).map(RoutingNode::node).collect(Collectors.toSet()),
                 rerouteService
             );
         } else {

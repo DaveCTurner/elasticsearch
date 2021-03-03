@@ -15,11 +15,13 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.NodeAllocationResult;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
+import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -34,13 +36,16 @@ import org.elasticsearch.xpack.core.searchablesnapshots.MountSearchableSnapshotR
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider.CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING;
 import static org.elasticsearch.index.IndexSettings.INDEX_SOFT_DELETES_SETTING;
 import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
@@ -144,6 +149,18 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
     }
 
     public void testPartialSearchableSnapshotDelaysAllocationUntilNodeCacheStatesKnown() throws Exception {
+
+        assertAcked(
+            client().admin()
+                .cluster()
+                .prepareUpdateSettings()
+                .setPersistentSettings(
+                    Settings.builder()
+                        // forbid rebalancing, we want to check that the initial allocation is balanced
+                        .put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), EnableAllocationDecider.Allocation.NONE)
+                )
+        );
+
         final MountSearchableSnapshotRequest req = prepareMountRequest();
 
         final ListenableActionFuture<Void> nodeInfoBlock = new ListenableActionFuture<>();
@@ -223,7 +240,7 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
             TransportService.class,
             newNodes.get(0)
         );
-        final Semaphore failurePermits = new Semaphore(2);
+        final Semaphore failurePermits = new Semaphore(between(0, 2));
         transportService.addRequestHandlingBehavior(NodesInfoAction.NAME + "[n]", (handler, request, channel, task) -> {
             if (failurePermits.tryAcquire()) {
                 channel.sendResponse(new ElasticsearchException("simulated"));
@@ -237,6 +254,27 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnap
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
         ensureGreen(req.mountedIndexName());
         assertFalse("should have failed before success", failurePermits.tryAcquire());
+
+        final Map<String, Integer> shardCountsByNodeName = new HashMap<>();
+        final ClusterState state = client().admin().cluster().prepareState().clear().setRoutingTable(true).setNodes(true).get().getState();
+        for (RoutingNode routingNode : state.getRoutingNodes()) {
+            shardCountsByNodeName.put(
+                routingNode.node().getName(),
+                routingNode.numberOfOwningShardsForIndex(state.routingTable().index(req.mountedIndexName()).getIndex())
+            );
+        }
+
+        assertTrue(
+            "balanced across " + newNodes + " in " + state,
+            Math.abs(shardCountsByNodeName.get(newNodes.get(0)) - shardCountsByNodeName.get(newNodes.get(1))) <= 1
+        );
+
+        assertAcked(
+            client().admin()
+                .cluster()
+                .prepareUpdateSettings()
+                .setPersistentSettings(Settings.builder().putNull(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey()))
+        );
     }
 
 }
