@@ -99,21 +99,6 @@ public class FrozenCacheSizeService implements ClusterStateListener {
         return nodeStateHolder == null ? NodeState.UNKNOWN : nodeStateHolder.nodeState;
     }
 
-    /**
-     * Records whether a particular data node does/doesn't have a nonzero frozen cache.
-     */
-    private static class NodeStateHolder {
-        volatile NodeState nodeState = NodeState.FETCHING;
-    }
-
-    public enum NodeState {
-        UNKNOWN,
-        FETCHING,
-        HAS_CACHE,
-        NO_CACHE,
-        FAILED,
-    }
-
     private class AsyncNodeFetch extends AbstractRunnable {
 
         private final Client client;
@@ -174,8 +159,9 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                 shouldRetry = isElectedMaster && nodeStates.get(discoveryNode) == nodeStateHolder;
             }
             if (shouldRetry) {
+                // failure is likely something like a CircuitBreakingException, so there's no sense in an immediate retry
                 client.threadPool()
-                    .scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(1), ThreadPool.Names.GENERIC, AsyncNodeFetch.this);
+                    .scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(1), ThreadPool.Names.SAME, AsyncNodeFetch.this);
             } else {
                 updateEntry(NodeState.FAILED);
             }
@@ -188,6 +174,21 @@ public class FrozenCacheSizeService implements ClusterStateListener {
             nodeStateHolder.nodeState = nodeState;
         }
 
+    }
+
+    /**
+     * Records whether a particular data node does/doesn't have a nonzero frozen cache.
+     */
+    private static class NodeStateHolder {
+        volatile NodeState nodeState = NodeState.FETCHING;
+    }
+
+    public enum NodeState {
+        UNKNOWN,
+        FETCHING,
+        HAS_CACHE,
+        NO_CACHE,
+        FAILED,
     }
 
 }
