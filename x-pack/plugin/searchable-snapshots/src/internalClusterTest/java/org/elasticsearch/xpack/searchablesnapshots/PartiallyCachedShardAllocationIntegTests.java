@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.searchablesnapshots;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainResponse;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplanation;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
@@ -49,7 +49,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 
-public class PartiallyCachedShardAllocationIntegTestCase extends BaseSearchableSnapshotsIntegTestCase {
+public class PartiallyCachedShardAllocationIntegTests extends BaseSearchableSnapshotsIntegTestCase {
 
     @Override
     protected Settings nodeSettings(int nodeOrdinal) {
@@ -176,7 +176,8 @@ public class PartiallyCachedShardAllocationIntegTestCase extends BaseSearchableS
             });
         }
 
-        internalCluster().startDataOnlyNode(
+        final List<String> newNodes = internalCluster().startDataOnlyNodes(
+            2,
             Settings.builder()
                 .put(SNAPSHOT_CACHE_SIZE_SETTING.getKey(), new ByteSizeValue(randomLongBetween(1, ByteSizeValue.ofMb(10).getBytes())))
                 .build()
@@ -186,41 +187,49 @@ public class PartiallyCachedShardAllocationIntegTestCase extends BaseSearchableS
         assertBusy(() -> {
             try {
                 final ClusterAllocationExplanation explanation = client().admin()
-                        .cluster()
-                        .prepareAllocationExplain()
-                        .setPrimary(true)
-                        .setIndex(req.mountedIndexName())
-                        .setShard(0)
-                        .get()
-                        .getExplanation();
-                assertTrue(                        Strings.toString(explanation),
-                        explanation.getShardAllocationDecision().isDecisionTaken()
-                        );
+                    .cluster()
+                    .prepareAllocationExplain()
+                    .setPrimary(true)
+                    .setIndex(req.mountedIndexName())
+                    .setShard(0)
+                    .get()
+                    .getExplanation();
+                assertTrue(Strings.toString(explanation), explanation.getShardAllocationDecision().isDecisionTaken());
 
-                assertThat(Strings.toString(explanation),
-                        explanation.getShardAllocationDecision().getAllocateDecision().getAllocationStatus(),
-                        equalTo(UnassignedInfo.AllocationStatus.DECIDERS_THROTTLED)
-                        );
+                assertThat(
+                    Strings.toString(explanation),
+                    explanation.getShardAllocationDecision().getAllocateDecision().getAllocationStatus(),
+                    equalTo(UnassignedInfo.AllocationStatus.DECIDERS_THROTTLED)
+                );
 
-                        assertThat(
-                        Strings.toString(explanation),
-                        explanation.getShardAllocationDecision()
-                                .getAllocateDecision()
-                                .getNodeDecisions()
+                assertThat(
+                    Strings.toString(explanation),
+                    explanation.getShardAllocationDecision()
+                        .getAllocateDecision()
+                        .getNodeDecisions()
+                        .stream()
+                        .flatMap(
+                            nodeAllocationResult -> nodeAllocationResult.getCanAllocateDecision()
+                                .getDecisions()
                                 .stream()
-                                .flatMap(
-                                        nodeAllocationResult -> nodeAllocationResult.getCanAllocateDecision()
-                                                .getDecisions()
-                                                .stream()
-                                                .map(Decision::getExplanation)
-                                )
-                                .collect(Collectors.toList()),
-                        hasItem(allOf(containsString(SNAPSHOT_CACHE_SIZE_SETTING.getKey()), containsString("not known yet")))
+                                .map(Decision::getExplanation)
+                        )
+                        .collect(Collectors.toList()),
+                    hasItem(allOf(containsString(SNAPSHOT_CACHE_SIZE_SETTING.getKey()), containsString("not known yet")))
                 );
             } catch (IndexNotFoundException e) {
                 throw new AssertionError("not restored yet", e);
             }
         });
+
+        final MockTransportService transportService = (MockTransportService) internalCluster().getInstance(
+            TransportService.class,
+            newNodes.get(0)
+        );
+        transportService.addRequestHandlingBehavior(
+            NodesInfoAction.NAME + "[n]",
+            (handler, request, channel, task) -> channel.sendResponse(new ElasticsearchException("simulated"))
+        );
 
         nodeInfoBlock.onResponse(null);
         final RestoreSnapshotResponse restoreSnapshotResponse = responseFuture.actionGet(10, TimeUnit.SECONDS);

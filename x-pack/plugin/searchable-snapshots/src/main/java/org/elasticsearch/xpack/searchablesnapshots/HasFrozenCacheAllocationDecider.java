@@ -43,6 +43,12 @@ public class HasFrozenCacheAllocationDecider extends AllocationDecider {
             + "] is set to zero, so frozen searchable snapshot shards cannot be allocated to this node"
     );
 
+    private static final Decision UNKNOWN_FROZEN_CACHE = Decision.single(
+        Decision.Type.NO,
+        NAME,
+        "there was an error fetching the frozen cache state from this node"
+    );
+
     private final FrozenCacheSizeService frozenCacheService;
 
     public HasFrozenCacheAllocationDecider(FrozenCacheSizeService frozenCacheService) {
@@ -82,6 +88,8 @@ public class HasFrozenCacheAllocationDecider extends AllocationDecider {
                 return HAS_FROZEN_CACHE;
             case NO_CACHE:
                 return NO_FROZEN_CACHE;
+            case FAILED:
+                return UNKNOWN_FROZEN_CACHE;
             default:
                 return STILL_FETCHING;
         }

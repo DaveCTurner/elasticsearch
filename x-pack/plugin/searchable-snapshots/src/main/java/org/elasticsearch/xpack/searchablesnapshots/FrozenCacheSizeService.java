@@ -16,10 +16,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterChangedEvent;
-import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
 
@@ -29,8 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_SETTING;
 
@@ -38,39 +34,23 @@ import static org.elasticsearch.snapshots.SnapshotsService.SNAPSHOT_CACHE_SIZE_S
  * Keeps track of the nodes in the cluster and whether they do or do not have a frozen-tier shared cache, because we can only allocate
  * frozen-tier shards to such nodes.
  */
-public class FrozenCacheSizeService implements ClusterStateListener {
+public class FrozenCacheSizeService {
 
     private static final Logger logger = LogManager.getLogger(FrozenCacheSizeService.class);
 
     private final Object mutex = new Object();
     private final SetOnce<Client> clientRef = new SetOnce<>();
-    private final SetOnce<ClusterService> clusterServiceRef = new SetOnce<>();
 
     /**
      * The known data nodes, along with an indication whether they have a frozen cache or not
      */
     private final Map<DiscoveryNode, NodeStateHolder> nodeStates = new HashMap<>();
 
-    public void initialize(Client client, ClusterService clusterService) {
+    public void initialize(Client client) {
         clientRef.set(Objects.requireNonNull(client));
-        clusterServiceRef.set(Objects.requireNonNull(clusterService));
-        clusterService.addListener(this);
     }
 
-    @Override
-    public void clusterChanged(ClusterChangedEvent event) {
-        assert clientRef.get() != null;
-        final ClusterService clusterService = clusterServiceRef.get();
-        assert clusterService != null;
-
-        if (clusterService.localNode().isMasterNode() == false) {
-            clusterService.removeListener(this);
-            return;
-        }
-
-        final Set<DiscoveryNode> nodes = StreamSupport.stream(event.state().nodes().getDataNodes().values().spliterator(), false)
-            .map(c -> c.value)
-            .collect(Collectors.toSet());
+    public void updateNodes(Set<DiscoveryNode> nodes, RerouteService rerouteService) {
 
         final List<Runnable> runnables;
         synchronized (mutex) {
@@ -107,8 +87,7 @@ public class FrozenCacheSizeService implements ClusterStateListener {
                                     assert nodeInfo.getNode().getId().equals(newNode.getId());
                                     final boolean hasFrozenCache = SNAPSHOT_CACHE_SIZE_SETTING.get(nodeInfo.getSettings()).getBytes() > 0;
                                     updateEntry(hasFrozenCache ? NodeState.HAS_CACHE : NodeState.NO_CACHE);
-                                    clusterService.getRerouteService()
-                                        .reroute("frozen cache state retrieved", Priority.LOW, ActionListener.wrap(() -> {}));
+                                    rerouteService.reroute("frozen cache state retrieved", Priority.LOW, ActionListener.wrap(() -> {}));
                                 } else if (nodesInfoResponse.hasFailures()) {
                                     assert nodesInfoResponse.failures().size() == 1;
                                     recordFailure(nodesInfoResponse.failures().get(0));
