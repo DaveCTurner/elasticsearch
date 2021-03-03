@@ -120,7 +120,7 @@ public class FrozenCacheSizeService implements ClusterStateListener {
         private final DiscoveryNode discoveryNode;
         private final NodeStateHolder nodeStateHolder;
 
-        public AsyncNodeFetch(Client client, RerouteService rerouteService, DiscoveryNode discoveryNode, NodeStateHolder nodeStateHolder) {
+        AsyncNodeFetch(Client client, RerouteService rerouteService, DiscoveryNode discoveryNode, NodeStateHolder nodeStateHolder) {
             this.client = client;
             this.rerouteService = rerouteService;
             this.discoveryNode = discoveryNode;
