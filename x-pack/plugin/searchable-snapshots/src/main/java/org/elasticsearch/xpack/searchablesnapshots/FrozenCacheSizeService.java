@@ -41,13 +41,17 @@ public class FrozenCacheSizeService implements ClusterStateListener {
 
     private static final Logger logger = LogManager.getLogger(FrozenCacheSizeService.class);
 
-    private volatile boolean isElectedMaster;
     private final Object mutex = new Object();
 
     /**
      * The known data nodes, along with an indication whether they have a frozen cache or not
      */
     private final Map<DiscoveryNode, NodeStateHolder> nodeStates = new HashMap<>();
+
+    /**
+     * Whether this node is currently the master; if not then we stop retrying any failed fetches
+     */
+    private volatile boolean isElectedMaster;
 
     public void initialize(ClusterService clusterService) {
         clusterService.addListener(this);
@@ -56,10 +60,8 @@ public class FrozenCacheSizeService implements ClusterStateListener {
     @Override
     public void clusterChanged(ClusterChangedEvent event) {
         isElectedMaster = event.localNodeMaster();
-        synchronized (mutex) {
-            if (isElectedMaster == false) {
-                nodeStates.clear();
-            }
+        if (isElectedMaster == false) {
+            clear();
         }
     }
 
@@ -97,6 +99,18 @@ public class FrozenCacheSizeService implements ClusterStateListener {
             nodeStateHolder = nodeStates.get(discoveryNode);
         }
         return nodeStateHolder == null ? NodeState.UNKNOWN : nodeStateHolder.nodeState;
+    }
+
+    public boolean isFetching() {
+        synchronized (mutex) {
+            return nodeStates.values().stream().anyMatch(nodeStateHolder -> nodeStateHolder.nodeState == NodeState.FETCHING);
+        }
+    }
+
+    public void clear() {
+        synchronized (mutex) {
+            nodeStates.clear();
+        }
     }
 
     private class AsyncNodeFetch extends AbstractRunnable {

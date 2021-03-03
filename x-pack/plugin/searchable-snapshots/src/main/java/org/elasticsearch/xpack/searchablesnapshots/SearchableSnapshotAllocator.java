@@ -80,13 +80,14 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
         }
     };
 
-    private final ConcurrentMap<ShardId, AsyncCacheStatusFetch> asyncFetchStore = ConcurrentCollections.newConcurrentMap();
-
     public static final String ALLOCATOR_NAME = "searchable_snapshot_allocator";
+
+    private final ConcurrentMap<ShardId, AsyncCacheStatusFetch> asyncFetchStore = ConcurrentCollections.newConcurrentMap();
 
     private final Client client;
 
     private final RerouteService rerouteService;
+
     private final FrozenCacheSizeService frozenCacheSizeService;
 
     public SearchableSnapshotAllocator(Client client, RerouteService rerouteService, FrozenCacheSizeService frozenCacheSizeService) {
@@ -259,6 +260,7 @@ public class SearchableSnapshotAllocator implements ExistingShardsAllocator {
     @Override
     public void cleanCaches() {
         asyncFetchStore.clear();
+        frozenCacheSizeService.clear();
     }
 
     @Override
