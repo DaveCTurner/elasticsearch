@@ -11,6 +11,7 @@ package org.elasticsearch.transport;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -207,18 +208,19 @@ public interface Transport extends LifecycleComponent {
         /**
          * Removes and returns all {@link ResponseContext} instances that match the predicate
          */
-        public List<ResponseContext<? extends TransportResponse>> prune(Predicate<ResponseContext<? extends TransportResponse>> predicate) {
-            final List<ResponseContext<? extends TransportResponse>> holders = new ArrayList<>();
+        public List<Tuple<Long, ResponseContext<? extends TransportResponse>>> prune(
+                Predicate<ResponseContext<? extends TransportResponse>> predicate) {
+            final List<Tuple<Long, ResponseContext<? extends TransportResponse>>> entries = new ArrayList<>();
             for (Map.Entry<Long, ResponseContext<? extends TransportResponse>> entry : handlers.entrySet()) {
                 ResponseContext<? extends TransportResponse> holder = entry.getValue();
                 if (predicate.test(holder)) {
                     ResponseContext<? extends TransportResponse> remove = handlers.remove(entry.getKey());
                     if (remove != null) {
-                        holders.add(holder);
+                        entries.add(Tuple.tuple(entry.getKey(), entry.getValue()));
                     }
                 }
             }
-            return holders;
+            return entries;
         }
 
         /**

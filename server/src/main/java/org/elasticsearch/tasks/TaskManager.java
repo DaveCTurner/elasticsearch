@@ -95,6 +95,8 @@ public class TaskManager implements ClusterStateApplier {
     private final Map<TcpChannel, ChannelPendingTaskTracker> channelPendingTaskTrackers = ConcurrentCollections.newConcurrentMap();
     private final SetOnce<TaskCancellationService> cancellationService = new SetOnce<>();
 
+    private final TaskTracer taskTracer = new TaskTracer();
+
     public TaskManager(Settings settings, ThreadPool threadPool, Set<String> taskHeaders) {
         this.threadPool = threadPool;
         this.taskHeaders = new ArrayList<>(taskHeaders);
@@ -139,6 +141,7 @@ public class TaskManager implements ClusterStateApplier {
             registerCancellableTask(task);
         } else {
             Task previousTask = tasks.put(task.getId(), task);
+            taskTracer.onTaskRegistered(task);
             assert previousTask == null;
         }
         return task;
@@ -188,6 +191,7 @@ public class TaskManager implements ClusterStateApplier {
         CancellableTaskHolder holder = new CancellableTaskHolder(cancellableTask);
         CancellableTaskHolder oldHolder = cancellableTasks.put(task.getId(), holder);
         assert oldHolder == null;
+        taskTracer.onTaskRegistered(task);
         // Check if this task was banned before we start it. The empty check is used to avoid
         // computing the hash code of the parent taskId as most of the time bannedParents is empty.
         if (task.getParentTaskId().isSet() && bannedParents.isEmpty() == false) {
@@ -226,16 +230,20 @@ public class TaskManager implements ClusterStateApplier {
      */
     public Task unregister(Task task) {
         logger.trace("unregister task for id: {}", task.getId());
-        if (task instanceof CancellableTask) {
-            CancellableTaskHolder holder = cancellableTasks.remove(task.getId());
-            if (holder != null) {
-                holder.finish();
-                return holder.getTask();
+        try {
+            if (task instanceof CancellableTask) {
+                CancellableTaskHolder holder = cancellableTasks.remove(task.getId());
+                if (holder != null) {
+                    holder.finish();
+                    return holder.getTask();
+                } else {
+                    return null;
+                }
             } else {
-                return null;
+                return tasks.remove(task.getId());
             }
-        } else {
-            return tasks.remove(task.getId());
+        } finally {
+            taskTracer.onTaskUnregistered(task);
         }
     }
 
@@ -722,4 +730,9 @@ public class TaskManager implements ClusterStateApplier {
             throw new IllegalStateException("TaskCancellationService is not initialized");
         }
     }
+
+    public TaskTracer getTaskTracer() {
+        return taskTracer;
+    }
+
 }

@@ -137,6 +137,7 @@ import org.elasticsearch.plugins.RepositoryPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.plugins.SystemIndexPlugin;
+import org.elasticsearch.plugins.TaskTracerPlugin;
 import org.elasticsearch.repositories.RepositoriesModule;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
@@ -156,6 +157,7 @@ import org.elasticsearch.snapshots.SnapshotsService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskCancellationService;
 import org.elasticsearch.tasks.TaskResultsService;
+import org.elasticsearch.tasks.TaskTracer;
 import org.elasticsearch.threadpool.ExecutorBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
@@ -616,6 +618,10 @@ public class Node implements Closeable {
                 new PersistentTasksClusterService(settings, registry, clusterService, threadPool);
             resourcesToClose.add(persistentTasksClusterService);
             final PersistentTasksService persistentTasksService = new PersistentTasksService(clusterService, threadPool, client);
+
+            final TaskTracer taskTracer = transportService.getTaskManager().getTaskTracer();
+            pluginsService.filterPlugins(TaskTracerPlugin.class).stream()
+                    .flatMap(p -> p.getListeners().stream()).forEach(taskTracer::addListener);
 
             modules.add(b -> {
                     b.bind(Node.class).toInstance(this);

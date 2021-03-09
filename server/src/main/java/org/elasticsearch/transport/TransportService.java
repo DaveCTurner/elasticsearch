@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -217,6 +218,7 @@ public class TransportService extends AbstractLifecycleComponent
     protected void doStart() {
         transport.setMessageListener(this);
         connectionManager.addListener(this);
+        addMessageListener(taskManager.getTaskTracer());
         transport.start();
         if (transport.boundAddress() != null && logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
@@ -241,7 +243,9 @@ public class TransportService extends AbstractLifecycleComponent
         } finally {
             // in case the transport is not connected to our local node (thus cleaned on node disconnect)
             // make sure to clean any leftover on going handles
-            for (final Transport.ResponseContext holderToNotify : responseHandlers.prune(h -> true)) {
+            for (final Tuple<Long, Transport.ResponseContext<? extends TransportResponse>> holderToNotify
+                    : responseHandlers.prune(h -> true)) {
+                taskManager.getTaskTracer().onRequestComplete(holderToNotify.v1());
                 // callback that an exception happened, but on a different thread since we don't
                 // want handlers to worry about stack overflows
                 getExecutorService().execute(new AbstractRunnable() {
@@ -251,7 +255,7 @@ public class TransportService extends AbstractLifecycleComponent
                         logger.debug(
                             () -> new ParameterizedMessage(
                                 "failed to notify response handler on rejection, action: {}",
-                                holderToNotify.action()),
+                                holderToNotify.v2().action()),
                             e);
                     }
                     @Override
@@ -259,14 +263,14 @@ public class TransportService extends AbstractLifecycleComponent
                         logger.warn(
                             () -> new ParameterizedMessage(
                                 "failed to notify response handler on exception, action: {}",
-                                holderToNotify.action()),
+                                holderToNotify.v2().action()),
                             e);
                     }
                     @Override
                     public void doRun() {
-                        TransportException ex = new SendRequestTransportException(holderToNotify.connection().getNode(),
-                            holderToNotify.action(), new NodeClosedException(localNode));
-                        holderToNotify.handler().handleException(ex);
+                        TransportException ex = new SendRequestTransportException(holderToNotify.v2().connection().getNode(),
+                            holderToNotify.v2().action(), new NodeClosedException(localNode));
+                        holderToNotify.v2().handler().handleException(ex);
                     }
                 });
             }
@@ -728,6 +732,7 @@ public class TransportService extends AbstractLifecycleComponent
                 assert options.timeout() != null;
                 timeoutHandler.scheduleTimeout(options.timeout());
             }
+            taskManager.getTaskTracer().beforeRequestSent(connection.getNode(), requestId, action, request);
             connection.sendRequest(requestId, action, request, options); // local node optimization happens upstream
         } catch (final Exception e) {
             // usually happen either because we failed to connect to the node
@@ -738,6 +743,7 @@ public class TransportService extends AbstractLifecycleComponent
                 if (timeoutHandler != null) {
                     timeoutHandler.cancel();
                 }
+                taskManager.getTaskTracer().onRequestComplete(requestId);
                 // callback that an exception happened, but on a different thread since we don't
                 // want handlers to worry about stack overflows. In the special case of running into a closing node we run on the current
                 // thread on a best effort basis though.
@@ -1019,16 +1025,17 @@ public class TransportService extends AbstractLifecycleComponent
     @Override
     public void onConnectionClosed(Transport.Connection connection) {
         try {
-            List<Transport.ResponseContext<? extends TransportResponse>> pruned =
+            List<Tuple<Long, Transport.ResponseContext<? extends TransportResponse>>> pruned =
                 responseHandlers.prune(h -> h.connection().getCacheKey().equals(connection.getCacheKey()));
             // callback that an exception happened, but on a different thread since we don't
             // want handlers to worry about stack overflows
             getExecutorService().execute(new Runnable() {
                 @Override
                 public void run() {
-                    for (Transport.ResponseContext holderToNotify : pruned) {
-                        holderToNotify.handler().handleException(
-                            new NodeDisconnectedException(connection.getNode(), holderToNotify.action()));
+                    for (Tuple<Long, Transport.ResponseContext<? extends TransportResponse>> holderToNotify : pruned) {
+                        taskManager.getTaskTracer().onRequestComplete(holderToNotify.v1());
+                        holderToNotify.v2().handler().handleException(
+                            new NodeDisconnectedException(connection.getNode(), holderToNotify.v2().action()));
                     }
                 }
 
@@ -1066,6 +1073,7 @@ public class TransportService extends AbstractLifecycleComponent
                 if (holder != null) {
                     assert holder.action().equals(action);
                     assert holder.connection().getNode().equals(node);
+                    taskManager.getTaskTracer().onRequestComplete(requestId);
                     holder.handler().handleException(
                         new ReceiveTimeoutTransportException(holder.connection().getNode(), holder.action(),
                             "request_id [" + requestId + "] timed out after [" + (timeoutTime - sentTime) + "ms]"));

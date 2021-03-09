@@ -14,6 +14,7 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.coordination.DeterministicTaskQueue;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
@@ -96,10 +97,10 @@ public class TransportServiceDeserializationFailureTests extends ESTestCase {
                         }
                     });
 
-            final List<Transport.ResponseContext<? extends TransportResponse>> responseContexts
+            final List<Tuple<Long, Transport.ResponseContext<? extends TransportResponse>>> responseContexts
                     = transport.getResponseHandlers().prune(ignored -> true);
             assertThat(responseContexts, hasSize(1));
-            final TransportResponseHandler<? extends TransportResponse> handler = responseContexts.get(0).handler();
+            final TransportResponseHandler<? extends TransportResponse> handler = responseContexts.get(0).v2().handler();
             assertThat(handler, hasToString(containsString("test handler without parent")));
         }
 
@@ -141,10 +142,10 @@ public class TransportServiceDeserializationFailureTests extends ESTestCase {
                         }
                     });
 
-            final List<Transport.ResponseContext<? extends TransportResponse>> responseContexts
+            final List<Tuple<Long, Transport.ResponseContext<? extends TransportResponse>>> responseContexts
                     = transport.getResponseHandlers().prune(ignored -> true);
             assertThat(responseContexts, hasSize(1));
-            final TransportResponseHandler<? extends TransportResponse> handler = responseContexts.get(0).handler();
+            final TransportResponseHandler<? extends TransportResponse> handler = responseContexts.get(0).v2().handler();
             assertThat(handler, hasToString(allOf(containsString("test handler with parent"), containsString(testActionName))));
         }
     }
