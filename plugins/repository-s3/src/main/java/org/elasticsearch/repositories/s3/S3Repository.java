@@ -9,6 +9,7 @@
 package org.elasticsearch.repositories.s3;
 
 import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
+import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -337,9 +338,11 @@ class S3Repository extends MeteredBlobStoreRepository {
     @Override
     public void enableVersioning() {
         final AmazonS3Reference client = service.client(metadata);
-        SocketAccess.doPrivilegedVoid(() ->
-                client.client().setBucketVersioningConfiguration(
-                        new SetBucketVersioningConfigurationRequest(bucket,
-                                new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED))));
+        SocketAccess.doPrivilegedVoid(() -> {
+            client.client().createBucket(bucket);
+            client.client().setBucketVersioningConfiguration(
+                    new SetBucketVersioningConfigurationRequest(bucket,
+                            new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED)))
+        });
     }
 }
