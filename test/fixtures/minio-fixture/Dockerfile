@@ -4,9 +4,10 @@ ARG bucket
 ARG accessKey
 ARG secretKey
 
-RUN mkdir -p /minio/data1/${bucket}
-RUN mkdir -p /minio/data2/${bucket}
-RUN mkdir -p /minio/data3/${bucket}
-RUN mkdir -p /minio/data4/${bucket}
+RUN mkdir -p /minio/data/${bucket}
+RUN mkdir -p /minio-ec/data1
+RUN mkdir -p /minio-ec/data2
+RUN mkdir -p /minio-ec/data3
+RUN mkdir -p /minio-ec/data4
 ENV MINIO_ACCESS_KEY=${accessKey}
 ENV MINIO_SECRET_KEY=${secretKey}
