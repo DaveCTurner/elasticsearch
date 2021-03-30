@@ -1288,6 +1288,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     private final AtomicReference<CachedRepositoryData> latestKnownRepositoryData =
             new AtomicReference<>(new CachedRepositoryData(RepositoryData.EMPTY_REPO_GEN, null));
 
+    public void enableVersioning() {
+    }
+
     /**
      * Cached serialized repository data or placeholder to keep track of the fact that data for a generation was too large to be cached.
      */

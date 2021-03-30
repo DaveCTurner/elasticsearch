@@ -442,6 +442,8 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
             assert failure.get() == null : "must only run action once";
             assert workerCountdown.isCountedDown() == false : "must only run action once";
 
+            repository.enableVersioning();
+
             logger.info("running analysis of repository [{}] using path [{}]", request.getRepositoryName(), blobPath);
 
             final Random random = new Random(request.getSeed());
