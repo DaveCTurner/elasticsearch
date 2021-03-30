@@ -342,7 +342,7 @@ class S3Repository extends MeteredBlobStoreRepository {
             client.client().createBucket(bucket);
             client.client().setBucketVersioningConfiguration(
                     new SetBucketVersioningConfigurationRequest(bucket,
-                            new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED)))
+                            new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED)));
         });
     }
 }
