@@ -24,7 +24,7 @@ public abstract class AbstractSnapshotRepoTestKitRestTestCase extends ESRestTest
 
         final String repository = "repository";
         logger.info("creating repository [{}] of type [{}]", repository, repositoryType);
-        registerRepository(repository, repositoryType, true, repositorySettings);
+        registerRepository(repository, repositoryType, false, repositorySettings);
 
         final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
         request.addParameter("blob_count", "10");
