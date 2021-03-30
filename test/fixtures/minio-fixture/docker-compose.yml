@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "9000"
-    command: ["server", "/minio/data"]
+    command: ["server", "/minio/data1", "/minio/data2", "/minio/data3", "/minio/data4"]
   minio-fixture-other:
     build:
       context: .
@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "9000"
-    command: ["server", "/minio/data"]
+    command: ["server", "/minio/data1", "/minio/data2", "/minio/data3", "/minio/data4"]
   minio-fixture-repository-test-kit:
     build:
       context: .
@@ -32,4 +32,4 @@ services:
       dockerfile: Dockerfile
     ports:
       - "9000"
-    command: ["server", "/minio/data"]
+    command: ["server", "/minio/data1", "/minio/data2", "/minio/data3", "/minio/data4"]
