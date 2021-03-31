@@ -291,7 +291,7 @@ public class RepositoriesServiceTests extends ESTestCase {
                 SnapshotId target,
                 RepositoryShardId shardId,
                 String shardGeneration,
-                ActionListener<ShardSnapshotResult> listener) {
+                ActionListener<String> listener) {
         }
 
         @Override

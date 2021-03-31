@@ -275,7 +275,7 @@ public interface Repository extends LifecycleComponent {
             SnapshotId target,
             RepositoryShardId shardId,
             @Nullable String shardGeneration,
-            ActionListener<ShardSnapshotResult> listener);
+            ActionListener<String> listener);
 
     /**
      * Hook that allows a repository to filter the user supplied snapshot metadata in {@link SnapshotsInProgress.Entry#userMetadata()}

@@ -416,12 +416,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void cloneShardSnapshot(
-            SnapshotId source,
-            SnapshotId target,
-            RepositoryShardId shardId,
-            @Nullable String shardGeneration,
-            ActionListener<ShardSnapshotResult> listener) {
+    public void cloneShardSnapshot(SnapshotId source, SnapshotId target, RepositoryShardId shardId,
+                                   @Nullable String shardGeneration, ActionListener<String> listener) {
         if (isReadOnly()) {
             listener.onFailure(new RepositoryException(metadata.name(), "cannot clone shard snapshot on a readonly repository"));
             return;
@@ -465,7 +461,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
             if (existingTargetFiles != null) {
                 if (existingTargetFiles.isSame(sourceFiles)) {
-                    return new ShardSnapshotResult(existingShardGen, ByteSizeValue.ZERO, -1);
+                    return existingShardGen;
                 }
                 throw new RepositoryException(metadata.name(), "Can't create clone of [" + shardId + "] for snapshot ["
                         + target + "]. A snapshot by that name already exists for this shard.");
@@ -477,8 +473,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     shardContainer, target.getUUID(), compress, bigArrays);
             INDEX_SHARD_SNAPSHOTS_FORMAT.write(existingSnapshots.withClone(source.getName(), target.getName()), shardContainer, newGen,
                     compress, bigArrays);
-            return new ShardSnapshotResult(newGen, ByteSizeValue.ZERO, -1);
+            return newGen;
         }));
+    }
+
+    private static ByteSizeValue getTotalSize(List<BlobStoreIndexShardSnapshot.FileInfo> indexFiles) {
+        return ByteSizeValue.ofBytes(indexFiles.stream().mapToLong(BlobStoreIndexShardSnapshot.FileInfo::length).sum());
     }
 
     // Inspects all cluster state elements that contain a hint about what the current repository generation is and updates
@@ -2295,7 +2295,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 }
                 afterWriteSnapBlob.run();
                 snapshotStatus.moveToDone(threadPool.absoluteTimeInMillis(), indexGeneration);
-                listener.onResponse(new ShardSnapshotResult(indexGeneration, ByteSizeValue.ZERO, -1));
+                listener.onResponse(new ShardSnapshotResult(
+                        indexGeneration,
+                        getTotalSize(indexCommitPointFiles),
+                        snapshotIndexCommit.getSegmentCount()));
             }, listener::onFailure);
             if (indexIncrementalFileCount == 0) {
                 allFilesUploadedListener.onResponse(Collections.emptyList());
