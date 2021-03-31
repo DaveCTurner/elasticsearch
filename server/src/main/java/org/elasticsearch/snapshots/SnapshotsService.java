@@ -622,9 +622,9 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
         final String localNodeId = clusterService.localNode().getId();
         if (currentlyCloning.add(repoShardId)) {
             repository.cloneShardSnapshot(sourceSnapshot, targetSnapshot, repoShardId, shardStatusBefore.generation(), ActionListener.wrap(
-                    generation -> innerUpdateSnapshotState(
+                    shardSnapshotResult -> innerUpdateSnapshotState(
                             new ShardSnapshotUpdate(target, repoShardId,
-                                    new ShardSnapshotStatus(localNodeId, ShardState.SUCCESS, generation)),
+                                    new ShardSnapshotStatus(localNodeId, ShardState.SUCCESS, shardSnapshotResult.getGeneration())),
                             ActionListener.runBefore(
                                     ActionListener.wrap(
                                             v -> logger.trace("Marked [{}] as successfully cloned from [{}] to [{}]", repoShardId,
@@ -1270,15 +1270,20 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
             }
             metadataListener.whenComplete(meta -> {
                         final Metadata metaForSnapshot = metadataForSnapshot(entry, meta);
-                        final SnapshotInfo snapshotInfo = new SnapshotInfo(snapshot.getSnapshotId(),
+                        final SnapshotInfo snapshotInfo = new SnapshotInfo(
+                                snapshot.getSnapshotId(),
                                 finalIndices,
                                 entry.partial() ? entry.dataStreams().stream()
                                         .filter(metaForSnapshot.dataStreams()::containsKey)
                                         .collect(Collectors.toList()) : entry.dataStreams(),
                                 entry.partial() ? onlySuccessfulFeatureStates(entry, finalIndices) : entry.featureStates(),
-                                failure, threadPool.absoluteTimeInMillis(),
-                                entry.partial() ? shardGenerations.totalShards() : entry.shards().size(), shardFailures,
-                                entry.includeGlobalState(), entry.userMetadata(), entry.startTime());
+                                failure,
+                                threadPool.absoluteTimeInMillis(),
+                                entry.partial() ? shardGenerations.totalShards() : entry.shards().size(),
+                                shardFailures,
+                                entry.includeGlobalState(),
+                                entry.userMetadata(),
+                                entry.startTime());
                         repo.finalizeSnapshot(
                                 shardGenerations,
                                 repositoryData.getGenId(),

@@ -114,11 +114,19 @@ public class FilterRepository implements Repository {
     }
 
     @Override
-    public void snapshotShard(Store store, MapperService mapperService, SnapshotId snapshotId, IndexId indexId,
-                              IndexCommit snapshotIndexCommit, String shardStateIdentifier, IndexShardSnapshotStatus snapshotStatus,
-                              Version repositoryMetaVersion, Map<String, Object> userMetadata, ActionListener<String> listener) {
+    public void snapshotShard(
+            Store store,
+            MapperService mapperService,
+            SnapshotId snapshotId,
+            IndexId indexId,
+            IndexCommit snapshotIndexCommit,
+            String shardStateIdentifier,
+            IndexShardSnapshotStatus snapshotStatus,
+            Version repositoryMetaVersion,
+            Map<String, Object> userMetadata,
+            ActionListener<ShardSnapshotResult> listener) {
         in.snapshotShard(store, mapperService, snapshotId, indexId, snapshotIndexCommit, shardStateIdentifier, snapshotStatus,
-            repositoryMetaVersion, userMetadata, listener);
+                repositoryMetaVersion, userMetadata, listener);
     }
     @Override
     public void restoreShard(Store store, SnapshotId snapshotId, IndexId indexId, ShardId snapshotShardId, RecoveryState recoveryState,
@@ -143,8 +151,12 @@ public class FilterRepository implements Repository {
     }
 
     @Override
-    public void cloneShardSnapshot(SnapshotId source, SnapshotId target, RepositoryShardId shardId, String shardGeneration,
-                                   ActionListener<String> listener) {
+    public void cloneShardSnapshot(
+            SnapshotId source,
+            SnapshotId target,
+            RepositoryShardId shardId,
+            String shardGeneration,
+            ActionListener<ShardSnapshotResult> listener) {
         in.cloneShardSnapshot(source, target, shardId, shardGeneration, listener);
     }
 

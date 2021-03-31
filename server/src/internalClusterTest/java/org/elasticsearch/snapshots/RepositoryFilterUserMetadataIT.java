@@ -27,6 +27,7 @@ import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.ShardGenerations;
+import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.test.ESIntegTestCase;
 
@@ -87,13 +88,29 @@ public class RepositoryFilterUserMetadataIT extends ESIntegTestCase {
                     }
 
                     @Override
-                    public void snapshotShard(Store store, MapperService mapperService, SnapshotId snapshotId, IndexId indexId,
-                                              IndexCommit snapshotIndexCommit, String shardStateIdentifier,
-                                              IndexShardSnapshotStatus snapshotStatus, Version repositoryMetaVersion,
-                                              Map<String, Object> userMetadata, ActionListener<String> listener) {
+                    public void snapshotShard(
+                            Store store,
+                            MapperService mapperService,
+                            SnapshotId snapshotId,
+                            IndexId indexId,
+                            IndexCommit snapshotIndexCommit,
+                            String shardStateIdentifier,
+                            IndexShardSnapshotStatus snapshotStatus,
+                            Version repositoryMetaVersion,
+                            Map<String, Object> userMetadata,
+                            ActionListener<ShardSnapshotResult> listener) {
                         assertThat(userMetadata, is(Collections.singletonMap(MOCK_FILTERED_META, initialMetaValue)));
-                        super.snapshotShard(store, mapperService, snapshotId, indexId, snapshotIndexCommit, shardStateIdentifier,
-                            snapshotStatus, repositoryMetaVersion, userMetadata, listener);
+                        super.snapshotShard(
+                                store,
+                                mapperService,
+                                snapshotId,
+                                indexId,
+                                snapshotIndexCommit,
+                                shardStateIdentifier,
+                                snapshotStatus,
+                                repositoryMetaVersion,
+                                userMetadata,
+                                listener);
                     }
 
                     @Override

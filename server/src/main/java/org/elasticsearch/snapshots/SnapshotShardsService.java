@@ -44,6 +44,7 @@ import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.ShardGenerations;
+import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.action.ResultDeduplicator;
@@ -250,7 +251,8 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 snapshot(shardId, snapshot, indexId, entry.userMetadata(), snapshotStatus, entry.version(),
                     new ActionListener<>() {
                         @Override
-                        public void onResponse(String newGeneration) {
+                        public void onResponse(ShardSnapshotResult shardSnapshotResult) {
+                            final String newGeneration = shardSnapshotResult.getGeneration();
                             assert newGeneration != null;
                             assert newGeneration.equals(snapshotStatus.generation());
                             if (logger.isDebugEnabled()) {
@@ -308,7 +310,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
      * @param snapshotStatus snapshot status
      */
     private void snapshot(final ShardId shardId, final Snapshot snapshot, final IndexId indexId, final Map<String, Object> userMetadata,
-                          final IndexShardSnapshotStatus snapshotStatus, Version version, ActionListener<String> listener) {
+                          final IndexShardSnapshotStatus snapshotStatus, Version version, ActionListener<ShardSnapshotResult> listener) {
         try {
             final IndexShard indexShard = indicesService.indexServiceSafe(shardId.getIndex()).getShardOrNull(shardId.id());
             if (indexShard.routingEntry().primary() == false) {
@@ -330,9 +332,17 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
             try {
                 snapshotRef = indexShard.acquireIndexCommitForSnapshot();
                 final IndexCommit snapshotIndexCommit = snapshotRef.getIndexCommit();
-                repository.snapshotShard(indexShard.store(), indexShard.mapperService(), snapshot.getSnapshotId(), indexId,
-                    snapshotRef.getIndexCommit(), getShardStateId(indexShard, snapshotIndexCommit), snapshotStatus, version, userMetadata,
-                    ActionListener.runBefore(listener, snapshotRef::close));
+                repository.snapshotShard(
+                        indexShard.store(),
+                        indexShard.mapperService(),
+                        snapshot.getSnapshotId(),
+                        indexId,
+                        snapshotRef.getIndexCommit(),
+                        getShardStateId(indexShard, snapshotIndexCommit),
+                        snapshotStatus,
+                        version,
+                        userMetadata,
+                        ActionListener.runBefore(listener, snapshotRef::close));
             } catch (Exception e) {
                 IOUtils.close(snapshotRef);
                 throw e;

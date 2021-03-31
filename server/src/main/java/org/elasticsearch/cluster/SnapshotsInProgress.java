@@ -83,12 +83,32 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
      * Creates the initial {@link Entry} when starting a snapshot, if no shard-level snapshot work is to be done the resulting entry
      * will be in state {@link State#SUCCESS} right away otherwise it will be in state {@link State#STARTED}.
      */
-    public static Entry startedEntry(Snapshot snapshot, boolean includeGlobalState, boolean partial, List<IndexId> indices,
-        List<String> dataStreams, long startTime, long repositoryStateId, ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards,
-        Map<String, Object> userMetadata, Version version, List<SnapshotFeatureInfo> featureStates) {
-        return new SnapshotsInProgress.Entry(snapshot, includeGlobalState, partial,
+    public static Entry startedEntry(
+            Snapshot snapshot,
+            boolean includeGlobalState,
+            boolean partial,
+            List<IndexId> indices,
+            List<String> dataStreams,
+            long startTime,
+            long repositoryStateId,
+            ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards,
+            Map<String, Object> userMetadata,
+            Version version,
+            List<SnapshotFeatureInfo> featureStates) {
+        return new SnapshotsInProgress.Entry(
+                snapshot,
+                includeGlobalState,
+                partial,
                 completed(shards.values()) ? State.SUCCESS : State.STARTED,
-                indices, dataStreams, featureStates, startTime, repositoryStateId, shards, null, userMetadata, version);
+                indices,
+                dataStreams,
+                featureStates,
+                startTime,
+                repositoryStateId,
+                shards,
+                null,
+                userMetadata,
+                version);
     }
 
     /**
@@ -102,11 +122,29 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
      * @param version repository metadata version to write
      * @return snapshot clone entry
      */
-    public static Entry startClone(Snapshot snapshot, SnapshotId source, List<IndexId> indices, long startTime,
-                                   long repositoryStateId, Version version) {
-        return new SnapshotsInProgress.Entry(snapshot, true, false, State.STARTED, indices, Collections.emptyList(),
-            Collections.emptyList(), startTime, repositoryStateId, ImmutableOpenMap.of(), null, Collections.emptyMap(), version, source,
-            ImmutableOpenMap.of());
+    public static Entry startClone(
+            Snapshot snapshot,
+            SnapshotId source,
+            List<IndexId> indices,
+            long startTime,
+            long repositoryStateId,
+            Version version) {
+        return new SnapshotsInProgress.Entry(
+                snapshot,
+                true,
+                false,
+                State.STARTED,
+                indices,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                startTime,
+                repositoryStateId,
+                ImmutableOpenMap.of(),
+                null,
+                Collections.emptyMap(),
+                version,
+                source,
+                ImmutableOpenMap.of());
     }
 
     public static class Entry implements Writeable, ToXContent, RepositoryOperation {
@@ -142,19 +180,40 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
         @Nullable private final String failure;
 
         // visible for testing, use #startedEntry and copy constructors in production code
-        public Entry(Snapshot snapshot, boolean includeGlobalState, boolean partial, State state, List<IndexId> indices,
-                     List<String> dataStreams, List<SnapshotFeatureInfo> featureStates, long startTime, long repositoryStateId,
-                     ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards, String failure, Map<String, Object> userMetadata,
-                     Version version) {
+        public Entry(
+                Snapshot snapshot,
+                boolean includeGlobalState,
+                boolean partial,
+                State state,
+                List<IndexId> indices,
+                List<String> dataStreams,
+                List<SnapshotFeatureInfo> featureStates,
+                long startTime,
+                long repositoryStateId,
+                ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards,
+                String failure,
+                Map<String, Object> userMetadata,
+                Version version) {
             this(snapshot, includeGlobalState, partial, state, indices, dataStreams, featureStates, startTime, repositoryStateId, shards,
-                failure, userMetadata, version, null, ImmutableOpenMap.of());
+                    failure, userMetadata, version, null, ImmutableOpenMap.of());
         }
 
-        private Entry(Snapshot snapshot, boolean includeGlobalState, boolean partial, State state, List<IndexId> indices,
-                      List<String> dataStreams, List<SnapshotFeatureInfo> featureStates, long startTime, long repositoryStateId,
-                      ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards, String failure, Map<String, Object> userMetadata,
-                      Version version, @Nullable SnapshotId source,
-                      @Nullable ImmutableOpenMap<RepositoryShardId, ShardSnapshotStatus> clones) {
+        private Entry(
+                Snapshot snapshot,
+                boolean includeGlobalState,
+                boolean partial,
+                State state,
+                List<IndexId> indices,
+                List<String> dataStreams,
+                List<SnapshotFeatureInfo> featureStates,
+                long startTime,
+                long repositoryStateId,
+                ImmutableOpenMap<ShardId, ShardSnapshotStatus> shards,
+                String failure,
+                Map<String, Object> userMetadata,
+                Version version,
+                @Nullable SnapshotId source,
+                @Nullable ImmutableOpenMap<RepositoryShardId, ShardSnapshotStatus> clones) {
             this.state = state;
             this.snapshot = snapshot;
             this.includeGlobalState = includeGlobalState;
