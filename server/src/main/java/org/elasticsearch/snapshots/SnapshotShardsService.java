@@ -260,7 +260,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                 logger.debug("[{}][{}] completed snapshot to [{}] with status [{}] at generation [{}]",
                                     shardId, snapshot, snapshot.getRepository(), lastSnapshotStatus, snapshotStatus.generation());
                             }
-                            notifySuccessfulSnapshotShard(snapshot, shardId, newGeneration);
+                            notifySuccessfulSnapshotShard(snapshot, shardId, shardSnapshotResult);
                         }
 
                         @Override
@@ -405,7 +405,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                 // but we think the shard is done - we need to make new master know that the shard is done
                                 logger.debug("[{}] new master thinks the shard [{}] is not completed but the shard is done locally, " +
                                              "updating status on the master", snapshot.snapshot(), shardId);
-                                notifySuccessfulSnapshotShard(snapshot.snapshot(), shardId, localShard.getValue().generation());
+                                notifySuccessfulSnapshotShard(snapshot.snapshot(), shardId, localShard.getValue().getShardSnapshotResult());
 
                             } else if (stage == Stage.FAILURE) {
                                 // but we think the shard failed - we need to make new master know that the shard failed
@@ -421,10 +421,11 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
     }
 
     /** Notify the master node that the given shard has been successfully snapshotted **/
-    private void notifySuccessfulSnapshotShard(final Snapshot snapshot, final ShardId shardId, String generation) {
-        assert generation != null;
+    private void notifySuccessfulSnapshotShard(final Snapshot snapshot, final ShardId shardId, ShardSnapshotResult shardSnapshotResult) {
+        assert shardSnapshotResult != null;
+        assert shardSnapshotResult.getGeneration() != null;
         sendSnapshotShardUpdate(snapshot, shardId,
-            new ShardSnapshotStatus(clusterService.localNode().getId(), ShardState.SUCCESS, generation));
+            new ShardSnapshotStatus(clusterService.localNode().getId(), ShardState.SUCCESS, shardSnapshotResult.getGeneration()));
     }
 
     /** Notify the master node that the given shard failed to be snapshotted **/

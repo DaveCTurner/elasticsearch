@@ -2294,11 +2294,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     throw new IndexShardSnapshotFailedException(shardId, "Failed to write commit point", e);
                 }
                 afterWriteSnapBlob.run();
-                snapshotStatus.moveToDone(threadPool.absoluteTimeInMillis(), indexGeneration);
-                listener.onResponse(new ShardSnapshotResult(
+                final ShardSnapshotResult shardSnapshotResult = new ShardSnapshotResult(
                         indexGeneration,
                         getTotalSize(indexCommitPointFiles),
-                        snapshotIndexCommit.getSegmentCount()));
+                        snapshotIndexCommit.getSegmentCount());
+                snapshotStatus.moveToDone(threadPool.absoluteTimeInMillis(), shardSnapshotResult);
+                listener.onResponse(shardSnapshotResult);
             }, listener::onFailure);
             if (indexIncrementalFileCount == 0) {
                 allFilesUploadedListener.onResponse(Collections.emptyList());
