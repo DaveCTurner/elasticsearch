@@ -48,13 +48,19 @@ public abstract class PeerFinder {
     public static final String REQUEST_PEERS_ACTION_NAME = "internal:discovery/request_peers";
 
     // the time between attempts to find all peers
-    public static final Setting<TimeValue> DISCOVERY_FIND_PEERS_INTERVAL_SETTING =
-        Setting.timeSetting("discovery.find_peers_interval",
-            TimeValue.timeValueMillis(1000), TimeValue.timeValueMillis(1), Setting.Property.NodeScope);
+    public static final Setting<TimeValue> DISCOVERY_FIND_PEERS_INTERVAL_SETTING = Setting.timeSetting(
+        "discovery.find_peers_interval",
+        TimeValue.timeValueMillis(1000),
+        TimeValue.timeValueMillis(1),
+        Setting.Property.NodeScope
+    );
 
-    public static final Setting<TimeValue> DISCOVERY_REQUEST_PEERS_TIMEOUT_SETTING =
-        Setting.timeSetting("discovery.request_peers_timeout",
-            TimeValue.timeValueMillis(3000), TimeValue.timeValueMillis(1), Setting.Property.NodeScope);
+    public static final Setting<TimeValue> DISCOVERY_REQUEST_PEERS_TIMEOUT_SETTING = Setting.timeSetting(
+        "discovery.request_peers_timeout",
+        TimeValue.timeValueMillis(3000),
+        TimeValue.timeValueMillis(1),
+        Setting.Property.NodeScope
+    );
 
     private final TimeValue findPeersInterval;
     private final TimeValue requestPeersTimeout;
@@ -71,17 +77,26 @@ public abstract class PeerFinder {
     private Optional<DiscoveryNode> leader = Optional.empty();
     private volatile List<TransportAddress> lastResolvedAddresses = emptyList();
 
-    public PeerFinder(Settings settings, TransportService transportService, TransportAddressConnector transportAddressConnector,
-                      ConfiguredHostsResolver configuredHostsResolver) {
+    public PeerFinder(
+        Settings settings,
+        TransportService transportService,
+        TransportAddressConnector transportAddressConnector,
+        ConfiguredHostsResolver configuredHostsResolver
+    ) {
         findPeersInterval = DISCOVERY_FIND_PEERS_INTERVAL_SETTING.get(settings);
         requestPeersTimeout = DISCOVERY_REQUEST_PEERS_TIMEOUT_SETTING.get(settings);
         this.transportService = transportService;
         this.transportAddressConnector = transportAddressConnector;
         this.configuredHostsResolver = configuredHostsResolver;
 
-        transportService.registerRequestHandler(REQUEST_PEERS_ACTION_NAME, Names.GENERIC, false, false,
+        transportService.registerRequestHandler(
+            REQUEST_PEERS_ACTION_NAME,
+            Names.GENERIC,
+            false,
+            false,
             PeersRequest::new,
-            (request, channel, task) -> channel.sendResponse(handlePeersRequest(request)));
+            (request, channel, task) -> channel.sendResponse(handlePeersRequest(request))
+        );
     }
 
     public void activate(final DiscoveryNodes lastAcceptedNodes) {
@@ -209,8 +224,12 @@ public abstract class PeerFinder {
 
     private List<DiscoveryNode> getFoundPeersUnderLock() {
         assert holdsLock() : "PeerFinder mutex not held";
-        return peersByAddress.values().stream()
-            .map(Peer::getDiscoveryNode).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        return peersByAddress.values()
+            .stream()
+            .map(Peer::getDiscoveryNode)
+            .filter(Objects::nonNull)
+            .distinct()
+            .collect(Collectors.toList());
     }
 
     private Peer createConnectingPeer(TransportAddress transportAddress) {
@@ -421,19 +440,25 @@ public abstract class PeerFinder {
                     return Names.GENERIC;
                 }
             };
-            transportService.sendRequest(discoveryNode, REQUEST_PEERS_ACTION_NAME,
+            transportService.sendRequest(
+                discoveryNode,
+                REQUEST_PEERS_ACTION_NAME,
                 new PeersRequest(getLocalNode(), knownNodes),
                 TransportRequestOptions.timeout(requestPeersTimeout),
-                peersResponseHandler);
+                peersResponseHandler
+            );
         }
 
         @Override
         public String toString() {
-            return "Peer{" +
-                "transportAddress=" + transportAddress +
-                ", discoveryNode=" + discoveryNode.get() +
-                ", peersRequestInFlight=" + peersRequestInFlight +
-                '}';
+            return "Peer{"
+                + "transportAddress="
+                + transportAddress
+                + ", discoveryNode="
+                + discoveryNode.get()
+                + ", peersRequestInFlight="
+                + peersRequestInFlight
+                + '}';
         }
     }
 }

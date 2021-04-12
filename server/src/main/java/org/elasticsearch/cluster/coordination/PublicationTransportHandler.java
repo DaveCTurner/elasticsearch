@@ -72,23 +72,39 @@ public class PublicationTransportHandler {
     private final AtomicLong incompatibleClusterStateDiffReceivedCount = new AtomicLong();
     private final AtomicLong compatibleClusterStateDiffReceivedCount = new AtomicLong();
     // -> no need to put a timeout on the options here, because we want the response to eventually be received
-    //  and not log an error if it arrives after the timeout
-    private static final TransportRequestOptions STATE_REQUEST_OPTIONS =
-            TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE);
+    // and not log an error if it arrives after the timeout
+    private static final TransportRequestOptions STATE_REQUEST_OPTIONS = TransportRequestOptions.of(
+        null,
+        TransportRequestOptions.Type.STATE
+    );
 
-    public PublicationTransportHandler(TransportService transportService, NamedWriteableRegistry namedWriteableRegistry,
-                                       Function<PublishRequest, PublishWithJoinResponse> handlePublishRequest,
-                                       BiConsumer<ApplyCommitRequest, ActionListener<Void>> handleApplyCommit) {
+    public PublicationTransportHandler(
+        TransportService transportService,
+        NamedWriteableRegistry namedWriteableRegistry,
+        Function<PublishRequest, PublishWithJoinResponse> handlePublishRequest,
+        BiConsumer<ApplyCommitRequest, ActionListener<Void>> handleApplyCommit
+    ) {
         this.transportService = transportService;
         this.namedWriteableRegistry = namedWriteableRegistry;
         this.handlePublishRequest = handlePublishRequest;
 
-        transportService.registerRequestHandler(PUBLISH_STATE_ACTION_NAME, ThreadPool.Names.GENERIC, false, false,
-            BytesTransportRequest::new, (request, channel, task) -> channel.sendResponse(handleIncomingPublishRequest(request)));
+        transportService.registerRequestHandler(
+            PUBLISH_STATE_ACTION_NAME,
+            ThreadPool.Names.GENERIC,
+            false,
+            false,
+            BytesTransportRequest::new,
+            (request, channel, task) -> channel.sendResponse(handleIncomingPublishRequest(request))
+        );
 
-        transportService.registerRequestHandler(COMMIT_STATE_ACTION_NAME, ThreadPool.Names.GENERIC, false, false,
+        transportService.registerRequestHandler(
+            COMMIT_STATE_ACTION_NAME,
+            ThreadPool.Names.GENERIC,
+            false,
+            false,
             ApplyCommitRequest::new,
-            (request, channel, task) -> handleApplyCommit.accept(request, transportCommitCallback(channel)));
+            (request, channel, task) -> handleApplyCommit.accept(request, transportCommitCallback(channel))
+        );
     }
 
     private ActionListener<Void> transportCommitCallback(TransportChannel channel) {
@@ -119,7 +135,8 @@ public class PublicationTransportHandler {
         return new PublishClusterStateStats(
             fullClusterStateReceivedCount.get(),
             incompatibleClusterStateDiffReceivedCount.get(),
-            compatibleClusterStateDiffReceivedCount.get());
+            compatibleClusterStateDiffReceivedCount.get()
+        );
     }
 
     private PublishWithJoinResponse handleIncomingPublishRequest(BytesTransportRequest request) throws IOException {
@@ -137,13 +154,12 @@ public class PublicationTransportHandler {
                 // Close early to release resources used by the de-compression as early as possible
                 try (StreamInput input = in) {
                     incomingState = ClusterState.readFrom(input, transportService.getLocalNode());
-                } catch (Exception e){
+                } catch (Exception e) {
                     logger.warn("unexpected error while deserializing an incoming cluster state", e);
                     throw e;
                 }
                 fullClusterStateReceivedCount.incrementAndGet();
-                logger.debug("received full cluster state version [{}] with size [{}]", incomingState.version(),
-                    request.bytes().length());
+                logger.debug("received full cluster state version [{}] with size [{}]", incomingState.version(), request.bytes().length());
                 final PublishWithJoinResponse response = acceptState(incomingState);
                 lastSeenClusterState.set(incomingState);
                 return response;
@@ -165,13 +181,17 @@ public class PublicationTransportHandler {
                     } catch (IncompatibleClusterStateVersionException e) {
                         incompatibleClusterStateDiffReceivedCount.incrementAndGet();
                         throw e;
-                    } catch (Exception e){
+                    } catch (Exception e) {
                         logger.warn("unexpected error while deserializing an incoming cluster state", e);
                         throw e;
                     }
                     compatibleClusterStateDiffReceivedCount.incrementAndGet();
-                    logger.debug("received diff cluster state version [{}] with uuid [{}], diff size [{}]",
-                        incomingState.version(), incomingState.stateUUID(), request.bytes().length());
+                    logger.debug(
+                        "received diff cluster state version [{}] with uuid [{}], diff size [{}]",
+                        incomingState.version(),
+                        incomingState.stateUUID(),
+                        request.bytes().length()
+                    );
                     final PublishWithJoinResponse response = acceptState(incomingState);
                     lastSeenClusterState.compareAndSet(lastSeen, incomingState);
                     return response;
@@ -213,8 +233,12 @@ public class PublicationTransportHandler {
             clusterState.writeTo(stream);
         }
         final BytesReference serializedState = bStream.bytes();
-        logger.trace("serialized full cluster state version [{}] for node version [{}] with size [{}]",
-            clusterState.version(), nodeVersion, serializedState.length());
+        logger.trace(
+            "serialized full cluster state version [{}] for node version [{}] with size [{}]",
+            clusterState.version(),
+            nodeVersion,
+            serializedState.length()
+        );
         return serializedState;
     }
 
@@ -265,8 +289,12 @@ public class PublicationTransportHandler {
                         if (serializedDiffs.containsKey(node.getVersion()) == false) {
                             final BytesReference serializedDiff = serializeDiffClusterState(diff, node.getVersion());
                             serializedDiffs.put(node.getVersion(), serializedDiff);
-                            logger.trace("serialized cluster state diff for version [{}] in for node version [{}] with size [{}]",
-                                newState.version(), node.getVersion(), serializedDiff.length());
+                            logger.trace(
+                                "serialized cluster state diff for version [{}] in for node version [{}] with size [{}]",
+                                newState.version(),
+                                node.getVersion(),
+                                serializedDiff.length()
+                            );
                         }
                     }
                 } catch (IOException e) {
@@ -275,8 +303,11 @@ public class PublicationTransportHandler {
             }
         }
 
-        public void sendPublishRequest(DiscoveryNode destination, PublishRequest publishRequest,
-                                       ActionListener<PublishWithJoinResponse> listener) {
+        public void sendPublishRequest(
+            DiscoveryNode destination,
+            PublishRequest publishRequest,
+            ActionListener<PublishWithJoinResponse> listener
+        ) {
             assert publishRequest.getAcceptedState() == newState : "state got switched on us";
             assert transportService.getThreadPool().getThreadContext().isSystemContext();
             final ActionListener<PublishWithJoinResponse> responseActionListener;
@@ -311,10 +342,17 @@ public class PublicationTransportHandler {
             }
         }
 
-        public void sendApplyCommit(DiscoveryNode destination, ApplyCommitRequest applyCommitRequest,
-                                    ActionListener<TransportResponse.Empty> listener) {
+        public void sendApplyCommit(
+            DiscoveryNode destination,
+            ApplyCommitRequest applyCommitRequest,
+            ActionListener<TransportResponse.Empty> listener
+        ) {
             assert transportService.getThreadPool().getThreadContext().isSystemContext();
-            transportService.sendRequest(destination, COMMIT_STATE_ACTION_NAME, applyCommitRequest, STATE_REQUEST_OPTIONS,
+            transportService.sendRequest(
+                destination,
+                COMMIT_STATE_ACTION_NAME,
+                applyCommitRequest,
+                STATE_REQUEST_OPTIONS,
                 new TransportResponseHandler<TransportResponse.Empty>() {
 
                     @Override
@@ -336,7 +374,8 @@ public class PublicationTransportHandler {
                     public String executor() {
                         return ThreadPool.Names.GENERIC;
                     }
-                });
+                }
+            );
         }
 
         private void sendFullClusterState(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {
@@ -346,8 +385,10 @@ public class PublicationTransportHandler {
                     bytes = serializeFullClusterState(newState, destination.getVersion());
                     serializedStates.put(destination.getVersion(), bytes);
                 } catch (Exception e) {
-                    logger.warn(() -> new ParameterizedMessage(
-                        "failed to serialize cluster state before publishing it to node {}", destination), e);
+                    logger.warn(
+                        () -> new ParameterizedMessage("failed to serialize cluster state before publishing it to node {}", destination),
+                        e
+                    );
                     listener.onFailure(e);
                     return;
                 }
@@ -357,13 +398,20 @@ public class PublicationTransportHandler {
 
         private void sendClusterStateDiff(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {
             final BytesReference bytes = serializedDiffs.get(destination.getVersion());
-            assert bytes != null
-                : "failed to find serialized diff for node " + destination + " of version [" + destination.getVersion() + "]";
+            assert bytes != null : "failed to find serialized diff for node "
+                + destination
+                + " of version ["
+                + destination.getVersion()
+                + "]";
             sendClusterState(destination, bytes, true, listener);
         }
 
-        private void sendClusterState(DiscoveryNode destination, BytesReference bytes, boolean retryWithFullClusterStateOnFailure,
-                                      ActionListener<PublishWithJoinResponse> listener) {
+        private void sendClusterState(
+            DiscoveryNode destination,
+            BytesReference bytes,
+            boolean retryWithFullClusterStateOnFailure,
+            ActionListener<PublishWithJoinResponse> listener
+        ) {
             try {
                 final BytesTransportRequest request = new BytesTransportRequest(bytes, destination.getVersion());
                 final Consumer<TransportException> transportExceptionHandler = exp -> {
@@ -375,29 +423,29 @@ public class PublicationTransportHandler {
                         listener.onFailure(exp);
                     }
                 };
-                final TransportResponseHandler<PublishWithJoinResponse> responseHandler =
-                    new TransportResponseHandler<PublishWithJoinResponse>() {
+                final TransportResponseHandler<PublishWithJoinResponse> responseHandler = new TransportResponseHandler<
+                    PublishWithJoinResponse>() {
 
-                        @Override
-                        public PublishWithJoinResponse read(StreamInput in) throws IOException {
-                            return new PublishWithJoinResponse(in);
-                        }
+                    @Override
+                    public PublishWithJoinResponse read(StreamInput in) throws IOException {
+                        return new PublishWithJoinResponse(in);
+                    }
 
-                        @Override
-                        public void handleResponse(PublishWithJoinResponse response) {
-                            listener.onResponse(response);
-                        }
+                    @Override
+                    public void handleResponse(PublishWithJoinResponse response) {
+                        listener.onResponse(response);
+                    }
 
-                        @Override
-                        public void handleException(TransportException exp) {
-                            transportExceptionHandler.accept(exp);
-                        }
+                    @Override
+                    public void handleException(TransportException exp) {
+                        transportExceptionHandler.accept(exp);
+                    }
 
-                        @Override
-                        public String executor() {
-                            return ThreadPool.Names.GENERIC;
-                        }
-                    };
+                    @Override
+                    public String executor() {
+                        return ThreadPool.Names.GENERIC;
+                    }
+                };
                 transportService.sendRequest(destination, PUBLISH_STATE_ACTION_NAME, request, STATE_REQUEST_OPTIONS, responseHandler);
             } catch (Exception e) {
                 logger.warn(() -> new ParameterizedMessage("error sending cluster state to {}", destination), e);

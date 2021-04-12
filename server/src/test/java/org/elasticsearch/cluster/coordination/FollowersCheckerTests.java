@@ -72,8 +72,8 @@ public class FollowersCheckerTests extends ESTestCase {
         final DiscoveryNode localNode = new DiscoveryNode("local-node", buildNewFakeTransportAddress(), Version.CURRENT);
         final Settings settings = Settings.builder().put(NODE_NAME_SETTING.getKey(), localNode.getName()).build();
 
-        final DiscoveryNodes[] discoveryNodesHolder
-            = new DiscoveryNodes[]{DiscoveryNodes.builder().add(localNode).localNodeId(localNode.getId()).build()};
+        final DiscoveryNodes[] discoveryNodesHolder = new DiscoveryNodes[] {
+            DiscoveryNodes.builder().add(localNode).localNodeId(localNode.getId()).build() };
 
         final DeterministicTaskQueue deterministicTaskQueue = new DeterministicTaskQueue(settings, random());
 
@@ -93,16 +93,24 @@ public class FollowersCheckerTests extends ESTestCase {
             }
         };
 
-        final TransportService transportService = mockTransport.createTransportService(settings, deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR, boundTransportAddress -> localNode, null, emptySet());
+        final TransportService transportService = mockTransport.createTransportService(
+            settings,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            boundTransportAddress -> localNode,
+            null,
+            emptySet()
+        );
         transportService.start();
         transportService.acceptIncomingRequests();
 
-        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService, fcr -> {
-            assert false : fcr;
-        }, (node, reason) -> {
-            assert false : node;
-        }, () -> new StatusInfo(StatusInfo.Status.HEALTHY, "healthy-info"));
+        final FollowersChecker followersChecker = new FollowersChecker(
+            settings,
+            transportService,
+            fcr -> { assert false : fcr; },
+            (node, reason) -> { assert false : node; },
+            () -> new StatusInfo(StatusInfo.Status.HEALTHY, "healthy-info")
+        );
 
         followersChecker.setCurrentNodes(discoveryNodesHolder[0]);
         deterministicTaskQueue.runAllTasks();
@@ -138,8 +146,9 @@ public class FollowersCheckerTests extends ESTestCase {
 
         checkedNodes.clear();
         checkCount.set(0);
-        followersChecker.setCurrentNodes(discoveryNodesHolder[0]
-            = DiscoveryNodes.builder(discoveryNodesHolder[0]).remove(otherNode1).build());
+        followersChecker.setCurrentNodes(
+            discoveryNodesHolder[0] = DiscoveryNodes.builder(discoveryNodesHolder[0]).remove(otherNode1).build()
+        );
         while (checkCount.get() < 10) {
             if (deterministicTaskQueue.hasRunnableTasks()) {
                 deterministicTaskQueue.runRandomTask();
@@ -158,21 +167,25 @@ public class FollowersCheckerTests extends ESTestCase {
 
     public void testFailsNodeThatDoesNotRespond() {
         final Settings settings = randomSettings();
-        testBehaviourOfFailingNode(settings, () -> null,
+        testBehaviourOfFailingNode(
+            settings,
+            () -> null,
             "followers check retry count exceeded",
             (FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings) - 1) * FOLLOWER_CHECK_INTERVAL_SETTING.get(settings).millis()
                 + FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings) * FOLLOWER_CHECK_TIMEOUT_SETTING.get(settings).millis(),
-            () -> new StatusInfo(HEALTHY, "healthy-info"));
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
     }
 
     public void testFailsNodeThatRejectsCheck() {
         final Settings settings = randomSettings();
-        testBehaviourOfFailingNode(settings, () -> {
-                throw new ElasticsearchException("simulated exception");
-            },
+        testBehaviourOfFailingNode(
+            settings,
+            () -> { throw new ElasticsearchException("simulated exception"); },
             "followers check retry count exceeded",
             (FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings) - 1) * FOLLOWER_CHECK_INTERVAL_SETTING.get(settings).millis(),
-            () -> new StatusInfo(HEALTHY, "healthy-info"));
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
     }
 
     public void testFailureCounterResetsOnSuccess() {
@@ -182,28 +195,34 @@ public class FollowersCheckerTests extends ESTestCase {
 
         // passes just enough checks to keep it alive, up to maxRecoveries, and then fails completely
         testBehaviourOfFailingNode(settings, new Supplier<Empty>() {
-                private int checkIndex;
-                private int recoveries;
+            private int checkIndex;
+            private int recoveries;
 
-                @Override
-                public Empty get() {
-                    checkIndex++;
-                    if (checkIndex % retryCount == 0 && recoveries < maxRecoveries) {
-                        recoveries++;
-                        return Empty.INSTANCE;
-                    }
-                    throw new ElasticsearchException("simulated exception");
+            @Override
+            public Empty get() {
+                checkIndex++;
+                if (checkIndex % retryCount == 0 && recoveries < maxRecoveries) {
+                    recoveries++;
+                    return Empty.INSTANCE;
                 }
-            },
+                throw new ElasticsearchException("simulated exception");
+            }
+        },
             "followers check retry count exceeded",
-            (FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings) * (maxRecoveries + 1) - 1)
-                * FOLLOWER_CHECK_INTERVAL_SETTING.get(settings).millis(), () -> new StatusInfo(HEALTHY, "healthy-info"));
+            (FOLLOWER_CHECK_RETRY_COUNT_SETTING.get(settings) * (maxRecoveries + 1) - 1) * FOLLOWER_CHECK_INTERVAL_SETTING.get(settings)
+                .millis(),
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
     }
 
     public void testFailsNodeThatIsDisconnected() {
-        testBehaviourOfFailingNode(Settings.EMPTY, () -> {
-            throw new ConnectTransportException(null, "simulated exception");
-        }, "disconnected", 0, () -> new StatusInfo(HEALTHY, "healthy-info"));
+        testBehaviourOfFailingNode(
+            Settings.EMPTY,
+            () -> { throw new ConnectTransportException(null, "simulated exception"); },
+            "disconnected",
+            0,
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
     }
 
     public void testFailsNodeThatDisconnects() {
@@ -217,11 +236,10 @@ public class FollowersCheckerTests extends ESTestCase {
             protected void onSendRequest(long requestId, String action, TransportRequest request, DiscoveryNode node) {
                 assertFalse(node.equals(localNode));
                 if (action.equals(HANDSHAKE_ACTION_NAME)) {
-                    handleResponse(requestId, new TransportService.HandshakeResponse(
-                            Version.CURRENT,
-                            Build.CURRENT.hash(),
-                            node,
-                            ClusterName.DEFAULT));
+                    handleResponse(
+                        requestId,
+                        new TransportService.HandshakeResponse(Version.CURRENT, Build.CURRENT.hash(), node, ClusterName.DEFAULT)
+                    );
                     return;
                 }
                 deterministicTaskQueue.scheduleNow(new Runnable() {
@@ -238,19 +256,29 @@ public class FollowersCheckerTests extends ESTestCase {
             }
         };
 
-        final TransportService transportService = mockTransport.createTransportService(settings, deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR, boundTransportAddress -> localNode, null, emptySet());
+        final TransportService transportService = mockTransport.createTransportService(
+            settings,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            boundTransportAddress -> localNode,
+            null,
+            emptySet()
+        );
         transportService.start();
         transportService.acceptIncomingRequests();
 
         final AtomicBoolean nodeFailed = new AtomicBoolean();
 
-        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService, fcr -> {
-            assert false : fcr;
-        }, (node, reason) -> {
-            assertTrue(nodeFailed.compareAndSet(false, true));
-            assertThat(reason, equalTo("disconnected"));
-        }, () -> new StatusInfo(HEALTHY, "healthy-info"));
+        final FollowersChecker followersChecker = new FollowersChecker(
+            settings,
+            transportService,
+            fcr -> { assert false : fcr; },
+            (node, reason) -> {
+                assertTrue(nodeFailed.compareAndSet(false, true));
+                assertThat(reason, equalTo("disconnected"));
+            },
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
 
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).add(otherNode).localNodeId(localNode.getId()).build();
         followersChecker.setCurrentNodes(discoveryNodes);
@@ -263,13 +291,22 @@ public class FollowersCheckerTests extends ESTestCase {
     }
 
     public void testFailsNodeThatIsUnhealthy() {
-        testBehaviourOfFailingNode(randomSettings(), () -> {
-                throw new NodeHealthCheckFailureException("non writable exception");
-            }, "health check failed", 0, () -> new StatusInfo(HEALTHY, "healthy-info"));
+        testBehaviourOfFailingNode(
+            randomSettings(),
+            () -> { throw new NodeHealthCheckFailureException("non writable exception"); },
+            "health check failed",
+            0,
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
     }
 
-    private void testBehaviourOfFailingNode(Settings testSettings, Supplier<TransportResponse.Empty> responder, String failureReason,
-                                            long expectedFailureTime, NodeHealthService nodeHealthService) {
+    private void testBehaviourOfFailingNode(
+        Settings testSettings,
+        Supplier<TransportResponse.Empty> responder,
+        String failureReason,
+        long expectedFailureTime,
+        NodeHealthService nodeHealthService
+    ) {
         final DiscoveryNode localNode = new DiscoveryNode("local-node", buildNewFakeTransportAddress(), Version.CURRENT);
         final DiscoveryNode otherNode = new DiscoveryNode("other-node", buildNewFakeTransportAddress(), Version.CURRENT);
         final Settings settings = Settings.builder().put(NODE_NAME_SETTING.getKey(), localNode.getName()).put(testSettings).build();
@@ -305,19 +342,29 @@ public class FollowersCheckerTests extends ESTestCase {
             }
         };
 
-        final TransportService transportService = mockTransport.createTransportService(settings, deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR, boundTransportAddress -> localNode, null, emptySet());
+        final TransportService transportService = mockTransport.createTransportService(
+            settings,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            boundTransportAddress -> localNode,
+            null,
+            emptySet()
+        );
         transportService.start();
         transportService.acceptIncomingRequests();
 
         final AtomicBoolean nodeFailed = new AtomicBoolean();
 
-        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService, fcr -> {
-            assert false : fcr;
-        }, (node, reason) -> {
-            assertTrue(nodeFailed.compareAndSet(false, true));
-            assertThat(reason, equalTo(failureReason));
-        }, nodeHealthService);
+        final FollowersChecker followersChecker = new FollowersChecker(
+            settings,
+            transportService,
+            fcr -> { assert false : fcr; },
+            (node, reason) -> {
+                assertTrue(nodeFailed.compareAndSet(false, true));
+                assertThat(reason, equalTo(failureReason));
+            },
+            nodeHealthService
+        );
 
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).add(otherNode).localNodeId(localNode.getId()).build();
         followersChecker.setCurrentNodes(discoveryNodes);
@@ -366,20 +413,26 @@ public class FollowersCheckerTests extends ESTestCase {
 
     public void testFollowerCheckRequestEqualsHashCodeSerialization() {
         // Note: the explicit cast of the CopyFunction is needed for some IDE (specifically Eclipse 4.8.0) to infer the right type
-        EqualsHashCodeTestUtils.checkEqualsAndHashCode(new FollowerCheckRequest(randomNonNegativeLong(),
-                new DiscoveryNode(randomAlphaOfLength(10), buildNewFakeTransportAddress(), Version.CURRENT)),
+        EqualsHashCodeTestUtils.checkEqualsAndHashCode(
+            new FollowerCheckRequest(
+                randomNonNegativeLong(),
+                new DiscoveryNode(randomAlphaOfLength(10), buildNewFakeTransportAddress(), Version.CURRENT)
+            ),
             (CopyFunction<FollowerCheckRequest>) rq -> copyWriteable(rq, writableRegistry(), FollowerCheckRequest::new),
             rq -> {
                 if (randomBoolean()) {
-                    return new FollowerCheckRequest(rq.getTerm(),
-                        new DiscoveryNode(randomAlphaOfLength(10), buildNewFakeTransportAddress(), Version.CURRENT));
+                    return new FollowerCheckRequest(
+                        rq.getTerm(),
+                        new DiscoveryNode(randomAlphaOfLength(10), buildNewFakeTransportAddress(), Version.CURRENT)
+                    );
                 } else {
                     return new FollowerCheckRequest(randomNonNegativeLong(), rq.getSender());
                 }
-            });
+            }
+        );
     }
 
-    public void testUnhealthyNodeRejectsImmediately(){
+    public void testUnhealthyNodeRejectsImmediately() {
 
         final DiscoveryNode leader = new DiscoveryNode("leader", buildNewFakeTransportAddress(), Version.CURRENT);
         final DiscoveryNode follower = new DiscoveryNode("follower", buildNewFakeTransportAddress(), Version.CURRENT);
@@ -393,30 +446,36 @@ public class FollowersCheckerTests extends ESTestCase {
             }
         };
 
-        final TransportService transportService = mockTransport.createTransportService(settings, deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR, boundTransportAddress -> follower, null, emptySet());
+        final TransportService transportService = mockTransport.createTransportService(
+            settings,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            boundTransportAddress -> follower,
+            null,
+            emptySet()
+        );
         transportService.start();
         transportService.acceptIncomingRequests();
 
         final AtomicBoolean calledCoordinator = new AtomicBoolean();
         final AtomicReference<RuntimeException> coordinatorException = new AtomicReference<>();
 
-        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService,
-            fcr -> {
-                assertTrue(calledCoordinator.compareAndSet(false, true));
-                final RuntimeException exception = coordinatorException.get();
-                if (exception != null) {
-                    throw exception;
-                }
-            }, (node, reason) -> {
-            assert false : node;
-        }, () -> new StatusInfo(UNHEALTHY, "unhealthy-info"));
+        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService, fcr -> {
+            assertTrue(calledCoordinator.compareAndSet(false, true));
+            final RuntimeException exception = coordinatorException.get();
+            if (exception != null) {
+                throw exception;
+            }
+        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(UNHEALTHY, "unhealthy-info"));
 
         final long leaderTerm = randomLongBetween(2, Long.MAX_VALUE);
         final long followerTerm = randomLongBetween(1, leaderTerm - 1);
         followersChecker.updateFastResponseState(followerTerm, Mode.FOLLOWER);
         final AtomicReference<TransportException> receivedException = new AtomicReference<>();
-        transportService.sendRequest(follower, FOLLOWER_CHECK_ACTION_NAME, new FollowerCheckRequest(leaderTerm, leader),
+        transportService.sendRequest(
+            follower,
+            FOLLOWER_CHECK_ACTION_NAME,
+            new FollowerCheckRequest(leaderTerm, leader),
             new TransportResponseHandler.Empty() {
                 @Override
                 public void handleResponse(TransportResponse.Empty response) {
@@ -428,7 +487,8 @@ public class FollowersCheckerTests extends ESTestCase {
                     assertThat(exp, not(nullValue()));
                     assertTrue(receivedException.compareAndSet(null, exp));
                 }
-            });
+            }
+        );
         deterministicTaskQueue.runAllTasks();
         assertFalse(calledCoordinator.get());
         assertThat(receivedException.get(), not(nullValue()));
@@ -447,24 +507,27 @@ public class FollowersCheckerTests extends ESTestCase {
             }
         };
 
-        final TransportService transportService = mockTransport.createTransportService(settings, deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR, boundTransportAddress -> follower, null, emptySet());
+        final TransportService transportService = mockTransport.createTransportService(
+            settings,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            boundTransportAddress -> follower,
+            null,
+            emptySet()
+        );
         transportService.start();
         transportService.acceptIncomingRequests();
 
         final AtomicBoolean calledCoordinator = new AtomicBoolean();
         final AtomicReference<RuntimeException> coordinatorException = new AtomicReference<>();
 
-        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService,
-            fcr -> {
-                assertTrue(calledCoordinator.compareAndSet(false, true));
-                final RuntimeException exception = coordinatorException.get();
-                if (exception != null) {
-                    throw exception;
-                }
-            }, (node, reason) -> {
-            assert false : node;
-        }, () -> new StatusInfo(HEALTHY, "healthy-info"));
+        final FollowersChecker followersChecker = new FollowersChecker(settings, transportService, fcr -> {
+            assertTrue(calledCoordinator.compareAndSet(false, true));
+            final RuntimeException exception = coordinatorException.get();
+            if (exception != null) {
+                throw exception;
+            }
+        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(HEALTHY, "healthy-info"));
 
         {
             // Does not call into the coordinator in the normal case
@@ -485,7 +548,10 @@ public class FollowersCheckerTests extends ESTestCase {
             followersChecker.updateFastResponseState(followerTerm, Mode.FOLLOWER);
 
             final AtomicReference<TransportException> receivedException = new AtomicReference<>();
-            transportService.sendRequest(follower, FOLLOWER_CHECK_ACTION_NAME, new FollowerCheckRequest(leaderTerm, leader),
+            transportService.sendRequest(
+                follower,
+                FOLLOWER_CHECK_ACTION_NAME,
+                new FollowerCheckRequest(leaderTerm, leader),
                 new TransportResponseHandler.Empty() {
                     @Override
                     public void handleResponse(TransportResponse.Empty response) {
@@ -497,7 +563,8 @@ public class FollowersCheckerTests extends ESTestCase {
                         assertThat(exp, not(nullValue()));
                         assertTrue(receivedException.compareAndSet(null, exp));
                     }
-                });
+                }
+            );
             deterministicTaskQueue.runAllTasks();
             assertFalse(calledCoordinator.get());
             assertThat(receivedException.get(), not(nullValue()));
@@ -510,8 +577,12 @@ public class FollowersCheckerTests extends ESTestCase {
             followersChecker.updateFastResponseState(followerTerm, Mode.FOLLOWER);
 
             final ExpectsSuccess expectsSuccess = new ExpectsSuccess();
-            transportService.sendRequest(follower, FOLLOWER_CHECK_ACTION_NAME,
-                new FollowerCheckRequest(leaderTerm, leader), expectsSuccess);
+            transportService.sendRequest(
+                follower,
+                FOLLOWER_CHECK_ACTION_NAME,
+                new FollowerCheckRequest(leaderTerm, leader),
+                expectsSuccess
+            );
             deterministicTaskQueue.runAllTasks();
             assertTrue(expectsSuccess.succeeded());
             assertTrue(calledCoordinator.get());
@@ -539,7 +610,10 @@ public class FollowersCheckerTests extends ESTestCase {
             coordinatorException.set(new ElasticsearchException(exceptionMessage));
 
             final AtomicReference<TransportException> receivedException = new AtomicReference<>();
-            transportService.sendRequest(follower, FOLLOWER_CHECK_ACTION_NAME, new FollowerCheckRequest(term, leader),
+            transportService.sendRequest(
+                follower,
+                FOLLOWER_CHECK_ACTION_NAME,
+                new FollowerCheckRequest(term, leader),
                 new TransportResponseHandler.Empty() {
                     @Override
                     public void handleResponse(TransportResponse.Empty response) {
@@ -551,7 +625,8 @@ public class FollowersCheckerTests extends ESTestCase {
                         assertThat(exp, not(nullValue()));
                         assertTrue(receivedException.compareAndSet(null, exp));
                     }
-                });
+                }
+            );
             deterministicTaskQueue.runAllTasks();
             assertTrue(calledCoordinator.get());
             assertThat(receivedException.get(), not(nullValue()));
@@ -559,7 +634,7 @@ public class FollowersCheckerTests extends ESTestCase {
         }
     }
 
-   public void testPreferMasterNodes() {
+    public void testPreferMasterNodes() {
         List<DiscoveryNode> nodes = randomNodes(10);
         DiscoveryNodes.Builder discoNodesBuilder = DiscoveryNodes.builder();
         nodes.forEach(dn -> discoNodesBuilder.add(dn));
@@ -567,16 +642,25 @@ public class FollowersCheckerTests extends ESTestCase {
         CapturingTransport capturingTransport = new CapturingTransport();
         final Settings settings = Settings.builder().put(NODE_NAME_SETTING.getKey(), nodes.get(0).getName()).build();
         final DeterministicTaskQueue deterministicTaskQueue = new DeterministicTaskQueue(settings, random());
-        TransportService transportService = capturingTransport.createTransportService(Settings.EMPTY,
-                deterministicTaskQueue.getThreadPool(), TransportService.NOOP_TRANSPORT_INTERCEPTOR, x -> nodes.get(0), null, emptySet());
-        final FollowersChecker followersChecker = new FollowersChecker(Settings.EMPTY, transportService, fcr -> {
-            assert false : fcr;
-        }, (node, reason) -> {
-            assert false : node;
-        },() -> new StatusInfo(HEALTHY, "healthy-info"));
+        TransportService transportService = capturingTransport.createTransportService(
+            Settings.EMPTY,
+            deterministicTaskQueue.getThreadPool(),
+            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
+            x -> nodes.get(0),
+            null,
+            emptySet()
+        );
+        final FollowersChecker followersChecker = new FollowersChecker(
+            Settings.EMPTY,
+            transportService,
+            fcr -> { assert false : fcr; },
+            (node, reason) -> { assert false : node; },
+            () -> new StatusInfo(HEALTHY, "healthy-info")
+        );
         followersChecker.setCurrentNodes(discoveryNodes);
         List<DiscoveryNode> followerTargets = Stream.of(capturingTransport.getCapturedRequestsAndClear())
-            .map(cr -> cr.node).collect(Collectors.toList());
+            .map(cr -> cr.node)
+            .collect(Collectors.toList());
         List<DiscoveryNode> sortedFollowerTargets = new ArrayList<>(followerTargets);
         Collections.sort(sortedFollowerTargets, Comparator.comparing(n -> n.isMasterNode() == false));
         assertEquals(sortedFollowerTargets, followerTargets);
@@ -589,16 +673,14 @@ public class FollowersCheckerTests extends ESTestCase {
             if (frequently()) {
                 attributes.put("custom", randomBoolean() ? "match" : randomAlphaOfLengthBetween(3, 5));
             }
-            final DiscoveryNode node = newNode(i, attributes,
-                new HashSet<>(randomSubsetOf(DiscoveryNodeRole.BUILT_IN_ROLES)));
+            final DiscoveryNode node = newNode(i, attributes, new HashSet<>(randomSubsetOf(DiscoveryNodeRole.BUILT_IN_ROLES)));
             nodesList.add(node);
         }
         return nodesList;
     }
 
     private static DiscoveryNode newNode(int nodeId, Map<String, String> attributes, Set<DiscoveryNodeRole> roles) {
-        return new DiscoveryNode("name_" + nodeId, "node_" + nodeId, buildNewFakeTransportAddress(), attributes, roles,
-            Version.CURRENT);
+        return new DiscoveryNode("name_" + nodeId, "node_" + nodeId, buildNewFakeTransportAddress(), attributes, roles, Version.CURRENT);
     }
 
     private static Settings randomSettings() {
