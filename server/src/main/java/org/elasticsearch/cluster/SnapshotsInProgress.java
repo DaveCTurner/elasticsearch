@@ -645,7 +645,7 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
         @Nullable
         private final String reason;
 
-        @Nullable // only present in state SUCCESS
+        @Nullable // only present in state SUCCESS; may be null even in SUCCESS if this state came over the wire from an older node
         private final ShardSnapshotResult shardSnapshotResult;
 
         public ShardSnapshotStatus(String nodeId, String generation) {
