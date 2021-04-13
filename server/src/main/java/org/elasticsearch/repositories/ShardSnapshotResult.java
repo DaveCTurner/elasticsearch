@@ -8,14 +8,18 @@
 
 package org.elasticsearch.repositories;
 
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 
+import java.io.IOException;
 import java.util.Objects;
 
 /**
  * The details of a successful shard-level snapshot that are used to build the overall snapshot during finalization.
  */
-public class ShardSnapshotResult {
+public class ShardSnapshotResult implements Writeable {
 
     private final String generation;
 
@@ -32,8 +36,14 @@ public class ShardSnapshotResult {
     public ShardSnapshotResult(String generation, ByteSizeValue size, int segmentCount) {
         this.generation = Objects.requireNonNull(generation);
         this.size = Objects.requireNonNull(size);
-        assert segmentCount >= -1;
+        assert segmentCount >= 0;
         this.segmentCount = segmentCount;
+    }
+
+    public ShardSnapshotResult(StreamInput in) throws IOException {
+        generation = in.readString();
+        size = new ByteSizeValue(in);
+        segmentCount = in.readVInt();
     }
 
     /**
@@ -55,5 +65,12 @@ public class ShardSnapshotResult {
      */
     public int getSegmentCount() {
         return segmentCount;
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(generation);
+        size.writeTo(out);
+        out.writeVInt(segmentCount);
     }
 }

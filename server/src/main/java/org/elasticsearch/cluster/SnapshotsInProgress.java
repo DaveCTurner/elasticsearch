@@ -700,10 +700,16 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             final ShardState state = ShardState.fromValue(in.readByte());
             final String generation = in.readOptionalString();
             final String reason = in.readOptionalString();
+            final ShardSnapshotResult shardSnapshotResult;
+            if (in.getVersion().onOrAfter(Version.V_8_0_0)) {
+                shardSnapshotResult = in.readOptionalWriteable(ShardSnapshotResult::new);
+            } else {
+                shardSnapshotResult = null;
+            }
             if (state == ShardState.QUEUED) {
                 return UNASSIGNED_QUEUED;
             }
-            return new ShardSnapshotStatus(nodeId, state, reason, generation);
+            return new ShardSnapshotStatus(nodeId, state, reason, generation, shardSnapshotResult);
         }
 
         public ShardState state() {
@@ -739,6 +745,9 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             out.writeByte(state.value);
             out.writeOptionalString(generation);
             out.writeOptionalString(reason);
+            if (out.getVersion().onOrAfter(Version.V_8_0_0)) {
+                out.writeOptionalWriteable(shardSnapshotResult);
+            }
         }
 
         @Override
