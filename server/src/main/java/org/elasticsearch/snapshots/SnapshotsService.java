@@ -623,8 +623,7 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
         if (currentlyCloning.add(repoShardId)) {
             repository.cloneShardSnapshot(sourceSnapshot, targetSnapshot, repoShardId, shardStatusBefore.generation(), ActionListener.wrap(
                     shardSnapshotResult -> innerUpdateSnapshotState(
-                            new ShardSnapshotUpdate(target, repoShardId,
-                                    new ShardSnapshotStatus(localNodeId, ShardState.SUCCESS, shardSnapshotResult.getGeneration())),
+                            new ShardSnapshotUpdate(target, repoShardId, ShardSnapshotStatus.success(localNodeId, shardSnapshotResult)),
                             ActionListener.runBefore(
                                     ActionListener.wrap(
                                             v -> logger.trace("Marked [{}] as successfully cloned from [{}] to [{}]", repoShardId,
