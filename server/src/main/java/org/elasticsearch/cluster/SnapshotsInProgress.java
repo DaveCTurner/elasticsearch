@@ -689,7 +689,7 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             assert (state != ShardState.INIT && state != ShardState.WAITING) || nodeId != null : "Null node id for state [" + state + "]";
             assert state != ShardState.QUEUED || (nodeId == null && generation == null && reason == null) :
                     "Found unexpected non-null values for queued state shard nodeId[" + nodeId + "][" + generation + "][" + reason + "]";
-            assert state != ShardState.SUCCESS || shardSnapshotResult == null;
+            assert state == ShardState.SUCCESS || shardSnapshotResult == null;
             assert shardSnapshotResult == null || shardSnapshotResult.getGeneration().equals(generation)
                     : "generation [" + generation + "] does not match result generation [" + shardSnapshotResult.getGeneration() + "]";
             return true;

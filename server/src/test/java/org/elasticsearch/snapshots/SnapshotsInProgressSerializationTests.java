@@ -240,7 +240,8 @@ public class SnapshotsInProgressSerializationTests extends AbstractDiffableWireS
                 Collections.singletonList(new IndexId("index", "uuid")), Collections.emptyList(), Collections.emptyList(), 1234567, 0,
                 ImmutableOpenMap.<ShardId, SnapshotsInProgress.ShardSnapshotStatus>builder()
                     .fPut(new ShardId("index", "uuid", 0),
-                        new SnapshotsInProgress.ShardSnapshotStatus("nodeId", ShardState.SUCCESS, "reason", "generation"))
+                        SnapshotsInProgress.ShardSnapshotStatus.success("nodeId",
+                                new ShardSnapshotResult("generation", new ByteSizeValue(1L), 1)))
                     .build(), null, null, Version.CURRENT)));
 
         try (XContentBuilder builder = jsonBuilder()) {
