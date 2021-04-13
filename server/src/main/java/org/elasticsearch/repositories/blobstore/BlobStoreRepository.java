@@ -417,7 +417,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     @Override
     public void cloneShardSnapshot(SnapshotId source, SnapshotId target, RepositoryShardId shardId,
-                                   @Nullable String shardGeneration, ActionListener<String> listener) {
+                                   @Nullable String shardGeneration, ActionListener<ShardSnapshotResult> listener) {
         if (isReadOnly()) {
             listener.onFailure(new RepositoryException(metadata.name(), "cannot clone shard snapshot on a readonly repository"));
             return;
@@ -461,7 +461,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
             if (existingTargetFiles != null) {
                 if (existingTargetFiles.isSame(sourceFiles)) {
-                    return existingShardGen;
+                    return new ShardSnapshotResult(existingShardGen,
+                            getTotalSize(existingTargetFiles.indexFiles()),
+                            getSegmentInfoFileCount(existingTargetFiles.indexFiles()));
                 }
                 throw new RepositoryException(metadata.name(), "Can't create clone of [" + shardId + "] for snapshot ["
                         + target + "]. A snapshot by that name already exists for this shard.");
@@ -473,12 +475,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     shardContainer, target.getUUID(), compress, bigArrays);
             INDEX_SHARD_SNAPSHOTS_FORMAT.write(existingSnapshots.withClone(source.getName(), target.getName()), shardContainer, newGen,
                     compress, bigArrays);
-            return newGen;
+            return new ShardSnapshotResult(newGen, getTotalSize(sourceMeta.indexFiles()), getSegmentInfoFileCount(sourceMeta.indexFiles()));
         }));
     }
 
     private static ByteSizeValue getTotalSize(List<BlobStoreIndexShardSnapshot.FileInfo> indexFiles) {
         return ByteSizeValue.ofBytes(indexFiles.stream().mapToLong(BlobStoreIndexShardSnapshot.FileInfo::length).sum());
+    }
+
+    private static int getSegmentInfoFileCount(List<BlobStoreIndexShardSnapshot.FileInfo> indexFiles) {
+        //noinspection ConstantConditions
+        return Math.toIntExact(Math.min(Integer.MAX_VALUE, indexFiles.stream().filter(fi -> fi.physicalName().endsWith(".si")).count()));
     }
 
     // Inspects all cluster state elements that contain a hint about what the current repository generation is and updates

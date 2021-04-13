@@ -488,7 +488,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
             SnapshotId target,
             RepositoryShardId shardId,
             String shardGeneration,
-            ActionListener<String> listener) {
+            ActionListener<ShardSnapshotResult> listener) {
         throw new UnsupportedOperationException("Unsupported for repository of type: " + TYPE);
     }
 

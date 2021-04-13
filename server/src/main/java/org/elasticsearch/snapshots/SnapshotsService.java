@@ -622,9 +622,9 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
         final String localNodeId = clusterService.localNode().getId();
         if (currentlyCloning.add(repoShardId)) {
             repository.cloneShardSnapshot(sourceSnapshot, targetSnapshot, repoShardId, shardStatusBefore.generation(), ActionListener.wrap(
-                    generation -> innerUpdateSnapshotState(
+                    shardSnapshotResult -> innerUpdateSnapshotState(
                             new ShardSnapshotUpdate(target, repoShardId,
-                                    new ShardSnapshotStatus(localNodeId, ShardState.SUCCESS, generation)),
+                                    new ShardSnapshotStatus(localNodeId, ShardState.SUCCESS, shardSnapshotResult.getGeneration())),
                             ActionListener.runBefore(
                                     ActionListener.wrap(
                                             v -> logger.trace("Marked [{}] as successfully cloned from [{}] to [{}]", repoShardId,
