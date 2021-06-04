@@ -1269,8 +1269,11 @@ public abstract class ESRestTestCase extends ESTestCase {
             if (e.getResponse().getStatusLine().getStatusCode() == HttpStatus.SC_REQUEST_TIMEOUT) {
                 try {
                     final Response clusterStateResponse = client.performRequest(new Request("GET", "/_cluster/state?pretty"));
+                    final Response allocationExplainResponse
+                        = client.performRequest(new Request("GET", "/_cluster/allocation/explain?pretty"));
                     fail("timed out waiting for green state for index [" + index + "] " +
-                        "cluster state [" + EntityUtils.toString(clusterStateResponse.getEntity()) + "]");
+                        "cluster state [" + EntityUtils.toString(clusterStateResponse.getEntity()) +
+                        "], allocation explain [" + EntityUtils.toString(allocationExplainResponse.getEntity()) + "]");
                 } catch (Exception inner) {
                     e.addSuppressed(inner);
                 }
