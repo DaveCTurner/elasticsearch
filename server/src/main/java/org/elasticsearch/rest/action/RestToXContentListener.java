@@ -28,7 +28,10 @@ public class RestToXContentListener<Response extends ToXContentObject> extends R
 
     @Override
     public final RestResponse buildResponse(Response response) throws Exception {
-        return buildResponse(response, channel.newBuilder());
+        final XContentBuilder builder = channel.newBuilder();
+        final RestResponse restResponse = buildResponse(response, builder);
+        assert assertBuilderClosed(builder);
+        return restResponse;
     }
 
     public RestResponse buildResponse(Response response, XContentBuilder builder) throws Exception {
@@ -39,5 +42,10 @@ public class RestToXContentListener<Response extends ToXContentObject> extends R
 
     protected RestStatus getStatus(Response response) {
         return RestStatus.OK;
+    }
+
+    private boolean assertBuilderClosed(XContentBuilder xContentBuilder) {
+        assert xContentBuilder.generator().isClosed() : "callers should ensure the XContentBuilder is closed themselves";
+        return true;
     }
 }
