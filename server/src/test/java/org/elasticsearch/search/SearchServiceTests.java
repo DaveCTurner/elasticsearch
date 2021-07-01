@@ -117,6 +117,8 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -1191,7 +1193,6 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
 
         CountDownLatch latch1 = new CountDownLatch(1);
         SearchShardTask task = mock(SearchShardTask.class);
-        when(task.isCancelled()).thenReturn(false);
         service.executeQueryPhase(request, task, new ActionListener<>() {
             @Override
             public void onResponse(SearchPhaseResult searchPhaseResult) {
@@ -1232,7 +1233,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
         AtomicBoolean searchContextCreated = new AtomicBoolean(false);
         service.setOnCreateSearchContext(c -> searchContextCreated.set(true));
         CountDownLatch latch3 = new CountDownLatch(1);
-        when(task.isCancelled()).thenReturn(true);
+        doThrow(new TaskCancelledException("cancelled")).when(task).ensureNotCancelled();
         service.executeQueryPhase(request, task, new ActionListener<>() {
             @Override
             public void onResponse(SearchPhaseResult searchPhaseResult) {
@@ -1306,7 +1307,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
         searchContextCreated.set(false);
         service.setOnCheckCancelled(t -> {
             SearchShardTask task = mock(SearchShardTask.class);
-            when(task.isCancelled()).thenReturn(true);
+            doThrow(new TaskCancelledException("cancelled")).when(task).ensureNotCancelled();
             return task;
         });
         CountDownLatch latch = new CountDownLatch(1);

@@ -94,6 +94,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -965,7 +966,7 @@ public class QueryPhaseTests extends IndexShardTestCase {
                 prefixQuery.setRewriteMethod(MultiTermQuery.SCORING_BOOLEAN_REWRITE);
                 context.parsedQuery(new ParsedQuery(prefixQuery));
                 SearchShardTask task = mock(SearchShardTask.class);
-                when(task.isCancelled()).thenReturn(true);
+                doThrow(new TaskCancelledException("simulated")).when(task).ensureNotCancelled();
                 context.setTask(task);
                 expectThrows(TaskCancelledException.class, () -> new QueryPhase().preProcess(context));
             }

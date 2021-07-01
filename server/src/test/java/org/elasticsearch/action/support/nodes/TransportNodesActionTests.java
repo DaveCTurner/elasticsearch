@@ -9,6 +9,7 @@
 package org.elasticsearch.action.support.nodes;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -153,7 +154,13 @@ public class TransportNodesActionTests extends ESTestCase {
         PlainActionFuture<TestNodesResponse> listener = new PlainActionFuture<>();
         Task cancellableTask = new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap()) {
             @Override
-            public boolean isCancelled() {
+            public void ensureNotCancelled() {
+                throw new TaskCancelledException("simulated");
+            }
+
+            @Override
+            public <T> boolean notifyIfCancelled(ActionListener<T> listener) {
+                listener.onFailure(new TaskCancelledException("simulated"));
                 return true;
             }
         };

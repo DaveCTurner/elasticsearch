@@ -54,7 +54,8 @@ public class CancellableTask extends Task {
     }
 
     /**
-     * The reason the task was cancelled or null if it hasn't been cancelled.
+     * The reason the task was cancelled or null if it hasn't been cancelled. May also be null if the task was just cancelled since we don't
+     * set the reason and the cancellation flag atomically
      */
     @Nullable
     public final String getReasonCancelled() {
