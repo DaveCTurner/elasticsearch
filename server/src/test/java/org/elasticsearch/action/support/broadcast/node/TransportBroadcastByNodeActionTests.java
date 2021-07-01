@@ -514,7 +514,13 @@ public class TransportBroadcastByNodeActionTests extends ESTestCase {
     private static Task cancelledTask() {
         return new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap()) {
             @Override
-            public boolean isCancelled() {
+            public void ensureNotCancelled() {
+                throw new TaskCancelledException("simulated");
+            }
+
+            @Override
+            public <T> boolean notifyIfCancelled(ActionListener<T> listener) {
+                listener.onFailure(new TaskCancelledException("simulated"));
                 return true;
             }
         };
