@@ -64,12 +64,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.startsWith;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
 public class CancellableTasksIT extends ESIntegTestCase {
@@ -261,7 +264,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
         mainAction.startSubTask(taskId, subRequest, future);
         TransportException te = expectThrows(TransportException.class, future::actionGet);
         assertThat(te.getCause(), instanceOf(TaskCancelledException.class));
-        assertThat(te.getCause().getMessage(), equalTo("The parent task was cancelled, shouldn't start any child tasks"));
+        assertThat(te.getCause().getMessage(), equalTo("parent task was cancelled [by user request], cancelling child task"));
         allowEntireRequest(rootRequest);
         waitForRootTask(rootTaskFuture);
         ensureAllBansRemoved();
@@ -366,9 +369,9 @@ public class CancellableTasksIT extends ESIntegTestCase {
             final Throwable cause = ExceptionsHelper.unwrap(e, TaskCancelledException.class);
             assertNotNull(cause);
             assertThat(cause.getMessage(), anyOf(
-                equalTo("The parent task was cancelled, shouldn't start any child tasks"),
-                containsString("Task cancelled before it started:"),
-                equalTo("Task was cancelled while executing")));
+                equalTo("parent task was cancelled [by user request], cancelling child task"),
+                startsWith("Task cancelled before it started: "),
+                equalTo("task cancelled [by user request]")));
         }
     }
 

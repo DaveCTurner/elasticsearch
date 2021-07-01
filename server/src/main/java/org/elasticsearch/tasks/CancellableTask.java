@@ -103,6 +103,6 @@ public class CancellableTask extends Task {
         assert Thread.holdsLock(this);
         assert isCancelled;
         assert reason != null;
-        return new TaskCancelledException("task cancelled: " + reason);
+        return new TaskCancelledException("task cancelled [" + reason + ']');
     }
 }
