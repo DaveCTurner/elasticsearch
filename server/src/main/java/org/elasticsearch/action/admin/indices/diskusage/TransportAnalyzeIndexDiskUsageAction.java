@@ -75,12 +75,7 @@ public class TransportAnalyzeIndexDiskUsageAction extends TransportBroadcastActi
         final ShardId shardId = request.shardId();
         assert task instanceof CancellableTask : "AnalyzeDiskUsageShardRequest must create a cancellable task";
         final CancellableTask cancellableTask = (CancellableTask) task;
-        final Runnable checkForCancellation = () -> {
-            if (cancellableTask.isCancelled()) {
-                final String reason = cancellableTask.getReasonCancelled();
-                throw new TaskCancelledException(reason != null ? reason : "Task was cancelled");
-            }
-        };
+        final Runnable checkForCancellation = cancellableTask::ensureNotCancelled;
         final IndexShard shard = indicesService.indexServiceSafe(shardId.getIndex()).getShard(shardId.id());
         try (Engine.IndexCommitRef commitRef = shard.acquireLastIndexCommit(request.flush)) {
             final IndexDiskUsageStats stats = IndexDiskUsageAnalyzer.analyze(shardId, commitRef.getIndexCommit(), checkForCancellation);

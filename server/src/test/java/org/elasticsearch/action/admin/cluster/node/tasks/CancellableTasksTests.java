@@ -162,9 +162,7 @@ public class CancellableTasksTests extends TaskManagerTestCase {
                 // Using periodic checks method to identify that the task was cancelled
                 try {
                     waitUntil(() -> {
-                        if (((CancellableTask) task).isCancelled()) {
-                            throw new TaskCancelledException("Cancelled");
-                        }
+                        ((CancellableTask)task).ensureNotCancelled();
                         return false;
                     });
                     fail("It should have thrown an exception");
@@ -352,7 +350,7 @@ public class CancellableTasksTests extends TaskManagerTestCase {
                 (task, response) -> {}, (task, e) -> {}));
         assertThat(cancelledException.getMessage(), startsWith("Task cancelled before it started:"));
         CountDownLatch latch = new CountDownLatch(1);
-        taskManager.startBanOnChildTasks(parentTaskId.getId(), latch::countDown);
+        taskManager.startBanOnChildTasks(parentTaskId.getId(), "reason", latch::countDown);
         assertTrue("onChildTasksCompleted() is not invoked", latch.await(1, TimeUnit.SECONDS));
     }
 

@@ -134,9 +134,7 @@ public class TransportClusterStatsAction extends TransportNodesAction<ClusterSta
         List<ShardStats> shardsStats = new ArrayList<>();
         for (IndexService indexService : indicesService) {
             for (IndexShard indexShard : indexService) {
-                if (cancellableTask.isCancelled()) {
-                    throw new TaskCancelledException("task cancelled");
-                }
+                cancellableTask.ensureNotCancelled();
                 if (indexShard.routingEntry() != null && indexShard.routingEntry().active()) {
                     // only report on fully started shards
                     CommitStats commitStats;

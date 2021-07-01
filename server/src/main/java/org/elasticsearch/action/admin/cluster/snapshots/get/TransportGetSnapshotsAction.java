@@ -282,8 +282,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         SortOrder order,
         ActionListener<SnapshotsInRepo> listener
     ) {
-        if (task.isCancelled()) {
-            listener.onFailure(new TaskCancelledException("task cancelled"));
+        if (task.notifyIfCancelled(listener)) {
             return;
         }
 
@@ -371,8 +370,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         SortOrder order,
         ActionListener<SnapshotsInRepo> listener
     ) {
-        if (task.isCancelled()) {
-            listener.onFailure(new TaskCancelledException("task cancelled"));
+        if (task.notifyIfCancelled(listener)) {
             return;
         }
         final Set<SnapshotInfo> snapshotSet = new HashSet<>();

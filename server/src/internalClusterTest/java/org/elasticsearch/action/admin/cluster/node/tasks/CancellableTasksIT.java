@@ -331,7 +331,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
                 TaskManager taskManager = internalCluster().getInstance(TransportService.class, node.getName()).getTaskManager();
                 for (TaskId bannedParent : bannedParents) {
                     if (bannedParent.getNodeId().equals(node.getId()) && randomBoolean()) {
-                        Collection<Transport.Connection> childConns = taskManager.startBanOnChildTasks(bannedParent.getId(), () -> {});
+                        Collection<Transport.Connection> childConns = taskManager.startBanOnChildTasks(bannedParent.getId(), "", () -> {});
                         for (Transport.Connection connection : randomSubsetOf(childConns)) {
                             connection.close();
                         }
@@ -476,9 +476,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
                 new GroupedActionListener<>(listener.map(r -> new TestResponse()), subRequests.size() + 1);
             transportService.getThreadPool().generic().execute(ActionRunnable.supply(groupedListener, () -> {
                 assertTrue(beforeExecuteLatches.get(request).await(60, TimeUnit.SECONDS));
-                if (((CancellableTask) task).isCancelled()) {
-                    throw new TaskCancelledException("Task was cancelled while executing");
-                }
+                ((CancellableTask)task).ensureNotCancelled();
                 return new TestResponse();
             }));
             for (TestRequest subRequest : subRequests) {

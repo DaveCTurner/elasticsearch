@@ -254,8 +254,7 @@ public abstract class TransportNodesAction<NodesRequest extends BaseNodesRequest
         }
 
         private void finishHim() {
-            if (isCancelled(task)) {
-                listener.onFailure(new TaskCancelledException("task cancelled"));
+            if (task instanceof CancellableTask && ((CancellableTask) task).notifyIfCancelled(listener)) {
                 return;
             }
 
@@ -264,17 +263,12 @@ public abstract class TransportNodesAction<NodesRequest extends BaseNodesRequest
         }
     }
 
-    private boolean isCancelled(Task task) {
-        return task instanceof CancellableTask && ((CancellableTask) task).isCancelled();
-    }
-
     class NodeTransportHandler implements TransportRequestHandler<NodeRequest> {
         @Override
         public void messageReceived(NodeRequest request, TransportChannel channel, Task task) throws Exception {
-            if (isCancelled(task)) {
-                throw new TaskCancelledException("task cancelled");
+            if (task instanceof CancellableTask) {
+                ((CancellableTask) task).ensureNotCancelled();
             }
-
             channel.sendResponse(nodeOperation(request, task));
         }
     }

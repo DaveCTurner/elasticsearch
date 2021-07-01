@@ -103,8 +103,8 @@ public class QueryPhase {
         if (context.lowLevelCancellation()) {
             cancellation = context.searcher().addQueryCancellation(() -> {
                 SearchShardTask task = context.getTask();
-                if (task != null && task.isCancelled()) {
-                    throw new TaskCancelledException("cancelled");
+                if (task != null) {
+                    task.ensureNotCancelled();
                 }
             });
         } else {
@@ -272,8 +272,8 @@ public class QueryPhase {
             if (searchContext.lowLevelCancellation()) {
                 searcher.addQueryCancellation(() -> {
                     SearchShardTask task = searchContext.getTask();
-                    if (task != null && task.isCancelled()) {
-                        throw new TaskCancelledException("cancelled");
+                    if (task != null) {
+                        task.ensureNotCancelled();
                     }
                 });
             }
