@@ -93,14 +93,12 @@ public class CancellableTask extends Task {
                 return false;
             }
             taskCancelledException = getTaskCancelledException();
-        }
-        // NB releasing the mutex before notifying the listener
+        } // NB releasing the mutex before notifying the listener
         listener.onFailure(taskCancelledException);
         return true;
     }
 
     private TaskCancelledException getTaskCancelledException() {
-        assert isCancelled();
         assert Thread.holdsLock(this);
         assert isCancelled;
         assert reason != null;
