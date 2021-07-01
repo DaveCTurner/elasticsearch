@@ -49,6 +49,11 @@ public class CancellableTask extends Task {
         return true;
     }
 
+    /**
+     * Return whether the task is cancelled. If testing this flag to decide whether to throw a {@link TaskCancelledException}, consider
+     * using {@link #ensureNotCancelled} or {@link #notifyIfCancelled} instead: these methods construct an exception that automatically
+     * includes the cancellation reason.
+     */
     public boolean isCancelled() {
         return isCancelled;
     }
