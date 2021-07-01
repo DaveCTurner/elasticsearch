@@ -12,7 +12,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.core.Nullable;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A task that can be cancelled

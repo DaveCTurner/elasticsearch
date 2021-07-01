@@ -32,7 +32,6 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
