@@ -47,6 +47,7 @@ import org.elasticsearch.indices.EmptySystemIndices;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskCancelHelper;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.transport.CapturingTransport;
@@ -512,18 +513,9 @@ public class TransportBroadcastByNodeActionTests extends ESTestCase {
     }
 
     private static Task cancelledTask() {
-        return new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap()) {
-            @Override
-            public void ensureNotCancelled() {
-                throw new TaskCancelledException("simulated");
-            }
-
-            @Override
-            public <T> boolean notifyIfCancelled(ActionListener<T> listener) {
-                listener.onFailure(new TaskCancelledException("simulated"));
-                return true;
-            }
-        };
+        final CancellableTask task = new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap());
+        TaskCancelHelper.cancel(task, "simulated");
+        return task;
     }
 
 }

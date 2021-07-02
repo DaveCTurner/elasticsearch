@@ -9,7 +9,6 @@
 package org.elasticsearch.action.support.nodes;
 
 import org.elasticsearch.Version;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -25,6 +24,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskCancelHelper;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.transport.CapturingTransport;
@@ -152,18 +152,8 @@ public class TransportNodesActionTests extends ESTestCase {
 
         TestNodesRequest request = new TestNodesRequest(nodeIds.toArray(new String[0]));
         PlainActionFuture<TestNodesResponse> listener = new PlainActionFuture<>();
-        Task cancellableTask = new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap()) {
-            @Override
-            public void ensureNotCancelled() {
-                throw new TaskCancelledException("simulated");
-            }
-
-            @Override
-            public <T> boolean notifyIfCancelled(ActionListener<T> listener) {
-                listener.onFailure(new TaskCancelledException("simulated"));
-                return true;
-            }
-        };
+        CancellableTask cancellableTask = new CancellableTask(randomLong(), "transport", "action", "", null, emptyMap());
+        TaskCancelHelper.cancel(cancellableTask, "simulated");
         action.doExecute(cancellableTask, request, listener);
         Map<String, List<CapturingTransport.CapturedRequest>> capturedRequests = transport.getCapturedRequestsByTargetNodeAndClear();
         for (List<CapturingTransport.CapturedRequest> requests : capturedRequests.values()) {

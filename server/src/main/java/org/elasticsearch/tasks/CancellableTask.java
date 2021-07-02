@@ -54,7 +54,7 @@ public class CancellableTask extends Task {
      * using {@link #ensureNotCancelled} or {@link #notifyIfCancelled} instead: these methods construct an exception that automatically
      * includes the cancellation reason.
      */
-    public boolean isCancelled() {
+    public final boolean isCancelled() {
         return isCancelled;
     }
 
@@ -76,7 +76,7 @@ public class CancellableTask extends Task {
     /**
      * Throws a {@link TaskCancelledException} if this task has been cancelled, otherwise does nothing.
      */
-    public synchronized void ensureNotCancelled() {
+    public final synchronized void ensureNotCancelled() {
         if (isCancelled()) {
             throw getTaskCancelledException();
         }
@@ -86,7 +86,7 @@ public class CancellableTask extends Task {
      * Notifies the listener of failure with a {@link TaskCancelledException} if this task has been cancelled, otherwise does nothing.
      * @return {@code true} if the task is cancelled and the listener was notified, otherwise {@code false}.
      */
-    public <T> boolean notifyIfCancelled(ActionListener<T> listener) {
+    public final <T> boolean notifyIfCancelled(ActionListener<T> listener) {
         final TaskCancelledException taskCancelledException;
         synchronized (this) {
             if (isCancelled() == false) {
