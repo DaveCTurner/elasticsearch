@@ -261,7 +261,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
         mainAction.startSubTask(taskId, subRequest, future);
         TransportException te = expectThrows(TransportException.class, future::actionGet);
         assertThat(te.getCause(), instanceOf(TaskCancelledException.class));
-        assertThat(te.getCause().getMessage(), equalTo("parent task was cancelled [by user request], cancelling child task"));
+        assertThat(te.getCause().getMessage(), equalTo("parent task was cancelled [by user request]"));
         allowEntireRequest(rootRequest);
         waitForRootTask(rootTaskFuture);
         ensureAllBansRemoved();
@@ -366,7 +366,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
             final Throwable cause = ExceptionsHelper.unwrap(e, TaskCancelledException.class);
             assertNotNull(cause);
             assertThat(cause.getMessage(), anyOf(
-                equalTo("parent task was cancelled [by user request], cancelling child task"),
+                equalTo("parent task was cancelled [by user request]"),
                 startsWith("Task cancelled before it started: "),
                 equalTo("task cancelled [by user request]")));
         }

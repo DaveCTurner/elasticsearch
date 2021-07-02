@@ -564,7 +564,7 @@ public class TaskManager implements ClusterStateApplier {
 
         synchronized void registerChildConnection(Transport.Connection connection) {
             if (banChildrenReason != null) {
-                throw new TaskCancelledException("parent task was cancelled [" + banChildrenReason + "], cancelling child task");
+                throw new TaskCancelledException("parent task was cancelled [" + banChildrenReason + ']');
             }
             if (childTasksPerConnection == null) {
                 childTasksPerConnection = new ObjectIntHashMap<>();
