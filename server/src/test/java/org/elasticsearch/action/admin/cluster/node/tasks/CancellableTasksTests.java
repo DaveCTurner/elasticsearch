@@ -17,6 +17,7 @@ import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRespo
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.support.ActionTestUtils;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -24,6 +25,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskCancelHelper;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.tasks.TaskInfo;
@@ -41,13 +43,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Collections.emptyMap;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -512,6 +518,62 @@ public class CancellableTasksTests extends TaskManagerTestCase {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    public void testEnsureNotCancelled() throws Exception {
+        final CancellableTask task = new CancellableTask(randomLong(), "transport", "action", "", TaskId.EMPTY_TASK_ID, emptyMap());
+        task.ensureNotCancelled(); // does not throw
+        TaskCancelHelper.cancel(task, "simulated");
+        assertThat(
+            expectThrows(TaskCancelledException.class, task::ensureNotCancelled).getMessage(),
+            equalTo("task cancelled [simulated]"));
+    }
+
+    public void testNotifyIfCancelled() throws Exception {
+        final CancellableTask task = new CancellableTask(randomLong(), "transport", "action", "", TaskId.EMPTY_TASK_ID, emptyMap());
+
+        final PlainActionFuture<Void> future = new PlainActionFuture<>();
+        task.notifyIfCancelled(future);
+        assertFalse(future.isDone());
+
+        TaskCancelHelper.cancel(task, "simulated");
+
+        final Runnable await = new Runnable() {
+            final CyclicBarrier barrier = new CyclicBarrier(2);
+
+            @Override
+            public void run() {
+                try {
+                    barrier.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
+                    throw new AssertionError("unexpected", e);
+                }
+            }
+        };
+
+        final Thread concurrentNotify = new Thread(() -> task.notifyIfCancelled(new ActionListener<Void>() {
+            @Override
+            public void onResponse(Void unused) {
+                fail("onResponse");
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                await.run();
+                // main thread calls notifyIfCancelled again between these two blocks
+                await.run();
+            }
+        }), "concurrent notify");
+        concurrentNotify.start();
+
+        await.run();
+        task.notifyIfCancelled(future);
+        assertTrue(future.isDone());
+        assertThat(
+            expectThrows(TaskCancelledException.class, future::actionGet).getMessage(),
+            equalTo("task cancelled [simulated]"));
+        await.run();
+        concurrentNotify.join();
     }
 
 }
