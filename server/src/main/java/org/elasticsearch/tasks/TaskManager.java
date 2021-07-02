@@ -195,7 +195,7 @@ public class TaskManager implements ClusterStateApplier {
             if (ban != null) {
                 try {
                     holder.cancel(ban.reason);
-                    throw new TaskCancelledException("Task cancelled before it started: " + ban.reason);
+                    throw new TaskCancelledException("task cancelled before start [" + ban.reason + ']');
                 } finally {
                     // let's clean up the registration
                     unregister(task);

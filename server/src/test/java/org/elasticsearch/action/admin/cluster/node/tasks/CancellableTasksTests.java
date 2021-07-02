@@ -53,7 +53,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.hamcrest.Matchers.startsWith;
 
 public class CancellableTasksTests extends TaskManagerTestCase {
 
@@ -348,7 +347,7 @@ public class CancellableTasksTests extends TaskManagerTestCase {
         TaskCancelledException cancelledException = expectThrows(TaskCancelledException.class,
             () -> taskManager.registerAndExecute("test", testAction, childRequest, testNodes[0].transportService.getLocalNodeConnection(),
                 (task, response) -> {}, (task, e) -> {}));
-        assertThat(cancelledException.getMessage(), startsWith("Task cancelled before it started:"));
+        assertThat(cancelledException.getMessage(), equalTo("task cancelled before start [test]"));
         CountDownLatch latch = new CountDownLatch(1);
         taskManager.startBanOnChildTasks(parentTaskId.getId(), "reason", latch::countDown);
         assertTrue("onChildTasksCompleted() is not invoked", latch.await(1, TimeUnit.SECONDS));

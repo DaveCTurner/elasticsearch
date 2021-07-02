@@ -367,7 +367,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
             assertNotNull(cause);
             assertThat(cause.getMessage(), anyOf(
                 equalTo("parent task was cancelled [by user request]"),
-                startsWith("Task cancelled before it started: "),
+                equalTo("task cancelled before start [by user request]"),
                 equalTo("task cancelled [by user request]")));
         }
     }
