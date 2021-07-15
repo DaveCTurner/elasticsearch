@@ -37,14 +37,17 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.sameInstance;
 
 public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
@@ -52,11 +55,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
     public void testRandomActivities() throws InterruptedException {
         final TrackedCluster trackedCluster = new TrackedCluster(internalCluster());
 
-        trackedCluster.start();
-
-        Thread.sleep(20000);
-
-        trackedCluster.stop();
+        trackedCluster.run();
 
         disableRepoConsistencyCheck("have not necessarily written to all repositories");
     }
@@ -164,6 +163,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         private final Map<String, TrackedSnapshot> snapshots = ConcurrentCollections.newConcurrentMap();
 
         private final AtomicInteger snapshotCounter = new AtomicInteger();
+        private final CountDownLatch completedSnapshotLatch = new CountDownLatch(30);
 
         TrackedCluster(InternalTestCluster cluster) {
             this.cluster = cluster;
@@ -184,7 +184,8 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
-        void start() {
+
+        public void run() throws InterruptedException {
             for (TrackedNode trackedNode : nodes.values()) {
                 trackedNode.start();
             }
@@ -211,9 +212,11 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             for (int i = 0; i < deleterCount; i++) {
                 startSnapshotDeleter();
             }
-        }
 
-        void stop() {
+            if (completedSnapshotLatch.await(30, TimeUnit.SECONDS) == false) {
+                logger.info("--> did not complete target snapshot count in 30s, giving up");
+            }
+
             ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
         }
 
@@ -246,34 +249,71 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    final String cloneName = "snapshot-clone-" + snapshotCounter.incrementAndGet();
-
-                    logger.info(
-                        "--> starting clone of [{}:{}] as [{}:{}]",
-                        trackedSnapshot.trackedRepository.repositoryName,
-                        trackedSnapshot.snapshotName,
-                        trackedSnapshot.trackedRepository.repositoryName,
-                        cloneName
-                    );
-
                     final Releasable releaseAll = localReleasables.transfer();
 
-                    client().admin()
-                        .cluster()
-                        .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
-                        .setIndices("*")
-                        .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
-                            Releasables.close(releaseAll);
-                            assertTrue(acknowledgedResponse.isAcknowledged());
-                            logger.info(
-                                "--> completed clone of [{}:{}] as [{}:{}]",
-                                trackedSnapshot.trackedRepository.repositoryName,
-                                trackedSnapshot.snapshotName,
-                                trackedSnapshot.trackedRepository.repositoryName,
-                                cloneName
-                            );
-                            startCloner();
-                        }));
+                    final StepListener<List<String>> getIndicesStep = new StepListener<>();
+
+                    if (randomBoolean()) {
+                        getIndicesStep.onResponse(Collections.singletonList("*"));
+                    } else {
+
+                        logger.info("--> listing indices in [{}:{}] in preparation for cloning",
+                            trackedSnapshot.trackedRepository.repositoryName,
+                            trackedSnapshot.snapshotName);
+
+                        client().admin().cluster().prepareGetSnapshots(trackedSnapshot.trackedRepository.repositoryName)
+                            .setSnapshots(trackedSnapshot.snapshotName)
+                            .execute(mustSucceed(releaseAll, getSnapshotsResponse -> {
+                                assertThat(getSnapshotsResponse.getSnapshots(), hasSize(1));
+                                final SnapshotInfo snapshotInfo = getSnapshotsResponse.getSnapshots().get(0);
+                                assertThat(snapshotInfo.snapshotId().getName(), equalTo(trackedSnapshot.snapshotName));
+
+                                final List<String> indexNames = new ArrayList<>();
+                                for (String indexName : snapshotInfo.indices()) {
+                                    if (randomBoolean()) {
+                                        indexNames.add(indexName);
+                                    }
+                                }
+
+                                if (indexNames.isEmpty()) {
+                                    indexNames.add("*");
+                                }
+
+                                getIndicesStep.onResponse(indexNames);
+                            }));
+                    }
+
+                    getIndicesStep.addListener(mustSucceed(releaseAll, indexNames -> {
+
+                        final String cloneName = "snapshot-clone-" + snapshotCounter.incrementAndGet();
+
+                        logger.info(
+                            "--> starting clone of [{}:{}] as [{}:{}] with indices {}",
+                            trackedSnapshot.trackedRepository.repositoryName,
+                            trackedSnapshot.snapshotName,
+                            trackedSnapshot.trackedRepository.repositoryName,
+                            cloneName,
+                            indexNames
+                        );
+
+                        client().admin()
+                            .cluster()
+                            .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
+                            .setIndices(indexNames.toArray(new String[0]))
+                            .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                                Releasables.close(releaseAll);
+                                assertTrue(acknowledgedResponse.isAcknowledged());
+                                completedSnapshotLatch.countDown();
+                                logger.info(
+                                    "--> completed clone of [{}:{}] as [{}:{}]",
+                                    trackedSnapshot.trackedRepository.repositoryName,
+                                    trackedSnapshot.snapshotName,
+                                    trackedSnapshot.trackedRepository.repositoryName,
+                                    cloneName
+                                );
+                                startCloner();
+                            }));
+                    }));
 
                     startedClone = true;
                 } finally {
@@ -418,6 +458,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 logger.info("--> completed snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
                                 assertThat(createSnapshotResponse.getSnapshotInfo().state(), equalTo(SnapshotState.SUCCESS));
                                 Releasables.close(releaseAll);
+                                completedSnapshotLatch.countDown();
                                 startSnapshotter();
                             }));
                         } else {
@@ -425,6 +466,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 logger.info("--> started snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
                                 pollForSnapshotCompletion(trackedRepository.repositoryName, snapshotName, releaseAll, () -> {
                                     snapshots.put(snapshotName, new TrackedSnapshot(trackedRepository, snapshotName));
+                                    completedSnapshotLatch.countDown();
                                     startSnapshotter();
                                 });
                             }));
