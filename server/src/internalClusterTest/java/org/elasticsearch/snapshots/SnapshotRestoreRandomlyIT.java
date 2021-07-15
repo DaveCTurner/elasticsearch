@@ -14,19 +14,16 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequestBuilder;
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
-import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
@@ -45,7 +42,6 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.equalTo;
@@ -127,6 +123,25 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             @Override
             public void onRejection(Exception e) {
                 // ok, shutting down
+            }
+        };
+    }
+
+    private static <T> ActionListener<T> mustSucceed(Releasable releaseOnFailure, CheckedConsumer<T, Exception> consumer) {
+        return new ActionListener<>() {
+            @Override
+            public void onResponse(T t) {
+                try {
+                    consumer.accept(t);
+                } catch (Exception e) {
+                    throw new AssertionError("unexpected", e);
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                Releasables.close(releaseOnFailure);
+                throw new AssertionError("unexpected", e);
             }
         };
     }
@@ -243,28 +258,18 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         .cluster()
                         .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
                         .setIndices("*")
-                        .execute(new ActionListener<>() {
-
-                            @Override
-                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                Releasables.close(releaseAll);
-                                assertTrue(acknowledgedResponse.isAcknowledged());
-                                logger.info(
-                                    "--> completed clone of [{}:{}] as [{}:{}]",
-                                    trackedSnapshot.trackedRepository.repositoryName,
-                                    trackedSnapshot.snapshotName,
-                                    trackedSnapshot.trackedRepository.repositoryName,
-                                    cloneName
-                                );
-                                startCloner();
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                Releasables.close(releaseAll);
-                                throw new AssertionError("unexpected", e);
-                            }
-                        });
+                        .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                            Releasables.close(releaseAll);
+                            assertTrue(acknowledgedResponse.isAcknowledged());
+                            logger.info(
+                                "--> completed clone of [{}:{}] as [{}:{}]",
+                                trackedSnapshot.trackedRepository.repositoryName,
+                                trackedSnapshot.snapshotName,
+                                trackedSnapshot.trackedRepository.repositoryName,
+                                cloneName
+                            );
+                            startCloner();
+                        }));
 
                     success = true;
                 } finally {
@@ -315,27 +320,17 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     client().admin()
                         .cluster()
                         .prepareDeleteSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName)
-                        .execute(new ActionListener<>() {
-
-                            @Override
-                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                Releasables.close(releaseAll);
-                                assertTrue(acknowledgedResponse.isAcknowledged());
-                                assertThat(snapshots.remove(trackedSnapshot.snapshotName), sameInstance(trackedSnapshot));
-                                logger.info(
-                                    "--> completed deletion of [{}:{}]",
-                                    trackedSnapshot.trackedRepository.repositoryName,
-                                    trackedSnapshot.snapshotName
-                                );
-                                startSnapshotDeleter();
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                Releasables.close(releaseAll);
-                                throw new AssertionError("unexpected", e);
-                            }
-                        });
+                        .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                            Releasables.close(releaseAll);
+                            assertTrue(acknowledgedResponse.isAcknowledged());
+                            assertThat(snapshots.remove(trackedSnapshot.snapshotName), sameInstance(trackedSnapshot));
+                            logger.info(
+                                "--> completed deletion of [{}:{}]",
+                                trackedSnapshot.trackedRepository.repositoryName,
+                                trackedSnapshot.snapshotName
+                            );
+                            startSnapshotDeleter();
+                        }));
 
                     success = true;
 
@@ -351,31 +346,29 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                 boolean success = false;
-                try (TransferableReleasables step1Releasables = new TransferableReleasables()) {
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
-                    if (step1Releasables.add(blockNodeRestarts()) == null) {
+                    if (localReleasables.add(blockNodeRestarts()) == null) {
                         return;
                     }
 
                     final TrackedRepository trackedRepository = randomFrom(repositories.values());
-                    if (step1Releasables.add(tryAcquirePermit(trackedRepository.permits)) == null) {
+                    if (localReleasables.add(tryAcquirePermit(trackedRepository.permits)) == null) {
                         return;
                     }
 
                     boolean snapshotSpecificIndicesTmp = randomBoolean();
                     final List<String> targetIndexNames = new ArrayList<>(indices.size());
                     for (TrackedIndex trackedIndex : indices.values()) {
-                        final Semaphore indexPermits = trackedIndex.permits;
-                        if (usually() && indexPermits.tryAcquire()) {
+                        if (usually() && localReleasables.add(tryAcquirePermit(trackedIndex.permits)) != null) {
                             targetIndexNames.add(trackedIndex.indexName);
-                            step1Releasables.add(Releasables.releaseOnce(indexPermits::release));
                         } else {
                             snapshotSpecificIndicesTmp = true;
                         }
                     }
                     final boolean snapshotSpecificIndices = snapshotSpecificIndicesTmp;
 
-                    final Releasable releaseAll = step1Releasables.transfer();
+                    final Releasable releaseAll = localReleasables.transfer();
 
                     final StepListener<ClusterHealthResponse> ensureYellowStep = new StepListener<>();
 
@@ -396,7 +389,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         .setWaitForNodes(Integer.toString(internalCluster().getNodeNames().length))
                         .execute(ensureYellowStep);
 
-                    ensureYellowStep.whenComplete(clusterHealthResponse -> {
+                    ensureYellowStep.addListener(mustSucceed(releaseAll, clusterHealthResponse -> {
                         assertFalse("timed out waiting for yellow state of " + targetIndexNames, clusterHealthResponse.isTimedOut());
 
                         logger.info(
@@ -417,43 +410,22 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                         if (randomBoolean()) {
                             createSnapshotRequestBuilder.setWaitForCompletion(true);
-                            createSnapshotRequestBuilder.execute(new ActionListener<>() {
-                                @Override
-                                public void onResponse(CreateSnapshotResponse createSnapshotResponse) {
-                                    logger.info("--> completed snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
-                                    assertThat(createSnapshotResponse.getSnapshotInfo().state(), equalTo(SnapshotState.SUCCESS));
-                                    Releasables.close(releaseAll);
-                                    startSnapshotter();
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
-                                    Releasables.close(releaseAll);
-                                    throw new AssertionError("unexpected", e);
-                                }
-                            });
+                            createSnapshotRequestBuilder.execute(mustSucceed(releaseAll, createSnapshotResponse -> {
+                                logger.info("--> completed snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
+                                assertThat(createSnapshotResponse.getSnapshotInfo().state(), equalTo(SnapshotState.SUCCESS));
+                                Releasables.close(releaseAll);
+                                startSnapshotter();
+                            }));
                         } else {
-                            createSnapshotRequestBuilder.execute(new ActionListener<>() {
-                                @Override
-                                public void onResponse(CreateSnapshotResponse createSnapshotResponse) {
-                                    logger.info("--> started snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
-                                    pollForSnapshotCompletion(trackedRepository.repositoryName, snapshotName, releaseAll, () -> {
-                                        snapshots.put(snapshotName, new TrackedSnapshot(trackedRepository, snapshotName));
-                                        startSnapshotter();
-                                    });
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
-                                    Releasables.close(releaseAll);
-                                    throw new AssertionError("unexpected", e);
-                                }
-                            });
+                            createSnapshotRequestBuilder.execute(mustSucceed(releaseAll, createSnapshotResponse -> {
+                                logger.info("--> started snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
+                                pollForSnapshotCompletion(trackedRepository.repositoryName, snapshotName, releaseAll, () -> {
+                                    snapshots.put(snapshotName, new TrackedSnapshot(trackedRepository, snapshotName));
+                                    startSnapshotter();
+                                });
+                            }));
                         }
-                    }, e -> {
-                        Releasables.close(releaseAll);
-                        throw new AssertionError("unexpected", e);
-                    });
+                    }));
 
                     success = true;
                 } finally {
@@ -472,30 +444,20 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             .cluster()
                             .prepareGetSnapshots(repositoryName)
                             .setCurrentSnapshot()
-                            .execute(new ActionListener<>() {
-                                @Override
-                                public void onResponse(GetSnapshotsResponse getSnapshotsResponse) {
-                                    if (getSnapshotsResponse.getSnapshots()
-                                        .stream()
-                                        .noneMatch(snapshotInfo -> snapshotInfo.snapshotId().getName().equals(snapshotName))) {
+                            .execute(mustSucceed(onCompletion, getSnapshotsResponse -> {
+                                if (getSnapshotsResponse.getSnapshots()
+                                    .stream()
+                                    .noneMatch(snapshotInfo -> snapshotInfo.snapshotId().getName().equals(snapshotName))) {
 
-                                        logger.info("--> snapshot [{}:{}] no longer running", repositoryName, snapshotName);
-                                        Releasables.close(onCompletion);
-                                        onSuccess.run();
-                                    } else {
-                                        pollForSnapshotCompletion(repositoryName, snapshotName, onCompletion, onSuccess);
-                                    }
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
+                                    logger.info("--> snapshot [{}:{}] no longer running", repositoryName, snapshotName);
                                     Releasables.close(onCompletion);
-                                    throw new AssertionError("unexpected", e);
+                                    onSuccess.run();
+                                } else {
+                                    pollForSnapshotCompletion(repositoryName, snapshotName, onCompletion, onSuccess);
                                 }
-                            })
+                            }))
                     )
                 );
-
         }
 
         void stop() {
@@ -595,21 +557,12 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     .preparePutRepository(repositoryName)
                     .setType(FsRepository.TYPE)
                     .setSettings(Settings.builder().put(FsRepository.LOCATION_SETTING.getKey(), location))
-                    .execute(new ActionListener<>() {
-                        @Override
-                        public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                            assertTrue(acknowledgedResponse.isAcknowledged());
-                            logger.info("--> finished put repo [{}]", repositoryName);
-                            Releasables.close(releasable);
-                            scheduleRemoveAndAdd();
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            Releasables.close(releasable);
-                            throw new AssertionError("unexpected", e);
-                        }
-                    });
+                    .execute(mustSucceed(releasable, acknowledgedResponse -> {
+                        assertTrue(acknowledgedResponse.isAcknowledged());
+                        logger.info("--> finished put repo [{}]", repositoryName);
+                        Releasables.close(releasable);
+                        scheduleRemoveAndAdd();
+                    }));
             }
 
             private void scheduleRemoveAndAdd() {
@@ -630,20 +583,14 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         Releasable localReleasable = releaseAll;
                         try {
                             logger.info("--> delete repo [{}]", repositoryName);
-                            client().admin().cluster().prepareDeleteRepository(repositoryName).execute(new ActionListener<>() {
-                                @Override
-                                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                            client().admin()
+                                .cluster()
+                                .prepareDeleteRepository(repositoryName)
+                                .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
                                     assertTrue(acknowledgedResponse.isAcknowledged());
                                     logger.info("--> finished delete repo [{}]", repositoryName);
                                     putRepositoryAndContinue(releaseAll);
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
-                                    Releasables.close(releaseAll);
-                                    throw new AssertionError("unexpected", e);
-                                }
-                            });
+                                }));
                             localReleasable = null;
                         } finally {
                             Releasables.close(localReleasable);
@@ -692,21 +639,12 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 5))
                             .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), between(0, cluster.numDataNodes() - 1))
                     )
-                    .execute(new ActionListener<>() {
-                        @Override
-                        public void onResponse(CreateIndexResponse response) {
-                            assertTrue(response.isAcknowledged());
-                            logger.info("--> finished create index [{}]", indexName);
-                            Releasables.close(releasable);
-                            scheduleIndexingAndPossibleDelete();
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            Releasables.close(releasable);
-                            throw new AssertionError("unexpected", e);
-                        }
-                    });
+                    .execute(mustSucceed(releasable, response -> {
+                        assertTrue(response.isAcknowledged());
+                        logger.info("--> finished create index [{}]", indexName);
+                        Releasables.close(releasable);
+                        scheduleIndexingAndPossibleDelete();
+                    }));
             }
 
             private void scheduleIndexingAndPossibleDelete() {
@@ -723,10 +661,6 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         final Releasable releaseIndex = Releasables.releaseOnce(permits::release);
                         final Releasable releaseAll = () -> Releasables.close(nodeRestartBlock, releaseIndex);
                         Releasable localReleasable = releaseAll;
-                        final Consumer<Exception> onFailure = e -> {
-                            Releasables.close(releaseAll);
-                            throw new AssertionError("unexpected", e);
-                        };
 
                         try {
 
@@ -744,7 +678,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                             final StepListener<BulkResponse> bulkStep = new StepListener<>();
 
-                            ensureYellowStep.whenComplete(clusterHealthResponse -> {
+                            ensureYellowStep.addListener(mustSucceed(releaseAll, clusterHealthResponse -> {
 
                                 if (clusterHealthResponse.isTimedOut()) {
                                     Releasables.close(releaseAll);
@@ -765,9 +699,9 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 }
 
                                 bulkRequestBuilder.execute(bulkStep);
-                            }, onFailure);
+                            }));
 
-                            bulkStep.whenComplete(bulkItemResponses -> {
+                            bulkStep.addListener(mustSucceed(releaseAll, bulkItemResponses -> {
                                 for (BulkItemResponse bulkItemResponse : bulkItemResponses.getItems()) {
                                     assertNull(bulkItemResponse.getFailure());
                                 }
@@ -777,7 +711,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 Releasables.close(releaseAll);
                                 scheduleIndexingAndPossibleDelete();
 
-                            }, onFailure);
+                            }));
 
                             localReleasable = null;
                         } finally {
@@ -799,20 +733,11 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         try {
                             logger.info("--> deleting index [{}]", indexName);
 
-                            client().admin().indices().prepareDelete(indexName).execute(new ActionListener<>() {
-                                @Override
-                                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                    logger.info("--> deleting index [{}] finished", indexName);
-                                    assertTrue(acknowledgedResponse.isAcknowledged());
-                                    createIndexAndContinue(releaseAll);
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
-                                    Releasables.close(releaseAll);
-                                    throw new AssertionError("unexpected", e);
-                                }
-                            });
+                            client().admin().indices().prepareDelete(indexName).execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                                logger.info("--> deleting index [{}] finished", indexName);
+                                assertTrue(acknowledgedResponse.isAcknowledged());
+                                createIndexAndContinue(releaseAll);
+                            }));
 
                             localReleasable = null;
                         } finally {
