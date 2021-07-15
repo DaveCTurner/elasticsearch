@@ -8,6 +8,7 @@
 
 package org.elasticsearch.snapshots;
 
+import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -18,8 +19,12 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Randomness;
+import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -29,6 +34,7 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
@@ -40,10 +46,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.equalTo;
@@ -53,7 +62,15 @@ import static org.hamcrest.Matchers.sameInstance;
 public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
     public void testRandomActivities() throws InterruptedException {
-        new TrackedCluster(internalCluster()).run();
+        final DiscoveryNodes discoveryNodes = client().admin().cluster().prepareState().clear().setNodes(true).get().getState().nodes();
+        final Set<String> masterNodeNames = StreamSupport.stream(discoveryNodes.getMasterNodes().keys().spliterator(), false)
+            .map(c -> c.value)
+            .collect(Collectors.toSet());
+        final Set<String> dataNodeNames = StreamSupport.stream(discoveryNodes.getDataNodes().keys().spliterator(), false)
+            .map(c -> c.value)
+            .collect(Collectors.toSet());
+
+        new TrackedCluster(internalCluster(), masterNodeNames, dataNodeNames).run();
         disableRepoConsistencyCheck("have not necessarily written to all repositories");
     }
 
@@ -161,10 +178,10 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         private final AtomicInteger snapshotCounter = new AtomicInteger();
         private final CountDownLatch completedSnapshotLatch = new CountDownLatch(30);
 
-        TrackedCluster(InternalTestCluster cluster) {
+        TrackedCluster(InternalTestCluster cluster, Set<String> masterNodeNames, Set<String> dataNodeNames) {
             this.cluster = cluster;
             for (String nodeName : cluster.getNodeNames()) {
-                nodes.put(nodeName, new TrackedNode(nodeName));
+                nodes.put(nodeName, new TrackedNode(nodeName, masterNodeNames.contains(nodeName), dataNodeNames.contains(nodeName)));
             }
 
             final int repoCount = between(1, 3);
@@ -226,7 +243,13 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                    final ReleasableClient releasableClient = localReleasables.add(tryAcquireClient());
+                    if (releasableClient == null) {
+                        return;
+                    }
+                    final Client client = releasableClient.getClient();
+
+                    if (localReleasables.add(blockFullClusterRestart()) == null) {
                         return;
                     }
 
@@ -258,7 +281,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             trackedSnapshot.snapshotName
                         );
 
-                        client().admin()
+                        client.admin()
                             .cluster()
                             .prepareGetSnapshots(trackedSnapshot.trackedRepository.repositoryName)
                             .setSnapshots(trackedSnapshot.snapshotName)
@@ -295,7 +318,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             indexNames
                         );
 
-                        client().admin()
+                        client.admin()
                             .cluster()
                             .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
                             .setIndices(indexNames.toArray(new String[0]))
@@ -334,9 +357,15 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                    if (localReleasables.add(blockFullClusterRestart()) == null) {
                         return;
                     }
+
+                    final ReleasableClient releasableClient = tryAcquireClient();
+                    if (releasableClient == null) {
+                        return;
+                    }
+                    final Client client = releasableClient.client;
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
@@ -360,7 +389,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                     final Releasable releaseAll = localReleasables.transfer();
 
-                    client().admin()
+                    client.admin()
                         .cluster()
                         .prepareDeleteSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName)
                         .execute(mustSucceed(acknowledgedResponse -> {
@@ -411,6 +440,10 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     }
                     final boolean snapshotSpecificIndices = snapshotSpecificIndicesTmp;
 
+                    if (snapshotSpecificIndices && targetIndexNames.isEmpty()) {
+                        return;
+                    }
+
                     final Releasable releaseAll = localReleasables.transfer();
 
                     final StepListener<ClusterHealthResponse> ensureYellowStep = new StepListener<>();
@@ -439,7 +472,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             "--> take snapshot [{}:{}] with indices [{}{}]",
                             trackedRepository.repositoryName,
                             snapshotName,
-                            snapshotSpecificIndices ? "*=" : "",
+                            snapshotSpecificIndices ? "" : "*=",
                             targetIndexNames
                         );
 
@@ -517,6 +550,60 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
+        @Nullable // if we couldn't block the restart of the client node
+        private ReleasableClient tryAcquireClient() {
+            final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(nodes.values());
+            Randomness.shuffle(trackedNodes);
+            for (TrackedNode trackedNode : trackedNodes) {
+                final Releasable permit = tryAcquirePermit(trackedNode.getPermits());
+                if (permit != null) {
+                    return new ReleasableClient(permit, client(trackedNode.nodeName));
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Try and block the restart of a majority of the master nodes, which therefore prevents a full-cluster restart from occurring.
+         */
+        @Nullable // if we couldn't block enough master node restarts
+        private Releasable blockFullClusterRestart() {
+            final List<TrackedNode> masterNodes = nodes.values().stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
+            Randomness.shuffle(masterNodes);
+            int permitsAcquired = 0;
+            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                for (TrackedNode trackedNode : masterNodes) {
+                    if (localReleasables.add(tryAcquirePermit(trackedNode.getPermits())) != null) {
+                        permitsAcquired += 1;
+                        if (masterNodes.size() < permitsAcquired * 2) {
+                            return localReleasables.transfer();
+                        }
+                    }
+                }
+                return null;
+            }
+        }
+
+        private static class ReleasableClient implements Releasable {
+            private final Releasable releasable;
+            private final Client client;
+
+            ReleasableClient(Releasable releasable, Client client) {
+                this.releasable = releasable;
+                this.client = client;
+            }
+
+            @Override
+            public void close() {
+                releasable.close();
+            }
+
+            Client getClient() {
+                return client;
+            }
+        }
+
         /**
          * Tracks a node in the cluster, and occasionally restarts it if no other activity holds any of its permits.
          */
@@ -524,9 +611,13 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
             private final String nodeName;
+            private final boolean isMasterNode;
+            private final boolean isDataNode;
 
-            TrackedNode(String nodeName) {
+            TrackedNode(String nodeName, boolean isMasterNode, boolean isDataNode) {
                 this.nodeName = nodeName;
+                this.isMasterNode = isMasterNode;
+                this.isDataNode = isDataNode;
             }
 
             void start() {
@@ -567,6 +658,14 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             Semaphore getPermits() {
                 return permits;
+            }
+
+            boolean isMasterNode() {
+                return isMasterNode;
+            }
+
+            boolean isDataNode() {
+                return isDataNode;
             }
 
             @Override
