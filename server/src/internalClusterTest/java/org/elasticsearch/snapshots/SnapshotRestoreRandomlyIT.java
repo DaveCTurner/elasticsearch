@@ -90,7 +90,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         }
     }
 
-    @Nullable
+    @Nullable // if no permit was acquired
     private static Releasable tryAcquirePermit(Semaphore permits) {
         if (permits.tryAcquire()) {
             return Releasables.releaseOnce(permits::release);
@@ -99,7 +99,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         }
     }
 
-    @Nullable
+    @Nullable // if not all permits were acquired
     private static Releasable tryAcquireAllPermits(Semaphore permits) {
         if (permits.tryAcquire(Integer.MAX_VALUE)) {
             return Releasables.releaseOnce(() -> permits.release(Integer.MAX_VALUE));
@@ -213,10 +213,14 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
+        void stop() {
+            ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
+        }
+
         private void startCloner() {
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
-                boolean success = false;
+                boolean startedClone = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
                     final List<TrackedSnapshot> trackedSnapshots = new ArrayList<>(snapshots.values());
@@ -271,9 +275,9 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             startCloner();
                         }));
 
-                    success = true;
+                    startedClone = true;
                 } finally {
-                    if (success == false) {
+                    if (startedClone == false) {
                         startCloner();
                     }
                 }
@@ -283,7 +287,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         private void startSnapshotDeleter() {
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
-                boolean success = false;
+                boolean startedDeletion = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
                     final List<TrackedSnapshot> trackedSnapshots = new ArrayList<>(snapshots.values());
@@ -332,10 +336,10 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             startSnapshotDeleter();
                         }));
 
-                    success = true;
+                    startedDeletion = true;
 
                 } finally {
-                    if (success == false) {
+                    if (startedDeletion == false) {
                         startSnapshotDeleter();
                     }
                 }
@@ -345,7 +349,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         private void startSnapshotter() {
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
-                boolean success = false;
+                boolean startedSnapshot = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
                     if (localReleasables.add(blockNodeRestarts()) == null) {
@@ -427,9 +431,9 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         }
                     }));
 
-                    success = true;
+                    startedSnapshot = true;
                 } finally {
-                    if (success == false) {
+                    if (startedSnapshot == false) {
                         startSnapshotter();
                     }
                 }
@@ -460,10 +464,6 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                 );
         }
 
-        void stop() {
-            ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
-        }
-
         @Nullable // if we couldn't block node restarts
         private Releasable blockNodeRestarts() {
             try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -490,21 +490,36 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             void start() {
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
-                    if (rarely() && permits.tryAcquire(Integer.MAX_VALUE)) {
-                        threadPool.generic().execute(() -> {
+
+                    boolean restarting = false;
+                    try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                        if (usually()) {
+                            return;
+                        }
+
+                        if (localReleasables.add(tryAcquireAllPermits(permits)) == null) {
+                            return;
+                        }
+
+                        final Releasable releaseAll = localReleasables.transfer();
+
+                        threadPool.generic().execute(mustSucceed(() -> {
                             try {
                                 logger.info("--> restarting [{}]", nodeName);
                                 cluster.restartNode(nodeName);
-                            } catch (Exception e) {
-                                throw new AssertionError("unexpected", e);
                             } finally {
                                 logger.info("--> finished restarting [{}]", nodeName);
-                                permits.release(Integer.MAX_VALUE);
+                                Releasables.close(releaseAll);
                                 start();
                             }
-                        });
-                    } else {
-                        start();
+                        }));
+
+                        restarting = true;
+                    } finally {
+                        if (restarting == false) {
+                            start();
+                        }
                     }
                 }));
             }
@@ -567,36 +582,42 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             private void scheduleRemoveAndAdd() {
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
-                    if (rarely() && permits.tryAcquire(Integer.MAX_VALUE)) {
 
-                        final Releasable nodeRestartBlock = blockNodeRestarts();
-                        if (nodeRestartBlock == null) {
+                    boolean replacingRepo = false;
+                    try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                        if (usually()) {
+                            return;
+                        }
+
+                        if (localReleasables.add(tryAcquireAllPermits(permits)) == null) {
+                            return;
+                        }
+
+                        if (localReleasables.add(blockNodeRestarts()) == null) {
                             // TODO maybe attempt to remove + add repo even if nodes are restarting?
                             // but what if client node is shut down after sending request to master, we'd get a failure but the delete
                             // might still go through later, perhaps after we tried to re-add it
-                            permits.release(Integer.MAX_VALUE);
-                            scheduleRemoveAndAdd();
                             return;
                         }
-                        final Releasable releaseRepository = releaseAllPermits();
-                        final Releasable releaseAll = () -> Releasables.close(nodeRestartBlock, releaseRepository);
-                        Releasable localReleasable = releaseAll;
-                        try {
-                            logger.info("--> delete repo [{}]", repositoryName);
-                            client().admin()
-                                .cluster()
-                                .prepareDeleteRepository(repositoryName)
-                                .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
-                                    assertTrue(acknowledgedResponse.isAcknowledged());
-                                    logger.info("--> finished delete repo [{}]", repositoryName);
-                                    putRepositoryAndContinue(releaseAll);
-                                }));
-                            localReleasable = null;
-                        } finally {
-                            Releasables.close(localReleasable);
+
+                        final Releasable releaseAll = localReleasables.transfer();
+
+                        logger.info("--> delete repo [{}]", repositoryName);
+                        client().admin()
+                            .cluster()
+                            .prepareDeleteRepository(repositoryName)
+                            .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                                assertTrue(acknowledgedResponse.isAcknowledged());
+                                logger.info("--> finished delete repo [{}]", repositoryName);
+                                putRepositoryAndContinue(releaseAll);
+                            }));
+
+                        replacingRepo = true;
+                    } finally {
+                        if (replacingRepo == false) {
+                            scheduleRemoveAndAdd();
                         }
-                    } else {
-                        scheduleRemoveAndAdd();
                     }
                 }));
             }
@@ -649,20 +670,20 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             private void scheduleIndexingAndPossibleDelete() {
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
-                    if (usually()) {
-                        assertTrue(permits.tryAcquire()); // nobody else should be blocking this index
-                        final Releasable nodeRestartBlock = blockNodeRestarts();
-                        if (nodeRestartBlock == null) {
-                            permits.release();
-                            scheduleIndexingAndPossibleDelete();
+
+                    boolean forked = false;
+                    try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                        if (localReleasables.add(blockNodeRestarts()) == null) {
                             return;
                         }
 
-                        final Releasable releaseIndex = Releasables.releaseOnce(permits::release);
-                        final Releasable releaseAll = () -> Releasables.close(nodeRestartBlock, releaseIndex);
-                        Releasable localReleasable = releaseAll;
+                        if (usually()) {
+                            // index some more docs
 
-                        try {
+                            assertNotNull(localReleasables.add(tryAcquirePermit(permits))); // nobody else should be blocking this index
+
+                            final Releasable releaseAll = localReleasables.transfer();
 
                             final StepListener<ClusterHealthResponse> ensureYellowStep = new StepListener<>();
 
@@ -680,10 +701,10 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                             ensureYellowStep.addListener(mustSucceed(releaseAll, clusterHealthResponse -> {
 
-                                if (clusterHealthResponse.isTimedOut()) {
-                                    Releasables.close(releaseAll);
-                                    throw new AssertionError("timed out waiting for yellow state of [" + indexName + "]");
-                                }
+                                assertFalse(
+                                    "timed out waiting for yellow state of [" + indexName + "]",
+                                    clusterHealthResponse.isTimedOut()
+                                );
 
                                 final int docCount = between(1, 1000);
                                 final BulkRequestBuilder bulkRequestBuilder = client().prepareBulk(indexName);
@@ -713,24 +734,13 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                             }));
 
-                            localReleasable = null;
-                        } finally {
-                            Releasables.close(localReleasable);
-                        }
+                            forked = true;
 
-                    } else if (permits.tryAcquire(Integer.MAX_VALUE)) {
-                        final Releasable nodeRestartBlock = blockNodeRestarts();
-                        if (nodeRestartBlock == null) {
-                            permits.release(Integer.MAX_VALUE);
-                            scheduleIndexingAndPossibleDelete();
-                            return;
-                        }
+                        } else if (localReleasables.add(tryAcquireAllPermits(permits)) != null) {
+                            // delete the index and create a new one
 
-                        final Releasable releaseIndex = releaseAllPermits();
-                        final Releasable releaseAll = () -> Releasables.close(nodeRestartBlock, releaseIndex);
-                        Releasable localReleasable = releaseAll;
+                            final Releasable releaseAll = localReleasables.transfer();
 
-                        try {
                             logger.info("--> deleting index [{}]", indexName);
 
                             client().admin().indices().prepareDelete(indexName).execute(mustSucceed(releaseAll, acknowledgedResponse -> {
@@ -739,9 +749,11 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 createIndexAndContinue(releaseAll);
                             }));
 
-                            localReleasable = null;
-                        } finally {
-                            Releasables.close(localReleasable);
+                            forked = true;
+                        }
+                    } finally {
+                        if (forked == false) {
+                            scheduleIndexingAndPossibleDelete();
                         }
                     }
                 }));
