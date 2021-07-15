@@ -53,10 +53,7 @@ import static org.hamcrest.Matchers.sameInstance;
 public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
     public void testRandomActivities() throws InterruptedException {
-        final TrackedCluster trackedCluster = new TrackedCluster(internalCluster());
-
-        trackedCluster.run();
-
+        new TrackedCluster(internalCluster()).run();
         disableRepoConsistencyCheck("have not necessarily written to all repositories");
     }
 
@@ -126,7 +123,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
         };
     }
 
-    private static <T> ActionListener<T> mustSucceed(Releasable releaseOnFailure, CheckedConsumer<T, Exception> consumer) {
+    private static <T> ActionListener<T> mustSucceed(CheckedConsumer<T, Exception> consumer) {
         return new ActionListener<>() {
             @Override
             public void onResponse(T t) {
@@ -139,7 +136,6 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
             @Override
             public void onFailure(Exception e) {
-                Releasables.close(releaseOnFailure);
                 throw new AssertionError("unexpected", e);
             }
         };
@@ -183,7 +179,6 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                 indices.put(indexName, new TrackedIndex(indexName));
             }
         }
-
 
         public void run() throws InterruptedException {
             for (TrackedNode trackedNode : nodes.values()) {
@@ -257,13 +252,17 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         getIndicesStep.onResponse(Collections.singletonList("*"));
                     } else {
 
-                        logger.info("--> listing indices in [{}:{}] in preparation for cloning",
+                        logger.info(
+                            "--> listing indices in [{}:{}] in preparation for cloning",
                             trackedSnapshot.trackedRepository.repositoryName,
-                            trackedSnapshot.snapshotName);
+                            trackedSnapshot.snapshotName
+                        );
 
-                        client().admin().cluster().prepareGetSnapshots(trackedSnapshot.trackedRepository.repositoryName)
+                        client().admin()
+                            .cluster()
+                            .prepareGetSnapshots(trackedSnapshot.trackedRepository.repositoryName)
                             .setSnapshots(trackedSnapshot.snapshotName)
-                            .execute(mustSucceed(releaseAll, getSnapshotsResponse -> {
+                            .execute(mustSucceed(getSnapshotsResponse -> {
                                 assertThat(getSnapshotsResponse.getSnapshots(), hasSize(1));
                                 final SnapshotInfo snapshotInfo = getSnapshotsResponse.getSnapshots().get(0);
                                 assertThat(snapshotInfo.snapshotId().getName(), equalTo(trackedSnapshot.snapshotName));
@@ -283,7 +282,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             }));
                     }
 
-                    getIndicesStep.addListener(mustSucceed(releaseAll, indexNames -> {
+                    getIndicesStep.addListener(mustSucceed(indexNames -> {
 
                         final String cloneName = "snapshot-clone-" + snapshotCounter.incrementAndGet();
 
@@ -300,7 +299,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             .cluster()
                             .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
                             .setIndices(indexNames.toArray(new String[0]))
-                            .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                            .execute(mustSucceed(acknowledgedResponse -> {
                                 Releasables.close(releaseAll);
                                 assertTrue(acknowledgedResponse.isAcknowledged());
                                 completedSnapshotLatch.countDown();
@@ -364,7 +363,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     client().admin()
                         .cluster()
                         .prepareDeleteSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName)
-                        .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                        .execute(mustSucceed(acknowledgedResponse -> {
                             Releasables.close(releaseAll);
                             assertTrue(acknowledgedResponse.isAcknowledged());
                             assertThat(snapshots.remove(trackedSnapshot.snapshotName), sameInstance(trackedSnapshot));
@@ -433,7 +432,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         .setWaitForNodes(Integer.toString(internalCluster().getNodeNames().length))
                         .execute(ensureYellowStep);
 
-                    ensureYellowStep.addListener(mustSucceed(releaseAll, clusterHealthResponse -> {
+                    ensureYellowStep.addListener(mustSucceed(clusterHealthResponse -> {
                         assertFalse("timed out waiting for yellow state of " + targetIndexNames, clusterHealthResponse.isTimedOut());
 
                         logger.info(
@@ -454,7 +453,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                         if (randomBoolean()) {
                             createSnapshotRequestBuilder.setWaitForCompletion(true);
-                            createSnapshotRequestBuilder.execute(mustSucceed(releaseAll, createSnapshotResponse -> {
+                            createSnapshotRequestBuilder.execute(mustSucceed(createSnapshotResponse -> {
                                 logger.info("--> completed snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
                                 assertThat(createSnapshotResponse.getSnapshotInfo().state(), equalTo(SnapshotState.SUCCESS));
                                 Releasables.close(releaseAll);
@@ -462,7 +461,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 startSnapshotter();
                             }));
                         } else {
-                            createSnapshotRequestBuilder.execute(mustSucceed(releaseAll, createSnapshotResponse -> {
+                            createSnapshotRequestBuilder.execute(mustSucceed(createSnapshotResponse -> {
                                 logger.info("--> started snapshot [{}:{}]", trackedRepository.repositoryName, snapshotName);
                                 pollForSnapshotCompletion(trackedRepository.repositoryName, snapshotName, releaseAll, () -> {
                                     snapshots.put(snapshotName, new TrackedSnapshot(trackedRepository, snapshotName));
@@ -490,7 +489,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             .cluster()
                             .prepareGetSnapshots(repositoryName)
                             .setCurrentSnapshot()
-                            .execute(mustSucceed(onCompletion, getSnapshotsResponse -> {
+                            .execute(mustSucceed(getSnapshotsResponse -> {
                                 if (getSnapshotsResponse.getSnapshots()
                                     .stream()
                                     .noneMatch(snapshotInfo -> snapshotInfo.snapshotId().getName().equals(snapshotName))) {
@@ -614,7 +613,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     .preparePutRepository(repositoryName)
                     .setType(FsRepository.TYPE)
                     .setSettings(Settings.builder().put(FsRepository.LOCATION_SETTING.getKey(), location))
-                    .execute(mustSucceed(releasable, acknowledgedResponse -> {
+                    .execute(mustSucceed(acknowledgedResponse -> {
                         assertTrue(acknowledgedResponse.isAcknowledged());
                         logger.info("--> finished put repo [{}]", repositoryName);
                         Releasables.close(releasable);
@@ -646,14 +645,11 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         final Releasable releaseAll = localReleasables.transfer();
 
                         logger.info("--> delete repo [{}]", repositoryName);
-                        client().admin()
-                            .cluster()
-                            .prepareDeleteRepository(repositoryName)
-                            .execute(mustSucceed(releaseAll, acknowledgedResponse -> {
-                                assertTrue(acknowledgedResponse.isAcknowledged());
-                                logger.info("--> finished delete repo [{}]", repositoryName);
-                                putRepositoryAndContinue(releaseAll);
-                            }));
+                        client().admin().cluster().prepareDeleteRepository(repositoryName).execute(mustSucceed(acknowledgedResponse -> {
+                            assertTrue(acknowledgedResponse.isAcknowledged());
+                            logger.info("--> finished delete repo [{}]", repositoryName);
+                            putRepositoryAndContinue(releaseAll);
+                        }));
 
                         replacingRepo = true;
                     } finally {
@@ -702,7 +698,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                             .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 5))
                             .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), between(0, cluster.numDataNodes() - 1))
                     )
-                    .execute(mustSucceed(releasable, response -> {
+                    .execute(mustSucceed(response -> {
                         assertTrue(response.isAcknowledged());
                         logger.info("--> finished create index [{}]", indexName);
                         Releasables.close(releasable);
@@ -741,7 +737,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                             final StepListener<BulkResponse> bulkStep = new StepListener<>();
 
-                            ensureYellowStep.addListener(mustSucceed(releaseAll, clusterHealthResponse -> {
+                            ensureYellowStep.addListener(mustSucceed(clusterHealthResponse -> {
 
                                 assertFalse(
                                     "timed out waiting for yellow state of [" + indexName + "]",
@@ -764,7 +760,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                                 bulkRequestBuilder.execute(bulkStep);
                             }));
 
-                            bulkStep.addListener(mustSucceed(releaseAll, bulkItemResponses -> {
+                            bulkStep.addListener(mustSucceed(bulkItemResponses -> {
                                 for (BulkItemResponse bulkItemResponse : bulkItemResponses.getItems()) {
                                     assertNull(bulkItemResponse.getFailure());
                                 }
@@ -785,7 +781,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
 
                             logger.info("--> deleting index [{}]", indexName);
 
-                            client().admin().indices().prepareDelete(indexName).execute(mustSucceed(releaseAll, acknowledgedResponse -> {
+                            client().admin().indices().prepareDelete(indexName).execute(mustSucceed(acknowledgedResponse -> {
                                 logger.info("--> deleting index [{}] finished", indexName);
                                 assertTrue(acknowledgedResponse.isAcknowledged());
                                 createIndexAndContinue(releaseAll);
