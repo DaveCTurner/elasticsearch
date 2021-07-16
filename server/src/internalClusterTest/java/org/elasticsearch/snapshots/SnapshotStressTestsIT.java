@@ -15,6 +15,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequestBuilder;
+import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequestBuilder;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -35,6 +37,7 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
@@ -50,6 +53,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -167,6 +171,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             new ScalingExecutorBuilder(CLIENT, 1, 1, TimeValue.ZERO, CLIENT)
         );
 
+        private final AtomicBoolean shouldStop = new AtomicBoolean();
         private final boolean blockAllNodes;
         private final InternalTestCluster cluster;
         private final Map<String, TrackedNode> nodes = ConcurrentCollections.newConcurrentMap();
@@ -225,14 +230,248 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 startSnapshotDeleter();
             }
 
-            if (completedSnapshotLatch.await(30, TimeUnit.SECONDS) == false) {
+            final int restorerCount = between(0, 3);
+            for (int i = 0; i < restorerCount; i++) {
+                startRestorer();
+            }
+
+            if (completedSnapshotLatch.await(30, TimeUnit.SECONDS)) {
+                logger.info("--> completed target snapshot count, finishing test");
+            } else {
                 logger.info("--> did not complete target snapshot count in 30s, giving up");
             }
+
+            assertTrue(shouldStop.compareAndSet(false, true));
+
+            final List<Tuple<String, Semaphore>> labelledPermits = new ArrayList<>();
+            nodes.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.nodeName, n.permits)));
+            repositories.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.repositoryName, n.permits)));
+            indices.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.indexName, n.permits)));
+            snapshots.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.snapshotName, n.permits)));
+
+            for (Tuple<String, Semaphore> labelledPermit : labelledPermits) {
+                assertTrue(labelledPermit.v1(), labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS));
+            }
+
+            logger.info("--> acquired all permits");
 
             ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
         }
 
+        private void startRestorer() {
+            if (shouldStop.get()) {
+                return;
+            }
+
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+
+                boolean startedRestore = false;
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                    final List<TrackedSnapshot> trackedSnapshots = new ArrayList<>(snapshots.values());
+                    if (trackedSnapshots.isEmpty()) {
+                        return;
+                    }
+
+                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                        return;
+                    }
+
+                    final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
+                    if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
+                        return;
+                    }
+
+                    if (localReleasables.add(tryAcquirePermit(trackedSnapshot.permits)) == null) {
+                        return;
+                    }
+
+                    if (snapshots.get(trackedSnapshot.snapshotName) != trackedSnapshot) {
+                        // concurrently removed
+                        return;
+                    }
+
+                    final Releasable releaseAll = localReleasables.transfer();
+
+                    logger.info(
+                        "--> listing indices in [{}:{}] in preparation for restoring",
+                        trackedSnapshot.trackedRepository.repositoryName,
+                        trackedSnapshot.snapshotName
+                    );
+
+                    client().admin()
+                        .cluster()
+                        .prepareGetSnapshots(trackedSnapshot.trackedRepository.repositoryName)
+                        .setSnapshots(trackedSnapshot.snapshotName)
+                        .execute(mustSucceed(getSnapshotsResponse -> restoreSnapshot(getSnapshotsResponse, releaseAll)));
+
+                    startedRestore = true;
+                } finally {
+                    if (startedRestore == false) {
+                        startRestorer();
+                    }
+                }
+            }));
+        }
+
+        private void restoreSnapshot(GetSnapshotsResponse getSnapshotsResponse, Releasable releasePreviousStep) {
+            boolean startedRestore = false;
+            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                localReleasables.add(releasePreviousStep);
+
+                if (shouldStop.get()) {
+                    return;
+                }
+
+                assertThat(getSnapshotsResponse.getSnapshots(), hasSize(1));
+                final SnapshotInfo snapshotInfo = getSnapshotsResponse.getSnapshots().get(0);
+
+                boolean restoreSpecificIndicesTmp = randomBoolean();
+                final List<String> indicesToRestoreList = new ArrayList<>(snapshotInfo.indices().size());
+                final List<String> indicesToCloseList = new ArrayList<>(snapshotInfo.indices().size());
+                final List<String> indicesToDeleteList = new ArrayList<>(snapshotInfo.indices().size());
+                for (String indexName : snapshotInfo.indices()) {
+                    if (usually() && localReleasables.add(tryAcquireAllPermits(indices.get(indexName).permits)) != null) {
+
+                        indicesToRestoreList.add(indexName);
+
+                        final int snapshotShardCount = snapshotInfo.indexSnapshotDetails().get(indexName).getShardCount();
+                        final int indexShardCount = indices.get(indexName).shardCount;
+                        if (snapshotShardCount == indexShardCount && randomBoolean()) {
+                            indicesToCloseList.add(indexName);
+                        } else {
+                            indicesToDeleteList.add(indexName);
+                        }
+                    } else {
+                        restoreSpecificIndicesTmp = true;
+                    }
+                }
+                final boolean restoreSpecificIndices = restoreSpecificIndicesTmp;
+
+                if (indicesToRestoreList.isEmpty()) {
+                    logger.info(
+                        "--> could not obtain exclusive lock on any indices in [{}:{}] for restore",
+                        snapshotInfo.repository(),
+                        snapshotInfo.snapshotId().getName()
+                    );
+
+                    return;
+                }
+
+                final Releasable releaseAll = localReleasables.transfer();
+
+                final String[] indicesToRestore = indicesToRestoreList.toArray(new String[0]);
+                final String[] indicesToClose = indicesToCloseList.toArray(new String[0]);
+                final String[] indicesToDelete = indicesToDeleteList.toArray(new String[0]);
+
+                final StepListener<Void> closeIndicesStep = new StepListener<>();
+                final StepListener<Void> deleteIndicesStep = new StepListener<>();
+
+                if (indicesToClose.length > 0) {
+                    logger.info(
+                        "--> closing indices {} in preparation for restoring from [{}:{}]",
+                        indicesToRestoreList,
+                        snapshotInfo.repository(),
+                        snapshotInfo.snapshotId().getName()
+                    );
+                    client().admin().indices().prepareClose(indicesToClose).execute(mustSucceed(closeIndexResponse -> {
+                        logger.info(
+                            "--> finished closing indices {} in preparation for restoring from [{}:{}]",
+                            indicesToRestoreList,
+                            snapshotInfo.repository(),
+                            snapshotInfo.snapshotId().getName()
+                        );
+                        assertTrue(closeIndexResponse.isAcknowledged());
+                        assertTrue(closeIndexResponse.isShardsAcknowledged());
+                        closeIndicesStep.onResponse(null);
+                    }));
+                } else {
+                    closeIndicesStep.onResponse(null);
+                }
+
+                if (indicesToDelete.length > 0) {
+                    logger.info(
+                        "--> deleting indices {} in preparation for restoring from [{}:{}]",
+                        indicesToRestoreList,
+                        snapshotInfo.repository(),
+                        snapshotInfo.snapshotId().getName()
+                    );
+                    client().admin().indices().prepareDelete(indicesToDelete).execute(mustSucceed(deleteIndicesResponse -> {
+                        logger.info(
+                            "--> finished deleting indices {} in preparation for restoring from [{}:{}]",
+                            indicesToRestoreList,
+                            snapshotInfo.repository(),
+                            snapshotInfo.snapshotId().getName()
+                        );
+                        assertTrue(deleteIndicesResponse.isAcknowledged());
+                        deleteIndicesStep.onResponse(null);
+                    }));
+                } else {
+                    deleteIndicesStep.onResponse(null);
+                }
+
+                closeIndicesStep.addListener(mustSucceed(ignored1 -> deleteIndicesStep.addListener(mustSucceed(ignored2 -> {
+
+                    final RestoreSnapshotRequestBuilder restoreSnapshotRequestBuilder = client().admin()
+                        .cluster()
+                        .prepareRestoreSnapshot(snapshotInfo.repository(), snapshotInfo.snapshotId().getName());
+
+                    if (restoreSpecificIndices) {
+                        restoreSnapshotRequestBuilder.setIndices(indicesToRestore);
+                    }
+
+                    logger.info(
+                        "--> restoring indices {}{} from [{}:{}]",
+                        restoreSpecificIndices ? "" : "*=",
+                        indicesToRestoreList,
+                        snapshotInfo.repository(),
+                        snapshotInfo.snapshotId().getName()
+                    );
+
+                    restoreSnapshotRequestBuilder.execute(mustSucceed(restoreSnapshotResponse -> {
+                        logger.info(
+                            "--> triggered restore of indices {} from [{}:{}], waiting for green health",
+                            indicesToRestoreList,
+                            snapshotInfo.repository(),
+                            snapshotInfo.snapshotId().getName()
+                        );
+
+                        client().admin()
+                            .cluster()
+                            .prepareHealth(indicesToRestore)
+                            .setWaitForEvents(Priority.LANGUID)
+                            .setWaitForGreenStatus()
+                            .setWaitForNoInitializingShards(true)
+                            .setWaitForNodes(Integer.toString(internalCluster().getNodeNames().length))
+                            .execute(mustSucceed(clusterHealthResponse -> {
+
+                                logger.info(
+                                    "--> indices {} successfully restored from [{}:{}]",
+                                    indicesToRestoreList,
+                                    snapshotInfo.repository(),
+                                    snapshotInfo.snapshotId().getName()
+                                );
+
+                                Releasables.close(releaseAll);
+                                assertFalse(clusterHealthResponse.isTimedOut());
+                                startRestorer();
+                            }));
+                    }));
+                }))));
+
+                startedRestore = true;
+            } finally {
+                if (startedRestore == false) {
+                    startRestorer();
+                }
+            }
+        }
+
         private void startCloner() {
+            if (shouldStop.get()) {
+                return;
+            }
+
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                 boolean startedClone = false;
@@ -343,6 +582,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         private void startSnapshotDeleter() {
+            if (shouldStop.get()) {
+                return;
+            }
+
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                 boolean startedDeletion = false;
@@ -407,6 +650,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         private void startSnapshotter() {
+            if (shouldStop.get()) {
+                return;
+            }
+
             threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                 boolean startedSnapshot = false;
@@ -630,6 +877,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             void start() {
+                if (shouldStop.get()) {
+                    return;
+                }
+
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                     boolean restarting = false;
@@ -730,6 +981,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void scheduleRemoveAndAdd() {
+                if (shouldStop.get()) {
+                    return;
+                }
+
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                     boolean replacingRepo = false;
@@ -774,6 +1029,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
             private final String indexName;
+            private int shardCount; // only changed when all permits held by the delete/recreate process
 
             private TrackedIndex(String indexName) {
                 this.indexName = indexName;
@@ -798,12 +1054,13 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             private void createIndexAndContinue(Releasable releasable) {
                 logger.info("--> create index [{}]", indexName);
+                shardCount = between(1, 5);
                 client().admin()
                     .indices()
                     .prepareCreate(indexName)
                     .setSettings(
                         Settings.builder()
-                            .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 5))
+                            .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), shardCount)
                             .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), between(0, cluster.numDataNodes() - 1))
                     )
                     .execute(mustSucceed(response -> {
@@ -815,6 +1072,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void scheduleIndexingAndPossibleDelete() {
+                if (shouldStop.get()) {
+                    return;
+                }
+
                 threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
 
                     boolean forked = false;
@@ -827,13 +1088,15 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         if (usually()) {
                             // index some more docs
 
-                            assertNotNull(localReleasables.add(tryAcquirePermit(permits))); // nobody else should be blocking this index
+                            if (localReleasables.add(tryAcquirePermit(permits)) == null) {
+                                return;
+                            }
 
                             final Releasable releaseAll = localReleasables.transfer();
 
                             final StepListener<ClusterHealthResponse> ensureYellowStep = new StepListener<>();
 
-                            logger.info("--> waiting for yellow health of [{}]", indexName);
+                            logger.info("--> waiting for yellow health of [{}] prior to indexing", indexName);
 
                             client().admin()
                                 .cluster()
