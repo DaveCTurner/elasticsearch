@@ -240,15 +240,12 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                    if (localReleasables.add(blockFullClusterRestart()) == null) {
                         return;
                     }
 
-                    final ReleasableClient releasableClient = localReleasables.add(tryAcquireClient());
-                    if (releasableClient == null) {
-                        return;
-                    }
-                    final Client client = releasableClient.getClient();
+                    //noinspection ConstantConditions tryAcquireClient always succeeds because blockNodeRestarts got permits for ≥1 node
+                    final Client client = localReleasables.add(tryAcquireClient()).getClient();
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
@@ -354,15 +351,12 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                    if (localReleasables.add(blockFullClusterRestart()) == null) {
                         return;
                     }
 
-                    final ReleasableClient releasableClient = localReleasables.add(tryAcquireClient());
-                    if (releasableClient == null) {
-                        return;
-                    }
-                    final Client client = releasableClient.getClient();
+                    //noinspection ConstantConditions tryAcquireClient always succeeds because blockNodeRestarts got permits for ≥1 node
+                    final Client client = localReleasables.add(tryAcquireClient()).getClient();
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
