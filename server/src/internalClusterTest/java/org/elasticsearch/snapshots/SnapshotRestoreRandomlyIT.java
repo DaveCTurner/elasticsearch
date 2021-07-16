@@ -358,7 +358,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    final ReleasableClient releasableClient = tryAcquireClient();
+                    final ReleasableClient releasableClient = localReleasables.add(tryAcquireClient());
                     if (releasableClient == null) {
                         return;
                     }
