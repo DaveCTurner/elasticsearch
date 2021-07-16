@@ -244,8 +244,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    //noinspection ConstantConditions tryAcquireClient always succeeds because blockNodeRestarts got permits for ≥1 node
-                    final Client client = localReleasables.add(tryAcquireClient()).getClient();
+                    final Client client = localReleasables.add(acquireClient()).getClient();
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
@@ -355,8 +354,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    //noinspection ConstantConditions tryAcquireClient always succeeds because blockNodeRestarts got permits for ≥1 node
-                    final Client client = localReleasables.add(tryAcquireClient()).getClient();
+                    final Client client = localReleasables.add(acquireClient()).getClient();
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
@@ -539,6 +537,12 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                 }
                 return localReleasables.transfer();
             }
+        }
+
+        private ReleasableClient acquireClient() {
+            final ReleasableClient client = tryAcquireClient();
+            assertNotNull(client);
+            return client;
         }
 
         @Nullable // if we couldn't block the restart of the client node
