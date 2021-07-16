@@ -331,6 +331,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 final List<String> indicesToCloseList = new ArrayList<>(snapshotInfo.indices().size());
                 final List<String> indicesToDeleteList = new ArrayList<>(snapshotInfo.indices().size());
                 for (String indexName : snapshotInfo.indices()) {
+                    if (snapshotInfo.shardFailures()
+                        .stream()
+                        .anyMatch(snapshotShardFailure -> snapshotShardFailure.getShardId().getIndexName().equals(indexName))) {
+                        continue;
+                    }
                     if (randomBoolean() && localReleasables.add(tryAcquireAllPermits(indices.get(indexName).permits)) != null) {
 
                         indicesToRestoreList.add(indexName);
