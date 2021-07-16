@@ -246,7 +246,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     }
                     final Client client = releasableClient.getClient();
 
-                    if (localReleasables.add(blockFullClusterRestart()) == null) {
+                    if (localReleasables.add(blockNodeRestarts()) == null) {
                         return;
                     }
 
@@ -354,7 +354,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    if (localReleasables.add(blockFullClusterRestart()) == null) {
+                    if (localReleasables.add(blockNodeRestarts()) == null) {
                         return;
                     }
 
