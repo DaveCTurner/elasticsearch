@@ -539,12 +539,19 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
+        /**
+         * Acquire a client (i.e. block the client node from restarting) in a situation where we know that such a block can be obtained.
+         */
         private ReleasableClient acquireClient() {
             final ReleasableClient client = tryAcquireClient();
             assertNotNull(client);
             return client;
         }
 
+        /**
+         * Attempt to acquire a client (i.e. block the client node from restarting) but if no blockable node can be found then return {@code
+         * null}.
+         */
         @Nullable // if we couldn't block the restart of the client node
         private ReleasableClient tryAcquireClient() {
             final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(nodes.values());
