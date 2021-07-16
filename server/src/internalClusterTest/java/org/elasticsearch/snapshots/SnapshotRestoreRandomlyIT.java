@@ -240,15 +240,15 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
+                    if (localReleasables.add(blockNodeRestarts()) == null) {
+                        return;
+                    }
+
                     final ReleasableClient releasableClient = localReleasables.add(tryAcquireClient());
                     if (releasableClient == null) {
                         return;
                     }
                     final Client client = releasableClient.getClient();
-
-                    if (localReleasables.add(blockNodeRestarts()) == null) {
-                        return;
-                    }
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
@@ -362,7 +362,7 @@ public class SnapshotRestoreRandomlyIT extends AbstractSnapshotIntegTestCase {
                     if (releasableClient == null) {
                         return;
                     }
-                    final Client client = releasableClient.client;
+                    final Client client = releasableClient.getClient();
 
                     final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
                     if (localReleasables.add(tryAcquirePermit(trackedSnapshot.trackedRepository.permits)) == null) {
