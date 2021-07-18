@@ -1008,7 +1008,7 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
             logger.warn("Failed to update snapshot state ", e);
         }
         assert assertConsistentWithClusterState(event.state());
-        assert assertNoDanglingSnapshots(event.state());
+        assert assertNoDanglingSnapshots(event.previousState(), event.state());
     }
 
     private boolean assertConsistentWithClusterState(ClusterState state) {
@@ -1047,7 +1047,7 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
 
     // Assert that there are no snapshots that have a shard that is waiting to be assigned even though the cluster state would allow for it
     // to be assigned
-    private static boolean assertNoDanglingSnapshots(ClusterState state) {
+    private static boolean assertNoDanglingSnapshots(ClusterState previousState, ClusterState state) {
         final SnapshotsInProgress snapshotsInProgress = state.custom(SnapshotsInProgress.TYPE, SnapshotsInProgress.EMPTY);
         final SnapshotDeletionsInProgress snapshotDeletionsInProgress = state.custom(
             SnapshotDeletionsInProgress.TYPE,
@@ -1064,7 +1064,13 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
                 for (ObjectCursor<ShardSnapshotStatus> value : entry.shardsByRepoShardId().values()) {
                     if (value.value.equals(ShardSnapshotStatus.UNASSIGNED_QUEUED)) {
                         assert reposWithRunningDelete.contains(entry.repository())
-                            : "Found shard snapshot waiting to be assigned in [" + entry + "] but it is not blocked by any running delete";
+                            : "Found shard snapshot waiting to be assigned in ["
+                                + entry
+                                + "] but it is not blocked by any running delete"
+                                + "\nprevious="
+                                + Strings.toString(previousState, false, false)
+                                + "\ncurrent="
+                                + Strings.toString(state, false, false);
                     } else if (value.value.isActive()) {
                         assert reposWithRunningDelete.contains(entry.repository()) == false
                             : "Found shard snapshot actively executing in ["
