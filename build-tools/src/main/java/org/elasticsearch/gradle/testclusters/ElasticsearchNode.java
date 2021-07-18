@@ -1222,6 +1222,8 @@ public class ElasticsearchNode implements TestClusterConfiguration {
 
         baseConfig.put("action.destructive_requires_name", "false");
 
+        baseConfig.put("logger.org.elasticsearch.cluster.service.MasterService", "TRACE");
+
         HashSet<String> overriden = new HashSet<>(baseConfig.keySet());
         overriden.retainAll(settings.keySet());
         overriden.removeAll(OVERRIDABLE_SETTINGS);
