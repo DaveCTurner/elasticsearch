@@ -94,6 +94,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         Releasable transfer() {
             assert transferred == false : "already transferred";
             transferred = true;
+            Collections.reverse(releasables);
             return () -> Releasables.close(releasables);
         }
 
