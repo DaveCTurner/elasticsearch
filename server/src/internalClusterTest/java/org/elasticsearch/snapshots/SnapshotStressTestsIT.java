@@ -285,13 +285,16 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
         }
 
-        private void startRestorer() {
+        private void enqueueAction(final CheckedRunnable<Exception> action) {
             if (shouldStop.get()) {
                 return;
             }
 
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(action));
+        }
 
+        private void startRestorer() {
+            enqueueAction(() -> {
                 boolean startedRestore = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
@@ -338,7 +341,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         startRestorer();
                     }
                 }
-            }));
+            });
         }
 
         private void restoreSnapshot(GetSnapshotsResponse getSnapshotsResponse, Releasable releasePreviousStep) {
@@ -361,6 +364,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                     if (snapshotInfo.shardFailures()
                         .stream()
                         .anyMatch(snapshotShardFailure -> snapshotShardFailure.getShardId().getIndexName().equals(indexName))) {
+
+                        restoreSpecificIndicesTmp = true;
                         continue;
                     }
                     if (randomBoolean() && localReleasables.add(tryAcquireAllPermits(indices.get(indexName).permits)) != null) {
@@ -500,12 +505,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         private void startCloner() {
-            if (shouldStop.get()) {
-                return;
-            }
-
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
-
+            enqueueAction(() -> {
                 boolean startedClone = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
@@ -610,15 +610,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         startCloner();
                     }
                 }
-            }));
+            });
         }
 
         private void startSnapshotDeleter() {
-            if (shouldStop.get()) {
-                return;
-            }
-
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+            enqueueAction(() -> {
 
                 boolean startedDeletion = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -678,15 +674,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         startSnapshotDeleter();
                     }
                 }
-            }));
+            });
         }
 
         private void startSnapshotter() {
-            if (shouldStop.get()) {
-                return;
-            }
-
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+            enqueueAction(() -> {
 
                 boolean startedSnapshot = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -793,15 +785,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         startSnapshotter();
                     }
                 }
-            }));
+            });
         }
 
         private void startPartialSnapshotter() {
-            if (shouldStop.get()) {
-                return;
-            }
-
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+            enqueueAction(() -> {
 
                 boolean startedSnapshot = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -876,7 +864,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         startPartialSnapshotter();
                     }
                 }
-            }));
+            });
         }
 
         private void pollForSnapshotCompletion(
@@ -922,7 +910,33 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         /**
-         * Acquire a client (i.e. block the client node from restarting) in a situation where we know that such a block can be obtained.
+         * Try and block the restart of a majority of the master nodes, which therefore prevents a full-cluster restart from occurring.
+         */
+        @Nullable // if we couldn't block enough master node restarts
+        private Releasable blockFullClusterRestart() {
+            if (blockAllNodes) {
+                return blockNodeRestarts();
+            }
+
+            final List<TrackedNode> masterNodes = nodes.values().stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
+            Randomness.shuffle(masterNodes);
+            int permitsAcquired = 0;
+            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                for (TrackedNode trackedNode : masterNodes) {
+                    if (localReleasables.add(tryAcquirePermit(trackedNode.getPermits())) != null) {
+                        permitsAcquired += 1;
+                        if (masterNodes.size() < permitsAcquired * 2) {
+                            return localReleasables.transfer();
+                        }
+                    }
+                }
+                return null;
+            }
+        }
+
+        /**
+         * Acquire a client (i.e. block the client node from restarting) in a situation where we know that such a block can be obtained,
+         * since previous acquisitions mean that at least one node is already blocked from restarting.
          */
         private ReleasableClient acquireClient() {
             final ReleasableClient client = tryAcquireClient();
@@ -949,30 +963,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         /**
-         * Try and block the restart of a majority of the master nodes, which therefore prevents a full-cluster restart from occurring.
+         * A client to a node that is blocked from restarting; close this {@link Releasable} to release the block.
          */
-        @Nullable // if we couldn't block enough master node restarts
-        private Releasable blockFullClusterRestart() {
-            if (blockAllNodes) {
-                return blockNodeRestarts();
-            }
-
-            final List<TrackedNode> masterNodes = nodes.values().stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
-            Randomness.shuffle(masterNodes);
-            int permitsAcquired = 0;
-            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
-                for (TrackedNode trackedNode : masterNodes) {
-                    if (localReleasables.add(tryAcquirePermit(trackedNode.getPermits())) != null) {
-                        permitsAcquired += 1;
-                        if (masterNodes.size() < permitsAcquired * 2) {
-                            return localReleasables.transfer();
-                        }
-                    }
-                }
-                return null;
-            }
-        }
-
         private static class ReleasableClient implements Releasable {
             private final Releasable releasable;
             private final Client client;
@@ -1009,12 +1001,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             void start() {
-                if (shouldStop.get()) {
-                    return;
-                }
-
-                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
-
+                enqueueAction(() -> {
                     boolean restarting = false;
                     try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
@@ -1029,14 +1016,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         final Releasable releaseAll = localReleasables.transfer();
 
                         threadPool.generic().execute(mustSucceed(() -> {
-                            try {
-                                logger.info("--> restarting [{}]", nodeName);
-                                cluster.restartNode(nodeName);
-                            } finally {
-                                logger.info("--> finished restarting [{}]", nodeName);
-                                Releasables.close(releaseAll);
-                                start();
-                            }
+                            logger.info("--> restarting [{}]", nodeName);
+                            cluster.restartNode(nodeName);
+                            logger.info("--> finished restarting [{}]", nodeName);
+                            Releasables.close(releaseAll);
+                            start();
                         }));
 
                         restarting = true;
@@ -1045,7 +1029,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                             start();
                         }
                     }
-                }));
+                });
             }
 
             Semaphore getPermits() {
@@ -1113,11 +1097,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void scheduleRemoveAndAdd() {
-                if (shouldStop.get()) {
-                    return;
-                }
-
-                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+                enqueueAction(() -> {
 
                     boolean replacingRepo = false;
                     try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -1152,7 +1132,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                             scheduleRemoveAndAdd();
                         }
                     }
-                }));
+                });
             }
 
         }
@@ -1204,11 +1184,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void scheduleIndexingAndPossibleDelete() {
-                if (shouldStop.get()) {
-                    return;
-                }
-
-                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(between(1, 500)), CLIENT, mustSucceed(() -> {
+                enqueueAction(() -> {
 
                     boolean forked = false;
                     try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -1297,12 +1273,12 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                             scheduleIndexingAndPossibleDelete();
                         }
                     }
-                }));
+                });
             }
 
         }
 
-        private class TrackedSnapshot {
+        private static class TrackedSnapshot {
 
             private final TrackedRepository trackedRepository;
             private final String snapshotName;
