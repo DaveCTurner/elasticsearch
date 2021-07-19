@@ -225,16 +225,17 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         public void run() throws InterruptedException {
-            for (TrackedNode trackedNode : nodes.values()) {
-                trackedNode.start();
-            }
-
             for (TrackedIndex trackedIndex : indices.values()) {
                 trackedIndex.start();
             }
 
             for (TrackedRepository trackedRepository : repositories.values()) {
                 trackedRepository.start();
+            }
+
+            final int nodeRestarterCount = between(1, 2);
+            for (int i = 0; i < nodeRestarterCount; i++) {
+                startNodeRestarter();
             }
 
             final int snapshotterCount = between(1, 5);
@@ -897,6 +898,45 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 );
         }
 
+        private void startNodeRestarter() {
+            enqueueAction(() -> {
+                boolean restarting = false;
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                    if (usually()) {
+                        return;
+                    }
+
+                    final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(nodes.values());
+                    Randomness.shuffle(trackedNodes);
+
+                    for (TrackedNode trackedNode : trackedNodes) {
+                        if (localReleasables.add(tryAcquireAllPermits(trackedNode.permits)) != null) {
+
+                            final String nodeName = trackedNode.nodeName;
+                            final Releasable releaseAll = localReleasables.transfer();
+
+                            threadPool.generic().execute(mustSucceed(() -> {
+                                logger.info("--> restarting [{}]", nodeName);
+                                cluster.restartNode(nodeName);
+                                logger.info("--> finished restarting [{}]", nodeName);
+                                Releasables.close(releaseAll);
+                                startNodeRestarter();
+                            }));
+
+                            restarting = true;
+                            return;
+                        }
+                    }
+
+                } finally {
+                    if (restarting == false) {
+                        startNodeRestarter();
+                    }
+                }
+            });
+        }
+
         @Nullable // if we couldn't block node restarts
         private Releasable blockNodeRestarts() {
             try (TransferableReleasables localReleasables = new TransferableReleasables()) {
@@ -987,7 +1027,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         /**
          * Tracks a node in the cluster, and occasionally restarts it if no other activity holds any of its permits.
          */
-        private class TrackedNode {
+        private static class TrackedNode {
 
             private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
             private final String nodeName;
@@ -998,38 +1038,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 this.nodeName = nodeName;
                 this.isMasterNode = isMasterNode;
                 this.isDataNode = isDataNode;
-            }
-
-            void start() {
-                enqueueAction(() -> {
-                    boolean restarting = false;
-                    try (TransferableReleasables localReleasables = new TransferableReleasables()) {
-
-                        if (usually()) {
-                            return;
-                        }
-
-                        if (localReleasables.add(tryAcquireAllPermits(permits)) == null) {
-                            return;
-                        }
-
-                        final Releasable releaseAll = localReleasables.transfer();
-
-                        threadPool.generic().execute(mustSucceed(() -> {
-                            logger.info("--> restarting [{}]", nodeName);
-                            cluster.restartNode(nodeName);
-                            logger.info("--> finished restarting [{}]", nodeName);
-                            Releasables.close(releaseAll);
-                            start();
-                        }));
-
-                        restarting = true;
-                    } finally {
-                        if (restarting == false) {
-                            start();
-                        }
-                    }
-                });
             }
 
             Semaphore getPermits() {
@@ -1153,15 +1161,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             public void start() {
-                final Releasable nodeRestartBlock = blockNodeRestarts();
-                assertNotNull(nodeRestartBlock);
-                assertTrue(permits.tryAcquire(Integer.MAX_VALUE));
-                final Releasable releaseRepository = releaseAllPermits();
-                createIndexAndContinue(() -> Releasables.close(releaseRepository, nodeRestartBlock));
-            }
-
-            private Releasable releaseAllPermits() {
-                return Releasables.releaseOnce(() -> permits.release(Integer.MAX_VALUE));
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                    assertNotNull(localReleasables.add(blockNodeRestarts()));
+                    assertNotNull(localReleasables.add(tryAcquireAllPermits(permits)));
+                    createIndexAndContinue(localReleasables.transfer());
+                }
             }
 
             private void createIndexAndContinue(Releasable releasable) {
