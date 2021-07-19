@@ -1004,62 +1004,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         }
 
         /**
-         * A client to a node that is blocked from restarting; close this {@link Releasable} to release the block.
-         */
-        private static class ReleasableClient implements Releasable {
-            private final Releasable releasable;
-            private final Client client;
-
-            ReleasableClient(Releasable releasable, Client client) {
-                this.releasable = releasable;
-                this.client = client;
-            }
-
-            @Override
-            public void close() {
-                releasable.close();
-            }
-
-            Client getClient() {
-                return client;
-            }
-        }
-
-        /**
-         * Tracks a node in the cluster, and occasionally restarts it if no other activity holds any of its permits.
-         */
-        private static class TrackedNode {
-
-            private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
-            private final String nodeName;
-            private final boolean isMasterNode;
-            private final boolean isDataNode;
-
-            TrackedNode(String nodeName, boolean isMasterNode, boolean isDataNode) {
-                this.nodeName = nodeName;
-                this.isMasterNode = isMasterNode;
-                this.isDataNode = isDataNode;
-            }
-
-            Semaphore getPermits() {
-                return permits;
-            }
-
-            boolean isMasterNode() {
-                return isMasterNode;
-            }
-
-            boolean isDataNode() {
-                return isDataNode;
-            }
-
-            @Override
-            public String toString() {
-                return "TrackedNode{" + nodeName + "}{" + (isMasterNode ? "m" : "") + (isDataNode ? "d" : "") + "}";
-            }
-        }
-
-        /**
          * Tracks a repository in the cluster, and occasionally removes it and adds it back if no other activity holds any of its permits.
          */
         private class TrackedRepository {
@@ -1079,15 +1023,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             public void start() {
-                final Releasable nodeRestartBlock = blockNodeRestarts();
-                assertNotNull(nodeRestartBlock);
-                assertTrue(permits.tryAcquire(Integer.MAX_VALUE));
-                final Releasable releaseRepository = releaseAllPermits();
-                putRepositoryAndContinue(() -> Releasables.close(releaseRepository, nodeRestartBlock));
-            }
-
-            private Releasable releaseAllPermits() {
-                return Releasables.releaseOnce(() -> permits.release(Integer.MAX_VALUE));
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                    assertNotNull(localReleasables.add(blockNodeRestarts()));
+                    assertNotNull(localReleasables.add(tryAcquireAllPermits(permits)));
+                    putRepositoryAndContinue(localReleasables.transfer());
+                }
             }
 
             private void putRepositoryAndContinue(Releasable releasable) {
@@ -1283,18 +1223,76 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
         }
 
-        private static class TrackedSnapshot {
-
-            private final TrackedRepository trackedRepository;
-            private final String snapshotName;
-            private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
-
-            public TrackedSnapshot(TrackedRepository trackedRepository, String snapshotName) {
-                this.trackedRepository = trackedRepository;
-                this.snapshotName = snapshotName;
-            }
-        }
-
     }
 
+    /**
+     * A client to a node that is blocked from restarting; close this {@link Releasable} to release the block.
+     */
+    private static class ReleasableClient implements Releasable {
+        private final Releasable releasable;
+        private final Client client;
+
+        ReleasableClient(Releasable releasable, Client client) {
+            this.releasable = releasable;
+            this.client = client;
+        }
+
+        @Override
+        public void close() {
+            releasable.close();
+        }
+
+        Client getClient() {
+            return client;
+        }
+    }
+
+    /**
+     * Tracks a snapshot taken by the cluster.
+     */
+    private static class TrackedSnapshot {
+
+        private final TrackedCluster.TrackedRepository trackedRepository;
+        private final String snapshotName;
+        private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
+
+        public TrackedSnapshot(TrackedCluster.TrackedRepository trackedRepository, String snapshotName) {
+            this.trackedRepository = trackedRepository;
+            this.snapshotName = snapshotName;
+        }
+    }
+
+    /**
+     * Tracks a node in the cluster.
+     */
+    private static class TrackedNode {
+
+        private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
+        private final String nodeName;
+        private final boolean isMasterNode;
+        private final boolean isDataNode;
+
+        TrackedNode(String nodeName, boolean isMasterNode, boolean isDataNode) {
+            this.nodeName = nodeName;
+            this.isMasterNode = isMasterNode;
+            this.isDataNode = isDataNode;
+        }
+
+        Semaphore getPermits() {
+            return permits;
+        }
+
+        boolean isMasterNode() {
+            return isMasterNode;
+        }
+
+        boolean isDataNode() {
+            return isDataNode;
+        }
+
+        @Override
+        public String toString() {
+            return "TrackedNode{" + nodeName + "}{" + (isMasterNode ? "m" : "") + (isDataNode ? "d" : "") + "}";
+        }
+    }
 }
