@@ -251,7 +251,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 repositories.put(repositoryName, new TrackedRepository(repositoryName, randomRepoPath()));
             }
 
-            final int indexCount = 4; // between(1, 10);
+            final int indexCount = 3; // between(1, 10);
             for (int i = 0; i < indexCount; i++) {
                 final String indexName = "index-" + i;
                 indices.put(indexName, new TrackedIndex(indexName));
@@ -1240,7 +1240,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                 for (int i = 0; i < docCount; i++) {
                                     bulkRequestBuilder.add(
                                         new IndexRequest().source(
-                                            jsonBuilder().startObject().field("field-" + between(1, 5), randomAlphaOfLength(10)).endObject()
+//                                            jsonBuilder().startObject().field("field-" + between(1, 5), randomAlphaOfLength(10)).endObject()
+                                            jsonBuilder().startObject().field("field-1", randomAlphaOfLength(10)).endObject()
                                         )
                                     );
                                 }
