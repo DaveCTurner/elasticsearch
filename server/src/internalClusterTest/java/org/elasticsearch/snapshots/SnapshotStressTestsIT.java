@@ -245,13 +245,13 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 nodes.put(nodeName, new TrackedNode(nodeName, masterNodeNames.contains(nodeName), dataNodeNames.contains(nodeName)));
             }
 
-            final int repoCount = between(1, 3);
+            final int repoCount = 1; // between(1, 3);
             for (int i = 0; i < repoCount; i++) {
                 final String repositoryName = "repo-" + i;
                 repositories.put(repositoryName, new TrackedRepository(repositoryName, randomRepoPath()));
             }
 
-            final int indexCount = between(1, 10);
+            final int indexCount = 2; // between(1, 10);
             for (int i = 0; i < indexCount; i++) {
                 final String indexName = "index-" + i;
                 indices.put(indexName, new TrackedIndex(indexName));
@@ -267,12 +267,12 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 trackedRepository.start();
             }
 
-            final int nodeRestarterCount = between(1, 2);
+            final int nodeRestarterCount = 0; // TODO between(1, 2);
             for (int i = 0; i < nodeRestarterCount; i++) {
                 startNodeRestarter();
             }
 
-            final int snapshotterCount = between(1, 5);
+            final int snapshotterCount = 0; // TODO between(1, 5);
             for (int i = 0; i < snapshotterCount; i++) {
                 startSnapshotter();
             }
@@ -287,12 +287,12 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 startCloner();
             }
 
-            final int deleterCount = between(0, 3);
+            final int deleterCount = 0; // TODO between(0, 3);
             for (int i = 0; i < deleterCount; i++) {
                 startSnapshotDeleter();
             }
 
-            final int restorerCount = between(0, 3);
+            final int restorerCount = 0; // TODO between(0, 3);
             for (int i = 0; i < restorerCount; i++) {
                 startRestorer();
             }
@@ -1175,7 +1175,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             private void createIndexAndContinue(Releasable releasable) {
                 logger.info("--> create index [{}]", indexName);
-                shardCount = between(1, 5);
+                shardCount = 1; // TODO between(1, 5);
                 client().admin()
                     .indices()
                     .prepareCreate(indexName)
