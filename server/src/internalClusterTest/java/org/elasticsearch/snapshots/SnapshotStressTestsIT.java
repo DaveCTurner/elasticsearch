@@ -1175,7 +1175,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             private void createIndexAndContinue(Releasable releasable) {
                 logger.info("--> create index [{}]", indexName);
-                shardCount = between(1, 5);
+                shardCount = between(1, 1); // 5);
                 client().admin()
                     .indices()
                     .prepareCreate(indexName)
