@@ -22,6 +22,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.RateLimiter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -1544,7 +1545,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 @Override
                 public String next() {
                     final String blobName = blobs.next();
-                    logger.trace("[{}] Deleting [{}] from [{}]", metadata.name(), blobName, container.path());
+                    logger.trace(new ParameterizedMessage("[{}] Deleting [{}] from [{}]", metadata.name(), blobName, container.path()),
+                        new ElasticsearchException("stack trace"));
                     return blobName;
                 }
             };
