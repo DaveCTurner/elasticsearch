@@ -1362,6 +1362,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 indexMetaIdentifiers = null;
             }
 
+            logger.trace("finalizeSnapshot: finalizing [{}] with shard gens [{}] vs repo data shard gens [{}]",
+                snapshotInfo.snapshot(), shardGenerations, existingRepositoryData.shardGenerations());
+
             final ActionListener<Void> allMetaListener = new GroupedActionListener<>(ActionListener.wrap(v -> {
                 final SnapshotDetails snapshotDetails = new SnapshotDetails(
                     snapshotInfo.state(),
