@@ -251,7 +251,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 repositories.put(repositoryName, new TrackedRepository(repositoryName, randomRepoPath()));
             }
 
-            final int indexCount = 2; // between(1, 10);
+            final int indexCount = 4; // between(1, 10);
             for (int i = 0; i < indexCount; i++) {
                 final String indexName = "index-" + i;
                 indices.put(indexName, new TrackedIndex(indexName));
