@@ -159,6 +159,8 @@ import static org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSna
 public abstract class BlobStoreRepository extends AbstractLifecycleComponent implements Repository {
     private static final Logger logger = LogManager.getLogger(BlobStoreRepository.class);
 
+    private static final AtomicLong generationCounter = new AtomicLong();
+
     protected volatile RepositoryMetadata metadata;
 
     protected final ThreadPool threadPool;
@@ -2713,7 +2715,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // When using shard generations we can safely write the index-${uuid} blob before writing out any of the actual data
                 // for this shard since the uuid named blob will simply not be referenced in case of error and thus we will never
                 // reference a generation that has not had all its files fully upload.
-                indexGeneration = UUIDs.randomBase64UUID();
+                indexGeneration = clusterService.getNodeName() + "-" + generationCounter.incrementAndGet() + "-" + UUIDs.randomBase64UUID();
                 try {
                     INDEX_SHARD_SNAPSHOTS_FORMAT.write(updatedBlobStoreIndexShardSnapshots, shardContainer, indexGeneration, compress);
                 } catch (IOException e) {
