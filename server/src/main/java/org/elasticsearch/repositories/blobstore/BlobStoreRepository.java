@@ -1438,8 +1438,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     private void cleanupOldShardGens(RepositoryData existingRepositoryData, RepositoryData updatedRepositoryData) {
         final List<String> toDelete = new ArrayList<>();
         final int prefixPathLen = basePath().buildAsString().length();
-        updatedRepositoryData.shardGenerations()
-            .obsoleteShardGenerations(existingRepositoryData.shardGenerations())
+        final Map<IndexId, Map<Integer, String>> obsoleteShardGenerations = updatedRepositoryData.shardGenerations()
+            .obsoleteShardGenerations(existingRepositoryData.shardGenerations());
+        obsoleteShardGenerations
             .forEach(
                 (indexId, gens) -> gens.forEach(
                     (shardId, oldGen) -> toDelete.add(
@@ -1447,6 +1448,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     )
                 )
             );
+        logger.trace(() -> new ParameterizedMessage("cleanupOldShardGens: existing={}, updated={}, obsolete={}, toDelete={}",
+            Strings.toString((builder, params) -> existingRepositoryData.snapshotsToXContent(builder, Version.CURRENT, true)),
+            Strings.toString((builder, params) -> updatedRepositoryData.snapshotsToXContent(builder, Version.CURRENT, true)),
+            obsoleteShardGenerations,
+            toDelete));
         try {
             deleteFromContainer(blobContainer(), toDelete.iterator());
         } catch (Exception e) {
