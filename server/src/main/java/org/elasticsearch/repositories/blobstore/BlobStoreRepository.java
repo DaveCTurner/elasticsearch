@@ -2122,7 +2122,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         Function<ClusterState, ClusterState> stateFilter,
         ActionListener<RepositoryData> listener
     ) {
-        logger.trace("[{}] writing repository data on top of expected generation [{}]", metadata.name(), expectedGen);
+        if (logger.isTraceEnabled()) {
+            logger.trace(() -> new ParameterizedMessage(
+                "[{}] writing repository data on top of expected generation [{}]:\n{}",
+                metadata.name(),
+                expectedGen,
+                toJsonString(repositoryData)), new ElasticsearchException("stack trace"));
+        }
         assert isReadOnly() == false; // can not write to a read only repository
         final long currentGen = repositoryData.getGenId();
         if (currentGen != expectedGen) {
