@@ -505,7 +505,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 newGen = String.valueOf(tuple.v2() + 1);
                 existingSnapshots = tuple.v1();
             } else {
-                newGen = UUIDs.randomBase64UUID();
+                newGen = createShardGeneration();
                 existingSnapshots = buildBlobStoreIndexShardSnapshots(Collections.emptySet(), shardContainer, shardGeneration).v1();
                 existingShardGen = shardGeneration;
             }
@@ -2715,7 +2715,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // When using shard generations we can safely write the index-${uuid} blob before writing out any of the actual data
                 // for this shard since the uuid named blob will simply not be referenced in case of error and thus we will never
                 // reference a generation that has not had all its files fully upload.
-                indexGeneration = clusterService.getNodeName() + "-" + generationCounter.incrementAndGet() + "-" + UUIDs.randomBase64UUID();
+                indexGeneration = createShardGeneration();
                 try {
                     INDEX_SHARD_SNAPSHOTS_FORMAT.write(updatedBlobStoreIndexShardSnapshots, shardContainer, indexGeneration, compress);
                 } catch (IOException e) {
@@ -2821,6 +2821,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         } catch (Exception e) {
             context.onFailure(e);
         }
+    }
+
+    private String createShardGeneration() {
+        return clusterService.getNodeName() + "-" + generationCounter.incrementAndGet() + "-" + UUIDs.randomBase64UUID();
     }
 
     private void executeOneFileSnapshot(
@@ -3166,7 +3170,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             } else {
                 final BlobStoreIndexShardSnapshots updatedSnapshots = new BlobStoreIndexShardSnapshots(newSnapshotsList);
                 if (indexGeneration < 0L) {
-                    writtenGeneration = UUIDs.randomBase64UUID();
+                    writtenGeneration = createShardGeneration();
                     INDEX_SHARD_SNAPSHOTS_FORMAT.write(updatedSnapshots, shardContainer, writtenGeneration, compress);
                 } else {
                     writtenGeneration = String.valueOf(indexGeneration);
