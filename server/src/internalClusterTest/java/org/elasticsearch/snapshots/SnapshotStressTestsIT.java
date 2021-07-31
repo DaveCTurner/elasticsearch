@@ -94,7 +94,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         return CollectionUtils.appendToCopy(super.nodePlugins(), LogSnapshotStatePlugin.class);
     }
 
-    @TestLogging(reason = "better debugging", value = "org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE")
+    @TestLogging(reason = "better debugging", value = "org.elasticsearch.cluster.service.MasterService:DEBUG," +
+        "org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE")
     public void testRandomActivities() throws InterruptedException {
         final DiscoveryNodes discoveryNodes = client().admin().cluster().prepareState().clear().setNodes(true).get().getState().nodes();
         new TrackedCluster(internalCluster(), nodeNames(discoveryNodes.getMasterNodes()), nodeNames(discoveryNodes.getDataNodes())).run();
