@@ -69,6 +69,7 @@ import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -1440,24 +1441,31 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         final int prefixPathLen = basePath().buildAsString().length();
         final Map<IndexId, Map<Integer, String>> obsoleteShardGenerations = updatedRepositoryData.shardGenerations()
             .obsoleteShardGenerations(existingRepositoryData.shardGenerations());
-        obsoleteShardGenerations
-            .forEach(
-                (indexId, gens) -> gens.forEach(
-                    (shardId, oldGen) -> toDelete.add(
-                        shardContainer(indexId, shardId).path().buildAsString().substring(prefixPathLen) + INDEX_FILE_PREFIX + oldGen
-                    )
+        obsoleteShardGenerations.forEach(
+            (indexId, gens) -> gens.forEach(
+                (shardId, oldGen) -> toDelete.add(
+                    shardContainer(indexId, shardId).path().buildAsString().substring(prefixPathLen) + INDEX_FILE_PREFIX + oldGen
                 )
-            );
-        logger.trace(() -> new ParameterizedMessage("cleanupOldShardGens: existing={}, updated={}, obsolete={}, toDelete={}",
-            Strings.toString((builder, params) -> existingRepositoryData.snapshotsToXContent(builder, Version.CURRENT, true)),
-            Strings.toString((builder, params) -> updatedRepositoryData.snapshotsToXContent(builder, Version.CURRENT, true)),
-            obsoleteShardGenerations,
-            toDelete));
+            )
+        );
+        logger.trace(
+            () -> new ParameterizedMessage(
+                "cleanupOldShardGens: existing={}, updated={}, obsolete={}, toDelete={}",
+                toJsonString(existingRepositoryData),
+                toJsonString(updatedRepositoryData),
+                obsoleteShardGenerations,
+                toDelete
+            )
+        );
         try {
             deleteFromContainer(blobContainer(), toDelete.iterator());
         } catch (Exception e) {
             logger.warn("Failed to clean up old shard generation blobs", e);
         }
+    }
+
+    private static String toJsonString(RepositoryData repositoryData) {
+        return Strings.toString((ToXContentObject) (builder, params) -> repositoryData.snapshotsToXContent(builder, Version.CURRENT, true));
     }
 
     @Override
@@ -1551,8 +1559,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 @Override
                 public String next() {
                     final String blobName = blobs.next();
-                    logger.trace(new ParameterizedMessage("[{}] Deleting [{}] from [{}]", metadata.name(), blobName, container.path()),
-                        new ElasticsearchException("stack trace"));
+                    logger.trace(
+                        new ParameterizedMessage("[{}] Deleting [{}] from [{}]", metadata.name(), blobName, container.path()),
+                        new ElasticsearchException("stack trace")
+                    );
                     return blobName;
                 }
             };
