@@ -26,16 +26,22 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.Nullable;
@@ -43,15 +49,22 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.fs.FsRepository;
+import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.watcher.ResourceWatcherService;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +76,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -75,9 +89,12 @@ import static org.hamcrest.Matchers.sameInstance;
 @LuceneTestCase.SuppressFileSystems(value = "HandleLimitFS") // we sometimes have >2048 open files
 public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
-    @TestLogging(reason="better debugging", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
-        "org.elasticsearch.snapshots:TRACE," +
-        "org.elasticsearch.repositories:TRACE")
+    @Override
+    protected Collection<Class<? extends Plugin>> nodePlugins() {
+        return CollectionUtils.appendToCopy(super.nodePlugins(), LogSnapshotStatePlugin.class);
+    }
+
+    @TestLogging(reason = "better debugging", value = "org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE")
     public void testRandomActivities() throws InterruptedException {
         final DiscoveryNodes discoveryNodes = client().admin().cluster().prepareState().clear().setNodes(true).get().getState().nodes();
         new TrackedCluster(internalCluster(), nodeNames(discoveryNodes.getMasterNodes()), nodeNames(discoveryNodes.getDataNodes())).run();
@@ -1423,6 +1440,35 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         @Override
         public String toString() {
             return "TrackedNode{" + nodeName + "}{" + (isMasterNode ? "m" : "") + (isDataNode ? "d" : "") + "}";
+        }
+    }
+
+    public static class LogSnapshotStatePlugin extends Plugin {
+
+        private static final Logger logger = LogManager.getLogger(LogSnapshotStatePlugin.class);
+
+        @Override
+        public Collection<Object> createComponents(
+            Client client,
+            ClusterService clusterService,
+            ThreadPool threadPool,
+            ResourceWatcherService resourceWatcherService,
+            ScriptService scriptService,
+            NamedXContentRegistry xContentRegistry,
+            Environment environment,
+            NodeEnvironment nodeEnvironment,
+            NamedWriteableRegistry namedWriteableRegistry,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<RepositoriesService> repositoriesServiceSupplier
+        ) {
+            clusterService.addHighPriorityApplier(event -> {
+                final ClusterState clusterState = event.state();
+                if (clusterState.nodes().isLocalNodeElectedMaster() == false) {
+                    return;
+                }
+                logger.info("--> applying cluster state:\n{}", Strings.toString(clusterState, true, true));
+            });
+            return Collections.emptyList();
         }
     }
 }
