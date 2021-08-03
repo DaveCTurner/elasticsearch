@@ -913,6 +913,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                             assertNotNull(abortReleasables.add(blockFullClusterRestart()));
                             final Client abortClient = abortReleasables.add(acquireClient()).getClient();
 
+                            assertNotNull(abortReleasables.add(tryAcquirePermit(trackedRepository.permits)));
+
                             final DeleteSnapshotRequestBuilder deleteSnapshotRequestBuilder = abortClient.admin()
                                 .cluster()
                                 .prepareDeleteSnapshot(trackedRepository.repositoryName, snapshotName);
