@@ -678,7 +678,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             for (TrackedSnapshot trackedSnapshot : trackedSnapshots) {
                 if ((targetRepository == null || trackedSnapshot.trackedRepository == targetRepository)
                     && (snapshotNames.isEmpty() || randomBoolean())
-                    && localReleasables.add(tryAcquireAllPermits(trackedSnapshot.permits)) != null
+                    && localReleasables.add(trackedSnapshot.tryAcquireAllPermits()) != null
                     && snapshots.get(trackedSnapshot.snapshotName) == trackedSnapshot) {
 
                     targetRepository = trackedSnapshot.trackedRepository;
@@ -1365,6 +1365,20 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 }
 
                 if (localReleasables.add(SnapshotStressTestsIT.tryAcquirePermit(permits)) == null) {
+                    return null;
+                }
+
+                return localReleasables.transfer();
+            }
+        }
+
+        Releasable tryAcquireAllPermits() {
+            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+                if (localReleasables.add(SnapshotStressTestsIT.tryAcquirePermit(trackedRepository.permits)) == null) {
+                    return null;
+                }
+
+                if (localReleasables.add(SnapshotStressTestsIT.tryAcquireAllPermits(permits)) == null) {
                     return null;
                 }
 
