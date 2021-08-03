@@ -633,36 +633,15 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 boolean startedDeletion = false;
                 try (TransferableReleasables localReleasables = new TransferableReleasables()) {
 
-                    final List<TrackedSnapshot> trackedSnapshots = new ArrayList<>(snapshots.values());
-                    if (trackedSnapshots.isEmpty()) {
-                        return;
-                    }
-
                     if (localReleasables.add(blockFullClusterRestart()) == null) {
                         return;
                     }
 
                     final Client client = localReleasables.add(acquireClient()).getClient();
 
-                    Randomness.shuffle(trackedSnapshots);
-                    final TrackedRepository targetRepository = trackedSnapshots.get(0).trackedRepository;
-                    if (localReleasables.add(tryAcquirePermit(targetRepository.permits)) == null) {
-                        return;
-                    }
-                    trackedSnapshots.removeIf(trackedSnapshot -> trackedSnapshot.trackedRepository != targetRepository);
-
                     final List<String> snapshotNames = new ArrayList<>();
-                    for (TrackedSnapshot trackedSnapshot : trackedSnapshots) {
-                        if ((snapshotNames.isEmpty() || randomBoolean())
-                            && localReleasables.add(tryAcquireAllPermits(trackedSnapshot.permits)) != null
-                            && snapshots.get(trackedSnapshot.snapshotName) == trackedSnapshot) {
-                            snapshotNames.add(trackedSnapshot.snapshotName);
-                        }
-                    }
-
-                    if (snapshotNames.isEmpty()) {
-                        return;
-                    }
+                    final TrackedRepository targetRepository = blockSnapshotsFromOneRepository(localReleasables, snapshotNames);
+                    if (targetRepository == null) return;
 
                     logger.info("--> starting deletion of [{}:{}]", targetRepository.repositoryName, snapshotNames);
 
@@ -691,6 +670,28 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             });
         }
 
+        @Nullable // if no blocks could be acquired
+        private TrackedRepository blockSnapshotsFromOneRepository(TransferableReleasables localReleasables, List<String> snapshotNames) {
+            final List<TrackedSnapshot> trackedSnapshots = new ArrayList<>(snapshots.values());
+            TrackedRepository targetRepository = null;
+            Randomness.shuffle(trackedSnapshots);
+            for (TrackedSnapshot trackedSnapshot : trackedSnapshots) {
+                if ((targetRepository == null || trackedSnapshot.trackedRepository == targetRepository)
+                    && (snapshotNames.isEmpty() || randomBoolean())
+                    && localReleasables.add(tryAcquireAllPermits(trackedSnapshot.permits)) != null
+                    && snapshots.get(trackedSnapshot.snapshotName) == trackedSnapshot) {
+
+                    targetRepository = trackedSnapshot.trackedRepository;
+                    snapshotNames.add(trackedSnapshot.snapshotName);
+                }
+            }
+
+            if (targetRepository != null) {
+                assertFalse(targetRepository.repositoryName, snapshotNames.isEmpty());
+            }
+            return targetRepository;
+        }
+
         private void startCleaner() {
             enqueueAction(() -> {
 
@@ -704,7 +705,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                     final Client client = localReleasables.add(acquireClient()).getClient();
 
                     final TrackedRepository trackedRepository = randomFrom(repositories.values());
-                    if (localReleasables.add(tryAcquirePermit(trackedRepository.permits)) == null) {
+                    if (localReleasables.add(tryAcquireAllPermits(trackedRepository.permits)) == null) {
                         return;
                     }
 
