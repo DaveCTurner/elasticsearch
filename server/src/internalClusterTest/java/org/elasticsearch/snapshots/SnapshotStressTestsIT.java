@@ -137,7 +137,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         return new AbstractRunnable() {
             @Override
             public void onFailure(Exception e) {
-                throw new AssertionError("unexpected", e);
+                logAndFailTest(e);
             }
 
             @Override
@@ -159,15 +159,21 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 try {
                     consumer.accept(t);
                 } catch (Exception e) {
-                    throw new AssertionError("unexpected", e);
+                    logAndFailTest(e);
                 }
             }
 
             @Override
             public void onFailure(Exception e) {
-                throw new AssertionError("unexpected", e);
+                logAndFailTest(e);
             }
         };
+    }
+
+    private static void logAndFailTest(Exception e) {
+        final AssertionError assertionError = new AssertionError("unexpected", e);
+        TrackedCluster.logger.error("test failed", assertionError);
+        throw assertionError;
     }
 
     /**
@@ -942,7 +948,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                                 snapshotName
                                             );
                                         } else {
-                                            throw new AssertionError("unexpected", e);
+                                            logAndFailTest(e);
                                         }
                                     }
                                 });
@@ -1095,7 +1101,9 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 }
             }
 
-            throw new AssertionError("could not acquire client");
+            final AssertionError assertionError = new AssertionError("could not acquire client");
+            logger.error("acquireClient", assertionError);
+            throw assertionError;
         }
 
         /**
