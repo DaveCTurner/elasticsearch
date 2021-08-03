@@ -704,10 +704,14 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                     final Client client = localReleasables.add(acquireClient()).getClient();
 
-                    final TrackedRepository trackedRepository = randomFrom(repositories.values());
-                    if (localReleasables.add(tryAcquireAllPermits(trackedRepository.permits)) == null) {
-                        return;
+                    for (TrackedRepository trackedRepository : repositories.values()) {
+                        // cleanup forbids all concurrent snapshot activity
+                        if (localReleasables.add(tryAcquireAllPermits(trackedRepository.permits)) == null) {
+                            return;
+                        }
                     }
+
+                    final TrackedRepository trackedRepository = randomFrom(repositories.values());
 
                     final Releasable releaseAll = localReleasables.transfer();
 
