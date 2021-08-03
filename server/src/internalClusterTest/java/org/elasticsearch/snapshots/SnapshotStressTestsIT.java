@@ -43,6 +43,7 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.repositories.RepositoryCleanupResult;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
@@ -69,7 +70,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.repositories.blobstore.ChecksumBlobStoreFormat.SNAPSHOT_ONLY_FORMAT_PARAMS;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.sameInstance;
+import static org.hamcrest.Matchers.notNullValue;
 
 @LuceneTestCase.SuppressFileSystems(value = "HandleLimitFS") // we sometimes have >2048 open files
 public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
@@ -86,7 +87,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
     /**
      * Encapsulates a common pattern of trying to acquire a bunch of resources and then transferring ownership elsewhere on success,
-     * but releasing them on failure
+     * but releasing them on failure.
      */
     private static class TransferableReleasables implements Releasable {
 
@@ -270,6 +271,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             final int restorerCount = between(0, 3);
             for (int i = 0; i < restorerCount; i++) {
                 startRestorer();
+            }
+
+            final int cleanerCount = between(0, 2);
+            for (int i = 0; i < cleanerCount; i++) {
+                startCleaner();
             }
 
             if (completedSnapshotLatch.await(30, TimeUnit.SECONDS)) {
@@ -638,36 +644,40 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                     final Client client = localReleasables.add(acquireClient()).getClient();
 
-                    final TrackedSnapshot trackedSnapshot = randomFrom(trackedSnapshots);
-                    if (localReleasables.add(trackedSnapshot.tryAcquireAllPermits()) == null) {
+                    Randomness.shuffle(trackedSnapshots);
+                    final TrackedRepository targetRepository = trackedSnapshots.get(0).trackedRepository;
+                    if (localReleasables.add(tryAcquirePermit(targetRepository.permits)) == null) {
+                        return;
+                    }
+                    trackedSnapshots.removeIf(trackedSnapshot -> trackedSnapshot.trackedRepository != targetRepository);
+
+                    final List<String> snapshotNames = new ArrayList<>();
+                    for (TrackedSnapshot trackedSnapshot : trackedSnapshots) {
+                        if ((snapshotNames.isEmpty() || randomBoolean())
+                            && localReleasables.add(tryAcquireAllPermits(trackedSnapshot.permits)) != null
+                            && snapshots.get(trackedSnapshot.snapshotName) == trackedSnapshot) {
+                            snapshotNames.add(trackedSnapshot.snapshotName);
+                        }
+                    }
+
+                    if (snapshotNames.isEmpty()) {
                         return;
                     }
 
-                    if (snapshots.get(trackedSnapshot.snapshotName) != trackedSnapshot) {
-                        // concurrently removed
-                        return;
-                    }
-
-                    logger.info(
-                        "--> starting deletion of [{}:{}]",
-                        trackedSnapshot.trackedRepository.repositoryName,
-                        trackedSnapshot.snapshotName
-                    );
+                    logger.info("--> starting deletion of [{}:{}]", targetRepository.repositoryName, snapshotNames);
 
                     final Releasable releaseAll = localReleasables.transfer();
 
                     client.admin()
                         .cluster()
-                        .prepareDeleteSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName)
+                        .prepareDeleteSnapshot(targetRepository.repositoryName, snapshotNames.toArray(new String[0]))
                         .execute(mustSucceed(acknowledgedResponse -> {
                             Releasables.close(releaseAll);
                             assertTrue(acknowledgedResponse.isAcknowledged());
-                            assertThat(snapshots.remove(trackedSnapshot.snapshotName), sameInstance(trackedSnapshot));
-                            logger.info(
-                                "--> completed deletion of [{}:{}]",
-                                trackedSnapshot.trackedRepository.repositoryName,
-                                trackedSnapshot.snapshotName
-                            );
+                            for (String snapshotName : snapshotNames) {
+                                assertThat(snapshots.remove(snapshotName), notNullValue());
+                            }
+                            logger.info("--> completed deletion of [{}:{}]", targetRepository.repositoryName, snapshotNames);
                             startSnapshotDeleter();
                         }));
 
@@ -676,6 +686,47 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 } finally {
                     if (startedDeletion == false) {
                         startSnapshotDeleter();
+                    }
+                }
+            });
+        }
+
+        private void startCleaner() {
+            enqueueAction(() -> {
+
+                boolean startedCleanup = false;
+                try (TransferableReleasables localReleasables = new TransferableReleasables()) {
+
+                    if (localReleasables.add(blockFullClusterRestart()) == null) {
+                        return;
+                    }
+
+                    final Client client = localReleasables.add(acquireClient()).getClient();
+
+                    final TrackedRepository trackedRepository = randomFrom(repositories.values());
+                    if (localReleasables.add(tryAcquirePermit(trackedRepository.permits)) == null) {
+                        return;
+                    }
+
+                    final Releasable releaseAll = localReleasables.transfer();
+
+                    logger.info("--> starting cleanup of [{}]", trackedRepository.repositoryName);
+                    client.admin()
+                        .cluster()
+                        .prepareCleanupRepository(trackedRepository.repositoryName)
+                        .execute(mustSucceed(cleanupRepositoryResponse -> {
+                            Releasables.close(releaseAll);
+                            logger.info("--> completed cleanup of [{}]", trackedRepository.repositoryName);
+                            final RepositoryCleanupResult result = cleanupRepositoryResponse.result();
+                            assertThat(Strings.toString(result), result.blobs(), equalTo(0L));
+                            assertThat(Strings.toString(result), result.bytes(), equalTo(0L));
+                            startCleaner();
+                        }));
+
+                    startedCleanup = true;
+                } finally {
+                    if (startedCleanup == false) {
+                        startCleaner();
                     }
                 }
             });
@@ -779,8 +830,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                 });
                             }));
                         }
-
-                        // TODO sometimes concurrently abort the snapshot
 
                     }));
 
@@ -1315,23 +1364,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 }
 
                 if (localReleasables.add(SnapshotStressTestsIT.tryAcquirePermit(permits)) == null) {
-                    return null;
-                }
-
-                return localReleasables.transfer();
-            }
-        }
-
-        /*
-         * Try and acquire all permits on this snapshot and one on the underlying repository
-         */
-        Releasable tryAcquireAllPermits() {
-            try (TransferableReleasables localReleasables = new TransferableReleasables()) {
-                if (localReleasables.add(SnapshotStressTestsIT.tryAcquirePermit(trackedRepository.permits)) == null) {
-                    return null;
-                }
-
-                if (localReleasables.add(SnapshotStressTestsIT.tryAcquireAllPermits(permits)) == null) {
                     return null;
                 }
 
