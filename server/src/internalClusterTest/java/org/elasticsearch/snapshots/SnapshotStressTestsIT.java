@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -292,32 +293,19 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             assertTrue(shouldStop.compareAndSet(false, true));
 
-            final List<Tuple<String, Semaphore>> labelledPermits = new ArrayList<>();
-            snapshots.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.snapshotName, n.permits)));
-            repositories.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.repositoryName, n.permits)));
-            indices.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.indexName, n.permits)));
-            nodes.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.nodeName, n.permits)));
+            final List<String> failedPermitAcquistions = new ArrayList<>();
+            acquirePermitsAtEnd(repositories.values().stream().map(n -> Tuple.tuple(n.repositoryName, n.permits)), failedPermitAcquistions);
+            acquirePermitsAtEnd(snapshots.values().stream().map(n -> Tuple.tuple(n.snapshotName, n.permits)), failedPermitAcquistions);
+            acquirePermitsAtEnd(indices.values().stream().map(n -> Tuple.tuple(n.indexName, n.permits)), failedPermitAcquistions);
+            acquirePermitsAtEnd(nodes.values().stream().map(n -> Tuple.tuple(n.nodeName, n.permits)), failedPermitAcquistions);
 
-            final List<String> failedPermits = new ArrayList<>();
-
-            for (Tuple<String, Semaphore> labelledPermit : labelledPermits) {
-                final String label = labelledPermit.v1();
-                logger.info("--> acquiring permit [{}]", label);
-                if (labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS)) {
-                    logger.info("--> acquired permit [{}]", label);
-                } else {
-                    logger.warn("--> failed to acquire permit [{}]", label);
-                    failedPermits.add(label);
-                }
-            }
-
-            if (failedPermits.isEmpty() == false) {
-                logger.warn("--> failed to acquire all permits: {}", failedPermits);
+            if (failedPermitAcquistions.isEmpty() == false) {
+                logger.warn("--> failed to acquire all permits: {}", failedPermitAcquistions);
                 logger.info(
                     "--> current cluster state:\n{}",
                     Strings.toString(client().admin().cluster().prepareState().get().getState(), true, true)
                 );
-                fail("failed to acquire all permits: " + failedPermits);
+                fail("failed to acquire all permits: " + failedPermitAcquistions);
             }
             logger.info("--> acquired all permits");
 
@@ -328,6 +316,25 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                     Strings.toString(client().admin().cluster().prepareState().get().getState(), true, true)
                 );
             }
+        }
+
+        private void acquirePermitsAtEnd(Stream<Tuple<String, Semaphore>> labelledPermits, List<String> failedPermitAcquistions) {
+            labelledPermits.forEach(labelledPermit -> {
+                final String label = labelledPermit.v1();
+                logger.info("--> acquiring permit [{}]", label);
+                try {
+                    if (labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS)) {
+                        logger.info("--> acquired permit [{}]", label);
+                    } else {
+                        logger.warn("--> failed to acquire permit [{}]", label);
+                        failedPermitAcquistions.add(label);
+                    }
+                } catch (InterruptedException e) {
+                    logger.warn("--> interrupted while acquiring permit [{}]", label);
+                    Thread.currentThread().interrupt();
+                    logAndFailTest(e);
+                }
+            });
         }
 
         private void enqueueAction(final CheckedRunnable<Exception> action) {
