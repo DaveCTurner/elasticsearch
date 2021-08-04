@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.node.hotthreads.NodeHotThreads;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequestBuilder;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequestBuilder;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequestBuilder;
@@ -327,6 +328,23 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         logger.info("--> acquired permit [{}]", label);
                     } else {
                         logger.warn("--> failed to acquire permit [{}]", label);
+                        logger.info(
+                            "--> current cluster state:\n{}",
+                            Strings.toString(client().admin().cluster().prepareState().get().getState(), true, true)
+                        );
+                        logger.info(
+                            "--> hot threads:\n{}",
+                            client().admin()
+                                .cluster()
+                                .prepareNodesHotThreads()
+                                .setThreads(99999)
+                                .setIgnoreIdleThreads(false)
+                                .get()
+                                .getNodes()
+                                .stream()
+                                .map(NodeHotThreads::getHotThreads)
+                                .collect(Collectors.joining("\n"))
+                        );
                         failedPermitAcquistions.add(label);
                     }
                 } catch (InterruptedException e) {
