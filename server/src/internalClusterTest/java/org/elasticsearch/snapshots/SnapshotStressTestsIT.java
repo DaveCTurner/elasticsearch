@@ -293,18 +293,41 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             assertTrue(shouldStop.compareAndSet(false, true));
 
             final List<Tuple<String, Semaphore>> labelledPermits = new ArrayList<>();
-            nodes.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.nodeName, n.permits)));
+            snapshots.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.snapshotName, n.permits)));
             repositories.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.repositoryName, n.permits)));
             indices.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.indexName, n.permits)));
-            snapshots.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.snapshotName, n.permits)));
+            nodes.values().forEach(n -> labelledPermits.add(Tuple.tuple(n.nodeName, n.permits)));
+
+            final List<String> failedPermits = new ArrayList<>();
 
             for (Tuple<String, Semaphore> labelledPermit : labelledPermits) {
-                assertTrue(labelledPermit.v1(), labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS));
+                final String label = labelledPermit.v1();
+                logger.info("--> acquiring permit [{}]", label);
+                if (labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS)) {
+                    logger.info("--> acquired permit [{}]", label);
+                } else {
+                    logger.warn("--> failed to acquire permit [{}]", label);
+                    failedPermits.add(label);
+                }
             }
 
+            if (failedPermits.isEmpty() == false) {
+                logger.warn("--> failed to acquire all permits: {}", failedPermits);
+                logger.info(
+                    "--> current cluster state:\n{}",
+                    Strings.toString(client().admin().cluster().prepareState().get().getState(), true, true)
+                );
+                fail("failed to acquire all permits: " + failedPermits);
+            }
             logger.info("--> acquired all permits");
 
-            ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS);
+            if (ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS) == false) {
+                logger.warn("--> threadpool termination timed out");
+                logger.info(
+                    "--> current cluster state:\n{}",
+                    Strings.toString(client().admin().cluster().prepareState().get().getState(), true, true)
+                );
+            }
         }
 
         private void enqueueAction(final CheckedRunnable<Exception> action) {
@@ -657,11 +680,11 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         .cluster()
                         .prepareDeleteSnapshot(targetRepository.repositoryName, snapshotNames.toArray(new String[0]))
                         .execute(mustSucceed(acknowledgedResponse -> {
-                            Releasables.close(releaseAll);
                             assertTrue(acknowledgedResponse.isAcknowledged());
                             for (String snapshotName : snapshotNames) {
                                 assertThat(snapshots.remove(snapshotName), notNullValue());
                             }
+                            Releasables.close(releaseAll); // must only release snapshot after removing it from snapshots map
                             logger.info("--> completed deletion of [{}:{}]", targetRepository.repositoryName, snapshotNames);
                             startSnapshotDeleter();
                         }));
