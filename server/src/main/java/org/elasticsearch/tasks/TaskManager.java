@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterStateApplier;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.common.settings.Settings;
@@ -371,13 +372,11 @@ public class TaskManager implements ClusterStateApplier {
     }
 
     /**
-     * Bans all tasks with the specified parent task from execution, cancels all tasks that are currently executing.
-     * <p>
-     * This method is called when a parent task that has children is cancelled.
-     * @return a list of pending cancellable child tasks
+     * Bans all future tasks with the specified parent task from future execution. After calling this method the caller is expected to
+     * cancel any currently-executing tasks with the specified parent task.
      */
-    public List<CancellableTask> setBan(TaskId parentTaskId, String reason, TransportChannel channel) {
-        logger.trace("setting ban for the parent task {} {}", parentTaskId, reason);
+    public void setBan(TaskId parentTaskId, String reason, TransportChannel channel) {
+        logger.trace("setting ban for the parent task [{}]: [{}]", parentTaskId, reason);
         synchronized (bannedParents) {
             final Ban ban = bannedParents.computeIfAbsent(parentTaskId, k -> new Ban(reason));
             while (channel instanceof TaskTransportChannel) {
@@ -390,10 +389,6 @@ public class TaskManager implements ClusterStateApplier {
                 ban.registerChannel(DIRECT_CHANNEL_TRACKER);
             }
         }
-        return cancellableTasks.values().stream()
-            .filter(t -> t.hasParent(parentTaskId))
-            .map(t -> t.task)
-            .collect(Collectors.toUnmodifiableList());
     }
 
     /**
@@ -409,6 +404,10 @@ public class TaskManager implements ClusterStateApplier {
     // for testing
     public Set<TaskId> getBannedTaskIds() {
         return Collections.unmodifiableSet(bannedParents.keySet());
+    }
+
+    public void forEachCancellableTask(Consumer<CancellableTask> cancellableTaskConsumer) {
+        cancellableTasks.values().forEach(t -> cancellableTaskConsumer.accept(t.getTask()));
     }
 
     private class Ban {

@@ -13,13 +13,10 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.action.support.GroupedActionListener;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.EmptyTransportResponseHandler;
 import org.elasticsearch.transport.NodeDisconnectedException;
@@ -27,14 +24,12 @@ import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportException;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -45,10 +40,16 @@ public class TaskCancellationService {
     private final TransportService transportService;
     private final TaskManager taskManager;
     private final ResultDeduplicator<CancelRequest, Void> deduplicator = new ResultDeduplicator<>();
+    private final DescendantCancellationService descendentCancellationService;
 
     public TaskCancellationService(TransportService transportService) {
         this.transportService = transportService;
         this.taskManager = transportService.getTaskManager();
+        this.descendentCancellationService = new DescendantCancellationService(
+            this,
+            taskManager::forEachCancellableTask,
+            // TODO can we use MANAGEMENT here or does this mean we won't be able to cancel our way out of an overloaded MANAGEMENT pool?
+            transportService.getThreadPool().executor(ThreadPool.Names.MANAGEMENT));
         transportService.registerRequestHandler(BAN_PARENT_ACTION_NAME, ThreadPool.Names.SAME, BanParentTaskRequest::new,
             new BanParentRequestHandler());
     }
@@ -183,7 +184,10 @@ public class TaskCancellationService {
             BanParentTaskRequest.createRemoveBanParentTaskRequest(new TaskId(localNodeId(), task.getId()));
         for (Transport.Connection connection : childConnections) {
             assert TransportService.unwrapConnection(connection) == connection : "Child connection must be unwrapped";
-            logger.trace("Sending remove ban for tasks with the parent [{}] for connection [{}]", request.parentTaskId, connection);
+            logger.trace(
+                "Sending remove ban for tasks with the parent [{}] for connection [{}]",
+                request.getBannedParentTaskId(),
+                connection);
             transportService.sendRequest(connection, BAN_PARENT_ACTION_NAME, request, TransportRequestOptions.EMPTY,
                 new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
                     @Override
@@ -194,20 +198,20 @@ public class TaskCancellationService {
                             logger.debug(
                                 new ParameterizedMessage(
                                     "failed to remove ban for tasks with the parent [{}] on connection [{}]",
-                                    request.parentTaskId,
+                                    request.getBannedParentTaskId(),
                                     connection),
                                 exp);
                         } else if (logger.isDebugEnabled()) {
                             logger.warn(
                                 new ParameterizedMessage(
                                     "failed to remove ban for tasks with the parent [{}] on connection [{}]",
-                                    request.parentTaskId,
+                                    request.getBannedParentTaskId(),
                                     connection),
                                 exp);
                         } else {
                             logger.warn(
                                 "failed to remove ban for tasks with the parent [{}] on connection [{}]: {}",
-                                request.parentTaskId,
+                                request.getBannedParentTaskId(),
                                 connection,
                                 exp.getMessage());
                         }
@@ -220,78 +224,25 @@ public class TaskCancellationService {
         return cause instanceof NodeDisconnectedException || cause instanceof NodeNotConnectedException;
     }
 
-    private static class BanParentTaskRequest extends TransportRequest {
-
-        private final TaskId parentTaskId;
-        private final boolean ban;
-        private final boolean waitForCompletion;
-        private final String reason;
-
-        static BanParentTaskRequest createSetBanParentTaskRequest(TaskId parentTaskId, String reason, boolean waitForCompletion) {
-            return new BanParentTaskRequest(parentTaskId, reason, waitForCompletion);
-        }
-
-        static BanParentTaskRequest createRemoveBanParentTaskRequest(TaskId parentTaskId) {
-            return new BanParentTaskRequest(parentTaskId);
-        }
-
-        private BanParentTaskRequest(TaskId parentTaskId, String reason, boolean waitForCompletion) {
-            this.parentTaskId = parentTaskId;
-            this.ban = true;
-            this.reason = reason;
-            this.waitForCompletion = waitForCompletion;
-        }
-
-        private BanParentTaskRequest(TaskId parentTaskId) {
-            this.parentTaskId = parentTaskId;
-            this.ban = false;
-            this.reason = null;
-            this.waitForCompletion = false;
-        }
-
-        private BanParentTaskRequest(StreamInput in) throws IOException {
-            super(in);
-            parentTaskId = TaskId.readFromStream(in);
-            ban = in.readBoolean();
-            reason = ban ? in.readString() : null;
-            if (in.getVersion().onOrAfter(Version.V_7_8_0)) {
-                waitForCompletion = in.readBoolean();
-            } else {
-                waitForCompletion = false;
-            }
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            super.writeTo(out);
-            parentTaskId.writeTo(out);
-            out.writeBoolean(ban);
-            if (ban) {
-                out.writeString(reason);
-            }
-            if (out.getVersion().onOrAfter(Version.V_7_8_0)) {
-                out.writeBoolean(waitForCompletion);
-            }
-        }
-    }
-
     private class BanParentRequestHandler implements TransportRequestHandler<BanParentTaskRequest> {
         @Override
         public void messageReceived(final BanParentTaskRequest request, final TransportChannel channel, Task task) throws Exception {
-            if (request.ban) {
-                logger.debug("Received ban for the parent [{}] on the node [{}], reason: [{}]", request.parentTaskId,
-                    localNodeId(), request.reason);
-                final List<CancellableTask> childTasks = taskManager.setBan(request.parentTaskId, request.reason,  channel);
-                final GroupedActionListener<Void> listener = new GroupedActionListener<>(
-                    new ChannelActionListener<>(channel, BAN_PARENT_ACTION_NAME, request).map(r -> TransportResponse.Empty.INSTANCE),
-                    childTasks.size() + 1);
-                for (CancellableTask childTask : childTasks) {
-                    cancelTaskAndDescendants(childTask, request.reason, request.waitForCompletion, listener);
-                }
-                listener.onResponse(null);
+            if (request.isBan()) {
+                logger.debug(
+                    "Received ban for the parent [{}] on the node [{}], reason: [{}]",
+                    request.getParentTask(),
+                    localNodeId(),
+                    request.getReason());
+                taskManager.setBan(request.getBannedParentTaskId(), request.getReason(), channel);
+                descendentCancellationService.cancelChildren(
+                    request,
+                    new ChannelActionListener<>(
+                        channel,
+                        BAN_PARENT_ACTION_NAME,
+                        request).map(r -> TransportResponse.Empty.INSTANCE));
             } else {
-                logger.debug("Removing ban for the parent [{}] on the node [{}]", request.parentTaskId, localNodeId());
-                taskManager.removeBan(request.parentTaskId);
+                logger.debug("Removing ban for the parent [{}] on the node [{}]", request.getBannedParentTaskId(), localNodeId());
+                taskManager.removeBan(request.getBannedParentTaskId());
                 channel.sendResponse(TransportResponse.Empty.INSTANCE);
             }
         }
