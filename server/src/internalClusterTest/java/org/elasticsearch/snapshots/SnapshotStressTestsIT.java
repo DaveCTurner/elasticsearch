@@ -78,7 +78,10 @@ import static org.hamcrest.Matchers.notNullValue;
 @LuceneTestCase.SuppressFileSystems(value = "HandleLimitFS") // we sometimes have >2048 open files
 public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
-    @TestLogging(reason="debugging", value="org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE,org.elasticsearch.action.admin.cluster.snapshots:TRACE,org.elasticsearch.action.admin.cluster.repositories:TRACE")
+    @TestLogging(
+        reason = "debugging",
+        value = "org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE,org.elasticsearch.action.admin.cluster.snapshots:TRACE,org.elasticsearch.action.admin.cluster.repositories:TRACE"
+    )
     public void testRandomActivities() throws InterruptedException {
         final DiscoveryNodes discoveryNodes = client().admin().cluster().prepareState().clear().setNodes(true).get().getState().nodes();
         new TrackedCluster(internalCluster(), nodeNames(discoveryNodes.getMasterNodes()), nodeNames(discoveryNodes.getDataNodes())).run();
@@ -295,12 +298,29 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             assertTrue(shouldStop.compareAndSet(false, true));
+            final long permitDeadlineMillis = threadPool.relativeTimeInMillis() + TimeUnit.SECONDS.toMillis(30);
 
             final List<String> failedPermitAcquistions = new ArrayList<>();
-            acquirePermitsAtEnd(repositories.values().stream().map(n -> Tuple.tuple(n.repositoryName, n.permits)), failedPermitAcquistions);
-            acquirePermitsAtEnd(snapshots.values().stream().map(n -> Tuple.tuple(n.snapshotName, n.permits)), failedPermitAcquistions);
-            acquirePermitsAtEnd(indices.values().stream().map(n -> Tuple.tuple(n.indexName, n.permits)), failedPermitAcquistions);
-            acquirePermitsAtEnd(nodes.values().stream().map(n -> Tuple.tuple(n.nodeName, n.permits)), failedPermitAcquistions);
+            acquirePermitsAtEnd(
+                repositories.values().stream().map(n -> Tuple.tuple(n.repositoryName, n.permits)),
+                failedPermitAcquistions,
+                permitDeadlineMillis
+            );
+            acquirePermitsAtEnd(
+                snapshots.values().stream().map(n -> Tuple.tuple(n.snapshotName, n.permits)),
+                failedPermitAcquistions,
+                permitDeadlineMillis
+            );
+            acquirePermitsAtEnd(
+                indices.values().stream().map(n -> Tuple.tuple(n.indexName, n.permits)),
+                failedPermitAcquistions,
+                permitDeadlineMillis
+            );
+            acquirePermitsAtEnd(
+                nodes.values().stream().map(n -> Tuple.tuple(n.nodeName, n.permits)),
+                failedPermitAcquistions,
+                permitDeadlineMillis
+            );
 
             if (failedPermitAcquistions.isEmpty() == false) {
                 logger.warn("--> failed to acquire all permits: {}", failedPermitAcquistions);
@@ -321,12 +341,17 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
-        private void acquirePermitsAtEnd(Stream<Tuple<String, Semaphore>> labelledPermits, List<String> failedPermitAcquistions) {
+        private void acquirePermitsAtEnd(
+            Stream<Tuple<String, Semaphore>> labelledPermits,
+            List<String> failedPermitAcquistions,
+            long permitDeadlineMillis
+        ) {
             labelledPermits.forEach(labelledPermit -> {
+                final long remainingMillis = Math.min(1L, threadPool.relativeTimeInMillis() - permitDeadlineMillis);
                 final String label = labelledPermit.v1();
-                logger.info("--> acquiring permit [{}]", label);
+                logger.info("--> acquiring permit [{}] with timeout of [{}ms]", label, remainingMillis);
                 try {
-                    if (labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, 10, TimeUnit.SECONDS)) {
+                    if (labelledPermit.v2().tryAcquire(Integer.MAX_VALUE, remainingMillis, TimeUnit.MILLISECONDS)) {
                         logger.info("--> acquired permit [{}]", label);
                     } else {
                         logger.warn("--> failed to acquire permit [{}]", label);
