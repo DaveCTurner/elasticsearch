@@ -1243,7 +1243,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
             private final String indexName;
-            private int shardCount; // only changed when all permits held by the delete/recreate process
+
+            // these fields are only changed when all permits held by the delete/recreate process:
+            private int shardCount;
+            private Semaphore docPermits;
 
             private TrackedIndex(String indexName) {
                 this.indexName = indexName;
@@ -1263,8 +1266,9 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void createIndexAndContinue(Releasable releasable) {
-                logger.info("--> create index [{}]", indexName);
                 shardCount = between(1, 5);
+                docPermits = new Semaphore(between(1000, 3000));
+                logger.info("--> create index [{}] with max [{}] docs", indexName, docPermits.availablePermits());
                 client().admin()
                     .indices()
                     .prepareCreate(indexName)
@@ -1298,11 +1302,19 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                 return;
                             }
 
+                            final int maxDocCount = docPermits.drainPermits();
+                            assert maxDocCount >= 0 : maxDocCount;
+                            if (maxDocCount == 0) {
+                                return;
+                            }
+                            final int docCount = between(1, Math.min(maxDocCount, 200));
+                            docPermits.release(maxDocCount - docCount);
+
                             final Releasable releaseAll = localReleasables.transfer();
 
                             final StepListener<ClusterHealthResponse> ensureYellowStep = new StepListener<>();
 
-                            logger.info("--> waiting for yellow health of [{}] prior to indexing", indexName);
+                            logger.info("--> waiting for yellow health of [{}] prior to indexing [{}] docs", indexName, docCount);
 
                             client().admin()
                                 .cluster()
@@ -1321,7 +1333,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                     clusterHealthResponse.isTimedOut()
                                 );
 
-                                final int docCount = between(1, 1000);
                                 final BulkRequestBuilder bulkRequestBuilder = client().prepareBulk(indexName);
 
                                 logger.info("--> indexing [{}] docs into [{}]", docCount, indexName);
