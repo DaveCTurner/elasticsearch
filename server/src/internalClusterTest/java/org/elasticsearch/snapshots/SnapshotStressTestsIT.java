@@ -347,7 +347,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             long permitDeadlineMillis
         ) {
             labelledPermits.forEach(labelledPermit -> {
-                final long remainingMillis = Math.min(1L, threadPool.relativeTimeInMillis() - permitDeadlineMillis);
+                final long remainingMillis = Math.max(1L, permitDeadlineMillis - threadPool.relativeTimeInMillis());
                 final String label = labelledPermit.v1();
                 logger.info("--> acquiring permit [{}] with timeout of [{}ms]", label, remainingMillis);
                 try {
