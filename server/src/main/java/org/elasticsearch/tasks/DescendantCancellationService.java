@@ -136,7 +136,7 @@ public class DescendantCancellationService {
         private final BanParentTaskRequest request;
         private final ActionListener<Void> listener;
 
-        public RefCountingListener(BanParentTaskRequest banRequest, ActionListener<Void> listener) {
+        RefCountingListener(BanParentTaskRequest banRequest, ActionListener<Void> listener) {
             super("counting");
             this.request = banRequest;
             this.listener = listener;

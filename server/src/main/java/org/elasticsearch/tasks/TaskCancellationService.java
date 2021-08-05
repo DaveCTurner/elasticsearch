@@ -14,6 +14,7 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.action.support.GroupedActionListener;
@@ -24,14 +25,12 @@ import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportException;
-import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 public class TaskCancellationService {
