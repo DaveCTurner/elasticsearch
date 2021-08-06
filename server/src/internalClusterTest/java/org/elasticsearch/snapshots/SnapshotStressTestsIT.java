@@ -222,7 +222,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         );
 
         private final AtomicBoolean shouldStop = new AtomicBoolean();
-        private final boolean blockAllNodes;
         private final InternalTestCluster cluster;
         private final Map<String, TrackedNode> nodes = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedRepository> repositories = ConcurrentCollections.newConcurrentMap();
@@ -235,7 +234,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final CountDownLatch completedSnapshotLatch = new CountDownLatch(30);
 
         TrackedCluster(InternalTestCluster cluster, Set<String> masterNodeNames, Set<String> dataNodeNames) {
-            this.blockAllNodes = randomBoolean();
             this.cluster = cluster;
             for (String nodeName : cluster.getNodeNames()) {
                 nodes.put(nodeName, new TrackedNode(nodeName, masterNodeNames.contains(nodeName), dataNodeNames.contains(nodeName)));
@@ -1160,10 +1158,6 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
          */
         @Nullable // if we couldn't block enough master node restarts
         private Releasable blockFullClusterRestart() {
-            if (blockAllNodes) {
-                return blockNodeRestarts();
-            }
-
             final List<TrackedNode> masterNodes = shuffledNodes.stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
             int permitsAcquired = 0;
             try (TransferableReleasables localReleasables = new TransferableReleasables()) {
