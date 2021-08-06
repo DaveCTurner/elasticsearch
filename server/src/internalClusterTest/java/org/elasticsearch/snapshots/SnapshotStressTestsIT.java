@@ -30,6 +30,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.Strings;
@@ -55,6 +56,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +82,10 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
     @TestLogging(
         reason = "debugging",
-        value = "org.elasticsearch.snapshots:TRACE,org.elasticsearch.repositories:TRACE,org.elasticsearch.action.admin.cluster.snapshots:TRACE,org.elasticsearch.action.admin.cluster.repositories:TRACE"
+        value = "org.elasticsearch.snapshots:TRACE," +
+            "org.elasticsearch.repositories:TRACE," +
+            "org.elasticsearch.action.admin.cluster.snapshots:TRACE," +
+            "org.elasticsearch.action.admin.cluster.repositories:TRACE"
     )
     public void testRandomActivities() throws InterruptedException {
         final DiscoveryNodes discoveryNodes = client().admin().cluster().prepareState().clear().setNodes(true).get().getState().nodes();
@@ -224,6 +229,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final Map<String, TrackedIndex> indices = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedSnapshot> snapshots = ConcurrentCollections.newConcurrentMap();
 
+        private volatile List<TrackedNode> shuffledNodes;
+
         private final AtomicInteger snapshotCounter = new AtomicInteger();
         private final CountDownLatch completedSnapshotLatch = new CountDownLatch(30);
 
@@ -247,7 +254,17 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
+        void shuffleNodes() {
+            final List<TrackedNode> newNodes = new ArrayList<>(nodes.values());
+            Randomness.shuffle(newNodes);
+            final String masterNodeName = cluster.getInstance(ClusterService.class).state().nodes().getMasterNode().getName();
+            newNodes.sort(Comparator.comparing(tn->tn.nodeName.equals(masterNodeName)));
+            shuffledNodes = newNodes;
+        }
+
         public void run() throws InterruptedException {
+            shuffleNodes();
+
             for (TrackedIndex trackedIndex : indices.values()) {
                 trackedIndex.start();
             }
@@ -1095,8 +1112,8 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         return;
                     }
 
-                    final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(nodes.values());
-                    Randomness.shuffle(trackedNodes);
+                    final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(shuffledNodes);
+                    Collections.reverse(trackedNodes);
 
                     for (TrackedNode trackedNode : trackedNodes) {
                         if (localReleasables.add(tryAcquireAllPermits(trackedNode.permits)) != null) {
@@ -1108,6 +1125,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                 logger.info("--> restarting [{}]", nodeName);
                                 cluster.restartNode(nodeName);
                                 logger.info("--> finished restarting [{}]", nodeName);
+                                shuffleNodes();
                                 Releasables.close(releaseAll);
                                 startNodeRestarter();
                             }));
@@ -1146,8 +1164,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 return blockNodeRestarts();
             }
 
-            final List<TrackedNode> masterNodes = nodes.values().stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
-            Randomness.shuffle(masterNodes);
+            final List<TrackedNode> masterNodes = shuffledNodes.stream().filter(TrackedNode::isMasterNode).collect(Collectors.toList());
             int permitsAcquired = 0;
             try (TransferableReleasables localReleasables = new TransferableReleasables()) {
                 for (TrackedNode trackedNode : masterNodes) {
@@ -1167,9 +1184,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
          * since previous acquisitions mean that at least one node is already blocked from restarting.
          */
         private ReleasableClient acquireClient() {
-            final ArrayList<TrackedNode> trackedNodes = new ArrayList<>(nodes.values());
-            Randomness.shuffle(trackedNodes);
-            for (TrackedNode trackedNode : trackedNodes) {
+            for (TrackedNode trackedNode : shuffledNodes) {
                 final Releasable permit = tryAcquirePermit(trackedNode.getPermits());
                 if (permit != null) {
                     return new ReleasableClient(permit, client(trackedNode.nodeName));
