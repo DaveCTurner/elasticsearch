@@ -92,7 +92,7 @@ class S3BlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String blobName) throws IOException {
-        return new S3RetryingInputStream(blobStore, buildKey(blobName));
+        return new S3RetryingInputStream(blobStore, buildKey(blobName).replace("//", "/"));
     }
 
     @Override
@@ -437,9 +437,12 @@ class S3BlobContainer extends AbstractBlobContainer {
      * Uploads a blob using a single upload request
      */
     void executeSingleUpload(final S3BlobStore blobStore,
-                             final String blobName,
+                             String blobName,
                              final InputStream input,
                              final long blobSize) throws IOException {
+
+        logger.info("--> executeSingleUpload[{}]", blobName);
+        blobName = blobName.replace("//", "/");
 
         // Extra safety checks
         if (blobSize > MAX_FILE_SIZE.getBytes()) {
