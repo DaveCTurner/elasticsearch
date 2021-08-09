@@ -256,7 +256,7 @@ class S3BlobContainer extends AbstractBlobContainer {
                 } else {
                     final ListObjectsRequest listObjectsRequest = new ListObjectsRequest();
                     listObjectsRequest.setBucketName(blobStore.bucket());
-                    listObjectsRequest.setPrefix(keyPath);
+                    listObjectsRequest.setPrefix(keyPath.replace("//", "/"));
                     listObjectsRequest.setRequestMetricCollector(blobStore.listMetricCollector);
                     list = SocketAccess.doPrivileged(() -> clientReference.client().listObjects(listObjectsRequest));
                 }
