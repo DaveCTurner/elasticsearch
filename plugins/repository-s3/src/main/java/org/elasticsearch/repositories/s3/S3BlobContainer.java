@@ -341,14 +341,16 @@ class S3BlobContainer extends AbstractBlobContainer {
 
     private void deletePartition(AmazonS3Reference clientReference, List<String> partition, AtomicReference<Exception> aex) {
         try {
-            clientReference.client().deleteObjects(bulkDelete(blobStore.bucket(), partition.stream().map(s -> {
+            final List<String> realBlobNames = partition.stream().map(s -> {
                 final String s2 = s.replace("//", "/");
                 if (s2.endsWith("/")) {
-                    return s2.substring(0, s2.length()-1);
+                    return s2.substring(0, s2.length() - 1);
                 } else {
                     return s2;
                 }
-            }).collect(Collectors.toList())));
+            }).collect(Collectors.toList());
+            logger.info("--> deletePartition{}", realBlobNames);
+            clientReference.client().deleteObjects(bulkDelete(blobStore.bucket(), realBlobNames));
         } catch (MultiObjectDeleteException e) {
             // We are sending quiet mode requests so we can't use the deleted keys entry on the exception and instead
             // first remove all keys that were sent in the request and then add back those that ran into an exception.
