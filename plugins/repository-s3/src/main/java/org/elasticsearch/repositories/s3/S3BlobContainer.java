@@ -425,7 +425,7 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     private ListObjectsRequest listObjectsRequest(String keyPath) {
-        return new ListObjectsRequest().withBucketName(blobStore.bucket()).withPrefix(keyPath).withDelimiter("/")
+        return new ListObjectsRequest().withBucketName(blobStore.bucket()).withPrefix(keyPath.replace("//","/")).withDelimiter("/")
             .withRequestMetricCollector(blobStore.listMetricCollector);
     }
 
