@@ -24,14 +24,26 @@ index:
     allow writes and metadata changes.
 
 `index.blocks.read_only_allow_delete`::
-
-    Similar to `index.blocks.read_only`, but also allows deleting the index to
-    make more resources available. The <<disk-based-shard-allocation,disk-based shard
-    allocator>> may add and remove this block automatically.
 +
-Deleting documents from an index to release resources - rather than deleting the index itself - can increase the index size over time. When `index.blocks.read_only_allow_delete` is set to `true`, deleting documents is not permitted. However, deleting the index itself releases the read-only index block and makes resources available almost immediately.
+When `true` the index and its metadata cannot be modified but the index may be
+deleted. When `false` the index and its metadata can be modified as normal.
 +
-IMPORTANT: {es} adds and removes the read-only index block automatically when the disk utilization falls below the high watermark, controlled by <<cluster-routing-flood-stage,cluster.routing.allocation.disk.watermark.flood_stage>>.
+This block is automatically added if you are running out of disk space and
+removed if you have enough disk space. It prevents you from increasing the disk
+usage of the index but permits you to free up the disk space it consumes.
+Deleting documents from an index usually temporarily increases the index size,
+consuming additional disk space. In contrast deleting the index itself will
+free up the disk space used by the index almost immediately. When this block is
+in place you cannot delete any documents from the index but you can delete the
+index itself.
++
+The <<disk-based-shard-allocation,disk-based shard allocator>> adds this block
+automatically if the disk utilisation on any relevant node exceeds the
+flood-stage watermark and removes it automatically if the disk utilisation on
+all relevant nodes is below the high watermark.
++
+IMPORTANT: {es} adds and removes this index block automatically. If you make
+changes to this block then those changes may be reverted.
 
 `index.blocks.read`::
 
