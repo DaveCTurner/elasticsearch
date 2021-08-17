@@ -16,6 +16,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.transport.LeakTracker;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -213,16 +214,26 @@ public final class ReleasableBytesReference implements RefCounted, Releasable, B
 
     private static final class RefCountedReleasable extends AbstractRefCounted {
 
+        private final LeakTracker.Leak<Releasable> leak;
         private final Releasable releasable;
 
         RefCountedReleasable(Releasable releasable) {
             super("bytes-reference");
             this.releasable = releasable;
+            leak = LeakTracker.INSTANCE.track(releasable);
         }
 
         @Override
         protected void closeInternal() {
+            boolean leakReleased = leak.close(releasable);
+            assert leakReleased : "leak should not have been released already";
             Releasables.closeExpectNoException(releasable);
         }
+
+        @Override
+        protected void touch() {
+            leak.record();
+        }
     }
+
 }
