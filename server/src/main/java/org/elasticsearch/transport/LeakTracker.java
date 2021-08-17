@@ -66,6 +66,7 @@ public final class LeakTracker {
             String records = ref.toString();
             if (reportedLeaks.putIfAbsent(records, Boolean.TRUE) == null) {
                 logger.error("LEAK: resource was not cleaned up before it was garbage-collected.{}", records);
+                throw new AssertionError("LEAK: resource was not cleaned up before it was garbage-collected." + records);
             }
         }
     }
