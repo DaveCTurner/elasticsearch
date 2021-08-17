@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.instanceOf;
 
 public class InboundDecoderTests extends ESTestCase {
 
@@ -129,15 +130,19 @@ public class InboundDecoderTests extends ESTestCase {
         fragments.clear();
 
         final BytesReference bytes2 = totalBytes.slice(bytesConsumed, totalBytes.length() - bytesConsumed);
-        final ReleasableBytesReference releasable2 = ReleasableBytesReference.wrap(bytes2);
-        int bytesConsumed2 = decoder.decode(releasable2, fragments::add);
-        if (compressionScheme == null) {
-            assertEquals(2, fragments.size());
-        } else {
-            assertEquals(3, fragments.size());
+        try (ReleasableBytesReference releasable2 = ReleasableBytesReference.wrap(bytes2)) {
+            int bytesConsumed2 = decoder.decode(releasable2, fragments::add);
+            if (compressionScheme == null) {
+                assertEquals(2, fragments.size());
+            } else {
+                assertEquals(3, fragments.size());
+                final Object body = fragments.get(1);
+                assertThat(body, instanceOf(ReleasableBytesReference.class));
+                ((ReleasableBytesReference)body).close();
+            }
+            assertEquals(InboundDecoder.END_CONTENT, fragments.get(fragments.size() - 1));
+            assertEquals(totalBytes.length() - bytesConsumed, bytesConsumed2);
         }
-        assertEquals(InboundDecoder.END_CONTENT, fragments.get(fragments.size() - 1));
-        assertEquals(totalBytes.length() - bytesConsumed, bytesConsumed2);
     }
 
     public void testDecodeHandshakeCompatibility() throws IOException {
@@ -223,19 +228,22 @@ public class InboundDecoderTests extends ESTestCase {
         fragments.clear();
 
         final BytesReference bytes2 = totalBytes.slice(bytesConsumed, totalBytes.length() - bytesConsumed);
-        final ReleasableBytesReference releasable2 = ReleasableBytesReference.wrap(bytes2);
-        int bytesConsumed2 = decoder.decode(releasable2, fragments::add);
-        assertEquals(totalBytes.length() - totalHeaderSize, bytesConsumed2);
+        try (ReleasableBytesReference releasable2 = ReleasableBytesReference.wrap(bytes2)) {
+            int bytesConsumed2 = decoder.decode(releasable2, fragments::add);
+            assertEquals(totalBytes.length() - totalHeaderSize, bytesConsumed2);
 
-        final Object compressionScheme = fragments.get(0);
-        final Object content = fragments.get(1);
-        final Object endMarker = fragments.get(2);
+            final Object compressionScheme = fragments.get(0);
+            final Object content = fragments.get(1);
+            final Object endMarker = fragments.get(2);
 
-        assertEquals(scheme, compressionScheme);
-        assertEquals(uncompressedBytes, content);
-        // Ref count is not incremented since the bytes are immediately consumed on decompression
-        assertEquals(1, releasable2.refCount());
-        assertEquals(InboundDecoder.END_CONTENT, endMarker);
+            assertEquals(scheme, compressionScheme);
+            assertEquals(uncompressedBytes, content);
+            assertThat(content, instanceOf(ReleasableBytesReference.class));
+            ((ReleasableBytesReference)content).close();
+            // Ref count is not incremented since the bytes are immediately consumed on decompression
+            assertEquals(1, releasable2.refCount());
+            assertEquals(InboundDecoder.END_CONTENT, endMarker);
+        }
     }
 
     public void testCompressedDecodeHandshakeCompatibility() throws IOException {
