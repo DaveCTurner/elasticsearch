@@ -220,20 +220,26 @@ public final class ReleasableBytesReference implements RefCounted, Releasable, B
         RefCountedReleasable(Releasable releasable) {
             super("bytes-reference");
             this.releasable = releasable;
-            leak = LeakTracker.INSTANCE.track(releasable);
+            if (releasable == NO_OP) {
+                leak = null;
+            } else {
+                leak = LeakTracker.INSTANCE.track(releasable);
+            }
+
         }
 
         @Override
         protected void closeInternal() {
-            boolean leakReleased = leak.close(releasable);
+            boolean leakReleased = leak == null || leak.close(releasable);
             assert leakReleased : "leak should not have been released already";
             Releasables.closeExpectNoException(releasable);
         }
 
         @Override
         protected void touch() {
-            leak.record();
+            if (leak != null) {
+                leak.record();
+            }
         }
     }
-
 }
