@@ -47,7 +47,7 @@ import static org.hamcrest.Matchers.instanceOf;
 
 public class BanFailureLoggingTests extends TaskManagerTestCase {
 
-    @TestLogging(reason = "testing logging at DEBUG", value = "org.elasticsearch.tasks.TaskCancellationService:DEBUG")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.tasks:TRACE,org.elasticsearch.transport:TRACE")
     public void testLogsAtDebugOnDisconnectionDuringBan() throws Exception {
         runTest(
             (connection, requestId, action, request, options) -> {
