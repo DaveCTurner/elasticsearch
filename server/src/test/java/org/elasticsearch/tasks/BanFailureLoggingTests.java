@@ -182,17 +182,23 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
             final PlainActionFuture<Void> cancellationFuture = new PlainActionFuture<>();
             parentTransportService.getTaskManager().cancelTaskAndDescendants(parentTask, "test", true, cancellationFuture);
 //            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
+            logger.info("--> awaiting cancellation completion");
             try {
                 cancellationFuture.actionGet(TimeValue.timeValueSeconds(5));
             } catch (NodeDisconnectedException e) {
+                logger.info("--> cancellation got failure", e);
                 // acceptable; we mostly ignore the result of cancellation anyway
             }
+            logger.info("--> cancellation completed");
 
             // assert busy since failure to remove a ban may be logged after cancellation completed
             assertBusy(appender::assertAllExpectationsMatched);
+
+            logger.info("--> expectations matched");
         } finally {
             Collections.reverse(resources);
             IOUtils.close(resources);
+            logger.info("--> test body finished");
         }
     }
 
