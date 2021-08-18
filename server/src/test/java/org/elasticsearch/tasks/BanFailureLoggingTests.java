@@ -162,9 +162,9 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                 appender.addExpectation(expectation);
             }
 
-            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
             final PlainActionFuture<Void> cancellationFuture = new PlainActionFuture<>();
             parentTransportService.getTaskManager().cancelTaskAndDescendants(parentTask, "test", true, cancellationFuture);
+            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
             try {
                 cancellationFuture.actionGet(TimeValue.timeValueSeconds(5));
             } catch (NodeDisconnectedException e) {
