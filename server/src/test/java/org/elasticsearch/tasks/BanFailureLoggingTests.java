@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -107,6 +109,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
             parentTransportService.start();
             parentTransportService.acceptIncomingRequests();
 
+            final CyclicBarrier childTaskStartedBarrier = new CyclicBarrier(2);
             final MockTransportService childTransportService = MockTransportService.createNewService(
                 Settings.EMPTY,
                 Version.CURRENT,
@@ -123,6 +126,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                     }
                 },
                 (request, channel, task) -> {
+                    childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
                     final CancellableTask cancellableTask = (CancellableTask) task;
                     assertBusy(() -> assertTrue(cancellableTask.isCancelled()));
                     channel.sendResponse(new TaskCancelledException("task cancelled"));
@@ -158,6 +162,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                 appender.addExpectation(expectation);
             }
 
+            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
             final PlainActionFuture<Void> cancellationFuture = new PlainActionFuture<>();
             parentTransportService.getTaskManager().cancelTaskAndDescendants(parentTask, "test", true, cancellationFuture);
             try {
