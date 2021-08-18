@@ -699,7 +699,7 @@ public class TaskManager implements ClusterStateApplier {
         final Set<CancellableTask> tasks = channel.drainTasks();
         logger.info(
             new ParameterizedMessage(
-                "--> onChannelClosed: cancelling [{}]",
+                "--> onChannelClosed: cancelling [{}] in background",
                 tasks.stream().map(task -> Long.toString(task.getId())).collect(Collectors.joining(","))),
             new ElasticsearchException("stack trace"));
         if (tasks.isEmpty() == false) {
@@ -711,6 +711,12 @@ public class TaskManager implements ClusterStateApplier {
 
                 @Override
                 protected void doRun() {
+                    logger.info(
+                        new ParameterizedMessage(
+                            "--> onChannelClosed: cancelling [{}] right now",
+                            tasks.stream().map(task -> Long.toString(task.getId())).collect(Collectors.joining(","))),
+                        new ElasticsearchException("stack trace"));
+
                     for (CancellableTask task : tasks) {
                         cancelTaskAndDescendants(task, "channel was closed", false, ActionListener.wrap(() -> {}));
                     }

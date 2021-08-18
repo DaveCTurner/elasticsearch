@@ -81,6 +81,7 @@ public class TaskCancellationService {
     }
 
     void cancelTaskAndDescendants(CancellableTask task, String reason, boolean waitForCompletion, ActionListener<Void> finalListener) {
+        logger.info("--> deduplicating request to cancel task [{}]", task.getId());
         deduplicator.executeOnce(new CancelRequest(task, waitForCompletion), finalListener,
             (r, listener) -> doCancelTaskAndDescendants(task, reason, waitForCompletion, listener));
     }
