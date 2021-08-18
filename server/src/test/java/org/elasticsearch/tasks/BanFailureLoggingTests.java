@@ -128,7 +128,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                 (request, channel, task) -> {
 //                    childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
                     final CancellableTask cancellableTask = (CancellableTask) task;
-                    assertBusy(() -> assertTrue(cancellableTask.isCancelled()));
+                    assertBusy(() -> assertTrue("task [" + cancellableTask.getId() + "] should be cancelled", cancellableTask.isCancelled()));
                     channel.sendResponse(new TaskCancelledException("task cancelled"));
                 });
 

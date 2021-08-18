@@ -88,7 +88,7 @@ public class TaskCancellationService {
     void doCancelTaskAndDescendants(CancellableTask task, String reason, boolean waitForCompletion, ActionListener<Void> listener) {
         final TaskId taskId = task.taskInfo(localNodeId(), false).getTaskId();
         if (task.shouldCancelChildrenOnCancellation()) {
-            logger.trace("cancelling task [{}] and its descendants", taskId);
+            logger.trace("cancelling task [{}] and its descendants due to [{}]", taskId, reason);
             StepListener<Void> completedListener = new StepListener<>();
             GroupedActionListener<Void> groupedListener = new GroupedActionListener<>(completedListener.map(r -> null), 3);
             Collection<Transport.Connection> childConnections = taskManager.startBanOnChildTasks(task.getId(), reason, () -> {
