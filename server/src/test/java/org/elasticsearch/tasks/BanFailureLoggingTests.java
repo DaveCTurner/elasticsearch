@@ -33,7 +33,11 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 
 import java.io.Closeable;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +45,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.instanceOf;
@@ -128,7 +133,19 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                 (request, channel, task) -> {
 //                    childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
                     final CancellableTask cancellableTask = (CancellableTask) task;
-                    assertBusy(() -> assertTrue("task [" + cancellableTask.getId() + "] should be cancelled", cancellableTask.isCancelled()));
+                    boolean success = false;
+                    try {
+                        assertBusy(() -> assertTrue("task [" + cancellableTask.getId() + "] should be cancelled", cancellableTask.isCancelled()));
+                        success = true;
+                    } finally {
+                        if (success == false) {
+                            ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+                            final ThreadInfo[] threadInfos = threadBean.dumpAllThreads(true, true);
+                            for (ThreadInfo threadInfo : threadInfos) {
+                                logger.info("--> thread [{}]:\n{}", threadInfo.getThreadName(), Arrays.stream(threadInfo.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\n")));
+                            }
+                        }
+                    }
                     channel.sendResponse(new TaskCancelledException("task cancelled"));
                 });
 
