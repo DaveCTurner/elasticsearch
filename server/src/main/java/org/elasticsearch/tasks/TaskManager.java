@@ -667,6 +667,7 @@ public class TaskManager implements ClusterStateApplier {
         final Set<CancellableTask> pendingTasks = ConcurrentCollections.newConcurrentSet();
 
         void addTask(CancellableTask task) {
+            logger.info(new ParameterizedMessage("--> addTask({})", task.getId()), new ElasticsearchException("stack trace"));
             assert permits.tryAcquire() : "tracker was drained";
             final boolean added = pendingTasks.add(task);
             assert added : "task " + task.getId() + " is in the pending list already";
@@ -696,6 +697,11 @@ public class TaskManager implements ClusterStateApplier {
 
     private void onChannelClosed(ChannelPendingTaskTracker channel) {
         final Set<CancellableTask> tasks = channel.drainTasks();
+        logger.info(
+            new ParameterizedMessage(
+                "--> onChannelClosed: cancelling [{}]",
+                tasks.stream().map(task -> Long.toString(task.getId())).collect(Collectors.joining(","))),
+            new ElasticsearchException("stack trace"));
         if (tasks.isEmpty() == false) {
             threadPool.generic().execute(new AbstractRunnable() {
                 @Override
