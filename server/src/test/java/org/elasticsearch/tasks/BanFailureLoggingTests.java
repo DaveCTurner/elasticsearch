@@ -109,7 +109,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
             parentTransportService.start();
             parentTransportService.acceptIncomingRequests();
 
-            final CyclicBarrier childTaskStartedBarrier = new CyclicBarrier(2);
+//            final CyclicBarrier childTaskStartedBarrier = new CyclicBarrier(2);
             final MockTransportService childTransportService = MockTransportService.createNewService(
                 Settings.EMPTY,
                 Version.CURRENT,
@@ -126,7 +126,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
                     }
                 },
                 (request, channel, task) -> {
-                    childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
+//                    childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
                     final CancellableTask cancellableTask = (CancellableTask) task;
                     assertBusy(() -> assertTrue(cancellableTask.isCancelled()));
                     channel.sendResponse(new TaskCancelledException("task cancelled"));
@@ -164,7 +164,7 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
 
             final PlainActionFuture<Void> cancellationFuture = new PlainActionFuture<>();
             parentTransportService.getTaskManager().cancelTaskAndDescendants(parentTask, "test", true, cancellationFuture);
-            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
+//            childTaskStartedBarrier.await(10, TimeUnit.SECONDS);
             try {
                 cancellationFuture.actionGet(TimeValue.timeValueSeconds(5));
             } catch (NodeDisconnectedException e) {
