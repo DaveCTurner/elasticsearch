@@ -14,6 +14,7 @@ import org.elasticsearch.Build;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -26,8 +27,9 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedRunnable;
-import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
@@ -274,16 +276,16 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             ensureConnections(service);
             assertConnectedExactlyToNodes(nodes1);
 
-            // if we disconnect from a node while blocked trying to connect to it then the listener is notified
+            // we can also deregister a node while blocked trying to connect to it; the connect listener completes when no longer blocked
             final PlainActionFuture<Void> future6 = new PlainActionFuture<>();
             service.connectToNodes(nodes01, () -> future6.onResponse(null));
             expectThrows(ElasticsearchTimeoutException.class, () -> future6.actionGet(timeValueMillis(scaledRandomIntBetween(1, 1000))));
 
             service.disconnectFromNodesExcept(nodes1);
-            future6.actionGet(); // completed even though the connection attempt is still blocked
             assertConnectedExactlyToNodes(nodes1);
 
             connectionBarrier.await(10, TimeUnit.SECONDS);
+            future6.actionGet(10, TimeUnit.SECONDS);
             nodeConnectionBlocks.clear();
             ensureConnections(service);
             assertConnectedExactlyToNodes(nodes1);
@@ -425,7 +427,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
     private void assertConnectedExactlyToNodes(TransportService transportService, DiscoveryNodes discoveryNodes) {
         assertConnected(transportService, discoveryNodes);
-        assertThat(transportService.getConnectionManager().size(), equalTo(discoveryNodes.getSize()));
+        assertThat(transportService.getConnectionManager().toString(), transportService.getConnectionManager().size(), equalTo(discoveryNodes.getSize()));
     }
 
     private void assertConnected(TransportService transportService, Iterable<DiscoveryNode> nodes) {
@@ -455,7 +457,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         super.tearDown();
     }
 
-    private final class TestTransportService extends TransportService {
+    private static final class TestTransportService extends TransportService {
 
         private TestTransportService(Transport transport, ThreadPool threadPool) {
             super(Settings.EMPTY, transport, threadPool, TransportService.NOOP_TRANSPORT_INTERCEPTOR,
@@ -469,25 +471,9 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             listener.onResponse(new HandshakeResponse(Version.CURRENT, Build.CURRENT.hash(), connection.getNode(), new ClusterName("")));
         }
 
-        @Override
-        public void connectToNode(DiscoveryNode node, ActionListener<Releasable> listener) throws ConnectTransportException {
-            final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
-            if (connectionBlock != null) {
-                getThreadPool().generic().execute(() -> {
-                        try {
-                            connectionBlock.run();
-                            super.connectToNode(node, listener);
-                        } catch (Exception e) {
-                            throw new AssertionError(e);
-                        }
-                    });
-            } else {
-                super.connectToNode(node, listener);
-            }
-        }
     }
 
-    private static final class MockTransport implements Transport {
+    private final class MockTransport implements Transport {
         private final ResponseHandlers responseHandlers = new ResponseHandlers();
         private final RequestHandlers requestHandlers = new RequestHandlers();
         private volatile boolean randomConnectionExceptions = false;
@@ -516,52 +502,79 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             return new TransportAddress[0];
         }
 
+        private void runConnectionBlock(CheckedRunnable<Exception> connectionBlock) {
+            if (connectionBlock == null) {
+                return;
+            }
+            try {
+                connectionBlock.run();
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+        }
+
         @Override
         public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
+            final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
-                threadPool.generic().execute(() -> listener.onFailure(new ConnectTransportException(node, "simulated")));
+                threadPool.generic().execute(() -> {
+                    runConnectionBlock(connectionBlock);
+                    listener.onFailure(new ConnectTransportException(node, "simulated"));
+                });
             } else {
-                threadPool.generic().execute(() -> listener.onResponse(new Connection() {
-                    @Override
-                    public DiscoveryNode getNode() {
-                        return node;
-                    }
+                threadPool.generic().execute(() -> {
+                    runConnectionBlock(connectionBlock);
+                    listener.onResponse(new Connection() {
+                        private final ListenableActionFuture<Void> closeListener = new ListenableActionFuture<>();
 
-                    @Override
-                    public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
-                        throws TransportException {
-                    }
+                        private final RefCounted refCounted = new AbstractRefCounted("test") {
+                            @Override
+                            protected void closeInternal() {
+                                closeListener.onResponse(null);
+                            }
+                        };
 
-                    @Override
-                    public void addCloseListener(ActionListener<Void> listener) {
-                    }
+                        @Override
+                        public DiscoveryNode getNode() {
+                            return node;
+                        }
 
-                    @Override
-                    public void close() {
-                    }
+                        @Override
+                        public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
+                            throws TransportException {
+                        }
 
-                    @Override
-                    public boolean isClosed() {
-                        return false;
-                    }
+                        @Override
+                        public void addCloseListener(ActionListener<Void> listener1) {
+                            closeListener.addListener(listener1);
+                        }
 
-                    @Override
-                    public void incRef() {
-                        // TODO
-                    }
+                        @Override
+                        public void close() {
+                            closeListener.onResponse(null);
+                        }
 
-                    @Override
-                    public boolean tryIncRef() {
-                        // TODO
-                        return true;
-                    }
+                        @Override
+                        public boolean isClosed() {
+                            return closeListener.isDone();
+                        }
 
-                    @Override
-                    public boolean decRef() {
-                        // TODO
-                        return false;
-                    }
-                }));
+                        @Override
+                        public void incRef() {
+                            refCounted.incRef();
+                        }
+
+                        @Override
+                        public boolean tryIncRef() {
+                            return refCounted.tryIncRef();
+                        }
+
+                        @Override
+                        public boolean decRef() {
+                            return refCounted.decRef();
+                        }
+                    });
+                });
             }
         }
 
