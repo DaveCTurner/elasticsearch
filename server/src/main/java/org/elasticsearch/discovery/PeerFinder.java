@@ -22,6 +22,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.threadpool.ThreadPool.Names;
@@ -36,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
@@ -112,9 +113,11 @@ public abstract class PeerFinder {
 
     public void deactivate(DiscoveryNode leader) {
         final boolean peersRemoved;
+        final List<Releasable> connectionReferences;
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
             active = false;
+            connectionReferences = peersByAddress.values().stream().map(Peer::getConnectionReference).collect(Collectors.toList());
             peersRemoved = handleWakeUp();
             this.leader = Optional.of(leader);
             assert assertInactiveWithNoKnownPeers();
@@ -122,6 +125,9 @@ public abstract class PeerFinder {
         if (peersRemoved) {
             onFoundPeersUpdated();
         }
+
+        assert peersRemoved == false || connectionReferences.isEmpty() : connectionReferences;
+        Releasables.close(connectionReferences);
     }
 
     // exposed to subclasses for testing
@@ -194,23 +200,6 @@ public abstract class PeerFinder {
 
     public List<TransportAddress> getLastResolvedAddresses() {
         return lastResolvedAddresses;
-    }
-
-    public interface TransportAddressConnector {
-        /**
-         * Identify the node at the given address and, if it is a master node and not the local node then establish a full connection to it.
-         */
-        void connectToRemoteMasterNode(TransportAddress transportAddress, ActionListener<DiscoveryNode> listener);
-    }
-
-    public interface ConfiguredHostsResolver {
-        /**
-         * Attempt to resolve the configured hosts list to a list of transport addresses.
-         *
-         * @param consumer Consumer for the resolved list. May not be called if an error occurs or if another resolution attempt is in
-         *                 progress.
-         */
-        void resolveConfiguredHosts(Consumer<List<TransportAddress>> consumer);
     }
 
     public Iterable<DiscoveryNode> getFoundPeers() {
@@ -306,6 +295,7 @@ public abstract class PeerFinder {
     private class Peer {
         private final TransportAddress transportAddress;
         private final SetOnce<DiscoveryNode> discoveryNode = new SetOnce<>();
+        private final SetOnce<Releasable> connectionReference = new SetOnce<>();
         private volatile boolean peersRequestInFlight;
 
         Peer(TransportAddress transportAddress) {
@@ -350,23 +340,37 @@ public abstract class PeerFinder {
                     = transportService.getThreadPool().relativeTimeInMillis() - activatedAtMillis > verbosityIncreaseTimeout.millis();
 
             logger.trace("{} attempting connection", this);
-            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<DiscoveryNode>() {
+            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<ProbeConnectionResult>() {
                 @Override
-                public void onResponse(DiscoveryNode remoteNode) {
+                public void onResponse(ProbeConnectionResult connectResult) {
+                    assert holdsLock() == false : "PeerFinder mutex is held in error";
+                    final DiscoveryNode remoteNode = connectResult.getDiscoveryNode();
                     assert remoteNode.isMasterNode() : remoteNode + " is not master-eligible";
                     assert remoteNode.equals(getLocalNode()) == false : remoteNode + " is the local node";
-                    synchronized (mutex) {
-                        if (active == false) {
-                            return;
+                    boolean retainConnection = false;
+                    try {
+                        synchronized (mutex) {
+                            if (active == false) {
+                                return;
+                            }
+
+                            assert discoveryNode.get() == null : "discoveryNode unexpectedly already set to " + discoveryNode.get();
+                            discoveryNode.set(remoteNode);
+
+                            assert connectionReference.get() == null : "already acquired connection reference";
+                            connectionReference.set(connectResult);
+
+                            requestPeers();
                         }
 
-                        assert discoveryNode.get() == null : "discoveryNode unexpectedly already set to " + discoveryNode.get();
-                        discoveryNode.set(remoteNode);
-                        requestPeers();
-                    }
+                        onFoundPeersUpdated();
 
-                    assert holdsLock() == false : "PeerFinder mutex is held in error";
-                    onFoundPeersUpdated();
+                        retainConnection = true;
+                    } finally {
+                        if (retainConnection == false) {
+                            Releasables.close(connectResult);
+                        }
+                    }
                 }
 
                 @Override
@@ -391,6 +395,8 @@ public abstract class PeerFinder {
                         logger.debug(new ParameterizedMessage("{} connection failed", Peer.this), e);
                     }
                     synchronized (mutex) {
+                        assert discoveryNode.get() == null : "discoveryNode unexpectedly already set to " + discoveryNode.get();
+                        assert connectionReference.get() == null : "already acquired connection reference";
                         peersByAddress.remove(transportAddress);
                     }
                 }
@@ -458,6 +464,12 @@ public abstract class PeerFinder {
                 new PeersRequest(getLocalNode(), knownNodes),
                 TransportRequestOptions.timeout(requestPeersTimeout),
                 peersResponseHandler);
+        }
+
+        @Nullable
+        Releasable getConnectionReference() {
+            assert holdsLock() : "PeerFinder mutex not held";
+            return connectionReference.get();
         }
 
         @Override
