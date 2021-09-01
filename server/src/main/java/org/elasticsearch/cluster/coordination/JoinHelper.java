@@ -24,6 +24,8 @@ import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -32,6 +34,7 @@ import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
+import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequest;
@@ -234,22 +237,54 @@ public class JoinHelper {
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
         if (pendingOutgoingJoins.add(dedupKey)) {
             logger.debug("attempting to join {} with {}", destination, joinRequest);
-            transportService.sendRequest(destination, JOIN_ACTION_NAME, joinRequest, new TransportResponseHandler.Empty() {
-                    @Override
-                    public void handleResponse(TransportResponse.Empty response) {
-                        pendingOutgoingJoins.remove(dedupKey);
-                        logger.debug("successfully joined {} with {}", destination, joinRequest);
-                        lastFailedJoinAttempt.set(null);
-                    }
 
-                    @Override
-                    public void handleException(TransportException exp) {
-                        pendingOutgoingJoins.remove(dedupKey);
-                        FailedJoinAttempt attempt = new FailedJoinAttempt(destination, joinRequest, exp);
-                        attempt.logNow();
-                        lastFailedJoinAttempt.set(attempt);
-                    }
-                });
+            // Typically we're already connected to the destination at this point, the PeerFinder holds a reference to this connection to
+            // keep it open, but we need to acquire our own reference to keep the connection alive through the joining process.
+            transportService.connectToNode(destination, new ActionListener<Releasable>() {
+                @Override
+                public void onResponse(Releasable connectionReference) {
+                    logger.trace("acquired connection for joining join {} with {}", destination, joinRequest);
+                    transportService.sendRequest(destination, JOIN_ACTION_NAME, joinRequest, new TransportResponseHandler.Empty() {
+                        @Override
+                        public void handleResponse(TransportResponse.Empty response) {
+                            pendingOutgoingJoins.remove(dedupKey);
+                            logger.debug("successfully joined {} with {}", destination, joinRequest);
+                            lastFailedJoinAttempt.set(null);
+
+                            // The master processed a cluster state update adding us to the cluster and waited for all the nodes in the
+                            // cluster, including us, to apply the new cluster state (up to 30s). The NodeConnectionsService acquires a
+                            // reference to this connection when it applies the cluster state, which happens pretty early in the application
+                            // process, so as long as we didn't take more than 30s to do that we are ok to release our reference to the
+                            // connection here.
+                            //
+                            // If we didn't even start applying the cluster state within 30s then this could disconnect us, and then we will
+                            // try and join again. TODO should we handle this better? maybe the LeaderChecker should also acquire the conn?
+                            Releasables.close(connectionReference);
+                        }
+
+                        @Override
+                        public void handleException(TransportException exp) {
+                            pendingOutgoingJoins.remove(dedupKey);
+                            FailedJoinAttempt attempt = new FailedJoinAttempt(destination, joinRequest, exp);
+                            attempt.logNow();
+                            lastFailedJoinAttempt.set(attempt);
+                            Releasables.close(connectionReference);
+                        }
+                    });
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    pendingOutgoingJoins.remove(dedupKey);
+                    FailedJoinAttempt attempt = new FailedJoinAttempt(
+                        destination,
+                        joinRequest,
+                        new ConnectTransportException(destination, "failed to acquire connection", e));
+                    attempt.logNow();
+                    lastFailedJoinAttempt.set(attempt);
+                }
+            });
+
         } else {
             logger.debug("already attempting to join {} with request {}, not sending request", destination, joinRequest);
         }
