@@ -45,13 +45,13 @@ public abstract class CloseableConnection implements Transport.Connection {
     }
 
     @Override
-    public boolean tryIncRef() {
+    public boolean tryIncRef(String key) {
         return refCounted.tryIncRef();
     }
 
     @Override
-    public boolean decRef() {
-        return refCounted.decRef();
+    public void decRef(String key) {
+        refCounted.decRef();
     }
 
 }

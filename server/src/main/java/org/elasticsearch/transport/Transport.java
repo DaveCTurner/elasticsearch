@@ -14,7 +14,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.transport.BoundTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -129,9 +128,9 @@ public interface Transport extends LifecycleComponent {
         @Override
         void close();
 
-        boolean tryIncRef();
+        boolean tryIncRef(String key);
 
-        boolean decRef();
+        void decRef(String key);
     }
 
     /**

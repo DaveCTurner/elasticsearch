@@ -128,13 +128,12 @@ public class TransportService extends AbstractLifecycleComponent
         }
 
         @Override
-        public boolean tryIncRef() {
+        public boolean tryIncRef(String key) {
             return true;
         }
 
         @Override
-        public boolean decRef() {
-            return false;
+        public void decRef(String key) {
         }
 
         @Override

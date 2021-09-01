@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class manages node connections within a cluster. The connection is opened by the underlying transport.
@@ -106,6 +107,8 @@ public class ClusterConnectionManager implements ConnectionManager {
         connectToNodeInternal(node, connectionProfile, connectionValidator, 0, listener);
     }
 
+    private static final AtomicLong refIdGenerator = new AtomicLong();
+
     /**
      * Connects to the given node, or acquires another reference to an existing connection to the given node if a connection already exists.
      * If a connection already exists but has been completely released (so it's in the process of closing) then this method will wait for
@@ -133,8 +136,9 @@ public class ClusterConnectionManager implements ConnectionManager {
         final Transport.Connection existingConnection = connectedNodes.get(node);
         if (existingConnection != null) {
             connectingRefCounter.decRef();
-            if (existingConnection.tryIncRef()) {
-                listener.onResponse(Releasables.releaseOnce(existingConnection::decRef));
+            final String refId = "existing-connection-" + refIdGenerator.incrementAndGet();
+            if (existingConnection.tryIncRef(refId)) {
+                listener.onResponse(Releasables.releaseOnce(() -> existingConnection.decRef(refId)));
                 return;
             }
 
@@ -157,8 +161,9 @@ public class ClusterConnectionManager implements ConnectionManager {
         }
 
         final ActionListener<Transport.Connection> acquiringListener = listener.delegateFailure((delegate, connection) -> {
-            if (connection.tryIncRef()) {
-                delegate.onResponse(Releasables.releaseOnce(connection::decRef));
+            final String refId = "existing-connection-" + refIdGenerator.incrementAndGet();
+            if (connection.tryIncRef(refId)) {
+                delegate.onResponse(Releasables.releaseOnce(() -> connection.decRef(refId)));
             } else {
                 assert false : "connection released before listeners notified";
                 delegate.onFailure(new ConnectTransportException(node, "connection released before listeners notified"));
@@ -211,7 +216,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                     assert Transports.assertNotTransportThread("connection validator failure");
                     IOUtils.closeWhileHandlingException(conn);
                     failConnectionListener(node, releaseOnce, e, currentListener);
-                }), conn::decRef)),
+                }), () -> conn.decRef("after-notify-listeners"))),
             e -> {
                 assert Transports.assertNotTransportThread("internalOpenConnection failure");
                 failConnectionListener(node, releaseOnce, e, currentListener);

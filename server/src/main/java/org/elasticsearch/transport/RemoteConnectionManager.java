@@ -221,14 +221,13 @@ public class RemoteConnectionManager implements ConnectionManager {
         }
 
         @Override
-        public boolean tryIncRef() {
+        public boolean tryIncRef(String key) {
             return true;
         }
 
         @Override
-        public boolean decRef() {
+        public void decRef(String key) {
             assert false : "proxy connections must not be released";
-            return false;
         }
 
 

@@ -326,14 +326,13 @@ public class TransportSearchActionTests extends ESTestCase {
             }
 
             @Override
-            public boolean tryIncRef() {
+            public boolean tryIncRef(String key) {
                 return true;
             }
 
             @Override
-            public boolean decRef() {
+            public void decRef(String key) {
                 assert false : "shouldn't release a mock connection";
-                return false;
             }
         };
 
