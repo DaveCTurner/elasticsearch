@@ -18,6 +18,7 @@ import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.internal.io.IOUtils;
 
 import java.util.Collections;
@@ -38,7 +39,8 @@ public class ClusterConnectionManager implements ConnectionManager {
     private static final Logger logger = LogManager.getLogger(ClusterConnectionManager.class);
 
     private final ConcurrentMap<DiscoveryNode, Transport.Connection> connectedNodes = ConcurrentCollections.newConcurrentMap();
-    private final ConcurrentMap<DiscoveryNode, ListenableFuture<Void>> pendingConnections = ConcurrentCollections.newConcurrentMap();
+    private final ConcurrentMap<DiscoveryNode, ListenableFuture<Transport.Connection>> pendingConnections
+        = ConcurrentCollections.newConcurrentMap();
     private final AbstractRefCounted connectingRefCounter = new AbstractRefCounted("connection manager") {
         @Override
         protected void closeInternal() {
@@ -100,6 +102,22 @@ public class ClusterConnectionManager implements ConnectionManager {
         ConnectionValidator connectionValidator,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
+        connectToNodeInternal(node, connectionProfile, connectionValidator, 0, listener);
+    }
+
+    /**
+     * Connects to the given node, or acquires another reference to an existing connection to the given node if a connection already exists.
+     * If a connection already exists but has been completely released (so it's in the process of closing) then this method will wait for
+     * the close to complete and then try again (up to 10 times).
+     */
+    private void connectToNodeInternal(
+        DiscoveryNode node,
+        @Nullable ConnectionProfile connectionProfile,
+        ConnectionValidator connectionValidator,
+        int previousFailureCount,
+        ActionListener<Releasable> listener
+    ) throws ConnectTransportException {
+
         ConnectionProfile resolvedProfile = ConnectionProfile.resolveConnectionProfile(connectionProfile, defaultProfile);
         if (node == null) {
             listener.onFailure(new ConnectTransportException(null, "can't connect to a null node"));
@@ -111,31 +129,58 @@ public class ClusterConnectionManager implements ConnectionManager {
             return;
         }
 
-        final ActionListener<Void> TODO = listener.map(ignored -> () -> {}); // TODO this needs to yield a proper releasable
-
-        if (connectedNodes.containsKey(node)) {
+        final Transport.Connection existingConnection = connectedNodes.get(node);
+        if (existingConnection != null) {
             connectingRefCounter.decRef();
-            TODO.onResponse(null);
+            if (existingConnection.tryIncRef()) {
+                listener.onResponse(Releasables.releaseOnce(existingConnection::decRef));
+                return;
+            }
+
+            final int failureCount = previousFailureCount + 1;
+            if (failureCount < 10) {
+                logger.trace("concurrent connect/disconnect for [{}] ([{}] failures), will try again", node, failureCount);
+                existingConnection.addCloseListener(listener.delegateFailure((delegate, ignored) -> connectToNodeInternal(
+                    node,
+                    connectionProfile,
+                    connectionValidator,
+                    failureCount,
+                    delegate)));
+            } else {
+                logger.warn("failed to connect to [{}] after [{}] attempts, giving up", node, failureCount);
+                listener.onFailure(new ConnectTransportException(
+                    node,
+                    "concurrently connecting and disconnected even after [" + failureCount + "] attempts"));
+            }
             return;
         }
 
-        final ListenableFuture<Void> currentListener = new ListenableFuture<>();
-        final ListenableFuture<Void> existingListener = pendingConnections.putIfAbsent(node, currentListener);
+        final ActionListener<Transport.Connection> acquiringListener = listener.delegateFailure((delegate, connection) -> {
+            if (connection.tryIncRef()) {
+                delegate.onResponse(Releasables.releaseOnce(connection::decRef));
+            } else {
+                assert false : "connection released before listeners notified";
+                delegate.onFailure(new ConnectTransportException(node, "connection released before listeners notified"));
+            }
+        });
+
+        final ListenableFuture<Transport.Connection> currentListener = new ListenableFuture<>();
+        final ListenableFuture<Transport.Connection> existingListener = pendingConnections.putIfAbsent(node, currentListener);
         if (existingListener != null) {
             try {
                 // wait on previous entry to complete connection attempt
-                existingListener.addListener(TODO);
+                existingListener.addListener(acquiringListener);
             } finally {
                 connectingRefCounter.decRef();
             }
             return;
         }
 
-        currentListener.addListener(TODO);
+        currentListener.addListener(acquiringListener);
 
         final RunOnce releaseOnce = new RunOnce(connectingRefCounter::decRef);
-        internalOpenConnection(node, resolvedProfile, ActionListener.wrap(conn -> {
-            connectionValidator.validate(conn, resolvedProfile, ActionListener.wrap(
+        internalOpenConnection(node, resolvedProfile, ActionListener.wrap(
+            conn -> connectionValidator.validate(conn, resolvedProfile, ActionListener.runAfter(ActionListener.wrap(
                 ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
                     try {
@@ -156,20 +201,20 @@ public class ClusterConnectionManager implements ConnectionManager {
                             }
                         }
                     } finally {
-                        ListenableFuture<Void> future = pendingConnections.remove(node);
+                        ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
                         releaseOnce.run();
-                        future.onResponse(null);
+                        future.onResponse(conn);
                     }
                 }, e -> {
                     assert Transports.assertNotTransportThread("connection validator failure");
                     IOUtils.closeWhileHandlingException(conn);
-                    failConnectionListeners(node, releaseOnce, e, currentListener);
-                }));
-        }, e -> {
-            assert Transports.assertNotTransportThread("internalOpenConnection failure");
-            failConnectionListeners(node, releaseOnce, e, currentListener);
-        }));
+                    failConnectionListener(node, releaseOnce, e, currentListener);
+                }), conn::decRef)),
+            e -> {
+                assert Transports.assertNotTransportThread("internalOpenConnection failure");
+                failConnectionListener(node, releaseOnce, e, currentListener);
+            }));
     }
 
     /**
@@ -263,8 +308,13 @@ public class ClusterConnectionManager implements ConnectionManager {
         }));
     }
 
-    private void failConnectionListeners(DiscoveryNode node, RunOnce releaseOnce, Exception e, ListenableFuture<Void> expectedListener) {
-        ListenableFuture<Void> future = pendingConnections.remove(node);
+    private void failConnectionListener(
+        DiscoveryNode node,
+        RunOnce releaseOnce,
+        Exception e,
+        ListenableFuture<Transport.Connection> expectedListener
+    ) {
+        ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
         releaseOnce.run();
         if (future != null) {
             assert future == expectedListener : "Listener in pending map is different than the expected listener";
