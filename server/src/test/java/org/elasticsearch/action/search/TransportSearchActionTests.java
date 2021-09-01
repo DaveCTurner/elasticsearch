@@ -324,6 +324,21 @@ public class TransportSearchActionTests extends ESTestCase {
             @Override
             public void close() {
             }
+
+            @Override
+            public void incRef() {
+            }
+
+            @Override
+            public boolean tryIncRef() {
+                return true;
+            }
+
+            @Override
+            public boolean decRef() {
+                assert false : "shouldn't release a mock connection";
+                return false;
+            }
         };
 
         {

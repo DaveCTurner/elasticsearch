@@ -9,15 +9,20 @@
 package org.elasticsearch.transport;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CompletableContext;
 
 
 /**
  * Abstract Transport.Connection that provides common close logic.
  */
-public abstract class CloseableConnection implements Transport.Connection {
+public abstract class CloseableConnection extends AbstractRefCounted implements Transport.Connection {
 
     private final CompletableContext<Void> closeContext = new CompletableContext<>();
+
+    protected CloseableConnection() {
+        super("CloseableConnection");
+    }
 
     @Override
     public void addCloseListener(ActionListener<Void> listener) {
@@ -34,5 +39,10 @@ public abstract class CloseableConnection implements Transport.Connection {
         // This method is safe to call multiple times as the close context will provide concurrency
         // protection and only be completed once. The attached listeners will only be notified once.
         closeContext.complete(null);
+    }
+
+    @Override
+    protected void closeInternal() {
+        close();
     }
 }
