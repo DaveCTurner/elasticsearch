@@ -12,6 +12,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CompletableContext;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 
 /**
  * Abstract Transport.Connection that provides common close logic.
@@ -26,10 +28,16 @@ public abstract class CloseableConnection implements Transport.Connection {
     };
 
     private final CompletableContext<Void> closeContext = new CompletableContext<>();
+    private final CompletableContext<Void> removeContext = new CompletableContext<>();
 
     @Override
     public void addCloseListener(ActionListener<Void> listener) {
         closeContext.addListener(ActionListener.toBiConsumer(listener));
+    }
+
+    @Override
+    public void addRemovedListener(ActionListener<Void> listener) {
+        removeContext.addListener(ActionListener.toBiConsumer(listener));
     }
 
     @Override
@@ -42,6 +50,11 @@ public abstract class CloseableConnection implements Transport.Connection {
         // This method is safe to call multiple times as the close context will provide concurrency
         // protection and only be completed once. The attached listeners will only be notified once.
         closeContext.complete(null);
+    }
+
+    @Override
+    public void onRemoved() {
+        removeContext.complete(null);
     }
 
     @Override

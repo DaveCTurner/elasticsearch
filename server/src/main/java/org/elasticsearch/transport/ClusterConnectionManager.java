@@ -145,7 +145,7 @@ public class ClusterConnectionManager implements ConnectionManager {
             final int failureCount = previousFailureCount + 1;
             if (failureCount < 10) {
                 logger.trace("concurrent connect/disconnect for [{}] ([{}] failures), will try again", node, failureCount);
-                existingConnection.addCloseListener(listener.delegateFailure((delegate, ignored) -> connectToNodeInternal(
+                existingConnection.addRemovedListener(listener.delegateFailure((delegate, ignored) -> connectToNodeInternal(
                     node,
                     connectionProfile,
                     connectionValidator,
@@ -203,6 +203,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                                     logger.trace("unregistering {} after connection close and marking as disconnected", node);
                                     connectedNodes.remove(node, finalConnection);
                                     connectionListener.onNodeDisconnected(node, conn);
+                                    conn.onRemoved();
                                 }));
                             }
                         }

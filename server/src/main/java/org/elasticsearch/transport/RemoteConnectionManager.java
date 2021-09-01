@@ -193,12 +193,17 @@ public class RemoteConnectionManager implements ConnectionManager {
 
         @Override
         public void close() {
-            assert false: "proxy connections must not be closed";
+            assert false : "proxy connections must not be closed";
         }
 
         @Override
         public void addCloseListener(ActionListener<Void> listener) {
             connection.addCloseListener(listener);
+        }
+
+        @Override
+        public void addRemovedListener(ActionListener<Void> listener) {
+            connection.addRemovedListener(listener);
         }
 
         @Override
@@ -228,6 +233,11 @@ public class RemoteConnectionManager implements ConnectionManager {
         @Override
         public void decRef(String key) {
             assert false : "proxy connections must not be released";
+        }
+
+        @Override
+        public void onRemoved() {
+            assert false : "proxy connections must not be removed";
         }
 
 

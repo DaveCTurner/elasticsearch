@@ -38,7 +38,9 @@ import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.ConnectionProfile;
+import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.Transport;
+import org.elasticsearch.transport.TransportConnectionListener;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportMessageListener;
 import org.elasticsearch.transport.TransportRequest;
@@ -55,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -73,7 +76,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
     private List<DiscoveryNode> generateNodes() {
         List<DiscoveryNode> nodes = new ArrayList<>();
-        for (int i = randomIntBetween(20, 50); i > 0; i--) {
+        for (int i = 1 /* TODO NOCOMMIT randomIntBetween(20, 50) */; i > 0; i--) {
             Set<DiscoveryNodeRole> roles = new HashSet<>(randomSubsetOf(DiscoveryNodeRole.roles()));
             nodes.add(new DiscoveryNode("node_" + i, "" + i, buildNewFakeTransportAddress(), Collections.emptyMap(),
                 roles, Version.CURRENT));
@@ -89,12 +92,24 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         return builder.build();
     }
 
-    public void testConnectAndDisconnect() throws Exception {
+    public void testEventuallyConnectsOnlyToAppliedNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
-        final AtomicBoolean stopReconnecting = new AtomicBoolean();
+//        transportService.addConnectionListener(new TransportConnectionListener() {
+//            @Override
+//            public void onNodeConnected(DiscoveryNode node, Transport.Connection connection) {
+//                logger.info("--> connected to {}", node);
+//            }
+//
+//            @Override
+//            public void onNodeDisconnected(DiscoveryNode node, Transport.Connection connection) {
+//                logger.info("--> disconnected from {}", node);
+//            }
+//        });
+
+        final AtomicBoolean keepGoing = new AtomicBoolean(true);
         final Thread reconnectionThread = new Thread(() -> {
-            while (stopReconnecting.get() == false) {
+            while (keepGoing.get()) {
                 final PlainActionFuture<Void> future = new PlainActionFuture<>();
                 service.ensureConnections(() -> future.onResponse(null));
                 future.actionGet();
@@ -102,53 +117,55 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         }, "reconnection thread");
         reconnectionThread.start();
 
-        try {
+        final List<DiscoveryNode> allNodes = generateNodes();
 
-            final List<DiscoveryNode> allNodes = generateNodes();
-            for (int iteration = 0; iteration < 3; iteration++) {
-
-                final boolean isDisrupting = randomBoolean();
-                if (isDisrupting == false) {
-                    // if the previous iteration was a disrupting one then there could still be some pending disconnections which would
-                    // prevent us from asserting that all nodes are connected in this iteration without this call.
-                    ensureConnections(service);
+        final boolean isDisrupting = randomBoolean();
+        final Thread disruptionThread = new Thread(() -> {
+            while (isDisrupting && keepGoing.get()) {
+                final Transport.Connection connection;
+                try {
+                    connection = transportService.getConnection(randomFrom(allNodes));
+                } catch (NodeNotConnectedException e) {
+                    continue;
                 }
-                final AtomicBoolean stopDisrupting = new AtomicBoolean();
-                final Thread disruptionThread = new Thread(() -> {
-                    while (isDisrupting && stopDisrupting.get() == false) {
-                        transportService.disconnectFromNode(randomFrom(allNodes));
-                    }
-                }, "disruption thread " + iteration);
-                disruptionThread.start();
 
-                final DiscoveryNodes nodes = discoveryNodesFromList(randomSubsetOf(allNodes));
                 final PlainActionFuture<Void> future = new PlainActionFuture<>();
-                service.connectToNodes(nodes, () -> future.onResponse(null));
-                future.actionGet();
-                if (isDisrupting == false) {
-                    assertConnected(transportService, nodes);
-                }
-                service.disconnectFromNodesExcept(nodes);
-
-                assertTrue(stopDisrupting.compareAndSet(false, true));
-                disruptionThread.join();
-
-                if (randomBoolean()) {
-                    // sometimes do not wait for the disconnections to complete before starting the next connections
-                    if (usually()) {
-                        ensureConnections(service);
-                        assertConnectedExactlyToNodes(nodes);
-                    } else {
-                        assertBusy(() -> assertConnectedExactlyToNodes(nodes));
-                    }
-                }
+                connection.addRemovedListener(future);
+                connection.close();
+                future.actionGet(10, TimeUnit.SECONDS);
             }
-        } finally {
-            assertTrue(stopReconnecting.compareAndSet(false, true));
-            reconnectionThread.join();
+        }, "disruption thread");
+        disruptionThread.start();
+
+        for (int i = 0; i < 10; i++) {
+            final DiscoveryNodes connectNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+            final PlainActionFuture<Void> future = new PlainActionFuture<>();
+//            logger.info("--> connectToNodes: {}", connectNodes);
+            service.connectToNodes(connectNodes, () -> future.onResponse(null));
+            future.actionGet(10, TimeUnit.SECONDS);
+            final DiscoveryNodes disconnectExceptNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+//            logger.info("--> disconnectExceptNodes: {}", disconnectExceptNodes);
+            service.disconnectFromNodesExcept(disconnectExceptNodes);
         }
 
-        ensureConnections(service);
+        final DiscoveryNodes nodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+//        logger.info("--> final nodes: {}", nodes);
+        final PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
+        service.connectToNodes(nodes, () -> connectFuture.onResponse(null));
+        connectFuture.actionGet(10, TimeUnit.SECONDS);
+        service.disconnectFromNodesExcept(nodes);
+
+        assertTrue(keepGoing.compareAndSet(true, false));
+        reconnectionThread.join();
+        disruptionThread.join();
+
+        if (isDisrupting) {
+            final PlainActionFuture<Void> ensureFuture = new PlainActionFuture<>();
+            service.ensureConnections(() -> ensureFuture.onResponse(null));
+            ensureFuture.actionGet(10, TimeUnit.SECONDS);
+        }
+
+        assertBusy(() -> assertConnectedExactlyToNodes(nodes));
     }
 
     public void testPeriodicReconnection() {
@@ -526,6 +543,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                     runConnectionBlock(connectionBlock);
                     listener.onResponse(new Connection() {
                         private final ListenableActionFuture<Void> closeListener = new ListenableActionFuture<>();
+                        private final ListenableActionFuture<Void> removeListener = new ListenableActionFuture<>();
 
                         private final RefCounted refCounted = new AbstractRefCounted("test") {
                             @Override
@@ -550,6 +568,11 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                         }
 
                         @Override
+                        public void addRemovedListener(ActionListener<Void> listener) {
+                            removeListener.addListener(listener);
+                        }
+
+                        @Override
                         public void close() {
                             closeListener.onResponse(null);
                         }
@@ -560,12 +583,24 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                         }
 
                         @Override
+                        public void onRemoved() {
+                            removeListener.onResponse(null);
+                        }
+
+                        @Override
                         public boolean tryIncRef(String key) {
-                            return refCounted.tryIncRef();
+                            if (refCounted.tryIncRef()) {
+//                                logger.info("LEAK CHECK: tryIncRef [{}] succeeded for connection to [{}]", key, node);
+                                return true;
+                            } else {
+//                                logger.info("LEAK CHECK: tryIncRef [{}] failed for connection to [{}]", key, node);
+                                return false;
+                            }
                         }
 
                         @Override
                         public void decRef(String key) {
+//                            logger.info("LEAK CHECK: decRef [{}] for connection to [{}]", key, node);
                             refCounted.decRef();
                         }
                     });

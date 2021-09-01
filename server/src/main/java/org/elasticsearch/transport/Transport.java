@@ -131,6 +131,17 @@ public interface Transport extends LifecycleComponent {
         boolean tryIncRef(String key);
 
         void decRef(String key);
+
+        /**
+         * Called after this connection is removed from the transport service.
+         */
+        void onRemoved();
+
+        /**
+         * Similar to {@link #addCloseListener} except that these listeners are notified once the connection is removed from the transport
+         * service.
+         */
+        void addRemovedListener(ActionListener<Void> listener);
     }
 
     /**
