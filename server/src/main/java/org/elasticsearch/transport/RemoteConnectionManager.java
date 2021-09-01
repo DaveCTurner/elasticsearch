@@ -221,10 +221,6 @@ public class RemoteConnectionManager implements ConnectionManager {
         }
 
         @Override
-        public void incRef() {
-        }
-
-        @Override
         public boolean tryIncRef() {
             return true;
         }
@@ -234,5 +230,7 @@ public class RemoteConnectionManager implements ConnectionManager {
             assert false : "proxy connections must not be released";
             return false;
         }
+
+
     }
 }

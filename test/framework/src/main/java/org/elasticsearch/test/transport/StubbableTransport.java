@@ -260,11 +260,6 @@ public class StubbableTransport implements Transport {
         }
 
         @Override
-        public void incRef() {
-            connection.incRef();
-        }
-
-        @Override
         public boolean tryIncRef() {
             return connection.tryIncRef();
         }

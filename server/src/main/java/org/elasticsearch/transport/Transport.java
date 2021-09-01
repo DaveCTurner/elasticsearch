@@ -83,7 +83,7 @@ public interface Transport extends LifecycleComponent {
     /**
      * A unidirectional connection to a {@link DiscoveryNode}
      */
-    interface Connection extends Closeable, RefCounted {
+    interface Connection extends Closeable {
         /**
          * The node this connection is associated with
          */
@@ -128,6 +128,10 @@ public interface Transport extends LifecycleComponent {
 
         @Override
         void close();
+
+        boolean tryIncRef();
+
+        boolean decRef();
     }
 
     /**

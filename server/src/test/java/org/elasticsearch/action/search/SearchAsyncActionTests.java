@@ -724,10 +724,6 @@ public class SearchAsyncActionTests extends ESTestCase {
         }
 
         @Override
-        public void incRef() {
-        }
-
-        @Override
         public boolean tryIncRef() {
             return true;
         }

@@ -16,13 +16,16 @@ import org.elasticsearch.core.CompletableContext;
 /**
  * Abstract Transport.Connection that provides common close logic.
  */
-public abstract class CloseableConnection extends AbstractRefCounted implements Transport.Connection {
+public abstract class CloseableConnection implements Transport.Connection {
+
+    private final AbstractRefCounted refCounted = new AbstractRefCounted("CloseableConnection") {
+        @Override
+        protected void closeInternal() {
+            close();
+        }
+    };
 
     private final CompletableContext<Void> closeContext = new CompletableContext<>();
-
-    protected CloseableConnection() {
-        super("CloseableConnection");
-    }
 
     @Override
     public void addCloseListener(ActionListener<Void> listener) {
@@ -42,7 +45,13 @@ public abstract class CloseableConnection extends AbstractRefCounted implements 
     }
 
     @Override
-    protected void closeInternal() {
-        close();
+    public boolean tryIncRef() {
+        return refCounted.tryIncRef();
     }
+
+    @Override
+    public boolean decRef() {
+        return refCounted.decRef();
+    }
+
 }

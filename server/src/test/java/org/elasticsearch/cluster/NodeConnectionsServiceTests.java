@@ -560,11 +560,6 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                         }
 
                         @Override
-                        public void incRef() {
-                            refCounted.incRef();
-                        }
-
-                        @Override
                         public boolean tryIncRef() {
                             return refCounted.tryIncRef();
                         }
