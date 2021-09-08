@@ -29,6 +29,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -308,6 +309,10 @@ public class MasterService extends AbstractLifecycleComponent {
             "notify listeners on successful publication of cluster state (version: " + clusterStatePublicationEvent.getNewState().version()
                 + ", uuid: " + clusterStatePublicationEvent.getNewState().stateUUID() + ')',
             clusterStatePublicationEvent.getSummary());
+        logger.info(
+            "cluster state publication succeeded for [{}]: {}",
+            clusterStatePublicationEvent.getSummary(),
+            Strings.toString(clusterStatePublicationEvent.getNewState()));
         clusterStateUpdateStatsTracker.onPublicationSuccess(
             threadPool.rawRelativeTimeInMillis(),
             clusterStatePublicationEvent,
