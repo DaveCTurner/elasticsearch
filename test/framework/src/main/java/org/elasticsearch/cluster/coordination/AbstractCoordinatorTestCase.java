@@ -735,8 +735,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             return emptyList();
         }
 
-        class MockPersistedState implements CoordinationState.PersistedState {
-            private final CoordinationState.PersistedState delegate;
+        class MockPersistedState implements PersistedState {
+            private final PersistedState delegate;
             private final NodeEnvironment nodeEnvironment;
 
             MockPersistedState(DiscoveryNode localNode) {
@@ -884,6 +884,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     throw new AssertionError("unexpected", e);
                 }
             }
+
+            @Override
+            public PersistedStateStats getStats() {
+                return delegate.getStats();
+            }
         }
 
         private NamedWriteableRegistry getNamedWriteableRegistry() {
@@ -1021,7 +1026,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     nodeHealthService);
             }
 
-            private CoordinationState.PersistedState getPersistedState() {
+            private PersistedState getPersistedState() {
                 return persistedState;
             }
 

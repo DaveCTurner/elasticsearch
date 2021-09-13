@@ -81,7 +81,7 @@ public class CoordinationStateTestCluster {
         private final ElectionStrategy electionStrategy;
 
         DiscoveryNode localNode;
-        CoordinationState.PersistedState persistedState;
+        PersistedState persistedState;
         CoordinationState state;
 
         ClusterNode(DiscoveryNode localNode, ElectionStrategy electionStrategy) {

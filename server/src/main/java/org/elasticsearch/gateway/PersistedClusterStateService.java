@@ -40,6 +40,7 @@ import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.coordination.PersistedStateStats;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.core.CheckedConsumer;
@@ -135,6 +136,7 @@ public class PersistedClusterStateService {
     private final NamedXContentRegistry namedXContentRegistry;
     private final BigArrays bigArrays;
     private final LongSupplier relativeTimeMillisSupplier;
+    private final PersistedStateStatsTracker persistedStateStatsTracker;
 
     private volatile TimeValue slowWriteLoggingThreshold;
 
@@ -152,6 +154,7 @@ public class PersistedClusterStateService {
         this.bigArrays = bigArrays;
         this.relativeTimeMillisSupplier = relativeTimeMillisSupplier;
         this.slowWriteLoggingThreshold = clusterSettings.get(SLOW_WRITE_LOGGING_THRESHOLD);
+        this.persistedStateStatsTracker = new PersistedStateStatsTracker(relativeTimeMillisSupplier);
         clusterSettings.addSettingsUpdateConsumer(SLOW_WRITE_LOGGING_THRESHOLD, this::setSlowWriteLoggingThreshold);
     }
 
@@ -183,7 +186,13 @@ public class PersistedClusterStateService {
                 IOUtils.closeWhileHandlingException(closeables);
             }
         }
-        return new Writer(metadataIndexWriters, nodeId, bigArrays, relativeTimeMillisSupplier, () -> slowWriteLoggingThreshold);
+        return new Writer(
+            metadataIndexWriters,
+            nodeId,
+            bigArrays,
+            relativeTimeMillisSupplier,
+            () -> slowWriteLoggingThreshold,
+            persistedStateStatsTracker);
     }
 
     private static IndexWriter createIndexWriter(Directory directory, boolean openExisting) throws IOException {
@@ -392,6 +401,10 @@ public class PersistedClusterStateService {
             Long.parseLong(userData.get(LAST_ACCEPTED_VERSION_KEY)), builder.build());
     }
 
+    public PersistedStateStats getPersistedStateStats() {
+        return persistedStateStatsTracker.getStats();
+    }
+
     private static void consumeFromType(IndexSearcher indexSearcher, String type,
                                         CheckedConsumer<BytesRef, IOException> bytesRefConsumer) throws IOException {
 
@@ -494,6 +507,7 @@ public class PersistedClusterStateService {
         private final BigArrays bigArrays;
         private final LongSupplier relativeTimeMillisSupplier;
         private final Supplier<TimeValue> slowWriteLoggingThresholdSupplier;
+        private final PersistedStateStatsTracker persistedStateStatsTracker;
 
         boolean fullStateWritten = false;
         private final AtomicBoolean closed = new AtomicBoolean();
@@ -502,13 +516,20 @@ public class PersistedClusterStateService {
         // next one.
         private int documentBufferUsed;
 
-        private Writer(List<MetadataIndexWriter> metadataIndexWriters, String nodeId, BigArrays bigArrays,
-                       LongSupplier relativeTimeMillisSupplier, Supplier<TimeValue> slowWriteLoggingThresholdSupplier) {
+        private Writer(
+            List<MetadataIndexWriter> metadataIndexWriters,
+            String nodeId,
+            BigArrays bigArrays,
+            LongSupplier relativeTimeMillisSupplier,
+            Supplier<TimeValue> slowWriteLoggingThresholdSupplier,
+            PersistedStateStatsTracker persistedStateStatsTracker
+        ) {
             this.metadataIndexWriters = metadataIndexWriters;
             this.nodeId = nodeId;
             this.bigArrays = bigArrays;
             this.relativeTimeMillisSupplier = relativeTimeMillisSupplier;
             this.slowWriteLoggingThresholdSupplier = slowWriteLoggingThresholdSupplier;
+            this.persistedStateStatsTracker = persistedStateStatsTracker;
         }
 
         private void ensureOpen() {
@@ -539,7 +560,10 @@ public class PersistedClusterStateService {
             ensureOpen();
             try {
                 final long startTimeMillis = relativeTimeMillisSupplier.getAsLong();
-                final WriterStats stats = overwriteMetadata(clusterState.metadata());
+                final WriterStats stats;
+                try (Releasable ignored = persistedStateStatsTracker.getWriteTimer()) {
+                    stats = overwriteMetadata(clusterState.metadata());
+                }
                 commit(currentTerm, clusterState.version());
                 fullStateWritten = true;
                 final long durationMillis = relativeTimeMillisSupplier.getAsLong() - startTimeMillis;
@@ -555,6 +579,7 @@ public class PersistedClusterStateService {
                 }
             } finally {
                 closeIfAnyIndexWriterHasTragedyOrIsClosed();
+                persistedStateStatsTracker.onWriteCompleted(documentBufferUsed);
             }
         }
 
@@ -568,7 +593,10 @@ public class PersistedClusterStateService {
 
             try {
                 final long startTimeMillis = relativeTimeMillisSupplier.getAsLong();
-                final WriterStats stats = updateMetadata(previousClusterState.metadata(), clusterState.metadata());
+                final WriterStats stats;
+                try (Releasable ignored = persistedStateStatsTracker.getWriteTimer()) {
+                    stats = updateMetadata(previousClusterState.metadata(), clusterState.metadata());
+                }
                 commit(currentTerm, clusterState.version());
                 final long durationMillis = relativeTimeMillisSupplier.getAsLong() - startTimeMillis;
                 final TimeValue finalSlowWriteLoggingThreshold = slowWriteLoggingThresholdSupplier.get();
@@ -584,6 +612,7 @@ public class PersistedClusterStateService {
                 }
             } finally {
                 closeIfAnyIndexWriterHasTragedyOrIsClosed();
+                persistedStateStatsTracker.onWriteCompleted(documentBufferUsed);
             }
         }
 
@@ -713,12 +742,16 @@ public class PersistedClusterStateService {
         public void writeIncrementalTermUpdateAndCommit(long currentTerm, long lastAcceptedVersion) throws IOException {
             ensureOpen();
             ensureFullStateWritten();
-            commit(currentTerm, lastAcceptedVersion);
+            try {
+                commit(currentTerm, lastAcceptedVersion);
+            } finally {
+                persistedStateStatsTracker.onWriteCompleted(documentBufferUsed);
+            }
         }
 
         void commit(long currentTerm, long lastAcceptedVersion) throws IOException {
             ensureOpen();
-            try {
+            try (Releasable ignored = persistedStateStatsTracker.getPrepareCommitTimer()) {
                 for (MetadataIndexWriter metadataIndexWriter : metadataIndexWriters) {
                     metadataIndexWriter.prepareCommit(nodeId, currentTerm, lastAcceptedVersion);
                 }
@@ -733,7 +766,7 @@ public class PersistedClusterStateService {
             } finally {
                 closeIfAnyIndexWriterHasTragedyOrIsClosed();
             }
-            try {
+            try (Releasable ignored = persistedStateStatsTracker.getCommitTimer()) {
                 for (MetadataIndexWriter metadataIndexWriter : metadataIndexWriters) {
                     metadataIndexWriter.commit();
                 }
@@ -795,7 +828,9 @@ public class PersistedClusterStateService {
                     metadata.toXContent(xContentBuilder, FORMAT_PARAMS);
                     xContentBuilder.endObject();
                 }
-                document.add(new StoredField(DATA_FIELD_NAME, streamOutput.toBytesRef()));
+                final BytesRef bytesRef = streamOutput.toBytesRef();
+                persistedStateStatsTracker.addDocument(bytesRef.length);
+                document.add(new StoredField(DATA_FIELD_NAME, bytesRef));
             }
 
             return document;

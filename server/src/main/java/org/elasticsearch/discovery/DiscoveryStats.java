@@ -9,6 +9,7 @@
 package org.elasticsearch.discovery;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.cluster.coordination.PersistedStateStats;
 import org.elasticsearch.cluster.service.ClusterStateUpdateStats;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -25,15 +26,18 @@ public class DiscoveryStats implements Writeable, ToXContentFragment {
     private final PendingClusterStateStats queueStats;
     private final PublishClusterStateStats publishStats;
     private final ClusterStateUpdateStats clusterStateUpdateStats;
+    private final PersistedStateStats persistedStateStats;
 
     public DiscoveryStats(
         PendingClusterStateStats queueStats,
         PublishClusterStateStats publishStats,
-        ClusterStateUpdateStats clusterStateUpdateStats
+        ClusterStateUpdateStats clusterStateUpdateStats,
+        PersistedStateStats persistedStateStats
     ) {
         this.queueStats = queueStats;
         this.publishStats = publishStats;
         this.clusterStateUpdateStats = clusterStateUpdateStats;
+        this.persistedStateStats = persistedStateStats;
     }
 
     public DiscoveryStats(StreamInput in) throws IOException {
@@ -44,6 +48,11 @@ public class DiscoveryStats implements Writeable, ToXContentFragment {
         } else {
             clusterStateUpdateStats = null;
         }
+        if (in.getVersion().onOrAfter(Version.V_8_0_0)) {
+            persistedStateStats = in.readOptionalWriteable(PersistedStateStats::new);
+        } else {
+            persistedStateStats = null;
+        }
     }
 
     @Override
@@ -53,6 +62,10 @@ public class DiscoveryStats implements Writeable, ToXContentFragment {
         if (out.getVersion().onOrAfter(Version.V_7_16_0)) {
             out.writeOptionalWriteable(clusterStateUpdateStats);
         }
+        if (out.getVersion().onOrAfter(Version.V_8_0_0)) {
+            out.writeOptionalWriteable(persistedStateStats);
+        }
+
     }
 
     @Override
@@ -66,6 +79,9 @@ public class DiscoveryStats implements Writeable, ToXContentFragment {
         }
         if (clusterStateUpdateStats != null) {
             clusterStateUpdateStats.toXContent(builder, params);
+        }
+        if (persistedStateStats != null) {
+            persistedStateStats.toXContent(builder, params);
         }
         builder.endObject();
         return builder;
@@ -85,5 +101,9 @@ public class DiscoveryStats implements Writeable, ToXContentFragment {
 
     public PublishClusterStateStats getPublishStats() {
         return publishStats;
+    }
+
+    public PersistedStateStats getPersistedStateStats() {
+        return persistedStateStats;
     }
 }

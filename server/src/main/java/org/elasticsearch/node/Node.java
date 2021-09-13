@@ -472,9 +472,12 @@ public class Node implements Closeable {
             BigArrays bigArrays = createBigArrays(pageCacheRecycler, circuitBreakerService);
             modules.add(settingsModule);
             final MetaStateService metaStateService = new MetaStateService(nodeEnvironment, xContentRegistry);
-            final PersistedClusterStateService lucenePersistedStateFactory
-                = new PersistedClusterStateService(nodeEnvironment, xContentRegistry, bigArrays, clusterService.getClusterSettings(),
-                threadPool::relativeTimeInMillis);
+            final PersistedClusterStateService lucenePersistedStateFactory = new PersistedClusterStateService(
+                nodeEnvironment,
+                xContentRegistry,
+                bigArrays,
+                clusterService.getClusterSettings(),
+                threadPool::rawRelativeTimeInMillis);
 
             // collect engine factory providers from plugins
             final Collection<EnginePlugin> enginePlugins = pluginsService.filterPlugins(EnginePlugin.class);

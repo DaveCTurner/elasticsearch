@@ -9,7 +9,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.elasticsearch.cluster.ClusterState;
 
-public class InMemoryPersistedState implements CoordinationState.PersistedState {
+public class InMemoryPersistedState implements PersistedState {
 
     private long currentTerm;
     private ClusterState acceptedState;
@@ -32,6 +32,11 @@ public class InMemoryPersistedState implements CoordinationState.PersistedState 
     @Override
     public void setLastAcceptedState(ClusterState clusterState) {
         this.acceptedState = clusterState;
+    }
+
+    @Override
+    public PersistedStateStats getStats() {
+        return null;
     }
 
     @Override

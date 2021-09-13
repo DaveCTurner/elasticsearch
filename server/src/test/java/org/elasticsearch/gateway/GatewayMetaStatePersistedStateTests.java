@@ -16,7 +16,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfigExclusion;
-import org.elasticsearch.cluster.coordination.CoordinationState;
+import org.elasticsearch.cluster.coordination.PersistedState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Manifest;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -84,15 +84,15 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
         super.tearDown();
     }
 
-    private CoordinationState.PersistedState newGatewayPersistedState() {
+    private PersistedState newGatewayPersistedState() {
         final MockGatewayMetaState gateway = new MockGatewayMetaState(localNode, bigArrays);
         gateway.start(settings, nodeEnvironment, xContentRegistry());
-        final CoordinationState.PersistedState persistedState = gateway.getPersistedState();
+        final PersistedState persistedState = gateway.getPersistedState();
         assertThat(persistedState, instanceOf(GatewayMetaState.LucenePersistedState.class));
         return persistedState;
     }
 
-    private CoordinationState.PersistedState maybeNew(CoordinationState.PersistedState persistedState) throws IOException {
+    private PersistedState maybeNew(PersistedState persistedState) throws IOException {
         if (randomBoolean()) {
             persistedState.close();
             return newGatewayPersistedState();
@@ -101,7 +101,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testInitialState() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
             ClusterState state = gateway.getLastAcceptedState();
@@ -118,7 +118,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testSetCurrentTerm() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
 
@@ -177,7 +177,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testSetLastAcceptedState() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
             final long term = randomNonNegativeLong();
@@ -205,7 +205,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testSetLastAcceptedStateTermChanged() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
 
@@ -234,7 +234,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testCurrentTermAndTermAreDifferent() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
 
@@ -254,7 +254,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
     }
 
     public void testMarkAcceptedConfigAsCommitted() throws IOException {
-        CoordinationState.PersistedState gateway = null;
+        PersistedState gateway = null;
         try {
             gateway = newGatewayPersistedState();
 
@@ -351,7 +351,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
                     new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS), () -> 0L);
             gateway.start(settings, transportService, clusterService,
                 new MetaStateService(nodeEnvironment, xContentRegistry()), null, null, persistedClusterStateService);
-            final CoordinationState.PersistedState persistedState = gateway.getPersistedState();
+            final PersistedState persistedState = gateway.getPersistedState();
             assertThat(persistedState, instanceOf(GatewayMetaState.AsyncPersistedState.class));
 
             //generate random coordinationMetadata with different lastAcceptedConfiguration and lastCommittedConfiguration
@@ -419,7 +419,7 @@ public class GatewayMetaStatePersistedStateTests extends ESTestCase {
             gateway.close();
             assertTrue(cleanup.remove(gateway));
 
-            try (CoordinationState.PersistedState reloadedPersistedState = newGatewayPersistedState()) {
+            try (PersistedState reloadedPersistedState = newGatewayPersistedState()) {
                 assertEquals(currentTerm, reloadedPersistedState.getCurrentTerm());
                 assertClusterStateEqual(GatewayMetaState.AsyncPersistedState.resetVotingConfiguration(state),
                     reloadedPersistedState.getLastAcceptedState());

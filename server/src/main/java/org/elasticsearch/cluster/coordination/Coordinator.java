@@ -108,7 +108,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     private final AllocationService allocationService;
     private final JoinHelper joinHelper;
     private final NodeRemovalClusterStateTaskExecutor nodeRemovalExecutor;
-    private final Supplier<CoordinationState.PersistedState> persistedStateSupplier;
+    private final Supplier<PersistedState> persistedStateSupplier;
     private final NoMasterBlockService noMasterBlockService;
     final Object mutex = new Object(); // package-private to allow tests to call methods that assert that the mutex is held
     private final SetOnce<CoordinationState> coordinationState = new SetOnce<>(); // initialized on start-up (see doStart)
@@ -149,7 +149,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
      */
     public Coordinator(String nodeName, Settings settings, ClusterSettings clusterSettings, TransportService transportService,
                        NamedWriteableRegistry namedWriteableRegistry, AllocationService allocationService, MasterService masterService,
-                       Supplier<CoordinationState.PersistedState> persistedStateSupplier, SeedHostsProvider seedHostsProvider,
+                       Supplier<PersistedState> persistedStateSupplier, SeedHostsProvider seedHostsProvider,
                        ClusterApplier clusterApplier, Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators, Random random,
                        RerouteService rerouteService, ElectionStrategy electionStrategy, NodeHealthService nodeHealthService) {
         this.settings = settings;
@@ -656,7 +656,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     @Override
     protected void doStart() {
         synchronized (mutex) {
-            CoordinationState.PersistedState persistedState = persistedStateSupplier.get();
+            final PersistedState persistedState = persistedStateSupplier.get();
             coordinationState.set(new CoordinationState(getLocalNode(), persistedState, electionStrategy));
             peerFinder.setCurrentTerm(getCurrentTerm());
             configuredHostsResolver.start();
@@ -672,7 +672,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     DiscoveryModule.SINGLE_NODE_DISCOVERY_TYPE + "] when local node " + getLocalNode() +
                     " does not have quorum in voting configuration " + votingConfiguration);
             }
-            ClusterState initialState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings))
+            final ClusterState initialState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings))
                 .blocks(ClusterBlocks.builder()
                     .addGlobalBlock(STATE_NOT_RECOVERED_BLOCK)
                     .addGlobalBlock(noMasterBlockService.getNoMasterBlock()))
@@ -688,7 +688,8 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         return new DiscoveryStats(
             new PendingClusterStateStats(0, 0, 0),
             publicationHandler.stats(),
-            getLocalNode().isMasterNode() ? masterService.getClusterStateUpdateStats() : null
+            getLocalNode().isMasterNode() ? masterService.getClusterStateUpdateStats() : null,
+            persistedStateSupplier.get().getStats()
         );
     }
 

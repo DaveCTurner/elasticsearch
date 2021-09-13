@@ -95,11 +95,11 @@ import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase;
 import org.elasticsearch.cluster.coordination.ClusterBootstrapService;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
-import org.elasticsearch.cluster.coordination.CoordinationState;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.coordination.ElectionStrategy;
 import org.elasticsearch.cluster.coordination.InMemoryPersistedState;
 import org.elasticsearch.cluster.coordination.MockSinglePrioritizingExecutor;
+import org.elasticsearch.cluster.coordination.PersistedState;
 import org.elasticsearch.cluster.metadata.AliasValidator;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadataVerifier;
@@ -2141,10 +2141,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 snapshotsService.start();
                 snapshotShardsService.start();
                 repositoriesService.start();
-                final CoordinationState.PersistedState persistedState = new InMemoryPersistedState(
-                    initialState.term(),
-                    stateForNode(initialState, node)
-                );
+                final PersistedState persistedState = new InMemoryPersistedState(initialState.term(), stateForNode(initialState, node));
                 coordinator = new Coordinator(
                     node.getName(),
                     clusterService.getSettings(),
