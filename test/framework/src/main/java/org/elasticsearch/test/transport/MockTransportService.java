@@ -49,6 +49,7 @@ import org.elasticsearch.transport.TransportSettings;
 import org.elasticsearch.transport.nio.MockNioTransport;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -286,6 +287,7 @@ public final class MockTransportService extends TransportService {
             public void sendRequest(Transport.Connection connection, long requestId, String action,
                                     TransportRequest request, TransportRequestOptions options) {
                 // don't send anything, the receiving node is unresponsive
+                logger.trace("sendRequest [{}][{}] for unresponsive rule on {}", requestId, action, connection);
                 toClose.add(connection);
             }
 
@@ -294,7 +296,9 @@ public final class MockTransportService extends TransportService {
                 // close to simulate that tcp-ip eventually times out and closes connection (necessary to ensure transport eventually
                 // responds).
                 try {
-                    IOUtils.close(toClose);
+                    final List<Transport.Connection> connections = new ArrayList<>(toClose);
+                    logger.trace("clearCallback: closing {}", connections);
+                    IOUtils.close(connections);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
