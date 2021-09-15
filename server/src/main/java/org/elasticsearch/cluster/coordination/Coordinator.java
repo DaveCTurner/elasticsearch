@@ -479,7 +479,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             return;
         }
 
+        logger.trace("acquiring connection for {}", joinRequest);
         transportService.connectToNode(joinRequest.getSourceNode(), ActionListener.wrap(connectionReference -> {
+            logger.trace("acquired connection for {}", joinRequest);
             boolean retainConnection = false;
             try {
                 final ActionListener<Void> wrappedJoinCallback = ActionListener.runBefore(
@@ -497,8 +499,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                             joinRequest.getSourceNode().getVersion(),
                             stateForJoinValidation.getNodes().getMinNodeVersion());
                     }
+                    logger.trace("sending validate-join request for {}", joinRequest);
                     sendValidateJoinRequest(stateForJoinValidation, joinRequest, wrappedJoinCallback);
                 } else {
+                    logger.trace("processing join request without validation for {}", joinRequest);
                     processJoinRequest(joinRequest, wrappedJoinCallback);
                 }
 
@@ -518,6 +522,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             @Override
             public void onResponse(Empty empty) {
                 try {
+                    logger.trace("processing join request after validation for {}", joinRequest);
                     processJoinRequest(joinRequest, joinListener);
                 } catch (Exception e) {
                     joinListener.onFailure(e);
