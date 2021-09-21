@@ -111,7 +111,8 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             connectionRef.set(c);
             l.onResponse(null);
         };
-        PlainActionFuture.get(fut -> connectionManager.connectToNode(node, connectionProfile, validator, fut.map(x -> null)));
+        final Releasable connectionReleasable
+            = PlainActionFuture.get(fut -> connectionManager.connectToNode(node, connectionProfile, validator, fut));
 
         assertFalse(connection.isClosed());
         assertTrue(connectionManager.nodeConnected(node));
@@ -120,10 +121,16 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         assertEquals(1, nodeConnectedCount.get());
         assertEquals(0, nodeDisconnectedCount.get());
 
-        if (randomBoolean()) {
-            connectionManager.disconnectFromNode(node);
-        } else {
-            connection.close();
+        switch (between(1, 3)) {
+            case 1:
+                connectionManager.disconnectFromNode(node);
+                break;
+            case 2:
+                connection.close();
+                break;
+            case 3:
+                connectionReleasable.close();
+                break;
         }
         assertTrue(connection.isClosed());
         assertEquals(0, connectionManager.size());
