@@ -46,6 +46,7 @@ import org.elasticsearch.common.bytes.RecyclingBytesStreamOutput;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.lucene.LoggerInfoStream;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -197,6 +198,8 @@ public class PersistedClusterStateService {
         indexWriterConfig.setRAMBufferSizeMB(1.0);
         // merge on the write thread (e.g. while flushing)
         indexWriterConfig.setMergeScheduler(new SerialMergeScheduler());
+
+        indexWriterConfig.setInfoStream(new LoggerInfoStream(logger));
 
         return new IndexWriter(directory, indexWriterConfig);
     }

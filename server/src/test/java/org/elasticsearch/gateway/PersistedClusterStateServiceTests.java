@@ -881,6 +881,43 @@ public class PersistedClusterStateServiceTests extends ESTestCase {
         }
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.gateway.PersistedClusterStateService:TRACE")
+    public void testLargeStateBehaviour() throws IOException {
+        try (NodeEnvironment nodeEnvironment = newNodeEnvironment(new Path[]{createTempDir()})) {
+            final PersistedClusterStateService persistedClusterStateService = newPersistedClusterStateService(nodeEnvironment);
+            try (Writer writer = persistedClusterStateService.createWriter()) {
+                final Metadata.Builder metadata1 = Metadata.builder().version(1);
+                for (int i = 0; i < 10000; i++) {
+                    metadata1.put(IndexMetadata.builder("index-" + i)
+                        .version(1)
+                        .settings(Settings.builder()
+                            .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
+                            .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 0)
+                            .put(IndexMetadata.SETTING_VERSION_CREATED, Version.CURRENT)
+                            .put(IndexMetadata.SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))));
+                }
+
+                final ClusterState clusterState1 = ClusterState.builder(ClusterName.DEFAULT).metadata(metadata1).build();
+
+                logger.info("--> starting to write");
+
+                writer.writeFullStateAndCommit(1, clusterState1);
+
+                logger.info("--> first state written");
+
+                final Metadata.Builder metadata2 = Metadata.builder().version(2);
+                for (IndexMetadata indexMetadata : clusterState1.metadata().indices().values()) {
+                    metadata2.put(IndexMetadata.builder(indexMetadata).version(indexMetadata.getVersion() + 1));
+                }
+
+                final ClusterState clusterState2 = ClusterState.builder(ClusterName.DEFAULT).metadata(metadata2).build();
+                writer.writeIncrementalStateAndCommit(1, clusterState1, clusterState2);
+
+                logger.info("--> second state written");
+            }
+        }
+    }
+
     private void assertExpectedLogs(long currentTerm, ClusterState previousState, ClusterState clusterState,
                                     PersistedClusterStateService.Writer writer, MockLogAppender.LoggingExpectation expectation)
         throws IllegalAccessException, IOException {
