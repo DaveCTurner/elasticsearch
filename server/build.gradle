@@ -23,7 +23,16 @@ publishing {
 
 archivesBaseName = 'elasticsearch'
 
+repositories {
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots'
+    }
+}
+
 dependencies {
+
+    implementation platform("io.opentelemetry:opentelemetry-bom:1.7.1")
+    implementation('io.opentelemetry:opentelemetry-api')
 
   api project(':libs:elasticsearch-core')
   api project(':libs:elasticsearch-secure-sm')
