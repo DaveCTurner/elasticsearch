@@ -30,6 +30,8 @@ public class TelemetryService {
             .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
             .buildAndRegisterGlobal();
 
+        openTelemetry.getTracerProvider().get("foo").spanBuilder("span").startSpan();
+
         final OpenTelemetrySdkBuilder builder = OpenTelemetrySdk.builder();
 
 //        builder.setPropagators(ContextPropagators.);

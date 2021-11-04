@@ -79,7 +79,13 @@ dependencies {
     implementation('io.opentelemetry:opentelemetry-sdk-metrics-testing:1.7.1-alpha')
     implementation('io.opentelemetry:opentelemetry-semconv:1.7.1-alpha')
 
-  api project(':libs:elasticsearch-core')
+    implementation 'io.grpc:grpc-netty-shaded:1.41.0'
+    implementation 'io.grpc:grpc-protobuf:1.41.0'
+    implementation 'io.grpc:grpc-stub:1.41.0'
+    implementation 'io.grpc:grpc-api:1.41.0'
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53' // necessary for Java 9+
+
+    api project(':libs:elasticsearch-core')
   api project(':libs:elasticsearch-secure-sm')
   api project(':libs:elasticsearch-x-content')
   api project(":libs:elasticsearch-geo")
