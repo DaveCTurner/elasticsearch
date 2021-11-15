@@ -1,3 +1,3 @@
-grant codeBase "${codebase.okhttp}" {
+grant {
   permission java.net.NetPermission "getProxySelector";
 };
