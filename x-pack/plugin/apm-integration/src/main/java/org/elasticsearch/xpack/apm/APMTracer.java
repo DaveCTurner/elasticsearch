@@ -12,11 +12,10 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
-import io.opentelemetry.exporter.logging.LoggingSpanExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
@@ -33,8 +32,10 @@ public class APMTracer extends AbstractLifecycleComponent implements TracingPlug
 
     @Override
     protected void doStart() {
+        final OtlpGrpcSpanExporter otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder().build();
+
         SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
-            .addSpanProcessor(SimpleSpanProcessor.create(new LoggingSpanExporter()))
+            .addSpanProcessor(SimpleSpanProcessor.create(otlpGrpcSpanExporter))
             .build();
 
         OpenTelemetry openTelemetry = OpenTelemetrySdk.builder()
