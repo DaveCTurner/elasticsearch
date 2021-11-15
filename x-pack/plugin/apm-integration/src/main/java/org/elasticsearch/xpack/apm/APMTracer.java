@@ -22,6 +22,9 @@ import org.elasticsearch.Version;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.plugins.TracingPlugin;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 public class APMTracer extends AbstractLifecycleComponent implements TracingPlugin.Tracer {
 
     private static final Logger logger = LogManager.getLogger(APMTracer.class);
@@ -32,7 +35,9 @@ public class APMTracer extends AbstractLifecycleComponent implements TracingPlug
 
     @Override
     protected void doStart() {
-        final OtlpGrpcSpanExporter otlpGrpcSpanExporter = OtlpGrpcSpanExporter.builder().build();
+        final OtlpGrpcSpanExporter otlpGrpcSpanExporter =
+            AccessController.doPrivileged((PrivilegedAction<OtlpGrpcSpanExporter>)
+                () -> OtlpGrpcSpanExporter.builder().build());
 
         SdkTracerProvider sdkTracerProvider = SdkTracerProvider.builder()
             .addSpanProcessor(SimpleSpanProcessor.create(otlpGrpcSpanExporter))
