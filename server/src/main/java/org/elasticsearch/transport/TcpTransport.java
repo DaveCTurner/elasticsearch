@@ -9,7 +9,6 @@ package org.elasticsearch.transport;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
@@ -18,6 +17,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ThreadedActionListener;
+import org.elasticsearch.bootstrap.LinuxSockDiag;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.breaker.CircuitBreaker;
@@ -912,6 +912,9 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         final long messagesSent = statsTracker.getMessagesSent();
         final long messagesReceived = statsTracker.getMessagesReceived();
         final long bytesRead = statsTracker.getBytesRead();
+
+        LinuxSockDiag.stuff();
+
         return new TransportStats(
             acceptedChannels.size(),
             outboundConnectionCount.get(),

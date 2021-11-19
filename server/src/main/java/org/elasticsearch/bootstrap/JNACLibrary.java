@@ -62,5 +62,9 @@ final class JNACLibrary {
 
     static native String strerror(int errno);
 
+    static native int socket(int domain, int type, int protocol);
+
+    static native int close(int fd);
+
     private JNACLibrary() {}
 }
