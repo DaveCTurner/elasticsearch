@@ -10,6 +10,8 @@ package org.elasticsearch.bootstrap;
 
 import org.apache.lucene.util.Constants;
 
+import java.io.IOException;
+
 public final class LinuxSockDiag {
 
     private static final int AF_NETLINK = 16;
@@ -26,6 +28,9 @@ public final class LinuxSockDiag {
         }
 
         final int fd = JNACLibrary.socket(AF_NETLINK, SOCK_DGRAM, NETLINK_INET_DIAG);
+        if (fd == -1) {
+            throw new RuntimeException("socket returned " + fd);
+        }
         JNACLibrary.close(fd);
     }
 }
