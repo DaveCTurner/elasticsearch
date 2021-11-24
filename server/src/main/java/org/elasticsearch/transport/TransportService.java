@@ -1540,10 +1540,6 @@ public class TransportService extends AbstractLifecycleComponent
             throw new IllegalArgumentException("system property [" + PERMIT_HANDSHAKES_FROM_INCOMPATIBLE_BUILDS_KEY + "] must not be set");
         }
         assert Version.CURRENT.major == Version.V_7_0_0.major + 1; // we can remove this whole block in v9
-
-        for (NetworkNatives.ExtendedSocketStats extendedSocketStats : NetworkNatives.getExtendedNetworkStats()) {
-            logger.info("socket stats: {}", extendedSocketStats);
-        }
     }
 
 }
