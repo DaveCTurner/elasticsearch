@@ -24,6 +24,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.network.NetworkNatives;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -1539,6 +1540,10 @@ public class TransportService extends AbstractLifecycleComponent
             throw new IllegalArgumentException("system property [" + PERMIT_HANDSHAKES_FROM_INCOMPATIBLE_BUILDS_KEY + "] must not be set");
         }
         assert Version.CURRENT.major == Version.V_7_0_0.major + 1; // we can remove this whole block in v9
+
+        for (NetworkNatives.ExtendedSocketStats extendedSocketStats : NetworkNatives.getExtendedNetworkStats()) {
+            logger.info("socket stats: {}", extendedSocketStats);
+        }
     }
 
 }
