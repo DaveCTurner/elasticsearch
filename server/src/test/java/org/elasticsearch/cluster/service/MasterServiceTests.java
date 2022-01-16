@@ -275,6 +275,11 @@ public class MasterServiceTests extends ESTestCase {
                     }
 
                     @Override
+                    public void onNoLongerMaster(List<Tuple<Object, ClusterStateTaskListener>> tasks) {
+                        throw new AssertionError("should be master");
+                    }
+
+                    @Override
                     public void clusterStatePublished(ClusterStatePublicationEvent clusterStatePublicationEvent) {
                         published.set(true);
                         latch.countDown();
@@ -542,6 +547,11 @@ public class MasterServiceTests extends ESTestCase {
             }
 
             @Override
+            public void onNoLongerMaster(List<Tuple<Task, ClusterStateTaskListener>> tasks) {
+                throw new AssertionError("should be master");
+            }
+
+            @Override
             public void clusterStatePublished(ClusterStatePublicationEvent clusterPublicationEvent) {
                 published.incrementAndGet();
                 semaphore.release();
@@ -676,9 +686,17 @@ public class MasterServiceTests extends ESTestCase {
                 "testBlockingCallInClusterStateTaskListenerFails",
                 new Object(),
                 ClusterStateTaskConfig.build(Priority.NORMAL),
-                (currentState, tasks) -> {
-                    ClusterState newClusterState = ClusterState.builder(currentState).build();
-                    return ClusterStateTaskExecutor.ClusterTasksResult.builder().successes(tasks).build(newClusterState);
+                new ClusterStateTaskExecutor<>() {
+                    @Override
+                    public ClusterTasksResult<Object> execute(ClusterState currentState, List<Object> tasks) throws Exception {
+                        ClusterState newClusterState = ClusterState.builder(currentState).build();
+                        return ClusterStateTaskExecutor.ClusterTasksResult.builder().successes(tasks).build(newClusterState);
+                    }
+
+                    @Override
+                    public void onNoLongerMaster(List<Tuple<Object, ClusterStateTaskListener>> tasks) {
+                        throw new AssertionError("should still be master");
+                    }
                 },
                 new ClusterStateTaskListener() {
                     @Override

@@ -312,11 +312,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                         }
 
                         @Override
-                        public void onNoLongerMaster(String source) {
-                            logger.debug("no longer master while processing node removal [{}]", source);
-                        }
-
-                        @Override
                         public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
                             joinReasonService.onNodeRemoved(discoveryNode, reason);
                         }

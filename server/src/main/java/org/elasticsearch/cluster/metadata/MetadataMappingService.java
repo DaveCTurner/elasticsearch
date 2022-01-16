@@ -17,6 +17,8 @@ import org.elasticsearch.cluster.AckedClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
@@ -25,6 +27,7 @@ import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.mapper.DocumentMapper;
@@ -85,6 +88,13 @@ public class MetadataMappingService {
                 return builder.build(currentState);
             } finally {
                 IOUtils.close(indexMapperServices.values());
+            }
+        }
+
+        @Override
+        public void onNoLongerMaster(List<Tuple<PutMappingClusterStateUpdateRequest, ClusterStateTaskListener>> tasks) {
+            for (Tuple<PutMappingClusterStateUpdateRequest, ClusterStateTaskListener> taskTuple : tasks) {
+                taskTuple.v2().onFailure("", new NotMasterException("no longer master"));
             }
         }
 

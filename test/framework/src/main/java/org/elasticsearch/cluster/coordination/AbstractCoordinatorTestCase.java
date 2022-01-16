@@ -27,6 +27,7 @@ import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.NodeConnectionsService;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase.Cluster.ClusterNode;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
 import org.elasticsearch.cluster.coordination.LinearizabilityChecker.History;
@@ -1395,15 +1396,13 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     }
 
                     @Override
-                    public void onNoLongerMaster(String source) {
-                        // in this case, we know for sure that event was not processed by the system and will not change history
-                        // remove event to help avoid bloated history and state space explosion in linearizability checker
-                        history.remove(eventId);
-                    }
-
-                    @Override
                     public void onFailure(String source, Exception e) {
-                        // do not remove event from history, the write might still take place
+                        if (e instanceof NotMasterException) {
+                            // in this case, we know for sure that event was not processed by the system and will not change history
+                            // remove event to help avoid bloated history and state space explosion in linearizability checker
+                            history.remove(eventId);
+                        }
+                        // else do not remove event from history, the write might still take place
                         // instead, complete history when checking for linearizability
                     }
                 });
@@ -1452,7 +1451,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         @Override
                         public void onNoLongerMaster(String source) {
                             logger.trace("no longer master: [{}]", source);
-                            taskListener.onNoLongerMaster(source);
+                            taskListener.onFailure(source, new NotMasterException("no longer master"));
                         }
 
                         @Override

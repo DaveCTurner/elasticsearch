@@ -10,9 +10,11 @@ package org.elasticsearch.cluster.coordination;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
 
 import java.util.List;
@@ -77,6 +79,11 @@ public class NodeRemovalClusterStateTaskExecutor implements ClusterStateTaskExec
         final ClusterState finalState = allocationService.disassociateDeadNodes(ptasksDisassociatedState, true, describeTasks(tasks));
 
         return ClusterTasksResult.<Task>builder().successes(tasks).build(finalState);
+    }
+
+    @Override
+    public void onNoLongerMaster(List<Tuple<Task, ClusterStateTaskListener>> tasks) {
+        logger.debug("no longer master while processing node removal [node-left]");
     }
 
     // visible for testing

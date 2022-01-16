@@ -2980,11 +2980,21 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
      *
      * Package private to allow for tests.
      */
-    static final ClusterStateTaskExecutor<ShardSnapshotUpdate> SHARD_STATE_EXECUTOR = (
-        currentState,
-        tasks) -> ClusterStateTaskExecutor.ClusterTasksResult.<ShardSnapshotUpdate>builder()
-            .successes(tasks)
-            .build(new SnapshotShardsUpdateContext(currentState, tasks).computeUpdatedState());
+    static final ClusterStateTaskExecutor<ShardSnapshotUpdate> SHARD_STATE_EXECUTOR = new ClusterStateTaskExecutor<>() {
+        @Override
+        public ClusterTasksResult<ShardSnapshotUpdate> execute(ClusterState currentState, List<ShardSnapshotUpdate> tasks) {
+            return ClusterStateTaskExecutor.ClusterTasksResult.<ShardSnapshotUpdate>builder()
+                .successes(tasks)
+                .build(new SnapshotShardsUpdateContext(currentState, tasks).computeUpdatedState());
+        }
+
+        @Override
+        public void onNoLongerMaster(List<Tuple<ShardSnapshotUpdate, ClusterStateTaskListener>> tasks) {
+            for (Tuple<ShardSnapshotUpdate, ClusterStateTaskListener> taskTuple : tasks) {
+                taskTuple.v2().onFailure("TODO", new NotMasterException("no longer master"));
+            }
+        }
+    };
 
     private static boolean isQueued(@Nullable ShardSnapshotStatus status) {
         return status != null && status.state() == ShardState.QUEUED;

@@ -40,6 +40,7 @@ import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -616,18 +617,6 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         @Override
-        public void onNoLongerMaster(String source) {
-            try (ThreadContext.StoredContext ignore = context.get()) {
-                listener.onNoLongerMaster(source);
-            } catch (Exception e) {
-                logger.error(
-                    () -> new ParameterizedMessage("exception thrown by listener while notifying no longer master from [{}]", source),
-                    e
-                );
-            }
-        }
-
-        @Override
         public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
             try (ThreadContext.StoredContext ignore = context.get()) {
                 listener.clusterStateProcessed(source, oldState, newState);
@@ -897,7 +886,7 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         void onNoLongerMaster() {
-            updateTasks.forEach(task -> task.listener.onNoLongerMaster(task.source()));
+            executor.onNoLongerMaster(updateTasks.stream().map(t -> Tuple.tuple(t.task, t.listener)).collect(Collectors.toList()));
         }
     }
 

@@ -7,10 +7,12 @@
  */
 package org.elasticsearch.cluster;
 
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.test.ESTestCase;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.equalTo;
 
@@ -30,7 +32,17 @@ public class ClusterStateTaskExecutorTests extends ESTestCase {
     }
 
     public void testDescribeTasks() {
-        final ClusterStateTaskExecutor<TestTask> executor = (currentState, tasks) -> { throw new AssertionError("should not be called"); };
+        final ClusterStateTaskExecutor<TestTask> executor = new ClusterStateTaskExecutor<TestTask>() {
+            @Override
+            public ClusterTasksResult<TestTask> execute(ClusterState currentState, List<TestTask> tasks) {
+                throw new AssertionError("should not be called");
+            }
+
+            @Override
+            public void onNoLongerMaster(List<Tuple<TestTask, ClusterStateTaskListener>> tasks) {
+                throw new AssertionError("should not be called");
+            }
+        };
 
         assertThat("describes an empty list", executor.describeTasks(Collections.emptyList()), equalTo(""));
         assertThat(

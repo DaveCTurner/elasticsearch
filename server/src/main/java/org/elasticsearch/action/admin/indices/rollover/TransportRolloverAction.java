@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -38,6 +39,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.shard.DocsStats;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -388,6 +390,13 @@ public class TransportRolloverAction extends TransportMasterNodeAction<RolloverR
                 state = allocationService.reroute(state, reason.toString());
             }
             return builder.build(state);
+        }
+
+        @Override
+        public void onNoLongerMaster(List<Tuple<RolloverTask, ClusterStateTaskListener>> tasks) {
+            for (Tuple<RolloverTask, ClusterStateTaskListener> taskTuple : tasks) {
+                taskTuple.v1().onFailure("TODO", new NotMasterException("no longer master"));
+            }
         }
     }
 }

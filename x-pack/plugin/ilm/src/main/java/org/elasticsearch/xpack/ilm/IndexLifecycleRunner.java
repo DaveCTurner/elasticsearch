@@ -14,7 +14,9 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateObserver;
 import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.LifecycleExecutionState;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -41,6 +43,7 @@ import org.elasticsearch.xpack.ilm.history.ILMHistoryStore;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.LongSupplier;
@@ -55,22 +58,36 @@ class IndexLifecycleRunner {
     private final ILMHistoryStore ilmHistoryStore;
     private final LongSupplier nowSupplier;
 
-    private static final ClusterStateTaskExecutor<IndexLifecycleClusterStateUpdateTask> ILM_TASK_EXECUTOR = (currentState, tasks) -> {
-        ClusterStateTaskExecutor.ClusterTasksResult.Builder<IndexLifecycleClusterStateUpdateTask> builder =
-            ClusterStateTaskExecutor.ClusterTasksResult.builder();
-        ClusterState state = currentState;
-        for (IndexLifecycleClusterStateUpdateTask task : tasks) {
-            try {
-                state = task.execute(state);
-                builder.success(task);
-            } catch (Exception e) {
-                builder.failure(task, e);
+    private static final ClusterStateTaskExecutor<IndexLifecycleClusterStateUpdateTask> ILM_TASK_EXECUTOR =
+        new ClusterStateTaskExecutor<>() {
+            @Override
+            public ClusterTasksResult<IndexLifecycleClusterStateUpdateTask> execute(
+                ClusterState currentState,
+                List<IndexLifecycleClusterStateUpdateTask> tasks
+            ) throws Exception {
+                ClusterStateTaskExecutor.ClusterTasksResult.Builder<IndexLifecycleClusterStateUpdateTask> builder =
+                    ClusterStateTaskExecutor.ClusterTasksResult.builder();
+                ClusterState state = currentState;
+                for (IndexLifecycleClusterStateUpdateTask task : tasks) {
+                    try {
+                        state = task.execute(state);
+                        builder.success(task);
+                    } catch (Exception e) {
+                        builder.failure(task, e);
+                    }
+                }
+                // Trigger indices lookup creation and related validation
+                state.metadata().getIndicesLookup();
+                return builder.build(state);
             }
-        }
-        // Trigger indices lookup creation and related validation
-        state.metadata().getIndicesLookup();
-        return builder.build(state);
-    };
+
+            @Override
+            public void onNoLongerMaster(List<Tuple<IndexLifecycleClusterStateUpdateTask, ClusterStateTaskListener>> tasks) {
+                for (Tuple<IndexLifecycleClusterStateUpdateTask, ClusterStateTaskListener> taskTuple : tasks) {
+                    taskTuple.v1().onFailure("TODO", new NotMasterException("no longer master"));
+                }
+            }
+        };
 
     IndexLifecycleRunner(
         PolicyStepsRegistry stepRegistry,

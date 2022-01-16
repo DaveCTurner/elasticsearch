@@ -40,6 +40,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.shard.IndexLongFieldRange;
 import org.elasticsearch.index.shard.ShardId;
@@ -327,22 +328,23 @@ public class ShardStateAction {
                         }
                     }
 
-                    @Override
-                    public void onNoLongerMaster(String source) {
-                        logger.error("{} no longer master while failing shard [{}]", request.shardId, request);
-                        try {
-                            channel.sendResponse(new NotMasterException(source));
-                        } catch (Exception channelException) {
-                            logger.warn(
-                                () -> new ParameterizedMessage(
-                                    "{} failed to send no longer master while failing shard [{}]",
-                                    request.shardId,
-                                    request
-                                ),
-                                channelException
-                            );
-                        }
-                    }
+                    // TODO NOCOMMIT
+                    // @Override
+                    // public void onNoLongerMaster(String source) {
+                    // logger.error("{} no longer master while failing shard [{}]", request.shardId, request);
+                    // try {
+                    // channel.sendResponse(new NotMasterException(source));
+                    // } catch (Exception channelException) {
+                    // logger.warn(
+                    // () -> new ParameterizedMessage(
+                    // "{} failed to send no longer master while failing shard [{}]",
+                    // request.shardId,
+                    // request
+                    // ),
+                    // channelException
+                    // );
+                    // }
+                    // }
 
                     @Override
                     public void clusterStateProcessed(String source, ClusterState oldState, ClusterState newState) {
@@ -466,6 +468,11 @@ public class ShardStateAction {
             }
 
             return batchResultBuilder.build(maybeUpdatedState);
+        }
+
+        @Override
+        public void onNoLongerMaster(List<Tuple<FailedShardEntry, ClusterStateTaskListener>> tasks) {
+            // TODO NOCOMMIT we could just complete the listener but this gives a different message
         }
 
         // visible for testing
@@ -762,6 +769,11 @@ public class ShardStateAction {
             return builder.build(maybeUpdatedState);
         }
 
+        @Override
+        public void onNoLongerMaster(List<Tuple<StartedShardEntry, ClusterStateTaskListener>> tasks) {
+            logger.debug(() -> new ParameterizedMessage("failure during [{}]", "TODO"), new NotMasterException("no longer master"));
+        }
+
         private static boolean assertStartedIndicesHaveCompleteTimestampRanges(ClusterState clusterState) {
             for (Map.Entry<String, IndexRoutingTable> cursor : clusterState.getRoutingTable().getIndicesRouting().entrySet()) {
                 assert cursor.getValue().allPrimaryShardsActive() == false
@@ -778,7 +790,8 @@ public class ShardStateAction {
 
         @Override
         public void onFailure(String source, Exception e) {
-            if (e instanceof FailedToCommitClusterStateException || e instanceof NotMasterException) {
+            assert e instanceof NotMasterException == false : e;
+            if (e instanceof FailedToCommitClusterStateException) {
                 logger.debug(() -> new ParameterizedMessage("failure during [{}]", source), e);
             } else {
                 logger.error(() -> new ParameterizedMessage("unexpected failure during [{}]", source), e);

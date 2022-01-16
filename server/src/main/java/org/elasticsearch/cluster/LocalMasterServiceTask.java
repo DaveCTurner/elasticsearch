@@ -9,6 +9,7 @@ package org.elasticsearch.cluster;
 
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.core.Tuple;
 
 import java.util.List;
 
@@ -51,6 +52,11 @@ public abstract class LocalMasterServiceTask implements ClusterStateTaskListener
                         : "expected one-element task list containing current object but was " + tasks;
                     LocalMasterServiceTask.this.execute(currentState);
                     return ClusterTasksResult.<LocalMasterServiceTask>builder().successes(tasks).build(currentState);
+                }
+
+                @Override
+                public void onNoLongerMaster(List<Tuple<LocalMasterServiceTask, ClusterStateTaskListener>> tasks) {
+                    assert false : "should always run this task regardless of whether we're the elected master or not";
                 }
             },
             this

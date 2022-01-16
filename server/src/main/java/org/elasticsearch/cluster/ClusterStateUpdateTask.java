@@ -56,6 +56,13 @@ public abstract class ClusterStateUpdateTask implements ClusterStateTaskConfig, 
     public abstract void onFailure(String source, Exception e);
 
     /**
+     * A callback for when this node stopped being the elected master before executing this task.
+     */
+    public void onNoLongerMaster(String source) {
+        onFailure(source, new NotMasterException("no longer master: " + source));
+    }
+
+    /**
      * If the cluster state update task wasn't processed by the provided timeout, call
      * {@link ClusterStateTaskListener#onFailure(String, Exception)}. May return null to indicate no timeout is needed (default).
      */

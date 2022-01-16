@@ -7,8 +7,10 @@
  */
 package org.elasticsearch.cluster;
 
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Tuple;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -20,6 +22,15 @@ public interface ClusterStateTaskExecutor<T> {
      * should be changed.
      */
     ClusterTasksResult<T> execute(ClusterState currentState, List<T> tasks) throws Exception;
+
+    /**
+     * The given batch of tasks cannot be executed since this node is no longer the elected master of the cluster.
+     *
+     * Implementations of this callback must not throw exceptions: an exception thrown here is logged by the master service at {@code ERROR}
+     * level and otherwise ignored, except in tests where it raises an {@link AssertionError}. If log-and-ignore is the right behaviour then
+     * implementations must do so themselves, typically using a more specific logger and at a less dramatic log level.
+     */
+    void onNoLongerMaster(List<Tuple<T, ClusterStateTaskListener>> tasks);
 
     /**
      * indicates whether this executor should only run if the current node is master
@@ -165,6 +176,19 @@ public interface ClusterStateTaskExecutor<T> {
             @Override
             public String describeTasks(List<T> tasks) {
                 return ""; // one of task, source is enough
+            }
+
+            @Override
+            public void onNoLongerMaster(List<Tuple<T, ClusterStateTaskListener>> tasks) {
+                assert tasks.size() == 1 : "this only supports a single task but received " + tasks;
+                assert tasks.get(0).v1() == tasks.get(0).v2() : "task must be its own listener";
+                try {
+                    tasks.get(0).v1().onNoLongerMaster("TODO");
+                } catch (Exception e) {
+                    LogManager.getLogger(ClusterStateTaskExecutor.class)
+                        .error("failed to notify task that this node is no longer the master", e);
+                    assert false : e;
+                }
             }
         };
     }
