@@ -21,6 +21,7 @@ import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor.ClusterTasksResult;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
+import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher;
 import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
 import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
@@ -614,15 +615,6 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         @Override
-        public void onNoLongerMaster() {
-            try (ThreadContext.StoredContext ignore = context.get()) {
-                listener.onNoLongerMaster();
-            } catch (Exception e) {
-                logger.error("exception thrown by listener while notifying no longer master", e);
-            }
-        }
-
-        @Override
         public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
             try (ThreadContext.StoredContext ignore = context.get()) {
                 listener.clusterStateProcessed(oldState, newState);
@@ -890,7 +882,7 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         void onNoLongerMaster() {
-            updateTasks.forEach(task -> task.listener.onNoLongerMaster());
+            updateTasks.forEach(task -> task.listener.onFailure(new NotMasterException("no longer master, failing [" + task.source + "]")));
         }
     }
 
@@ -1079,6 +1071,10 @@ public class MasterService extends AbstractLifecycleComponent {
                 failedNotificationElapsedMillis
             );
         }
+    }
+
+    public static boolean isPublishFailureException(Exception e) {
+        return e instanceof NotMasterException || e instanceof FailedToCommitClusterStateException;
     }
 
 }

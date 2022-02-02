@@ -251,8 +251,7 @@ public class JoinHelper {
         static Level getLogLevel(TransportException e) {
             Throwable cause = e.unwrapCause();
             if (cause instanceof CoordinationStateRejectedException
-                || cause instanceof FailedToCommitClusterStateException
-                || cause instanceof NotMasterException) {
+                || (cause instanceof Exception causeException && MasterService.isPublishFailureException(causeException))) {
                 return Level.DEBUG;
             }
             return Level.INFO;

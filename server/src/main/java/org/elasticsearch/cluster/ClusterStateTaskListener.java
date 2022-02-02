@@ -7,13 +7,19 @@
  */
 package org.elasticsearch.cluster;
 
-import java.util.List;
+import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
+import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
 
 public interface ClusterStateTaskListener {
 
     /**
-     * A callback for when task execution fails.
-     *
+     * A callback for when task execution fails. May receive a {@link NotMasterException} if this node stopped being the master before this
+     * task was executed or a {@link ProcessClusterEventTimeoutException} if the task timed out before it was executed. If the task fails
+     * during execution then this method receives the corresponding exception. If the task executes successfully but the resulting cluster
+     * state publication fails then this method receives a {@link FailedToCommitClusterStateException}. If publication fails then a new
+     * master is elected and the update might or might not take effect, depending on whether or not the newly-elected master accepted the
+     * published state that failed to be committed.
+     * <p>
      * Implementations of this callback must not throw exceptions: an exception thrown here is logged by the master service at {@code ERROR}
      * level and otherwise ignored, except in tests where it raises an {@link AssertionError}. If log-and-ignore is the right behaviour then
      * implementations must do so themselves, typically using a more specific logger and at a less dramatic log level.
@@ -21,23 +27,13 @@ public interface ClusterStateTaskListener {
     void onFailure(Exception e);
 
     /**
-     * A callback for when the task was rejected because the processing node is no longer the elected master.
-     *
-     * Implementations of this callback must not throw exceptions: an exception thrown here is logged by the master service at {@code ERROR}
-     * level and otherwise ignored, except in tests where it raises an {@link AssertionError}. If log-and-ignore is the right behaviour then
-     * implementations must do so themselves, typically using a more specific logger and at a less dramatic log level.
-     */
-    default void onNoLongerMaster() {
-        onFailure(new NotMasterException("no longer master"));
-    }
-
-    /**
-     * Called when the result of the {@link ClusterStateTaskExecutor#execute(ClusterState, List)} have been processed
-     * properly by all listeners.
-     *
+     * Called when the task was successfully executed and, if it resulted in a cluster state update, then the update was published and
+     * successfully committed.
+     * <p>
      * Implementations of this callback must not throw exceptions: an exception thrown here is logged by the master service at {@code ERROR}
      * level and otherwise ignored, except in tests where it raises an {@link AssertionError}. If log-and-ignore is the right behaviour then
      * implementations must do so themselves, typically using a more specific logger and at a less dramatic log level.
      */
     default void clusterStateProcessed(ClusterState oldState, ClusterState newState) {}
+
 }

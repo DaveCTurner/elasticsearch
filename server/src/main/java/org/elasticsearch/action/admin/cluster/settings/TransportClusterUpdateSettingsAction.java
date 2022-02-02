@@ -25,6 +25,7 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -206,24 +207,20 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
                         }
 
                         @Override
-                        public void onNoLongerMaster() {
-                            logger.debug(
-                                "failed to preform reroute after cluster settings were updated - current node is no longer a master"
-                            );
-                            listener.onResponse(
-                                new ClusterUpdateSettingsResponse(
-                                    updateSettingsAcked,
-                                    updater.getTransientUpdates(),
-                                    updater.getPersistentUpdate()
-                                )
-                            );
-                        }
-
-                        @Override
                         public void onFailure(Exception e) {
                             // if the reroute fails we only log
                             logger.debug(() -> new ParameterizedMessage("failed to perform [{}]", REROUTE_TASK_SOURCE), e);
-                            listener.onFailure(new ElasticsearchException("reroute after update settings failed", e));
+                            if (MasterService.isPublishFailureException(e)) {
+                                listener.onResponse(
+                                    new ClusterUpdateSettingsResponse(
+                                        updateSettingsAcked,
+                                        updater.getTransientUpdates(),
+                                        updater.getPersistentUpdate()
+                                    )
+                                );
+                            } else {
+                                listener.onFailure(new ElasticsearchException("reroute after update settings failed", e));
+                            }
                         }
 
                         @Override
