@@ -279,7 +279,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 .collect(Collectors.toList()),
             getCurrentTerm(),
             electionStrategy,
-            nodeHealthService.getHealth()
+            nodeHealthService.getHealth(),
+            joinHelper.getInFlightJoinStatuses()
         );
     }
 

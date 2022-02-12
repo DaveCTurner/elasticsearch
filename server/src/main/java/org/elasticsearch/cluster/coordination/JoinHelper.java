@@ -25,6 +25,7 @@ import org.elasticsearch.cluster.service.ClusterApplier;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
@@ -45,13 +46,10 @@ import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -75,9 +73,9 @@ public class JoinHelper {
     private volatile JoinTaskExecutor joinTaskExecutor;
     private final NodeHealthService nodeHealthService;
     private final JoinReasonService joinReasonService;
-    private final TimeValue joinDelayWarningInteval;
 
-    private final Set<Tuple<DiscoveryNode, JoinRequest>> pendingOutgoingJoins = Collections.synchronizedSet(new HashSet<>());
+    private final Map<Tuple<DiscoveryNode, JoinRequest>, AtomicReference<String>> pendingOutgoingJoins = ConcurrentCollections
+        .newConcurrentMap();
     private final AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
     private final Map<DiscoveryNode, Releasable> joinConnections = new HashMap<>(); // synchronized on itself
 
@@ -103,7 +101,6 @@ public class JoinHelper {
         this.transportService = transportService;
         this.nodeHealthService = nodeHealthService;
         this.joinReasonService = joinReasonService;
-        this.joinDelayWarningInteval = ClusterFormationFailureHelper.DISCOVERY_CLUSTER_FORMATION_WARNING_TIMEOUT_SETTING.get(settings);
         this.joinTaskExecutorGenerator = () -> new JoinTaskExecutor(allocationService, rerouteService) {
 
             private final long term = currentTermSupplier.getAsLong();
@@ -292,17 +289,10 @@ public class JoinHelper {
         }
         final JoinRequest joinRequest = new JoinRequest(transportService.getLocalNode(), term, optionalJoin);
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
-        if (pendingOutgoingJoins.add(dedupKey)) {
+        final AtomicReference<String> statusRef = new AtomicReference<>("initializing");
+        if (pendingOutgoingJoins.putIfAbsent(dedupKey, statusRef) == null) {
             logger.debug("attempting to join {} with {}", destination, joinRequest);
-
-            final var delayReasonMessage = new AtomicReference<>("waiting to connect");
-            final var delayedJoinWarning = transportService.getThreadPool()
-                .scheduleWithFixedDelay(
-                    () -> logger.warn("joining [{}] in term [{}]: {}", destination.descriptionWithoutAttributes(), term, delayReasonMessage.get()),
-                    joinDelayWarningInteval,
-                    Names.SAME
-                );
-
+            statusRef.set("waiting to connect");
             // Typically we're already connected to the destination at this point, the PeerFinder holds a reference to this connection to
             // keep it open, but we need to acquire our own reference to keep the connection alive through the joining process.
             transportService.connectToNode(destination, new ActionListener<>() {
@@ -319,14 +309,14 @@ public class JoinHelper {
                     // fast enough and will be kicked out of the cluster for lagging, which can happen repeatedly and be a little
                     // disruptive. To avoid this we send the join from the applier thread which ensures that it's not busy doing something
                     // else.
-                    delayReasonMessage.set("waiting for local cluster applier");
+                    statusRef.set("waiting for local cluster applier");
                     clusterApplier.onNewClusterState(
                         "joining " + destination.descriptionWithoutAttributes(),
                         () -> null,
                         new ActionListener<>() {
                             @Override
                             public void onResponse(Void unused) {
-                                delayReasonMessage.set("waiting for response");
+                                statusRef.set("waiting for response");
                                 transportService.sendRequest(
                                     destination,
                                     JOIN_ACTION_NAME,
@@ -335,7 +325,7 @@ public class JoinHelper {
                                     new TransportResponseHandler.Empty() {
                                         @Override
                                         public void handleResponse(TransportResponse.Empty response) {
-                                            delayedJoinWarning.cancel();
+                                            statusRef.set("waiting to receive cluster state"); // message only logged if state delayed
                                             pendingOutgoingJoins.remove(dedupKey);
                                             logger.debug("successfully joined {} with {}", destination, joinRequest);
                                             lastFailedJoinAttempt.set(null);
@@ -343,7 +333,7 @@ public class JoinHelper {
 
                                         @Override
                                         public void handleException(TransportException exp) {
-                                            delayedJoinWarning.cancel();
+                                            statusRef.set("failed");
                                             pendingOutgoingJoins.remove(dedupKey);
                                             FailedJoinAttempt attempt = new FailedJoinAttempt(destination, joinRequest, exp);
                                             attempt.logNow();
@@ -360,7 +350,7 @@ public class JoinHelper {
                                 logger.error("failed to send join request from cluster applier thread", e);
                                 pendingOutgoingJoins.remove(dedupKey);
                                 unregisterAndReleaseConnection(destination, connectionReference);
-                                delayedJoinWarning.cancel();
+                                statusRef.set("failed");
                             }
                         }
                     );
@@ -368,7 +358,7 @@ public class JoinHelper {
 
                 @Override
                 public void onFailure(Exception e) {
-                    delayedJoinWarning.cancel();
+                    statusRef.set("failed to connect");
                     pendingOutgoingJoins.remove(dedupKey);
                     FailedJoinAttempt attempt = new FailedJoinAttempt(
                         destination,
@@ -399,6 +389,13 @@ public class JoinHelper {
                 logger.debug(new ParameterizedMessage("failure in response to {} from {}", startJoinRequest, destination), exp);
             }
         });
+    }
+
+    List<JoinStatus> getInFlightJoinStatuses() {
+        return pendingOutgoingJoins.entrySet()
+            .stream()
+            .map(entry -> new JoinStatus(entry.getKey().v1(), entry.getKey().v2().getTerm(), entry.getValue().get()))
+            .toList();
     }
 
     interface JoinAccumulator {

@@ -25,6 +25,7 @@ import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -120,10 +121,15 @@ public class ClusterFormationFailureHelper {
         List<DiscoveryNode> foundPeers,
         long currentTerm,
         ElectionStrategy electionStrategy,
-        StatusInfo statusInfo
+        StatusInfo statusInfo,
+        List<JoinStatus> inFlightJoinStatuses
     ) {
 
         String getDescription() {
+            return getCoordinatorDescription() + getJoinStatusDescription();
+        }
+
+        private String getCoordinatorDescription() {
             if (statusInfo.getStatus() == UNHEALTHY) {
                 return String.format(Locale.ROOT, "this node is unhealthy: %s", statusInfo.getInfo());
             }
@@ -245,6 +251,27 @@ public class ClusterFormationFailureHelper {
                     return requiredNodes + " nodes with ids " + realNodeIds;
                 }
             }
+        }
+
+        private String getJoinStatusDescription() {
+            if (inFlightJoinStatuses.isEmpty()) {
+                return "";
+            }
+
+            final var stringBuilder = new StringBuilder();
+            inFlightJoinStatuses.stream()
+                .sorted(Comparator.comparing(JoinStatus::term).reversed())
+                .limit(10)
+                .forEach(
+                    joinStatus -> stringBuilder.append("; joining [")
+                        .append(joinStatus.remoteNode().descriptionWithoutAttributes())
+                        .append("] in term [")
+                        .append(joinStatus.term())
+                        .append("] has status [")
+                        .append(joinStatus.message())
+                        .append("]")
+                );
+            return stringBuilder.toString();
         }
     }
 }
