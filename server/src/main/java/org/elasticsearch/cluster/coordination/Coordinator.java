@@ -192,6 +192,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             settings,
             allocationService,
             masterService,
+            clusterApplier,
             transportService,
             this::getCurrentTerm,
             this::getStateForMasterService,
