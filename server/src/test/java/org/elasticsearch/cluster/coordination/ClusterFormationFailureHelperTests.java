@@ -20,6 +20,7 @@ import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.gateway.GatewayMetaState;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.test.ESTestCase;
@@ -901,9 +902,9 @@ public class ClusterFormationFailureHelperTests extends ESTestCase {
                 0L,
                 electionStrategy,
                 new StatusInfo(HEALTHY, "healthy-info"),
-                List.of(new JoinStatus(otherNode1, 1, "waiting for response"))
+                List.of(new JoinStatus(otherNode1, 1, "waiting for response", TimeValue.ZERO))
             ).getDescription(),
-            is(prefix + "; joining [" + noAttr(otherNode1) + "] in term [1]: [waiting for response]")
+            is(prefix + "; joining [" + noAttr(otherNode1) + "] in term [1] has status [waiting for response] after [0ms]")
         );
 
         assertThat(
@@ -916,22 +917,22 @@ public class ClusterFormationFailureHelperTests extends ESTestCase {
                 electionStrategy,
                 new StatusInfo(HEALTHY, "healthy-info"),
                 List.of(
-                    new JoinStatus(otherNode1, 1, "waiting for response"),
-                    new JoinStatus(otherNode2, 2, "waiting for response"),
-                    new JoinStatus(otherNode2, 3, "waiting for response")
+                    new JoinStatus(otherNode1, 2, "waiting for response", TimeValue.timeValueMillis(10000)),
+                    new JoinStatus(otherNode2, 2, "waiting for response", TimeValue.timeValueMillis(30000)),
+                    new JoinStatus(otherNode2, 1, "waiting for response", TimeValue.timeValueMillis(20000))
                 )
             ).getDescription(),
             is(
                 prefix
                 + "; joining ["
                 + noAttr(otherNode2)
-                + "] in term [3]: [waiting for response]"
+                + "] in term [2] has status [waiting for response] after [30s/30000ms]"
                 + "; joining ["
                 + noAttr(otherNode2)
-                + "] in term [2]: [waiting for response]"
+                + "] in term [1] has status [waiting for response] after [20s/20000ms]"
                 + "; joining ["
                 + noAttr(otherNode1)
-                + "] in term [1]: [waiting for response]"
+                + "] in term [2] has status [waiting for response] after [10s/10000ms]"
             )
         );
 
@@ -940,9 +941,9 @@ public class ClusterFormationFailureHelperTests extends ESTestCase {
         for (var term = 20; term > 0; term--) {
             final var node = randomFrom(otherNode1, otherNode2);
             if (manyStatuses.size() < 10) {
-                expected.append("; joining [").append(noAttr(node)).append("] in term [").append(term).append("]: [status goes here]");
+                expected.append("; joining [").append(noAttr(node)).append("] in term [").append(term).append("] has status [status goes here] after [").append(term).append("ms]");
             }
-            manyStatuses.add(new JoinStatus(node, term, "status goes here"));
+            manyStatuses.add(new JoinStatus(node, term, "status goes here", TimeValue.timeValueMillis(term)));
         }
         Randomness.shuffle(manyStatuses);
 

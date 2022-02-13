@@ -124,7 +124,6 @@ public class ClusterFormationFailureHelper {
         StatusInfo statusInfo,
         List<JoinStatus> inFlightJoinStatuses
     ) {
-
         String getDescription() {
             return getCoordinatorDescription() + getJoinStatusDescription();
         }
@@ -260,7 +259,7 @@ public class ClusterFormationFailureHelper {
 
             final var stringBuilder = new StringBuilder();
             inFlightJoinStatuses.stream()
-                .sorted(Comparator.comparing(JoinStatus::term).reversed())
+                .sorted(Comparator.comparing(JoinStatus::age).reversed())
                 .limit(10)
                 .forEach(
                     joinStatus -> stringBuilder.append("; joining [")
@@ -269,9 +268,19 @@ public class ClusterFormationFailureHelper {
                         .append(joinStatus.term())
                         .append("] has status [")
                         .append(joinStatus.message())
-                        .append("]")
+                        .append("] after [")
+                        .append(timeValueWithMillis(joinStatus.age())).append("]")
                 );
             return stringBuilder.toString();
+        }
+
+        private static String timeValueWithMillis(TimeValue timeValue) {
+            final var millis = timeValue.millis();
+            if (millis >= 1000) {
+                return timeValue + "/" + millis + "ms";
+            } else {
+                return millis + "ms";
+            }
         }
     }
 }

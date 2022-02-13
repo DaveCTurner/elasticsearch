@@ -9,5 +9,6 @@
 package org.elasticsearch.cluster.coordination;
 
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.core.TimeValue;
 
-public record JoinStatus(DiscoveryNode remoteNode, long term, String message) { }
+public record JoinStatus(DiscoveryNode remoteNode, long term, String message, TimeValue age) { }

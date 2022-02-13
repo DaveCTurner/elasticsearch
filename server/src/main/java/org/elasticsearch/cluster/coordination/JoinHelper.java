@@ -74,8 +74,7 @@ public class JoinHelper {
     private final NodeHealthService nodeHealthService;
     private final JoinReasonService joinReasonService;
 
-    private final Map<Tuple<DiscoveryNode, JoinRequest>, AtomicReference<String>> pendingOutgoingJoins = ConcurrentCollections
-        .newConcurrentMap();
+    private final Map<Tuple<DiscoveryNode, JoinRequest>, PendingJoinInfo> pendingOutgoingJoins = ConcurrentCollections.newConcurrentMap();
     private final AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
     private final Map<DiscoveryNode, Releasable> joinConnections = new HashMap<>(); // synchronized on itself
 
@@ -289,10 +288,10 @@ public class JoinHelper {
         }
         final JoinRequest joinRequest = new JoinRequest(transportService.getLocalNode(), term, optionalJoin);
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
-        final AtomicReference<String> statusRef = new AtomicReference<>("initializing");
-        if (pendingOutgoingJoins.putIfAbsent(dedupKey, statusRef) == null) {
+        final var pendingJoinInfo = new PendingJoinInfo(transportService.getThreadPool().relativeTimeInMillis());
+        if (pendingOutgoingJoins.putIfAbsent(dedupKey, pendingJoinInfo) == null) {
             logger.debug("attempting to join {} with {}", destination, joinRequest);
-            statusRef.set("waiting to connect");
+            pendingJoinInfo.message = "waiting to connect";
             // Typically we're already connected to the destination at this point, the PeerFinder holds a reference to this connection to
             // keep it open, but we need to acquire our own reference to keep the connection alive through the joining process.
             transportService.connectToNode(destination, new ActionListener<>() {
@@ -309,14 +308,14 @@ public class JoinHelper {
                     // fast enough and will be kicked out of the cluster for lagging, which can happen repeatedly and be a little
                     // disruptive. To avoid this we send the join from the applier thread which ensures that it's not busy doing something
                     // else.
-                    statusRef.set("waiting for local cluster applier");
+                    pendingJoinInfo.message = "waiting for local cluster applier";
                     clusterApplier.onNewClusterState(
                         "joining " + destination.descriptionWithoutAttributes(),
                         () -> null,
                         new ActionListener<>() {
                             @Override
                             public void onResponse(Void unused) {
-                                statusRef.set("waiting for response");
+                                pendingJoinInfo.message = "waiting for response";
                                 transportService.sendRequest(
                                     destination,
                                     JOIN_ACTION_NAME,
@@ -325,7 +324,7 @@ public class JoinHelper {
                                     new TransportResponseHandler.Empty() {
                                         @Override
                                         public void handleResponse(TransportResponse.Empty response) {
-                                            statusRef.set("waiting to receive cluster state"); // message only logged if state delayed
+                                            pendingJoinInfo.message = "waiting to receive cluster state"; // only logged if state delayed
                                             pendingOutgoingJoins.remove(dedupKey);
                                             logger.debug("successfully joined {} with {}", destination, joinRequest);
                                             lastFailedJoinAttempt.set(null);
@@ -333,7 +332,7 @@ public class JoinHelper {
 
                                         @Override
                                         public void handleException(TransportException exp) {
-                                            statusRef.set("failed");
+                                            pendingJoinInfo.message = "failed";
                                             pendingOutgoingJoins.remove(dedupKey);
                                             FailedJoinAttempt attempt = new FailedJoinAttempt(destination, joinRequest, exp);
                                             attempt.logNow();
@@ -350,7 +349,7 @@ public class JoinHelper {
                                 logger.error("failed to send join request from cluster applier thread", e);
                                 pendingOutgoingJoins.remove(dedupKey);
                                 unregisterAndReleaseConnection(destination, connectionReference);
-                                statusRef.set("failed");
+                                pendingJoinInfo.message = "failed";
                             }
                         }
                     );
@@ -358,7 +357,7 @@ public class JoinHelper {
 
                 @Override
                 public void onFailure(Exception e) {
-                    statusRef.set("failed to connect");
+                    pendingJoinInfo.message = "failed to connect";
                     pendingOutgoingJoins.remove(dedupKey);
                     FailedJoinAttempt attempt = new FailedJoinAttempt(
                         destination,
@@ -392,10 +391,22 @@ public class JoinHelper {
     }
 
     List<JoinStatus> getInFlightJoinStatuses() {
-        return pendingOutgoingJoins.entrySet()
-            .stream()
-            .map(entry -> new JoinStatus(entry.getKey().v1(), entry.getKey().v2().getTerm(), entry.getValue().get()))
-            .toList();
+        final var currentTime = transportService.getThreadPool().relativeTimeInMillis();
+        final var result = new ArrayList<JoinStatus>(pendingOutgoingJoins.size());
+        var maxTerm = Long.MIN_VALUE;
+        for (final var entry : pendingOutgoingJoins.entrySet()) {
+            final var key = entry.getKey();
+            final var term = key.v2().getTerm();
+            if (maxTerm < term) {
+                result.clear();
+                maxTerm = term;
+            }
+            if (term == maxTerm) {
+                final var value = entry.getValue();
+                result.add(new JoinStatus(key.v1(), term, value.message, TimeValue.timeValueMillis(currentTime - value.startTimeMillis)));
+            }
+        }
+        return result;
     }
 
     interface JoinAccumulator {
@@ -493,6 +504,15 @@ public class JoinHelper {
         @Override
         public String toString() {
             return "CandidateJoinAccumulator{" + joinRequestAccumulator.keySet() + ", closed=" + closed + '}';
+        }
+    }
+
+    private static class PendingJoinInfo {
+        final long startTimeMillis;
+        volatile String message = "initializing";
+
+        PendingJoinInfo(long startTimeMillis) {
+            this.startTimeMillis = startTimeMillis;
         }
     }
 }
