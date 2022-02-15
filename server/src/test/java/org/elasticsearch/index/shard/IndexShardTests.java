@@ -1279,7 +1279,7 @@ public class IndexShardTests extends IndexShardTestCase {
 
     public void testRestoreLocalHistoryFromTranslogOnPromotion() throws IOException, InterruptedException {
         final IndexShard indexShard = newStartedShard(false);
-        final int operations = 1024 - scaledRandomIntBetween(0, 1024);
+        final int operations = randomBoolean() ? scaledRandomIntBetween(0, 1024) : 1024 - scaledRandomIntBetween(0, 1024);
         indexOnReplicaWithGaps(indexShard, operations, Math.toIntExact(SequenceNumbers.NO_OPS_PERFORMED));
 
         final long maxSeqNo = indexShard.seqNoStats().getMaxSeqNo();
@@ -1290,11 +1290,12 @@ public class IndexShardTests extends IndexShardTestCase {
         final long maxSeqNoOfUpdatesOrDeletesBeforeRollback = indexShard.getMaxSeqNoOfUpdatesOrDeletes();
         final Set<String> docsBeforeRollback = getShardDocUIDs(indexShard);
         final CountDownLatch latch = new CountDownLatch(1);
+        final long maxSeqNoOfUpdatesOrDeletesAtRollback = randomLongBetween(SequenceNumbers.NO_OPS_PERFORMED, maxSeqNo);
         randomReplicaOperationPermitAcquisition(
             indexShard,
             indexShard.getPendingPrimaryTerm() + 1,
             globalCheckpoint,
-            randomLongBetween(SequenceNumbers.NO_OPS_PERFORMED, maxSeqNo),
+            maxSeqNoOfUpdatesOrDeletesAtRollback,
             new ActionListener<Releasable>() {
                 @Override
                 public void onResponse(Releasable releasable) {
@@ -1312,10 +1313,14 @@ public class IndexShardTests extends IndexShardTestCase {
 
         latch.await();
         long globalCheckpointOnPromotedReplica = Math.max(globalCheckpointOnReplica, globalCheckpoint);
+        long maxSeqNoOfUpdatesOrDeletesAfterPromotion = Math.max(
+            maxSeqNoOfUpdatesOrDeletesAtRollback,
+            maxSeqNoOfUpdatesOrDeletesBeforeRollback
+        );
         if (globalCheckpointOnPromotedReplica < maxSeqNo) {
             assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNo));
         } else {
-            assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNoOfUpdatesOrDeletesBeforeRollback));
+            assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNoOfUpdatesOrDeletesAfterPromotion));
         }
         final ShardRouting newRouting = indexShard.routingEntry().moveActiveReplicaToPrimary();
         final CountDownLatch resyncLatch = new CountDownLatch(1);
@@ -1334,7 +1339,7 @@ public class IndexShardTests extends IndexShardTestCase {
         if (globalCheckpointOnPromotedReplica < maxSeqNo) {
             assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNo));
         } else {
-            assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNoOfUpdatesOrDeletesBeforeRollback));
+            assertThat(indexShard.getMaxSeqNoOfUpdatesOrDeletes(), equalTo(maxSeqNoOfUpdatesOrDeletesAfterPromotion));
         }
         closeShard(indexShard, false);
     }
