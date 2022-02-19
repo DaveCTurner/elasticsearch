@@ -59,6 +59,7 @@ import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.CountDown;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
@@ -239,7 +240,7 @@ public class MetadataIndexStateService {
                                                     }
                                                 }
                                             },
-                                            ClusterStateTaskExecutor.unbatched()
+                                            newExecutor()
                                         ),
                                         listener::onFailure
                                     )
@@ -253,7 +254,7 @@ public class MetadataIndexStateService {
                     listener.onFailure(e);
                 }
             },
-            ClusterStateTaskExecutor.unbatched()
+            newExecutor()
         );
     }
 
@@ -506,7 +507,7 @@ public class MetadataIndexStateService {
                                                     listener.onResponse(new AddIndexBlockResponse(acknowledged, acknowledged, indices));
                                                 }
                                             },
-                                            ClusterStateTaskExecutor.unbatched()
+                                            newExecutor()
                                         ),
                                         listener::onFailure
                                     )
@@ -520,8 +521,13 @@ public class MetadataIndexStateService {
                     listener.onFailure(e);
                 }
             },
-            ClusterStateTaskExecutor.unbatched()
+            newExecutor()
         );
+    }
+
+    @SuppressForbidden(reason = "legacy usage of unbatched task") // TODO add support for batching here
+    private static <T extends ClusterStateUpdateTask> ClusterStateTaskExecutor<T> newExecutor() {
+        return ClusterStateTaskExecutor.unbatched();
     }
 
     /**
