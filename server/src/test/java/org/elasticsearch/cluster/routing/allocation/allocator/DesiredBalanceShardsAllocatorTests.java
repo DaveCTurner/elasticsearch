@@ -20,6 +20,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.ShardAllocationDecision;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
@@ -28,10 +29,13 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.gateway.GatewayAllocator;
 import org.elasticsearch.snapshots.SnapshotShardSizeInfo;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +44,7 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VER
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_SHARDS;
 
+@TestLogging(reason = "nocommit", value = "org.elasticsearch:TRACE")
 public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
 
     public void testSimpleCase() {
@@ -51,13 +56,17 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
         testHarness.runAllocator();
         testHarness.runAsyncTasksExpectingReroute();
 
+        assertFalse(testHarness.clusterState.routingTable().shardRoutingTable("test", 0).primaryShard().assignedToNode());
+
+
         testHarness.runAllocator();
         testHarness.runAsyncTasksExpectingNoReroute();
 
-        logger.info("--> {}", testHarness.clusterState);
+        assertTrue(testHarness.clusterState.routingTable().shardRoutingTable("test", 0).primaryShard().assignedToNode());
 
-        fail("boom");
+        testHarness.startInitializingShards();
 
+        testHarness.assertDesiredBalanceAchieved();
     }
 
     private static class TestHarness {
@@ -67,15 +76,11 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             new ShardsAllocator() {
                 @Override
                 public void allocate(RoutingAllocation allocation) {
+                    final var dataNodeId = allocation.nodes().getDataNodes().valuesIt().next().getId();
                     final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
                     while (unassignedIterator.hasNext()) {
                         unassignedIterator.next();
-                        unassignedIterator.initialize(
-                            allocation.nodes().getDataNodes().valuesIt().next().getId(),
-                            null,
-                            0L,
-                            allocation.changes()
-                        );
+                        unassignedIterator.initialize(dataNodeId, null, 0L, allocation.changes());
                     }
                 }
 
@@ -87,8 +92,10 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             threadPool,
             () -> this::reroute
         );
+        private final AllocationService allocationService;
 
         ClusterState clusterState;
+        int nextNodeId;
 
         boolean expectReroute;
 
@@ -97,6 +104,30 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             clusterState = ClusterState.builder(ClusterName.DEFAULT)
                 .nodes(DiscoveryNodes.builder().add(masterNode).localNodeId(masterNode.getId()).masterNodeId(masterNode.getId()))
                 .build();
+
+            allocationService = new AllocationService(
+
+                new AllocationDeciders(List.of(new AllocationDecider() {
+
+                })),
+                new GatewayAllocator() {
+
+                    @Override
+                    public void beforeAllocation(RoutingAllocation allocation) {}
+
+                    @Override
+                    public void allocateUnassigned(ShardRouting shardRouting, RoutingAllocation allocation, UnassignedAllocationHandler unassignedAllocationHandler) {
+                    }
+
+                    @Override
+                    public void afterPrimariesBeforeReplicas(RoutingAllocation allocation) {
+                    }
+                },
+                desiredBalanceShardsAllocator,
+                () -> ClusterInfo.EMPTY,
+                () -> SnapshotShardSizeInfo.EMPTY
+            );
+
         }
 
         private DiscoveryNode newDiscoveryNode() {
@@ -107,11 +138,16 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             return newDiscoveryNode(Set.of(DiscoveryNodeRole.DATA_ROLE));
         }
 
+        private String nextNodeId() {
+            return "node-" + nextNodeId++;
+        }
+
         private DiscoveryNode newDiscoveryNode(Set<DiscoveryNodeRole> masterRole) {
             final var transportAddress = buildNewFakeTransportAddress();
+            final var nodeId = nextNodeId();
             return new DiscoveryNode(
-                randomAlphaOfLength(10),
-                UUIDs.randomBase64UUID(random()),
+                nodeId,
+                nodeId,
                 UUIDs.randomBase64UUID(random()),
                 transportAddress.address().getHostString(),
                 transportAddress.getAddress(),
@@ -151,22 +187,7 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
         }
 
         void runAllocator() {
-
-            final var allocationDeciders = new AllocationDeciders(List.of(new AllocationDecider() {
-
-            }));
-
-            final var routingAllocation = new RoutingAllocation(
-                allocationDeciders,
-                clusterState.mutableRoutingNodes(),
-                clusterState,
-                ClusterInfo.EMPTY,
-                SnapshotShardSizeInfo.EMPTY,
-                0L
-            );
-
-            desiredBalanceShardsAllocator.allocate(routingAllocation);
-
+            clusterState = allocationService.reroute(clusterState, "test");
         }
 
         void runAsyncTasksExpectingReroute() {
@@ -180,6 +201,30 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             assertFalse("already expecting a reroute", expectReroute);
             deterministicTaskQueue.runAllTasks();
             assertFalse("expectReroute was set by async task?!", expectReroute);
+        }
+
+        void startInitializingShards() {
+            final List<ShardRouting> initializingShards = new ArrayList<>();
+            for (final var indexRoutingTable : clusterState.routingTable()) {
+                for (final var indexShardRoutingTable : indexRoutingTable) {
+                    initializingShards.addAll(indexShardRoutingTable.getAllInitializingShards());
+                }
+            }
+            clusterState = allocationService.applyStartedShards(clusterState, initializingShards);
+        }
+
+        void assertDesiredBalanceAchieved() {
+            for (final var indexRoutingTable : clusterState.routingTable()) {
+                for (final var indexShardRoutingTable : indexRoutingTable) {
+                    final var shardId = indexShardRoutingTable.shardId();
+                    final var desiredNodes = desiredBalanceShardsAllocator.getCurrentDesiredBalance().getDesiredNodeIds(shardId);
+                    assertNotNull(shardId + " should have a desired balance entry", desiredNodes);
+                    for (final ShardRouting shardRouting : indexShardRoutingTable) {
+                        assertTrue(shardRouting + " should be STARTED", shardRouting.started());
+                        assertTrue(shardRouting + " should be on nodes " + desiredNodes, desiredNodes.contains(shardRouting.currentNodeId()));
+                    }
+                }
+            }
         }
     }
 

@@ -65,6 +65,11 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
             protected void processInput(RerouteInput actualRoutingAllocation) {
                 updateDesiredBalanceAndReroute(actualRoutingAllocation);
             }
+
+            @Override
+            public String toString() {
+                return "DesiredBalanceShardsAllocator#updateDesiredBalanceAndReroute";
+            }
         };
     }
 
@@ -99,7 +104,13 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
      */
     record RerouteInput(RoutingAllocation routingAllocation, List<ShardRouting> ignoredShards) {}
 
+    DesiredBalance getCurrentDesiredBalance() {
+        return currentDesiredBalance;
+    }
+
     private void updateDesiredBalanceAndReroute(RerouteInput rerouteInput) {
+
+        logger.trace("starting to recompute desired balance");
 
         final var routingAllocation = rerouteInput.routingAllocation().mutableCloneForSimulation();
         final var routingNodes = routingAllocation.routingNodes();
@@ -214,18 +225,35 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
         final DesiredBalance newDesiredBalance = new DesiredBalance(desiredAssignments);
         assert desiredBalance == currentDesiredBalance;
         if (newDesiredBalance.equals(desiredBalance) == false) {
+            if (logger.isTraceEnabled()) {
+                for (Map.Entry<ShardId, List<String>> desiredAssignment : newDesiredBalance.desiredAssignments().entrySet()) {
+                    final var shardId = desiredAssignment.getKey();
+                    final var newNodes = desiredAssignment.getValue();
+                    final var oldNodes = desiredBalance.desiredAssignments().get(shardId);
+                    if (newNodes.equals(oldNodes)) {
+                        logger.trace("{} desired balance unchanged,   allocating to {}", shardId, newNodes);
+                    } else {
+                        logger.trace("{} desired balance changed, now allocating to {} vs previous {}", shardId, newNodes, oldNodes);
+                    }
+                }
+                logger.trace("desired balance updated");
+            }
             currentDesiredBalance = newDesiredBalance;
             rerouteServiceSupplier.get().reroute("desired balance changed", Priority.HIGH, ActionListener.wrap(() -> {}));
+        } else {
+            logger.trace("desired balance unchanged");
         }
     }
 
-    private record DesiredBalance(Map<ShardId, List<String>> desiredAssignments) {
+    record DesiredBalance(Map<ShardId, List<String>> desiredAssignments) {
         List<String> getDesiredNodeIds(ShardId shardId) {
             return desiredAssignments.getOrDefault(shardId, Collections.emptyList());
         }
     }
 
     private static final class Reconciler {
+
+        private static final Logger logger = LogManager.getLogger();
 
         @Nullable
         private final DesiredBalance desiredBalance;
@@ -239,25 +267,35 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
         }
 
         void run() {
+
+            logger.trace("starting to reconcile current allocation with desired balance");
+
             if (desiredBalance.desiredAssignments().isEmpty()) {
                 // no desired state yet but it is on its way and we'll reroute again when its ready
+                logger.trace("desired balance is empty, nothing to reconcile");
                 return;
             }
 
             if (allocation.routingNodes().size() == 0) {
                 // no data nodes, so fail allocation to report red health
                 failAllocationOfNewPrimaries(allocation);
+                logger.trace("no nodes available, nothing to reconcile");
                 return;
             }
 
             // compute next moves towards current desired balance:
 
             // 1. allocate unassigned shards first
+            logger.trace("Reconciler#allocateUnassigned");
             allocateUnassigned();
             // 2. move any shards that cannot remain where they are
+            logger.trace("Reconciler#moveShards");
             moveShards();
             // 3. move any other shards that are desired elsewhere
+            logger.trace("Reconciler#balance");
             balance();
+
+            logger.trace("done");
         }
 
         private void failAllocationOfNewPrimaries(RoutingAllocation allocation) {

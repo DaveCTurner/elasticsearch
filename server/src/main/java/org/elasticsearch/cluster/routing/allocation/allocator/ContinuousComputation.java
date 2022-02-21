@@ -92,5 +92,10 @@ public abstract class ContinuousComputation<T> {
                 executorService.execute(this);
             }
         }
+
+        @Override
+        public String toString() {
+            return "ContinuousComputation$Processor[" + ContinuousComputation.this + "]";
+        }
     }
 }
