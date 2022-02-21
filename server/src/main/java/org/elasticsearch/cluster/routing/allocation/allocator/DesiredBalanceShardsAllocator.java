@@ -17,7 +17,6 @@ import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
-import org.elasticsearch.cluster.routing.allocation.MoveDecision;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.ShardAllocationDecision;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
@@ -25,10 +24,7 @@ import org.elasticsearch.cluster.routing.allocation.decider.DiskThresholdDecider
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.collect.Iterators;
-import org.elasticsearch.common.settings.ClusterSettings;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
-import org.elasticsearch.core.Tuple;
 import org.elasticsearch.gateway.PriorityComparator;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -50,22 +46,20 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private final BalancedShardsAllocator balancedShardsAllocator;
+    private final ShardsAllocator delegateAllocator;
     private final Supplier<RerouteService> rerouteServiceSupplier;
 
     private final ContinuousComputation<RerouteInput> desiredBalanceComputation;
 
-    private volatile DesiredBalance currentDesiredBalance;
+    private volatile DesiredBalance currentDesiredBalance = new DesiredBalance(Map.of());
 
     public DesiredBalanceShardsAllocator(
-        Settings settings,
-        ClusterSettings clusterSettings,
+        ShardsAllocator delegateAllocator,
         ThreadPool threadPool,
         Supplier<RerouteService> rerouteServiceSupplier
     ) {
+        this.delegateAllocator = delegateAllocator;
         this.rerouteServiceSupplier = rerouteServiceSupplier;
-        this.balancedShardsAllocator = new BalancedShardsAllocator(settings, clusterSettings);
-
         this.desiredBalanceComputation = new ContinuousComputation<>(threadPool.generic()) {
             @Override
             protected void processInput(RerouteInput actualRoutingAllocation) {
@@ -87,13 +81,16 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
             new RerouteInput(allocation.immutableClone(), new ArrayList<>(allocation.routingNodes().unassigned().ignored()))
         );
 
+        // TODO possibly add a bounded wait for the computation to complete?
+        // Otherwise we will have to do a second cluster state update straight away.
+
         new Reconciler(currentDesiredBalance, allocation).run();
 
     }
 
     @Override
     public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-        return balancedShardsAllocator.decideShardAllocation(shard, allocation);
+        return delegateAllocator.decideShardAllocation(shard, allocation);
     }
 
     /**
@@ -186,7 +183,7 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
 
         boolean hasChanges;
         do {
-            balancedShardsAllocator.allocate(routingAllocation);
+            delegateAllocator.allocate(routingAllocation);
 
             hasChanges = false;
             for (final var routingNode : routingNodes) {
@@ -403,24 +400,24 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
             // offloading the shards.
             for (Iterator<ShardRouting> it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext();) {
                 ShardRouting shardRouting = it.next();
-                final MoveDecision moveDecision = decideMove(shardRouting);
-                if (moveDecision.isDecisionTaken() && moveDecision.forceMove()) {
-                    final BalancedShardsAllocator.ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());
-                    final BalancedShardsAllocator.ModelNode targetNode = nodes.get(moveDecision.getTargetNode().getId());
-                    sourceNode.removeShard(shardRouting);
-                    Tuple<ShardRouting, ShardRouting> relocatingShards = routingNodes.relocateShard(
-                        shardRouting,
-                        targetNode.getNodeId(),
-                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
-                        allocation.changes()
-                    );
-                    targetNode.addShard(relocatingShards.v2());
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("Moved shard [{}] to node [{}]", shardRouting, targetNode.getRoutingNode());
-                    }
-                } else if (moveDecision.isDecisionTaken() && moveDecision.canRemain() == false) {
-                    logger.trace("[{}][{}] can't move", shardRouting.index(), shardRouting.id());
-                }
+                // final MoveDecision moveDecision = decideMove(shardRouting);
+                // if (moveDecision.isDecisionTaken() && moveDecision.forceMove()) {
+                // final BalancedShardsAllocator.ModelNode sourceNode = nodes.get(shardRouting.currentNodeId());
+                // final BalancedShardsAllocator.ModelNode targetNode = nodes.get(moveDecision.getTargetNode().getId());
+                // sourceNode.removeShard(shardRouting);
+                // Tuple<ShardRouting, ShardRouting> relocatingShards = routingNodes.relocateShard(
+                // shardRouting,
+                // targetNode.getNodeId(),
+                // allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                // allocation.changes()
+                // );
+                // targetNode.addShard(relocatingShards.v2());
+                // if (logger.isTraceEnabled()) {
+                // logger.trace("Moved shard [{}] to node [{}]", shardRouting, targetNode.getRoutingNode());
+                // }
+                // } else if (moveDecision.isDecisionTaken() && moveDecision.canRemain() == false) {
+                // logger.trace("[{}][{}] can't move", shardRouting.index(), shardRouting.id());
+                // }
             }
 
             // TODO notes

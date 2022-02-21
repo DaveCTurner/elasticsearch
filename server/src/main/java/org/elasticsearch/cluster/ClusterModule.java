@@ -335,7 +335,11 @@ public class ClusterModule extends AbstractModule {
         allocators.put(BALANCED_ALLOCATOR, () -> new BalancedShardsAllocator(settings, clusterSettings));
         allocators.put(
             DESIRED_BALANCE_ALLOCATOR,
-            () -> new DesiredBalanceShardsAllocator(settings, clusterSettings, threadPool, rerouteServiceSupplier)
+            () -> new DesiredBalanceShardsAllocator(
+                new BalancedShardsAllocator(settings, clusterSettings),
+                threadPool,
+                rerouteServiceSupplier
+            )
         );
 
         for (ClusterPlugin plugin : clusterPlugins) {
