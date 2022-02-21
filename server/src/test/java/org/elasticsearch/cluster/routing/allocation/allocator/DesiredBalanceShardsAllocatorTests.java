@@ -58,7 +58,6 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
 
         assertFalse(testHarness.clusterState.routingTable().shardRoutingTable("test", 0).primaryShard().assignedToNode());
 
-
         testHarness.runAllocator();
         testHarness.runAsyncTasksExpectingNoReroute();
 
@@ -116,12 +115,14 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
                     public void beforeAllocation(RoutingAllocation allocation) {}
 
                     @Override
-                    public void allocateUnassigned(ShardRouting shardRouting, RoutingAllocation allocation, UnassignedAllocationHandler unassignedAllocationHandler) {
-                    }
+                    public void allocateUnassigned(
+                        ShardRouting shardRouting,
+                        RoutingAllocation allocation,
+                        UnassignedAllocationHandler unassignedAllocationHandler
+                    ) {}
 
                     @Override
-                    public void afterPrimariesBeforeReplicas(RoutingAllocation allocation) {
-                    }
+                    public void afterPrimariesBeforeReplicas(RoutingAllocation allocation) {}
                 },
                 desiredBalanceShardsAllocator,
                 () -> ClusterInfo.EMPTY,
@@ -221,7 +222,10 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
                     assertNotNull(shardId + " should have a desired balance entry", desiredNodes);
                     for (final ShardRouting shardRouting : indexShardRoutingTable) {
                         assertTrue(shardRouting + " should be STARTED", shardRouting.started());
-                        assertTrue(shardRouting + " should be on nodes " + desiredNodes, desiredNodes.contains(shardRouting.currentNodeId()));
+                        assertTrue(
+                            shardRouting + " should be on nodes " + desiredNodes,
+                            desiredNodes.contains(shardRouting.currentNodeId())
+                        );
                     }
                 }
             }

@@ -17,7 +17,6 @@ import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.DiskThresholdDecider;
-import org.elasticsearch.core.Nullable;
 import org.elasticsearch.gateway.PriorityComparator;
 
 import java.util.Comparator;
@@ -141,8 +140,7 @@ final class DesiredBalanceReconciler {
         int primaryLength = primary.length;
         ArrayUtil.timSort(primary, comparator);
         do {
-            nextShard:
-            for (int i = 0; i < primaryLength; i++) {
+            nextShard: for (int i = 0; i < primaryLength; i++) {
                 final var shard = primary[i];
                 final var desiredNodeIds = desiredBalance.getDesiredNodeIds(shard.shardId());
                 var isThrottled = false;
@@ -208,7 +206,7 @@ final class DesiredBalanceReconciler {
         // Iterate over the started shards interleaving between nodes, and check if they can remain. In the presence of throttling
         // shard movements, the goal of this iteration order is to achieve a fairer movement of shards from the nodes that are
         // offloading the shards.
-        for (Iterator<ShardRouting> it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext(); ) {
+        for (Iterator<ShardRouting> it = allocation.routingNodes().nodeInterleavedShardIterator(); it.hasNext();) {
             ShardRouting shardRouting = it.next();
             // final MoveDecision moveDecision = decideMove(shardRouting);
             // if (moveDecision.isDecisionTaken() && moveDecision.forceMove()) {

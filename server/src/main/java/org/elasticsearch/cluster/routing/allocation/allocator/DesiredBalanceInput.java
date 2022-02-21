@@ -19,5 +19,4 @@ import java.util.List;
  * @param routingAllocation a copy of the immutable parts of the allocation decision process context
  * @param ignoredShards     a copy of the shards for which earlier allocators have claimed responsibility
  */
-record DesiredBalanceInput(RoutingAllocation routingAllocation, List<ShardRouting> ignoredShards) {
-}
+record DesiredBalanceInput(RoutingAllocation routingAllocation, List<ShardRouting> ignoredShards) {}

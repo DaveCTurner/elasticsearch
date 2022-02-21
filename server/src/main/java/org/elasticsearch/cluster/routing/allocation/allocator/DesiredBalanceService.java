@@ -34,7 +34,7 @@ public class DesiredBalanceService {
 
     private final ShardsAllocator delegateAllocator;
 
-    private volatile DesiredBalance currentDesiredBalance= new DesiredBalance(Map.of());
+    private volatile DesiredBalance currentDesiredBalance = new DesiredBalance(Map.of());
 
     public DesiredBalanceService(ShardsAllocator delegateAllocator) {
         this.delegateAllocator = delegateAllocator;
