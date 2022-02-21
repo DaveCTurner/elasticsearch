@@ -121,7 +121,7 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
     /**
      * Verify that nodes fault detection detects an unresponsive node after master reelection
      */
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.cluster.service.MasterService:TRACE")
+//    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testFollowerCheckerDetectsUnresponsiveNodeAfterMasterReelection() throws Exception {
         testFollowerCheckerAfterMasterReelection(
             NetworkDisruption.UNRESPONSIVE,
@@ -130,6 +130,7 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
                 .put(LeaderChecker.LEADER_CHECK_RETRY_COUNT_SETTING.getKey(), "4")
                 .put(FollowersChecker.FOLLOWER_CHECK_TIMEOUT_SETTING.getKey(), "1s")
                 .put(FollowersChecker.FOLLOWER_CHECK_RETRY_COUNT_SETTING.getKey(), 1)
+                .put(Coordinator.PUBLISH_TIMEOUT_SETTING.getKey(), "10s")
                 .build()
         );
     }
