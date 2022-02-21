@@ -44,8 +44,7 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VER
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_SHARDS;
 
-@TestLogging(reason = "nocommit", value = "org.elasticsearch:TRACE")
-public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
+public class DesiredBalanceShardsAllocatorSmokeTests extends ESTestCase {
 
     public void testSimpleCase() {
 
