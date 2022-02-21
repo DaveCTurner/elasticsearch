@@ -10,13 +10,15 @@ package org.elasticsearch.cluster.routing.allocation.allocator;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.ShardAllocationDecision;
@@ -26,16 +28,15 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
-import org.elasticsearch.indices.cluster.ClusterStateChanges;
 import org.elasticsearch.snapshots.SnapshotShardSizeInfo;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VERSION_CREATED;
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_SHARDS;
 
@@ -43,7 +44,7 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
 
     public void testSimpleCase() {
 
-        final TestHarness testHarness = new TestHarness(xContentRegistry());
+        final TestHarness testHarness = new TestHarness();
         testHarness.addNode();
         testHarness.addIndex("test", 1, 0);
 
@@ -55,17 +56,27 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
 
         logger.info("--> {}", testHarness.clusterState);
 
+        fail("boom");
+
     }
 
     private static class TestHarness {
         private final DeterministicTaskQueue deterministicTaskQueue = new DeterministicTaskQueue();
         private final ThreadPool threadPool = deterministicTaskQueue.getThreadPool();
-        private final ClusterStateChanges clusterStateChanges;
         private final DesiredBalanceShardsAllocator desiredBalanceShardsAllocator = new DesiredBalanceShardsAllocator(
             new ShardsAllocator() {
                 @Override
                 public void allocate(RoutingAllocation allocation) {
-
+                    final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
+                    while (unassignedIterator.hasNext()) {
+                        unassignedIterator.next();
+                        unassignedIterator.initialize(
+                            allocation.nodes().getDataNodes().valuesIt().next().getId(),
+                            null,
+                            0L,
+                            allocation.changes()
+                        );
+                    }
                 }
 
                 @Override
@@ -81,9 +92,7 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
 
         boolean expectReroute;
 
-        TestHarness(NamedXContentRegistry xContentRegistry) {
-            clusterStateChanges = new ClusterStateChanges(xContentRegistry, threadPool);
-
+        TestHarness() {
             final DiscoveryNode masterNode = newDiscoveryNode();
             clusterState = ClusterState.builder(ClusterName.DEFAULT)
                 .nodes(DiscoveryNodes.builder().add(masterNode).localNodeId(masterNode.getId()).masterNodeId(masterNode.getId()))
@@ -119,14 +128,26 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
         }
 
         void addNode() {
-            clusterState = clusterStateChanges.addNode(clusterState, newDataNode());
+            clusterState = ClusterState.builder(clusterState)
+                .nodes(DiscoveryNodes.builder(clusterState.nodes()).add(newDataNode()))
+                .build();
         }
 
         void addIndex(String indexName, int numberOfShards, int numberOfReplicas) {
-            clusterState = clusterStateChanges.createIndex(clusterState, new CreateIndexRequest(
-                indexName,
-                Settings.builder().put(SETTING_NUMBER_OF_SHARDS, numberOfShards).put(SETTING_NUMBER_OF_REPLICAS, numberOfReplicas).build()
-            ));
+
+            final var indexMetadata = IndexMetadata.builder(indexName)
+                .settings(
+                    Settings.builder()
+                        .put(SETTING_NUMBER_OF_SHARDS, numberOfShards)
+                        .put(SETTING_NUMBER_OF_REPLICAS, numberOfReplicas)
+                        .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
+                )
+                .build();
+
+            clusterState = ClusterState.builder(clusterState)
+                .metadata(Metadata.builder(clusterState.metadata()).put(indexMetadata, true))
+                .routingTable(RoutingTable.builder(clusterState.routingTable()).addAsNew(indexMetadata))
+                .build();
         }
 
         void runAllocator() {

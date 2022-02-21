@@ -239,7 +239,7 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
         }
 
         void run() {
-            if (desiredBalance == null) {
+            if (desiredBalance.desiredAssignments().isEmpty()) {
                 // no desired state yet but it is on its way and we'll reroute again when its ready
                 return;
             }
