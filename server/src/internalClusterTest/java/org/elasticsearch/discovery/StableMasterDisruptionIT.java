@@ -29,6 +29,7 @@ import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.NetworkLinkDisruptionType;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
 import org.elasticsearch.test.disruption.SingleNodeDisruption;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 
 import java.util.ArrayList;
@@ -120,6 +121,7 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
     /**
      * Verify that nodes fault detection detects an unresponsive node after master reelection
      */
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testFollowerCheckerDetectsUnresponsiveNodeAfterMasterReelection() throws Exception {
         testFollowerCheckerAfterMasterReelection(
             NetworkDisruption.UNRESPONSIVE,
