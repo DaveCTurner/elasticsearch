@@ -8,6 +8,8 @@ package org.elasticsearch.xpack.security.authz;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.xpack.core.ClientHelper;
@@ -70,7 +72,7 @@ public final class AuthorizationUtils {
 
         // the action must be internal OR the thread context must be a system context.
         if (threadContext.isSystemContext() == false && isInternalAction(action) == false) {
-            logger.info("action [{}] false 1", action);
+            logger.info(new ParameterizedMessage("action [{}] false 1", action), new ElasticsearchException("stack trace"));
             return false;
         }
 
