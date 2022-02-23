@@ -6,6 +6,8 @@
  */
 package org.elasticsearch.xpack.core;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -275,6 +277,8 @@ public final class ClientHelper {
         }
     }
 
+    private static final Logger logger = LogManager.getLogger();
+
     /**
      * Execute a client operation asynchronously, try to run an action with
      * least privileges, when headers exist
@@ -298,6 +302,7 @@ public final class ClientHelper {
         Request request,
         ActionListener<Response> listener
     ) {
+        logger.info("executeWithHeadersAsync[{}]: origin={}, headers={}", action, origin, headers);
         // No need to rewrite authentication header because it will be handled by Security Interceptor
         final Map<String, String> filteredHeaders = filterSecurityHeaders(headers);
         final ThreadContext threadContext = client.threadPool().getThreadContext();
