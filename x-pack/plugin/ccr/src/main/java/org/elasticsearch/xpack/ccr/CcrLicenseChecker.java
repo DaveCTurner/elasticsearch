@@ -394,7 +394,7 @@ public class CcrLicenseChecker {
     }
 
     public static Client wrapClient(Client client, Map<String, String> headers, ClusterState clusterState) {
-        if (headers.isEmpty() || client.threadPool().getThreadContext().isSystemContext()) {
+        if (headers.isEmpty()) {
             return client;
         } else {
             Map<String, String> filteredHeaders = ClientHelper.getPersistableSafeSecurityHeaders(headers, clusterState);
