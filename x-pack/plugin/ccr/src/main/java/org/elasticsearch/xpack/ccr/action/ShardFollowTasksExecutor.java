@@ -519,8 +519,6 @@ public class ShardFollowTasksExecutor extends PersistentTasksExecutor<ShardFollo
                 return threadPool.scheduleWithFixedDelay(() -> {
                     final ThreadContext threadContext = threadPool.getThreadContext();
                     try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
-                        // we have to execute under the system context so that if security is enabled the management is authorized
-                        threadContext.markAsSystemContext();
                         logger.trace(
                             "{} background renewing retention lease [{}] while following",
                             params.getFollowShardId(),

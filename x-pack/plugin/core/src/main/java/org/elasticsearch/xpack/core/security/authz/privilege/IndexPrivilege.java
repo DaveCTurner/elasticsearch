@@ -29,6 +29,7 @@ import org.elasticsearch.action.datastreams.GetDataStreamAction;
 import org.elasticsearch.action.datastreams.PromoteDataStreamAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.index.seqno.RetentionLeaseActions;
 import org.elasticsearch.xpack.core.ccr.action.ForgetFollowerAction;
 import org.elasticsearch.xpack.core.ccr.action.PutFollowAction;
 import org.elasticsearch.xpack.core.ccr.action.UnfollowAction;
@@ -110,7 +111,10 @@ public final class IndexPrivilege extends Privilege {
         PromoteDataStreamAction.NAME,
         RolloverAction.NAME
     );
-    private static final Automaton MANAGE_LEADER_INDEX_AUTOMATON = patterns(ForgetFollowerAction.NAME + "*");
+    private static final Automaton MANAGE_LEADER_INDEX_AUTOMATON = patterns(
+        ForgetFollowerAction.NAME + "*",
+        RetentionLeaseActions.Renew.ACTION_NAME + "*"
+    );
     private static final Automaton MANAGE_ILM_AUTOMATON = patterns("indices:admin/ilm/*");
     private static final Automaton MAINTENANCE_AUTOMATON = patterns(
         "indices:admin/refresh*",
