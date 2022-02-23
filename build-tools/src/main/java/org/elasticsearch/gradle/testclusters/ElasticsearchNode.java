@@ -1296,6 +1296,7 @@ public class ElasticsearchNode implements TestClusterConfiguration {
         } else {
             baseConfig.put("script.max_compilations_rate", "2048/1m");
         }
+        baseConfig.put("logger.org.elasticsearch", "TRACE");
         if (getVersion().getMajor() >= 6) {
             baseConfig.put("cluster.routing.allocation.disk.watermark.flood_stage", "1b");
         }

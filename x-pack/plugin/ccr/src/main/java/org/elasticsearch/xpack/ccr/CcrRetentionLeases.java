@@ -28,7 +28,7 @@ public class CcrRetentionLeases {
     // this setting is intentionally not registered, it is only used in tests
     public static final Setting<TimeValue> RETENTION_LEASE_RENEW_INTERVAL_SETTING = Setting.timeSetting(
         "index.ccr.retention_lease.renew_interval",
-        new TimeValue(30, TimeUnit.SECONDS),
+        new TimeValue(3, TimeUnit.SECONDS),
         new TimeValue(0, TimeUnit.MILLISECONDS),
         Setting.Property.NodeScope
     );

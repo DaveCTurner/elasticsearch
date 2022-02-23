@@ -178,6 +178,11 @@ public class FollowIndexSecurityIT extends ESCCRRestTestCase {
             verifyDocuments(allowedIndex, 5, "*:*");
         }, 30, TimeUnit.SECONDS);
         assertThat(indexExists(disallowedIndex), is(false));
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
         assertBusy(() -> {
             verifyCcrMonitoring(allowedIndex, allowedIndex);
             verifyAutoFollowMonitoring();
