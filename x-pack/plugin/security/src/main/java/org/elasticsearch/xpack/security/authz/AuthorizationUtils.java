@@ -6,6 +6,8 @@
  */
 package org.elasticsearch.xpack.security.authz;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.xpack.core.ClientHelper;
@@ -42,6 +44,8 @@ import static org.elasticsearch.xpack.core.ClientHelper.WATCHER_ORIGIN;
 
 public final class AuthorizationUtils {
 
+    public static final Logger logger = LogManager.getLogger();
+
     private static final Predicate<String> INTERNAL_PREDICATE = Automatons.predicate("internal:*");
 
     private AuthorizationUtils() {}
@@ -62,15 +66,20 @@ public final class AuthorizationUtils {
      * @return true if the system user should be used to execute a request
      */
     public static boolean shouldReplaceUserWithSystem(ThreadContext threadContext, String action) {
+        logger.info("action [{}] system context [{}]", action, threadContext.isSystemContext());
+
         // the action must be internal OR the thread context must be a system context.
         if (threadContext.isSystemContext() == false && isInternalAction(action) == false) {
+            logger.info("action [{}] false 1", action);
             return false;
         }
 
         // there is no authentication object AND we are executing in a system context OR an internal action
         // AND there
         Authentication authentication = threadContext.getTransient(AuthenticationField.AUTHENTICATION_KEY);
+        logger.info("action [{}] authentication [{}] origin [{}]", action, authentication, threadContext.getTransient(ClientHelper.ACTION_ORIGIN_TRANSIENT_NAME));
         if (authentication == null && threadContext.getTransient(ClientHelper.ACTION_ORIGIN_TRANSIENT_NAME) == null) {
+            logger.info("action [{}] true 2", action);
             return true;
         }
 
@@ -78,12 +87,15 @@ public final class AuthorizationUtils {
         // originating action that is not a internal action. We verify that there must be a originating action as an
         // internal action should never be called by user code from a client
         final String originatingAction = threadContext.getTransient(AuthorizationServiceField.ORIGINATING_ACTION_KEY);
+        logger.info("action [{}] originating action [{}]", action, originatingAction);
         if (originatingAction != null && isInternalAction(originatingAction) == false) {
+            logger.info("action [{}] true 3", action);
             return true;
         }
 
         // either there was no originating action or the originating action was an internal action,
         // we should not replace under these circumstances
+        logger.info("action [{}] false 4", action);
         return false;
     }
 
