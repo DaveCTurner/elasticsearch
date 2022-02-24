@@ -73,6 +73,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         boolean allShardsStarted = true;
         for (ShardRouting shard : shards) {
             if (shard.primary()) {
+                assert primary == null : "duplicate primary: " + primary + " vs " + shard;
                 primary = shard;
             } else {
                 replicas.add(shard);
