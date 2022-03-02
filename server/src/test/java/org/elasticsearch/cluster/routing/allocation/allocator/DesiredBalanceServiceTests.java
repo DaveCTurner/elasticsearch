@@ -742,8 +742,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
                 .desiredAssignments()
                 .entrySet()
                 .stream()
-                .map(e -> Tuple.tuple(e.getKey(), Set.copyOf(e.getValue())))
-                .collect(Collectors.toMap(Tuple::v1, Tuple::v2)),
+                .collect(Collectors.toMap(Map.Entry::getKey, e ->  Set.copyOf(e.getValue()))),
             equalTo(expected)
         );
     }
