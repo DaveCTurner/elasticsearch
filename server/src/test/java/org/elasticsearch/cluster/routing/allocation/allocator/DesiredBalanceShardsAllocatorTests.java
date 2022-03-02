@@ -66,27 +66,27 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
         ALLOCATE,
     }
 
-    private static void testAllocate(GatewayAllocatorBehaviour gatewayAllocatorBehaviour) {
-        class TestRerouteService implements RerouteService {
-            private boolean expectReroute;
+    private static class TestRerouteService implements RerouteService {
+        private boolean expectReroute;
 
-            @Override
-            public void reroute(String reason, Priority priority, ActionListener<ClusterState> listener) {
-                assertTrue("unexpected reroute", expectReroute);
-                expectReroute = false;
-            }
-
-            public void setExpectReroute() {
-                assertFalse("already expecting a reroute", expectReroute);
-                expectReroute = true;
-            }
-
-            public void assertNoPendingReroute() {
-                assertFalse("no reroute occurred", expectReroute);
-            }
+        @Override
+        public void reroute(String reason, Priority priority, ActionListener<ClusterState> listener) {
+            assertTrue("unexpected reroute", expectReroute);
+            expectReroute = false;
         }
-        final var rerouteService = new TestRerouteService();
 
+        public void setExpectReroute() {
+            assertFalse("already expecting a reroute", expectReroute);
+            expectReroute = true;
+        }
+
+        public void assertNoPendingReroute() {
+            assertFalse("no reroute occurred", expectReroute);
+        }
+    }
+
+    private static void testAllocate(GatewayAllocatorBehaviour gatewayAllocatorBehaviour) {
+        final var rerouteService = new TestRerouteService();
         final var deterministicTaskQueue = new DeterministicTaskQueue();
         final var threadPool = deterministicTaskQueue.getThreadPool();
         final var desiredBalanceShardsAllocator = new DesiredBalanceShardsAllocator(new ShardsAllocator() {
@@ -106,7 +106,7 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             }
         }, threadPool, () -> rerouteService);
 
-        final AtomicBoolean fetchingShardData = new AtomicBoolean(gatewayAllocatorBehaviour == GatewayAllocatorBehaviour.STILL_FETCHING);
+        final var fetchingShardData = new AtomicBoolean(gatewayAllocatorBehaviour == GatewayAllocatorBehaviour.STILL_FETCHING);
         final var allocationService = new AllocationService(new AllocationDeciders(List.of()), new GatewayAllocator() {
 
             @Override
