@@ -27,7 +27,6 @@ import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.snapshots.SnapshotShardSizeInfo;
 import org.elasticsearch.test.ESTestCase;
@@ -742,7 +741,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
                 .desiredAssignments()
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e ->  Set.copyOf(e.getValue()))),
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> Set.copyOf(e.getValue()))),
             equalTo(expected)
         );
     }
