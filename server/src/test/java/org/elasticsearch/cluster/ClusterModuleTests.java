@@ -48,6 +48,8 @@ import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.test.gateway.TestGatewayAllocator;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,13 +63,14 @@ import java.util.function.Supplier;
 public class ClusterModuleTests extends ModuleTestCase {
     private ClusterInfoService clusterInfoService = EmptyClusterInfoService.INSTANCE;
     private ClusterService clusterService;
-    private ThreadContext threadContext;
     private static ThreadPool threadPool;
 
+    @BeforeClass
     public static void createThreadPool() {
         threadPool = new TestThreadPool("test");
     }
 
+    @AfterClass
     public static void terminateThreadPool() {
         assertTrue(ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS));
         threadPool = null;
@@ -76,7 +79,6 @@ public class ClusterModuleTests extends ModuleTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        threadContext = threadPool.getThreadContext();
         clusterService = new ClusterService(
             Settings.EMPTY,
             new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS),
