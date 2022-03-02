@@ -581,6 +581,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         }
 
         public Builder addShard(ShardRouting shardEntry) {
+            assert shardEntry.shardId().equals(shardId) : "cannot add [" + shardEntry + "] to routing table for " + shardId;
             shards.add(shardEntry);
             return this;
         }
@@ -593,6 +594,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         public IndexShardRoutingTable build() {
             // don't allow more than one shard copy with same id to be allocated to same node
             assert distinctNodes(shards) : "more than one shard with same id assigned to same node (shards: " + shards + ")";
+            assert uniquePrimary(shards) : "expected but did not find unique primary in shard routing table: " + shards;
             return new IndexShardRoutingTable(shardId, shards);
         }
 
@@ -611,6 +613,19 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
                 }
             }
             return true;
+        }
+
+        static boolean uniquePrimary(List<ShardRouting> shards) {
+            boolean seenPrimary = false;
+            for (final var shard : shards) {
+                if (shard.primary()) {
+                    if (seenPrimary) {
+                        return false;
+                    }
+                    seenPrimary = true;
+                }
+            }
+            return true; // TODO in tests there are many routing tables with no primary (e.g. empty), stop being lenient here
         }
 
         public static IndexShardRoutingTable readFrom(StreamInput in) throws IOException {
