@@ -113,14 +113,7 @@ public class TestShardRouting {
         ShardRoutingState state,
         AllocationId allocationId
     ) {
-        return newShardRouting(
-            new ShardId(index, IndexMetadata.INDEX_UUID_NA_VALUE, shardId),
-            currentNodeId,
-            relocatingNodeId,
-            primary,
-            state,
-            allocationId
-        );
+        return newShardRouting(new ShardId(index, IndexMetadata.INDEX_UUID_NA_VALUE, shardId), currentNodeId, relocatingNodeId, primary, state, allocationId);
     }
 
     public static ShardRouting newShardRouting(

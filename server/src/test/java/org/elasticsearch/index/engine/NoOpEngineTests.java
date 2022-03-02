@@ -63,8 +63,7 @@ public class NoOpEngineTests extends EngineTestCase {
         int docs = randomIntBetween(1, 10);
         ReplicationTracker tracker = (ReplicationTracker) engine.config().getGlobalCheckpointSupplier();
         ShardRouting routing = TestShardRouting.newShardRouting(
-            "test",
-            shardId.id(),
+            shardId,
             "node",
             null,
             true,
@@ -166,8 +165,7 @@ public class NoOpEngineTests extends EngineTestCase {
     public void testTrimUnreferencedTranslogFiles() throws Exception {
         final ReplicationTracker tracker = (ReplicationTracker) engine.config().getGlobalCheckpointSupplier();
         ShardRouting routing = TestShardRouting.newShardRouting(
-            "test",
-            shardId.id(),
+            shardId,
             "node",
             null,
             true,
