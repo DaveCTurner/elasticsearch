@@ -72,23 +72,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -171,23 +155,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -276,23 +244,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -356,23 +308,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -463,23 +399,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -575,23 +495,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = DiscoveryNodes.builder();
-        for (int i = 0; i < 3; i++) {
-            final var transportAddress = buildNewFakeTransportAddress();
-            final var discoveryNode = new DiscoveryNode(
-                "node-" + i,
-                "node-" + i,
-                UUIDs.randomBase64UUID(random()),
-                transportAddress.address().getHostString(),
-                transportAddress.getAddress(),
-                transportAddress,
-                Map.of(),
-                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
-                Version.CURRENT
-            );
-            discoveryNodes.add(discoveryNode);
-        }
-        discoveryNodes.masterNodeId("node-0").localNodeId("node-0");
+        final var discoveryNodes = getDiscoveryNodes();
 
         final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
             .settings(
@@ -745,4 +649,25 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             equalTo(expected)
         );
     }
+
+    private static DiscoveryNodes getDiscoveryNodes() {
+        final var discoveryNodes = DiscoveryNodes.builder();
+        for (int i = 0; i < 3; i++) {
+            final var transportAddress = buildNewFakeTransportAddress();
+            final var discoveryNode = new DiscoveryNode(
+                "node-" + i,
+                "node-" + i,
+                UUIDs.randomBase64UUID(random()),
+                transportAddress.address().getHostString(),
+                transportAddress.getAddress(),
+                transportAddress,
+                Map.of(),
+                Set.of(DiscoveryNodeRole.MASTER_ROLE, DiscoveryNodeRole.DATA_ROLE),
+                Version.CURRENT
+            );
+            discoveryNodes.add(discoveryNode);
+        }
+        return discoveryNodes.masterNodeId("node-0").localNodeId("node-0").build();
+    }
+
 }
