@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VERSION_CREATED;
@@ -46,99 +47,38 @@ public class DesiredBalanceServiceTests extends ESTestCase {
 
     private static final String TEST_INDEX = "test-index";
 
-    // TODO dry this lot up now that a pattern is emerging
-
     public void testSimple() {
         final var desiredBalanceService = getAllocatingDesiredBalanceService();
         final var clusterState = getInitialClusterState();
-        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
         assertDesiredAssignments(desiredBalanceService, Map.of());
+        assertTrue(executeAndReroute(desiredBalanceService, clusterState));
 
-        assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
-            )
-        );
-
+        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-0", "node-1"), new ShardId(index, 1), Set.of("node-0", "node-1"))
         );
-
-        assertFalse(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
-            )
-        );
+        assertFalse(executeAndReroute(desiredBalanceService, clusterState));
     }
 
     public void testStopsComputingWhenStale() {
         final var desiredBalanceService = getAllocatingDesiredBalanceService();
-
         final var clusterState = getInitialClusterState();
 
+        // if the isFresh flag is false then we only do one iteration, allocating the primaries but not the replicas
+        assertTrue(executeAndRerouteStale(desiredBalanceService, clusterState));
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
-        assertDesiredAssignments(desiredBalanceService, Map.of());
-
-        assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> false // bail out after one iteration
-            )
-        );
-
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-0"), new ShardId(index, 1), Set.of("node-0"))
         );
 
+        // the next iteration allocates the replicas whether stale or fresh
         assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
-            )
+            randomBoolean()
+                ? executeAndRerouteStale(desiredBalanceService, clusterState)
+                : executeAndReroute(desiredBalanceService, clusterState)
         );
-
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-0", "node-1"), new ShardId(index, 1), Set.of("node-0", "node-1"))
@@ -146,42 +86,32 @@ public class DesiredBalanceServiceTests extends ESTestCase {
 
     }
 
-    public void testIgnoresOutOfScopeShards() {
+    public void testIgnoresOutOfScopePrimaries() {
         final var desiredBalanceService = getAllocatingDesiredBalanceService();
-
         final var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
-        assertDesiredAssignments(desiredBalanceService, Map.of());
-
-        assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of(clusterState.routingTable().shardRoutingTable(new ShardId(index, 0)).primaryShard())
-                ),
-                () -> true
-            )
-        );
-
+        final var primaryShard = clusterState.routingTable().shardRoutingTable(TEST_INDEX, 0).primaryShard();
+        assertTrue(executeAndRerouteWithIgnoredShards(desiredBalanceService, clusterState, List.of(primaryShard)));
         assertDesiredAssignments(desiredBalanceService, Map.of(new ShardId(index, 1), Set.of("node-0", "node-1")));
+    }
+
+    public void testIgnoresOutOfScopeReplicas() {
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
+        final var clusterState = getInitialClusterState();
+
+        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
+        final var replicaShard = clusterState.routingTable().shardRoutingTable(TEST_INDEX, 0).replicaShards().get(0);
+        assertTrue(executeAndRerouteWithIgnoredShards(desiredBalanceService, clusterState, List.of(replicaShard)));
+        assertDesiredAssignments(
+            desiredBalanceService,
+            Map.of(new ShardId(index, 0), Set.of("node-0"), new ShardId(index, 1), Set.of("node-0", "node-1"))
+        );
     }
 
     public void testRespectsAssignmentOfUnknownPrimaries() {
         final var desiredBalanceService = getAllocatingDesiredBalanceService();
-
-        var clusterState = getInitialClusterState();
-
-        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
-        assertDesiredAssignments(desiredBalanceService, Map.of());
+        final var clusterState = getInitialClusterState();
 
         final var changes = new RoutingChangesObserver.DelegatingRoutingChangesObserver();
         final var routingNodes = clusterState.mutableRoutingNodes();
@@ -202,41 +132,25 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         }
 
-        clusterState = ClusterState.builder(clusterState)
-            .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), routingNodes))
-            .build();
-
         assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
+            executeAndReroute(
+                desiredBalanceService,
+                ClusterState.builder(clusterState)
+                    .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), routingNodes))
+                    .build()
             )
         );
 
+        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-2", "node-1"), new ShardId(index, 1), Set.of("node-0", "node-1"))
         );
-
     }
 
     public void testRespectsAssignmentOfUnknownReplicas() {
         final var desiredBalanceService = getAllocatingDesiredBalanceService();
-
-        var clusterState = getInitialClusterState();
-
-        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
-        assertDesiredAssignments(desiredBalanceService, Map.of());
+        final var clusterState = getInitialClusterState();
 
         final var changes = new RoutingChangesObserver.DelegatingRoutingChangesObserver();
         final var routingNodes = clusterState.mutableRoutingNodes();
@@ -266,44 +180,40 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         }
 
-        clusterState = ClusterState.builder(clusterState)
-            .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), routingNodes))
-            .build();
-
         assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        clusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
+            executeAndReroute(
+                desiredBalanceService,
+                ClusterState.builder(clusterState)
+                    .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), routingNodes))
+                    .build()
             )
         );
 
+        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-2", "node-0"), new ShardId(index, 1), Set.of("node-0", "node-1"))
         );
-
     }
 
     public void testSimulatesAchievingDesiredBalanceBeforeDelegating() {
 
+        final var allocateCalled = new AtomicBoolean();
         final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
             @Override
             public void allocate(RoutingAllocation allocation) {
+                assertTrue(allocateCalled.compareAndSet(false, true));
+                // whatever the allocation in the current cluster state, the desired balance service should start by moving all the
+                // known shards to their desired locations before delegating to the inner allocator
                 for (final var routingNode : allocation.routingNodes()) {
                     assertThat(
                         allocation.routingNodes().toString(),
                         routingNode.numberOfOwningShards(),
                         equalTo(routingNode.nodeId().equals("node-2") ? 0 : 2)
                     );
+                    for (final var shardRouting : routingNode) {
+                        assertTrue(shardRouting.toString(), shardRouting.started());
+                    }
                 }
             }
 
@@ -313,12 +223,9 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        var clusterState = getInitialClusterState();
+        final var clusterState = getInitialClusterState();
 
-        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
-
-        assertDesiredAssignments(desiredBalanceService, Map.of());
-
+        // first, manually assign the shards to their expected locations to pre-populate the desired balance
         final var changes = new RoutingChangesObserver.DelegatingRoutingChangesObserver();
         final var desiredRoutingNodes = clusterState.mutableRoutingNodes();
         for (final var iterator = desiredRoutingNodes.unassigned().iterator(); iterator.hasNext();) {
@@ -329,32 +236,22 @@ public class DesiredBalanceServiceTests extends ESTestCase {
                 changes
             );
         }
-
-        final var desiredClusterState = ClusterState.builder(clusterState)
-            .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), desiredRoutingNodes))
-            .build();
-
         assertTrue(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        desiredClusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
+            executeAndReroute(
+                desiredBalanceService,
+                ClusterState.builder(clusterState)
+                    .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), desiredRoutingNodes))
+                    .build()
             )
         );
 
+        final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-0", "node-1"), new ShardId(index, 1), Set.of("node-0", "node-1"))
         );
 
+        // now create a cluster state with the routing table in a random state
         final var randomRoutingNodes = clusterState.mutableRoutingNodes();
         for (int shard = 0; shard < 2; shard++) {
             final var primaryRoutingState = randomFrom(ShardRoutingState.values());
@@ -415,31 +312,20 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         }
 
-        final var randomClusterState = ClusterState.builder(clusterState)
-            .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), randomRoutingNodes))
-            .build();
-
+        allocateCalled.set(false);
         assertFalse(
-            desiredBalanceService.updateDesiredBalanceAndReroute(
-                new DesiredBalanceInput(
-                    new RoutingAllocation(
-                        new AllocationDeciders(List.of()),
-                        randomClusterState,
-                        ClusterInfo.EMPTY,
-                        SnapshotShardSizeInfo.EMPTY,
-                        0L
-                    ),
-                    List.of()
-                ),
-                () -> true
+            executeAndReroute(
+                desiredBalanceService,
+                ClusterState.builder(clusterState)
+                    .routingTable(new RoutingTable.Builder().updateNodes(clusterState.routingTable().version(), randomRoutingNodes))
+                    .build()
             )
         );
-
+        assertTrue(allocateCalled.get());
         assertDesiredAssignments(
             desiredBalanceService,
             Map.of(new ShardId(index, 0), Set.of("node-0", "node-1"), new ShardId(index, 1), Set.of("node-0", "node-1"))
         );
-
     }
 
     private static ClusterState getInitialClusterState() {
@@ -492,8 +378,8 @@ public class DesiredBalanceServiceTests extends ESTestCase {
                         .assignedShards(shardRouting.shardId())
                         .stream()
                         .anyMatch(r -> r.primary() && r.started())) {
-                        unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                    }
+                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
+                        }
                 }
             }
 
@@ -502,6 +388,37 @@ public class DesiredBalanceServiceTests extends ESTestCase {
                 throw new AssertionError("only used for allocation explain");
             }
         });
+    }
+
+    private static boolean executeAndRerouteWithIgnoredShards(
+        DesiredBalanceService desiredBalanceService,
+        ClusterState clusterState,
+        List<ShardRouting> ignoredShards
+    ) {
+        return executeAndReroute(desiredBalanceService, clusterState, true, ignoredShards);
+    }
+
+    private static boolean executeAndRerouteStale(DesiredBalanceService desiredBalanceService, ClusterState clusterState) {
+        return executeAndReroute(desiredBalanceService, clusterState, false, List.of());
+    }
+
+    private static boolean executeAndReroute(DesiredBalanceService desiredBalanceService, ClusterState clusterState) {
+        return executeAndReroute(desiredBalanceService, clusterState, true, List.of());
+    }
+
+    private static boolean executeAndReroute(
+        DesiredBalanceService desiredBalanceService,
+        ClusterState clusterState,
+        boolean isFresh,
+        List<ShardRouting> ignoredShards
+    ) {
+        return desiredBalanceService.updateDesiredBalanceAndReroute(
+            new DesiredBalanceInput(
+                new RoutingAllocation(new AllocationDeciders(List.of()), clusterState, ClusterInfo.EMPTY, SnapshotShardSizeInfo.EMPTY, 0L),
+                ignoredShards
+            ),
+            () -> isFresh
+        );
     }
 
     private static void assertDesiredAssignments(DesiredBalanceService desiredBalanceService, Map<ShardId, Set<String>> expected) {
