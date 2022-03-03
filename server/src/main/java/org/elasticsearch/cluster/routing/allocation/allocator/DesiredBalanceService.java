@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  */
 public class DesiredBalanceService {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(DesiredBalanceService.class);
 
     private final ShardsAllocator delegateAllocator;
 

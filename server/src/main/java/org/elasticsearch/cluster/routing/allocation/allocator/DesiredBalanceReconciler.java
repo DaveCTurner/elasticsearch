@@ -27,7 +27,7 @@ import java.util.Iterator;
  */
 public class DesiredBalanceReconciler {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(DesiredBalanceReconciler.class);
 
     private final DesiredBalance desiredBalance;
     private final RoutingAllocation allocation; // name chosen to align with code in BalancedShardsAllocator but TODO rename

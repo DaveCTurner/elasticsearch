@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class ContinuousComputation<T> {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger(ContinuousComputation.class);
 
     private final ExecutorService executorService;
     private final AtomicReference<T> enqueuedInput = new AtomicReference<>();
