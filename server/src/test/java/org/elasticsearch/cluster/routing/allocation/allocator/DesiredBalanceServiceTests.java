@@ -49,46 +49,8 @@ public class DesiredBalanceServiceTests extends ESTestCase {
     // TODO dry this lot up now that a pattern is emerging
 
     public void testSimple() {
-        final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
-            @Override
-            public void allocate(RoutingAllocation allocation) {
-                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
-                while (unassignedIterator.hasNext()) {
-                    final var shardRouting = unassignedIterator.next();
-                    if (shardRouting.primary()) {
-                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
-                    } else if (allocation.routingNodes()
-                        .assignedShards(shardRouting.shardId())
-                        .stream()
-                        .anyMatch(r -> r.primary() && r.started())) {
-                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                        }
-                }
-            }
-
-            @Override
-            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-                throw new AssertionError("only used for allocation explain");
-            }
-        });
-
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
-
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
+        final var clusterState = getInitialClusterState();
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
         assertDesiredAssignments(desiredBalanceService, Map.of());
@@ -132,45 +94,9 @@ public class DesiredBalanceServiceTests extends ESTestCase {
     }
 
     public void testStopsComputingWhenStale() {
-        final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
-            @Override
-            public void allocate(RoutingAllocation allocation) {
-                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
-                while (unassignedIterator.hasNext()) {
-                    final var shardRouting = unassignedIterator.next();
-                    if (shardRouting.primary()) {
-                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
-                    } else if (allocation.routingNodes()
-                        .assignedShards(shardRouting.shardId())
-                        .stream()
-                        .anyMatch(r -> r.primary() && r.started())) {
-                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                        }
-                }
-            }
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
 
-            @Override
-            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-                throw new AssertionError("only used for allocation explain");
-            }
-        });
-
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
+        final var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
@@ -221,45 +147,9 @@ public class DesiredBalanceServiceTests extends ESTestCase {
     }
 
     public void testIgnoresOutOfScopeShards() {
-        final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
-            @Override
-            public void allocate(RoutingAllocation allocation) {
-                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
-                while (unassignedIterator.hasNext()) {
-                    final var shardRouting = unassignedIterator.next();
-                    if (shardRouting.primary()) {
-                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
-                    } else if (allocation.routingNodes()
-                        .assignedShards(shardRouting.shardId())
-                        .stream()
-                        .anyMatch(r -> r.primary() && r.started())) {
-                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                        }
-                }
-            }
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
 
-            @Override
-            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-                throw new AssertionError("only used for allocation explain");
-            }
-        });
-
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
+        final var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
@@ -285,45 +175,9 @@ public class DesiredBalanceServiceTests extends ESTestCase {
     }
 
     public void testRespectsAssignmentOfUnknownPrimaries() {
-        final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
-            @Override
-            public void allocate(RoutingAllocation allocation) {
-                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
-                while (unassignedIterator.hasNext()) {
-                    final var shardRouting = unassignedIterator.next();
-                    if (shardRouting.primary()) {
-                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
-                    } else if (allocation.routingNodes()
-                        .assignedShards(shardRouting.shardId())
-                        .stream()
-                        .anyMatch(r -> r.primary() && r.started())) {
-                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                        }
-                }
-            }
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
 
-            @Override
-            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-                throw new AssertionError("only used for allocation explain");
-            }
-        });
-
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
+        var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
@@ -376,45 +230,9 @@ public class DesiredBalanceServiceTests extends ESTestCase {
     }
 
     public void testRespectsAssignmentOfUnknownReplicas() {
-        final var desiredBalanceService = new DesiredBalanceService(new ShardsAllocator() {
-            @Override
-            public void allocate(RoutingAllocation allocation) {
-                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
-                while (unassignedIterator.hasNext()) {
-                    final var shardRouting = unassignedIterator.next();
-                    if (shardRouting.primary()) {
-                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
-                    } else if (allocation.routingNodes()
-                        .assignedShards(shardRouting.shardId())
-                        .stream()
-                        .anyMatch(r -> r.primary() && r.started())) {
-                            unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
-                        }
-                }
-            }
+        final var desiredBalanceService = getAllocatingDesiredBalanceService();
 
-            @Override
-            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
-                throw new AssertionError("only used for allocation explain");
-            }
-        });
-
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
+        var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
@@ -495,22 +313,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             }
         });
 
-        final var discoveryNodes = getDiscoveryNodes();
-
-        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
-            .settings(
-                Settings.builder()
-                    .put(SETTING_NUMBER_OF_SHARDS, 2)
-                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
-                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-            )
-            .build();
-
-        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(discoveryNodes)
-            .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
-            .build();
+        var clusterState = getInitialClusterState();
 
         final var index = clusterState.metadata().index(TEST_INDEX).getIndex();
 
@@ -639,18 +442,7 @@ public class DesiredBalanceServiceTests extends ESTestCase {
 
     }
 
-    private static void assertDesiredAssignments(DesiredBalanceService desiredBalanceService, Map<ShardId, Set<String>> expected) {
-        assertThat(
-            desiredBalanceService.getCurrentDesiredBalance()
-                .desiredAssignments()
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> Set.copyOf(e.getValue()))),
-            equalTo(expected)
-        );
-    }
-
-    private static DiscoveryNodes getDiscoveryNodes() {
+    private static ClusterState getInitialClusterState() {
         final var discoveryNodes = DiscoveryNodes.builder();
         for (int i = 0; i < 3; i++) {
             final var transportAddress = buildNewFakeTransportAddress();
@@ -667,7 +459,60 @@ public class DesiredBalanceServiceTests extends ESTestCase {
             );
             discoveryNodes.add(discoveryNode);
         }
-        return discoveryNodes.masterNodeId("node-0").localNodeId("node-0").build();
+
+        final var indexMetadata = IndexMetadata.builder(TEST_INDEX)
+            .settings(
+                Settings.builder()
+                    .put(SETTING_NUMBER_OF_SHARDS, 2)
+                    .put(SETTING_NUMBER_OF_REPLICAS, 1)
+                    .put(SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
+            )
+            .build();
+
+        return ClusterState.builder(ClusterName.DEFAULT)
+            .nodes(discoveryNodes.masterNodeId("node-0").localNodeId("node-0"))
+            .metadata(Metadata.builder().put(indexMetadata, true))
+            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
+            .build();
+    }
+
+    /**
+     * @return a {@link DesiredBalanceService} which allocates unassigned primaries to node-0 and unassigned replicas to node-1
+     */
+    private static DesiredBalanceService getAllocatingDesiredBalanceService() {
+        return new DesiredBalanceService(new ShardsAllocator() {
+            @Override
+            public void allocate(RoutingAllocation allocation) {
+                final var unassignedIterator = allocation.routingNodes().unassigned().iterator();
+                while (unassignedIterator.hasNext()) {
+                    final var shardRouting = unassignedIterator.next();
+                    if (shardRouting.primary()) {
+                        unassignedIterator.initialize("node-0", null, 0L, allocation.changes());
+                    } else if (allocation.routingNodes()
+                        .assignedShards(shardRouting.shardId())
+                        .stream()
+                        .anyMatch(r -> r.primary() && r.started())) {
+                        unassignedIterator.initialize("node-1", null, 0L, allocation.changes());
+                    }
+                }
+            }
+
+            @Override
+            public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
+                throw new AssertionError("only used for allocation explain");
+            }
+        });
+    }
+
+    private static void assertDesiredAssignments(DesiredBalanceService desiredBalanceService, Map<ShardId, Set<String>> expected) {
+        assertThat(
+            desiredBalanceService.getCurrentDesiredBalance()
+                .desiredAssignments()
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> Set.copyOf(e.getValue()))),
+            equalTo(expected)
+        );
     }
 
 }
