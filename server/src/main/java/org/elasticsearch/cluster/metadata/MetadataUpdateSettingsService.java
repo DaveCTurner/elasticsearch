@@ -13,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsClusterStateUpdateRequest;
-import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateAckListener;
@@ -228,10 +227,7 @@ public class MetadataUpdateSettingsService {
             Settings closedSettings,
             Settings normalizedSettings
         ) {
-            this.listener = ContextPreservingActionListener.wrapPreservingContext(
-                listener,
-                metadataUpdateSettingsService.threadPool.getThreadContext()
-            );
+            this.listener = listener;
             this.request = request;
             this.skippedSettings = skippedSettings;
             this.openSettings = openSettings;
