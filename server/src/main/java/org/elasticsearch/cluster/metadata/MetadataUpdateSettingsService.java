@@ -134,7 +134,7 @@ public class MetadataUpdateSettingsService {
         Set<Index> indices,
         Metadata.Builder metadataBuilder,
         BiFunction<Index, Settings.Builder, Boolean> settingUpdater,
-        Boolean preserveExisting,
+        boolean preserveExisting,
         IndexScopedSettings indexScopedSettings
     ) {
         for (Index index : indices) {
