@@ -126,20 +126,18 @@ public class MetadataUpdateSettingsService {
         final Settings openSettings = settingsForOpenIndices.build();
         final boolean preserveExisting = request.isPreserveExisting();
 
-        MyAckedClusterStateUpdateTask clusterTask = new MyAckedClusterStateUpdateTask(
-            this,
-            request,
-            listener,
-            skippedSettings,
-            openSettings,
-            preserveExisting,
-            closedSettings,
-            normalizedSettings
-        );
-
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
-            clusterTask,
+            new MyAckedClusterStateUpdateTask(
+                this,
+                request,
+                listener,
+                skippedSettings,
+                openSettings,
+                preserveExisting,
+                closedSettings,
+                normalizedSettings
+            ),
             ClusterStateTaskConfig.build(Priority.URGENT, request.masterNodeTimeout()),
             this.executor
         );
