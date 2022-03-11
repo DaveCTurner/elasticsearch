@@ -76,7 +76,7 @@ public class MetadataUpdateSettingsService {
         this.indicesService = indicesService;
         this.shardLimitValidator = shardLimitValidator;
         this.threadPool = threadPool;
-        this.executor = new MetadataUpdateSettingsTaskExecutor(allocationService);
+        this.executor = new MetadataUpdateSettingsTaskExecutor();
     }
 
     public void updateSettings(final UpdateSettingsClusterStateUpdateRequest request, final ActionListener<AcknowledgedResponse> listener) {
@@ -245,12 +245,6 @@ public class MetadataUpdateSettingsService {
     }
 
     private class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
-        private final AllocationService allocationService;
-
-        MetadataUpdateSettingsTaskExecutor(AllocationService allocationService) {
-            this.allocationService = allocationService;
-        }
-
         @Override
         public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts)
             throws Exception {
