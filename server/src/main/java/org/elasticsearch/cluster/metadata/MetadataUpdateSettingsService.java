@@ -108,7 +108,7 @@ public class MetadataUpdateSettingsService {
 
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
-            new MyAckedClusterStateUpdateTask(
+            new MetadataUpdateSettingsTask(
                 request.indices(),
                 openSettings,
                 closedSettings,
@@ -188,7 +188,7 @@ public class MetadataUpdateSettingsService {
         return changed;
     }
 
-    private record MyAckedClusterStateUpdateTask(
+    private record MetadataUpdateSettingsTask(
         Index[] indices,
         Settings openSettings,
         Settings closedSettings,
@@ -224,15 +224,15 @@ public class MetadataUpdateSettingsService {
         }
     }
 
-    private class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
+    private class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MetadataUpdateSettingsTask> {
         @Override
-        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts)
+        public ClusterState execute(ClusterState currentState, List<TaskContext<MetadataUpdateSettingsTask>> taskContexts)
             throws Exception {
             ClusterState state = currentState;
             for (final var taskContext : taskContexts) {
                 try {
                     final var task = taskContext.getTask();
-                    state = this.execute(task, state);
+                    state = execute(task, state);
                     taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
                 } catch (Exception e) {
                     taskContext.onFailure(e);
@@ -245,7 +245,7 @@ public class MetadataUpdateSettingsService {
             return state;
         }
 
-        public ClusterState execute(MyAckedClusterStateUpdateTask myAckedClusterStateUpdateTask, ClusterState currentState) {
+        public ClusterState execute(MetadataUpdateSettingsTask task, ClusterState currentState) {
             RoutingTable.Builder routingTableBuilder = null;
             Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
 
@@ -253,7 +253,7 @@ public class MetadataUpdateSettingsService {
             // on an open index
             Set<Index> openIndices = new HashSet<>();
             Set<Index> closedIndices = new HashSet<>();
-            final var indices = myAckedClusterStateUpdateTask.getIndices();
+            final var indices = task.getIndices();
             final String[] actualIndices = new String[indices.length];
             for (int i = 0; i < indices.length; i++) {
                 Index index = indices[i];
@@ -266,22 +266,20 @@ public class MetadataUpdateSettingsService {
                 }
             }
 
-            if (myAckedClusterStateUpdateTask.skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
+            if (task.skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
                 throw new IllegalArgumentException(
                     String.format(
                         Locale.ROOT,
                         "Can't update non dynamic settings [%s] for open indices %s",
-                        myAckedClusterStateUpdateTask.skippedSettings,
+                        task.skippedSettings,
                         openIndices
                     )
                 );
             }
 
-            if (IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(myAckedClusterStateUpdateTask.openSettings)) {
-                final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(
-                    myAckedClusterStateUpdateTask.openSettings
-                );
-                if (myAckedClusterStateUpdateTask.preserveExisting == false) {
+            if (IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
+                final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(task.openSettings);
+                if (task.preserveExisting == false) {
                     // Verify that this won't take us over the cluster shard limit.
                     shardLimitValidator.validateShardLimitOnReplicaUpdate(currentState, indices, updatedNumberOfReplicas);
 
@@ -302,12 +300,12 @@ public class MetadataUpdateSettingsService {
                 openIndices,
                 metadataBuilder,
                 (index, indexSettings) -> indexScopedSettings.updateDynamicSettings(
-                    myAckedClusterStateUpdateTask.openSettings,
+                    task.openSettings,
                     indexSettings,
                     Settings.builder(),
                     index.getName()
                 ),
-                myAckedClusterStateUpdateTask.preserveExisting,
+                task.preserveExisting,
                 indexScopedSettings
             );
 
@@ -315,17 +313,17 @@ public class MetadataUpdateSettingsService {
                 closedIndices,
                 metadataBuilder,
                 (index, indexSettings) -> indexScopedSettings.updateSettings(
-                    myAckedClusterStateUpdateTask.closedSettings,
+                    task.closedSettings,
                     indexSettings,
                     Settings.builder(),
                     index.getName()
                 ),
-                myAckedClusterStateUpdateTask.preserveExisting,
+                task.preserveExisting,
                 indexScopedSettings
             );
 
-            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(myAckedClusterStateUpdateTask.normalizedSettings)
-                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(myAckedClusterStateUpdateTask.normalizedSettings)) {
+            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.normalizedSettings)
+                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.normalizedSettings)) {
                 for (String index : actualIndices) {
                     final Settings settings = metadataBuilder.get(index).getSettings();
                     MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
@@ -346,13 +344,7 @@ public class MetadataUpdateSettingsService {
             final ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(currentState.blocks());
             boolean changedBlocks = false;
             for (IndexMetadata.APIBlock block : IndexMetadata.APIBlock.values()) {
-                changedBlocks |= maybeUpdateClusterBlock(
-                    actualIndices,
-                    blocks,
-                    block.block,
-                    block.setting,
-                    myAckedClusterStateUpdateTask.openSettings
-                );
+                changedBlocks |= maybeUpdateClusterBlock(actualIndices, blocks, block.block, block.setting, task.openSettings);
             }
             changed |= changedBlocks;
 
