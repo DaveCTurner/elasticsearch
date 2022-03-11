@@ -222,7 +222,7 @@ public class MetadataUpdateSettingsService {
             this.metadataUpdateSettingsService = metadataUpdateSettingsService;
         }
 
-        public ClusterState execute(ClusterState currentState) {
+        public static ClusterState execute(MyAckedClusterStateUpdateTask myAckedClusterStateUpdateTask, ClusterState currentState) {
             RoutingTable.Builder routingTableBuilder = null;
             Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
 
@@ -230,9 +230,9 @@ public class MetadataUpdateSettingsService {
             // on an open index
             Set<Index> openIndices = new HashSet<>();
             Set<Index> closedIndices = new HashSet<>();
-            final String[] actualIndices = new String[request.indices().length];
-            for (int i = 0; i < request.indices().length; i++) {
-                Index index = request.indices()[i];
+            final String[] actualIndices = new String[myAckedClusterStateUpdateTask.request.indices().length];
+            for (int i = 0; i < myAckedClusterStateUpdateTask.request.indices().length; i++) {
+                Index index = myAckedClusterStateUpdateTask.request.indices()[i];
                 actualIndices[i] = index.getName();
                 final IndexMetadata metadata = currentState.metadata().getIndexSafe(index);
                 if (metadata.getState() == IndexMetadata.State.OPEN) {
@@ -242,19 +242,26 @@ public class MetadataUpdateSettingsService {
                 }
             }
 
-            if (skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
+            if (myAckedClusterStateUpdateTask.skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
                 throw new IllegalArgumentException(
-                    String.format(Locale.ROOT, "Can't update non dynamic settings [%s] for open indices %s", skippedSettings, openIndices)
+                    String.format(
+                        Locale.ROOT,
+                        "Can't update non dynamic settings [%s] for open indices %s",
+                        myAckedClusterStateUpdateTask.skippedSettings,
+                        openIndices
+                    )
                 );
             }
 
-            if (IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(openSettings)) {
-                final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(openSettings);
-                if (preserveExisting == false) {
+            if (IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(myAckedClusterStateUpdateTask.openSettings)) {
+                final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(
+                    myAckedClusterStateUpdateTask.openSettings
+                );
+                if (myAckedClusterStateUpdateTask.preserveExisting == false) {
                     // Verify that this won't take us over the cluster shard limit.
-                    metadataUpdateSettingsService.shardLimitValidator.validateShardLimitOnReplicaUpdate(
+                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.shardLimitValidator.validateShardLimitOnReplicaUpdate(
                         currentState,
-                        request.indices(),
+                        myAckedClusterStateUpdateTask.request.indices(),
                         updatedNumberOfReplicas
                     );
 
@@ -274,31 +281,27 @@ public class MetadataUpdateSettingsService {
             updateIndexSettings(
                 openIndices,
                 metadataBuilder,
-                (index, indexSettings) -> metadataUpdateSettingsService.indexScopedSettings.updateDynamicSettings(
-                    openSettings,
-                    indexSettings,
-                    Settings.builder(),
-                    index.getName()
-                ),
-                preserveExisting,
-                metadataUpdateSettingsService.indexScopedSettings
+                (index, indexSettings) -> myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
+                    .updateDynamicSettings(myAckedClusterStateUpdateTask.openSettings, indexSettings, Settings.builder(), index.getName()),
+                myAckedClusterStateUpdateTask.preserveExisting,
+                myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
             );
 
             updateIndexSettings(
                 closedIndices,
                 metadataBuilder,
-                (index, indexSettings) -> metadataUpdateSettingsService.indexScopedSettings.updateSettings(
-                    closedSettings,
+                (index, indexSettings) -> myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings.updateSettings(
+                    myAckedClusterStateUpdateTask.closedSettings,
                     indexSettings,
                     Settings.builder(),
                     index.getName()
                 ),
-                preserveExisting,
-                metadataUpdateSettingsService.indexScopedSettings
+                myAckedClusterStateUpdateTask.preserveExisting,
+                myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
             );
 
-            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(normalizedSettings)
-                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(normalizedSettings)) {
+            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(myAckedClusterStateUpdateTask.normalizedSettings)
+                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(myAckedClusterStateUpdateTask.normalizedSettings)) {
                 for (String index : actualIndices) {
                     final Settings settings = metadataBuilder.get(index).getSettings();
                     MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
@@ -319,7 +322,13 @@ public class MetadataUpdateSettingsService {
             final ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(currentState.blocks());
             boolean changedBlocks = false;
             for (IndexMetadata.APIBlock block : IndexMetadata.APIBlock.values()) {
-                changedBlocks |= maybeUpdateClusterBlock(actualIndices, blocks, block.block, block.setting, openSettings);
+                changedBlocks |= maybeUpdateClusterBlock(
+                    actualIndices,
+                    blocks,
+                    block.block,
+                    block.setting,
+                    myAckedClusterStateUpdateTask.openSettings
+                );
             }
             changed |= changedBlocks;
 
@@ -337,16 +346,25 @@ public class MetadataUpdateSettingsService {
                 for (Index index : openIndices) {
                     final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
                     final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
-                    metadataUpdateSettingsService.indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
+                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
+                        currentMetadata,
+                        updatedMetadata
+                    );
                 }
                 for (Index index : closedIndices) {
                     final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
                     final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
                     // Verifies that the current index settings can be updated with the updated dynamic settings.
-                    metadataUpdateSettingsService.indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
+                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
+                        currentMetadata,
+                        updatedMetadata
+                    );
                     // Now check that we can create the index with the updated settings (dynamic and non-dynamic).
                     // This step is mandatory since we allow to update non-dynamic settings on closed indices.
-                    metadataUpdateSettingsService.indicesService.verifyIndexMetadata(updatedMetadata, updatedMetadata);
+                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
+                        updatedMetadata,
+                        updatedMetadata
+                    );
                 }
             } catch (IOException ex) {
                 throw ExceptionsHelper.convertToElastic(ex);
@@ -389,12 +407,13 @@ public class MetadataUpdateSettingsService {
         }
 
         @Override
-        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts) throws Exception {
+        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts)
+            throws Exception {
             ClusterState state = currentState;
             for (final var taskContext : taskContexts) {
                 try {
                     final var task = taskContext.getTask();
-                    state = task.execute(state);
+                    state = MyAckedClusterStateUpdateTask.execute(task, state);
                     taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
                 } catch (Exception e) {
                     taskContext.onFailure(e);
