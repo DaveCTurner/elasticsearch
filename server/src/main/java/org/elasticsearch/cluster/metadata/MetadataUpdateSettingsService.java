@@ -106,13 +106,21 @@ public class MetadataUpdateSettingsService {
         final Settings openSettings = settingsForOpenIndices.build();
         final boolean preserveExisting = request.isPreserveExisting();
 
+        // assertions supporting refactoring: we used to look up these settings in normalizedSettings but they're dynamic so that's
+        // equivalent to looking at openSettings
+        assert IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(
+            normalizedSettings
+        ) == IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(openSettings);
+        assert IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(
+            normalizedSettings
+        ) == IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(openSettings);
+
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
             new MetadataUpdateSettingsTask(
                 request.indices(),
                 openSettings,
                 closedSettings,
-                normalizedSettings,
                 skippedSettings,
                 preserveExisting,
                 request.ackTimeout(),
@@ -192,7 +200,6 @@ public class MetadataUpdateSettingsService {
         Index[] indices,
         Settings openSettings,
         Settings closedSettings,
-        Settings normalizedSettings,
         Set<String> skippedSettings,
         boolean preserveExisting,
         TimeValue ackTimeout,
@@ -322,8 +329,8 @@ public class MetadataUpdateSettingsService {
                 indexScopedSettings
             );
 
-            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.normalizedSettings)
-                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.normalizedSettings)) {
+            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.openSettings)
+                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.openSettings)) {
                 for (String index : actualIndices) {
                     final Settings settings = metadataBuilder.get(index).getSettings();
                     MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
