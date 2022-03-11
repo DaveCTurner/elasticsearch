@@ -222,7 +222,60 @@ public class MetadataUpdateSettingsService {
             this.metadataUpdateSettingsService = metadataUpdateSettingsService;
         }
 
-        public static ClusterState execute(MyAckedClusterStateUpdateTask myAckedClusterStateUpdateTask, ClusterState currentState) {
+        @Override
+        public boolean mustAck(DiscoveryNode discoveryNode) {
+            return true;
+        }
+
+        @Override
+        public void onAllNodesAcked(@Nullable Exception e) {
+            listener.onResponse(AcknowledgedResponse.of(e == null));
+        }
+
+        @Override
+        public void onAckTimeout() {
+            listener.onResponse(AcknowledgedResponse.of(false));
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            listener.onFailure(e);
+        }
+
+        @Override
+        public final TimeValue ackTimeout() {
+            return request.ackTimeout();
+        }
+    }
+
+    private static class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
+        private final AllocationService allocationService;
+
+        MetadataUpdateSettingsTaskExecutor(AllocationService allocationService) {
+            this.allocationService = allocationService;
+        }
+
+        @Override
+        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts)
+            throws Exception {
+            ClusterState state = currentState;
+            for (final var taskContext : taskContexts) {
+                try {
+                    final var task = taskContext.getTask();
+                    state = this.execute(task, state);
+                    taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
+                } catch (Exception e) {
+                    taskContext.onFailure(e);
+                }
+            }
+            if (state != currentState) {
+                // reroute in case things change that require it (like number of replicas)
+                state = allocationService.reroute(state, "settings update");
+            }
+            return state;
+        }
+
+        public ClusterState execute(MyAckedClusterStateUpdateTask myAckedClusterStateUpdateTask, ClusterState currentState) {
             RoutingTable.Builder routingTableBuilder = null;
             Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
 
@@ -371,59 +424,6 @@ public class MetadataUpdateSettingsService {
             }
 
             return updatedState;
-        }
-
-        @Override
-        public boolean mustAck(DiscoveryNode discoveryNode) {
-            return true;
-        }
-
-        @Override
-        public void onAllNodesAcked(@Nullable Exception e) {
-            listener.onResponse(AcknowledgedResponse.of(e == null));
-        }
-
-        @Override
-        public void onAckTimeout() {
-            listener.onResponse(AcknowledgedResponse.of(false));
-        }
-
-        @Override
-        public void onFailure(Exception e) {
-            listener.onFailure(e);
-        }
-
-        @Override
-        public final TimeValue ackTimeout() {
-            return request.ackTimeout();
-        }
-    }
-
-    private static class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
-        private final AllocationService allocationService;
-
-        MetadataUpdateSettingsTaskExecutor(AllocationService allocationService) {
-            this.allocationService = allocationService;
-        }
-
-        @Override
-        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts)
-            throws Exception {
-            ClusterState state = currentState;
-            for (final var taskContext : taskContexts) {
-                try {
-                    final var task = taskContext.getTask();
-                    state = MyAckedClusterStateUpdateTask.execute(task, state);
-                    taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
-                } catch (Exception e) {
-                    taskContext.onFailure(e);
-                }
-            }
-            if (state != currentState) {
-                // reroute in case things change that require it (like number of replicas)
-                state = allocationService.reroute(state, "settings update");
-            }
-            return state;
         }
     }
 }
