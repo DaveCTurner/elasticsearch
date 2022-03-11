@@ -258,6 +258,10 @@ public class MetadataUpdateSettingsService {
                         logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
                     }
 
+                    final var validateTranslogRetentionSettings = IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(
+                        task.openSettings
+                    ) || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.openSettings);
+
                     updateIndexSettings(
                         openIndices,
                         metadataBuilder,
@@ -284,8 +288,7 @@ public class MetadataUpdateSettingsService {
                         indexScopedSettings
                     );
 
-                    if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.openSettings)
-                        || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.openSettings)) {
+                    if (validateTranslogRetentionSettings) {
                         for (String index : actualIndices) {
                             final Settings settings = metadataBuilder.get(index).getSettings();
                             MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
