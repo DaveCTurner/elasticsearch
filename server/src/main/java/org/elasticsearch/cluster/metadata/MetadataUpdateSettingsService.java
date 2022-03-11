@@ -138,7 +138,9 @@ public class MetadataUpdateSettingsService {
             normalizedSettings
         );
 
-        clusterService.submitStateUpdateTask("update-settings " + Arrays.toString(request.indices()), clusterTask, this.executor);
+        clusterService.submitStateUpdateTask("update-settings " + Arrays.toString(request.indices()), clusterTask,
+            ClusterStateTaskConfig.build(Priority.URGENT, request.masterNodeTimeout()),
+            this.executor);
     }
 
     public static void updateIndexSettings(
@@ -209,7 +211,6 @@ public class MetadataUpdateSettingsService {
     private static class MyAckedClusterStateUpdateTask
         implements
             ClusterStateAckListener,
-            ClusterStateTaskConfig,
             ClusterStateTaskListener {
         private final UpdateSettingsClusterStateUpdateRequest request;
         private final Set<String> skippedSettings;
@@ -409,6 +410,7 @@ public class MetadataUpdateSettingsService {
          * Called once the acknowledgement timeout defined by
          * {@link MyAckedClusterStateUpdateTask#ackTimeout()} has expired
          */
+        @Override
         public void onAckTimeout() {
             listener.onResponse(newResponse(false));
         }
@@ -421,22 +423,9 @@ public class MetadataUpdateSettingsService {
         /**
          * Acknowledgement timeout, maximum time interval to wait for acknowledgements
          */
+        @Override
         public final TimeValue ackTimeout() {
             return request.ackTimeout();
-        }
-
-        /**
-         * If the cluster state update task wasn't processed by the provided timeout, call
-         * {@link ClusterStateTaskListener#onFailure(Exception)}. May return null to indicate no timeout is needed (default).
-         */
-        @Nullable
-        public final TimeValue timeout() {
-            return timeout;
-        }
-
-        @Override
-        public final Priority priority() {
-            return priority;
         }
     }
 }
