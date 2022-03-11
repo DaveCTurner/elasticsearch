@@ -10,14 +10,18 @@ package org.elasticsearch.indices;
 
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.ValidationException;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,10 +53,11 @@ public class ShardLimitValidator {
         Setting.Property.NodeScope
     );
     public static final String FROZEN_GROUP = "frozen";
-    static final Set<String> VALID_GROUPS = Set.of("normal", FROZEN_GROUP);
+    private static final String NORMAL_GROUP = "normal";
+    static final Set<String> VALID_GROUPS = Set.of(NORMAL_GROUP, FROZEN_GROUP);
     public static final Setting<String> INDEX_SETTING_SHARD_LIMIT_GROUP = Setting.simpleString(
         "index.shard_limit.group",
-        "normal",
+        NORMAL_GROUP,
         value -> {
             if (VALID_GROUPS.contains(value) == false) {
                 throw new IllegalArgumentException("[" + value + "] is not a valid shard limit group");
@@ -65,12 +70,11 @@ public class ShardLimitValidator {
     protected final AtomicInteger shardLimitPerNode = new AtomicInteger();
     protected final AtomicInteger shardLimitPerNodeFrozen = new AtomicInteger();
 
-    public ShardLimitValidator(final Settings settings, ClusterService clusterService) {
+    public ShardLimitValidator(final Settings settings, ClusterSettings clusterSettings) {
         shardLimitPerNode.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE.get(settings));
         shardLimitPerNodeFrozen.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN.get(settings));
-        clusterService.getClusterSettings().addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE, shardLimitPerNode::set);
-        clusterService.getClusterSettings()
-            .addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN, shardLimitPerNodeFrozen::set);
+        clusterSettings.addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE, shardLimitPerNode::set);
+        clusterSettings.addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN, shardLimitPerNodeFrozen::set);
     }
 
     /**
@@ -129,12 +133,17 @@ public class ShardLimitValidator {
         int frozen = 0;
         int normal = 0;
         for (Index index : indices) {
-            IndexMetadata imd = currentState.metadata().index(index);
-            int totalNewShards = getTotalNewShards(index, currentState, replicas);
-            if (FROZEN_GROUP.equals(INDEX_SETTING_SHARD_LIMIT_GROUP.get(imd.getSettings()))) {
-                frozen += totalNewShards;
-            } else {
-                normal += totalNewShards;
+            IndexMetadata indexMetadata = currentState.metadata().index(index);
+            int shardsInIndex = indexMetadata.getNumberOfShards();
+            int oldNumberOfReplicas = indexMetadata.getNumberOfReplicas();
+            int replicaIncrease = replicas - oldNumberOfReplicas;
+            int totalNewShards = replicaIncrease * shardsInIndex;
+            if (indexMetadata.getState() == IndexMetadata.State.OPEN) {
+                if (FROZEN_GROUP.equals(INDEX_SETTING_SHARD_LIMIT_GROUP.get(indexMetadata.getSettings()))) {
+                    frozen += totalNewShards;
+                } else {
+                    normal += totalNewShards;
+                }
             }
         }
 
@@ -144,14 +153,6 @@ public class ShardLimitValidator {
             ex.addValidationError(error.get());
             throw ex;
         }
-    }
-
-    private int getTotalNewShards(Index index, ClusterState currentState, int updatedNumberOfReplicas) {
-        IndexMetadata indexMetadata = currentState.metadata().index(index);
-        int shardsInIndex = indexMetadata.getNumberOfShards();
-        int oldNumberOfReplicas = indexMetadata.getNumberOfReplicas();
-        int replicaIncrease = updatedNumberOfReplicas - oldNumberOfReplicas;
-        return replicaIncrease * shardsInIndex;
     }
 
     /**
@@ -170,8 +171,8 @@ public class ShardLimitValidator {
         // against such mixed nodes for production use anyway.
         int frozenNodeCount = nodeCount(state, ShardLimitValidator::hasFrozen);
         int normalNodeCount = nodeCount(state, ShardLimitValidator::hasNonFrozen);
-        return checkShardLimit(newShards, state, shardLimitPerNode.get(), normalNodeCount, "normal").or(
-            () -> checkShardLimit(newFrozenShards, state, shardLimitPerNodeFrozen.get(), frozenNodeCount, "frozen")
+        return checkShardLimit(newShards, state, shardLimitPerNode.get(), normalNodeCount, NORMAL_GROUP).or(
+            () -> checkShardLimit(newFrozenShards, state, shardLimitPerNodeFrozen.get(), frozenNodeCount, FROZEN_GROUP)
         );
     }
 
@@ -223,4 +224,149 @@ public class ShardLimitValidator {
         return node.getRoles().stream().anyMatch(r -> r.canContainData() && r != DiscoveryNodeRole.DATA_FROZEN_NODE_ROLE);
     }
 
+    /**
+     * @param initialState The starting state for the validation.
+     * @return A validator that can validate a sequence of replica count changes.
+     */
+    public ProgressiveReplicaCountChangeValidator getProgressiveReplicaCountChangeValidator(ClusterState initialState) {
+        final var normalGroupValidator = new SingleGroupValidator(
+            initialState,
+            shardLimitPerNode.get(),
+            ShardLimitValidator::hasNonFrozen,
+            NORMAL_GROUP
+        );
+        final var frozenGroupValidator = new SingleGroupValidator(
+            initialState,
+            shardLimitPerNodeFrozen.get(),
+            ShardLimitValidator::hasFrozen,
+            FROZEN_GROUP
+        );
+
+        return (indices, newReplicaCount) -> {
+            final var newNormalShards = normalGroupValidator.validateReplicaCountChange(indices, newReplicaCount);
+            final var newFrozenShards = frozenGroupValidator.validateReplicaCountChange(indices, newReplicaCount);
+            return () -> {
+                normalGroupValidator.updateShardCount(newNormalShards, indices, newReplicaCount);
+                frozenGroupValidator.updateShardCount(newFrozenShards, indices, newReplicaCount);
+            };
+        };
+    }
+
+    /**
+     * Validates a sequence of replica count changes.
+     */
+    public interface ProgressiveReplicaCountChangeValidator {
+        /**
+         * Validates whether the given replica count update applied to the given set of indices respects the shards-per-node limits.
+         * @param indices         The indices whose replica counts are being updated.
+         * @param newReplicaCount The new replica count.
+         * @return A {@link Runnable} which adjusts the validator's state to reflect this update.
+         * @throws ValidationException if the given update may not be applied.
+         */
+        Runnable validateReplicaCountChange(Index[] indices, int newReplicaCount);
+    }
+
+    private static class SingleGroupValidator {
+        private final Metadata initialMetadata;
+        private final String groupName;
+        private final int nodeCount;
+        private final int maxShardsInCluster;
+        private final int initialShardCountEstimate;
+        private final Map<Index, Integer> updatedReplicaCounts = new HashMap<>();
+
+        private int initialShardCountAccurate = -1;
+        private int previouslyAddedNewShards = 0;
+
+        SingleGroupValidator(
+            ClusterState initialState,
+            int shardLimitPerNode,
+            Predicate<DiscoveryNode> discoveryNodePredicate,
+            String groupName
+        ) {
+            this.initialMetadata = initialState.metadata();
+            this.groupName = groupName;
+            this.nodeCount = nodeCount(initialState, discoveryNodePredicate);
+            this.maxShardsInCluster = shardLimitPerNode * nodeCount;
+            this.initialShardCountEstimate = initialState.metadata().getTotalOpenIndexShards();
+        }
+
+        int validateReplicaCountChange(Index[] indices, int newReplicaCount) {
+            if (nodeCount == 0) {
+                return 0;
+            }
+
+            int currentNewShards = 0;
+            for (final var index : indices) {
+                final var indexMetadata = initialMetadata.index(index);
+                final var initialReplicaCount = indexMetadata.getNumberOfReplicas();
+                if (countsTowardsLimit(indexMetadata)) {
+                    final var currentReplicaCount = updatedReplicaCounts.compute(index, (ignored, storedReplicaCount) -> {
+                        if (storedReplicaCount != null) {
+                            return storedReplicaCount;
+                        } else {
+                            if (initialReplicaCount == newReplicaCount) {
+                                return null;
+                            } else {
+                                return initialReplicaCount;
+                            }
+                        }
+                    });
+                    if (currentReplicaCount != null) {
+                        currentNewShards += (newReplicaCount - currentReplicaCount) * indexMetadata.getNumberOfShards();
+                    }
+                }
+            }
+
+            if (currentNewShards <= 0) {
+                return currentNewShards;
+            }
+
+            if (initialShardCountEstimate + previouslyAddedNewShards + currentNewShards <= maxShardsInCluster) {
+                return currentNewShards;
+            }
+
+            if (initialShardCountAccurate == -1) {
+                // the coarse estimate was too coarse, so we must compute an accurate count of the relevant shards instead
+                initialShardCountAccurate = 0;
+                for (final var indexMetadata : initialMetadata.indices().values()) {
+                    if (countsTowardsLimit(indexMetadata)) {
+                        initialShardCountAccurate += indexMetadata.getTotalNumberOfShards();
+                    }
+                }
+                assert initialShardCountAccurate <= initialShardCountEstimate;
+            }
+
+            if (initialShardCountAccurate + previouslyAddedNewShards + currentNewShards <= maxShardsInCluster) {
+                return currentNewShards;
+            }
+
+            final var validationException = new ValidationException();
+            validationException.addValidationError(
+                String.format(
+                    Locale.ROOT,
+                    "this action would add [%d] shards, but this cluster currently has [%d]/[%d] maximum %s shards open",
+                    currentNewShards,
+                    initialShardCountAccurate + previouslyAddedNewShards,
+                    maxShardsInCluster,
+                    groupName
+                )
+            );
+            throw validationException;
+        }
+
+        private boolean countsTowardsLimit(IndexMetadata indexMetadata) {
+            return indexMetadata.getState() == IndexMetadata.State.OPEN
+                && groupName.equals(INDEX_SETTING_SHARD_LIMIT_GROUP.get(indexMetadata.getSettings()));
+        }
+
+        void updateShardCount(int newShards, Index[] indices, int newReplicaCount) {
+            previouslyAddedNewShards += newShards;
+            assert 0 <= initialShardCountEstimate + previouslyAddedNewShards;
+            assert initialShardCountAccurate == -1 || 0 <= initialShardCountAccurate + previouslyAddedNewShards;
+
+            for (final var index : indices) {
+                updatedReplicaCounts.computeIfPresent(index, (ignored1, ignored2) -> newReplicaCount);
+            }
+        }
+    }
 }

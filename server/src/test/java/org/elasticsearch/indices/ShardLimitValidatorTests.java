@@ -18,6 +18,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.shards.ShardCounts;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.ValidationException;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -26,6 +27,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.test.ESTestCase;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,6 +39,7 @@ import static org.elasticsearch.cluster.metadata.MetadataIndexStateServiceTests.
 import static org.elasticsearch.cluster.metadata.MetadataIndexStateServiceTests.addOpenedIndex;
 import static org.elasticsearch.cluster.shards.ShardCounts.forDataNodeCount;
 import static org.elasticsearch.indices.ShardLimitValidator.SETTING_CLUSTER_MAX_SHARDS_PER_NODE;
+import static org.elasticsearch.indices.ShardLimitValidator.SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -169,6 +175,91 @@ public class ShardLimitValidatorTests extends ESTestCase {
         );
     }
 
+    public void testProgressiveReplicaCountChangeValidator() {
+        final var nodeCount = between(1, 50);
+        final var discoveryNodes = DiscoveryNodes.builder();
+        for (int i = 0; i < nodeCount; i++) {
+            final var transportAddress = buildNewFakeTransportAddress();
+            discoveryNodes.add(
+                new DiscoveryNode(
+                    "node-" + i,
+                    "node-" + i,
+                    UUIDs.randomBase64UUID(random()),
+                    transportAddress.address().getHostName(),
+                    transportAddress.getAddress(),
+                    transportAddress,
+                    Map.of(),
+                    new HashSet<>(randomSubsetOf(DiscoveryNodeRole.roles())),
+                    Version.CURRENT
+                )
+            );
+        }
+
+        final var indexCount = between(1, 50);
+        final var metadataBuilder = Metadata.builder();
+        for (int i = 0; i < indexCount; i++) {
+            final var settings = Settings.builder()
+                .put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
+                .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), between(1, 10))
+                .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), between(0, 10));
+            if (randomBoolean()) {
+                settings.put(ShardLimitValidator.INDEX_SETTING_SHARD_LIMIT_GROUP.getKey(), ShardLimitValidator.FROZEN_GROUP);
+            }
+
+            final var indexMetadata = IndexMetadata.builder("index-" + i).settings(settings);
+            if (randomBoolean()) {
+                indexMetadata.state(randomFrom(IndexMetadata.State.OPEN, IndexMetadata.State.CLOSE));
+            }
+
+            metadataBuilder.put(indexMetadata);
+        }
+
+        final var initialClusterState = ClusterState.builder(ClusterName.DEFAULT).nodes(discoveryNodes).metadata(metadataBuilder).build();
+        final var allIndices = initialClusterState.metadata().indices().values().stream().map(IndexMetadata::getIndex).toList();
+
+        final var settings = Settings.builder()
+            .put(SETTING_CLUSTER_MAX_SHARDS_PER_NODE.getKey(), between(1, 10))
+            .put(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN.getKey(), between(1, 10))
+            .build();
+
+        final var validator = new ShardLimitValidator(settings, new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS));
+        final var progressiveValidator = validator.getProgressiveReplicaCountChangeValidator(initialClusterState);
+
+        var clusterState = initialClusterState;
+
+        for (int i = 0; i < 100; i++) {
+            final var indices = randomSubsetOf(allIndices).toArray(Index[]::new);
+            final var replicaCount = between(0, 10);
+
+            Runnable committer;
+            String progressiveExceptionMessage;
+            try {
+                committer = progressiveValidator.validateReplicaCountChange(indices, replicaCount);
+                progressiveExceptionMessage = null;
+            } catch (ValidationException e) {
+                committer = () -> {};
+                progressiveExceptionMessage = Objects.requireNonNull(e.getMessage());
+            }
+
+            String oneShotExceptionMessage;
+            try {
+                validator.validateShardLimitOnReplicaUpdate(clusterState, indices, replicaCount);
+                oneShotExceptionMessage = null;
+            } catch (ValidationException e) {
+                oneShotExceptionMessage = Objects.requireNonNull(e.getMessage());
+            }
+
+            assertEquals(oneShotExceptionMessage, progressiveExceptionMessage);
+
+            if (progressiveExceptionMessage == null) {
+                committer.run();
+                clusterState = clusterState.copyAndUpdateMetadata(
+                    b -> b.updateNumberOfReplicas(replicaCount, Arrays.stream(indices).map(Index::getName).toArray(String[]::new))
+                );
+            }
+        }
+    }
+
     public Index[] getIndices(ClusterState state) {
         return state.metadata()
             .indices()
@@ -286,7 +377,7 @@ public class ShardLimitValidatorTests extends ESTestCase {
 
     public static ShardLimitValidator createTestShardLimitService(int maxShardsPerNode, String group) {
         Setting<?> setting = ShardLimitValidator.FROZEN_GROUP.equals(group)
-            ? ShardLimitValidator.SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN
+            ? SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN
             : SETTING_CLUSTER_MAX_SHARDS_PER_NODE;
 
         // Use a mocked clusterService - for unit tests we won't be updating the setting anyway.
@@ -296,7 +387,7 @@ public class ShardLimitValidatorTests extends ESTestCase {
             new ClusterSettings(limitOnlySettings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
         );
 
-        return new ShardLimitValidator(limitOnlySettings, clusterService);
+        return new ShardLimitValidator(limitOnlySettings, clusterService.getClusterSettings());
     }
 
     /**
@@ -313,7 +404,7 @@ public class ShardLimitValidatorTests extends ESTestCase {
             new ClusterSettings(limitOnlySettings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS)
         );
 
-        return new ShardLimitValidator(limitOnlySettings, clusterService);
+        return new ShardLimitValidator(limitOnlySettings, clusterService.getClusterSettings());
     }
 
     /**
@@ -326,6 +417,6 @@ public class ShardLimitValidatorTests extends ESTestCase {
     public static ShardLimitValidator createTestShardLimitService(int maxShardsPerNode, ClusterService clusterService) {
         Settings limitOnlySettings = Settings.builder().put(SETTING_CLUSTER_MAX_SHARDS_PER_NODE.getKey(), maxShardsPerNode).build();
 
-        return new ShardLimitValidator(limitOnlySettings, clusterService);
+        return new ShardLimitValidator(limitOnlySettings, clusterService.getClusterSettings());
     }
 }

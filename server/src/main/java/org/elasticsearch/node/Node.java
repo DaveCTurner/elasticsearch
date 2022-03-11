@@ -646,7 +646,7 @@ public class Node implements Closeable {
                     .collect(Collectors.toSet())
             );
 
-            final ShardLimitValidator shardLimitValidator = new ShardLimitValidator(settings, clusterService);
+            final ShardLimitValidator shardLimitValidator = new ShardLimitValidator(settings, settingsModule.getClusterSettings());
             final MetadataCreateIndexService metadataCreateIndexService = new MetadataCreateIndexService(
                 settings,
                 clusterService,

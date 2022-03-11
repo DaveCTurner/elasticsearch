@@ -229,7 +229,7 @@ public class ClusterStateChanges {
             new NamedWriteableRegistry(List.of())
         );
 
-        ShardLimitValidator shardLimitValidator = new ShardLimitValidator(SETTINGS, clusterService);
+        ShardLimitValidator shardLimitValidator = new ShardLimitValidator(SETTINGS, clusterService.getClusterSettings());
         MetadataIndexStateService indexStateService = new MetadataIndexStateService(
             clusterService,
             allocationService,

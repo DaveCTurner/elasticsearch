@@ -467,7 +467,7 @@ public final class DataStreamTestHelper {
         }
         IndicesService indicesService = mockIndicesServices(mappingLookup);
 
-        ShardLimitValidator shardLimitValidator = new ShardLimitValidator(Settings.EMPTY, clusterService);
+        ShardLimitValidator shardLimitValidator = new ShardLimitValidator(Settings.EMPTY, clusterService.getClusterSettings());
         MetadataCreateIndexService createIndexService = new MetadataCreateIndexService(
             Settings.EMPTY,
             clusterService,

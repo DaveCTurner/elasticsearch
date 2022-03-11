@@ -1851,7 +1851,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     RetentionLeaseSyncer.EMPTY,
                     client
                 );
-                final ShardLimitValidator shardLimitValidator = new ShardLimitValidator(settings, clusterService);
+                final ShardLimitValidator shardLimitValidator = new ShardLimitValidator(settings, clusterService.getClusterSettings());
                 final MetadataCreateIndexService metadataCreateIndexService = new MetadataCreateIndexService(
                     settings,
                     clusterService,
