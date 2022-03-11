@@ -109,13 +109,14 @@ public class MetadataUpdateSettingsService {
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
             new MyAckedClusterStateUpdateTask(
-                request,
                 listener,
                 skippedSettings,
                 openSettings,
                 preserveExisting,
                 closedSettings,
-                normalizedSettings
+                normalizedSettings,
+                request.ackTimeout(),
+                request.indices()
             ),
             ClusterStateTaskConfig.build(Priority.URGENT, request.masterNodeTimeout()),
             this.executor
@@ -198,13 +199,14 @@ public class MetadataUpdateSettingsService {
         private final Index[] indices;
 
         MyAckedClusterStateUpdateTask(
-            UpdateSettingsClusterStateUpdateRequest request,
             ActionListener<AcknowledgedResponse> listener,
             Set<String> skippedSettings,
             Settings openSettings,
             boolean preserveExisting,
             Settings closedSettings,
-            Settings normalizedSettings
+            Settings normalizedSettings,
+            TimeValue ackTimeout,
+            Index[] indices
         ) {
             this.listener = listener;
             this.skippedSettings = skippedSettings;
@@ -212,8 +214,8 @@ public class MetadataUpdateSettingsService {
             this.preserveExisting = preserveExisting;
             this.closedSettings = closedSettings;
             this.normalizedSettings = normalizedSettings;
-            ackTimeout = request.ackTimeout();
-            indices = request.indices();
+            this.ackTimeout = ackTimeout;
+            this.indices = indices;
         }
 
         private Index[] getIndices() {
@@ -305,11 +307,7 @@ public class MetadataUpdateSettingsService {
                 );
                 if (myAckedClusterStateUpdateTask.preserveExisting == false) {
                     // Verify that this won't take us over the cluster shard limit.
-                    shardLimitValidator.validateShardLimitOnReplicaUpdate(
-                        currentState,
-                        indices,
-                        updatedNumberOfReplicas
-                    );
+                    shardLimitValidator.validateShardLimitOnReplicaUpdate(currentState, indices, updatedNumberOfReplicas);
 
                     /*
                      * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
