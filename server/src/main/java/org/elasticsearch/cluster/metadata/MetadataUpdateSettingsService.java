@@ -382,37 +382,19 @@ public class MetadataUpdateSettingsService {
             return updatedState;
         }
 
-        /**
-         * Called to determine which nodes the acknowledgement is expected from
-         *
-         * @param discoveryNode a node
-         * @return true if the node is expected to send ack back, false otherwise
-         */
+        @Override
         public boolean mustAck(DiscoveryNode discoveryNode) {
             return true;
         }
 
-        /**
-         * Called once all the nodes have acknowledged the cluster state update request. Must be
-         * very lightweight execution, since it gets executed on the cluster service thread.
-         *
-         * @param e optional error that might have been thrown
-         */
+        @Override
         public void onAllNodesAcked(@Nullable Exception e) {
-            listener.onResponse(newResponse(e == null));
+            listener.onResponse(AcknowledgedResponse.of(e == null));
         }
 
-        protected AcknowledgedResponse newResponse(boolean acknowledged) {
-            return AcknowledgedResponse.of(acknowledged);
-        }
-
-        /**
-         * Called once the acknowledgement timeout defined by
-         * {@link MyAckedClusterStateUpdateTask#ackTimeout()} has expired
-         */
         @Override
         public void onAckTimeout() {
-            listener.onResponse(newResponse(false));
+            listener.onResponse(AcknowledgedResponse.of(false));
         }
 
         @Override
@@ -420,9 +402,6 @@ public class MetadataUpdateSettingsService {
             listener.onFailure(e);
         }
 
-        /**
-         * Acknowledgement timeout, maximum time interval to wait for acknowledgements
-         */
         @Override
         public final TimeValue ackTimeout() {
             return request.ackTimeout();
