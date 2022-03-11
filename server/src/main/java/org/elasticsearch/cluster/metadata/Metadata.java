@@ -1266,7 +1266,6 @@ public class Metadata extends AbstractCollection<IndexMetadata> implements Diffa
                 if (indexMetadata.getIndexUUID().equals(index.getUUID())) {
                     return indexMetadata;
                 }
-                assert false : "retrieving index metadata for " + index + " yielded unexpected UUID: " + indexMetadata.getIndex();
                 throw new IndexNotFoundException(
                     index,
                     new IllegalStateException(
