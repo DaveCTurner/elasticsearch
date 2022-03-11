@@ -41,6 +41,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -59,7 +60,7 @@ public class MetadataUpdateSettingsService {
     private final IndicesService indicesService;
     private final ShardLimitValidator shardLimitValidator;
     private final ThreadPool threadPool;
-    private final ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> executor;
+    private final MetadataUpdateSettingsTaskExecutor executor;
 
     public MetadataUpdateSettingsService(
         ClusterService clusterService,
@@ -75,23 +76,7 @@ public class MetadataUpdateSettingsService {
         this.indicesService = indicesService;
         this.shardLimitValidator = shardLimitValidator;
         this.threadPool = threadPool;
-        this.executor = (currentState, taskContexts) -> {
-            ClusterState state = currentState;
-            for (final var taskContext : taskContexts) {
-                try {
-                    final var task = taskContext.getTask();
-                    state = task.execute(state);
-                    taskContext.success(new ClusterStateTaskExecutor.LegacyClusterTaskResultActionListener(task, currentState), task);
-                } catch (Exception e) {
-                    taskContext.onFailure(e);
-                }
-            }
-            if (state != currentState) {
-                // reroute in case things change that require it (like number of replicas)
-                state = allocationService.reroute(state, "settings update");
-            }
-            return state;
-        };
+        this.executor = new MetadataUpdateSettingsTaskExecutor(allocationService);
     }
 
     public void updateSettings(final UpdateSettingsClusterStateUpdateRequest request, final ActionListener<AcknowledgedResponse> listener) {
@@ -393,6 +378,33 @@ public class MetadataUpdateSettingsService {
         @Override
         public final TimeValue ackTimeout() {
             return request.ackTimeout();
+        }
+    }
+
+    private static class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
+        private final AllocationService allocationService;
+
+        MetadataUpdateSettingsTaskExecutor(AllocationService allocationService) {
+            this.allocationService = allocationService;
+        }
+
+        @Override
+        public ClusterState execute(ClusterState currentState, List<TaskContext<MyAckedClusterStateUpdateTask>> taskContexts) throws Exception {
+            ClusterState state = currentState;
+            for (final var taskContext : taskContexts) {
+                try {
+                    final var task = taskContext.getTask();
+                    state = task.execute(state);
+                    taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
+                } catch (Exception e) {
+                    taskContext.onFailure(e);
+                }
+            }
+            if (state != currentState) {
+                // reroute in case things change that require it (like number of replicas)
+                state = allocationService.reroute(state, "settings update");
+            }
+            return state;
         }
     }
 }
