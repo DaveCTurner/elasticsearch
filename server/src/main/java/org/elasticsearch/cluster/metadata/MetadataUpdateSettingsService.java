@@ -188,35 +188,16 @@ public class MetadataUpdateSettingsService {
         return changed;
     }
 
-    private static class MyAckedClusterStateUpdateTask implements ClusterStateAckListener, ClusterStateTaskListener {
-        private final Set<String> skippedSettings;
-        private final Settings openSettings;
-        private final boolean preserveExisting;
-        private final Settings closedSettings;
-        private final Settings normalizedSettings;
-        private final ActionListener<AcknowledgedResponse> listener;
-        private final TimeValue ackTimeout;
-        private final Index[] indices;
-
-        MyAckedClusterStateUpdateTask(
-            ActionListener<AcknowledgedResponse> listener,
-            Set<String> skippedSettings,
-            Settings openSettings,
-            boolean preserveExisting,
-            Settings closedSettings,
-            Settings normalizedSettings,
-            TimeValue ackTimeout,
-            Index[] indices
-        ) {
-            this.listener = listener;
-            this.skippedSettings = skippedSettings;
-            this.openSettings = openSettings;
-            this.preserveExisting = preserveExisting;
-            this.closedSettings = closedSettings;
-            this.normalizedSettings = normalizedSettings;
-            this.ackTimeout = ackTimeout;
-            this.indices = indices;
-        }
+    private record MyAckedClusterStateUpdateTask(
+        ActionListener<AcknowledgedResponse> listener,
+        Set<String> skippedSettings,
+        Settings openSettings,
+        boolean preserveExisting,
+        Settings closedSettings,
+        Settings normalizedSettings,
+        TimeValue ackTimeout,
+        Index[] indices
+    ) implements ClusterStateAckListener, ClusterStateTaskListener {
 
         private Index[] getIndices() {
             return indices;
@@ -240,11 +221,6 @@ public class MetadataUpdateSettingsService {
         @Override
         public void onFailure(Exception e) {
             listener.onFailure(e);
-        }
-
-        @Override
-        public final TimeValue ackTimeout() {
-            return ackTimeout;
         }
     }
 
