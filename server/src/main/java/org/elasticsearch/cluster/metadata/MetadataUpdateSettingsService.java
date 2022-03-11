@@ -135,6 +135,7 @@ public class MetadataUpdateSettingsService {
         Metadata.Builder metadataBuilder,
         BiFunction<Index, Settings.Builder, Boolean> settingUpdater,
         boolean preserveExisting,
+        boolean validateTranslogRetentionSettings,
         IndexScopedSettings indexScopedSettings
     ) {
         for (Index index : indices) {
@@ -272,6 +273,7 @@ public class MetadataUpdateSettingsService {
                             index.getName()
                         ),
                         task.preserveExisting,
+                        validateTranslogRetentionSettings,
                         indexScopedSettings
                     );
 
@@ -285,6 +287,7 @@ public class MetadataUpdateSettingsService {
                             index.getName()
                         ),
                         task.preserveExisting,
+                        validateTranslogRetentionSettings,
                         indexScopedSettings
                     );
 

@@ -67,6 +67,7 @@ public class MetadataUpdateSettingsServiceTests extends ESTestCase {
                 index.getName()
             ),
             false,
+            randomBoolean(),
             indexScopedSettings
         );
         // expected settings: {"index.refresh_interval": "2s", "index.number_of_replicas": 5, "index.translog.durability": "ASYNC"}
@@ -117,6 +118,7 @@ public class MetadataUpdateSettingsServiceTests extends ESTestCase {
                 index.getName()
             ),
             true,
+            randomBoolean(),
             indexScopedSettings
         );
         // expected dynamic settings: {"index.refresh_interval": "2s", "index.number_of_replicas": 5, "index.translog.durability": "async"}
