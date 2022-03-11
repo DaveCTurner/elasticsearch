@@ -239,7 +239,135 @@ public class MetadataUpdateSettingsService {
             for (final var taskContext : taskContexts) {
                 try {
                     final var task = taskContext.getTask();
-                    state = execute(task, state);
+
+                    RoutingTable.Builder routingTableBuilder = null;
+                    Metadata.Builder metadataBuilder = Metadata.builder(state.metadata());
+
+                    // allow to change any settings to a closed index, and only allow dynamic settings to be changed
+                    // on an open index
+                    Set<Index> openIndices = new HashSet<>();
+                    Set<Index> closedIndices = new HashSet<>();
+                    final var indices = task.getIndices();
+                    final String[] actualIndices = new String[indices.length];
+                    for (int i = 0; i < indices.length; i++) {
+                        Index index = indices[i];
+                        actualIndices[i] = index.getName();
+                        final IndexMetadata metadata = state.metadata().getIndexSafe(index);
+                        if (metadata.getState() == IndexMetadata.State.OPEN) {
+                            openIndices.add(index);
+                        } else {
+                            closedIndices.add(index);
+                        }
+                    }
+
+                    if (task.skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
+                        throw new IllegalArgumentException(
+                            String.format(
+                                Locale.ROOT,
+                                "Can't update non dynamic settings [%s] for open indices %s",
+                                task.skippedSettings,
+                                openIndices
+                            )
+                        );
+                    }
+
+                    if (task.preserveExisting == false && IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
+                        final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(task.openSettings);
+
+                        // Verify that this won't take us over the cluster shard limit.
+                        shardLimitValidator.validateShardLimitOnReplicaUpdate(state, indices, updatedNumberOfReplicas);
+
+                        /*
+                         * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
+                         * which makes these copies stale.
+                         *
+                         * TODO: should we update the in-sync allocation IDs once the data is deleted by the node?
+                         */
+                        routingTableBuilder = RoutingTable.builder(state.routingTable());
+                        routingTableBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
+                        metadataBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
+                        logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
+                    }
+
+                    updateIndexSettings(
+                        openIndices,
+                        metadataBuilder,
+                        (index, indexSettings) -> indexScopedSettings.updateDynamicSettings(
+                            task.openSettings,
+                            indexSettings,
+                            Settings.builder(),
+                            index.getName()
+                        ),
+                        task.preserveExisting,
+                        indexScopedSettings
+                    );
+
+                    updateIndexSettings(
+                        closedIndices,
+                        metadataBuilder,
+                        (index, indexSettings) -> indexScopedSettings.updateSettings(
+                            task.closedSettings,
+                            indexSettings,
+                            Settings.builder(),
+                            index.getName()
+                        ),
+                        task.preserveExisting,
+                        indexScopedSettings
+                    );
+
+                    if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.openSettings)
+                        || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.openSettings)) {
+                        for (String index : actualIndices) {
+                            final Settings settings = metadataBuilder.get(index).getSettings();
+                            MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
+                            MetadataCreateIndexService.validateStoreTypeSetting(settings);
+                        }
+                    }
+                    boolean changed = false;
+                    // increment settings versions
+                    for (final String index : actualIndices) {
+                        if (same(state.metadata().index(index).getSettings(), metadataBuilder.get(index).getSettings()) == false) {
+                            changed = true;
+                            final IndexMetadata.Builder builder = IndexMetadata.builder(metadataBuilder.get(index));
+                            builder.settingsVersion(1 + builder.settingsVersion());
+                            metadataBuilder.put(builder);
+                        }
+                    }
+
+                    final ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(state.blocks());
+                    boolean changedBlocks = false;
+                    for (IndexMetadata.APIBlock block : IndexMetadata.APIBlock.values()) {
+                        changedBlocks |= maybeUpdateClusterBlock(actualIndices, blocks, block.block, block.setting, task.openSettings);
+                    }
+                    changed |= changedBlocks;
+
+                    if (changed) {
+                        ClusterState updatedState = ClusterState.builder(state)
+                            .metadata(metadataBuilder)
+                            .routingTable(routingTableBuilder == null ? state.routingTable() : routingTableBuilder.build())
+                            .blocks(changedBlocks ? blocks.build() : state.blocks())
+                            .build();
+                        try {
+                            for (Index index : openIndices) {
+                                final IndexMetadata currentMetadata = state.metadata().getIndexSafe(index);
+                                final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
+                                indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
+                            }
+                            for (Index index : closedIndices) {
+                                final IndexMetadata currentMetadata = state.metadata().getIndexSafe(index);
+                                final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
+                                // Verifies that the current index settings can be updated with the updated dynamic settings.
+                                indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
+                                // Now check that we can create the index with the updated settings (dynamic and non-dynamic).
+                                // This step is mandatory since we allow to update non-dynamic settings on closed indices.
+                                indicesService.verifyIndexMetadata(updatedMetadata, updatedMetadata);
+                            }
+                        } catch (IOException ex) {
+                            throw ExceptionsHelper.convertToElastic(ex);
+                        }
+                        state = updatedState;
+                    }
+
                     taskContext.success(new LegacyClusterTaskResultActionListener(task, currentState), task);
                 } catch (Exception e) {
                     taskContext.onFailure(e);
@@ -252,139 +380,6 @@ public class MetadataUpdateSettingsService {
             return state;
         }
 
-        public ClusterState execute(MetadataUpdateSettingsTask task, ClusterState currentState) {
-            RoutingTable.Builder routingTableBuilder = null;
-            Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
-
-            // allow to change any settings to a closed index, and only allow dynamic settings to be changed
-            // on an open index
-            Set<Index> openIndices = new HashSet<>();
-            Set<Index> closedIndices = new HashSet<>();
-            final var indices = task.getIndices();
-            final String[] actualIndices = new String[indices.length];
-            for (int i = 0; i < indices.length; i++) {
-                Index index = indices[i];
-                actualIndices[i] = index.getName();
-                final IndexMetadata metadata = currentState.metadata().getIndexSafe(index);
-                if (metadata.getState() == IndexMetadata.State.OPEN) {
-                    openIndices.add(index);
-                } else {
-                    closedIndices.add(index);
-                }
-            }
-
-            if (task.skippedSettings.isEmpty() == false && openIndices.isEmpty() == false) {
-                throw new IllegalArgumentException(
-                    String.format(
-                        Locale.ROOT,
-                        "Can't update non dynamic settings [%s] for open indices %s",
-                        task.skippedSettings,
-                        openIndices
-                    )
-                );
-            }
-
-            if (task.preserveExisting == false && IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
-                final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(task.openSettings);
-
-                // Verify that this won't take us over the cluster shard limit.
-                shardLimitValidator.validateShardLimitOnReplicaUpdate(currentState, indices, updatedNumberOfReplicas);
-
-                /*
-                 * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
-                 * which makes these copies stale.
-                 *
-                 * TODO: should we update the in-sync allocation IDs once the data is deleted by the node?
-                 */
-                routingTableBuilder = RoutingTable.builder(currentState.routingTable());
-                routingTableBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
-                metadataBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
-                logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
-            }
-
-            updateIndexSettings(
-                openIndices,
-                metadataBuilder,
-                (index, indexSettings) -> indexScopedSettings.updateDynamicSettings(
-                    task.openSettings,
-                    indexSettings,
-                    Settings.builder(),
-                    index.getName()
-                ),
-                task.preserveExisting,
-                indexScopedSettings
-            );
-
-            updateIndexSettings(
-                closedIndices,
-                metadataBuilder,
-                (index, indexSettings) -> indexScopedSettings.updateSettings(
-                    task.closedSettings,
-                    indexSettings,
-                    Settings.builder(),
-                    index.getName()
-                ),
-                task.preserveExisting,
-                indexScopedSettings
-            );
-
-            if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(task.openSettings)
-                || IndexSettings.INDEX_TRANSLOG_RETENTION_SIZE_SETTING.exists(task.openSettings)) {
-                for (String index : actualIndices) {
-                    final Settings settings = metadataBuilder.get(index).getSettings();
-                    MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
-                    MetadataCreateIndexService.validateStoreTypeSetting(settings);
-                }
-            }
-            boolean changed = false;
-            // increment settings versions
-            for (final String index : actualIndices) {
-                if (same(currentState.metadata().index(index).getSettings(), metadataBuilder.get(index).getSettings()) == false) {
-                    changed = true;
-                    final IndexMetadata.Builder builder = IndexMetadata.builder(metadataBuilder.get(index));
-                    builder.settingsVersion(1 + builder.settingsVersion());
-                    metadataBuilder.put(builder);
-                }
-            }
-
-            final ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(currentState.blocks());
-            boolean changedBlocks = false;
-            for (IndexMetadata.APIBlock block : IndexMetadata.APIBlock.values()) {
-                changedBlocks |= maybeUpdateClusterBlock(actualIndices, blocks, block.block, block.setting, task.openSettings);
-            }
-            changed |= changedBlocks;
-
-            if (changed == false) {
-                return currentState;
-            }
-
-            ClusterState updatedState = ClusterState.builder(currentState)
-                .metadata(metadataBuilder)
-                .routingTable(routingTableBuilder == null ? currentState.routingTable() : routingTableBuilder.build())
-                .blocks(changedBlocks ? blocks.build() : currentState.blocks())
-                .build();
-
-            try {
-                for (Index index : openIndices) {
-                    final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
-                    final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
-                    indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
-                }
-                for (Index index : closedIndices) {
-                    final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
-                    final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
-                    // Verifies that the current index settings can be updated with the updated dynamic settings.
-                    indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
-                    // Now check that we can create the index with the updated settings (dynamic and non-dynamic).
-                    // This step is mandatory since we allow to update non-dynamic settings on closed indices.
-                    indicesService.verifyIndexMetadata(updatedMetadata, updatedMetadata);
-                }
-            } catch (IOException ex) {
-                throw ExceptionsHelper.convertToElastic(ex);
-            }
-
-            return updatedState;
-        }
     }
 
 }
