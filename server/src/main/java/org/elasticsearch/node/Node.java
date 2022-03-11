@@ -674,8 +674,7 @@ public class Node implements Closeable {
                 clusterModule.getAllocationService(),
                 settingsModule.getIndexScopedSettings(),
                 indicesService,
-                shardLimitValidator,
-                threadPool
+                shardLimitValidator
             );
 
             Collection<Object> pluginComponents = pluginsService.filterPlugins(Plugin.class)
