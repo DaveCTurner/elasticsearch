@@ -19,7 +19,6 @@ import org.elasticsearch.cluster.ClusterStateAckListener;
 import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
-import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RoutingTable;
@@ -166,36 +165,6 @@ public class MetadataUpdateSettingsService {
         }
     }
 
-    /**
-     * Updates the cluster block only iff the setting exists in the given settings
-     */
-    private static boolean maybeUpdateClusterBlock(
-        String[] actualIndices,
-        ClusterBlocks.Builder blocks,
-        ClusterBlock block,
-        Setting<Boolean> setting,
-        Settings openSettings
-    ) {
-        boolean changed = false;
-        if (setting.exists(openSettings)) {
-            final boolean updateBlock = setting.get(openSettings);
-            for (String index : actualIndices) {
-                if (updateBlock) {
-                    if (blocks.hasIndexBlock(index, block) == false) {
-                        blocks.addIndexBlock(index, block);
-                        changed = true;
-                    }
-                } else {
-                    if (blocks.hasIndexBlock(index, block)) {
-                        blocks.removeIndexBlock(index, block);
-                        changed = true;
-                    }
-                }
-            }
-        }
-        return changed;
-    }
-
     private record MetadataUpdateSettingsTask(
         Index[] indices,
         Settings openSettings,
@@ -336,8 +305,23 @@ public class MetadataUpdateSettingsService {
 
                     final ClusterBlocks.Builder blocks = ClusterBlocks.builder().blocks(state.blocks());
                     boolean changedBlocks = false;
-                    for (IndexMetadata.APIBlock block : IndexMetadata.APIBlock.values()) {
-                        changedBlocks |= maybeUpdateClusterBlock(actualIndices, blocks, block.block, block.setting, task.openSettings);
+                    for (final var block : IndexMetadata.APIBlock.values()) {
+                        if (block.setting.exists(task.openSettings)) {
+                            final boolean updateBlock = block.setting.get(task.openSettings);
+                            for (String index : actualIndices) {
+                                if (updateBlock) {
+                                    if (blocks.hasIndexBlock(index, block.block) == false) {
+                                        blocks.addIndexBlock(index, block.block);
+                                        changedBlocks = true;
+                                    }
+                                } else {
+                                    if (blocks.hasIndexBlock(index, block.block)) {
+                                        blocks.removeIndexBlock(index, block.block);
+                                        changedBlocks = true;
+                                    }
+                                }
+                            }
+                        }
                     }
                     changed |= changedBlocks;
 
