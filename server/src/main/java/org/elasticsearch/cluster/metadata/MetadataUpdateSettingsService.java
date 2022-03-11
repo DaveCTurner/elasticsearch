@@ -220,9 +220,6 @@ public class MetadataUpdateSettingsService {
         private final Settings normalizedSettings;
         private final MetadataUpdateSettingsService metadataUpdateSettingsService;
         private final ActionListener<AcknowledgedResponse> listener;
-        private final Priority priority;
-        @Nullable
-        private final TimeValue timeout;
 
         MyAckedClusterStateUpdateTask(
             MetadataUpdateSettingsService metadataUpdateSettingsService,
@@ -234,8 +231,6 @@ public class MetadataUpdateSettingsService {
             Settings closedSettings,
             Settings normalizedSettings
         ) {
-            this.priority = Priority.URGENT;
-            this.timeout = ((AckedRequest) request).masterNodeTimeout();
             this.listener = ContextPreservingActionListener.wrapPreservingContext(
                 listener,
                 metadataUpdateSettingsService.threadPool.getThreadContext()
