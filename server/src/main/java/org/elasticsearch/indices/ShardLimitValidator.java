@@ -66,27 +66,11 @@ public class ShardLimitValidator {
     protected final AtomicInteger shardLimitPerNodeFrozen = new AtomicInteger();
 
     public ShardLimitValidator(final Settings settings, ClusterService clusterService) {
-        this.shardLimitPerNode.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE.get(settings));
-        this.shardLimitPerNodeFrozen.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN.get(settings));
-        clusterService.getClusterSettings().addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE, this::setShardLimitPerNode);
+        shardLimitPerNode.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE.get(settings));
+        shardLimitPerNodeFrozen.set(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN.get(settings));
+        clusterService.getClusterSettings().addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE, shardLimitPerNode::set);
         clusterService.getClusterSettings()
-            .addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN, this::setShardLimitPerNodeFrozen);
-    }
-
-    private void setShardLimitPerNode(int newValue) {
-        this.shardLimitPerNode.set(newValue);
-    }
-
-    private void setShardLimitPerNodeFrozen(int newValue) {
-        this.shardLimitPerNodeFrozen.set(newValue);
-    }
-
-    /**
-     * Gets the currently configured value of the {@link ShardLimitValidator#SETTING_CLUSTER_MAX_SHARDS_PER_NODE} setting.
-     * @return the current value of the setting
-     */
-    public int getShardLimitPerNode() {
-        return shardLimitPerNode.get();
+            .addSettingsUpdateConsumer(SETTING_CLUSTER_MAX_SHARDS_PER_NODE_FROZEN, shardLimitPerNodeFrozen::set);
     }
 
     /**
@@ -186,7 +170,7 @@ public class ShardLimitValidator {
         // against such mixed nodes for production use anyway.
         int frozenNodeCount = nodeCount(state, ShardLimitValidator::hasFrozen);
         int normalNodeCount = nodeCount(state, ShardLimitValidator::hasNonFrozen);
-        return checkShardLimit(newShards, state, getShardLimitPerNode(), normalNodeCount, "normal").or(
+        return checkShardLimit(newShards, state, shardLimitPerNode.get(), normalNodeCount, "normal").or(
             () -> checkShardLimit(newFrozenShards, state, shardLimitPerNodeFrozen.get(), frozenNodeCount, "frozen")
         );
     }
