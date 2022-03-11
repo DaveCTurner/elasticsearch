@@ -161,6 +161,10 @@ public class MetadataUpdateSettingsService {
                 }
                 Settings finalSettings = indexSettings.build();
                 indexScopedSettings.validate(finalSettings.filter(k -> indexScopedSettings.isPrivateSetting(k) == false), true);
+                if (validateTranslogRetentionSettings) {
+                    MetadataCreateIndexService.validateTranslogRetentionSettings(finalSettings);
+                    MetadataCreateIndexService.validateStoreTypeSetting(finalSettings);
+                }
                 metadataBuilder.put(IndexMetadata.builder(indexMetadata).settings(finalSettings));
             }
         }
@@ -291,13 +295,6 @@ public class MetadataUpdateSettingsService {
                         indexScopedSettings
                     );
 
-                    if (validateTranslogRetentionSettings) {
-                        for (String index : actualIndices) {
-                            final Settings settings = metadataBuilder.get(index).getSettings();
-                            MetadataCreateIndexService.validateTranslogRetentionSettings(settings);
-                            MetadataCreateIndexService.validateStoreTypeSetting(settings);
-                        }
-                    }
                     boolean changed = false;
                     // increment settings versions
                     for (final String index : actualIndices) {
