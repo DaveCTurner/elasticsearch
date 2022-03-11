@@ -188,13 +188,14 @@ public class MetadataUpdateSettingsService {
     }
 
     private static class MyAckedClusterStateUpdateTask implements ClusterStateAckListener, ClusterStateTaskListener {
-        private final UpdateSettingsClusterStateUpdateRequest request;
         private final Set<String> skippedSettings;
         private final Settings openSettings;
         private final boolean preserveExisting;
         private final Settings closedSettings;
         private final Settings normalizedSettings;
         private final ActionListener<AcknowledgedResponse> listener;
+        private final TimeValue ackTimeout;
+        private final Index[] indices;
 
         MyAckedClusterStateUpdateTask(
             UpdateSettingsClusterStateUpdateRequest request,
@@ -206,12 +207,17 @@ public class MetadataUpdateSettingsService {
             Settings normalizedSettings
         ) {
             this.listener = listener;
-            this.request = request;
             this.skippedSettings = skippedSettings;
             this.openSettings = openSettings;
             this.preserveExisting = preserveExisting;
             this.closedSettings = closedSettings;
             this.normalizedSettings = normalizedSettings;
+            ackTimeout = request.ackTimeout();
+            indices = request.indices();
+        }
+
+        private Index[] getIndices() {
+            return indices;
         }
 
         @Override
@@ -236,7 +242,7 @@ public class MetadataUpdateSettingsService {
 
         @Override
         public final TimeValue ackTimeout() {
-            return request.ackTimeout();
+            return ackTimeout;
         }
     }
 
@@ -269,9 +275,10 @@ public class MetadataUpdateSettingsService {
             // on an open index
             Set<Index> openIndices = new HashSet<>();
             Set<Index> closedIndices = new HashSet<>();
-            final String[] actualIndices = new String[myAckedClusterStateUpdateTask.request.indices().length];
-            for (int i = 0; i < myAckedClusterStateUpdateTask.request.indices().length; i++) {
-                Index index = myAckedClusterStateUpdateTask.request.indices()[i];
+            final var indices = myAckedClusterStateUpdateTask.getIndices();
+            final String[] actualIndices = new String[indices.length];
+            for (int i = 0; i < indices.length; i++) {
+                Index index = indices[i];
                 actualIndices[i] = index.getName();
                 final IndexMetadata metadata = currentState.metadata().getIndexSafe(index);
                 if (metadata.getState() == IndexMetadata.State.OPEN) {
@@ -300,7 +307,7 @@ public class MetadataUpdateSettingsService {
                     // Verify that this won't take us over the cluster shard limit.
                     shardLimitValidator.validateShardLimitOnReplicaUpdate(
                         currentState,
-                        myAckedClusterStateUpdateTask.request.indices(),
+                        indices,
                         updatedNumberOfReplicas
                     );
 
@@ -407,4 +414,5 @@ public class MetadataUpdateSettingsService {
             return updatedState;
         }
     }
+
 }
