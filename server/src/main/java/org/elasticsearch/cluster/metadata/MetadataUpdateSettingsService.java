@@ -252,7 +252,7 @@ public class MetadataUpdateSettingsService {
                     for (int i = 0; i < indices.length; i++) {
                         Index index = indices[i];
                         actualIndices[i] = index.getName();
-                        final IndexMetadata metadata = state.metadata().getIndexSafe(index);
+                        final IndexMetadata metadata = metadataBuilder.getSafe(index);
                         if (metadata.getState() == IndexMetadata.State.OPEN) {
                             openIndices.add(index);
                         } else {
