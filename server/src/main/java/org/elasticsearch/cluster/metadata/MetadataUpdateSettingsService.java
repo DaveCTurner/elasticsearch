@@ -20,7 +20,6 @@ import org.elasticsearch.cluster.ClusterStateAckListener;
 import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
-import org.elasticsearch.cluster.ack.AckedRequest;
 import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -138,9 +137,12 @@ public class MetadataUpdateSettingsService {
             normalizedSettings
         );
 
-        clusterService.submitStateUpdateTask("update-settings " + Arrays.toString(request.indices()), clusterTask,
+        clusterService.submitStateUpdateTask(
+            "update-settings " + Arrays.toString(request.indices()),
+            clusterTask,
             ClusterStateTaskConfig.build(Priority.URGENT, request.masterNodeTimeout()),
-            this.executor);
+            this.executor
+        );
     }
 
     public static void updateIndexSettings(
@@ -208,10 +210,7 @@ public class MetadataUpdateSettingsService {
         return changed;
     }
 
-    private static class MyAckedClusterStateUpdateTask
-        implements
-            ClusterStateAckListener,
-            ClusterStateTaskListener {
+    private static class MyAckedClusterStateUpdateTask implements ClusterStateAckListener, ClusterStateTaskListener {
         private final UpdateSettingsClusterStateUpdateRequest request;
         private final Set<String> skippedSettings;
         private final Settings openSettings;
