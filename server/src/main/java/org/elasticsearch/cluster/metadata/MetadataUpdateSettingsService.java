@@ -15,11 +15,14 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsClusterStateUpdateRequest;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateAckListener;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.ack.AckedRequest;
 import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -28,6 +31,8 @@ import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.indices.IndicesService;
@@ -55,7 +60,7 @@ public class MetadataUpdateSettingsService {
     private final IndicesService indicesService;
     private final ShardLimitValidator shardLimitValidator;
     private final ThreadPool threadPool;
-    private final ClusterStateTaskExecutor<AckedClusterStateUpdateTask> executor;
+    private final ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> executor;
 
     public MetadataUpdateSettingsService(
         ClusterService clusterService,
@@ -121,7 +126,7 @@ public class MetadataUpdateSettingsService {
         final Settings openSettings = settingsForOpenIndices.build();
         final boolean preserveExisting = request.isPreserveExisting();
 
-        AckedClusterStateUpdateTask clusterTask = new MyAckedClusterStateUpdateTask(
+        MyAckedClusterStateUpdateTask clusterTask = new MyAckedClusterStateUpdateTask(
             this,
             request,
             listener,
@@ -200,7 +205,7 @@ public class MetadataUpdateSettingsService {
         return changed;
     }
 
-    private static class MyAckedClusterStateUpdateTask extends AckedClusterStateUpdateTask {
+    private static class MyAckedClusterStateUpdateTask extends ClusterStateUpdateTask implements ClusterStateAckListener {
         private final UpdateSettingsClusterStateUpdateRequest request;
         private final Set<String> skippedSettings;
         private final Settings openSettings;
@@ -208,6 +213,7 @@ public class MetadataUpdateSettingsService {
         private final Settings closedSettings;
         private final Settings normalizedSettings;
         private final MetadataUpdateSettingsService metadataUpdateSettingsService;
+        private final ActionListener<AcknowledgedResponse> listener;
 
         MyAckedClusterStateUpdateTask(
             MetadataUpdateSettingsService metadataUpdateSettingsService,
@@ -219,10 +225,10 @@ public class MetadataUpdateSettingsService {
             Settings closedSettings,
             Settings normalizedSettings
         ) {
-            super(
-                Priority.URGENT,
-                request,
-                ContextPreservingActionListener.wrapPreservingContext(listener, metadataUpdateSettingsService.threadPool.getThreadContext())
+            super(Priority.URGENT, ((AckedRequest) request).masterNodeTimeout());
+            this.listener = ContextPreservingActionListener.wrapPreservingContext(
+                listener,
+                metadataUpdateSettingsService.threadPool.getThreadContext()
             );
             this.request = request;
             this.skippedSettings = skippedSettings;
@@ -365,6 +371,50 @@ public class MetadataUpdateSettingsService {
             }
 
             return updatedState;
+        }
+
+        /**
+         * Called to determine which nodes the acknowledgement is expected from
+         *
+         * @param discoveryNode a node
+         * @return true if the node is expected to send ack back, false otherwise
+         */
+        public boolean mustAck(DiscoveryNode discoveryNode) {
+            return true;
+        }
+
+        /**
+         * Called once all the nodes have acknowledged the cluster state update request. Must be
+         * very lightweight execution, since it gets executed on the cluster service thread.
+         *
+         * @param e optional error that might have been thrown
+         */
+        public void onAllNodesAcked(@Nullable Exception e) {
+            listener.onResponse(newResponse(e == null));
+        }
+
+        protected AcknowledgedResponse newResponse(boolean acknowledged) {
+            return AcknowledgedResponse.of(acknowledged);
+        }
+
+        /**
+         * Called once the acknowledgement timeout defined by
+         * {@link MyAckedClusterStateUpdateTask#ackTimeout()} has expired
+         */
+        public void onAckTimeout() {
+            listener.onResponse(newResponse(false));
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            listener.onFailure(e);
+        }
+
+        /**
+         * Acknowledgement timeout, maximum time interval to wait for acknowledgements
+         */
+        public final TimeValue ackTimeout() {
+            return request.ackTimeout();
         }
     }
 }
