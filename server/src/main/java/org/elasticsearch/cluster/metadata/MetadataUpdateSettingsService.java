@@ -210,6 +210,7 @@ public class MetadataUpdateSettingsService {
         public ClusterState execute(ClusterState currentState, List<TaskContext<MetadataUpdateSettingsTask>> taskContexts)
             throws Exception {
             ClusterState state = currentState;
+            final var progressiveShardLimitValidator = shardLimitValidator.getProgressiveReplicaCountChangeValidator(currentState);
             for (final var taskContext : taskContexts) {
                 try {
                     final var task = taskContext.getTask();
@@ -245,11 +246,16 @@ public class MetadataUpdateSettingsService {
                         );
                     }
 
+                    Runnable shardLimitValidatorUpdater = null;
+
                     if (task.preserveExisting == false && IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
                         final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(task.openSettings);
 
                         // Verify that this won't take us over the cluster shard limit.
-                        shardLimitValidator.validateShardLimitOnReplicaUpdate(state, indices, updatedNumberOfReplicas);
+                        shardLimitValidatorUpdater = progressiveShardLimitValidator.validateReplicaCountChange(
+                            indices,
+                            updatedNumberOfReplicas
+                        );
 
                         /*
                          * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
@@ -294,6 +300,10 @@ public class MetadataUpdateSettingsService {
                         validateTranslogRetentionSettings,
                         indexScopedSettings
                     );
+
+                    if (shardLimitValidatorUpdater != null) {
+                        shardLimitValidatorUpdater.run();
+                    }
 
                     boolean changed = false;
                     // increment settings versions
