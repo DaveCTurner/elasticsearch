@@ -113,7 +113,6 @@ public class MetadataUpdateSettingsService {
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
             new MyAckedClusterStateUpdateTask(
-                this,
                 request,
                 listener,
                 skippedSettings,
@@ -199,11 +198,9 @@ public class MetadataUpdateSettingsService {
         private final boolean preserveExisting;
         private final Settings closedSettings;
         private final Settings normalizedSettings;
-        private final MetadataUpdateSettingsService metadataUpdateSettingsService;
         private final ActionListener<AcknowledgedResponse> listener;
 
         MyAckedClusterStateUpdateTask(
-            MetadataUpdateSettingsService metadataUpdateSettingsService,
             UpdateSettingsClusterStateUpdateRequest request,
             ActionListener<AcknowledgedResponse> listener,
             Set<String> skippedSettings,
@@ -219,7 +216,6 @@ public class MetadataUpdateSettingsService {
             this.preserveExisting = preserveExisting;
             this.closedSettings = closedSettings;
             this.normalizedSettings = normalizedSettings;
-            this.metadataUpdateSettingsService = metadataUpdateSettingsService;
         }
 
         @Override
@@ -248,7 +244,7 @@ public class MetadataUpdateSettingsService {
         }
     }
 
-    private static class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
+    private class MetadataUpdateSettingsTaskExecutor implements ClusterStateTaskExecutor<MyAckedClusterStateUpdateTask> {
         private final AllocationService allocationService;
 
         MetadataUpdateSettingsTaskExecutor(AllocationService allocationService) {
@@ -312,7 +308,7 @@ public class MetadataUpdateSettingsService {
                 );
                 if (myAckedClusterStateUpdateTask.preserveExisting == false) {
                     // Verify that this won't take us over the cluster shard limit.
-                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.shardLimitValidator.validateShardLimitOnReplicaUpdate(
+                    shardLimitValidator.validateShardLimitOnReplicaUpdate(
                         currentState,
                         myAckedClusterStateUpdateTask.request.indices(),
                         updatedNumberOfReplicas
@@ -334,23 +330,27 @@ public class MetadataUpdateSettingsService {
             updateIndexSettings(
                 openIndices,
                 metadataBuilder,
-                (index, indexSettings) -> myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
-                    .updateDynamicSettings(myAckedClusterStateUpdateTask.openSettings, indexSettings, Settings.builder(), index.getName()),
+                (index, indexSettings) -> indexScopedSettings.updateDynamicSettings(
+                    myAckedClusterStateUpdateTask.openSettings,
+                    indexSettings,
+                    Settings.builder(),
+                    index.getName()
+                ),
                 myAckedClusterStateUpdateTask.preserveExisting,
-                myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
+                indexScopedSettings
             );
 
             updateIndexSettings(
                 closedIndices,
                 metadataBuilder,
-                (index, indexSettings) -> myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings.updateSettings(
+                (index, indexSettings) -> indexScopedSettings.updateSettings(
                     myAckedClusterStateUpdateTask.closedSettings,
                     indexSettings,
                     Settings.builder(),
                     index.getName()
                 ),
                 myAckedClusterStateUpdateTask.preserveExisting,
-                myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indexScopedSettings
+                indexScopedSettings
             );
 
             if (IndexSettings.INDEX_TRANSLOG_RETENTION_AGE_SETTING.exists(myAckedClusterStateUpdateTask.normalizedSettings)
@@ -399,25 +399,16 @@ public class MetadataUpdateSettingsService {
                 for (Index index : openIndices) {
                     final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
                     final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
-                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
-                        currentMetadata,
-                        updatedMetadata
-                    );
+                    indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
                 }
                 for (Index index : closedIndices) {
                     final IndexMetadata currentMetadata = currentState.metadata().getIndexSafe(index);
                     final IndexMetadata updatedMetadata = updatedState.metadata().getIndexSafe(index);
                     // Verifies that the current index settings can be updated with the updated dynamic settings.
-                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
-                        currentMetadata,
-                        updatedMetadata
-                    );
+                    indicesService.verifyIndexMetadata(currentMetadata, updatedMetadata);
                     // Now check that we can create the index with the updated settings (dynamic and non-dynamic).
                     // This step is mandatory since we allow to update non-dynamic settings on closed indices.
-                    myAckedClusterStateUpdateTask.metadataUpdateSettingsService.indicesService.verifyIndexMetadata(
-                        updatedMetadata,
-                        updatedMetadata
-                    );
+                    indicesService.verifyIndexMetadata(updatedMetadata, updatedMetadata);
                 }
             } catch (IOException ex) {
                 throw ExceptionsHelper.convertToElastic(ex);
