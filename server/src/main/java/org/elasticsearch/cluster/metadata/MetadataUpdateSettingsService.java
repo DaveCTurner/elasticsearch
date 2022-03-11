@@ -17,8 +17,9 @@ import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateAckListener;
+import org.elasticsearch.cluster.ClusterStateTaskConfig;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
-import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ack.AckedRequest;
 import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
@@ -205,7 +206,11 @@ public class MetadataUpdateSettingsService {
         return changed;
     }
 
-    private static class MyAckedClusterStateUpdateTask extends ClusterStateUpdateTask implements ClusterStateAckListener {
+    private static class MyAckedClusterStateUpdateTask
+        implements
+            ClusterStateAckListener,
+            ClusterStateTaskConfig,
+            ClusterStateTaskListener {
         private final UpdateSettingsClusterStateUpdateRequest request;
         private final Set<String> skippedSettings;
         private final Settings openSettings;
@@ -214,6 +219,9 @@ public class MetadataUpdateSettingsService {
         private final Settings normalizedSettings;
         private final MetadataUpdateSettingsService metadataUpdateSettingsService;
         private final ActionListener<AcknowledgedResponse> listener;
+        private final Priority priority;
+        @Nullable
+        private final TimeValue timeout;
 
         MyAckedClusterStateUpdateTask(
             MetadataUpdateSettingsService metadataUpdateSettingsService,
@@ -225,7 +233,8 @@ public class MetadataUpdateSettingsService {
             Settings closedSettings,
             Settings normalizedSettings
         ) {
-            super(Priority.URGENT, ((AckedRequest) request).masterNodeTimeout());
+            this.priority = Priority.URGENT;
+            this.timeout = ((AckedRequest) request).masterNodeTimeout();
             this.listener = ContextPreservingActionListener.wrapPreservingContext(
                 listener,
                 metadataUpdateSettingsService.threadPool.getThreadContext()
@@ -239,7 +248,6 @@ public class MetadataUpdateSettingsService {
             this.metadataUpdateSettingsService = metadataUpdateSettingsService;
         }
 
-        @Override
         public ClusterState execute(ClusterState currentState) {
             RoutingTable.Builder routingTableBuilder = null;
             Metadata.Builder metadataBuilder = Metadata.builder(currentState.metadata());
@@ -415,6 +423,20 @@ public class MetadataUpdateSettingsService {
          */
         public final TimeValue ackTimeout() {
             return request.ackTimeout();
+        }
+
+        /**
+         * If the cluster state update task wasn't processed by the provided timeout, call
+         * {@link ClusterStateTaskListener#onFailure(Exception)}. May return null to indicate no timeout is needed (default).
+         */
+        @Nullable
+        public final TimeValue timeout() {
+            return timeout;
+        }
+
+        @Override
+        public final Priority priority() {
+            return priority;
         }
     }
 }
