@@ -109,14 +109,14 @@ public class MetadataUpdateSettingsService {
         clusterService.submitStateUpdateTask(
             "update-settings " + Arrays.toString(request.indices()),
             new MyAckedClusterStateUpdateTask(
-                listener,
-                skippedSettings,
+                request.indices(),
                 openSettings,
-                preserveExisting,
                 closedSettings,
                 normalizedSettings,
+                skippedSettings,
+                preserveExisting,
                 request.ackTimeout(),
-                request.indices()
+                listener
             ),
             ClusterStateTaskConfig.build(Priority.URGENT, request.masterNodeTimeout()),
             this.executor
@@ -189,14 +189,14 @@ public class MetadataUpdateSettingsService {
     }
 
     private record MyAckedClusterStateUpdateTask(
-        ActionListener<AcknowledgedResponse> listener,
-        Set<String> skippedSettings,
+        Index[] indices,
         Settings openSettings,
-        boolean preserveExisting,
         Settings closedSettings,
         Settings normalizedSettings,
+        Set<String> skippedSettings,
+        boolean preserveExisting,
         TimeValue ackTimeout,
-        Index[] indices
+        ActionListener<AcknowledgedResponse> listener
     ) implements ClusterStateAckListener, ClusterStateTaskListener {
 
         private Index[] getIndices() {
