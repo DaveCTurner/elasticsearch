@@ -284,23 +284,22 @@ public class MetadataUpdateSettingsService {
                 );
             }
 
-            if (IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
+            if (task.preserveExisting == false && IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.exists(task.openSettings)) {
                 final int updatedNumberOfReplicas = IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.get(task.openSettings);
-                if (task.preserveExisting == false) {
-                    // Verify that this won't take us over the cluster shard limit.
-                    shardLimitValidator.validateShardLimitOnReplicaUpdate(currentState, indices, updatedNumberOfReplicas);
 
-                    /*
-                     * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
-                     * which makes these copies stale.
-                     *
-                     * TODO: should we update the in-sync allocation IDs once the data is deleted by the node?
-                     */
-                    routingTableBuilder = RoutingTable.builder(currentState.routingTable());
-                    routingTableBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
-                    metadataBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
-                    logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
-                }
+                // Verify that this won't take us over the cluster shard limit.
+                shardLimitValidator.validateShardLimitOnReplicaUpdate(currentState, indices, updatedNumberOfReplicas);
+
+                /*
+                 * We do not update the in-sync allocation IDs as they will be removed upon the first index operation
+                 * which makes these copies stale.
+                 *
+                 * TODO: should we update the in-sync allocation IDs once the data is deleted by the node?
+                 */
+                routingTableBuilder = RoutingTable.builder(currentState.routingTable());
+                routingTableBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
+                metadataBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
+                logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
             }
 
             updateIndexSettings(
