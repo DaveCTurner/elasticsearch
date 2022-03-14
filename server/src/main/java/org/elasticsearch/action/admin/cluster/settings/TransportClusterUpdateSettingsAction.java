@@ -18,6 +18,7 @@ import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -30,7 +31,7 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -152,11 +153,20 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
             }
 
             @Override
-            public void onAllNodesAcked(@Nullable Exception e) {
+            public void onAllNodesAcked() {
                 if (changed) {
                     reroute(true);
                 } else {
-                    super.onAllNodesAcked(e);
+                    super.onAllNodesAcked();
+                }
+            }
+
+            @Override
+            public void onAckFailure(Exception e) {
+                if (changed) {
+                    reroute(true);
+                } else {
+                    super.onAckFailure(e);
                 }
             }
 
@@ -229,7 +239,7 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
                             return allocationService.reroute(currentState, "reroute after cluster update settings");
                         }
                     },
-                    ClusterStateTaskExecutor.unbatched()
+                    newExecutor()
                 );
             }
 
@@ -250,7 +260,11 @@ public class TransportClusterUpdateSettingsAction extends TransportMasterNodeAct
                 changed = clusterState != currentState;
                 return clusterState;
             }
-        }, ClusterStateTaskExecutor.unbatched());
+        }, newExecutor());
     }
 
+    @SuppressForbidden(reason = "legacy usage of unbatched task") // TODO add support for batching here
+    private static <T extends ClusterStateUpdateTask> ClusterStateTaskExecutor<T> newExecutor() {
+        return ClusterStateTaskExecutor.unbatched();
+    }
 }

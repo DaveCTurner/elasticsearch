@@ -10,6 +10,8 @@ package org.elasticsearch.cluster;
 import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
 import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
 
+import java.util.List;
+
 public interface ClusterStateTaskListener {
 
     /**
@@ -27,13 +29,18 @@ public interface ClusterStateTaskListener {
     void onFailure(Exception e);
 
     /**
-     * Called when the task was successfully executed and, if it resulted in a cluster state update, then the update was published and
-     * successfully committed.
-     * <p>
+     * Called when the result of the {@link ClusterStateTaskExecutor#execute(ClusterState, List)} method have been processed properly by all
+     * listeners.
+     *
+     * The {@param newState} parameter is the state that was ultimately published. This can lead to surprising behaviour if tasks are
+     * batched together: a later task in the batch may undo or overwrite the changes made by an earlier task. In general you should prefer
+     * to ignore the published state and instead handle the success of a publication via the listener that the executor passes to
+     * {@link ClusterStateTaskExecutor.TaskContext#success}.
+     *
      * Implementations of this callback must not throw exceptions: an exception thrown here is logged by the master service at {@code ERROR}
      * level and otherwise ignored, except in tests where it raises an {@link AssertionError}. If log-and-ignore is the right behaviour then
      * implementations must do so themselves, typically using a more specific logger and at a less dramatic log level.
      */
+    // TODO: replace all remaining usages of this method with dedicated listeners and then remove it.
     default void clusterStateProcessed(ClusterState oldState, ClusterState newState) {}
-
 }
