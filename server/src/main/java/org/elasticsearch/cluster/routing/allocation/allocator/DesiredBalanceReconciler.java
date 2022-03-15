@@ -12,12 +12,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.ArrayUtil;
 import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
-import org.elasticsearch.cluster.routing.allocation.AllocationDecision;
-import org.elasticsearch.cluster.routing.allocation.MoveDecision;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.DiskThresholdDecider;
@@ -272,73 +271,50 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
-            final var moveDecision = decideMove(shardRouting, canRemainDecision, desiredNodeIds);
-            if (moveDecision.isDecisionTaken() && moveDecision.forceMove()) {
+            final var moveTarget = findMoveTarget(shardRouting, desiredNodeIds);
+            if (moveTarget != null) {
                 routingNodes.relocateShard(
                     shardRouting,
-                    moveDecision.getTargetNode().getId(),
+                    moveTarget.getId(),
                     allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
                     allocation.changes()
                 );
-                if (logger.isTraceEnabled()) {
-                    logger.trace("Moved shard [{}] to node [{}]", shardRouting, moveDecision.getTargetNode());
-                }
-            } else if (moveDecision.isDecisionTaken() && moveDecision.canRemain() == false) {
-                logger.trace("[{}][{}] can't move", shardRouting.index(), shardRouting.id());
             }
         }
     }
 
-    /**
-     * Makes a decision on whether to move a started shard to another node.  The following rules apply
-     * to the {@link MoveDecision} return object:
-     *   1. If the shard is not started, no decision will be taken and {@link MoveDecision#isDecisionTaken()} will return false.
-     *   2. If the shard is allowed to remain on its current node, no attempt will be made to move the shard and
-     *      {@link MoveDecision#getCanRemainDecision} will have a decision type of YES.  All other fields in the object will be null.
-     *   3. If the shard is not allowed to remain on its current node, then {@link MoveDecision#getAllocationDecision()} will be
-     *      populated with the decision of moving to another node.  If {@link MoveDecision#forceMove()} ()} returns {@code true}, then
-     *      {@link MoveDecision#getTargetNode} will return a non-null value, otherwise the assignedNodeId will be null.
-     *   4. If the method is invoked in explain mode (e.g. from the cluster allocation explain APIs), then
-     *      {@link MoveDecision#getNodeDecisions} will have a non-null value.
-     */
-    public MoveDecision decideMove(final ShardRouting shardRouting, Decision canRemainDecision, Set<String> desiredNodeIds) {
-        final var moveDecision = decideMove(shardRouting, canRemainDecision, desiredNodeIds, this::decideCanAllocate);
-        if (moveDecision.forceMove()) {
+    private DiscoveryNode findMoveTarget(final ShardRouting shardRouting, Set<String> desiredNodeIds) {
+        final var moveDecision = findMoveTarget(shardRouting, desiredNodeIds, this::decideCanAllocate);
+        if (moveDecision != null) {
             return moveDecision;
         }
 
         final var shutdown = allocation.nodeShutdowns().get(shardRouting.currentNodeId());
         final var shardsOnReplacedNode = shutdown != null && shutdown.getType().equals(SingleNodeShutdownMetadata.Type.REPLACE);
         if (shardsOnReplacedNode) {
-            return decideMove(shardRouting, canRemainDecision, desiredNodeIds, this::decideCanForceAllocateForVacate);
+            return findMoveTarget(shardRouting, desiredNodeIds, this::decideCanForceAllocateForVacate);
         }
-        return moveDecision;
+        return null;
     }
 
-    private MoveDecision decideMove(
+    private DiscoveryNode findMoveTarget(
         ShardRouting shardRouting,
-        Decision remainDecision,
         Set<String> desiredNodeIds,
         BiFunction<ShardRouting, RoutingNode, Decision> canAllocateDecider
     ) {
-        var bestDecision = Decision.Type.NO;
         for (final var nodeId : desiredNodeIds) {
             if (nodeId.equals(shardRouting.currentNodeId()) == false) {
                 final var currentNode = routingNodes.node(nodeId);
-                final var canAllocateDecision = canAllocateDecider.apply(shardRouting, currentNode).type();
-                if (canAllocateDecision == Decision.Type.YES) {
-                    return MoveDecision.cannotRemain(remainDecision, AllocationDecision.YES, currentNode.node(), null);
-                } else if (canAllocateDecision == Decision.Type.THROTTLE && bestDecision == Decision.Type.NO) {
-                    bestDecision = Decision.Type.THROTTLE;
+                if (canAllocateDecider.apply(shardRouting, currentNode).type() == Decision.Type.YES) {
+                    return currentNode.node();
                 }
             }
         }
 
-        return MoveDecision.cannotRemain(remainDecision, AllocationDecision.fromDecisionType(bestDecision), null, null);
+        return null;
     }
 
     private Decision decideCanAllocate(ShardRouting shardRouting, RoutingNode target) {
-        // don't use canRebalance as we want hard filtering rules to apply. See #17698
         return allocation.deciders().canAllocate(shardRouting, target, allocation);
     }
 
