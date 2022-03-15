@@ -69,6 +69,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import static org.elasticsearch.cluster.ClusterInfo.shardIdentifierFromRouting;
@@ -326,7 +327,12 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var stateWithInitializingPrimaries = startInitializingShardsAndReroute(allocationService, clusterState);
         for (final var indexRoutingTable : stateWithInitializingPrimaries.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
+            }
+
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 assertTrue(indexShardRoutingTable.primaryShard().initializing());
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::unassigned).count(), equalTo(3L));
             }
@@ -334,7 +340,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var stateWithInitializingReplicas1 = startInitializingShardsAndReroute(allocationService, stateWithInitializingPrimaries);
         for (final var indexRoutingTable : stateWithInitializingReplicas1.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 assertTrue(indexShardRoutingTable.primaryShard().started());
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::unassigned).count(), equalTo(2L));
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::initializing).count(), equalTo(1L));
@@ -343,7 +350,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var stateWithInitializingReplicas2 = startInitializingShardsAndReroute(allocationService, stateWithInitializingReplicas1);
         for (final var indexRoutingTable : stateWithInitializingReplicas2.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 assertTrue(indexShardRoutingTable.primaryShard().started());
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::unassigned).count(), equalTo(1L));
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::initializing).count(), equalTo(1L));
@@ -353,7 +361,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var stateWithInitializingReplicas3 = startInitializingShardsAndReroute(allocationService, stateWithInitializingReplicas2);
         for (final var indexRoutingTable : stateWithInitializingReplicas3.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 assertTrue(indexShardRoutingTable.primaryShard().started());
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::initializing).count(), equalTo(1L));
                 assertThat(indexShardRoutingTable.replicaShards().stream().filter(ShardRouting::started).count(), equalTo(2L));
@@ -362,7 +371,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var finalState = startInitializingShardsAndReroute(allocationService, stateWithInitializingReplicas3);
         for (final var indexRoutingTable : finalState.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 assertTrue(indexShardRoutingTable.allShardsStarted());
             }
         }
@@ -526,7 +536,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         boolean anyAssigned = false;
         for (final var indexRoutingTable : reroutedState.routingTable()) {
-            for (final var indexShardRoutingTable : indexRoutingTable) {
+            for (int i = 0; i < indexRoutingTable.size(); i++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(i);
                 final var nodeIds = new HashSet<String>();
                 for (final var shardRouting : indexShardRoutingTable) {
                     if (shardRouting.started()) {
@@ -913,7 +924,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
     private static DesiredBalance desiredBalance(ClusterState clusterState, BiPredicate<ShardId, String> isDesiredPredicate) {
         return new DesiredBalance(
             StreamSupport.stream(clusterState.routingTable().spliterator(), false)
-                .flatMap(indexRoutingTable -> StreamSupport.stream(indexRoutingTable.spliterator(), false))
+                .flatMap(indexRoutingTable -> IntStream.range(0, indexRoutingTable.size()).mapToObj(indexRoutingTable::shard))
                 .collect(
                     Collectors.toMap(
                         IndexShardRoutingTable::shardId,
