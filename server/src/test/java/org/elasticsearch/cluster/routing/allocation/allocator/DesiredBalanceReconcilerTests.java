@@ -768,7 +768,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             .build();
         final var clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
 
-        final var canAllocateRef = new AtomicBoolean(true);
+        final var canAllocateRef = new AtomicReference<>(Decision.YES);
 
         final var desiredBalance = new AtomicReference<>(desiredBalance(clusterState, (shardId, nodeId) -> true));
         final var allocationService = createTestAllocationService(
@@ -787,7 +787,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
                 @Override
                 public Decision canAllocate(ShardRouting shardRouting, RoutingAllocation allocation) {
-                    return canAllocateRef.get() ? Decision.YES : Decision.NO;
+                    return canAllocateRef.get();
                 }
             }
         );
@@ -825,9 +825,9 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
         assertThat(reroutedState.getRoutingNodes().node("node-1").shardsWithState(ShardRoutingState.RELOCATING), hasSize(1));
 
         // Ensuring that we check the shortcut two-param canAllocate() method up front
-        canAllocateRef.set(false);
+        canAllocateRef.set(Decision.NO);
         assertSame(clusterState, allocationService.reroute(clusterState, "test"));
-        canAllocateRef.set(true);
+        canAllocateRef.set(Decision.YES);
 
         // Restore filter to default
         clusterSettings.applySettings(
@@ -863,6 +863,88 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             "test"
         );
         assertThat(shuttingDownState.getRoutingNodes().node("node-2").shardsWithState(ShardRoutingState.INITIALIZING), hasSize(1));
+    }
+
+    public void testRebalance() {
+        final var discoveryNodes = discoveryNodes(4);
+        final var metadata = Metadata.builder();
+        final var routingTable = RoutingTable.builder();
+
+        final var indexMetadata = randomPriorityIndex("index-0", 3, 1);
+        metadata.put(indexMetadata, true);
+        routingTable.addAsNew(indexMetadata);
+
+        var clusterState = ClusterState.builder(ClusterName.DEFAULT)
+            .nodes(discoveryNodes)
+            .metadata(metadata)
+            .routingTable(routingTable)
+            .build();
+
+        final var settings = throttleSettings();
+        final var clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
+
+        final var canAllocateShardRef = new AtomicReference<>(Decision.YES);
+        final var canRebalanceGlobalRef = new AtomicReference<>(Decision.YES);
+        final var canRebalanceShardRef = new AtomicReference<>(Decision.YES);
+
+        final var desiredBalance = new AtomicReference<>(desiredBalance(clusterState,
+            (shardId, nodeId) -> nodeId.equals("node-0") || nodeId.equals("node-1")));
+        final var allocationService = createTestAllocationService(
+            routingAllocation -> reconcile(routingAllocation, desiredBalance.get()),
+            new SameShardAllocationDecider(settings, clusterSettings),
+            new ReplicaAfterPrimaryActiveAllocationDecider(),
+            new ThrottlingAllocationDecider(settings, clusterSettings),
+            new AllocationDecider() {
+                @Override
+                public Decision canRebalance(RoutingAllocation allocation) {
+                    return canRebalanceGlobalRef.get();
+                }
+
+                @Override
+                public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation) {
+                    return canRebalanceShardRef.get();
+                }
+
+                @Override
+                public Decision canAllocate(ShardRouting shardRouting, RoutingAllocation allocation) {
+                    return canAllocateShardRef.get();
+                }
+            }
+        );
+
+        boolean changed;
+        do {
+            final var newState = startInitializingShardsAndReroute(allocationService, clusterState);
+            changed = newState != clusterState;
+            clusterState = newState;
+        } while (changed);
+
+        for (final var shardRouting : clusterState.routingTable().allShards()) {
+            assertTrue(shardRouting.started());
+            assertThat(shardRouting.currentNodeId(), oneOf("node-0", "node-1"));
+        }
+
+        assertSame(clusterState, allocationService.reroute(clusterState, "test")); // all still on desired nodes, no movement needed
+
+        desiredBalance.set(desiredBalance(clusterState, (shardId, nodeId) -> nodeId.equals("node-2") || nodeId.equals("node-3")));
+
+        canRebalanceGlobalRef.set(Decision.NO);
+        assertSame(clusterState, allocationService.reroute(clusterState, "test")); // rebalancing forbidden on all shards, no movement
+        canRebalanceGlobalRef.set(Decision.YES);
+
+        canRebalanceShardRef.set(Decision.NO);
+        assertSame(clusterState, allocationService.reroute(clusterState, "test")); // rebalancing forbidden on specific shards, no movement
+        canRebalanceShardRef.set(Decision.YES);
+
+        canAllocateShardRef.set(Decision.NO);
+        assertSame(clusterState, allocationService.reroute(clusterState, "test")); // allocation not possible, no movement
+        canAllocateShardRef.set(Decision.YES);
+
+        // The next reroute starts moving shards to node-2 and node-3, but interleaves the decisions between node-0 and node-1 for fairness.
+        // There's an inbound throttle of 1 but no outbound throttle, so without the interleaving one node would relocate 2 shards.
+        final var reroutedState = allocationService.reroute(clusterState, "test");
+        assertThat(reroutedState.getRoutingNodes().node("node-0").shardsWithState(ShardRoutingState.RELOCATING), hasSize(1));
+        assertThat(reroutedState.getRoutingNodes().node("node-1").shardsWithState(ShardRoutingState.RELOCATING), hasSize(1));
     }
 
     private static void reconcile(RoutingAllocation routingAllocation, DesiredBalance desiredBalance) {
