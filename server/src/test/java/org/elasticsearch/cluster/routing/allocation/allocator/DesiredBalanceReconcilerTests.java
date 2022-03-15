@@ -887,8 +887,9 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
         final var canRebalanceGlobalRef = new AtomicReference<>(Decision.YES);
         final var canRebalanceShardRef = new AtomicReference<>(Decision.YES);
 
-        final var desiredBalance = new AtomicReference<>(desiredBalance(clusterState,
-            (shardId, nodeId) -> nodeId.equals("node-0") || nodeId.equals("node-1")));
+        final var desiredBalance = new AtomicReference<>(
+            desiredBalance(clusterState, (shardId, nodeId) -> nodeId.equals("node-0") || nodeId.equals("node-1"))
+        );
         final var allocationService = createTestAllocationService(
             routingAllocation -> reconcile(routingAllocation, desiredBalance.get()),
             new SameShardAllocationDecider(settings, clusterSettings),
