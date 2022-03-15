@@ -1364,9 +1364,12 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     : getLocalNode() + " should be in published " + clusterState;
 
                 final long publicationContextConstructionStartMillis = transportService.getThreadPool().rawRelativeTimeInMillis();
+                final long publicationContextRefId = PublicationTransportHandler.getRefId();
+                logger.info("--> acquiring refid[{}] for context for cluster state [{}]", publicationContextRefId, clusterState.version());
                 final PublicationTransportHandler.PublicationContext publicationContext = publicationHandler.newPublicationContext(
                     clusterStatePublicationEvent
                 );
+                logger.info("--> acquired refid[{}] for context for cluster state [{}]", publicationContextRefId, clusterState.version());
                 try {
                     clusterStatePublicationEvent.setPublicationContextConstructionElapsedMillis(
                         transportService.getThreadPool().rawRelativeTimeInMillis() - publicationContextConstructionStartMillis
@@ -1389,6 +1392,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     lagDetector.setTrackedNodes(publishNodes);
                     publication.start(followersChecker.getFaultyNodes());
                 } finally {
+                    logger.info("--> release refid[{}]", publicationContextRefId);
                     publicationContext.decRef();
                 }
             }

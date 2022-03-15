@@ -34,6 +34,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.LazyInitializable;
 import org.elasticsearch.core.AbstractRefCounted;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -255,9 +256,18 @@ public class PublicationTransportHandler {
         }
     }
 
+    private static final AtomicLong refIdGenerator = new AtomicLong();
+
+    public static long getRefId() {
+        return refIdGenerator.incrementAndGet();
+    }
+
     private ReleasableBytesReference serializeDiffClusterState(long clusterStateVersion, Diff<ClusterState> diff, DiscoveryNode node) {
         final Version nodeVersion = node.getVersion();
+        final long refId = getRefId();
+        logger.info("--> acquire refid[{}] for cluster state diff [{}] serialized for {}", refId, clusterStateVersion, node);
         final RecyclerBytesStreamOutput bytesStream = transportService.newNetworkBytesStream();
+        final Releasable releaseRef = Releasables.wrap(() -> logger.info("--> release refid[{}]", refId), bytesStream);
         boolean success = false;
         try {
             final long uncompressedBytes;
@@ -273,7 +283,7 @@ public class PublicationTransportHandler {
             } catch (IOException e) {
                 throw new ElasticsearchException("failed to serialize cluster state diff for publishing to node {}", e, node);
             }
-            final ReleasableBytesReference result = new ReleasableBytesReference(bytesStream.bytes(), bytesStream);
+            final ReleasableBytesReference result = new ReleasableBytesReference(bytesStream.bytes(), releaseRef);
             serializationStatsTracker.serializedDiff(uncompressedBytes, result.length());
             logger.trace(
                 "serialized cluster state diff for version [{}] for node version [{}] with size [{}]",
@@ -285,7 +295,7 @@ public class PublicationTransportHandler {
             return result;
         } finally {
             if (success == false) {
-                bytesStream.close();
+                releaseRef.close();
             }
         }
     }
@@ -419,6 +429,9 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("publication context released before transmission"));
                 return;
             }
+            final long refId = getRefId();
+            logger.info("--> acquire context refid[{}] for sending cluster state diff to {}", refId, destination);
+            final Releasable releaseRef = Releasables.wrap(() -> logger.info("--> release refid[{}]", refId), this::decRef);
             sendClusterState(destination, bytes, ActionListener.runAfter(listener.delegateResponse((delegate, e) -> {
                 if (e instanceof final TransportException transportException) {
                     if (transportException.unwrapCause() instanceof IncompatibleClusterStateVersionException) {
@@ -436,7 +449,7 @@ public class PublicationTransportHandler {
 
                 logger.debug(new ParameterizedMessage("failed to send cluster state to {}", destination), e);
                 delegate.onFailure(e);
-            }), this::decRef));
+            }), releaseRef::close));
         }
 
         private void sendClusterState(
@@ -450,6 +463,9 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("serialized cluster state released before transmission"));
                 return;
             }
+            final long refId = getRefId();
+            logger.info("--> acquire refid[{}] for sending bytes to {}", refId, destination);
+            final Releasable releaseRef = Releasables.wrap(() -> logger.info("--> release refid[{}]", refId), bytes::decRef);
             try {
                 transportService.sendRequest(
                     destination,
@@ -457,7 +473,7 @@ public class PublicationTransportHandler {
                     new BytesTransportRequest(bytes, destination.getVersion()),
                     STATE_REQUEST_OPTIONS,
                     new ActionListenerResponseHandler<>(
-                        ActionListener.runAfter(listener, bytes::decRef),
+                        ActionListener.runAfter(listener, releaseRef::close),
                         PublishWithJoinResponse::new,
                         ThreadPool.Names.CLUSTER_COORDINATION
                     )
