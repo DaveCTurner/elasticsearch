@@ -813,23 +813,26 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         // Mark node-0 as shutting down, to be replaced by node-2, so that a shard can be force-moved to node-2 even though the allocation
         // filter forbids this
-        final var shuttingDownState = allocationService.reroute(clusterState.copyAndUpdateMetadata(
-            tmpMetadata -> tmpMetadata.putCustom(
-                NodesShutdownMetadata.TYPE,
-                new NodesShutdownMetadata(
-                    Map.of(
-                        "node-0",
-                        SingleNodeShutdownMetadata.builder()
-                            .setNodeId("node-0")
-                            .setType(SingleNodeShutdownMetadata.Type.REPLACE)
-                            .setTargetNodeName("node-2")
-                            .setStartedAtMillis(System.currentTimeMillis())
-                            .setReason("test")
-                            .build()
+        final var shuttingDownState = allocationService.reroute(
+            clusterState.copyAndUpdateMetadata(
+                tmpMetadata -> tmpMetadata.putCustom(
+                    NodesShutdownMetadata.TYPE,
+                    new NodesShutdownMetadata(
+                        Map.of(
+                            "node-0",
+                            SingleNodeShutdownMetadata.builder()
+                                .setNodeId("node-0")
+                                .setType(SingleNodeShutdownMetadata.Type.REPLACE)
+                                .setTargetNodeName("node-2")
+                                .setStartedAtMillis(System.currentTimeMillis())
+                                .setReason("test")
+                                .build()
+                        )
                     )
                 )
-            )
-        ), "test");
+            ),
+            "test"
+        );
         assertThat(shuttingDownState.getRoutingNodes().node("node-2").shardsWithState(ShardRoutingState.INITIALIZING), hasSize(1));
     }
 

@@ -271,7 +271,7 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
-            final var moveTarget = findMoveTarget(shardRouting, desiredNodeIds);
+            final var moveTarget = findRelocationTarget(shardRouting, desiredNodeIds);
             if (moveTarget != null) {
                 routingNodes.relocateShard(
                     shardRouting,
@@ -283,8 +283,47 @@ public class DesiredBalanceReconciler {
         }
     }
 
-    private DiscoveryNode findMoveTarget(final ShardRouting shardRouting, Set<String> desiredNodeIds) {
-        final var moveDecision = findMoveTarget(shardRouting, desiredNodeIds, this::decideCanAllocate);
+    private void balance() {
+        if (allocation.deciders().canRebalance(allocation).type() != Decision.Type.YES) {
+            return;
+        }
+
+        // Iterate over the started shards interleaving between nodes, and try to move any which are on undesired nodes. In the presence of
+        // throttling shard movements, the goal of this iteration order is to achieve a fairer movement of shards from the nodes that are
+        // offloading the shards.
+        for (final var iterator = routingNodes.nodeInterleavedShardIterator(); iterator.hasNext();) {
+            final var shardRouting = iterator.next();
+
+            if (shardRouting.started() == false) {
+                // can only rebalance started shards
+                continue;
+            }
+
+            final var desiredNodeIds = desiredBalance.getDesiredNodeIds(shardRouting.shardId());
+            if (desiredNodeIds.contains(shardRouting.currentNodeId())) {
+                // shard is already on a desired node
+                continue;
+            }
+
+            if (allocation.deciders().canRebalance(shardRouting, allocation).type() != Decision.Type.YES) {
+                // rebalancing disabled for this shard
+                continue;
+            }
+
+            final var rebalanceTarget = findRelocationTarget(shardRouting, desiredNodeIds, this::decideCanAllocate);
+            if (rebalanceTarget != null) {
+                routingNodes.relocateShard(
+                    shardRouting,
+                    rebalanceTarget.getId(),
+                    allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                    allocation.changes()
+                );
+            }
+        }
+    }
+
+    private DiscoveryNode findRelocationTarget(final ShardRouting shardRouting, Set<String> desiredNodeIds) {
+        final var moveDecision = findRelocationTarget(shardRouting, desiredNodeIds, this::decideCanAllocate);
         if (moveDecision != null) {
             return moveDecision;
         }
@@ -292,12 +331,12 @@ public class DesiredBalanceReconciler {
         final var shutdown = allocation.nodeShutdowns().get(shardRouting.currentNodeId());
         final var shardsOnReplacedNode = shutdown != null && shutdown.getType().equals(SingleNodeShutdownMetadata.Type.REPLACE);
         if (shardsOnReplacedNode) {
-            return findMoveTarget(shardRouting, desiredNodeIds, this::decideCanForceAllocateForVacate);
+            return findRelocationTarget(shardRouting, desiredNodeIds, this::decideCanForceAllocateForVacate);
         }
         return null;
     }
 
-    private DiscoveryNode findMoveTarget(
+    private DiscoveryNode findRelocationTarget(
         ShardRouting shardRouting,
         Set<String> desiredNodeIds,
         BiFunction<ShardRouting, RoutingNode, Decision> canAllocateDecider
@@ -320,10 +359,6 @@ public class DesiredBalanceReconciler {
 
     private Decision decideCanForceAllocateForVacate(ShardRouting shardRouting, RoutingNode target) {
         return allocation.deciders().canForceAllocateDuringReplace(shardRouting, target, allocation);
-    }
-
-    private void balance() {
-
     }
 
 }
