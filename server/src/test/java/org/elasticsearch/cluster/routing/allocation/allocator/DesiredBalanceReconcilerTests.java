@@ -743,7 +743,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
         }
     }
 
-    public void testMoveShardsInterleavesBetweenNodes() {
+    public void testMoveShards() {
         final var discoveryNodes = discoveryNodes(4);
         final var metadata = Metadata.builder();
         final var routingTable = RoutingTable.builder();
@@ -768,6 +768,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             .build();
         final var clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
 
+        final var canAllocateRef = new AtomicBoolean(true);
+
         final var desiredBalance = new AtomicReference<>(desiredBalance(clusterState, (shardId, nodeId) -> true));
         final var allocationService = createTestAllocationService(
             routingAllocation -> reconcile(routingAllocation, desiredBalance.get()),
@@ -776,7 +778,18 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             new ThrottlingAllocationDecider(settings, clusterSettings),
             new FilterAllocationDecider(settings, clusterSettings),
             new NodeShutdownAllocationDecider(),
-            new NodeReplacementAllocationDecider()
+            new NodeReplacementAllocationDecider(),
+            new AllocationDecider() {
+                @Override
+                public Decision canRebalance(RoutingAllocation allocation) {
+                    return Decision.NO;
+                }
+
+                @Override
+                public Decision canAllocate(ShardRouting shardRouting, RoutingAllocation allocation) {
+                    return canAllocateRef.get() ? Decision.YES : Decision.NO;
+                }
+            }
         );
 
         boolean changed;
@@ -810,6 +823,11 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
         final var reroutedState = allocationService.reroute(clusterState, "test");
         assertThat(reroutedState.getRoutingNodes().node("node-0").shardsWithState(ShardRoutingState.RELOCATING), hasSize(1));
         assertThat(reroutedState.getRoutingNodes().node("node-1").shardsWithState(ShardRoutingState.RELOCATING), hasSize(1));
+
+        // Ensuring that we check the shortcut two-param canAllocate() method up front
+        canAllocateRef.set(false);
+        assertSame(clusterState, allocationService.reroute(clusterState, "test"));
+        canAllocateRef.set(true);
 
         // Restore filter to default
         clusterSettings.applySettings(

@@ -263,6 +263,11 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
+            if (allocation.deciders().canAllocate(shardRouting, allocation).type() != Decision.Type.YES) {
+                // cannot allocate anywhere, no point in looking for a target node
+                continue;
+            }
+
             final var routingNode = routingNodes.node(shardRouting.currentNodeId());
             final var canRemainDecision = allocation.deciders().canRemain(shardRouting, routingNode, allocation);
             if (canRemainDecision.type() != Decision.Type.NO) {
@@ -307,6 +312,11 @@ public class DesiredBalanceReconciler {
 
             if (allocation.deciders().canRebalance(shardRouting, allocation).type() != Decision.Type.YES) {
                 // rebalancing disabled for this shard
+                continue;
+            }
+
+            if (allocation.deciders().canAllocate(shardRouting, allocation).type() != Decision.Type.YES) {
+                // cannot allocate anywhere, no point in looking for a target node
                 continue;
             }
 
