@@ -94,7 +94,7 @@ public class ClusterModule extends AbstractModule {
     public static final String DESIRED_BALANCE_ALLOCATOR = "desired_balance";
     public static final Setting<String> SHARDS_ALLOCATOR_TYPE_SETTING = new Setting<>(
         "cluster.routing.allocation.type",
-        BALANCED_ALLOCATOR,
+        DESIRED_BALANCE_ALLOCATOR,
         Function.identity(),
         Property.NodeScope
     );
