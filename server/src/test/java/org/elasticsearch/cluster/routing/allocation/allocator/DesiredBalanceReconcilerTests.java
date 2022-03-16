@@ -536,10 +536,11 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         boolean anyAssigned = false;
         for (final var indexRoutingTable : reroutedState.routingTable()) {
-            for (int i = 0; i < indexRoutingTable.size(); i++) {
-                final var indexShardRoutingTable = indexRoutingTable.shard(i);
+            for (int shardId = 0; shardId < indexRoutingTable.size(); shardId++) {
+                final var indexShardRoutingTable = indexRoutingTable.shard(shardId);
                 final var nodeIds = new HashSet<String>();
-                for (final var shardRouting : indexShardRoutingTable) {
+                for (int copy = 0; copy < indexShardRoutingTable.size(); copy++) {
+                    final var shardRouting = indexShardRoutingTable.shard(copy);
                     if (shardRouting.started()) {
                         anyAssigned = true;
                         nodeIds.add(shardRouting.currentNodeId());
@@ -1032,7 +1033,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
                         indexShardRoutingTable -> clusterState.nodes()
                             .stream()
                             .map(DiscoveryNode::getId)
-                            .filter(nodeId -> isDesiredPredicate.test(indexShardRoutingTable.getShardId(), nodeId))
+                            .filter(nodeId -> isDesiredPredicate.test(indexShardRoutingTable.shardId(), nodeId))
                             .collect(Collectors.toSet())
                     )
                 )
