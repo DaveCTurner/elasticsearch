@@ -324,7 +324,6 @@ public class ClusterHealthIT extends ESIntegTestCase {
         }
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testHealthOnMasterFailover() throws Exception {
         final String node = internalCluster().startDataOnlyNode();
         final boolean withIndex = randomBoolean();

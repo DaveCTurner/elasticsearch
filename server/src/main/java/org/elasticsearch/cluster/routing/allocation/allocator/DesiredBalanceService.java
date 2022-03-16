@@ -60,6 +60,7 @@ public class DesiredBalanceService {
         final var desiredBalance = currentDesiredBalance;
         final var changes = routingAllocation.changes();
         final var knownNodeIds = routingAllocation.nodes().stream().map(DiscoveryNode::getId).collect(Collectors.toSet());
+        final var unassignedPrimaries = new HashSet<ShardId>();
 
         // we assume that all ongoing recoveries will complete
         for (final var routingNode : routingNodes) {
@@ -73,16 +74,23 @@ public class DesiredBalanceService {
 
         // we are not responsible for allocating unassigned primaries of existing shards, and we're only responsible for allocating
         // unassigned replicas if the ReplicaShardAllocator gives up, so we must respect these ignored shards
-        final RoutingNodes.UnassignedShards unassigned = routingNodes.unassigned();
         final var shardCopiesByShard = new HashMap<ShardId, Tuple<List<ShardRouting>, List<ShardRouting>>>();
-        for (final var iterator = unassigned.iterator(); iterator.hasNext();) {
-            final var shardRouting = iterator.next();
-            if (ignoredShards.contains(shardRouting)) {
-                iterator.removeAndIgnore(UnassignedInfo.AllocationStatus.NO_ATTEMPT, changes);
-            } else {
-                shardCopiesByShard.computeIfAbsent(shardRouting.shardId(), ignored -> Tuple.tuple(new ArrayList<>(), List.of()))
-                    .v1()
-                    .add(shardRouting);
+        for (final var primary : new boolean[]{true, false}){
+            final RoutingNodes.UnassignedShards unassigned = routingNodes.unassigned();
+            for (final var iterator = unassigned.iterator(); iterator.hasNext(); ) {
+                final var shardRouting = iterator.next();
+                if (shardRouting.primary() == primary) {
+                    if (ignoredShards.contains(shardRouting)) {
+                        iterator.removeAndIgnore(UnassignedInfo.AllocationStatus.NO_ATTEMPT, changes);
+                        if (shardRouting.primary()) {
+                            unassignedPrimaries.add(shardRouting.shardId());
+                        }
+                    } else {
+                        shardCopiesByShard.computeIfAbsent(shardRouting.shardId(), ignored -> Tuple.tuple(new ArrayList<>(), List.of()))
+                            .v1()
+                            .add(shardRouting);
+                    }
+                }
             }
         }
 
@@ -137,18 +145,33 @@ public class DesiredBalanceService {
             }
         }
 
-        final var unassignedIterator = routingNodes.unassigned().iterator();
-        while (unassignedIterator.hasNext()) {
-            final var shardRouting = unassignedIterator.next();
-            final var nodeIds = unassignedShardsToInitialize.get(shardRouting);
-            if (nodeIds != null && nodeIds.isEmpty() == false) {
-                final String nodeId = nodeIds.removeFirst();
-                routingNodes.startShard(logger, unassignedIterator.initialize(nodeId, null, 0L, changes), changes);
+        final var unassignedPrimaryIterator = routingNodes.unassigned().iterator();
+        while (unassignedPrimaryIterator.hasNext()) {
+            final var shardRouting = unassignedPrimaryIterator.next();
+            if (shardRouting.primary()) {
+                final var nodeIds = unassignedShardsToInitialize.get(shardRouting);
+                if (nodeIds != null && nodeIds.isEmpty() == false) {
+                    final String nodeId = nodeIds.removeFirst();
+                    routingNodes.startShard(logger, unassignedPrimaryIterator.initialize(nodeId, null, 0L, changes), changes);
+                }
             }
-            // TODO must also bypass ResizeAllocationDecider
-            // TODO must also bypass RestoreInProgressAllocationDecider
-            // TODO what about delayed allocation?
         }
+
+        final var unassignedReplicaIterator = routingNodes.unassigned().iterator();
+        while (unassignedReplicaIterator.hasNext()) {
+            final var shardRouting = unassignedReplicaIterator.next();
+            if (unassignedPrimaries.contains(shardRouting.shardId()) == false) {
+                final var nodeIds = unassignedShardsToInitialize.get(shardRouting);
+                if (nodeIds != null && nodeIds.isEmpty() == false) {
+                    final String nodeId = nodeIds.removeFirst();
+                    routingNodes.startShard(logger, unassignedReplicaIterator.initialize(nodeId, null, 0L, changes), changes);
+                }
+            }
+        }
+
+        // TODO must also bypass ResizeAllocationDecider
+        // TODO must also bypass RestoreInProgressAllocationDecider
+        // TODO what about delayed allocation?
 
         // TODO consider also whether to unassign any shards that cannot remain on their current nodes so that the desired balance reflects
         // the actual desired state of the cluster. But this would mean that a REPLACE shutdown needs special handling at reconciliation
