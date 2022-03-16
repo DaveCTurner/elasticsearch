@@ -399,6 +399,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
      * Tests corruption that happens on the network layer and that the primary does not get affected by corruption that happens on the way
      * to the replica. The file on disk stays uncorrupted
      */
+    @AwaitsFix(bugUrl = "TODO")
     public void testCorruptionOnNetworkLayer() throws ExecutionException, InterruptedException {
         int numDocs = scaledRandomIntBetween(100, 1000);
         internalCluster().ensureAtLeastNumDataNodes(2);
