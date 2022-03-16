@@ -148,6 +148,7 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
         allowFlush.set(false);
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testPreferCopyCanPerformNoopRecovery() throws Exception {
         String indexName = "test";
         String nodeWithPrimary = internalCluster().startNode();

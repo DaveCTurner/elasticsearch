@@ -275,6 +275,7 @@ public class RelocationIT extends ESIntegTestCase {
         }
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testRelocationWhileRefreshing() throws Exception {
         int numberOfRelocations = scaledRandomIntBetween(1, rarely() ? 10 : 4);
         int numberOfReplicas = randomBoolean() ? 0 : 1;
