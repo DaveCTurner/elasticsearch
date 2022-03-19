@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class PublicationTransportHandler {
 
@@ -317,7 +318,8 @@ public class PublicationTransportHandler {
             newState = clusterStatePublicationEvent.getNewState();
             previousState = clusterStatePublicationEvent.getOldState();
             sendFullVersion = previousState.getBlocks().disableStatePersistence();
-            leakTracker = leakTracking(null);
+            leakTracker = leakTracking(null, () -> "ClusterStatePublicationEvent[version=" +
+                                                   clusterStatePublicationEvent.getNewState().version() +"]");
         }
 
         void buildDiffAndSerializeStates() {
@@ -424,7 +426,9 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("publication context released before transmission"));
                 return;
             }
-            final var releasable = leakTracking(this::decRef);
+            final var releasable = leakTracking(this::decRef, () -> "ClusterStatePublicationEvent[version=" + newState.version()
+                                                                    +"] sendClusterStateDiff [" +
+                                                                    destination.descriptionWithoutAttributes() + "]");
             sendClusterState(destination, bytes, ActionListener.runAfter(listener.delegateResponse((delegate, e) -> {
                 if (e instanceof final TransportException transportException) {
                     if (transportException.unwrapCause() instanceof IncompatibleClusterStateVersionException) {
@@ -456,7 +460,9 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("serialized cluster state released before transmission"));
                 return;
             }
-            final var releasable = leakTracking(bytes::decRef);
+            final var releasable = leakTracking(bytes::decRef, () -> "ClusterStatePublicationEvent[version=" + newState.version() +
+                                                                     "] sendClusterState [" + destination.descriptionWithoutAttributes()
+                                                                     + "]");
             final var releasingListener = ActionListener.runAfter(listener, releasable::close);
             try {
                 transportService.sendRequest(
@@ -519,12 +525,17 @@ public class PublicationTransportHandler {
         }
     }
 
+    private static final AtomicLong REFERENCE_ID_GENERATOR = new AtomicLong();
+
     @Nullable
-    private Releasable leakTracking(Releasable delegate) {
+    private Releasable leakTracking(Releasable delegate, Supplier<String> descriptionSupplier) {
         if (Assertions.ENABLED) {
             final var stream = transportService.newNetworkBytesStream();
             stream.writeByte((byte) 0);
-            return Releasables.wrap(delegate, stream);
+            final var refId = REFERENCE_ID_GENERATOR.incrementAndGet();
+            final var description = descriptionSupplier.get();
+            logger.info("--> acquire [refId={}] for [{}]", refId, description);
+            return Releasables.wrap(delegate, stream, () -> logger.info("--> release [refId={}] for [{}]", refId, description));
         } else {
             return delegate;
         }
