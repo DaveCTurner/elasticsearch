@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.coordination;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.elasticsearch.Assertions;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -34,6 +35,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.LazyInitializable;
 import org.elasticsearch.core.AbstractRefCounted;
+import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -303,6 +306,7 @@ public class PublicationTransportHandler {
         private final ClusterState newState;
         private final ClusterState previousState;
         private final boolean sendFullVersion;
+        private final Releasable leakTracker;
 
         // All the values of these maps have one ref for the context (while it's open) and one for each in-flight message.
         private final Map<Version, ReleasableBytesReference> serializedStates = new ConcurrentHashMap<>();
@@ -313,6 +317,7 @@ public class PublicationTransportHandler {
             newState = clusterStatePublicationEvent.getNewState();
             previousState = clusterStatePublicationEvent.getOldState();
             sendFullVersion = previousState.getBlocks().disableStatePersistence();
+            leakTracker = leakTracking(null);
         }
 
         void buildDiffAndSerializeStates() {
@@ -419,6 +424,7 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("publication context released before transmission"));
                 return;
             }
+            final var releasable = leakTracking(this::decRef);
             sendClusterState(destination, bytes, ActionListener.runAfter(listener.delegateResponse((delegate, e) -> {
                 if (e instanceof final TransportException transportException) {
                     if (transportException.unwrapCause() instanceof IncompatibleClusterStateVersionException) {
@@ -436,7 +442,7 @@ public class PublicationTransportHandler {
 
                 logger.debug(new ParameterizedMessage("failed to send cluster state to {}", destination), e);
                 delegate.onFailure(e);
-            }), this::decRef));
+            }), releasable::close));
         }
 
         private void sendClusterState(
@@ -450,6 +456,8 @@ public class PublicationTransportHandler {
                 listener.onFailure(new IllegalStateException("serialized cluster state released before transmission"));
                 return;
             }
+            final var releasable = leakTracking(bytes::decRef);
+            final var releasingListener = ActionListener.runAfter(listener, releasable::close);
             try {
                 transportService.sendRequest(
                     destination,
@@ -457,7 +465,7 @@ public class PublicationTransportHandler {
                     new BytesTransportRequest(bytes, destination.getVersion()),
                     STATE_REQUEST_OPTIONS,
                     new ActionListenerResponseHandler<>(
-                        ActionListener.runAfter(listener, bytes::decRef),
+                        releasingListener,
                         PublishWithJoinResponse::new,
                         ThreadPool.Names.CLUSTER_COORDINATION
                     )
@@ -465,12 +473,13 @@ public class PublicationTransportHandler {
             } catch (Exception e) {
                 assert false : e;
                 logger.warn(() -> new ParameterizedMessage("error sending cluster state to {}", destination), e);
-                listener.onFailure(e);
+                releasingListener.onFailure(e);
             }
         }
 
         @Override
         protected void closeInternal() {
+            Releasables.closeExpectNoException(leakTracker);
             serializedDiffs.values().forEach(Releasables::closeExpectNoException);
             serializedStates.values().forEach(Releasables::closeExpectNoException);
         }
@@ -507,6 +516,17 @@ public class PublicationTransportHandler {
                 totalUncompressedDiffBytes,
                 totalCompressedDiffBytes
             );
+        }
+    }
+
+    @Nullable
+    private Releasable leakTracking(Releasable delegate) {
+        if (Assertions.ENABLED) {
+            final var stream = transportService.newNetworkBytesStream();
+            stream.writeByte((byte) 0);
+            return Releasables.wrap(delegate, stream);
+        } else {
+            return delegate;
         }
     }
 
