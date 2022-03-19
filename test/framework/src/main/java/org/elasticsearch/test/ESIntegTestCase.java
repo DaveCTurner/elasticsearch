@@ -2044,7 +2044,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 mocks.add(MockFSIndexStore.TestPlugin.class);
             }
             if (randomBoolean()) {
-                mocks.add(NodeMocksPlugin.class);
             }
             if (addMockInternalEngine() && randomBoolean()) {
                 mocks.add(MockEngineFactoryPlugin.class);
@@ -2056,6 +2055,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 mocks.add(MockFieldFilterPlugin.class);
             }
         }
+        mocks.add(NodeMocksPlugin.class);
         if (addMockTransportService()) {
             mocks.add(getTestTransportPlugin());
         }
