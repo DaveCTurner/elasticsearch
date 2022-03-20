@@ -1423,7 +1423,7 @@ public class TransportService extends AbstractLifecycleComponent
         }
 
         private static void randomDelay(String executor) {
-            if (executor.equals(ThreadPool.Names.CLUSTER_COORDINATION)) {
+            if (executor.equals(ThreadPool.Names.CLUSTER_COORDINATION) && Transports.isTransportThread(Thread.currentThread()) == false) {
                 try {
                     Thread.sleep(Randomness.get().nextInt(500));
                 } catch (Exception e) {
