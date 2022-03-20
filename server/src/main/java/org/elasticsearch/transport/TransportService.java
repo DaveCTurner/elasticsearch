@@ -17,6 +17,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
@@ -1396,6 +1397,7 @@ public class TransportService extends AbstractLifecycleComponent
                 if (ThreadPool.Names.SAME.equals(executor)) {
                     processResponse(handler, response);
                 } else {
+                    randomDelay(executor);
                     threadPool.executor(executor).execute(new Runnable() {
                         @Override
                         public void run() {
@@ -1420,6 +1422,16 @@ public class TransportService extends AbstractLifecycleComponent
             }
         }
 
+        private static void randomDelay(String executor) {
+            if (executor.equals(ThreadPool.Names.CLUSTER_COORDINATION)) {
+                try {
+                    Thread.sleep(Randomness.get().nextInt(500));
+                } catch (Exception e) {
+                    throw new AssertionError(e);
+                }
+            }
+        }
+
         @Override
         public void sendResponse(Exception exception) throws IOException {
             service.onResponseSent(requestId, action, exception);
@@ -1431,6 +1443,7 @@ public class TransportService extends AbstractLifecycleComponent
                 if (ThreadPool.Names.SAME.equals(executor)) {
                     processException(handler, rtx);
                 } else {
+                    randomDelay(executor);
                     threadPool.executor(handler.executor()).execute(new Runnable() {
                         @Override
                         public void run() {
