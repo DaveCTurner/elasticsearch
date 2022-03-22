@@ -49,18 +49,19 @@ public class DesiredBalanceReconciler {
 
     void run() {
 
-        logger.trace("starting to reconcile current allocation with desired balance");
-
-        if (desiredBalance.desiredAssignments().isEmpty()) {
-            // no desired state yet but it is on its way and we'll reroute again when its ready
-            logger.trace("desired balance is empty, nothing to reconcile");
-            return;
-        }
+        logger.trace("starting to reconcile current allocation with desired balance {}", desiredBalance);
 
         if (routingNodes.size() == 0) {
             // no data nodes, so fail allocation to report red health
             failAllocationOfNewPrimaries(allocation);
             logger.trace("no nodes available, nothing to reconcile");
+            return;
+            // TODO test that we do this even if desired balance is empty
+        }
+
+        if (desiredBalance.desiredAssignments().isEmpty()) {
+            // no desired state yet but it is on its way and we'll reroute again when its ready
+            logger.trace("desired balance is empty, nothing to reconcile");
             return;
         }
 

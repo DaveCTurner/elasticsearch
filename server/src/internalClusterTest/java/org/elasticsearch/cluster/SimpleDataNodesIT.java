@@ -87,7 +87,6 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
         assertThat(indexResponse.getId(), equalTo("1"));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testShardsAllocatedAfterDataNodesStart() {
         internalCluster().startNode(nonDataNode());
         client().admin()
@@ -123,7 +122,6 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
         );
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testAutoExpandReplicasAdjustedWhenDataNodeJoins() {
         internalCluster().startNode(nonDataNode());
         client().admin()

@@ -62,6 +62,15 @@ public class DesiredBalanceService {
         final var knownNodeIds = routingAllocation.nodes().stream().map(DiscoveryNode::getId).collect(Collectors.toSet());
         final var unassignedPrimaries = new HashSet<ShardId>();
 
+        if (routingNodes.size() == 0) {
+            final var clearDesiredBalance = currentDesiredBalance.desiredAssignments().size() != 0;
+            if (clearDesiredBalance) {
+                currentDesiredBalance = new DesiredBalance(Map.of());
+            }
+            return clearDesiredBalance;
+            // TODO test for this case
+        }
+
         // we assume that all ongoing recoveries will complete
         for (final var routingNode : routingNodes) {
             for (final var shardRouting : routingNode) {
@@ -75,9 +84,9 @@ public class DesiredBalanceService {
         // we are not responsible for allocating unassigned primaries of existing shards, and we're only responsible for allocating
         // unassigned replicas if the ReplicaShardAllocator gives up, so we must respect these ignored shards
         final var shardCopiesByShard = new HashMap<ShardId, Tuple<List<ShardRouting>, List<ShardRouting>>>();
-        for (final var primary : new boolean[]{true, false}){
+        for (final var primary : new boolean[] { true, false }) {
             final RoutingNodes.UnassignedShards unassigned = routingNodes.unassigned();
-            for (final var iterator = unassigned.iterator(); iterator.hasNext(); ) {
+            for (final var iterator = unassigned.iterator(); iterator.hasNext();) {
                 final var shardRouting = iterator.next();
                 if (shardRouting.primary() == primary) {
                     if (ignoredShards.contains(shardRouting)) {
@@ -177,9 +186,30 @@ public class DesiredBalanceService {
         // the actual desired state of the cluster. But this would mean that a REPLACE shutdown needs special handling at reconciliation
         // time too. But maybe it needs special handling anyway since reconciliation also tries to respect allocation rules.
 
-        boolean hasChanges;
+        boolean hasChanges = false;
         do {
+
+            if (hasChanges) {
+                final var unassigned = routingAllocation.routingNodes().unassigned();
+
+                // Not the first iteration, so every remaining unassigned shard has been ignored, perhaps due to throttling. We must bring
+                // them all back out of the ignored list to give the allocator another go...
+                unassigned.resetIgnored();
+
+                // ... but not if they're ignored because they're out of scope for allocation
+                for (final var iterator = unassigned.iterator(); iterator.hasNext();) {
+                    final var shardRouting = iterator.next();
+                    if (ignoredShards.contains(shardRouting)) {
+                        iterator.removeAndIgnore(UnassignedInfo.AllocationStatus.NO_ATTEMPT, changes);
+                    }
+                }
+
+                // TODO test that we reset ignored shards properly
+            }
+
+            logger.trace("running delegate allocator");
             delegateAllocator.allocate(routingAllocation);
+            assert routingAllocation.routingNodes().unassigned().size() == 0; // any unassigned shards should now be ignored
 
             hasChanges = false;
             for (final var routingNode : routingNodes) {
@@ -187,6 +217,7 @@ public class DesiredBalanceService {
                     if (shardRouting.initializing()) {
                         hasChanges = true;
                         routingNodes.startShard(logger, shardRouting, changes);
+                        logger.trace("starting shard {}", shardRouting);
                         // TODO adjust disk usage info to reflect the assumed shard movement
                     }
                 }
@@ -207,6 +238,12 @@ public class DesiredBalanceService {
             );
         }
 
+        logger.trace(
+            hasChanges
+                ? "newer cluster state received, publishing incomplete desired balance and restarting computation"
+                : "desired balance computation converged"
+        );
+
         final DesiredBalance newDesiredBalance = new DesiredBalance(desiredAssignments);
         assert desiredBalance == currentDesiredBalance;
         if (newDesiredBalance.equals(desiredBalance) == false) {
@@ -226,7 +263,7 @@ public class DesiredBalanceService {
             currentDesiredBalance = newDesiredBalance;
             return true;
         } else {
-            logger.trace("desired balance unchanged");
+            logger.trace("desired balance unchanged: {}", desiredBalance);
             return false;
         }
     }
