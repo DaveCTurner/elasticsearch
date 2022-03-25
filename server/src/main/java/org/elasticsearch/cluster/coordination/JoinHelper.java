@@ -181,7 +181,7 @@ public class JoinHelper {
 
                 final Compressor compressor = CompressorFactory.compressor(request.bytes());
                 StreamInput in = request.bytes().streamInput();
-                final ClusterState clusterState;
+                final ClusterState receivedState;
                 try {
                     if (compressor != null) {
                         in = new InputStreamStreamInput(compressor.threadLocalInputStream(in));
@@ -191,7 +191,7 @@ public class JoinHelper {
                     // If true we received full cluster state - otherwise diffs
                     // Close early to release resources used by the de-compression as early as possible
                     try (StreamInput input = in) {
-                        clusterState = ClusterState.readFrom(input, transportService.getLocalNode());
+                        receivedState = ClusterState.readFrom(input, null);
                     } catch (Exception e) {
                         logger.warn("unexpected error while deserializing an incoming cluster state", e);
                         assert false : e;
@@ -203,12 +203,12 @@ public class JoinHelper {
 
                 final ClusterState localState = currentStateSupplier.get();
                 if (localState.metadata().clusterUUIDCommitted()
-                    && localState.metadata().clusterUUID().equals(clusterState.metadata().clusterUUID()) == false) {
+                    && localState.metadata().clusterUUID().equals(receivedState.metadata().clusterUUID()) == false) {
                     throw new CoordinationStateRejectedException(
                         "This node previously joined a cluster with UUID ["
                             + localState.metadata().clusterUUID()
                             + "] and is now trying to join a different cluster with UUID ["
-                            + clusterState.metadata().clusterUUID()
+                            + receivedState.metadata().clusterUUID()
                             + "]. This is forbidden and usually indicates an incorrect "
                             + "discovery or cluster bootstrapping configuration. Note that the cluster UUID persists across restarts and "
                             + "can only be changed by deleting the contents of the node's data "
@@ -217,7 +217,7 @@ public class JoinHelper {
                             + " which will also remove any data held by this node."
                     );
                 }
-                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), clusterState));
+                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), receivedState));
                 channel.sendResponse(Empty.INSTANCE);
             }
         );

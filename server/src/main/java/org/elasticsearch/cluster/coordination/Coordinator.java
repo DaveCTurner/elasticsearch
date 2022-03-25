@@ -673,28 +673,29 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     }
 
     private void sendJoinValidate(DiscoveryNode discoveryNode, ClusterState clusterState, ActionListener<Empty> listener) {
+        final var loggingListener = listener.delegateResponse((l, e) -> {
+            logger.warn(new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
+            listener.onFailure(
+                new IllegalStateException(
+                    String.format(
+                        Locale.ROOT,
+                        "failure when sending a join validation request from [%s] to [%s]",
+                        getLocalNode().descriptionWithoutAttributes(),
+                        discoveryNode.descriptionWithoutAttributes()
+                    ),
+                    e
+                )
+            );
+        });
         if (discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)) {
-            joinValidationService.validateJoin(discoveryNode, listener.map(i -> null));
+            joinValidationService.validateJoin(discoveryNode, loggingListener);
         } else {
             transportService.sendRequest(
                 discoveryNode,
                 JoinHelper.JOIN_VALIDATE_ACTION_NAME,
                 new ValidateJoinRequest(clusterState),
                 TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE),
-                new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
-                    logger.warn(new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
-                    listener.onFailure(
-                        new IllegalStateException(
-                            String.format(
-                                Locale.ROOT,
-                                "failure when sending a join validation request from [%s] to [%s]",
-                                getLocalNode().descriptionWithoutAttributes(),
-                                discoveryNode.descriptionWithoutAttributes()
-                            ),
-                            e
-                        )
-                    );
-                }), i -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
+                new ActionListenerResponseHandler<>(loggingListener, i -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
             );
         }
     }
