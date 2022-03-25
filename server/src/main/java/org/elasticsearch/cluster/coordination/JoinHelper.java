@@ -22,16 +22,24 @@ import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.compress.Compressor;
+import org.elasticsearch.common.compress.CompressorFactory;
+import org.elasticsearch.common.io.stream.InputStreamStreamInput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
+import org.elasticsearch.transport.BytesTransportRequest;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequest;
@@ -86,6 +94,7 @@ public class JoinHelper {
         AllocationService allocationService,
         MasterService masterService,
         TransportService transportService,
+        NamedWriteableRegistry namedWriteableRegistry,
         LongSupplier currentTermSupplier,
         Supplier<ClusterState> currentStateSupplier,
         BiConsumer<JoinRequest, ActionListener<Void>> joinHandler,
@@ -160,6 +169,55 @@ public class JoinHelper {
                     );
                 }
                 joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), request.getState()));
+                channel.sendResponse(Empty.INSTANCE);
+            }
+        );
+
+        transportService.registerRequestHandler(
+            JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME,
+            ThreadPool.Names.CLUSTER_COORDINATION,
+            BytesTransportRequest::new,
+            (request, channel, task) -> {
+
+                final Compressor compressor = CompressorFactory.compressor(request.bytes());
+                StreamInput in = request.bytes().streamInput();
+                final ClusterState clusterState;
+                try {
+                    if (compressor != null) {
+                        in = new InputStreamStreamInput(compressor.threadLocalInputStream(in));
+                    }
+                    in = new NamedWriteableAwareStreamInput(in, namedWriteableRegistry);
+                    in.setVersion(request.version());
+                    // If true we received full cluster state - otherwise diffs
+                    // Close early to release resources used by the de-compression as early as possible
+                    try (StreamInput input = in) {
+                        clusterState = ClusterState.readFrom(input, transportService.getLocalNode());
+                    } catch (Exception e) {
+                        logger.warn("unexpected error while deserializing an incoming cluster state", e);
+                        assert false : e;
+                        throw e;
+                    }
+                } finally {
+                    IOUtils.close(in);
+                }
+
+                final ClusterState localState = currentStateSupplier.get();
+                if (localState.metadata().clusterUUIDCommitted()
+                    && localState.metadata().clusterUUID().equals(clusterState.metadata().clusterUUID()) == false) {
+                    throw new CoordinationStateRejectedException(
+                        "This node previously joined a cluster with UUID ["
+                            + localState.metadata().clusterUUID()
+                            + "] and is now trying to join a different cluster with UUID ["
+                            + clusterState.metadata().clusterUUID()
+                            + "]. This is forbidden and usually indicates an incorrect "
+                            + "discovery or cluster bootstrapping configuration. Note that the cluster UUID persists across restarts and "
+                            + "can only be changed by deleting the contents of the node's data "
+                            + (dataPaths.size() == 1 ? "path " : "paths ")
+                            + dataPaths
+                            + " which will also remove any data held by this node."
+                    );
+                }
+                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), clusterState));
                 channel.sendResponse(Empty.INSTANCE);
             }
         );

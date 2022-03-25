@@ -1138,7 +1138,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                                 chanType,
                                 equalTo(TransportRequestOptions.Type.PING)
                             );
-                            case JoinHelper.JOIN_VALIDATE_ACTION_NAME, PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME,
+                            case JoinHelper.JOIN_VALIDATE_ACTION_NAME,
+                                 JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME,
+                                 PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME,
                                  Coordinator.COMMIT_STATE_ACTION_NAME -> assertThat(
                                 action,
                                 chanType,

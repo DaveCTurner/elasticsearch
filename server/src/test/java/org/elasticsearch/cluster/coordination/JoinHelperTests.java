@@ -18,6 +18,7 @@ import org.elasticsearch.cluster.NotMasterException;
 import org.elasticsearch.cluster.SimpleDiffable;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
@@ -82,6 +83,7 @@ public class JoinHelperTests extends ESTestCase {
             null,
             null,
             transportService,
+            new NamedWriteableRegistry(List.of()),
             () -> 0L,
             () -> null,
             (joinRequest, joinCallback) -> { throw new AssertionError(); },
@@ -229,6 +231,7 @@ public class JoinHelperTests extends ESTestCase {
             null,
             null,
             transportService,
+            new NamedWriteableRegistry(List.of()),
             () -> 0L,
             () -> localClusterState,
             (joinRequest, joinCallback) -> { throw new AssertionError(); },
@@ -288,6 +291,7 @@ public class JoinHelperTests extends ESTestCase {
             null,
             null,
             transportService,
+            new NamedWriteableRegistry(List.of()),
             () -> 0L,
             () -> null,
             (joinRequest, joinCallback) -> { throw new AssertionError(); },
@@ -354,6 +358,7 @@ public class JoinHelperTests extends ESTestCase {
                 null,
                 null,
                 remoteTransportService,
+                new NamedWriteableRegistry(List.of()),
                 () -> 0L,
                 () -> null,
                 (joinRequest, joinCallback) -> { throw new AssertionError(); },

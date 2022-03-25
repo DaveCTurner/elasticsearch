@@ -243,6 +243,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
         DisruptableMockTransport destinationTransport
     ) {
         final RequestHandlerRegistry<TransportRequest> requestHandler = destinationTransport.getRequestHandlers().getHandler(action);
+        assert requestHandler != null : "unknown action: " + action;
 
         final DiscoveryNode destination = destinationTransport.getLocalNode();
 
