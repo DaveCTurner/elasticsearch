@@ -41,6 +41,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -201,6 +202,10 @@ public class PublicationTransportHandler {
         }
     }
 
+    public PublicationContext newJoinValidationContext(ClusterState clusterState) {
+        return new PublicationContext(clusterState);
+    }
+
     private ReleasableBytesReference serializeFullClusterState(ClusterState clusterState, DiscoveryNode node) {
         final Version nodeVersion = node.getVersion();
         final RecyclerBytesStreamOutput bytesStream = transportService.newNetworkBytesStream();
@@ -296,6 +301,13 @@ public class PublicationTransportHandler {
             sendFullVersion = previousState.getBlocks().disableStatePersistence();
         }
 
+        PublicationContext(ClusterState clusterState) {
+            discoveryNodes = DiscoveryNodes.EMPTY_NODES;
+            newState = clusterState;
+            previousState = clusterState;
+            sendFullVersion = true;
+        }
+
         void buildDiffAndSerializeStates() {
             assert refCount() > 0;
             final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(
@@ -357,6 +369,11 @@ public class PublicationTransportHandler {
                 logger.trace("sending cluster state diff for version [{}] to [{}]", newState.version(), destination);
                 sendClusterStateDiff(destination, listener);
             }
+        }
+
+        public void sendJoinValidationRequest(DiscoveryNode discoveryNode, ActionListener<TransportResponse.Empty> listener) {
+            assert refCount() > 0;
+
         }
 
         private void sendFullClusterState(DiscoveryNode destination, ActionListener<PublishWithJoinResponse> listener) {

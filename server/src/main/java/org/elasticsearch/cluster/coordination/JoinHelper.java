@@ -65,6 +65,7 @@ public class JoinHelper {
     public static final String START_JOIN_ACTION_NAME = "internal:cluster/coordination/start_join";
     public static final String JOIN_ACTION_NAME = "internal:cluster/coordination/join";
     public static final String JOIN_VALIDATE_ACTION_NAME = "internal:cluster/coordination/join/validate";
+    public static final String JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME = "internal:cluster/coordination/join/validate_cluster_state";
     public static final String JOIN_PING_ACTION_NAME = "internal:cluster/coordination/join/ping";
 
     private final AllocationService allocationService;

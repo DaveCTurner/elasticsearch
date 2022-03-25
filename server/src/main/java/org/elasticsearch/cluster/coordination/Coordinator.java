@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.MessageSupplier;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.support.ChannelActionListener;
@@ -127,6 +128,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     private final MasterService masterService;
     private final AllocationService allocationService;
     private final JoinHelper joinHelper;
+    private final JoinValidationService joinValidationService;
     private final NodeRemovalClusterStateTaskExecutor nodeRemovalExecutor;
     private final Supplier<CoordinationState.PersistedState> persistedStateSupplier;
     private final NoMasterBlockService noMasterBlockService;
@@ -208,6 +210,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             nodeHealthService,
             joinReasonService
         );
+        this.joinValidationService = new JoinValidationService(transportService, this::getStateForMasterService);
         this.persistedStateSupplier = persistedStateSupplier;
         this.noMasterBlockService = new NoMasterBlockService(settings, clusterSettings);
         this.lastKnownLeader = Optional.empty();
@@ -622,7 +625,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         // Before letting the node join the cluster, ensure:
         // - it's a new enough version to pass the version barrier
         // - we have a healthy STATE channel to the node
-        // - if we're already master that it can make sense of a the current cluster state.
+        // - if we're already master that it can make sense of the current cluster state.
         // - we have a healthy PING channel to the node
 
         final ListenableActionFuture<Empty> validateStateListener = new ListenableActionFuture<>();
@@ -669,26 +672,30 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     }
 
     private void sendJoinValidate(DiscoveryNode discoveryNode, ClusterState clusterState, ActionListener<Empty> listener) {
-        transportService.sendRequest(
-            discoveryNode,
-            JoinHelper.JOIN_VALIDATE_ACTION_NAME,
-            new ValidateJoinRequest(clusterState),
-            TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE),
-            new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
-                logger.warn(() -> new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
-                listener.onFailure(
-                    new IllegalStateException(
-                        String.format(
-                            Locale.ROOT,
-                            "failure when sending a join validation request from [%s] to [%s]",
-                            getLocalNode().descriptionWithoutAttributes(),
-                            discoveryNode.descriptionWithoutAttributes()
-                        ),
-                        e
-                    )
-                );
-            }), i -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
-        );
+        if (discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)) {
+            joinValidationService.validateJoin(discoveryNode, listener.map(i -> null));
+        } else {
+            transportService.sendRequest(
+                discoveryNode,
+                JoinHelper.JOIN_VALIDATE_ACTION_NAME,
+                new ValidateJoinRequest(clusterState),
+                TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE),
+                new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
+                    logger.warn(new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
+                    listener.onFailure(
+                        new IllegalStateException(
+                            String.format(
+                                Locale.ROOT,
+                                "failure when sending a join validation request from [%s] to [%s]",
+                                getLocalNode().descriptionWithoutAttributes(),
+                                discoveryNode.descriptionWithoutAttributes()
+                            ),
+                            e
+                        )
+                    );
+                }), i -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
+            );
+        }
     }
 
     private void sendJoinPing(DiscoveryNode discoveryNode, TransportRequestOptions.Type channelType, ActionListener<Empty> listener) {
@@ -958,6 +965,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     @Override
     protected void doStop() {
         configuredHostsResolver.stop();
+        joinValidationService.stop();
     }
 
     @Override
