@@ -211,7 +211,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             nodeHealthService,
             joinReasonService
         );
-        this.joinValidationService = new JoinValidationService(transportService, this::getStateForMasterService);
+        this.joinValidationService = new JoinValidationService(settings, transportService, this::getStateForMasterService);
         this.persistedStateSupplier = persistedStateSupplier;
         this.noMasterBlockService = new NoMasterBlockService(settings, clusterSettings);
         this.lastKnownLeader = Optional.empty();
@@ -1462,6 +1462,11 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
 
     public Collection<BiConsumer<DiscoveryNode, ClusterState>> getOnJoinValidators() {
         return onJoinValidators;
+    }
+
+    // for tests
+    boolean hasIdleJoinValidationService() {
+        return joinValidationService.isIdle();
     }
 
     public enum Mode {

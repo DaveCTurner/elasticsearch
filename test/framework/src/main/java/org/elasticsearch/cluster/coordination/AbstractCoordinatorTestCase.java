@@ -245,7 +245,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 FOLLOWER_CHECK_RETRY_COUNT_SETTING
             )
             // then wait for the new leader to commit a state without the old leader
-            + DEFAULT_CLUSTER_STATE_UPDATE_DELAY;
+            + DEFAULT_CLUSTER_STATE_UPDATE_DELAY
+            // then wait for the join validation service to become idle
+            + defaultMillis(JoinValidationService.JOIN_VALIDATION_CACHE_TIMEOUT_SETTING);
 
     public class Cluster implements Releasable {
 
@@ -657,6 +659,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         }
                     }
                 }
+
+                assertTrue(nodeId + " has an idle join validation service", clusterNode.coordinator.hasIdleJoinValidationService());
             }
 
             final Set<String> connectedNodeIds = clusterNodes.stream()

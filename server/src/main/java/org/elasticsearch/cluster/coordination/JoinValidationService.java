@@ -21,6 +21,8 @@ import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -50,6 +52,15 @@ public class JoinValidationService {
 
     private static final TransportRequestOptions REQUEST_OPTIONS = TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE);
 
+    // the timeout for the publication of each value
+    public static final Setting<TimeValue> JOIN_VALIDATION_CACHE_TIMEOUT_SETTING = Setting.timeSetting(
+        "cluster.join_validation.cache_timeout",
+        TimeValue.timeValueSeconds(60),
+        TimeValue.timeValueMillis(1),
+        Setting.Property.NodeScope
+    );
+
+    private final TimeValue cacheTimeout;
     private final TransportService transportService;
     private final Supplier<ClusterState> clusterStateSupplier;
     private final AtomicInteger queueSize = new AtomicInteger();
@@ -57,7 +68,8 @@ public class JoinValidationService {
     private final Map<Version, ReleasableBytesReference> statesByVersion = new HashMap<>();
     private final RefCounted executeRefs;
 
-    public JoinValidationService(TransportService transportService, Supplier<ClusterState> clusterStateSupplier) {
+    public JoinValidationService(Settings settings, TransportService transportService, Supplier<ClusterState> clusterStateSupplier) {
+        this.cacheTimeout = JOIN_VALIDATION_CACHE_TIMEOUT_SETTING.get(settings);
         this.transportService = transportService;
         this.clusterStateSupplier = clusterStateSupplier;
         this.executeRefs = AbstractRefCounted.of(() -> execute(cacheClearer));
@@ -77,6 +89,11 @@ public class JoinValidationService {
 
     public void stop() {
         executeRefs.decRef();
+    }
+
+    boolean isIdle() {
+        // this is for single-threaded tests to assert that the service becomes idle, so it is not properly synchronized
+        return queue.isEmpty() && queueSize.get() == 0 && statesByVersion.isEmpty();
     }
 
     private void execute(AbstractRunnable task) {
@@ -189,12 +206,7 @@ public class JoinValidationService {
                 )
             );
             if (cachedBytes == null) {
-                transportService.getThreadPool()
-                    .schedule(
-                        () -> execute(cacheClearer),
-                        TimeValue.timeValueSeconds(60) /* TODO make configurable */,
-                        ThreadPool.Names.CLUSTER_COORDINATION
-                    );
+                transportService.getThreadPool().schedule(() -> execute(cacheClearer), cacheTimeout, ThreadPool.Names.CLUSTER_COORDINATION);
             }
         }
 
