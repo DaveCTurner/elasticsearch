@@ -639,7 +639,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     stateForJoinValidation.getNodes().getMinNodeVersion()
                 );
             }
-            sendJoinValidate(joinRequest.getSourceNode(), stateForJoinValidation, validateStateListener);
+            sendJoinValidate(joinRequest.getSourceNode(), validateStateListener);
         } else {
             sendJoinPing(joinRequest.getSourceNode(), TransportRequestOptions.Type.STATE, validateStateListener);
         }
@@ -670,10 +670,10 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         });
     }
 
-    private void sendJoinValidate(DiscoveryNode discoveryNode, ClusterState clusterState, ActionListener<Empty> listener) {
-        joinValidationService.validateJoin(discoveryNode, listener.delegateResponse((l, e) -> {
+    private void sendJoinValidate(DiscoveryNode discoveryNode, ActionListener<Empty> listener) {
+        joinValidationService.validateJoin(discoveryNode, listener.delegateResponse((delegate, e) -> {
             logger.warn(new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
-            listener.onFailure(
+            delegate.onFailure(
                 new IllegalStateException(
                     String.format(
                         Locale.ROOT,
