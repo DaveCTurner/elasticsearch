@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +59,8 @@ public class JoinValidationServiceTests extends ESTestCase {
             final var threadPool = new TestThreadPool("test", settings);
             releasables.add(() -> ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS));
 
+            final var sendCountdown = new CountDownLatch(between(0, 10));
+
             final var transport = new MockTransport() {
                 @Override
                 public Connection createConnection(DiscoveryNode node) {
@@ -72,16 +76,32 @@ public class JoinValidationServiceTests extends ESTestCase {
                             final var executor = threadPool.executor(
                                 randomFrom(ThreadPool.Names.SAME, ThreadPool.Names.GENERIC, ThreadPool.Names.CLUSTER_COORDINATION)
                             );
-                            executor.execute(() -> handleResponse(requestId, switch (action) {
-                                case JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME -> TransportResponse.Empty.INSTANCE;
-                                case TransportService.HANDSHAKE_ACTION_NAME -> new TransportService.HandshakeResponse(
-                                    Version.CURRENT,
-                                    Build.CURRENT.hash(),
-                                    node,
-                                    ClusterName.DEFAULT
-                                );
-                                default -> throw new AssertionError("unexpected action: " + action);
-                            }));
+                            executor.execute(new AbstractRunnable() {
+                                @Override
+                                public void onFailure(Exception e) {
+                                    assert false : e;
+                                }
+
+                                @Override
+                                public void onRejection(Exception e) {
+                                    handleError(requestId, new TransportException(e));
+                                }
+
+                                @Override
+                                public void doRun() {
+                                    handleResponse(requestId, switch (action) {
+                                        case JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME -> TransportResponse.Empty.INSTANCE;
+                                        case TransportService.HANDSHAKE_ACTION_NAME -> new TransportService.HandshakeResponse(
+                                            Version.CURRENT,
+                                            Build.CURRENT.hash(),
+                                            node,
+                                            ClusterName.DEFAULT
+                                        );
+                                        default -> throw new AssertionError("unexpected action: " + action);
+                                    });
+                                    sendCountdown.countDown();
+                                }
+                            });
                         }
                     };
                 }
@@ -162,41 +182,24 @@ public class JoinValidationServiceTests extends ESTestCase {
             }
 
             startBarrier.await(10, TimeUnit.SECONDS);
-            Thread.yield();
+            assertTrue(sendCountdown.await(10, TimeUnit.SECONDS));
 
+            expectFailures.set(true);
             if (randomBoolean()) {
-                logger.info("--> stopping join validation service");
-                expectFailures.set(true);
                 joinValidationService.stop();
-
-                if (randomBoolean()) {
-                    logger.info("--> stopping transport service");
-                    expectFailures.set(true);
-                    transportService.stop();
-                    if (randomBoolean()) {
-                        logger.info("--> closing transport service");
-                        expectFailures.set(true);
-                        transportService.close();
-                    }
-                }
-                if (randomBoolean()) {
-                    logger.info("--> terminating thread pool");
-                    expectFailures.set(true);
-                    ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
-                }
             }
-
-            logger.info("--> joining threads");
+            if (randomBoolean()) {
+                transportService.close();
+            }
+            if (randomBoolean()) {
+                ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
+            }
             keepGoing.set(false);
             for (final var thread : threads) {
                 thread.join();
             }
-
-            logger.info("--> awaiting completion of all listeners");
             assertTrue(validationPermits.tryAcquire(permitCount, 10, TimeUnit.SECONDS));
-            logger.info("--> awaiting cleanup");
             assertBusy(() -> assertTrue(joinValidationService.isIdle()));
-            logger.info("--> done");
         } finally {
             Collections.reverse(releasables);
             Releasables.close(releasables);

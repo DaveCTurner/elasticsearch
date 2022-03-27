@@ -27,6 +27,7 @@ import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -42,6 +43,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.cluster.coordination.JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME;
@@ -93,7 +95,7 @@ public class JoinValidationService {
 
     boolean isIdle() {
         // this is for single-threaded tests to assert that the service becomes idle, so it is not properly synchronized
-        return queue.isEmpty() && queueSize.get() == 0 && statesByVersion.isEmpty();
+        return queue.isEmpty() && queueSize.get() == 0 && statesByVersion.isEmpty() && leakCounter.get() == 0;
     }
 
     private void execute(AbstractRunnable task) {
@@ -180,6 +182,8 @@ public class JoinValidationService {
         }
     };
 
+    private final AtomicLong leakCounter = new AtomicLong();
+
     private class JoinValidation extends ActionRunnable<TransportResponse.Empty> {
         private final DiscoveryNode discoveryNode;
 
@@ -194,13 +198,17 @@ public class JoinValidationService {
             final var bytes = Objects.requireNonNullElseGet(cachedBytes, () -> serializeClusterState(discoveryNode));
             assert bytes.hasReferences() : "already closed";
             bytes.incRef();
+            leakCounter.incrementAndGet();
             transportService.sendRequest(
                 discoveryNode,
                 JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME,
                 new BytesTransportRequest(bytes, discoveryNode.getVersion()),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(
-                    ActionListener.runAfter(listener, bytes::decRef),
+                    ActionListener.runAfter(listener,
+                        Releasables.wrap(
+                            bytes::decRef,
+                            leakCounter::decrementAndGet)::close),
                     in -> TransportResponse.Empty.INSTANCE,
                     ThreadPool.Names.CLUSTER_COORDINATION
                 )
@@ -245,6 +253,7 @@ public class JoinValidationService {
             return newBytes;
         } finally {
             if (success == false) {
+                assert false;
                 bytesStream.close();
             }
         }
