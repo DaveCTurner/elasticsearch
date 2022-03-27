@@ -336,6 +336,7 @@ public class JoinHelperTests extends ESTestCase {
         assertEquals(node1, capturedRequest1a.node());
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testJoinValidationFailsOnUnreadableClusterState() throws Exception {
         final List<Releasable> releasables = new ArrayList<>(3);
         try {
