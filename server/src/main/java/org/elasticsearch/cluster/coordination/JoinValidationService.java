@@ -18,15 +18,12 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -35,7 +32,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -99,7 +95,10 @@ public class JoinValidationService {
                 new ValidateJoinRequest(clusterStateSupplier.get()),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
-                    logger.warn(() -> new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
+                    logger.warn(
+                        () -> new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode),
+                        e
+                    );
                     listener.onFailure(
                         new IllegalStateException(
                             String.format(
@@ -227,7 +226,7 @@ public class JoinValidationService {
             transportService.sendRequest(
                 discoveryNode,
                 JOIN_VALIDATE_ACTION_NAME,
-                 new BytesTransportRequest(bytes, discoveryNode.getVersion()),
+                new BytesTransportRequest(bytes, discoveryNode.getVersion()),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(
                     ActionListener.runAfter(listener, bytes::decRef),

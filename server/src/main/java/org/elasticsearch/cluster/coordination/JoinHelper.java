@@ -22,7 +22,6 @@ import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
@@ -85,7 +84,6 @@ public class JoinHelper {
         AllocationService allocationService,
         MasterService masterService,
         TransportService transportService,
-        NamedWriteableRegistry namedWriteableRegistry,
         LongSupplier currentTermSupplier,
         Supplier<ClusterState> currentStateSupplier,
         BiConsumer<JoinRequest, ActionListener<Void>> joinHandler,
