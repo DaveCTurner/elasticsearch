@@ -30,11 +30,12 @@ public class ValidateJoinRequest extends TransportRequest {
     public ValidateJoinRequest(StreamInput in) throws IOException {
         super(in);
         if (in.getVersion().onOrAfter(Version.V_8_2_0)) {
-            // it's a BytesTransportRequest containing the compressed state
+            // recent versions send a BytesTransportRequest containing the compressed state
             final var bytes = in.readReleasableBytesReference();
             this.state = readCompressed(in.getVersion(), bytes, in.namedWriteableRegistry());
             this.refCounted = bytes;
         } else {
+            // older versions just contain the bare state
             this.state = ClusterState.readFrom(in, null);
             this.refCounted = AbstractRefCounted.of(() -> {});
         }
