@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -41,6 +42,7 @@ import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -80,14 +82,37 @@ public class JoinValidationService {
     }
 
     public void validateJoin(DiscoveryNode discoveryNode, ActionListener<TransportResponse.Empty> listener) {
-        if (executeRefs.tryIncRef()) {
-            try {
-                execute(new JoinValidation(discoveryNode, listener));
-            } finally {
-                executeRefs.decRef();
+        if (discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)) {
+            if (executeRefs.tryIncRef()) {
+                try {
+                    execute(new JoinValidation(discoveryNode, listener));
+                } finally {
+                    executeRefs.decRef();
+                }
+            } else {
+                listener.onFailure(new NodeClosedException(transportService.getLocalNode()));
             }
         } else {
-            listener.onFailure(new NodeClosedException(transportService.getLocalNode()));
+            transportService.sendRequest(
+                discoveryNode,
+                JOIN_VALIDATE_ACTION_NAME,
+                new ValidateJoinRequest(clusterStateSupplier.get()),
+                REQUEST_OPTIONS,
+                new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
+                    logger.warn(() -> new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
+                    listener.onFailure(
+                        new IllegalStateException(
+                            String.format(
+                                Locale.ROOT,
+                                "failure when sending a join validation request from [%s] to [%s]",
+                                transportService.getLocalNode().descriptionWithoutAttributes(),
+                                discoveryNode.descriptionWithoutAttributes()
+                            ),
+                            e
+                        )
+                    );
+                }), i -> TransportResponse.Empty.INSTANCE, ThreadPool.Names.CLUSTER_COORDINATION)
+            );
         }
     }
 
@@ -194,6 +219,7 @@ public class JoinValidationService {
 
         @Override
         protected void doRun() throws Exception {
+            assert discoveryNode.getVersion().onOrAfter(Version.V_8_2_0) : discoveryNode.getVersion();
             final var cachedBytes = statesByVersion.get(discoveryNode.getVersion());
             final var bytes = Objects.requireNonNullElseGet(cachedBytes, () -> serializeClusterState(discoveryNode));
             assert bytes.hasReferences() : "already closed";
@@ -201,9 +227,7 @@ public class JoinValidationService {
             transportService.sendRequest(
                 discoveryNode,
                 JOIN_VALIDATE_ACTION_NAME,
-                discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)
-                    ? new BytesTransportRequest(bytes, discoveryNode.getVersion())
-                    : new RawJoinValidationRequest(bytes),
+                 new BytesTransportRequest(bytes, discoveryNode.getVersion()),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(
                     ActionListener.runAfter(listener, bytes::decRef),
@@ -253,31 +277,6 @@ public class JoinValidationService {
             if (success == false) {
                 assert false;
                 bytesStream.close();
-            }
-        }
-    }
-
-    private static class RawJoinValidationRequest extends TransportRequest {
-
-        private final BytesReference compressedBytes;
-
-        RawJoinValidationRequest(BytesReference compressedBytes) {
-            this.compressedBytes = compressedBytes;
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            final var compressor = CompressorFactory.compressor(compressedBytes);
-            assert compressor != null;
-            try (var stream = compressor.threadLocalInputStream(compressedBytes.streamInput())) {
-                final var buffer = new byte[PageCacheRecycler.BYTE_PAGE_SIZE];
-                while (true) {
-                    final var bytesRead = stream.read(buffer);
-                    if (bytesRead == 0) {
-                        break;
-                    }
-                    out.write(buffer, 0, bytesRead);
-                }
             }
         }
     }

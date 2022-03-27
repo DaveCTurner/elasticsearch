@@ -62,14 +62,13 @@ public class ValidateJoinRequest extends TransportRequest {
     }
 
     public ValidateJoinRequest(ClusterState state) {
-        // TODO this should not be called
         this.state = state;
         this.refCounted = AbstractRefCounted.of(() -> {});
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        // TODO this should not be called
+        assert out.getVersion().before(Version.V_8_2_0);
         super.writeTo(out);
         this.state.writeTo(out);
     }
