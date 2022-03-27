@@ -141,9 +141,9 @@ public class JoinValidationServiceTests extends ESTestCase {
                 releasables.add(connectionListener.get(10, TimeUnit.SECONDS));
             }
 
-            final var threads = new Thread[between(1, 5)];
+            final var threads = new Thread[between(1, 3)];
             final var startBarrier = new CyclicBarrier(threads.length + 1);
-            final var permitCount = 1000;
+            final var permitCount = 100; // prevent too many concurrent requests or else cleanup can take ages
             final var validationPermits = new Semaphore(permitCount);
             final var expectFailures = new AtomicBoolean(false);
             final var keepGoing = new AtomicBoolean(true);
@@ -185,14 +185,19 @@ public class JoinValidationServiceTests extends ESTestCase {
             assertTrue(sendCountdown.await(10, TimeUnit.SECONDS));
 
             expectFailures.set(true);
-            if (randomBoolean()) {
-                joinValidationService.stop();
-            }
-            if (randomBoolean()) {
-                transportService.close();
-            }
-            if (randomBoolean()) {
-                ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
+            switch (between(1, 3)) {
+                case 1 -> joinValidationService.stop();
+                case 2 -> {
+                    joinValidationService.stop();
+                    transportService.close();
+                    ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
+                }
+                case 3 -> {
+                    transportService.close();
+                    keepGoing.set(false); // else the test threads keep adding to the validation service queue so the processor never stops
+                    ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
+                    joinValidationService.stop();
+                }
             }
             keepGoing.set(false);
             for (final var thread : threads) {
