@@ -90,7 +90,7 @@ public class JoinValidationServiceTests extends ESTestCase {
                                 @Override
                                 public void doRun() {
                                     handleResponse(requestId, switch (action) {
-                                        case JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME -> TransportResponse.Empty.INSTANCE;
+                                        case JoinValidationService.JOIN_VALIDATE_ACTION_NAME -> TransportResponse.Empty.INSTANCE;
                                         case TransportService.HANDSHAKE_ACTION_NAME -> new TransportService.HandshakeResponse(
                                             Version.CURRENT,
                                             Build.CURRENT.hash(),

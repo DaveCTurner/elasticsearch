@@ -251,7 +251,7 @@ public class JoinHelperTests extends ESTestCase {
         final PlainActionFuture<TransportResponse.Empty> future = new PlainActionFuture<>();
         transportService.sendRequest(
             localNode,
-            JoinHelper.JOIN_VALIDATE_ACTION_NAME,
+            JoinValidationService.JOIN_VALIDATE_ACTION_NAME,
             new ValidateJoinRequest(otherClusterState),
             new ActionListenerResponseHandler<>(future, in -> TransportResponse.Empty.INSTANCE)
         );
@@ -387,7 +387,7 @@ public class JoinHelperTests extends ESTestCase {
             final PlainActionFuture<TransportResponse.Empty> future = new PlainActionFuture<>();
             localTransportService.sendRequest(
                 remoteTransportService.getLocalNode(),
-                JoinHelper.JOIN_VALIDATE_ACTION_NAME,
+                JoinValidationService.JOIN_VALIDATE_ACTION_NAME,
                 new ValidateJoinRequest(ClusterState.builder(ClusterName.DEFAULT).putCustom("test", new BadCustom()).build()),
                 new ActionListenerResponseHandler<>(future, in -> TransportResponse.Empty.INSTANCE)
             );

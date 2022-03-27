@@ -17,12 +17,15 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -31,6 +34,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -44,21 +48,21 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-import static org.elasticsearch.cluster.coordination.JoinHelper.JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME;
-
 public class JoinValidationService {
 
     private static final Logger logger = LogManager.getLogger(JoinValidationService.class);
 
-    private static final TransportRequestOptions REQUEST_OPTIONS = TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE);
+    public static final String JOIN_VALIDATE_ACTION_NAME = "internal:cluster/coordination/join/validate";
 
-    // the timeout for the publication of each value
+    // the timeout for each cached value
     public static final Setting<TimeValue> JOIN_VALIDATION_CACHE_TIMEOUT_SETTING = Setting.timeSetting(
         "cluster.join_validation.cache_timeout",
         TimeValue.timeValueSeconds(60),
         TimeValue.timeValueMillis(1),
         Setting.Property.NodeScope
     );
+
+    private static final TransportRequestOptions REQUEST_OPTIONS = TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE);
 
     private final TimeValue cacheTimeout;
     private final TransportService transportService;
@@ -196,8 +200,10 @@ public class JoinValidationService {
             bytes.incRef();
             transportService.sendRequest(
                 discoveryNode,
-                JOIN_VALIDATE_CLUSTER_STATE_ACTION_NAME,
-                new BytesTransportRequest(bytes, discoveryNode.getVersion()),
+                JOIN_VALIDATE_ACTION_NAME,
+                discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)
+                    ? new BytesTransportRequest(bytes, discoveryNode.getVersion())
+                    : new RawJoinValidationRequest(bytes),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(
                     ActionListener.runAfter(listener, bytes::decRef),
@@ -247,6 +253,31 @@ public class JoinValidationService {
             if (success == false) {
                 assert false;
                 bytesStream.close();
+            }
+        }
+    }
+
+    private static class RawJoinValidationRequest extends TransportRequest {
+
+        private final BytesReference compressedBytes;
+
+        RawJoinValidationRequest(BytesReference compressedBytes) {
+            this.compressedBytes = compressedBytes;
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            final var compressor = CompressorFactory.compressor(compressedBytes);
+            assert compressor != null;
+            try (var stream = compressor.threadLocalInputStream(compressedBytes.streamInput())) {
+                final var buffer = new byte[PageCacheRecycler.BYTE_PAGE_SIZE];
+                while (true) {
+                    final var bytesRead = stream.read(buffer);
+                    if (bytesRead == 0) {
+                        break;
+                    }
+                    out.write(buffer, 0, bytesRead);
+                }
             }
         }
     }

@@ -182,11 +182,12 @@ public class NodeJoinTests extends ESTestCase {
                             initialState.getClusterName()
                         )
                     );
-                } else if (action.equals(JoinHelper.JOIN_VALIDATE_ACTION_NAME) || action.equals(JoinHelper.JOIN_PING_ACTION_NAME)) {
-                    handleResponse(requestId, new TransportResponse.Empty());
-                } else {
-                    super.onSendRequest(requestId, action, request, destination);
-                }
+                } else if (action.equals(JoinValidationService.JOIN_VALIDATE_ACTION_NAME)
+                    || action.equals(JoinHelper.JOIN_PING_ACTION_NAME)) {
+                        handleResponse(requestId, new TransportResponse.Empty());
+                    } else {
+                        super.onSendRequest(requestId, action, request, destination);
+                    }
             }
         };
         final ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);

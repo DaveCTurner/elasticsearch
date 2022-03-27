@@ -13,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.logging.log4j.util.MessageSupplier;
 import org.apache.lucene.util.SetOnce;
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.support.ChannelActionListener;
@@ -673,7 +672,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     }
 
     private void sendJoinValidate(DiscoveryNode discoveryNode, ClusterState clusterState, ActionListener<Empty> listener) {
-        final var loggingListener = listener.delegateResponse((l, e) -> {
+        joinValidationService.validateJoin(discoveryNode, listener.delegateResponse((l, e) -> {
             logger.warn(new ParameterizedMessage("failed to validate incoming join request from node [{}]", discoveryNode), e);
             listener.onFailure(
                 new IllegalStateException(
@@ -686,18 +685,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     e
                 )
             );
-        });
-        if (discoveryNode.getVersion().onOrAfter(Version.V_8_2_0)) {
-            joinValidationService.validateJoin(discoveryNode, loggingListener);
-        } else {
-            transportService.sendRequest(
-                discoveryNode,
-                JoinHelper.JOIN_VALIDATE_ACTION_NAME,
-                new ValidateJoinRequest(clusterState),
-                TransportRequestOptions.of(null, TransportRequestOptions.Type.STATE),
-                new ActionListenerResponseHandler<>(loggingListener, i -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
-            );
-        }
+        }));
     }
 
     private void sendJoinPing(DiscoveryNode discoveryNode, TransportRequestOptions.Type channelType, ActionListener<Empty> listener) {
