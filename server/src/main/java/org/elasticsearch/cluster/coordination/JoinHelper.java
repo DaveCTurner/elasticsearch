@@ -141,14 +141,15 @@ public class JoinHelper {
             ThreadPool.Names.CLUSTER_COORDINATION,
             ValidateJoinRequest::new,
             (request, channel, task) -> {
-                final ClusterState localState = currentStateSupplier.get();
+                final var remoteState = request.getState();
+                final var localState = currentStateSupplier.get();
                 if (localState.metadata().clusterUUIDCommitted()
-                    && localState.metadata().clusterUUID().equals(request.getState().metadata().clusterUUID()) == false) {
+                    && localState.metadata().clusterUUID().equals(remoteState.metadata().clusterUUID()) == false) {
                     throw new CoordinationStateRejectedException(
                         "This node previously joined a cluster with UUID ["
                             + localState.metadata().clusterUUID()
                             + "] and is now trying to join a different cluster with UUID ["
-                            + request.getState().metadata().clusterUUID()
+                            + remoteState.metadata().clusterUUID()
                             + "]. This is forbidden and usually indicates an incorrect "
                             + "discovery or cluster bootstrapping configuration. Note that the cluster UUID persists across restarts and "
                             + "can only be changed by deleting the contents of the node's data "
@@ -157,7 +158,7 @@ public class JoinHelper {
                             + " which will also remove any data held by this node."
                     );
                 }
-                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), request.getState()));
+                joinValidators.forEach(joinValidator -> joinValidator.accept(transportService.getLocalNode(), remoteState));
                 channel.sendResponse(Empty.INSTANCE);
             }
         );

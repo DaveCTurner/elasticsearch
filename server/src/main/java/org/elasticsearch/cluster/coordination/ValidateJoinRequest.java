@@ -9,6 +9,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.compress.CompressorFactory;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
@@ -16,7 +17,6 @@ import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.transport.TransportRequest;
@@ -24,21 +24,23 @@ import org.elasticsearch.transport.TransportRequest;
 import java.io.IOException;
 
 public class ValidateJoinRequest extends TransportRequest {
-    private final ClusterState state;
+    private final CheckedSupplier<ClusterState, IOException> stateSupplier;
     private final RefCounted refCounted;
 
     public ValidateJoinRequest(StreamInput in) throws IOException {
         super(in);
         if (in.getVersion().onOrAfter(Version.V_8_2_0)) {
             // recent versions send a BytesTransportRequest containing the compressed state
-            // TODO ugh we should just capture the bytes here and do the decompression on another thread
             final var bytes = in.readReleasableBytesReference();
-            this.state = readCompressed(in.getVersion(), bytes, in.namedWriteableRegistry());
+            final var version = in.getVersion();
+            final var namedWriteableRegistry = in.namedWriteableRegistry();
+            this.stateSupplier = () -> readCompressed(version, bytes, namedWriteableRegistry);
             this.refCounted = bytes;
         } else {
             // older versions just contain the bare state
-            this.state = ClusterState.readFrom(in, null);
-            this.refCounted = AbstractRefCounted.of(() -> {});
+            final var state = ClusterState.readFrom(in, null);
+            this.stateSupplier = () -> state;
+            this.refCounted = null;
         }
     }
 
@@ -64,38 +66,40 @@ public class ValidateJoinRequest extends TransportRequest {
     }
 
     public ValidateJoinRequest(ClusterState state) {
-        this.state = state;
-        this.refCounted = AbstractRefCounted.of(() -> {});
+        this.stateSupplier = () -> state;
+        this.refCounted = null;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         assert out.getVersion().before(Version.V_8_2_0);
         super.writeTo(out);
-        this.state.writeTo(out);
+        stateSupplier.get().writeTo(out);
     }
 
-    public ClusterState getState() {
-        return state;
+    public ClusterState getState() throws IOException {
+        return stateSupplier.get();
     }
 
     @Override
     public void incRef() {
-        refCounted.incRef();
+        if (refCounted != null) {
+            refCounted.incRef();
+        }
     }
 
     @Override
     public boolean tryIncRef() {
-        return refCounted.tryIncRef();
+        return refCounted == null || refCounted.tryIncRef();
     }
 
     @Override
     public boolean decRef() {
-        return refCounted.decRef();
+        return refCounted != null && refCounted.decRef();
     }
 
     @Override
     public boolean hasReferences() {
-        return refCounted.hasReferences();
+        return refCounted == null || refCounted.hasReferences();
     }
 }
