@@ -31,6 +31,7 @@ public class ValidateJoinRequest extends TransportRequest {
         super(in);
         if (in.getVersion().onOrAfter(Version.V_8_2_0)) {
             // recent versions send a BytesTransportRequest containing the compressed state
+            // TODO ugh we should just capture the bytes here and do the decompression on another thread
             final var bytes = in.readReleasableBytesReference();
             this.state = readCompressed(in.getVersion(), bytes, in.namedWriteableRegistry());
             this.refCounted = bytes;
