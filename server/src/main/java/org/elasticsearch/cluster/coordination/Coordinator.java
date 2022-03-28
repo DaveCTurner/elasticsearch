@@ -196,20 +196,22 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         this.electionStrategy = electionStrategy;
         this.joinReasonService = new JoinReasonService(transportService.getThreadPool()::relativeTimeInMillis);
         this.joinHelper = new JoinHelper(
-            settings,
             allocationService,
             masterService,
             transportService,
             this::getCurrentTerm,
-            this::getStateForMasterService,
             this::handleJoinRequest,
             this::joinLeaderInTerm,
-            this.onJoinValidators,
             rerouteService,
             nodeHealthService,
             joinReasonService
         );
-        this.joinValidationService = new JoinValidationService(settings, transportService, this::getStateForMasterService);
+        this.joinValidationService = new JoinValidationService(
+            settings,
+            transportService,
+            this::getStateForMasterService,
+            this.onJoinValidators
+        );
         this.persistedStateSupplier = persistedStateSupplier;
         this.noMasterBlockService = new NoMasterBlockService(settings, clusterSettings);
         this.lastKnownLeader = Optional.empty();

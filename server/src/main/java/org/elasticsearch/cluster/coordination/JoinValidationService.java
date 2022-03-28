@@ -29,6 +29,7 @@ import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
@@ -37,6 +38,7 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +46,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 public class JoinValidationService {
@@ -70,11 +73,44 @@ public class JoinValidationService {
     private final Map<Version, ReleasableBytesReference> statesByVersion = new HashMap<>();
     private final RefCounted executeRefs;
 
-    public JoinValidationService(Settings settings, TransportService transportService, Supplier<ClusterState> clusterStateSupplier) {
+    public JoinValidationService(
+        Settings settings,
+        TransportService transportService,
+        Supplier<ClusterState> clusterStateSupplier,
+        Collection<BiConsumer<DiscoveryNode, ClusterState>> joinValidators
+    ) {
         this.cacheTimeout = JOIN_VALIDATION_CACHE_TIMEOUT_SETTING.get(settings);
         this.transportService = transportService;
         this.clusterStateSupplier = clusterStateSupplier;
         this.executeRefs = AbstractRefCounted.of(() -> execute(cacheClearer));
+
+        final var dataPaths = Environment.PATH_DATA_SETTING.get(settings);
+        transportService.registerRequestHandler(
+            JoinValidationService.JOIN_VALIDATE_ACTION_NAME,
+            ThreadPool.Names.CLUSTER_COORDINATION,
+            ValidateJoinRequest::new,
+            (request, channel, task) -> {
+                final var remoteState = request.getState();
+                final var localState = clusterStateSupplier.get();
+                if (localState.metadata().clusterUUIDCommitted()
+                    && localState.metadata().clusterUUID().equals(remoteState.metadata().clusterUUID()) == false) {
+                    throw new CoordinationStateRejectedException(
+                        "This node previously joined a cluster with UUID ["
+                            + localState.metadata().clusterUUID()
+                            + "] and is now trying to join a different cluster with UUID ["
+                            + remoteState.metadata().clusterUUID()
+                            + "]. This is forbidden and usually indicates an incorrect "
+                            + "discovery or cluster bootstrapping configuration. Note that the cluster UUID persists across restarts and "
+                            + "can only be changed by deleting the contents of the node's data "
+                            + (dataPaths.size() == 1 ? "path " : "paths ")
+                            + dataPaths
+                            + " which will also remove any data held by this node."
+                    );
+                }
+                joinValidators.forEach(joinValidator -> joinValidator.accept(transportService.getLocalNode(), remoteState));
+                channel.sendResponse(TransportResponse.Empty.INSTANCE);
+            }
+        );
     }
 
     public void validateJoin(DiscoveryNode discoveryNode, ActionListener<TransportResponse.Empty> listener) {

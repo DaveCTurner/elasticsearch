@@ -34,6 +34,7 @@ import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -122,7 +123,7 @@ public class JoinValidationServiceTests extends ESTestCase {
 
             final var clusterState = ClusterState.EMPTY_STATE;
 
-            final var joinValidationService = new JoinValidationService(settings, transportService, () -> clusterState);
+            final var joinValidationService = new JoinValidationService(settings, transportService, () -> clusterState, List.of());
 
             transportService.start();
             releasables.add(() -> {
