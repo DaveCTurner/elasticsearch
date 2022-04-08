@@ -113,7 +113,6 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -468,7 +467,11 @@ public class ClusterStateChanges {
     @SuppressWarnings("unchecked")
     private ClusterState executeClusterStateUpdateTask(ClusterState state, Runnable runnable) {
         ClusterState[] resultingState = new ClusterState[1];
-        doCallRealMethod().when(clusterService).submitStateUpdateTask(anyString(), any(ClusterStateUpdateTask.class), any());
+        doAnswer(invocationOnMock -> {
+            var task = (ClusterStateUpdateTask) invocationOnMock.getArguments()[1];
+            resultingState[0] = task.execute(state);
+            return null;
+        }).when(clusterService).submitUnbatchedStateUpdateTask(anyString(), any(ClusterStateUpdateTask.class));
         doAnswer(invocationOnMock -> {
             var task = (ClusterStateTaskListener) invocationOnMock.getArguments()[1];
             var executor = (ClusterStateTaskExecutor<ClusterStateTaskListener>) invocationOnMock.getArguments()[3];
