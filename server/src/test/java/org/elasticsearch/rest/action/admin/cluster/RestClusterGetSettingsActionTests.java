@@ -8,8 +8,8 @@
 
 package org.elasticsearch.rest.action.admin.cluster;
 
+import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsResponse;
 import org.elasticsearch.action.admin.cluster.settings.RestClusterGetSettingsResponse;
-import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -41,7 +41,6 @@ public class RestClusterGetSettingsActionTests extends ESTestCase {
         final Metadata.Builder mdBuilder = new Metadata.Builder();
         final Settings settings = Settings.builder().put("foo.filtered", "bar").put("foo.non_filtered", "baz").build();
         md.accept(mdBuilder, settings);
-        final ClusterState.Builder builder = new ClusterState.Builder(ClusterState.EMPTY_STATE).metadata(mdBuilder);
         final SettingsFilter filter = new SettingsFilter(Collections.singleton("foo.filtered"));
         final Setting.Property[] properties = { Setting.Property.Dynamic, Setting.Property.Filtered, Setting.Property.NodeScope };
         final Set<Setting<?>> settingsSet = Stream.concat(
@@ -52,8 +51,9 @@ public class RestClusterGetSettingsActionTests extends ESTestCase {
             )
         ).collect(Collectors.toSet());
         final ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, settingsSet);
-        final RestClusterGetSettingsResponse response = RestClusterGetSettingsAction.response(
-            builder.build(),
+        final var metadata = mdBuilder.build();
+        final var response = RestClusterGetSettingsAction.response(
+            new ClusterGetSettingsResponse(metadata.persistentSettings(), metadata.transientSettings(), metadata.settings()),
             randomBoolean(),
             filter,
             clusterSettings,
