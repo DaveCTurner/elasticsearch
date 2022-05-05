@@ -830,8 +830,8 @@ public class Security extends Plugin
         if (XPackSettings.DLS_FLS_ENABLED.get(settings)) {
             requestInterceptors.addAll(
                 Arrays.asList(
-                    new SearchRequestInterceptor(threadPool, getLicenseState(), clusterService),
-                    new ShardSearchRequestInterceptor(threadPool, getLicenseState(), clusterService),
+                    new SearchRequestInterceptor(threadPool, getLicenseState()),
+                    new ShardSearchRequestInterceptor(threadPool, getLicenseState()),
                     new UpdateRequestInterceptor(threadPool, getLicenseState()),
                     new BulkShardRequestInterceptor(threadPool, getLicenseState()),
                     new DlsFlsLicenseRequestInterceptor(threadPool.getThreadContext(), getLicenseState())
