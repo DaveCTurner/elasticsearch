@@ -51,8 +51,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.indices.recovery.RecoverySettings.SNAPSHOT_RECOVERIES_SUPPORTED_VERSION;
-
 public class ShardSnapshotsService {
     private final Logger logger = LogManager.getLogger(ShardSnapshotsService.class);
 
@@ -87,13 +85,8 @@ public class ShardSnapshotsService {
             .map(RepositoryMetadata::name)
             .toList();
 
-        if (repositories.isEmpty() || masterSupportsFetchingLatestSnapshots() == false) {
-            logger.debug(
-                "Unable to use snapshots during peer recovery use_for_peer_recovery_repositories=[{}],"
-                    + " masterSupportsFetchingLatestSnapshots=[{}]",
-                repositories,
-                masterSupportsFetchingLatestSnapshots()
-            );
+        if (repositories.isEmpty()) {
+            logger.debug("Unable to use snapshots during peer recovery use_for_peer_recovery_repositories=[{}]", repositories);
             listener.onResponse(Optional.empty());
             return;
         }
@@ -169,10 +162,6 @@ public class ShardSnapshotsService {
             logger.warn(new ParameterizedMessage("Unable to fetch shard snapshot files for {}", latestShardSnapshot), e);
             return Optional.empty();
         }
-    }
-
-    protected boolean masterSupportsFetchingLatestSnapshots() {
-        return clusterService.state().nodes().getMinNodeVersion().onOrAfter(SNAPSHOT_RECOVERIES_SUPPORTED_VERSION);
     }
 
     private static final class StoreFileMetadataDirectory extends Directory {
