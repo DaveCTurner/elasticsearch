@@ -37,7 +37,7 @@ public class GatewayServiceTests extends ESTestCase {
             new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS),
             null
         );
-        return new GatewayService(settings.build(), (reason, priority, listener) -> fail("should not reroute"), clusterService, null);
+        return new GatewayService(settings.build(), clusterService, null);
     }
 
     public void testDefaultRecoverAfterTime() {

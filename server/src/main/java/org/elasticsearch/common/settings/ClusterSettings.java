@@ -251,6 +251,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
         GatewayService.EXPECTED_DATA_NODES_SETTING,
         GatewayService.RECOVER_AFTER_DATA_NODES_SETTING,
         GatewayService.RECOVER_AFTER_TIME_SETTING,
+        GatewayService.DELAYED_RECOVERY_WARNING_INTERVAL,
         PersistedClusterStateService.SLOW_WRITE_LOGGING_THRESHOLD,
         PersistedClusterStateService.DOCUMENT_PAGE_SIZE,
         NetworkModule.HTTP_DEFAULT_TYPE_SETTING,
