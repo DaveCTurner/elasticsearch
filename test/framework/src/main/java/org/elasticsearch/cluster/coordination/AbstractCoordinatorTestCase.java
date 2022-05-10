@@ -1225,6 +1225,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     (dn, cs) -> extraJoinValidators.forEach(validator -> validator.accept(dn, cs))
                 );
                 final AllocationService allocationService = ESAllocationTestCase.createAllocationService(Settings.EMPTY);
+                clusterService.setRerouteService(new BatchedRerouteService(clusterService, allocationService::reroute));
                 final NodeClient client = new NodeClient(Settings.EMPTY, threadPool);
                 client.initialize(
                     singletonMap(
@@ -1256,12 +1257,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     nodeHealthService
                 );
                 masterService.setClusterStatePublisher(coordinator);
-                final GatewayService gatewayService = new GatewayService(
-                    settings,
-                    new BatchedRerouteService(clusterService, allocationService::reroute),
-                    clusterService,
-                    threadPool
-                );
+                final GatewayService gatewayService = new GatewayService(settings, clusterService);
 
                 logger.trace("starting up [{}]", localNode);
                 transportService.start();

@@ -131,8 +131,8 @@ public class ClusterServiceUtils {
         return clusterService;
     }
 
-    public static ClusterService createSingleThreadedClusterService() {
-        final var threadPool = new DeterministicTaskQueue().getThreadPool();
+    public static ClusterService createSingleThreadedClusterService(DeterministicTaskQueue deterministicTaskQueue) {
+        final var threadPool = deterministicTaskQueue.getThreadPool();
         final var clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
         final var localNode = new DiscoveryNode(
             "node",

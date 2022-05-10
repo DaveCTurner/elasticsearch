@@ -78,8 +78,6 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
         ClusterBlockLevel.ALL
     );
 
-    private final ThreadPool threadPool;
-
     private final ClusterService clusterService;
     private final RecoverStateExecutor executor = new RecoverStateExecutor();
 
@@ -96,10 +94,8 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
     private final AtomicReference<AbstractRunnable> currentWarningEmitter = new AtomicReference<>();
 
     @Inject
-    public GatewayService(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool) {
+    public GatewayService(final Settings settings, final ClusterService clusterService) {
         this.clusterService = clusterService;
-        this.threadPool = threadPool;
-
         this.recoverAfterDataNodes = RECOVER_AFTER_DATA_NODES_SETTING.get(settings);
         this.expectedDataNodes = EXPECTED_DATA_NODES_SETTING.get(settings);
         this.recoverAfterTime = RECOVER_AFTER_TIME_SETTING.get(settings);
@@ -173,7 +169,7 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
 
     private void scheduleIfNew(AbstractRunnable command, TimeValue delay, AtomicReference<AbstractRunnable> holder) {
         if (holder.compareAndSet(null, command)) {
-            threadPool.schedule(command, delay, ThreadPool.Names.SAME);
+            clusterService.getClusterApplierService().threadPool().schedule(command, delay, ThreadPool.Names.SAME);
         }
     }
 
@@ -256,7 +252,9 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
                     Math.max(recoverAfterDataNodes, expectedDataNodes),
                     clusterService.state().nodes().getDataNodes().size()
                 );
-                threadPool.schedule(this, delayedRecoveryWarningInterval, ThreadPool.Names.SAME);
+                clusterService.getClusterApplierService()
+                    .threadPool()
+                    .schedule(this, delayedRecoveryWarningInterval, ThreadPool.Names.SAME);
             }
         }
     }
