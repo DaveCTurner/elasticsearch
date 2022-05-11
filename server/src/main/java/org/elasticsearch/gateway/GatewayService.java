@@ -154,6 +154,7 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
             }
         } else {
             // recover_after_data_nodes not satisfied yet
+            // but TODO NOCOMMIT we should still start the clock on the expected nodes timeout here
             logger.debug(
                 "not recovering from gateway, nodes_size (data) [{}] < recover_after_data_nodes [{}]",
                 dataNodeCount,
@@ -248,7 +249,7 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
         protected void doRun() throws Exception {
             if (currentWarningEmitter.get() == this) {
                 logger.info(
-                    "state recovery is delayed until the cluster has [{}] data nodes; it currently has [{}]",
+                    "cluster state will be recovered when the cluster has [{}] data nodes; it currently has [{}]",
                     Math.max(recoverAfterDataNodes, expectedDataNodes),
                     clusterService.state().nodes().getDataNodes().size()
                 );
