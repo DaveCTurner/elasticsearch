@@ -15,10 +15,12 @@ import org.elasticsearch.Version;
 import org.elasticsearch.cluster.Diff;
 import org.elasticsearch.cluster.SimpleDiffable;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.time.DateFormatter;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
@@ -593,7 +595,8 @@ public final class DataStream implements SimpleDiffable<DataStream>, ToXContentO
         builder.startObject();
         builder.field(NAME_FIELD.getPreferredName(), name);
         builder.field(TIMESTAMP_FIELD_FIELD.getPreferredName(), TIMESTAMP_FIELD);
-        builder.xContentList(INDICES_FIELD.getPreferredName(), indices);
+        builder.xContentList(INDICES_FIELD.getPreferredName(), CollectionUtils.concatLists(indices,
+            List.of(new Index("nonexistent", UUIDs.randomBase64UUID()))));
         builder.field(GENERATION_FIELD.getPreferredName(), generation);
         if (metadata != null) {
             builder.field(METADATA_FIELD.getPreferredName(), metadata);

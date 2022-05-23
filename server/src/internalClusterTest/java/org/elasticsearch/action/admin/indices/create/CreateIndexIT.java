@@ -21,9 +21,11 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.MapperParsingException;
@@ -50,8 +52,25 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.core.IsNull.notNullValue;
 
-@ClusterScope(scope = Scope.TEST)
+@ClusterScope(scope = Scope.TEST, numDataNodes = 1)
 public class CreateIndexIT extends ESIntegTestCase {
+
+    public void testCreateIndexToFixDataStream() {
+        // {"index_name":".ds-metrics-system.process-logs_7days_wr-2022.05.11-000070","index_uuid":"v5Or6RrSSaSenJIBMngq8Q"}
+        // {"index_name":".ds-logs-endpoint.events.process-logs_7days_wr-2022.05.11-000030","index_uuid":"0O37vLwrSnWwBFM7rtgsGw"}
+        assertAcked(prepareCreate(".ds-metrics-system.process-logs_7days_wr-2022.05.11-000070").setSettings(
+            Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0)));
+        assertAcked(prepareCreate(".ds-logs-endpoint.events.process-logs_7days_wr-2022.05.11-000030").setSettings(
+            Settings.builder().put("index.number_of_shards", 1).put("index.number_of_replicas", 0)));
+
+
+        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitStateUpdateTask();
+
+        logger.info("--> {}", internalCluster().getCurrentMasterNodeInstance(Environment.class).dataFiles());
+
+        logger.info("--> done");
+
+    }
 
     public void testCreationDateGivenFails() {
         try {

@@ -952,7 +952,12 @@ public class MetadataCreateIndexService {
             indexSettingsBuilder.put(SETTING_CREATION_DATE, Instant.now().toEpochMilli());
         }
         indexSettingsBuilder.put(IndexMetadata.SETTING_INDEX_PROVIDED_NAME, request.getProvidedName());
-        indexSettingsBuilder.put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID());
+        // {"index_name":".ds-metrics-system.process-logs_7days_wr-2022.05.11-000070","index_uuid":"v5Or6RrSSaSenJIBMngq8Q"}
+        // {"index_name":".ds-logs-endpoint.events.process-logs_7days_wr-2022.05.11-000030","index_uuid":"0O37vLwrSnWwBFM7rtgsGw"}
+        indexSettingsBuilder.put(SETTING_INDEX_UUID,
+            request.getProvidedName().equals(".ds-metrics-system.process-logs_7days_wr-2022.05.11-000070") ? "v5Or6RrSSaSenJIBMngq8Q"
+:            request.getProvidedName().equals(".ds-logs-endpoint.events.process-logs_7days_wr-2022.05.11-000030") ? "0O37vLwrSnWwBFM7rtgsGw"
+                : UUIDs.randomBase64UUID());
 
         if (sourceMetadata != null) {
             assert request.resizeType() != null;
