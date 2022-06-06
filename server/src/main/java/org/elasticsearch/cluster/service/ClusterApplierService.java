@@ -534,8 +534,14 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         for (ClusterStateApplier applier : clusterStateAppliers) {
             logger.trace("calling [{}] with change to version [{}]", applier, clusterChangedEvent.state().version());
             final String name = applier.toString();
+            boolean success = false;
             try (Releasable ignored = stopWatch.record(name)) {
                 applier.applyClusterState(clusterChangedEvent);
+                success = true;
+            } finally {
+                if (success == false) {
+                    logger.error("failed applier [{}] during change to version [{}]", applier, clusterChangedEvent.state().version());
+                }
             }
         }
     }
