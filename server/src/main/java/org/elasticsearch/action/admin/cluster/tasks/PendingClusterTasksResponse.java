@@ -70,18 +70,22 @@ public class PendingClusterTasksResponse extends ActionResponse implements Itera
         builder.startObject();
         builder.startArray(Fields.TASKS);
         for (PendingClusterTask pendingClusterTask : this) {
-            builder.startObject();
-            builder.field(Fields.INSERT_ORDER, pendingClusterTask.getInsertOrder());
-            builder.field(Fields.PRIORITY, pendingClusterTask.getPriority());
-            builder.field(Fields.SOURCE, pendingClusterTask.getSource());
-            builder.field(Fields.EXECUTING, pendingClusterTask.isExecuting());
-            builder.field(Fields.TIME_IN_QUEUE_MILLIS, pendingClusterTask.getTimeInQueueInMillis());
-            builder.field(Fields.TIME_IN_QUEUE, pendingClusterTask.getTimeInQueue());
-            builder.endObject();
+            taskToXContent(builder, pendingClusterTask);
         }
         builder.endArray();
         builder.endObject();
         return builder;
+    }
+
+    public static void taskToXContent(XContentBuilder builder, PendingClusterTask pendingClusterTask) throws IOException {
+        builder.startObject();
+        builder.field(Fields.INSERT_ORDER, pendingClusterTask.getInsertOrder());
+        builder.field(Fields.PRIORITY, pendingClusterTask.getPriority());
+        builder.field(Fields.SOURCE, pendingClusterTask.getSource());
+        builder.field(Fields.EXECUTING, pendingClusterTask.isExecuting());
+        builder.field(Fields.TIME_IN_QUEUE_MILLIS, pendingClusterTask.getTimeInQueueInMillis());
+        builder.field(Fields.TIME_IN_QUEUE, pendingClusterTask.getTimeInQueue());
+        builder.endObject();
     }
 
     static final class Fields {

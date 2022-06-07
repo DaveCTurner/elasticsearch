@@ -8,16 +8,19 @@
 
 package org.elasticsearch.cluster.service;
 
+import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 
-public class PendingClusterTask implements Writeable {
+public class PendingClusterTask implements Writeable, ToXContentObject {
 
     private long insertOrder;
     private Priority priority;
@@ -74,5 +77,11 @@ public class PendingClusterTask implements Writeable {
         out.writeText(source);
         out.writeLong(timeInQueue);
         out.writeBoolean(executing);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        PendingClusterTasksResponse.taskToXContent(builder, this);
+        return builder;
     }
 }

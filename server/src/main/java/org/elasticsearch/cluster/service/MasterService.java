@@ -27,6 +27,7 @@ import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -45,7 +46,9 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -234,6 +237,14 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         logger.debug("executing cluster state update for [{}]", summary);
+        if (logger.isTraceEnabled()) {
+            final var pendingTasks = new ArrayList<>(pendingTasks());
+            pendingTasks.sort(Comparator.comparing(PendingClusterTask::getInsertOrder));
+            for (final var pendingTask : pendingTasks) {
+                logger.trace("pending task: {}", Strings.toString(pendingTask));
+            }
+        }
+
         final ClusterState previousClusterState = state();
 
         if (previousClusterState.nodes().isLocalNodeElectedMaster() == false && executor.runOnlyOnMaster()) {

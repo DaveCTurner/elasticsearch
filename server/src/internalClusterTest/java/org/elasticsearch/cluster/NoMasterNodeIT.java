@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
 @ClusterScope(scope = Scope.TEST, numDataNodes = 0)
-@TestLogging(reason="nocommit", value="org.elasticsearch:TRACE")
+@TestLogging(reason = "nocommit", value = "org.elasticsearch:TRACE")
 public class NoMasterNodeIT extends ESIntegTestCase {
 
     @Override
