@@ -128,7 +128,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
                 case Recovery -> recoveryStats = new RecoveryStats();
                 case Bulk -> bulk = new BulkStats();
                 case Shards -> shards = new ShardCountStats();
-                case Mapper -> mapperStats = new MapperStats();
+                case Mapper -> { /* doesn't make sense to aggregate mapper stats across shards */ }
                 default -> throw new IllegalStateException("Unknown Flag: " + flag);
             }
         }

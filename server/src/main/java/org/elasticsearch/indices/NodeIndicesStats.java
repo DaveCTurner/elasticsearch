@@ -14,6 +14,7 @@ import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.bulk.stats.BulkStats;
@@ -29,6 +30,7 @@ import org.elasticsearch.index.refresh.RefreshStats;
 import org.elasticsearch.index.search.stats.SearchStats;
 import org.elasticsearch.index.shard.DocsStats;
 import org.elasticsearch.index.shard.IndexingStats;
+import org.elasticsearch.index.shard.MapperStats;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.translog.TranslogStats;
 import org.elasticsearch.index.warmer.WarmerStats;
@@ -72,13 +74,18 @@ public class NodeIndicesStats implements Writeable, ToXContentFragment {
 
         // make a total common stats from old ones and current ones
         this.stats = oldStats;
+        final MapperStats mapperStats = new MapperStats("node");
         for (List<IndexShardStats> shardStatsList : statsByShard.values()) {
+            MapperStats indexMapperStats = null;
             for (IndexShardStats indexShardStats : shardStatsList) {
                 for (ShardStats shardStats : indexShardStats.getShards()) {
                     stats.add(shardStats.getStats());
+                    indexMapperStats = MapperStats.max(indexMapperStats, shardStats.getStats().getMapperStats());
                 }
             }
+            mapperStats.add(indexMapperStats);
         }
+        this.stats.mapperStats = mapperStats;
     }
 
     @Nullable
@@ -216,17 +223,20 @@ public class NodeIndicesStats implements Writeable, ToXContentFragment {
     }
 
     private Map<Index, CommonStats> createStatsByIndex() {
-        Map<Index, CommonStats> statsMap = new HashMap<>();
+        Map<Index, CommonStats> statsMap = Maps.newHashMapWithExpectedSize(statsByShard.size());
         for (Map.Entry<Index, List<IndexShardStats>> entry : statsByShard.entrySet()) {
-            if (statsMap.containsKey(entry.getKey()) == false) {
-                statsMap.put(entry.getKey(), new CommonStats());
-            }
-
+            final var indexCommonStats = new CommonStats();
+            final var previousStats = statsMap.put(entry.getKey(), indexCommonStats);
+            assert previousStats == null : "duplicate entry for " + entry.getKey();
+            MapperStats indexMapperStats = null;
             for (IndexShardStats indexShardStats : entry.getValue()) {
                 for (ShardStats shardStats : indexShardStats.getShards()) {
-                    statsMap.get(entry.getKey()).add(shardStats.getStats());
+                    indexCommonStats.add(shardStats.getStats());
+                    final var shardMapperStats = shardStats.getStats().getMapperStats();
+                    indexMapperStats = MapperStats.max(indexMapperStats, shardMapperStats);
                 }
             }
+            indexCommonStats.mapperStats = indexMapperStats;
         }
 
         return statsMap;

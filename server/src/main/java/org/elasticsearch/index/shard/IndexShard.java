@@ -1556,7 +1556,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     public MapperStats getMapperStats() {
-        return new MapperStats(); // TODO
+        return new MapperStats(shardRouting.toString()); // TODO
     }
 
     private static final class NonClosingReaderWrapper extends FilterDirectoryReader {
