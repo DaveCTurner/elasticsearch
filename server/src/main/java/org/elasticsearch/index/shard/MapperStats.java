@@ -62,6 +62,6 @@ public class MapperStats implements Writeable, ToXContentFragment {
     }
 
     public void add(MapperStats other) {
-        source = source + " + " + other;
+        source = source + " + " + Optional.ofNullable(other).map(s -> s.source).orElse("null");
     }
 }
