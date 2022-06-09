@@ -1555,6 +1555,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         ); // completes stats recording
     }
 
+    public MapperStats getMapperStats() {
+        return new MapperStats(); // TODO
+    }
+
     private static final class NonClosingReaderWrapper extends FilterDirectoryReader {
 
         private NonClosingReaderWrapper(DirectoryReader in) throws IOException {

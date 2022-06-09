@@ -29,6 +29,7 @@ import org.elasticsearch.index.search.stats.SearchStats;
 import org.elasticsearch.index.shard.DocsStats;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexingStats;
+import org.elasticsearch.index.shard.MapperStats;
 import org.elasticsearch.index.shard.ShardCountStats;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.translog.TranslogStats;
@@ -95,6 +96,9 @@ public class CommonStats implements Writeable, ToXContentFragment {
     public BulkStats bulk;
 
     @Nullable
+    public MapperStats mapperStats;
+
+    @Nullable
     public ShardCountStats shards;
 
     public CommonStats() {
@@ -124,6 +128,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
                 case Recovery -> recoveryStats = new RecoveryStats();
                 case Bulk -> bulk = new BulkStats();
                 case Shards -> shards = new ShardCountStats();
+                case Mapper -> mapperStats = new MapperStats();
                 default -> throw new IllegalStateException("Unknown Flag: " + flag);
             }
         }
@@ -154,6 +159,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
                     case Shards ->
                         // Setting to 1 because the single IndexShard passed to this method implies 1 shard
                         shards = new ShardCountStats(1);
+                    case Mapper -> mapperStats = indexShard.getMapperStats();
                     default -> throw new IllegalStateException("Unknown Flag: " + flag);
                 }
             } catch (AlreadyClosedException e) {
@@ -182,6 +188,9 @@ public class CommonStats implements Writeable, ToXContentFragment {
         if (in.getVersion().onOrAfter(Version.V_8_0_0)) {
             bulk = in.readOptionalWriteable(BulkStats::new);
         }
+        if (in.getVersion().onOrAfter(Version.V_8_4_0)) {
+            mapperStats = in.readOptionalWriteable(MapperStats::new);
+        }
         shards = in.readOptionalWriteable(ShardCountStats::new);
     }
 
@@ -205,6 +214,9 @@ public class CommonStats implements Writeable, ToXContentFragment {
         out.writeOptionalWriteable(recoveryStats);
         if (out.getVersion().onOrAfter(Version.V_8_0_0)) {
             out.writeOptionalWriteable(bulk);
+        }
+        if (out.getVersion().onOrAfter(Version.V_8_4_0)) {
+            out.writeOptionalWriteable(mapperStats);
         }
         out.writeOptionalWriteable(shards);
     }
@@ -354,6 +366,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
                 shards = shards.add(stats.shards);
             }
         }
+        assert mapperStats == null : "doesn't make sense to compute cumulative mapper stats from different shards";
     }
 
     @Nullable
@@ -442,6 +455,11 @@ public class CommonStats implements Writeable, ToXContentFragment {
     }
 
     @Nullable
+    public MapperStats getMapperStats() {
+        return mapperStats;
+    }
+
+    @Nullable
     public ShardCountStats getShards() {
         return shards;
     }
@@ -486,6 +504,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
         addIfNonNull(builder, params, requestCache);
         addIfNonNull(builder, params, recoveryStats);
         addIfNonNull(builder, params, bulk);
+        addIfNonNull(builder, params, mapperStats);
         return builder;
     }
 
