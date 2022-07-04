@@ -31,7 +31,6 @@ public class MapperStats implements Writeable, ToXContentFragment {
         this.source = in.readString();
     }
 
-
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         assert out.getVersion().onOrAfter(Version.V_8_4_0) : out.getVersion();
@@ -47,18 +46,23 @@ public class MapperStats implements Writeable, ToXContentFragment {
     }
 
     public static MapperStats max(MapperStats a, MapperStats b) {
-        return new MapperStats("max(" + Optional.ofNullable(a).map(s -> s.source).orElse("null") + ","
-                               + Optional.ofNullable(b).map(s -> s.source).orElse("null") + ")");
+        return new MapperStats(
+            "max("
+                + Optional.ofNullable(a).map(s -> s.source).orElse("null")
+                + ","
+                + Optional.ofNullable(b).map(s -> s.source).orElse("null")
+                + ")"
+        );
 
-//        if (a == null) {
-//            return b;
-//        }
-//        if (b == null) {
-//            return a;
-//        }
-//
-//        // TODO
-//        return new MapperStats("max(" a.source);
+        // if (a == null) {
+        // return b;
+        // }
+        // if (b == null) {
+        // return a;
+        // }
+        //
+        // // TODO
+        // return new MapperStats("max(" a.source);
     }
 
     public void add(MapperStats other) {
