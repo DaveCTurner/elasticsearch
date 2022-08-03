@@ -8,6 +8,7 @@
 
 package org.elasticsearch.monitor.os;
 
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.test.ESTestCase;
@@ -24,7 +25,11 @@ public class OsStatsTests extends ESTestCase {
         for (int i = 0; i < loadAverages.length; i++) {
             loadAverages[i] = randomDouble();
         }
-        OsStats.Cpu cpu = new OsStats.Cpu(randomShort(), loadAverages);
+        OsStats.Cpu cpu = new OsStats.Cpu(
+            randomShort(),
+            loadAverages,
+            randomBoolean() ? null : new BytesArray(randomByteArrayOfLength(between(1, 1000)))
+        );
         long memTotal = randomNonNegativeLong();
         OsStats.Mem mem = new OsStats.Mem(memTotal, randomLongBetween(0, memTotal), randomLongBetween(0, memTotal));
         long swapTotal = randomNonNegativeLong();
@@ -49,6 +54,7 @@ public class OsStatsTests extends ESTestCase {
                 assertEquals(osStats.getTimestamp(), deserializedOsStats.getTimestamp());
                 assertEquals(osStats.getCpu().getPercent(), deserializedOsStats.getCpu().getPercent());
                 assertArrayEquals(osStats.getCpu().getLoadAverage(), deserializedOsStats.getCpu().getLoadAverage(), 0);
+                assertEquals(osStats.getCpu().getProcStatContent(), deserializedOsStats.getCpu().getProcStatContent());
                 assertEquals(osStats.getMem().getFree(), deserializedOsStats.getMem().getFree());
                 assertEquals(osStats.getMem().getTotal(), deserializedOsStats.getMem().getTotal());
                 assertEquals(osStats.getSwap().getFree(), deserializedOsStats.getSwap().getFree());

@@ -15,6 +15,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterApplierRecordingService;
 import org.elasticsearch.cluster.service.ClusterApplierRecordingService.Stats.Recording;
 import org.elasticsearch.cluster.service.ClusterStateUpdateStats;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.network.HandlingTimeTracker;
@@ -530,7 +531,11 @@ public class NodeStatsTests extends ESTestCase {
             long swapTotal = randomNonNegativeLong();
             osStats = new OsStats(
                 System.currentTimeMillis(),
-                new OsStats.Cpu(randomShort(), loadAverages),
+                new OsStats.Cpu(
+                    randomShort(),
+                    loadAverages,
+                    randomBoolean() ? null : new BytesArray(randomByteArrayOfLength(between(1, 1000)))
+                ),
                 new OsStats.Mem(memTotal, randomLongBetween(0, memTotal), randomLongBetween(0, memTotal)),
                 new OsStats.Swap(swapTotal, randomLongBetween(0, swapTotal)),
                 new OsStats.Cgroup(

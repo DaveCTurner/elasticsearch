@@ -11,6 +11,8 @@ package org.elasticsearch.monitor.os;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.PathUtils;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.monitor.Probes;
@@ -238,6 +240,24 @@ public class OsProbe {
                 return null;
             }
         }
+    }
+
+    final BytesReference getProcStatContent() {
+        if (Constants.LINUX) {
+            try {
+                return new BytesArray(readProcStat());
+            } catch (IOException e) {
+                logger.debug("error reading /proc/stat", e);
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    @SuppressForbidden(reason = "access /proc/stat")
+    private byte[] readProcStat() throws IOException {
+        return Files.readAllBytes(PathUtils.get("/proc/stat"));
     }
 
     /**
@@ -889,7 +909,7 @@ public class OsProbe {
     }
 
     public OsStats osStats() {
-        final OsStats.Cpu cpu = new OsStats.Cpu(getSystemCpuPercent(), getSystemLoadAverage());
+        final OsStats.Cpu cpu = new OsStats.Cpu(getSystemCpuPercent(), getSystemLoadAverage(), getProcStatContent());
         final OsStats.Mem mem = new OsStats.Mem(getTotalPhysicalMemorySize(), getAdjustedTotalMemorySize(), getFreePhysicalMemorySize());
         final OsStats.Swap swap = new OsStats.Swap(getTotalSwapSpaceSize(), getFreeSwapSpaceSize());
         final OsStats.Cgroup cgroup = getCgroup(Constants.LINUX);

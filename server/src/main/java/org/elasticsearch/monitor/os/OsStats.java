@@ -11,10 +11,12 @@ package org.elasticsearch.monitor.os;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.core.Nullable;
 import org.elasticsearch.xcontent.ToXContentFragment;
 import org.elasticsearch.xcontent.XContentBuilder;
 
@@ -118,10 +120,13 @@ public class OsStats implements Writeable, ToXContentFragment {
 
         private final short percent;
         private final double[] loadAverage;
+        @Nullable
+        private final BytesReference procStatContent;
 
-        public Cpu(short systemCpuPercent, double[] systemLoadAverage) {
+        public Cpu(short systemCpuPercent, double[] systemLoadAverage, @Nullable BytesReference procStatContent) {
             this.percent = systemCpuPercent;
             this.loadAverage = systemLoadAverage;
+            this.procStatContent = procStatContent;
         }
 
         public Cpu(StreamInput in) throws IOException {
@@ -130,6 +135,11 @@ public class OsStats implements Writeable, ToXContentFragment {
                 this.loadAverage = in.readDoubleArray();
             } else {
                 this.loadAverage = null;
+            }
+            if (in.getVersion().onOrAfter(Version.V_8_5_0)) {
+                this.procStatContent = in.readOptionalBytesReference();
+            } else {
+                this.procStatContent = null;
             }
         }
 
@@ -142,6 +152,9 @@ public class OsStats implements Writeable, ToXContentFragment {
                 out.writeBoolean(true);
                 out.writeDoubleArray(loadAverage);
             }
+            if (out.getVersion().onOrAfter(Version.V_8_5_0)) {
+                out.writeOptionalBytesReference(procStatContent);
+            }
         }
 
         public short getPercent() {
@@ -150,6 +163,10 @@ public class OsStats implements Writeable, ToXContentFragment {
 
         public double[] getLoadAverage() {
             return loadAverage;
+        }
+
+        public BytesReference getProcStatContent() {
+            return procStatContent;
         }
 
         @Override
@@ -168,6 +185,9 @@ public class OsStats implements Writeable, ToXContentFragment {
                     builder.field(Fields.LOAD_AVERAGE_15M, getLoadAverage()[2]);
                 }
                 builder.endObject();
+            }
+            if (procStatContent != null) {
+                builder.directFieldAsBase64("proc_stat", procStatContent::writeTo);
             }
             builder.endObject();
             return builder;

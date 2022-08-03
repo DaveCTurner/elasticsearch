@@ -373,7 +373,7 @@ public class NodeStatsMonitoringDocTests extends BaseFilteredMonitoringDocTestCa
         final FsInfo fs = new FsInfo(no, ioStats, new FsInfo.Path[] { new FsInfo.Path(null, null, ++iota, ++iota, ++iota) });
 
         // Os
-        final OsStats.Cpu osCpu = new OsStats.Cpu((short) no, new double[] { ++iota, ++iota, ++iota });
+        final OsStats.Cpu osCpu = new OsStats.Cpu((short) no, new double[] { ++iota, ++iota, ++iota }, null);
         final OsStats.Cgroup.CpuStat osCpuStat = new OsStats.Cgroup.CpuStat(++iota, ++iota, ++iota);
         final OsStats.Cgroup osCgroup = new OsStats.Cgroup(
             "_cpu_acct_ctrl_group",
