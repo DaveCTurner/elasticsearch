@@ -50,7 +50,7 @@ public class SearchableSnapshotIndexMetadataUpgrader {
             return;
         }
 
-        if (event.localNodeMaster() && event.state().nodes().getMinNodeVersion().onOrAfter(Version.V_7_13_0)) {
+        if (event.localNodeMaster()) {
             // only want one doing this at a time, assume it succeeds and reset if not.
             if (upgraded.compareAndSet(false, true)) {
                 final Executor executor = threadPool.generic();

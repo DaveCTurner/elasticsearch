@@ -8,7 +8,6 @@
 
 package org.elasticsearch.cluster.metadata;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.cluster.routing.allocation.ShardAllocationDecision;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -22,7 +21,6 @@ import java.io.IOException;
 import java.util.Objects;
 
 public class ShutdownShardMigrationStatus implements Writeable, ToXContentObject {
-    private static final Version ALLOCATION_DECISION_ADDED_VERSION = Version.V_7_16_0;
 
     public static final String NODE_ALLOCATION_DECISION_KEY = "node_allocation_decision";
 
@@ -57,11 +55,7 @@ public class ShutdownShardMigrationStatus implements Writeable, ToXContentObject
         this.status = in.readEnum(SingleNodeShutdownMetadata.Status.class);
         this.shardsRemaining = in.readLong();
         this.explanation = in.readOptionalString();
-        if (in.getVersion().onOrAfter(ALLOCATION_DECISION_ADDED_VERSION)) {
-            this.allocationDecision = in.readOptionalWriteable(ShardAllocationDecision::new);
-        } else {
-            this.allocationDecision = null;
-        }
+        this.allocationDecision = in.readOptionalWriteable(ShardAllocationDecision::new);
     }
 
     public long getShardsRemaining() {
@@ -100,9 +94,7 @@ public class ShutdownShardMigrationStatus implements Writeable, ToXContentObject
         out.writeEnum(status);
         out.writeLong(shardsRemaining);
         out.writeOptionalString(explanation);
-        if (out.getVersion().onOrAfter(ALLOCATION_DECISION_ADDED_VERSION)) {
-            out.writeOptionalWriteable(allocationDecision);
-        }
+        out.writeOptionalWriteable(allocationDecision);
     }
 
     @Override
