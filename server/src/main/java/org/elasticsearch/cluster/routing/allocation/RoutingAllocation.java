@@ -59,6 +59,8 @@ public class RoutingAllocation {
 
     private boolean hasPendingAsyncFetch = false;
 
+    private boolean ignoreFailedShards = true;
+
     private final long currentNanoTime;
     private final boolean isSimulating;
 
@@ -274,6 +276,9 @@ public class RoutingAllocation {
      * @return true if the node id should be ignored in allocation decisions, false otherwise
      */
     public boolean shouldIgnoreShardForNode(ShardId shardId, String nodeId) {
+        if (ignoreFailedShards == false) {
+            return false;
+        }
         if (ignoredShardToNodes == null) {
             return false;
         }
@@ -381,6 +386,10 @@ public class RoutingAllocation {
             currentNanoTime,
             true
         );
+    }
+
+    public void setIgnoreFailedShards(boolean ignoreFailedShards) {
+        this.ignoreFailedShards = ignoreFailedShards;
     }
 
     public enum DebugMode {
