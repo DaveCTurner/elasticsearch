@@ -27,6 +27,7 @@ import org.elasticsearch.cluster.routing.allocation.decider.ClusterRebalanceAllo
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.test.VersionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -436,6 +437,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         }
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
     public void testRebalanceFailure() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -459,7 +461,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         logger.info("Adding two nodes and performing rerouting");
         clusterState = ClusterState.builder(clusterState)
-            .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")))
+            .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")).localNodeId("node1").masterNodeId("node1"))
             .build();
         clusterState = strategy.reroute(clusterState, "reroute", ActionListener.noop());
 
@@ -522,11 +524,13 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
 
         logger.info("Fail the shards on node 3");
+        logger.info("--> cluster state\n{}", clusterState);
         ShardRouting shardToFail = routingNodes.node("node3").iterator().next();
         newState = applyFailedShard(strategy, clusterState, shardToFail);
         assertThat(newState, not(equalTo(clusterState)));
         clusterState = newState;
         routingNodes = clusterState.getRoutingNodes();
+        logger.info("--> cluster state\n{}", clusterState);
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(2));
         assertThat(routingNodes.node("node1").numberOfShardsWithState(STARTED, RELOCATING), equalTo(2));
