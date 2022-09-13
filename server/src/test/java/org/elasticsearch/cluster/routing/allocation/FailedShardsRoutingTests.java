@@ -286,7 +286,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
             assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().get(0).state(), equalTo(UNASSIGNED));
         }
 
-        logger.info("fail the first shard, will have no place to be rerouted to (single node), so stays unassigned");
+        logger.info("fail the first shard");
         ShardRouting firstShard = clusterState.getRoutingNodes().node("node1").iterator().next();
         newState = applyFailedShard(strategy, clusterState, firstShard);
         assertThat(newState, not(equalTo(clusterState)));
@@ -294,12 +294,20 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(UNASSIGNED));
-            assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(), nullValue());
-            assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().size(), equalTo(1));
-            assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().get(0).state(), equalTo(UNASSIGNED));
+            final var indexShardRoutingTable = clusterState.routingTable().index("test").shard(i);
+            assertThat(indexShardRoutingTable.size(), equalTo(2));
+            assertThat(indexShardRoutingTable.size(), equalTo(2));
+            if (strategy.isBalancedShardsAllocator()) {
+                // Balanced shards allocator will not retry on the failing node.
+                assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(UNASSIGNED));
+                assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), nullValue());
+            } else {
+                // Desired balance allocator immediately retries on the same node.
+                assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(INITIALIZING));
+                assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), equalTo("node1"));
+            }
+            assertThat(indexShardRoutingTable.replicaShards().size(), equalTo(1));
+            assertThat(indexShardRoutingTable.replicaShards().get(0).state(), equalTo(UNASSIGNED));
         }
     }
 
