@@ -47,7 +47,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-@LuceneTestCase.AwaitsFix(bugUrl="TODO")
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class FailedShardsRoutingTests extends ESAllocationTestCase {
     private final Logger logger = LogManager.getLogger(FailedShardsRoutingTests.class);
 

@@ -47,8 +47,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.elasticsearch.cluster.routing.RoutingNodesHelper.shardsWithState;
+import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.STARTED;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.UNASSIGNED;
+import static org.elasticsearch.cluster.routing.allocation.AllocationServiceUtils.isBalancedShardsAllocator;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.notNullValue;
@@ -390,25 +392,47 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             List.of()
         );
         // verify the reason and details
-        assertThat(clusterState.getRoutingNodes().unassigned().size() > 0, equalTo(true));
-        assertThat(shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).size(), equalTo(1));
-        assertThat(shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo(), notNullValue());
-        assertThat(
-            shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getReason(),
-            equalTo(UnassignedInfo.Reason.ALLOCATION_FAILED)
-        );
-        assertThat(
-            shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getMessage(),
-            equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
-        );
-        assertThat(
-            shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getDetails(),
-            equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
-        );
-        assertThat(
-            shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getUnassignedTimeInMillis(),
-            greaterThan(0L)
-        );
+        if (isBalancedShardsAllocator(allocation)) {
+            assertThat(clusterState.getRoutingNodes().unassigned().size(), greaterThan(0));
+            assertThat(shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).size(), equalTo(1));
+            assertThat(shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo(), notNullValue());
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getReason(),
+                equalTo(UnassignedInfo.Reason.ALLOCATION_FAILED)
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getMessage(),
+                equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getDetails(),
+                equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED).get(0).unassignedInfo().getUnassignedTimeInMillis(),
+                greaterThan(0L)
+            );
+        } else {
+            assertThat(clusterState.getRoutingNodes().unassigned().size(), equalTo(0));
+            assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(1));
+            assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).unassignedInfo(), notNullValue());
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).unassignedInfo().getReason(),
+                equalTo(UnassignedInfo.Reason.ALLOCATION_FAILED)
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).unassignedInfo().getMessage(),
+                equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).unassignedInfo().getDetails(),
+                equalTo("failed shard on node [" + shardToFail.currentNodeId() + "]: test fail")
+            );
+            assertThat(
+                shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).unassignedInfo().getUnassignedTimeInMillis(),
+                greaterThan(0L)
+            );
+        }
     }
 
     /**
