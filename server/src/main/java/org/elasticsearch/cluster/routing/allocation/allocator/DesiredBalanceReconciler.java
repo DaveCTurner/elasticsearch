@@ -378,6 +378,8 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
+            logger.info("--> attempt move {}", shardRouting);
+
             final var moveTarget = findRelocationTarget(shardRouting, assignment.nodeIds());
             if (moveTarget != null) {
                 routingNodes.relocateShard(
@@ -386,6 +388,22 @@ public class DesiredBalanceReconciler {
                     allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
                     allocation.changes()
                 );
+                continue;
+            }
+
+            try {
+                allocation.setIgnoreFailedShards(false);
+                final var moveTarget2 = findRelocationTarget(shardRouting, assignment.nodeIds());
+                if (moveTarget2 != null) {
+                    routingNodes.relocateShard(
+                        shardRouting,
+                        moveTarget2.getId(),
+                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                        allocation.changes()
+                    );
+                }
+            } finally {
+                allocation.setIgnoreFailedShards(true);
             }
         }
     }
@@ -427,6 +445,8 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
+            logger.info("--> attempt rebalance {} to {}", shardRouting, assignment.nodeIds());
+
             final var rebalanceTarget = findRelocationTarget(shardRouting, assignment.nodeIds(), this::decideCanAllocate);
             if (rebalanceTarget != null) {
                 routingNodes.relocateShard(
@@ -435,6 +455,24 @@ public class DesiredBalanceReconciler {
                     allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
                     allocation.changes()
                 );
+                continue;
+            }
+
+            logger.info("--> attempt fallback rebalance {} to {}", shardRouting, assignment.nodeIds());
+
+            try {
+                allocation.setIgnoreFailedShards(false);
+                final var rebalanceTarget2 = findRelocationTarget(shardRouting, assignment.nodeIds(), this::decideCanAllocate);
+                if (rebalanceTarget2 != null) {
+                    routingNodes.relocateShard(
+                        shardRouting,
+                        rebalanceTarget2.getId(),
+                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                        allocation.changes()
+                    );
+                }
+            } finally {
+                allocation.setIgnoreFailedShards(true);
             }
         }
     }
@@ -461,7 +499,9 @@ public class DesiredBalanceReconciler {
         for (final var nodeId : desiredNodeIds) {
             if (nodeId.equals(shardRouting.currentNodeId()) == false) {
                 final var currentNode = routingNodes.node(nodeId);
-                if (canAllocateDecider.apply(shardRouting, currentNode).type() == Decision.Type.YES) {
+                final var decision = canAllocateDecider.apply(shardRouting, currentNode);
+                logger.trace("relocate {} to {}: {}", shardRouting, nodeId, decision);
+                if (decision.type() == Decision.Type.YES) {
                     return currentNode.node();
                 }
             }

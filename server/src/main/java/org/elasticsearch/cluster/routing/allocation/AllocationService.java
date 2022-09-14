@@ -190,6 +190,7 @@ public class AllocationService {
 
         long currentNanoTime = currentNanoTime();
         RoutingAllocation allocation = createRoutingAllocation(tmpState, currentNanoTime);
+        allocation.setDebugMode(RoutingAllocation.DebugMode.EXCLUDE_YES_DECISIONS);
 
         for (FailedShard failedShardEntry : failedShards) {
             ShardRouting shardToFail = failedShardEntry.routingEntry();
