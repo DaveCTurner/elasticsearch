@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.routing.allocation;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
@@ -35,6 +36,7 @@ import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
+@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class ClusterRebalanceRoutingTests extends ESAllocationTestCase {
     private final Logger logger = LogManager.getLogger(ClusterRebalanceRoutingTests.class);
 
