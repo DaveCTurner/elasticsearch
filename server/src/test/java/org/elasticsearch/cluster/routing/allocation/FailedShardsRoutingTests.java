@@ -437,7 +437,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         }
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
     public void testRebalanceFailure() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
