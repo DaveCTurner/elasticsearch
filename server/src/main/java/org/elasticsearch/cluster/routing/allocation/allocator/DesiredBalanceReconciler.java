@@ -432,7 +432,7 @@ public class DesiredBalanceReconciler {
             () -> allocation.routingNodes().stream().map(RoutingNode::nodeId).iterator()
         )) {
             try {
-                for (final var nodeId : desiredNodeIds) {
+                for (final var nodeId : nodeIdIterator) {
                     if (nodeId.equals(shardRouting.currentNodeId()) == false) {
                         final var currentNode = routingNodes.node(nodeId);
                         final var decision = canAllocateDecider.apply(shardRouting, currentNode);
