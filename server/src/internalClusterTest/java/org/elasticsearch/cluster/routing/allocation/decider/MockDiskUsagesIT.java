@@ -332,6 +332,7 @@ public class MockDiskUsagesIT extends ESIntegTestCase {
         assertThat("node2 has 1 shard", getShardCountByNodeId().get(nodeIds.get(2)), equalTo(1));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testDoesNotExceedLowWatermarkWhenRebalancing() throws Exception {
         for (int i = 0; i < 3; i++) {
             // ensure that each node has a single data path
