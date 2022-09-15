@@ -25,7 +25,6 @@ import org.elasticsearch.gateway.PriorityComparator;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -223,8 +222,11 @@ public class DesiredBalanceReconciler {
 
                     for (final var nodeIdIterator : List.<Iterable<String>>of(
                         sortedNodeIds,
-                        () -> new RetryFailedNodesIterator(allocation, sortedNodeIds.iterator()),
-                        () -> allocation.routingNodes().stream().map(RoutingNode::nodeId).iterator()
+                        () -> (shard.primary()
+                            ? allocationOrdering.sort(
+                                allocation.routingNodes().stream().map(RoutingNode::nodeId).collect(Collectors.toSet())
+                            )
+                            : List.<String>of()).iterator()
                     )) {
                         try {
                             for (final var desiredNodeId : nodeIdIterator) {
@@ -426,24 +428,15 @@ public class DesiredBalanceReconciler {
         Set<String> desiredNodeIds,
         BiFunction<ShardRouting, RoutingNode, Decision> canAllocateDecider
     ) {
-        for (final var nodeIdIterator : List.<Iterable<String>>of(
-            desiredNodeIds,
-            () -> new RetryFailedNodesIterator(allocation, desiredNodeIds.iterator()),
-            () -> allocation.routingNodes().stream().map(RoutingNode::nodeId).iterator()
-        )) {
-            try {
-                for (final var nodeId : nodeIdIterator) {
-                    if (nodeId.equals(shardRouting.currentNodeId()) == false) {
-                        final var currentNode = routingNodes.node(nodeId);
-                        final var decision = canAllocateDecider.apply(shardRouting, currentNode);
-                        logger.trace("relocate {} to {}: {}", shardRouting, nodeId, decision);
-                        if (decision.type() == Decision.Type.YES) {
-                            return currentNode.node();
-                        }
-                    }
+        for (final var nodeId : desiredNodeIds) {
+            // TODO consider ignored nodes here too
+            if (nodeId.equals(shardRouting.currentNodeId()) == false) {
+                final var currentNode = routingNodes.node(nodeId);
+                final var decision = canAllocateDecider.apply(shardRouting, currentNode);
+                logger.trace("relocate {} to {}: {}", shardRouting, nodeId, decision);
+                if (decision.type() == Decision.Type.YES) {
+                    return currentNode.node();
                 }
-            } finally {
-                allocation.setIgnoreFailedShards(true);
             }
         }
 
@@ -456,25 +449,5 @@ public class DesiredBalanceReconciler {
 
     private Decision decideCanForceAllocateForVacate(ShardRouting shardRouting, RoutingNode target) {
         return allocation.deciders().canForceAllocateDuringReplace(shardRouting, target, allocation);
-    }
-
-    private static class RetryFailedNodesIterator implements Iterator<String> {
-
-        private final Iterator<String> delegate;
-
-        private RetryFailedNodesIterator(RoutingAllocation routingAllocation, Iterator<String> delegate) {
-            this.delegate = delegate;
-//            routingAllocation.setIgnoreFailedShards(false);
-        }
-
-        @Override
-        public boolean hasNext() {
-            return delegate.hasNext();
-        }
-
-        @Override
-        public String next() {
-            return delegate.next();
-        }
     }
 }
