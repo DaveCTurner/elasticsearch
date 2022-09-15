@@ -464,7 +464,7 @@ public class DesiredBalanceReconciler {
 
         private RetryFailedNodesIterator(RoutingAllocation routingAllocation, Iterator<String> delegate) {
             this.delegate = delegate;
-            routingAllocation.setIgnoreFailedShards(false);
+//            routingAllocation.setIgnoreFailedShards(false);
         }
 
         @Override
