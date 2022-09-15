@@ -218,17 +218,15 @@ public class DesiredBalanceReconciler {
                         }
                     }
 
-                    final var sortedNodeIds = allocationOrdering.sort(assignmentNodeIds);
-
                     for (final var nodeIdIterator : List.<Iterable<String>>of(
-                        sortedNodeIds,
+                        allocationOrdering.sort(assignmentNodeIds),
+                        // TODO consider ignored nodes here too?
                         () -> (shard.primary()
                             ? allocationOrdering.sort(
                                 allocation.routingNodes().stream().map(RoutingNode::nodeId).collect(Collectors.toSet())
                             )
                             : List.<String>of()).iterator()
                     )) {
-                        try {
                             for (final var desiredNodeId : nodeIdIterator) {
                                 final var routingNode = routingNodes.node(desiredNodeId);
                                 if (routingNode == null) {
@@ -273,9 +271,6 @@ public class DesiredBalanceReconciler {
                                     }
                                 }
                             }
-                        } finally {
-                            allocation.setIgnoreFailedShards(true);
-                        }
                     }
                 }
 
@@ -429,7 +424,7 @@ public class DesiredBalanceReconciler {
         BiFunction<ShardRouting, RoutingNode, Decision> canAllocateDecider
     ) {
         for (final var nodeId : desiredNodeIds) {
-            // TODO consider ignored nodes here too
+            // TODO consider ignored nodes here too?
             if (nodeId.equals(shardRouting.currentNodeId()) == false) {
                 final var currentNode = routingNodes.node(nodeId);
                 final var decision = canAllocateDecider.apply(shardRouting, currentNode);
