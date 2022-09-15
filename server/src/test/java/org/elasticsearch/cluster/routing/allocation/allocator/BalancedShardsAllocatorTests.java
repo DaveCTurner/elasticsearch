@@ -90,6 +90,7 @@ public class BalancedShardsAllocatorTests extends ESAllocationTestCase {
     /**
      * {@see https://github.com/elastic/elasticsearch/issues/88384}
      */
+    @AwaitsFix(bugUrl = "TODO")
     public void testRebalanceImprovesTheBalanceOfTheShards() {
         var discoveryNodesBuilder = DiscoveryNodes.builder();
         for (int node = 0; node < 3; node++) {
@@ -127,6 +128,8 @@ public class BalancedShardsAllocatorTests extends ESAllocationTestCase {
         );
 
         var reroutedState = allocationService.reroute(clusterState, "test", ActionListener.noop());
+
+        logger.info("--> cluster state\n{}", reroutedState);
 
         for (ShardRouting relocatingShard : RoutingNodesHelper.shardsWithState(reroutedState.getRoutingNodes(), RELOCATING)) {
             assertThat(
