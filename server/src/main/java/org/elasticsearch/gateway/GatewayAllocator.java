@@ -158,15 +158,9 @@ public class GatewayAllocator implements ExistingShardsAllocator {
         assert unassignedShard.unassigned();
         assert routingAllocation.debugDecision();
         if (unassignedShard.primary()) {
-            if (primaryShardAllocator == null) {
-                return AllocateUnassignedDecision.NOT_TAKEN;
-            }
             assert primaryShardAllocator != null;
             return primaryShardAllocator.makeAllocationDecision(unassignedShard, routingAllocation, logger);
         } else {
-            if (replicaShardAllocator == null) {
-                return AllocateUnassignedDecision.NOT_TAKEN;
-            }
             assert replicaShardAllocator != null;
             return replicaShardAllocator.makeAllocationDecision(unassignedShard, routingAllocation, logger);
         }
