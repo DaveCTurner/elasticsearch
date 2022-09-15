@@ -25,6 +25,8 @@ import org.elasticsearch.gateway.PriorityComparator;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -217,99 +219,61 @@ public class DesiredBalanceReconciler {
                         }
                     }
 
-                    for (final var desiredNodeId : allocationOrdering.sort(assignmentNodeIds)) {
-                        final var routingNode = routingNodes.node(desiredNodeId);
-                        if (routingNode == null) {
-                            // desired node no longer exists
-                            continue;
-                        }
-                        final var decision = allocation.deciders().canAllocate(shard, routingNode, allocation);
-                        switch (decision.type()) {
-                            case YES -> {
-                                if (logger.isTraceEnabled()) {
-                                    logger.trace("Assigned shard [{}] to [{}]", shard, desiredNodeId);
-                                }
-                                final long shardSize = DiskThresholdDecider.getExpectedShardSize(
-                                    shard,
-                                    ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE,
-                                    allocation.clusterInfo(),
-                                    allocation.snapshotShardSizeInfo(),
-                                    allocation.metadata(),
-                                    allocation.routingTable()
-                                );
-                                routingNodes.initializeShard(shard, desiredNodeId, null, shardSize, allocation.changes());
-                                allocationOrdering.recordAllocation(desiredNodeId);
-                                if (shard.primary() == false) {
-                                    // copy over the same replica shards to the secondary array so they will get allocated
-                                    // in a subsequent iteration, allowing replicas of other shards to be allocated first
-                                    while (i < primaryLength - 1 && comparator.compare(primary[i], primary[i + 1]) == 0) {
-                                        secondary[secondaryLength++] = primary[++i];
-                                    }
-                                }
-                                continue nextShard;
-                            }
-                            case THROTTLE -> isThrottled = true;
-                            case NO -> {
-                                if (logger.isTraceEnabled()) {
-                                    logger.trace(
-                                        "Unexpected NO decision [{}] for shard [{}] on assigned node [{}]",
-                                        decision,
-                                        shard.shardId(),
-                                        desiredNodeId
-                                    );
-                                }
-                            }
-                        }
-                    }
+                    final var sortedNodeIds = allocationOrdering.sort(assignmentNodeIds);
 
-                    try {
-                        for (final var desiredNodeId : allocationOrdering.sort(assignmentNodeIds)) {
-                            allocation.setIgnoreFailedShards(false);
-                            final var routingNode = routingNodes.node(desiredNodeId);
-                            if (routingNode == null) {
-                                // desired node no longer exists
-                                continue;
-                            }
-                            final var decision = allocation.deciders().canAllocate(shard, routingNode, allocation);
-                            switch (decision.type()) {
-                                case YES -> {
-                                    if (logger.isTraceEnabled()) {
-                                        logger.trace("Assigned shard [{}] to [{}]", shard, desiredNodeId);
+                    for (final var nodeIdIterator : List.<Iterable<String>>of(
+                        sortedNodeIds,
+                        () -> new RetryFailedNodesIterator(allocation, sortedNodeIds.iterator()),
+                        () -> allocation.routingNodes().stream().map(RoutingNode::nodeId).iterator()
+                    )) {
+                        try {
+                            for (final var desiredNodeId : nodeIdIterator) {
+                                final var routingNode = routingNodes.node(desiredNodeId);
+                                if (routingNode == null) {
+                                    // desired node no longer exists
+                                    continue;
+                                }
+                                final var decision = allocation.deciders().canAllocate(shard, routingNode, allocation);
+                                switch (decision.type()) {
+                                    case YES -> {
+                                        if (logger.isTraceEnabled()) {
+                                            logger.trace("Assigned shard [{}] to [{}]", shard, desiredNodeId);
+                                        }
+                                        final long shardSize = DiskThresholdDecider.getExpectedShardSize(
+                                            shard,
+                                            ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE,
+                                            allocation.clusterInfo(),
+                                            allocation.snapshotShardSizeInfo(),
+                                            allocation.metadata(),
+                                            allocation.routingTable()
+                                        );
+                                        routingNodes.initializeShard(shard, desiredNodeId, null, shardSize, allocation.changes());
+                                        allocationOrdering.recordAllocation(desiredNodeId);
+                                        if (shard.primary() == false) {
+                                            // copy over the same replica shards to the secondary array so they will get allocated
+                                            // in a subsequent iteration, allowing replicas of other shards to be allocated first
+                                            while (i < primaryLength - 1 && comparator.compare(primary[i], primary[i + 1]) == 0) {
+                                                secondary[secondaryLength++] = primary[++i];
+                                            }
+                                        }
+                                        continue nextShard;
                                     }
-                                    final long shardSize = DiskThresholdDecider.getExpectedShardSize(
-                                        shard,
-                                        ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE,
-                                        allocation.clusterInfo(),
-                                        allocation.snapshotShardSizeInfo(),
-                                        allocation.metadata(),
-                                        allocation.routingTable()
-                                    );
-                                    routingNodes.initializeShard(shard, desiredNodeId, null, shardSize, allocation.changes());
-                                    allocationOrdering.recordAllocation(desiredNodeId);
-                                    if (shard.primary() == false) {
-                                        // copy over the same replica shards to the secondary array so they will get allocated
-                                        // in a subsequent iteration, allowing replicas of other shards to be allocated first
-                                        while (i < primaryLength - 1 && comparator.compare(primary[i], primary[i + 1]) == 0) {
-                                            secondary[secondaryLength++] = primary[++i];
+                                    case THROTTLE -> isThrottled = true;
+                                    case NO -> {
+                                        if (logger.isTraceEnabled()) {
+                                            logger.trace(
+                                                "Unexpected NO decision [{}] for shard [{}] on assigned node [{}]",
+                                                decision,
+                                                shard.shardId(),
+                                                desiredNodeId
+                                            );
                                         }
                                     }
-                                    continue nextShard;
-                                }
-                                case THROTTLE -> isThrottled = true;
-                                case NO -> {
-                                    if (logger.isTraceEnabled()) {
-                                        logger.trace(
-                                            "Unexpected NO decision [{}] for shard [{}] on assigned node [{}]",
-                                            decision,
-                                            shard.shardId(),
-                                            desiredNodeId
-                                        );
-                                    }
                                 }
                             }
+                        } finally {
+                            allocation.setIgnoreFailedShards(true);
                         }
-                    } finally {
-                        allocation.setIgnoreFailedShards(true);
                     }
                 }
 
@@ -388,22 +352,6 @@ public class DesiredBalanceReconciler {
                     allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
                     allocation.changes()
                 );
-                continue;
-            }
-
-            try {
-                allocation.setIgnoreFailedShards(false);
-                final var moveTarget2 = findRelocationTarget(shardRouting, assignment.nodeIds());
-                if (moveTarget2 != null) {
-                    routingNodes.relocateShard(
-                        shardRouting,
-                        moveTarget2.getId(),
-                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
-                        allocation.changes()
-                    );
-                }
-            } finally {
-                allocation.setIgnoreFailedShards(true);
             }
         }
     }
@@ -455,24 +403,6 @@ public class DesiredBalanceReconciler {
                     allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
                     allocation.changes()
                 );
-                continue;
-            }
-
-            logger.info("--> attempt fallback rebalance {} to {}", shardRouting, assignment.nodeIds());
-
-            try {
-                allocation.setIgnoreFailedShards(false);
-                final var rebalanceTarget2 = findRelocationTarget(shardRouting, assignment.nodeIds(), this::decideCanAllocate);
-                if (rebalanceTarget2 != null) {
-                    routingNodes.relocateShard(
-                        shardRouting,
-                        rebalanceTarget2.getId(),
-                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
-                        allocation.changes()
-                    );
-                }
-            } finally {
-                allocation.setIgnoreFailedShards(true);
             }
         }
     }
@@ -496,14 +426,24 @@ public class DesiredBalanceReconciler {
         Set<String> desiredNodeIds,
         BiFunction<ShardRouting, RoutingNode, Decision> canAllocateDecider
     ) {
-        for (final var nodeId : desiredNodeIds) {
-            if (nodeId.equals(shardRouting.currentNodeId()) == false) {
-                final var currentNode = routingNodes.node(nodeId);
-                final var decision = canAllocateDecider.apply(shardRouting, currentNode);
-                logger.trace("relocate {} to {}: {}", shardRouting, nodeId, decision);
-                if (decision.type() == Decision.Type.YES) {
-                    return currentNode.node();
+        for (final var nodeIdIterator : List.<Iterable<String>>of(
+            desiredNodeIds,
+            () -> new RetryFailedNodesIterator(allocation, desiredNodeIds.iterator()),
+            () -> allocation.routingNodes().stream().map(RoutingNode::nodeId).iterator()
+        )) {
+            try {
+                for (final var nodeId : desiredNodeIds) {
+                    if (nodeId.equals(shardRouting.currentNodeId()) == false) {
+                        final var currentNode = routingNodes.node(nodeId);
+                        final var decision = canAllocateDecider.apply(shardRouting, currentNode);
+                        logger.trace("relocate {} to {}: {}", shardRouting, nodeId, decision);
+                        if (decision.type() == Decision.Type.YES) {
+                            return currentNode.node();
+                        }
+                    }
                 }
+            } finally {
+                allocation.setIgnoreFailedShards(true);
             }
         }
 
@@ -516,5 +456,25 @@ public class DesiredBalanceReconciler {
 
     private Decision decideCanForceAllocateForVacate(ShardRouting shardRouting, RoutingNode target) {
         return allocation.deciders().canForceAllocateDuringReplace(shardRouting, target, allocation);
+    }
+
+    private static class RetryFailedNodesIterator implements Iterator<String> {
+
+        private final Iterator<String> delegate;
+
+        private RetryFailedNodesIterator(RoutingAllocation routingAllocation, Iterator<String> delegate) {
+            this.delegate = delegate;
+            routingAllocation.setIgnoreFailedShards(false);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delegate.hasNext();
+        }
+
+        @Override
+        public String next() {
+            return delegate.next();
+        }
     }
 }
