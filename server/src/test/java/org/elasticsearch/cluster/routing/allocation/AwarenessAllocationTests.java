@@ -29,6 +29,7 @@ import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.ClusterRebalanceAllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 
@@ -879,7 +880,6 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
         assertThat(clusterState.getRoutingNodes().node("B-0").size(), equalTo(5));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testUnassignedShardsWithUnbalancedZones() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -922,6 +922,8 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(0));
         assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(1));
 
+        assumeFalse("", shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).currentNodeId().equals("B-0"));
+
         logger.info("--> start the shard (primary)");
         clusterState = startInitializingShardsAndReroute(strategy, clusterState);
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(1));
@@ -940,7 +942,19 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
         }
         commands.add(new MoveAllocationCommand("test", 0, primaryNode, "A-4"));
 
+        logger.info("--> cluster state before:\n{}", clusterState);
+        logger.info("--> commands:\n{}", Strings.toString(commands, true, true));
+
         clusterState = strategy.reroute(clusterState, commands, false, false, false, ActionListener.noop()).clusterState();
+
+        logger.info("--> cluster state after:\n{}", clusterState);
+
+        final var routingAllocation = strategy.createRoutingAllocation(clusterState, 0);
+        routingAllocation.setDebugMode(RoutingAllocation.DebugMode.EXCLUDE_YES_DECISIONS);
+        for (ShardRouting shardRouting : clusterState.getRoutingNodes().unassigned()) {
+            final var decision = strategy.explainShardAllocation(shardRouting, routingAllocation);
+            logger.info("--> unassigned {}: {}", shardRouting, Strings.toString(decision, true, true));
+        }
 
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(0));
         assertThat(shardsWithState(clusterState.getRoutingNodes(), RELOCATING).size(), equalTo(1));
