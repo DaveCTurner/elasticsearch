@@ -915,14 +915,15 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
                     .add(newNode("A-2", singletonMap("zone", "a")))
                     .add(newNode("A-3", singletonMap("zone", "a")))
                     .add(newNode("A-4", singletonMap("zone", "a")))
-                    .add(newNode("B-0", singletonMap("zone", "b")))
             )
             .build();
         clusterState = strategy.reroute(clusterState, "reroute", ActionListener.noop());
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(0));
         assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(1));
 
-        assumeFalse("", shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).get(0).currentNodeId().equals("B-0"));
+        clusterState = ClusterState.builder(clusterState)
+            .nodes(DiscoveryNodes.builder(clusterState.nodes()).add(newNode("B-0", singletonMap("zone", "b"))))
+            .build();
 
         logger.info("--> start the shard (primary)");
         clusterState = startInitializingShardsAndReroute(strategy, clusterState);
@@ -942,19 +943,7 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
         }
         commands.add(new MoveAllocationCommand("test", 0, primaryNode, "A-4"));
 
-        logger.info("--> cluster state before:\n{}", clusterState);
-        logger.info("--> commands:\n{}", Strings.toString(commands, true, true));
-
         clusterState = strategy.reroute(clusterState, commands, false, false, false, ActionListener.noop()).clusterState();
-
-        logger.info("--> cluster state after:\n{}", clusterState);
-
-        final var routingAllocation = strategy.createRoutingAllocation(clusterState, 0);
-        routingAllocation.setDebugMode(RoutingAllocation.DebugMode.EXCLUDE_YES_DECISIONS);
-        for (ShardRouting shardRouting : clusterState.getRoutingNodes().unassigned()) {
-            final var decision = strategy.explainShardAllocation(shardRouting, routingAllocation);
-            logger.info("--> unassigned {}: {}", shardRouting, Strings.toString(decision, true, true));
-        }
 
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(0));
         assertThat(shardsWithState(clusterState.getRoutingNodes(), RELOCATING).size(), equalTo(1));
