@@ -879,6 +879,7 @@ public class AwarenessAllocationTests extends ESAllocationTestCase {
         assertThat(clusterState.getRoutingNodes().node("B-0").size(), equalTo(5));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testUnassignedShardsWithUnbalancedZones() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
