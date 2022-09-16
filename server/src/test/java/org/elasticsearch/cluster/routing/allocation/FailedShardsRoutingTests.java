@@ -248,7 +248,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").shard(0).replicaShards().get(0).state(), equalTo(UNASSIGNED));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testFirstAllocationFailureSingleNode() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -295,15 +294,8 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             final var indexShardRoutingTable = clusterState.routingTable().index("test").shard(i);
             assertThat(indexShardRoutingTable.size(), equalTo(2));
-            if (strategy.isBalancedShardsAllocator()) {
-                // Balanced shards allocator will not retry on the failing node.
-                assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(UNASSIGNED));
-                assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), nullValue());
-            } else {
-                // Desired balance allocator immediately retries on the same node.
-                assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(INITIALIZING));
-                assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), equalTo("node1"));
-            }
+            assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(UNASSIGNED));
+            assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), nullValue());
             assertThat(indexShardRoutingTable.replicaShards().size(), equalTo(1));
             assertThat(indexShardRoutingTable.replicaShards().get(0).state(), equalTo(UNASSIGNED));
         }
