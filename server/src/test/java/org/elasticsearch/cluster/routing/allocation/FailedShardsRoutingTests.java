@@ -597,13 +597,12 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(newPrimaryShard, not(equalTo(primaryShardToFail)));
         assertThat(newPrimaryShard.allocationId(), equalTo(startedReplica.allocationId()));
 
-        // The unassigned replica is assigned the next time round if the desired node was ignored
+        // The unassigned replica is assigned the next time round if the desired node was ignored on the previous attempt
         clusterState = allocation.reroute(clusterState, "test", ActionListener.noop());
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(1));
         assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(2));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testFailAllReplicasInitializingOnPrimaryFailWhileHavingAReplicaToElect() {
         AllocationService allocation = createAllocationService(Settings.builder().build());
 
@@ -644,11 +643,20 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         ClusterState newState = applyFailedShard(allocation, clusterState, primaryShardToFail);
         assertThat(newState, not(equalTo(clusterState)));
         clusterState = newState;
+
+        // The started replica gets promoted to primary and the initializing replica is reset. The other replica will be assigned by the
+        // balanced shards allocator but not the desired balance allocator because the only remaining desired node is ignored this time
+        final var expectedInitializingShards = allocation.isBalancedShardsAllocator() ? 2 : 1;
         assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(1));
-        assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(2));
+        assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(expectedInitializingShards));
 
         ShardRouting newPrimaryShard = clusterState.routingTable().index("test").shard(0).primaryShard();
         assertThat(newPrimaryShard, not(equalTo(primaryShardToFail)));
+
+        // The unassigned replica is assigned the next time round if the desired node was ignored on the previous attempt
+        clusterState = allocation.reroute(clusterState, "test", ActionListener.noop());
+        assertThat(shardsWithState(clusterState.getRoutingNodes(), STARTED).size(), equalTo(1));
+        assertThat(shardsWithState(clusterState.getRoutingNodes(), INITIALIZING).size(), equalTo(2));
     }
 
     public void testReplicaOnNewestVersionIsPromoted() {
