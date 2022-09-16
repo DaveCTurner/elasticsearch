@@ -10,7 +10,6 @@ package org.elasticsearch.cluster.routing.allocation;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
@@ -47,7 +46,6 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-@LuceneTestCase.AwaitsFix(bugUrl = "TODO")
 public class FailedShardsRoutingTests extends ESAllocationTestCase {
     private final Logger logger = LogManager.getLogger(FailedShardsRoutingTests.class);
 
@@ -250,6 +248,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").shard(0).replicaShards().get(0).state(), equalTo(UNASSIGNED));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testFirstAllocationFailureSingleNode() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -436,6 +435,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
     }
 
     @TestLogging(reason = "TODO", value = "org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
+    @AwaitsFix(bugUrl = "TODO")
     public void testRebalanceFailure() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -541,6 +541,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         }
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testFailAllReplicasInitializingOnPrimaryFail() {
         AllocationService allocation = createAllocationService(Settings.builder().build());
 
@@ -595,6 +596,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(newPrimaryShard.allocationId(), equalTo(startedReplica.allocationId()));
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testFailAllReplicasInitializingOnPrimaryFailWhileHavingAReplicaToElect() {
         AllocationService allocation = createAllocationService(Settings.builder().build());
 
