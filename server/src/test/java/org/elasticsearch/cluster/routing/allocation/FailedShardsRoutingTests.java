@@ -195,7 +195,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(STARTED));
             assertThat(
                 clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(),
@@ -216,7 +215,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(STARTED));
             assertThat(
@@ -282,7 +280,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(INITIALIZING));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(), equalTo("node1"));
             assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().size(), equalTo(1));
@@ -298,7 +295,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             final var indexShardRoutingTable = clusterState.routingTable().index("test").shard(i);
-            assertThat(indexShardRoutingTable.size(), equalTo(2));
             assertThat(indexShardRoutingTable.size(), equalTo(2));
             if (strategy.isBalancedShardsAllocator()) {
                 // Balanced shards allocator will not retry on the failing node.
@@ -414,7 +410,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(INITIALIZING));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(), equalTo(nodeHoldingPrimary));
             assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().size(), equalTo(1));
@@ -432,7 +427,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(INITIALIZING));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(), not(equalTo(nodeHoldingPrimary)));
@@ -477,7 +471,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(clusterState.routingTable().index("test").size(), equalTo(2));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(STARTED));
             assertThat(
                 clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(),
@@ -498,7 +491,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(2));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
-            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
             assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(STARTED));
             assertThat(
