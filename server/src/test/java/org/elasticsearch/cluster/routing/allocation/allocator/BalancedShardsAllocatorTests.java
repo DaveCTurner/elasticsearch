@@ -90,7 +90,6 @@ public class BalancedShardsAllocatorTests extends ESAllocationTestCase {
     /**
      * {@see https://github.com/elastic/elasticsearch/issues/88384}
      */
-    @AwaitsFix(bugUrl = "TODO")
     public void testRebalanceImprovesTheBalanceOfTheShards() {
         var discoveryNodesBuilder = DiscoveryNodes.builder();
         for (int node = 0; node < 3; node++) {
