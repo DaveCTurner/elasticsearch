@@ -123,7 +123,6 @@ public class ClusterRebalanceRoutingTests extends ESAllocationTestCase {
         assertFalse(newNodesIterator.hasNext());
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testClusterPrimariesActive1() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -136,7 +135,17 @@ public class ClusterRebalanceRoutingTests extends ESAllocationTestCase {
 
         Metadata metadata = Metadata.builder()
             .put(IndexMetadata.builder("test1").settings(settings(Version.CURRENT)).numberOfShards(1).numberOfReplicas(1))
-            .put(IndexMetadata.builder("test2").settings(settings(Version.CURRENT)).numberOfShards(1).numberOfReplicas(1))
+            .put(
+                IndexMetadata.builder("test2")
+                    .settings(
+                        settings(Version.CURRENT).put(
+                            IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING.getConcreteSettingForNamespace("_id").getKey(),
+                            "node1,node2"
+                        )
+                    )
+                    .numberOfShards(1)
+                    .numberOfReplicas(1)
+            )
             .build();
 
         RoutingTable initialRoutingTable = RoutingTable.builder()
