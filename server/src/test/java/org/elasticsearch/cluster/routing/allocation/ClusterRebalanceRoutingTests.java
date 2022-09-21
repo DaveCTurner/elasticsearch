@@ -123,6 +123,7 @@ public class ClusterRebalanceRoutingTests extends ESAllocationTestCase {
         assertFalse(newNodesIterator.hasNext());
     }
 
+    @AwaitsFix(bugUrl = "TODO")
     public void testClusterPrimariesActive1() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
