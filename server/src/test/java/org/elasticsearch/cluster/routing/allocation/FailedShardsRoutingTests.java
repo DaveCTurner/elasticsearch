@@ -427,7 +427,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
     }
 
     @TestLogging(reason = "TODO", value = "org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
-    @AwaitsFix(bugUrl = "TODO")
     public void testRebalanceFailure() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -525,11 +524,20 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(routingNodes.node("node1").numberOfShardsWithState(STARTED), lessThan(3));
         assertThat(routingNodes.node("node2").numberOfShardsWithState(STARTED, RELOCATING), equalTo(2));
         assertThat(routingNodes.node("node2").numberOfShardsWithState(STARTED), lessThan(3));
-        assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
 
         if (strategy.isBalancedShardsAllocator()) {
             // make sure the failedShard is not INITIALIZING again on node3
+            assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
             assertThat(routingNodes.node("node3").iterator().next().shardId(), not(equalTo(shardToFail.shardId())));
+        } else {
+            // failing a shard doesn't affect the desired balance, but we do not retry on the first reroute ...
+            assertFalse(routingNodes.node("node3").iterator().hasNext());
+
+            // ... however the next reroute will retry allocating the same shard to this node
+            clusterState = strategy.reroute(clusterState, "test", ActionListener.noop());
+            routingNodes = clusterState.getRoutingNodes();
+            assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
+            assertThat(routingNodes.node("node3").iterator().next().shardId(), equalTo(shardToFail.shardId()));
         }
     }
 
