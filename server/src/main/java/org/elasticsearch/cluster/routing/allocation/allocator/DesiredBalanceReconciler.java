@@ -338,8 +338,6 @@ public class DesiredBalanceReconciler {
                 continue;
             }
 
-            logger.info("--> attempt move {}", shardRouting);
-
             final var moveTarget = findRelocationTarget(shardRouting, assignment.nodeIds());
             if (moveTarget != null) {
                 routingNodes.relocateShard(
@@ -388,8 +386,6 @@ public class DesiredBalanceReconciler {
                 // cannot allocate anywhere, no point in looking for a target node
                 continue;
             }
-
-            logger.info("--> attempt rebalance {} to {}", shardRouting, assignment.nodeIds());
 
             final var rebalanceTarget = findRelocationTarget(shardRouting, assignment.nodeIds(), this::decideCanAllocate);
             if (rebalanceTarget != null) {

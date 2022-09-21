@@ -27,7 +27,6 @@ import org.elasticsearch.cluster.routing.allocation.decider.ClusterRebalanceAllo
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.test.VersionUtils;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -284,7 +283,7 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
             assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().get(0).state(), equalTo(UNASSIGNED));
         }
 
-        logger.info("fail the first shard");
+        logger.info("fail the first shard, will have no place to be rerouted to (single node), so stays unassigned");
         ShardRouting firstShard = clusterState.getRoutingNodes().node("node1").iterator().next();
         newState = applyFailedShard(strategy, clusterState, firstShard);
         assertThat(newState, not(equalTo(clusterState)));
@@ -292,12 +291,11 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(1));
         for (int i = 0; i < clusterState.routingTable().index("test").size(); i++) {
-            final var indexShardRoutingTable = clusterState.routingTable().index("test").shard(i);
-            assertThat(indexShardRoutingTable.size(), equalTo(2));
-            assertThat(indexShardRoutingTable.primaryShard().state(), equalTo(UNASSIGNED));
-            assertThat(indexShardRoutingTable.primaryShard().currentNodeId(), nullValue());
-            assertThat(indexShardRoutingTable.replicaShards().size(), equalTo(1));
-            assertThat(indexShardRoutingTable.replicaShards().get(0).state(), equalTo(UNASSIGNED));
+            assertThat(clusterState.routingTable().index("test").shard(i).size(), equalTo(2));
+            assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().state(), equalTo(UNASSIGNED));
+            assertThat(clusterState.routingTable().index("test").shard(i).primaryShard().currentNodeId(), nullValue());
+            assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().size(), equalTo(1));
+            assertThat(clusterState.routingTable().index("test").shard(i).replicaShards().get(0).state(), equalTo(UNASSIGNED));
         }
     }
 
@@ -426,7 +424,6 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         }
     }
 
-    @TestLogging(reason = "TODO", value = "org.elasticsearch.cluster.routing.allocation.allocator:TRACE")
     public void testRebalanceFailure() {
         AllocationService strategy = createAllocationService(
             Settings.builder()
@@ -511,13 +508,11 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
 
         logger.info("Fail the shards on node 3");
-        logger.info("--> cluster state\n{}", clusterState);
         ShardRouting shardToFail = routingNodes.node("node3").iterator().next();
         newState = applyFailedShard(strategy, clusterState, shardToFail);
         assertThat(newState, not(equalTo(clusterState)));
         clusterState = newState;
         routingNodes = clusterState.getRoutingNodes();
-        logger.info("--> cluster state\n{}", clusterState);
 
         assertThat(clusterState.routingTable().index("test").size(), equalTo(2));
         assertThat(routingNodes.node("node1").numberOfShardsWithState(STARTED, RELOCATING), equalTo(2));
@@ -526,8 +521,8 @@ public class FailedShardsRoutingTests extends ESAllocationTestCase {
         assertThat(routingNodes.node("node2").numberOfShardsWithState(STARTED), lessThan(3));
 
         if (strategy.isBalancedShardsAllocator()) {
-            // make sure the failedShard is not INITIALIZING again on node3
             assertThat(routingNodes.node("node3").numberOfShardsWithState(INITIALIZING), equalTo(1));
+            // make sure the failedShard is not INITIALIZING again on node3
             assertThat(routingNodes.node("node3").iterator().next().shardId(), not(equalTo(shardToFail.shardId())));
         } else {
             // failing a shard doesn't affect the desired balance, but we do not retry on the first reroute ...

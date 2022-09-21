@@ -128,8 +128,6 @@ public class BalancedShardsAllocatorTests extends ESAllocationTestCase {
 
         var reroutedState = allocationService.reroute(clusterState, "test", ActionListener.noop());
 
-        logger.info("--> cluster state\n{}", reroutedState);
-
         for (ShardRouting relocatingShard : RoutingNodesHelper.shardsWithState(reroutedState.getRoutingNodes(), RELOCATING)) {
             assertThat(
                 "new allocation should not result in indexes with 2 shards per node",
