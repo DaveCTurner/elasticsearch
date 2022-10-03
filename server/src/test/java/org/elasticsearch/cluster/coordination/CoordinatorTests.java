@@ -33,6 +33,8 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.util.ByteUtils;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.core.Nullable;
@@ -47,6 +49,8 @@ import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -2426,6 +2430,19 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         Metadata newMetadata = Metadata.builder(currentState.metadata()).coordinationMetadata(coordMetadataBuilder.build()).build();
 
         return ClusterState.builder(currentState).nodes(newNodes).metadata(newMetadata).build();
+    }
+
+    public void testTriggerGC() {
+        final var oldGenBean = ManagementFactory.getGarbageCollectorMXBeans().stream()
+            .filter(b -> "G1 Old Generation".equals(b.getName())).findFirst().get();
+
+        final var startCollectionCount = oldGenBean.getCollectionCount();
+        long localBlackHole = 0;
+        while (oldGenBean.getCollectionCount() <= startCollectionCount) {
+            localBlackHole += new byte[ByteSizeUnit.MB.toIntBytes(500)].hashCode();
+            System.gc();
+        }
+        logger.trace("{}", localBlackHole);
     }
 
 }
