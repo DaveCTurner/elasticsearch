@@ -156,23 +156,26 @@ public class RareClusterStateIT extends ESIntegTestCase {
     private PlainActionFuture<Void> ensureNoPendingMasterTasks() {
         var future = new PlainActionFuture<Void>();
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class)
-            .submitUnbatchedStateUpdateTask("test", new ClusterStateUpdateTask(Priority.LANGUID, TimeValue.timeValueSeconds(30)) {
+            .submitUnbatchedStateUpdateTask(
+                "ensureNoPendingMasterTasks",
+                new ClusterStateUpdateTask(Priority.LANGUID, TimeValue.timeValueSeconds(30)) {
 
-                @Override
-                public ClusterState execute(ClusterState currentState) {
-                    return currentState;
-                }
+                    @Override
+                    public ClusterState execute(ClusterState currentState) {
+                        return currentState;
+                    }
 
-                @Override
-                public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
-                    future.onResponse(null);
-                }
+                    @Override
+                    public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
+                        future.onResponse(null);
+                    }
 
-                @Override
-                public void onFailure(Exception e) {
-                    future.onFailure(e);
+                    @Override
+                    public void onFailure(Exception e) {
+                        future.onFailure(e);
+                    }
                 }
-            });
+            );
         return future;
     }
 

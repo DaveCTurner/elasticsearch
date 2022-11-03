@@ -38,6 +38,7 @@ import org.elasticsearch.cluster.service.ClusterApplier;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -1958,13 +1959,19 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             ActionListener<Empty> responseActionListener
         ) {
             assert transportService.getThreadPool().getThreadContext().isSystemContext();
-            transportService.sendRequest(
-                destination,
-                COMMIT_STATE_ACTION_NAME,
-                applyCommit,
-                COMMIT_STATE_REQUEST_OPTIONS,
-                new ActionListenerResponseHandler<>(wrapWithMutex(responseActionListener), in -> Empty.INSTANCE, Names.CLUSTER_COORDINATION)
-            );
+            transportService.getThreadPool().schedule(() -> {
+                transportService.sendRequest(
+                    destination,
+                    COMMIT_STATE_ACTION_NAME,
+                    applyCommit,
+                    COMMIT_STATE_REQUEST_OPTIONS,
+                    new ActionListenerResponseHandler<>(
+                        wrapWithMutex(responseActionListener),
+                        in -> Empty.INSTANCE,
+                        Names.CLUSTER_COORDINATION
+                    )
+                );
+            }, TimeValue.timeValueMillis(Randomness.get().nextInt(100)), Names.SAME);
         }
     }
 
