@@ -381,6 +381,19 @@ public class RareClusterStateIT extends ESIntegTestCase {
             assertNotNull(mapper.mappers().getMapper("field"));
         });
 
+        // If the put-mapping commit messages arrive out-of-order then the earlier one is acked (with a CoordinationStateRejectedException)
+        // prematurely, bypassing the disruption. Wait for the commit messages to arrive everywhere before proceeding:
+        assertBusy(() -> {
+            long minVersion = Long.MAX_VALUE;
+            long maxVersion = Long.MIN_VALUE;
+            for (final var coordinator : internalCluster().getInstances(Coordinator.class)) {
+                final var clusterStateVersion = coordinator.getApplierState().version();
+                minVersion = Math.min(minVersion, clusterStateVersion);
+                maxVersion = Math.max(maxVersion, clusterStateVersion);
+            }
+            assertEquals(minVersion, maxVersion);
+        });
+
         final ActionFuture<IndexResponse> docIndexResponse = client().prepareIndex("index").setId("1").setSource("field", 42).execute();
 
         assertBusy(() -> assertTrue(client().prepareGet("index", "1").get().isExists()));
