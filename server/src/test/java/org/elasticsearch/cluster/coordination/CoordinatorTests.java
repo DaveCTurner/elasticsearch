@@ -63,6 +63,7 @@ import static org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase
 import static org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase.Cluster.EXTREME_DELAY_VARIABILITY;
 import static org.elasticsearch.cluster.coordination.Coordinator.Mode.CANDIDATE;
 import static org.elasticsearch.cluster.coordination.Coordinator.PUBLISH_TIMEOUT_SETTING;
+import static org.elasticsearch.cluster.coordination.ElectionSchedulerFactory.ELECTION_DURATION_SETTING;
 import static org.elasticsearch.cluster.coordination.ElectionSchedulerFactory.ELECTION_INITIAL_TIMEOUT_SETTING;
 import static org.elasticsearch.cluster.coordination.FollowersChecker.FOLLOWER_CHECK_INTERVAL_SETTING;
 import static org.elasticsearch.cluster.coordination.FollowersChecker.FOLLOWER_CHECK_RETRY_COUNT_SETTING;
@@ -1905,11 +1906,25 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
     }
 
     public void testSingleNodeDiscoveryStabilisesEvenWhenDisrupted() {
+
+        // larger variability is are good for checking that we don't time out, but smaller variability also tightens up the time bound
+        // within which we expect to converge, so use a mix of both
+        final long delayVariabilityMillis = randomLongBetween(DEFAULT_DELAY_VARIABILITY, TimeValue.timeValueMinutes(10).millis());
+        final long clusterStateUpdateDelay = CLUSTER_STATE_UPDATE_NUMBER_OF_DELAYS * delayVariabilityMillis;
+        final long electionDurationMillis = Math.max(
+            delayVariabilityMillis * 4 + clusterStateUpdateDelay,
+            ELECTION_DURATION_SETTING.get(Settings.EMPTY).millis()
+        );
+
         try (
             Cluster cluster = new Cluster(
                 1,
                 randomBoolean(),
-                Settings.builder().put(DiscoveryModule.DISCOVERY_TYPE_SETTING.getKey(), DiscoveryModule.SINGLE_NODE_DISCOVERY_TYPE).build()
+                Settings.builder()
+                    .put(DiscoveryModule.DISCOVERY_TYPE_SETTING.getKey(), DiscoveryModule.SINGLE_NODE_DISCOVERY_TYPE)
+                    // avoid overlapping elections
+                    .put(ELECTION_DURATION_SETTING.getKey(), TimeValue.timeValueMillis(electionDurationMillis))
+                    .build()
             )
         ) {
 
@@ -1917,22 +1932,21 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             // other options, so there's no point in failing and retrying from scratch no matter how badly disrupted we are and we may as
             // well just wait.
 
-            // larger variability is are good for checking that we don't time out, but smaller variability also tightens up the time bound
-            // within which we expect to converge, so use a mix of both
-            final long delayVariabilityMillis = randomLongBetween(DEFAULT_DELAY_VARIABILITY, TimeValue.timeValueMinutes(10).millis());
+            final long coolDownDurationMillis;
             if (randomBoolean()) {
                 cluster.runRandomly(true, false, delayVariabilityMillis);
+                coolDownDurationMillis = electionDurationMillis;
+            } else {
+                coolDownDurationMillis = 0L;
             }
 
             cluster.deterministicTaskQueue.setExecutionDelayVariabilityMillis(delayVariabilityMillis);
 
             final ClusterNode clusterNode = cluster.getAnyNode();
 
-            final long clusterStateUpdateDelay = CLUSTER_STATE_UPDATE_NUMBER_OF_DELAYS * delayVariabilityMillis;
-
             // cf. DEFAULT_STABILISATION_TIME, but stabilisation is quicker when there's a single node - there's no meaningful fault
             // detection and ongoing publications do not time out
-            cluster.runFor(ELECTION_INITIAL_TIMEOUT_SETTING.get(Settings.EMPTY).millis() + delayVariabilityMillis
+            cluster.runFor(coolDownDurationMillis + ELECTION_INITIAL_TIMEOUT_SETTING.get(Settings.EMPTY).millis() + delayVariabilityMillis
             // two round trips for pre-voting and voting
                 + 4 * delayVariabilityMillis
                 // and then the election update
