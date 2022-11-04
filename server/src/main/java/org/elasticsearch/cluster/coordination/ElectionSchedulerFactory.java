@@ -85,7 +85,7 @@ public class ElectionSchedulerFactory {
         ELECTION_DURATION_SETTING_KEY,
         TimeValue.timeValueMillis(500),
         TimeValue.timeValueMillis(1),
-        TimeValue.timeValueSeconds(300),
+        TimeValue.timeValueDays(300), //NOCOMMIT
         Property.NodeScope
     );
 
