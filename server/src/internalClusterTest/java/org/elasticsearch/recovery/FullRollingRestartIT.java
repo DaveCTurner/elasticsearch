@@ -22,6 +22,7 @@ import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Map;
 
@@ -171,12 +172,13 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         }
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.MasterService:TRACE")
     public void testNoRebalanceOnRollingRestart() throws Exception {
         // see https://github.com/elastic/elasticsearch/issues/14387
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
         internalCluster().startDataOnlyNodes(3);
         /**
-         * We start 3 nodes and a dedicated master. Restart on of the data-nodes and ensure that we got no relocations.
+         * We start 3 nodes and a dedicated master. Restart one of the data-nodes and ensure that we got no relocations.
          * Yet we have 6 shards 0 replica so that means if the restarting node comes back both other nodes are subject
          * to relocating to the restarting node since all had 2 shards and now one node has nothing allocated.
          * We have a fix for this to wait until we have allocated unallocated shards now so this shouldn't happen.
@@ -200,7 +202,8 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         RecoveryResponse recoveryResponse = client().admin().indices().prepareRecoveries("test").get();
         for (RecoveryState recoveryState : recoveryResponse.shardRecoveryStates().get("test")) {
             assertTrue(
-                "relocated from: " + recoveryState.getSourceNode() + " to: " + recoveryState.getTargetNode() + "\n" + state,
+                "relocated " + recoveryState.getShardId() +
+                " from: " + recoveryState.getSourceNode() + " to: " + recoveryState.getTargetNode() + "\n" + state,
                 recoveryState.getRecoverySource().getType() != RecoverySource.Type.PEER || recoveryState.getPrimary() == false
             );
         }
