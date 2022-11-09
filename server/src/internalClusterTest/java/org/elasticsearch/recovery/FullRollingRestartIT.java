@@ -22,7 +22,6 @@ import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Map;
 
@@ -172,10 +171,6 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         }
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE," +
-                                              "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceShardsAllocator" +
-                                              ":TRACE," +
-                                              "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceComputer:TRACE")
     public void testNoRebalanceOnRollingRestart() throws Exception {
         // see https://github.com/elastic/elasticsearch/issues/14387
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
@@ -216,7 +211,6 @@ public class FullRollingRestartIT extends ESIntegTestCase {
                 recoveryState.getRecoverySource().getType() != RecoverySource.Type.PEER || recoveryState.getPrimary() == false
             );
         }
-        logger.info("--> restarting random node");
         internalCluster().restartRandomDataNode();
         ensureGreen();
         client().admin().cluster().prepareState().get().getState();

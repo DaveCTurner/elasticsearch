@@ -60,7 +60,6 @@ public class DesiredBalanceComputer {
     ) {
 
         logger.debug("Recomputing desired balance for [{}]", desiredBalanceInput.index());
-        logger.trace("Ignored shards: {}", desiredBalanceInput.ignoredShards());
 
         final var routingAllocation = desiredBalanceInput.routingAllocation().mutableCloneForSimulation();
         final var routingNodes = routingAllocation.routingNodes();
@@ -77,7 +76,6 @@ public class DesiredBalanceComputer {
         for (final var routingNode : routingNodes) {
             for (final var shardRouting : routingNode) {
                 if (shardRouting.initializing()) {
-                    logger.trace("--> 0: starting INITIALIZING shard {}", shardRouting);
                     clusterInfoSimulator.simulateShardStarted(shardRouting);
                     routingNodes.startShard(logger, shardRouting, changes, 0L);
                 }
@@ -94,11 +92,7 @@ public class DesiredBalanceComputer {
                 final var shardRouting = iterator.next();
                 if (shardRouting.primary() == primary) {
                     var lastAllocatedNodeId = shardRouting.unassignedInfo().getLastAllocatedNodeId();
-                    if (knownNodeIds.contains(lastAllocatedNodeId)) {
-                        logger.trace("----> will try to assign [{}] to last-known node [{}]", shardRouting, lastAllocatedNodeId);
-                        shardRoutings.computeIfAbsent(shardRouting.shardId(), ShardRoutings::new).unassigned().add(shardRouting);
-                    } else if (ignoredShards.contains(discardAllocationStatus(shardRouting)) == false) {
-                        logger.trace("----> will try to assign [{}] as not ignored", shardRouting);
+                    if (knownNodeIds.contains(lastAllocatedNodeId) || ignoredShards.contains(discardAllocationStatus(shardRouting)) == false) {
                         shardRoutings.computeIfAbsent(shardRouting.shardId(), ShardRoutings::new).unassigned().add(shardRouting);
                     } else {
                         iterator.removeAndIgnore(UnassignedInfo.AllocationStatus.NO_ATTEMPT, changes);
@@ -109,9 +103,6 @@ public class DesiredBalanceComputer {
                 }
             }
         }
-
-        logger.trace("----> 1: knownNodeIds: {}", knownNodeIds);
-        logger.trace("----> 1: unassignedPrimaries: {}", unassignedPrimaries);
 
         for (final var assigned : routingNodes.getAssignedShards().entrySet()) {
             shardRoutings.computeIfAbsent(assigned.getKey(), ShardRoutings::new).assigned().addAll(assigned.getValue());
