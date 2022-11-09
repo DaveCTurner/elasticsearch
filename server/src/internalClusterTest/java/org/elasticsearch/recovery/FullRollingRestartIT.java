@@ -216,6 +216,7 @@ public class FullRollingRestartIT extends ESIntegTestCase {
                 recoveryState.getRecoverySource().getType() != RecoverySource.Type.PEER || recoveryState.getPrimary() == false
             );
         }
+        logger.info("--> restarting random node");
         internalCluster().restartRandomDataNode();
         ensureGreen();
         client().admin().cluster().prepareState().get().getState();

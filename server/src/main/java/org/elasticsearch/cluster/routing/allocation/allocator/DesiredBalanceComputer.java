@@ -58,6 +58,7 @@ public class DesiredBalanceComputer {
     ) {
 
         logger.debug("Recomputing desired balance for [{}]", desiredBalanceInput.index());
+        logger.trace("Ignored shards: {}", desiredBalanceInput.ignoredShards());
 
         final var routingAllocation = desiredBalanceInput.routingAllocation().mutableCloneForSimulation();
         final var routingNodes = routingAllocation.routingNodes();
