@@ -491,6 +491,9 @@ public final class UnassignedInfo implements ToXContentFragment, Writeable {
         if (failedNodeIds.isEmpty() == false) {
             sb.append(", failed_nodes[").append(failedNodeIds).append("]");
         }
+        if (lastAllocatedNodeId != null) {
+            sb.append(", last node [").append(lastAllocatedNodeId).append(']');
+        }
         sb.append(", delayed=").append(delayed);
         String details = getDetails();
 
