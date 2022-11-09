@@ -172,7 +172,7 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         }
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.MasterService:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testNoRebalanceOnRollingRestart() throws Exception {
         // see https://github.com/elastic/elasticsearch/issues/14387
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
