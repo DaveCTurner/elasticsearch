@@ -172,7 +172,7 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         }
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.MasterService:TRACE")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.MasterService:TRACE")
     public void testNoRebalanceOnRollingRestart() throws Exception {
         // see https://github.com/elastic/elasticsearch/issues/14387
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
@@ -202,8 +202,14 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         RecoveryResponse recoveryResponse = client().admin().indices().prepareRecoveries("test").get();
         for (RecoveryState recoveryState : recoveryResponse.shardRecoveryStates().get("test")) {
             assertTrue(
-                "relocated " + recoveryState.getShardId() +
-                " from: " + recoveryState.getSourceNode() + " to: " + recoveryState.getTargetNode() + "\n" + state,
+                "relocated "
+                    + recoveryState.getShardId()
+                    + " from: "
+                    + recoveryState.getSourceNode()
+                    + " to: "
+                    + recoveryState.getTargetNode()
+                    + "\n"
+                    + state,
                 recoveryState.getRecoverySource().getType() != RecoverySource.Type.PEER || recoveryState.getPrimary() == false
             );
         }
@@ -214,7 +220,14 @@ public class FullRollingRestartIT extends ESIntegTestCase {
         recoveryResponse = client().admin().indices().prepareRecoveries("test").get();
         for (RecoveryState recoveryState : recoveryResponse.shardRecoveryStates().get("test")) {
             assertTrue(
-                "relocated from: " + recoveryState.getSourceNode() + " to: " + recoveryState.getTargetNode() + "-- \nbefore: \n" + state,
+                "relocated "
+                    + recoveryState.getShardId()
+                    + " from: "
+                    + recoveryState.getSourceNode()
+                    + " to: "
+                    + recoveryState.getTargetNode()
+                    + "-- \nbefore: \n"
+                    + state,
                 recoveryState.getRecoverySource().getType() != RecoverySource.Type.PEER || recoveryState.getPrimary() == false
             );
         }
