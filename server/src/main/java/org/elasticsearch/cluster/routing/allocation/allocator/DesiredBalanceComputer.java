@@ -75,6 +75,7 @@ public class DesiredBalanceComputer {
         for (final var routingNode : routingNodes) {
             for (final var shardRouting : routingNode) {
                 if (shardRouting.initializing()) {
+                    logger.trace("--> 0: starting INITIALIZING shard {}", shardRouting);
                     clusterInfoSimulator.simulateShardStarted(shardRouting);
                     routingNodes.startShard(logger, shardRouting, changes, 0L);
                 }
@@ -102,6 +103,9 @@ public class DesiredBalanceComputer {
                 }
             }
         }
+
+        logger.trace("--> 1: knownNodeIds: {}", knownNodeIds);
+        logger.trace("--> 1: unassignedPrimaries: {}", unassignedPrimaries);
 
         for (final var assigned : routingNodes.getAssignedShards().entrySet()) {
             shardRoutings.computeIfAbsent(assigned.getKey(), ShardRoutings::new).assigned().addAll(assigned.getValue());
