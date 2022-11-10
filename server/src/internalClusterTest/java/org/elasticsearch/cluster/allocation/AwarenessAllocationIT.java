@@ -22,6 +22,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsException;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -98,6 +99,7 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
         }, 10, TimeUnit.SECONDS);
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testAwarenessZones() {
         Settings commonSettings = Settings.builder()
             .put(AwarenessAllocationDecider.CLUSTER_ROUTING_ALLOCATION_AWARENESS_FORCE_GROUP_SETTING.getKey() + "zone.values", "a,b")
@@ -140,8 +142,12 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
             .execute()
             .actionGet();
         assertThat(health.isTimedOut(), equalTo(false));
+        logger.info("--> health request returned");
 
         ClusterState clusterState = client().admin().cluster().prepareState().execute().actionGet().getState();
+
+        logger.info("--> asserting on: {}", clusterState.getRoutingNodes().toString());
+
         Map<String, Integer> counts = computeShardCounts(clusterState);
 
         assertThat(counts.get(A_1), anyOf(equalTo(2), equalTo(3)));
