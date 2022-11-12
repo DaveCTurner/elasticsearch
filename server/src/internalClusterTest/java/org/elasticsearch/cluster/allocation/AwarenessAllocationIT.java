@@ -99,7 +99,8 @@ public class AwarenessAllocationIT extends ESIntegTestCase {
         }, 10, TimeUnit.SECONDS);
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE")
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
+                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceShardsAllocator:TRACE")
     public void testAwarenessZones() {
         Settings commonSettings = Settings.builder()
             .put(AwarenessAllocationDecider.CLUSTER_ROUTING_ALLOCATION_AWARENESS_FORCE_GROUP_SETTING.getKey() + "zone.values", "a,b")
