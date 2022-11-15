@@ -228,7 +228,8 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
 
     @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
                                           "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceShardsAllocator:TRACE," +
-                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceReconciler:TRACE")
+                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceReconciler:TRACE," +
+                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceComputer:TRACE")
     public void testFullClusterRestartPerformNoopRecovery() throws Exception {
         int numOfReplicas = randomIntBetween(1, 2);
         internalCluster().ensureAtLeastNumDataNodes(numOfReplicas + 2);

@@ -75,6 +75,7 @@ public class DesiredBalanceComputer {
         for (final var routingNode : routingNodes) {
             for (final var shardRouting : routingNode) {
                 if (shardRouting.initializing()) {
+                    logger.trace("completing initialization of {}", shardRouting);
                     clusterInfoSimulator.simulateShardStarted(shardRouting);
                     routingNodes.startShard(logger, shardRouting, changes, 0L);
                 }
