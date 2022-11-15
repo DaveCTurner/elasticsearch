@@ -71,6 +71,8 @@ public class DesiredBalanceComputer {
             return new DesiredBalance(desiredBalanceInput.index(), Map.of());
         }
 
+        logger.trace("routing nodes at start: {}", routingNodes.toString());
+
         // we assume that all ongoing recoveries will complete
         for (final var routingNode : routingNodes) {
             for (final var shardRouting : routingNode) {

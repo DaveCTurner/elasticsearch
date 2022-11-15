@@ -153,6 +153,7 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
 
         var index = indexGenerator.incrementAndGet();
         logger.debug("Executing allocate for [{}]", index);
+        logger.trace("routing nodes before allocation: {}", allocation.routingNodes().toString());
         queue.add(index, listener);
         desiredBalanceComputation.onNewInput(DesiredBalanceInput.create(index, allocation));
 
@@ -250,6 +251,11 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
         public void onFailure(Exception e) {
             assert MasterService.isPublishFailureException(e) : e;
             onNoLongerMaster();
+        }
+
+        @Override
+        public String toString() {
+            return "ReconcileDesiredBalanceTask[lastConvergedIndex=" + desiredBalance.lastConvergedIndex() + "]";
         }
     }
 
