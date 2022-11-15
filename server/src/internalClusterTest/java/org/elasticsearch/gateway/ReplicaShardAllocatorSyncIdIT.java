@@ -35,6 +35,7 @@ import org.elasticsearch.plugins.EnginePlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.TransportService;
 import org.junit.Before;
@@ -225,6 +226,9 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
         transportServiceOnPrimary.clearAllRules();
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
+                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceShardsAllocator:TRACE," +
+                                          "org.elasticsearch.cluster.routing.allocation.allocator.DesiredBalanceReconciler:TRACE")
     public void testFullClusterRestartPerformNoopRecovery() throws Exception {
         int numOfReplicas = randomIntBetween(1, 2);
         internalCluster().ensureAtLeastNumDataNodes(numOfReplicas + 2);
@@ -261,21 +265,27 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
                 .prepareUpdateSettings()
                 .setPersistentSettings(Settings.builder().put("cluster.routing.allocation.enable", "primaries").build())
         );
+        logger.info("--> restarting cluster");
         internalCluster().fullRestart();
+        logger.info("--> cluster restarted, calling ensureYellow");
         ensureYellow(indexName);
+        logger.info("--> ensureYellow completed");
         // Wait until the peer recovery retention leases of the offline node are expired
         assertBusy(() -> {
             for (ShardStats shardStats : client().admin().indices().prepareStats(indexName).get().getShards()) {
                 assertThat(shardStats.getRetentionLeaseStats().retentionLeases().leases(), hasSize(1));
             }
         });
+        logger.info("--> enabling allocation");
         assertAcked(
             client().admin()
                 .cluster()
                 .prepareUpdateSettings()
                 .setPersistentSettings(Settings.builder().putNull("cluster.routing.allocation.enable").build())
         );
+        logger.info("--> calling ensureGreen");
         ensureGreen(indexName);
+        logger.info("--> ensureGreen returned");
         assertNoOpRecoveries(indexName);
     }
 
