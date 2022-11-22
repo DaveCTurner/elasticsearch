@@ -289,7 +289,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         Cluster(int initialNodeCount, boolean allNodesMasterEligible, Settings nodeSettings, NodeHealthService nodeHealthService) {
             this.nodeHealthService = nodeHealthService;
-            this.recycler = usually()
+            this.recycler = false
                 ? BytesRefRecycler.NON_RECYCLING_INSTANCE
                 : new BytesRefRecycler(new MockPageCacheRecycler(Settings.EMPTY));
             deterministicTaskQueue.setExecutionDelayVariabilityMillis(DEFAULT_DELAY_VARIABILITY);
