@@ -1654,6 +1654,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
                 ), nodeInOtherCluster.nodeSettings, () -> new StatusInfo(StatusInfo.Status.HEALTHY, "healthy-info")
             );
 
+            logger.info("--> adding alien node [{}]", newNode);
             cluster1.clusterNodes.add(newNode);
 
             MockLogAppender mockAppender = new MockLogAppender();
@@ -1672,6 +1673,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             }
             assertEquals(0, newNode.getLastAppliedClusterState().version());
 
+            logger.info("--> detaching alien node from old cluster");
             newNode.close();
             final ClusterNode detachedNode = newNode.restartedNode(
                 DetachClusterCommand::updateMetadata,

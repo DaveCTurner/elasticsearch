@@ -879,7 +879,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             // Closing nodes may spawn some other background cleanup tasks that must also be run
             runFor(DEFAULT_DELAY_VARIABILITY, "accumulate close-time tasks");
             deterministicTaskQueue.runAllRunnableTasks();
-
+            logger.trace("finished running accumulated close-time tasks");
             countingPageCacheRecycler.assertAllPagesReleased();
         }
 
