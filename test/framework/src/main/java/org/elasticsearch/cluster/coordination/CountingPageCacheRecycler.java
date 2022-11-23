@@ -11,13 +11,17 @@ package org.elasticsearch.cluster.coordination;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.PageCacheRecycler;
+import org.hamcrest.Matchers;
 
-import static org.junit.Assert.assertEquals;
+import java.util.HashSet;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 
 public class CountingPageCacheRecycler extends PageCacheRecycler {
 
-    private int openPages = 0;
+    private static int nextPageId = 1;
+    private HashSet<Integer> openPages = new HashSet<>();
 
     public CountingPageCacheRecycler() {
         super(Settings.EMPTY);
@@ -26,7 +30,8 @@ public class CountingPageCacheRecycler extends PageCacheRecycler {
     @Override
     public Recycler.V<byte[]> bytePage(boolean clear) {
         final var page = super.bytePage(clear);
-        openPages += 1;
+        final var pageId = nextPageId++;
+        openPages.add(pageId);
         return new Recycler.V<>() {
             boolean closed = false;
 
@@ -44,7 +49,7 @@ public class CountingPageCacheRecycler extends PageCacheRecycler {
             public void close() {
                 assertFalse(closed);
                 closed = true;
-                openPages -= 1;
+                openPages.remove(pageId);
                 page.close();
             }
         };
@@ -56,6 +61,6 @@ public class CountingPageCacheRecycler extends PageCacheRecycler {
     }
 
     public void assertAllPagesReleased() {
-        assertEquals(0, openPages);
+        assertThat(openPages, Matchers.empty());
     }
 }
