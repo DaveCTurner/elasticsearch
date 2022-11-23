@@ -104,6 +104,7 @@ public class JoinValidationService {
         Supplier<ClusterState> clusterStateSupplier,
         Collection<BiConsumer<DiscoveryNode, ClusterState>> joinValidators
     ) {
+        logger.trace("[{}] join validation cache created", this);
         this.cacheTimeout = JOIN_VALIDATION_CACHE_TIMEOUT_SETTING.get(settings);
         this.transportService = transportService;
         this.clusterStateSupplier = clusterStateSupplier;
