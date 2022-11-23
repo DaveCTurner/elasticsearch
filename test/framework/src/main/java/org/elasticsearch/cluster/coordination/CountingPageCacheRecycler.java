@@ -8,6 +8,8 @@
 
 package org.elasticsearch.cluster.coordination;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.PageCacheRecycler;
@@ -19,6 +21,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 
 public class CountingPageCacheRecycler extends PageCacheRecycler {
+
+    private static final Logger logger = LogManager.getLogger(CountingPageCacheRecycler.class);
 
     private static int nextPageId = 1;
     private HashSet<Integer> openPages = new HashSet<>();
@@ -32,6 +36,7 @@ public class CountingPageCacheRecycler extends PageCacheRecycler {
         final var page = super.bytePage(clear);
         final var pageId = nextPageId++;
         openPages.add(pageId);
+        logger.info("page [{}] acquired", pageId);
         return new Recycler.V<>() {
             boolean closed = false;
 
@@ -51,6 +56,7 @@ public class CountingPageCacheRecycler extends PageCacheRecycler {
                 closed = true;
                 openPages.remove(pageId);
                 page.close();
+                logger.info("page [{}] released", pageId);
             }
         };
     }
