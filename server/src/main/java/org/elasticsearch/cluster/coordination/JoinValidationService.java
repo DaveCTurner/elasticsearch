@@ -45,6 +45,7 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -299,6 +300,8 @@ public class JoinValidationService {
         }
     };
 
+    private static final AtomicLong refIdGenerator = new AtomicLong();
+
     private class JoinValidation extends ActionRunnable<TransportResponse.Empty> {
         private final DiscoveryNode discoveryNode;
 
@@ -315,14 +318,19 @@ public class JoinValidationService {
             final var cachedBytes = statesByVersion.get(discoveryNode.getVersion());
             final var bytes = Objects.requireNonNullElseGet(cachedBytes, () -> serializeClusterState(discoveryNode));
             assert bytes.hasReferences() : "already closed";
+            final var refId = refIdGenerator.incrementAndGet();
             bytes.incRef();
+            logger.trace("acquired ref [{}]", refId);
             transportService.sendRequest(
                 discoveryNode,
                 JOIN_VALIDATE_ACTION_NAME,
                 new BytesTransportRequest(bytes, discoveryNode.getVersion()),
                 REQUEST_OPTIONS,
                 new ActionListenerResponseHandler<>(
-                    ActionListener.runAfter(listener, bytes::decRef),
+                    ActionListener.runAfter(listener, () -> {
+                        logger.trace("released ref [{}]", refId);
+                        bytes.decRef();
+                    }),
                     in -> TransportResponse.Empty.INSTANCE,
                     ThreadPool.Names.CLUSTER_COORDINATION
                 )
