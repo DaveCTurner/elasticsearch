@@ -275,11 +275,12 @@ public class JoinValidationService {
         protected void doRun() {
             // NB this never runs concurrently to JoinValidation actions, nor to itself, (see IMPLEMENTATION NOTES above) so it is safe
             // to do these (non-atomic) things to the (unsynchronized) statesByVersion map.
+            final var stateCount = statesByVersion.size();
             for (final var bytes : statesByVersion.values()) {
                 bytes.decRef();
             }
             statesByVersion.clear();
-            logger.trace("join validation cache cleared");
+            logger.trace("[{}] join validation cache cleared, [{}] states removed", JoinValidationService.this, stateCount);
         }
 
         @Override
@@ -355,7 +356,8 @@ public class JoinValidationService {
             }
             final var newBytes = new ReleasableBytesReference(bytesStream.bytes(), bytesStream);
             logger.trace(
-                "serialized join validation cluster state version [{}] for node version [{}] with size [{}]",
+                "[{}]: serialized join validation cluster state version [{}] for node version [{}] with size [{}]",
+                JoinValidationService.this,
                 clusterState.version(),
                 version,
                 newBytes.length()
