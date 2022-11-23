@@ -277,11 +277,20 @@ public class JoinValidationService {
             // NB this never runs concurrently to JoinValidation actions, nor to itself, (see IMPLEMENTATION NOTES above) so it is safe
             // to do these (non-atomic) things to the (unsynchronized) statesByVersion map.
             final var stateCount = statesByVersion.size();
+            var retainedStates = 0;
             for (final var bytes : statesByVersion.values()) {
                 bytes.decRef();
+                if (bytes.hasReferences()) {
+                    retainedStates += 1;
+                }
             }
             statesByVersion.clear();
-            logger.trace("[{}] join validation cache cleared, [{}] states removed", JoinValidationService.this, stateCount);
+            logger.trace(
+                "[{}] join validation cache cleared, [{}] states removed, [{}] retained",
+                JoinValidationService.this,
+                stateCount,
+                retainedStates
+            );
         }
 
         @Override
