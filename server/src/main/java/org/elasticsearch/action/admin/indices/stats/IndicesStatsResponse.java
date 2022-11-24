@@ -11,20 +11,22 @@ package org.elasticsearch.action.admin.indices.stats;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.indices.stats.IndexStats.IndexStatsBuilder;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
-import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.action.support.broadcast.ChunkedBroadcastResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.health.ClusterIndexHealth;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.ToXContent;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,7 +35,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableMap;
 
-public class IndicesStatsResponse extends BroadcastResponse {
+public class IndicesStatsResponse extends ChunkedBroadcastResponse {
 
     private final Map<String, ClusterHealthStatus> indexHealthMap;
 
@@ -171,7 +173,7 @@ public class IndicesStatsResponse extends BroadcastResponse {
     }
 
     @Override
-    protected void addCustomXContentFields(XContentBuilder builder, Params params) throws IOException {
+    protected Iterator<? extends ToXContent> customXContentChunks(ToXContent.Params params) {
         final String level = params.param("level", "indices");
         final boolean isLevelValid = "cluster".equalsIgnoreCase(level)
             || "indices".equalsIgnoreCase(level)
@@ -180,53 +182,61 @@ public class IndicesStatsResponse extends BroadcastResponse {
             throw new IllegalArgumentException("level parameter must be one of [cluster] or [indices] or [shards] but was [" + level + "]");
         }
 
-        builder.startObject("_all");
+        final Iterator<ToXContent> summary = Iterators.single((builder, p) -> {
+            builder.startObject("_all");
 
-        builder.startObject("primaries");
-        getPrimaries().toXContent(builder, params);
-        builder.endObject();
+            builder.startObject("primaries");
+            getPrimaries().toXContent(builder, p);
+            builder.endObject();
 
-        builder.startObject("total");
-        getTotal().toXContent(builder, params);
-        builder.endObject();
+            builder.startObject("total");
+            getTotal().toXContent(builder, p);
+            builder.endObject();
 
-        builder.endObject();
+            builder.endObject();
+            return builder;
+        });
 
         if ("indices".equalsIgnoreCase(level) || "shards".equalsIgnoreCase(level)) {
-            builder.startObject(Fields.INDICES);
-            for (IndexStats indexStats : getIndices().values()) {
-                builder.startObject(indexStats.getIndex());
-                builder.field("uuid", indexStats.getUuid());
-                if (indexStats.getHealth() != null) {
-                    builder.field("health", indexStats.getHealth().toString().toLowerCase(Locale.ROOT));
-                }
-                if (indexStats.getState() != null) {
-                    builder.field("status", indexStats.getState().toString().toLowerCase(Locale.ROOT));
-                }
-                builder.startObject("primaries");
-                indexStats.getPrimaries().toXContent(builder, params);
-                builder.endObject();
+            return Iterators.concat(
+                summary,
+                Iterators.single((builder, p) -> builder.startObject(Fields.INDICES)),
+                getIndices().values().stream().<ToXContent>map(indexStats -> (builder, p) -> {
+                    builder.startObject(indexStats.getIndex());
+                    builder.field("uuid", indexStats.getUuid());
+                    if (indexStats.getHealth() != null) {
+                        builder.field("health", indexStats.getHealth().toString().toLowerCase(Locale.ROOT));
+                    }
+                    if (indexStats.getState() != null) {
+                        builder.field("status", indexStats.getState().toString().toLowerCase(Locale.ROOT));
+                    }
+                    builder.startObject("primaries");
+                    indexStats.getPrimaries().toXContent(builder, p);
+                    builder.endObject();
 
-                builder.startObject("total");
-                indexStats.getTotal().toXContent(builder, params);
-                builder.endObject();
+                    builder.startObject("total");
+                    indexStats.getTotal().toXContent(builder, p);
+                    builder.endObject();
 
-                if ("shards".equalsIgnoreCase(level)) {
-                    builder.startObject(Fields.SHARDS);
-                    for (IndexShardStats indexShardStats : indexStats) {
-                        builder.startArray(Integer.toString(indexShardStats.getShardId().id()));
-                        for (ShardStats shardStats : indexShardStats) {
-                            builder.startObject();
-                            shardStats.toXContent(builder, params);
-                            builder.endObject();
+                    if ("shards".equalsIgnoreCase(level)) {
+                        builder.startObject(Fields.SHARDS);
+                        for (IndexShardStats indexShardStats : indexStats) {
+                            builder.startArray(Integer.toString(indexShardStats.getShardId().id()));
+                            for (ShardStats shardStats : indexShardStats) {
+                                builder.startObject();
+                                shardStats.toXContent(builder, p);
+                                builder.endObject();
+                            }
+                            builder.endArray();
                         }
-                        builder.endArray();
+                        builder.endObject();
                     }
                     builder.endObject();
-                }
-                builder.endObject();
-            }
-            builder.endObject();
+                    return builder;
+                }).iterator()
+            );
+        } else {
+            return summary;
         }
     }
 
