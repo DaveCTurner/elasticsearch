@@ -613,6 +613,13 @@ public class MasterService extends AbstractLifecycleComponent {
      * Returns the tasks that are pending.
      */
     public List<PendingClusterTask> pendingTasks() {
+        return pendingTasks(false);
+    }
+
+    /**
+     * Returns the tasks that are pending.
+     */
+    public List<PendingClusterTask> pendingTasks(boolean detailed) {
         return Arrays.stream(threadPoolExecutor.getPending()).map(pending -> {
             assert pending.task instanceof SourcePrioritizedRunnable
                 : "thread pool executor should only use SourcePrioritizedRunnable instances but found: "
@@ -622,6 +629,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 pending.insertionOrder,
                 pending.priority,
                 new Text(task.source()),
+                detailed && task instanceof TaskBatcher.BatchedTask batchedTask ? batchedTask.getTask().toString() : null,
                 task.getAgeInMillis(),
                 pending.executing
             );

@@ -8,6 +8,7 @@
 
 package org.elasticsearch.cluster.service;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -17,17 +18,35 @@ import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
-public record PendingClusterTask(long insertOrder, Priority priority, Text source, long timeInQueue, boolean executing)
-    implements
-        Writeable {
+public record PendingClusterTask(
+    long insertOrder,
+    Priority priority,
+    Text source,
+    String taskDescription,
+    long timeInQueue,
+    boolean executing
+) implements Writeable {
 
     public PendingClusterTask(StreamInput in) throws IOException {
-        this(in.readVLong(), Priority.readFrom(in), in.readText(), in.readLong(), in.readBoolean());
+        this(in.readVLong(), Priority.readFrom(in), readSource(in), readDescription(in), readTimeInQueue(in), in.readBoolean());
+    }
+
+    private static Text readSource(StreamInput in) throws IOException {
+        return in.getVersion().onOrAfter(Version.V_8_7_0) ? new Text(in.readString()) : in.readText();
+    }
+
+    private static String readDescription(StreamInput in) throws IOException {
+        return in.getVersion().onOrAfter(Version.V_8_7_0) ? in.readOptionalString() : null;
+    }
+
+    private static long readTimeInQueue(StreamInput in) throws IOException {
+        return in.getVersion().onOrAfter(Version.V_8_7_0) ? in.readVLong() : in.readLong();
     }
 
     public PendingClusterTask {
         assert timeInQueue >= 0 : "got a negative timeInQueue [" + timeInQueue + "]";
         assert insertOrder >= 0 : "got a negative insertOrder [" + insertOrder + "]";
+        assert source.hasString();
     }
 
     public long getInsertOrder() {
@@ -58,8 +77,15 @@ public record PendingClusterTask(long insertOrder, Priority priority, Text sourc
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVLong(insertOrder);
         Priority.writeTo(priority, out);
-        out.writeText(source);
-        out.writeLong(timeInQueue);
+        if (out.getVersion().onOrAfter(Version.V_8_7_0)) {
+            out.writeString(source.string());
+            out.writeOptionalString(taskDescription);
+            out.writeVLong(timeInQueue);
+        } else {
+            out.writeText(source);
+            // earlier versions don't support detailed mode, can just omit the task description
+            out.writeLong(timeInQueue);
+        }
         out.writeBoolean(executing);
     }
 }
