@@ -8,9 +8,12 @@
 
 package org.elasticsearch.common.collect;
 
+import org.elasticsearch.core.Nullable;
+
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Function;
 
 public class Iterators {
 
@@ -108,6 +111,48 @@ public class Iterators {
                 throw new NoSuchElementException();
             }
             return array[index++];
+        }
+    }
+
+    public static <T, U> Iterator<? extends U> flatMap(Function<T, Iterator<? extends U>> fn, Iterator<? extends T> input) {
+        return new FlatMapIterator<>(fn, input);
+    }
+
+    private static final class FlatMapIterator<T, U> implements Iterator<U> {
+
+        private final Function<T, Iterator<? extends U>> fn;
+        private final Iterator<? extends T> input;
+
+        @Nullable // if not started, or finished
+        private Iterator<? extends U> currentOutput;
+
+        FlatMapIterator(Function<T, Iterator<? extends U>> fn, Iterator<? extends T> input) {
+            this.fn = fn;
+            this.input = input;
+        }
+
+        @Override
+        public boolean hasNext() {
+            while (true) {
+                if (currentOutput != null && currentOutput.hasNext()) {
+                    return true;
+                }
+                if (input.hasNext()) {
+                    currentOutput = Objects.requireNonNull(fn.apply(input.next()));
+                } else {
+                    currentOutput = null;
+                    return false;
+                }
+            }
+        }
+
+        @Override
+        public U next() {
+            if (hasNext() == false) {
+                throw new NoSuchElementException();
+            }
+            assert currentOutput != null && currentOutput.hasNext();
+            return currentOutput.next();
         }
     }
 }
