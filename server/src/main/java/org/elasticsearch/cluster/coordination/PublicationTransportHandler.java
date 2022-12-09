@@ -137,7 +137,12 @@ public class PublicationTransportHandler {
                     throw e;
                 }
                 fullClusterStateReceivedCount.incrementAndGet();
-                logger.debug("received full cluster state version [{}] with size [{}]", incomingState.version(), request.bytes().length());
+                logger.debug(
+                    "--> received full cluster state version [{}] with size [{}], cmd [{}]",
+                    incomingState.version(),
+                    request.bytes().length(),
+                    incomingState.coordinationMetadata()
+                );
                 final PublishWithJoinResponse response = acceptState(incomingState);
                 lastSeenClusterState.set(incomingState);
                 return response;
@@ -166,10 +171,11 @@ public class PublicationTransportHandler {
                     }
                     compatibleClusterStateDiffReceivedCount.incrementAndGet();
                     logger.debug(
-                        "received diff cluster state version [{}] with uuid [{}], diff size [{}]",
+                        "--> received diff cluster state version [{}] with uuid [{}], diff size [{}], cmd [{}]",
                         incomingState.version(),
                         incomingState.stateUUID(),
-                        request.bytes().length()
+                        request.bytes().length(),
+                        incomingState.coordinationMetadata()
                     );
                     final PublishWithJoinResponse response = acceptState(incomingState);
                     lastSeenClusterState.compareAndSet(lastSeen, incomingState);

@@ -1121,9 +1121,11 @@ public class PersistedClusterStateService {
          */
         private WriterStats addMetadata(Metadata metadata) throws IOException {
 
-            logger.info("--> writing metadata with configs {} vs {}",
+            logger.info(
+                "--> writing metadata with configs {} vs {}",
                 metadata.coordinationMetadata().getLastAcceptedConfiguration(),
-                metadata.coordinationMetadata().getLastCommittedConfiguration());
+                metadata.coordinationMetadata().getLastCommittedConfiguration()
+            );
 
             addGlobalMetadataDocuments(metadata);
 

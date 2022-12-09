@@ -392,9 +392,13 @@ public class CoordinationState {
         persistedState.setLastAcceptedState(clusterState);
         assert getLastAcceptedState() == clusterState;
 
-        logger.info("--> handlePublishRequest({}/{}): configuration {} vs {}",
-            publishRequest.getAcceptedState().term(), publishRequest.getAcceptedState().version(),
-            getLastAcceptedConfiguration(), getLastCommittedConfiguration());
+        logger.info(
+            "--> handlePublishRequest({}/{}): configuration {} vs {}",
+            publishRequest.getAcceptedState().term(),
+            publishRequest.getAcceptedState().version(),
+            getLastAcceptedConfiguration(),
+            getLastCommittedConfiguration()
+        );
 
         return new PublishResponse(clusterState.term(), clusterState.version());
     }
@@ -506,10 +510,12 @@ public class CoordinationState {
 
         persistedState.markLastAcceptedStateAsCommitted();
         assert getLastCommittedConfiguration().equals(getLastAcceptedConfiguration());
-        logger.info("--> handleCommit({}/{}): configuration {}",
+        logger.info(
+            "--> handleCommit({}/{}): configuration {}",
             applyCommit.getTerm(),
             applyCommit.getVersion(),
-            getLastCommittedConfiguration());
+            getLastCommittedConfiguration()
+        );
     }
 
     public void invariant() {
