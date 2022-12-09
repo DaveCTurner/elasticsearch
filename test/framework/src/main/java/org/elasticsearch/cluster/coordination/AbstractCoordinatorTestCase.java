@@ -590,10 +590,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 final String nodeId = clusterNode.getId();
                 assertFalse(nodeId + " should not have an active publication", clusterNode.coordinator.publicationInProgress());
 
-                assertEquals(nodeId + " should not be mid-reconfiguration",
-                    clusterNode.coordinator.getLastAcceptedState().getLastAcceptedConfiguration(),
-                    clusterNode.coordinator.getLastAcceptedState().getLastCommittedConfiguration());
-
                 if (clusterNode == leader) {
                     assertThat(nodeId + " is still the leader", clusterNode.coordinator.getMode(), is(LEADER));
                     assertThat(nodeId + " did not change term", clusterNode.coordinator.getCurrentTerm(), is(leaderTerm));
@@ -652,6 +648,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         clusterNode.getLastAppliedClusterState().metadata().clusterUUID(),
                         equalTo(clusterUuid)
                     );
+                    assertEquals(nodeId + " has a stable configuration",
+                        clusterNode.getLastAppliedClusterState().getLastAcceptedConfiguration(),
+                        clusterNode.getLastAppliedClusterState().getLastCommittedConfiguration());
 
                     for (final ClusterNode otherNode : clusterNodes) {
                         if (isConnectedPair(leader, otherNode) && isConnectedPair(otherNode, clusterNode)) {
