@@ -1120,13 +1120,6 @@ public class PersistedClusterStateService {
          * Add documents for the metadata of the given cluster state, assuming that there are currently no documents.
          */
         private WriterStats addMetadata(Metadata metadata) throws IOException {
-
-            logger.info(
-                "--> writing metadata with configs {} vs {}",
-                metadata.coordinationMetadata().getLastAcceptedConfiguration(),
-                metadata.coordinationMetadata().getLastCommittedConfiguration()
-            );
-
             addGlobalMetadataDocuments(metadata);
 
             for (final var entry : metadata.getMappingsByHash().entrySet()) {

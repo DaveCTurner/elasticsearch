@@ -137,12 +137,7 @@ public class PublicationTransportHandler {
                     throw e;
                 }
                 fullClusterStateReceivedCount.incrementAndGet();
-                logger.debug(
-                    "--> received full cluster state version [{}] with size [{}], cmd [{}]",
-                    incomingState.version(),
-                    request.bytes().length(),
-                    incomingState.coordinationMetadata()
-                );
+                logger.debug("received full cluster state version [{}] with size [{}]", incomingState.version(), request.bytes().length());
                 final PublishWithJoinResponse response = acceptState(incomingState);
                 lastSeenClusterState.set(incomingState);
                 return response;
@@ -161,7 +156,6 @@ public class PublicationTransportHandler {
                             diff = ClusterState.readDiffFrom(input, lastSeen.nodes().getLocalNode());
                         }
                         incomingState = diff.apply(lastSeen); // might throw IncompatibleClusterStateVersionException
-                        logger.debug("--> apply {}", diff);
                     } catch (IncompatibleClusterStateVersionException e) {
                         incompatibleClusterStateDiffReceivedCount.incrementAndGet();
                         throw e;
@@ -172,11 +166,10 @@ public class PublicationTransportHandler {
                     }
                     compatibleClusterStateDiffReceivedCount.incrementAndGet();
                     logger.debug(
-                        "--> received diff cluster state version [{}] with uuid [{}], diff size [{}], cmd [{}]",
+                        "received diff cluster state version [{}] with uuid [{}], diff size [{}]",
                         incomingState.version(),
                         incomingState.stateUUID(),
-                        request.bytes().length(),
-                        incomingState.coordinationMetadata()
+                        request.bytes().length()
                     );
                     final PublishWithJoinResponse response = acceptState(incomingState);
                     lastSeenClusterState.compareAndSet(lastSeen, incomingState);
@@ -310,16 +303,9 @@ public class PublicationTransportHandler {
 
         void buildDiffAndSerializeStates() {
             assert refCount() > 0;
-            final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(() -> {
-                final var diff = newState.diff(previousState);
-                logger.info(
-                    "--> computing diff [{}] -> [{}]: [{}]",
-                    previousState.coordinationMetadata(),
-                    newState.coordinationMetadata(),
-                    diff
-                );
-                return diff;
-            });
+            final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(
+                () -> newState.diff(previousState)
+            );
             for (DiscoveryNode node : discoveryNodes) {
                 if (node.equals(transportService.getLocalNode())) {
                     // publication to local node bypasses any serialization
