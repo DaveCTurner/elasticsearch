@@ -866,11 +866,19 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
 
         private final Diff<Map<String, Custom>> customs;
 
-        @Nullable
-        private final CoordinationMetadata coordinationMetadata;
+        /*
+         * [NOTE] Fields adjusted at commit time
+         *
+         * Metadata.coordinationMetadata.lastCommittedConfiguration and Metadata.clusterUUIDCommitted are part of the cluster coordination
+         * consistency mechanism and are handled in a slightly strange way because they must be adjusted by each node locally when
+         * committing its state rather than being part of the state that is published and accepted.
+         */
 
         @Nullable
-        private final Boolean clusterUuidCommitted;
+        private final CoordinationMetadata coordinationMetadata; // adjusted at commit time so must always be copied
+
+        @Nullable
+        private final Boolean clusterUuidCommitted; // adjusted at commit time so must always be copied
 
         ClusterStateDiff(ClusterState before, ClusterState after) {
             fromUuid = before.stateUUID;
