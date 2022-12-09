@@ -945,7 +945,7 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.version(toVersion);
             builder.routingTable(routingTable.apply(state.routingTable));
             builder.nodes(nodes.apply(state.nodes));
-            Metadata metadata = this.metadata.apply(state.metadata);
+            var metadata = this.metadata.apply(state.metadata);
             if (coordinationMetadata != null && metadata.coordinationMetadata().equals(coordinationMetadata) == false) {
                 metadata = metadata.withCoordinationMetadata(coordinationMetadata);
             }
@@ -957,11 +957,6 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.customs(customs.apply(state.customs));
             builder.fromDiff(state);
             return builder.build();
-        }
-
-        @Override
-        public String toString() {
-            return coordinationMetadata.toString() + " / " + metadata.toString();
         }
     }
 }
