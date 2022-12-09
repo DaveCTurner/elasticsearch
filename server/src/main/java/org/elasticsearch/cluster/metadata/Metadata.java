@@ -442,6 +442,42 @@ public class Metadata extends AbstractCollection<IndexMetadata> implements Diffa
         );
     }
 
+    public Metadata withLastCommittedValues(
+        boolean clusterUUIDCommitted,
+        CoordinationMetadata.VotingConfiguration lastCommittedConfiguration
+    ) {
+        if (clusterUUIDCommitted == this.clusterUUIDCommitted
+            && lastCommittedConfiguration.equals(this.coordinationMetadata.getLastCommittedConfiguration())) {
+            return this;
+        }
+        return new Metadata(
+            clusterUUID,
+            clusterUUIDCommitted,
+            version,
+            CoordinationMetadata.builder(coordinationMetadata).lastCommittedConfiguration(lastCommittedConfiguration).build(),
+            transientSettings,
+            persistentSettings,
+            settings,
+            hashesOfConsistentSettings,
+            totalNumberOfShards,
+            totalOpenIndexShards,
+            indices,
+            aliasedIndices,
+            templates,
+            customs,
+            allIndices,
+            visibleIndices,
+            allOpenIndices,
+            visibleOpenIndices,
+            allClosedIndices,
+            visibleClosedIndices,
+            indicesLookup,
+            mappingsByHash,
+            oldestIndexVersion,
+            reservedStateMetadata
+        );
+    }
+
     /**
      * Creates a copy of this instance updated with the given {@link IndexMetadata} that must only contain changes to primary terms
      * and in-sync allocation ids relative to the existing entries. This method is only used by
