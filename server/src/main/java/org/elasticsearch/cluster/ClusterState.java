@@ -869,6 +869,9 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
         @Nullable
         private final CoordinationMetadata coordinationMetadata;
 
+        @Nullable
+        private final Boolean clusterUuidCommitted;
+
         ClusterStateDiff(ClusterState before, ClusterState after) {
             fromUuid = before.stateUUID;
             toUuid = after.stateUUID;
@@ -880,6 +883,7 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             blocks = after.blocks.diff(before.blocks);
             customs = DiffableUtils.diff(before.customs, after.customs, DiffableUtils.getStringKeySerializer(), CUSTOM_VALUE_SERIALIZER);
             coordinationMetadata = after.coordinationMetadata();
+            clusterUuidCommitted = after.metadata().clusterUUIDCommitted();
         }
 
         ClusterStateDiff(StreamInput in, DiscoveryNode localNode) throws IOException {
@@ -897,8 +901,10 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             }
             if (in.getVersion().onOrAfter(Version.V_8_7_0)) {
                 coordinationMetadata = new CoordinationMetadata(in);
+                clusterUuidCommitted = in.readBoolean();
             } else {
                 coordinationMetadata = null;
+                clusterUuidCommitted = null;
             }
         }
 
@@ -917,8 +923,11 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
                 out.writeVInt(-1); // used to be minimumMasterNodesOnPublishingMaster, which was used in 7.x for BWC with 6.x
             }
             if (out.getVersion().onOrAfter(Version.V_8_7_0)) {
-                assert coordinationMetadata != null; // only null if received from older node, but we shouldn't be forwarding that on
+                // only null if received from older node, but we shouldn't be forwarding that on
+                assert coordinationMetadata != null;
+                assert clusterUuidCommitted != null;
                 coordinationMetadata.writeTo(out);
+                out.writeBoolean(clusterUuidCommitted);
             }
         }
 
@@ -936,12 +945,14 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.version(toVersion);
             builder.routingTable(routingTable.apply(state.routingTable));
             builder.nodes(nodes.apply(state.nodes));
-            final var metadata = this.metadata.apply(state.metadata);
+            Metadata metadata = this.metadata.apply(state.metadata);
             if (coordinationMetadata != null && metadata.coordinationMetadata().equals(coordinationMetadata)) {
-                builder.metadata(Metadata.builder(metadata.withCoordinationMetadata(coordinationMetadata)));
-            } else {
-                builder.metadata(metadata);
+                metadata = metadata.withCoordinationMetadata(coordinationMetadata);
             }
+            if (clusterUuidCommitted != null && metadata.clusterUUIDCommitted() != clusterUuidCommitted) {
+                metadata = Metadata.builder(metadata).clusterUUIDCommitted(clusterUuidCommitted).build();
+            }
+            builder.metadata(metadata);
             builder.blocks(blocks.apply(state.blocks));
             builder.customs(customs.apply(state.customs));
             builder.fromDiff(state);
