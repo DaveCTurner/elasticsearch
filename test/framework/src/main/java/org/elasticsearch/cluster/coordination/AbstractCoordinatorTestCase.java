@@ -1250,7 +1250,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                             onNode(
                                 () -> logger.info("--> unstable config: {} vs {}", lastCommittedConfiguration, lastAcceptedConfiguration)
                             ).run();
-                        } else if (lastCommittedConfiguration.equals(lastLoggedVotingConfiguration)) {
+                        } else if (lastCommittedConfiguration.equals(lastLoggedVotingConfiguration) == false) {
                             lastLoggedVotingConfiguration = lastCommittedConfiguration;
                             onNode(() -> logger.info("--> new stable config: {}", lastCommittedConfiguration)).run();
                         }
