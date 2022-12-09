@@ -393,15 +393,22 @@ public class CoordinationState {
         var stateToAccept = clusterState;
         final var lastCommittedConfiguration = getLastCommittedConfiguration();
         if (lastCommittedConfiguration.equals(clusterState.getLastCommittedConfiguration()) == false) {
-            stateToAccept = ClusterState.builder(stateToAccept).metadata(clusterState.metadata().withCoordinationMetadata(
-                CoordinationMetadata.builder(stateToAccept.coordinationMetadata()).lastCommittedConfiguration(lastCommittedConfiguration)
-                    .build()
-            )).build();
+            stateToAccept = ClusterState.builder(stateToAccept)
+                .metadata(
+                    clusterState.metadata()
+                        .withCoordinationMetadata(
+                            CoordinationMetadata.builder(stateToAccept.coordinationMetadata())
+                                .lastCommittedConfiguration(lastCommittedConfiguration)
+                                .build()
+                        )
+                )
+                .build();
         }
         final var clusterUUIDCommitted = getLastAcceptedState().metadata().clusterUUIDCommitted();
         if (clusterUUIDCommitted != clusterState.metadata().clusterUUIDCommitted()) {
-            stateToAccept = ClusterState.builder(stateToAccept).metadata(Metadata.builder(stateToAccept.metadata())
-                .clusterUUIDCommitted(clusterUUIDCommitted)).build();
+            stateToAccept = ClusterState.builder(stateToAccept)
+                .metadata(Metadata.builder(stateToAccept.metadata()).clusterUUIDCommitted(clusterUUIDCommitted))
+                .build();
         }
 
         persistedState.setLastAcceptedState(stateToAccept);
