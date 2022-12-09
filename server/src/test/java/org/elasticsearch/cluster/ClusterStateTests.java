@@ -49,7 +49,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -1040,46 +1039,5 @@ public class ClusterStateTests extends ESTestCase {
             .blocks(ClusterBlocks.builder().addGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK))
             .build();
         assertEquals(DiscoveryNodes.EMPTY_NODES, notRecoveredState.nodesIfRecovered());
-    }
-
-    public void testDiffAlwaysContainsFieldsChangedAtCommitTime() {
-        final var nodes = IntStream.range(0, 5)
-            .mapToObj(i -> new DiscoveryNode("node-" + i, buildNewFakeTransportAddress(), Version.CURRENT))
-            .toList();
-
-        final var acceptedState = ClusterState.builder(ClusterState.EMPTY_STATE).metadata(Metadata.builder()
-            .coordinationMetadata(
-                CoordinationMetadata.builder()
-                    .term(randomNonNegativeLong())
-                    .lastAcceptedConfiguration(
-                        CoordinationMetadata.VotingConfiguration.of(randomSubsetOf(nodes).toArray(new DiscoveryNode[0]))
-                    )
-                    .lastCommittedConfiguration(
-                        CoordinationMetadata.VotingConfiguration.of(randomSubsetOf(nodes).toArray(new DiscoveryNode[0]))
-                    )
-                    .build()
-            )
-            .clusterUUID(randomAlphaOfLength(10))
-            .clusterUUIDCommitted(randomBoolean())
-            ).build();
-
-        final var committedState = ClusterState.builder(ClusterState.EMPTY_STATE).metadata(Metadata.builder()
-            .coordinationMetadata(
-                CoordinationMetadata.builder()
-                    .term(randomNonNegativeLong())
-                    .lastAcceptedConfiguration(
-                        CoordinationMetadata.VotingConfiguration.of(randomSubsetOf(nodes).toArray(new DiscoveryNode[0]))
-                    )
-                    .lastCommittedConfiguration(
-                        CoordinationMetadata.VotingConfiguration.of(randomSubsetOf(nodes).toArray(new DiscoveryNode[0]))
-                    )
-                    .build()
-            )
-            .clusterUUID(randomAlphaOfLength(10))
-            .clusterUUIDCommitted(randomBoolean()))
-            .build();
-
-
-
     }
 }

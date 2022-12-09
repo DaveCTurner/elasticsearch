@@ -866,20 +866,6 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
 
         private final Diff<Map<String, Custom>> customs;
 
-        /*
-         * [NOTE] Fields adjusted at commit time
-         *
-         * Metadata.coordinationMetadata.lastCommittedConfiguration and Metadata.clusterUUIDCommitted are part of the cluster coordination
-         * consistency mechanism and are handled in a slightly strange way because they must be adjusted by each node locally when
-         * committing its state rather than being part of the state that is published and accepted.
-         */
-
-        @Nullable
-        private final CoordinationMetadata coordinationMetadata; // adjusted at commit time so must always be copied
-
-        @Nullable
-        private final Boolean clusterUuidCommitted; // adjusted at commit time so must always be copied
-
         ClusterStateDiff(ClusterState before, ClusterState after) {
             fromUuid = before.stateUUID;
             toUuid = after.stateUUID;
@@ -890,8 +876,6 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             metadata = after.metadata.diff(before.metadata);
             blocks = after.blocks.diff(before.blocks);
             customs = DiffableUtils.diff(before.customs, after.customs, DiffableUtils.getStringKeySerializer(), CUSTOM_VALUE_SERIALIZER);
-            coordinationMetadata = after.coordinationMetadata();
-            clusterUuidCommitted = after.metadata().clusterUUIDCommitted();
         }
 
         ClusterStateDiff(StreamInput in, DiscoveryNode localNode) throws IOException {
@@ -906,13 +890,6 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             customs = DiffableUtils.readJdkMapDiff(in, DiffableUtils.getStringKeySerializer(), CUSTOM_VALUE_SERIALIZER);
             if (in.getVersion().before(Version.V_8_0_0)) {
                 in.readVInt(); // used to be minimumMasterNodesOnPublishingMaster, which was used in 7.x for BWC with 6.x
-            }
-            if (in.getVersion().onOrAfter(Version.V_8_7_0)) {
-                coordinationMetadata = new CoordinationMetadata(in);
-                clusterUuidCommitted = in.readBoolean();
-            } else {
-                coordinationMetadata = null;
-                clusterUuidCommitted = null;
             }
         }
 
@@ -930,13 +907,6 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             if (out.getVersion().before(Version.V_8_0_0)) {
                 out.writeVInt(-1); // used to be minimumMasterNodesOnPublishingMaster, which was used in 7.x for BWC with 6.x
             }
-            if (out.getVersion().onOrAfter(Version.V_8_7_0)) {
-                // only null if received from older node, but we shouldn't be forwarding that on
-                assert coordinationMetadata != null;
-                assert clusterUuidCommitted != null;
-                coordinationMetadata.writeTo(out);
-                out.writeBoolean(clusterUuidCommitted);
-            }
         }
 
         @Override
@@ -953,14 +923,7 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.version(toVersion);
             builder.routingTable(routingTable.apply(state.routingTable));
             builder.nodes(nodes.apply(state.nodes));
-            var metadata = this.metadata.apply(state.metadata);
-            if (coordinationMetadata != null && metadata.coordinationMetadata().equals(coordinationMetadata) == false) {
-                metadata = metadata.withCoordinationMetadata(coordinationMetadata);
-            }
-            if (clusterUuidCommitted != null && metadata.clusterUUIDCommitted() != clusterUuidCommitted) {
-                metadata = Metadata.builder(metadata).clusterUUIDCommitted(clusterUuidCommitted).build();
-            }
-            builder.metadata(metadata);
+            builder.metadata(metadata.apply(state.metadata));
             builder.blocks(blocks.apply(state.blocks));
             builder.customs(customs.apply(state.customs));
             builder.fromDiff(state);
