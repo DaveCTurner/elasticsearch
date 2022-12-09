@@ -946,7 +946,7 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.routingTable(routingTable.apply(state.routingTable));
             builder.nodes(nodes.apply(state.nodes));
             Metadata metadata = this.metadata.apply(state.metadata);
-            if (coordinationMetadata != null && metadata.coordinationMetadata().equals(coordinationMetadata)) {
+            if (coordinationMetadata != null && metadata.coordinationMetadata().equals(coordinationMetadata) == false) {
                 metadata = metadata.withCoordinationMetadata(coordinationMetadata);
             }
             if (clusterUuidCommitted != null && metadata.clusterUUIDCommitted() != clusterUuidCommitted) {
