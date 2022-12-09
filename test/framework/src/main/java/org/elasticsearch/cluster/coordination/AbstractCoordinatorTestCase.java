@@ -22,8 +22,10 @@ import org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAct
 import org.elasticsearch.action.admin.cluster.node.hotthreads.TransportNodesHotThreadsAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.ESAllocationTestCase;
@@ -648,9 +650,11 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         clusterNode.getLastAppliedClusterState().metadata().clusterUUID(),
                         equalTo(clusterUuid)
                     );
-                    assertEquals(nodeId + " has a stable configuration",
+                    assertEquals(
+                        nodeId + " has a stable configuration",
                         clusterNode.getLastAppliedClusterState().getLastAcceptedConfiguration(),
-                        clusterNode.getLastAppliedClusterState().getLastCommittedConfiguration());
+                        clusterNode.getLastAppliedClusterState().getLastCommittedConfiguration()
+                    );
 
                     for (final ClusterNode otherNode : clusterNodes) {
                         if (isConnectedPair(leader, otherNode) && isConnectedPair(otherNode, clusterNode)) {
@@ -1235,6 +1239,23 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     deterministicTaskQueue,
                     threadPool
                 );
+                clusterApplierService.addListener(new ClusterStateListener() {
+                    VotingConfiguration lastLoggedVotingConfiguration = VotingConfiguration.MUST_JOIN_ELECTED_MASTER;
+
+                    @Override
+                    public void clusterChanged(ClusterChangedEvent event) {
+                        final var lastCommittedConfiguration = event.state().coordinationMetadata().getLastCommittedConfiguration();
+                        final var lastAcceptedConfiguration = event.state().coordinationMetadata().getLastAcceptedConfiguration();
+                        if (lastCommittedConfiguration.equals(lastAcceptedConfiguration) == false) {
+                            onNode(
+                                () -> logger.info("--> unstable config: {} vs {}", lastCommittedConfiguration, lastAcceptedConfiguration)
+                            ).run();
+                        } else if (lastCommittedConfiguration.equals(lastLoggedVotingConfiguration)) {
+                            lastLoggedVotingConfiguration = lastCommittedConfiguration;
+                            onNode(() -> logger.info("--> new stable config: {}", lastCommittedConfiguration)).run();
+                        }
+                    }
+                });
                 clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
                 masterHistoryService = new MasterHistoryService(transportService, threadPool, clusterService);
                 clusterService.setNodeConnectionsService(
