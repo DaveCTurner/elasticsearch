@@ -309,9 +309,10 @@ public class PublicationTransportHandler {
 
         void buildDiffAndSerializeStates() {
             assert refCount() > 0;
-            final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(
-                () -> newState.diff(previousState)
-            );
+            final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(() -> {
+                logger.info("--> computing diff [{}] -> [{}]", previousState.coordinationMetadata(), newState.coordinationMetadata());
+                return newState.diff(previousState);
+            });
             for (DiscoveryNode node : discoveryNodes) {
                 if (node.equals(transportService.getLocalNode())) {
                     // publication to local node bypasses any serialization
