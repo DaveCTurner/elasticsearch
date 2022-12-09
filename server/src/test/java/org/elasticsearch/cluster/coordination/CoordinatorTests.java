@@ -568,7 +568,8 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/90158")
+    @TestLogging(reason="nocommit", value="org.elasticsearch:INFO," +
+                                          "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE")
     public void testUnhealthyLeaderIsReplaced() {
         final AtomicReference<StatusInfo> nodeHealthServiceStatus = new AtomicReference<>(new StatusInfo(HEALTHY, "healthy-info"));
         final int initialClusterSize = between(1, 3);
