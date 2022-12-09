@@ -389,8 +389,25 @@ public class CoordinationState {
             clusterState.version(),
             clusterState.term()
         );
-        persistedState.setLastAcceptedState(clusterState);
-        assert getLastAcceptedState() == clusterState;
+
+        var stateToAccept = clusterState;
+        final var lastCommittedConfiguration = getLastCommittedConfiguration();
+        if (lastCommittedConfiguration.equals(clusterState.getLastCommittedConfiguration()) == false) {
+            stateToAccept = ClusterState.builder(stateToAccept).metadata(clusterState.metadata().withCoordinationMetadata(
+                CoordinationMetadata.builder(stateToAccept.coordinationMetadata()).lastCommittedConfiguration(lastCommittedConfiguration)
+                    .build()
+            )).build();
+        }
+        final var clusterUUIDCommitted = getLastAcceptedState().metadata().clusterUUIDCommitted();
+        if (clusterUUIDCommitted != clusterState.metadata().clusterUUIDCommitted()) {
+            stateToAccept = ClusterState.builder(stateToAccept).metadata(Metadata.builder(stateToAccept.metadata())
+                .clusterUUIDCommitted(clusterUUIDCommitted)).build();
+        }
+
+        persistedState.setLastAcceptedState(stateToAccept);
+        assert getLastAcceptedState() == stateToAccept;
+        assert stateToAccept.term() == clusterState.term();
+        assert stateToAccept.version() == clusterState.version();
 
         return new PublishResponse(clusterState.term(), clusterState.version());
     }
