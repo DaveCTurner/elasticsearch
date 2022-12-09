@@ -958,5 +958,10 @@ public class ClusterState implements ToXContentFragment, Diffable<ClusterState> 
             builder.fromDiff(state);
             return builder.build();
         }
+
+        @Override
+        public String toString() {
+            return coordinationMetadata.toString() + " / " + metadata.toString();
+        }
     }
 }

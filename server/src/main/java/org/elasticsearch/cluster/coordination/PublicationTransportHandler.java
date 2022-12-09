@@ -161,6 +161,7 @@ public class PublicationTransportHandler {
                             diff = ClusterState.readDiffFrom(input, lastSeen.nodes().getLocalNode());
                         }
                         incomingState = diff.apply(lastSeen); // might throw IncompatibleClusterStateVersionException
+                        logger.debug("--> apply {}", diff);
                     } catch (IncompatibleClusterStateVersionException e) {
                         incompatibleClusterStateDiffReceivedCount.incrementAndGet();
                         throw e;
@@ -310,8 +311,14 @@ public class PublicationTransportHandler {
         void buildDiffAndSerializeStates() {
             assert refCount() > 0;
             final LazyInitializable<Diff<ClusterState>, RuntimeException> diffSupplier = new LazyInitializable<>(() -> {
-                logger.info("--> computing diff [{}] -> [{}]", previousState.coordinationMetadata(), newState.coordinationMetadata());
-                return newState.diff(previousState);
+                final var diff = newState.diff(previousState);
+                logger.info(
+                    "--> computing diff [{}] -> [{}]: [{}]",
+                    previousState.coordinationMetadata(),
+                    newState.coordinationMetadata(),
+                    diff
+                );
+                return diff;
             });
             for (DiscoveryNode node : discoveryNodes) {
                 if (node.equals(transportService.getLocalNode())) {
