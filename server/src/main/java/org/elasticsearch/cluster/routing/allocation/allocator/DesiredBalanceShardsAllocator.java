@@ -296,7 +296,7 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
                     batchExecutionContext.initialState(),
                     routingAllocation -> reconcile(latest.getTask().desiredBalance, routingAllocation)
                 );
-                latest.success(() -> queue.complete(latest.getTask().desiredBalance.lastConvergedIndex()));
+                latest.success(() -> notifyPendingListeners(latest.getTask().desiredBalance.lastConvergedIndex()));
                 return newState;
             }
         }
@@ -314,8 +314,8 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
     }
 
     // exposed for tests
-    protected PendingListenersQueue getQueue() {
-        return queue;
+    protected final void notifyPendingListeners(long convergedIndex) {
+        queue.complete(convergedIndex);
     }
 
     private void recordTime(CounterMetric metric, Runnable action) {
