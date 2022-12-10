@@ -313,6 +313,11 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
         }
     }
 
+    // exposed for tests
+    protected PendingListenersQueue getQueue() {
+        return queue;
+    }
+
     private void recordTime(CounterMetric metric, Runnable action) {
         final long started = threadPool.relativeTimeInMillis();
         try {

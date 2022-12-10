@@ -142,6 +142,7 @@ public abstract class ESAllocationTestCase extends ESTestCase {
             protected void submitReconcileTask(DesiredBalance desiredBalance) {
                 // reconcile synchronously rather than in cluster state update task
                 super.reconcile(desiredBalance, lastAllocation);
+                getQueue().complete(desiredBalance.lastConvergedIndex());
             }
         };
     }
