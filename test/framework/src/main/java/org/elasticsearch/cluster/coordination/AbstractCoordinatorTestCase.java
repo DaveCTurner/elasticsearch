@@ -1256,7 +1256,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     clusterApplierService,
                     onJoinValidators,
                     Randomness.get(),
-                    (s, p, r) -> {},
+                    (s, p, r) -> r.onResponse(clusterService.state()),
                     getElectionStrategy(),
                     nodeHealthService,
                     new NoneCircuitBreakerService()
