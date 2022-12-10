@@ -728,6 +728,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
     @TestLogging(reason="nocommit", value="org.elasticsearch:INFO," +
                                           "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE," +
                                           "org.elasticsearch.cluster.coordination:TRACE," +
+                                          "org.elasticsearch.cluster.service.MasterService:TRACE," +
                                           "org.elasticsearch.gateway:TRACE")
     public void testStateRecoveryResetAfterPreviousLeadership() {
         try (Cluster cluster = new Cluster(3)) {

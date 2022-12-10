@@ -200,6 +200,7 @@ public class GatewayService extends AbstractLifecycleComponent implements Cluste
     }
 
     private void resetRecoveredFlags() {
+        logger.trace("resetting recovered flags");
         recoveryInProgress.set(false);
         scheduledRecovery.set(false);
     }
