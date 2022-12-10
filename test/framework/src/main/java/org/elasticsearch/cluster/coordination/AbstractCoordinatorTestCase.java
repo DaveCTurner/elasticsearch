@@ -1241,6 +1241,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     (dn, cs) -> extraJoinValidators.forEach(validator -> validator.accept(dn, cs))
                 );
                 final AllocationService allocationService = ESAllocationTestCase.createAllocationService(Settings.EMPTY);
+                clusterService.setRerouteService(new BatchedRerouteService(clusterService, allocationService::reroute));
                 final NodeClient client = new NodeClient(Settings.EMPTY, threadPool);
                 coordinator = new Coordinator(
                     "test_node",
@@ -1256,7 +1257,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     clusterApplierService,
                     onJoinValidators,
                     Randomness.get(),
-                    (s, p, r) -> {},
+                    clusterService.getRerouteService(),
                     getElectionStrategy(),
                     nodeHealthService,
                     new NoneCircuitBreakerService()
@@ -1292,7 +1293,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 masterService.setClusterStatePublisher(coordinator);
                 final GatewayService gatewayService = new GatewayService(
                     settings,
-                    new BatchedRerouteService(clusterService, allocationService::reroute),
+                    clusterService.getRerouteService(),
                     clusterService,
                     threadPool
                 );
