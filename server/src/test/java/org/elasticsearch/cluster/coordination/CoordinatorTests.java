@@ -730,7 +730,8 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
                                           "org.elasticsearch.cluster.coordination:TRACE," +
                                           "org.elasticsearch.cluster.service.MasterService:TRACE," +
                                           "org.elasticsearch.gateway:TRACE," +
-                                          "org.elasticsearch.cluster.routing.allocation:TRACE")
+                                          "org.elasticsearch.cluster.routing.allocation:TRACE," +
+                                          "org.elasticsearch.cluster.routing.BatchedRerouteService:TRACE")
     public void testStateRecoveryResetAfterPreviousLeadership() {
         try (Cluster cluster = new Cluster(3)) {
             cluster.runRandomly();
