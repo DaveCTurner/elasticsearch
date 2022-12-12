@@ -1588,6 +1588,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     expectedVotes.addVote(Coordinator.this.getLocalNode());
                     final boolean foundQuorum = coordinationState.get().isElectionQuorum(expectedVotes);
 
+                    logger.trace("onFoundPeersUpdated: mode=[{}], foundQuorum=[{}], expectedVotes={}", mode, foundQuorum, expectedVotes);
+
                     if (foundQuorum) {
                         if (electionScheduler == null) {
                             startElectionScheduler();
@@ -1595,6 +1597,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     } else {
                         closePrevotingAndElectionScheduler();
                     }
+                } else {
+                    logger.trace("onFoundPeersUpdated: mode=[{}]", mode);
                 }
             }
             peerFinderListeners.forEach(PeerFinderListener::onFoundPeersUpdated);
@@ -1608,6 +1612,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             return;
         }
 
+        logger.trace("startElectionScheduler");
         final TimeValue gracePeriod = TimeValue.ZERO;
         electionScheduler = electionSchedulerFactory.startElectionScheduler(gracePeriod, new Runnable() {
             @Override
