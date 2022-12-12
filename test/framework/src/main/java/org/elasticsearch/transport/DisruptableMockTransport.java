@@ -253,12 +253,36 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     protected void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace("DMT@{} dropping {}", getLocalNode(), getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
+        logger.trace(
+            "DMT@{} dropping request {}",
+            getLocalNode(),
+            getRequestDescription(requestId, action, destinationTransport.getLocalNode())
+        );
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
             @Override
             public void run() {
                 onDisconnectedDuringSend(requestId, action, destinationTransport);
+            }
+
+            @Override
+            public String toString() {
+                return "deferred handling of dropped " + getRequestDescription(requestId, action, destinationTransport.getLocalNode());
+            }
+        });
+    }
+
+    protected void onBlackholedResponse(long requestId, String action, DisruptableMockTransport destinationTransport) {
+        logger.trace(
+            "DMT@{} dropping response {}",
+            getLocalNode(),
+            getRequestDescription(requestId, action, destinationTransport.getLocalNode())
+        );
+        // Delaying the response until explicitly instructed, to simulate a very long delay
+        blackholedRequests.add(new Runnable() {
+            @Override
+            public void run() {
+                wrapAndExecute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
             }
 
             @Override
@@ -330,7 +354,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                                     requestDescription,
                                     connectionStatus
                                 );
-                                onBlackholedDuringSend(requestId, action, destinationTransport);
+                                onBlackholedResponse(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
                         }
@@ -363,7 +387,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                                     requestDescription,
                                     connectionStatus
                                 );
-                                onBlackholedDuringSend(requestId, action, destinationTransport);
+                                onBlackholedResponse(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
                         }
