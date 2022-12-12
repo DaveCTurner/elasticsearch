@@ -271,6 +271,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 execute(new RebootSensitiveRunnable() {
                     @Override
                     public void ifRebooted() {
+                        logger.trace("response to {}: ifRebooted()", requestDescription);
                         response.decRef();
                         cleanupResponseHandler(requestId);
                     }
@@ -279,7 +280,10 @@ public abstract class DisruptableMockTransport extends MockTransport {
                     public void run() {
                         final ConnectionStatus connectionStatus = destinationTransport.getConnectionStatus(getLocalNode());
                         switch (connectionStatus) {
-                            case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleResponse(requestId, response);
+                            case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> {
+                                logger.trace("response to {}: handleResponse({})", requestDescription, response);
+                                handleResponse(requestId, response);
+                            }
                             case BLACK_HOLE, DISCONNECTED -> {
                                 response.decRef();
                                 logger.trace("delaying response to {}: channel is {}", requestDescription, connectionStatus);
