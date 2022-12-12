@@ -194,7 +194,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
         });
     }
 
-    protected Runnable getDisconnectException(long requestId, String action, DiscoveryNode destination) {
+    private Runnable getDisconnectException(long requestId, String action, DiscoveryNode destination) {
         return new RebootSensitiveRunnable() {
             @Override
             public void ifRebooted() {
@@ -213,11 +213,11 @@ public abstract class DisruptableMockTransport extends MockTransport {
         };
     }
 
-    protected String getRequestDescription(long requestId, String action, DiscoveryNode destination) {
+    private String getRequestDescription(long requestId, String action, DiscoveryNode destination) {
         return format("[%s][%s] from %s to %s", requestId, action, getLocalNode(), destination);
     }
 
-    protected void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
+    private void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
         logger.trace("dropping {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
@@ -233,7 +233,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
         });
     }
 
-    protected void onBlackholedResponse(long requestId, String action, DisruptableMockTransport destinationTransport) {
+    private void onBlackholedResponse(long requestId, String action, DisruptableMockTransport destinationTransport) {
         logger.trace(
             "DMT@{} dropping response {}",
             getLocalNode(),
@@ -253,11 +253,11 @@ public abstract class DisruptableMockTransport extends MockTransport {
         });
     }
 
-    protected void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
+    private void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
         destinationTransport.execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
     }
 
-    protected void onConnectedDuringSend(
+    private void onConnectedDuringSend(
         long requestId,
         String action,
         TransportRequest request,
@@ -324,6 +324,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                         switch (connectionStatus) {
                             case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleRemoteError(requestId, exception);
                             case BLACK_HOLE, DISCONNECTED -> {
+                                logger.trace("delaying exception response to {}: channel is {}", requestDescription, connectionStatus);
                                 onBlackholedResponse(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
