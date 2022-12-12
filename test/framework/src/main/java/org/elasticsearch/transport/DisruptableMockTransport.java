@@ -90,6 +90,21 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 );
             } else {
                 listener.onResponse(new CloseableConnection() {
+
+                    {
+                        addCloseListener(new ActionListener<>() {
+                            @Override
+                            public void onResponse(Void unused) {
+                                logger.info("onResponse closed connection from [{}] to [{}]", getLocalNode(), node);
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                logger.info("onFailure closed connection from [{}] to [{}]", getLocalNode(), node);
+                            }
+                        });
+                    }
+
                     @Override
                     public DiscoveryNode getNode() {
                         return node;
