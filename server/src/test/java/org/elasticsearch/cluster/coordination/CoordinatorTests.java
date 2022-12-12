@@ -1411,14 +1411,6 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         testAppliesNoMasterBlock("write", NO_MASTER_BLOCK_WRITES);
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch:INFO,"
-            + "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE,"
-            + "org.elasticsearch.cluster.coordination:TRACE,"
-            + "org.elasticsearch.discovery:TRACE,"
-            + "org.elasticsearch.transport:TRACE"
-    )
     public void testAppliesNoMasterBlockAllIfConfigured() {
         testAppliesNoMasterBlock("all", NO_MASTER_BLOCK_ALL);
     }
