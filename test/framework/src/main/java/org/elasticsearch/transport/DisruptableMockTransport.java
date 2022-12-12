@@ -152,8 +152,8 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 try {
                     final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
                     switch (connectionStatus) {
-                        case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> onBlackholedRequest(requestId, action, destinationTransport);
-                        case DISCONNECTED -> execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
+                        case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> onBlackholedDuringSend(requestId, action, destinationTransport);
+                        case DISCONNECTED -> onDisconnectedDuringSend(requestId, action, destinationTransport);
                         case CONNECTED -> onConnectedDuringSend(requestId, action, request, destinationTransport);
                         default -> throw new AssertionError("unexpected status: " + connectionStatus);
                     }
@@ -217,13 +217,13 @@ public abstract class DisruptableMockTransport extends MockTransport {
         return format("[%s][%s] from %s to %s", requestId, action, getLocalNode(), destination);
     }
 
-    private void onBlackholedRequest(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace("dropping request {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
+    private void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
+        logger.trace("dropping {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
             @Override
             public void run() {
-                execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
+                onDisconnectedDuringSend(requestId, action, destinationTransport);
             }
 
             @Override
@@ -233,20 +233,8 @@ public abstract class DisruptableMockTransport extends MockTransport {
         });
     }
 
-    private void onBlackholedResponse(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace("dropping response {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
-        // Delaying the response until explicitly instructed, to simulate a very long delay
-        blackholedRequests.add(new Runnable() {
-            @Override
-            public void run() {
-                execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
-            }
-
-            @Override
-            public String toString() {
-                return "deferred handling of dropped " + getRequestDescription(requestId, action, destinationTransport.getLocalNode());
-            }
-        });
+    private void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
+        execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
     }
 
     private void onConnectedDuringSend(
@@ -289,7 +277,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                             case BLACK_HOLE, DISCONNECTED -> {
                                 response.decRef();
                                 logger.trace("delaying response to {}: channel is {}", requestDescription, connectionStatus);
-                                onBlackholedResponse(requestId, action, destinationTransport);
+                                onBlackholedDuringSend(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
                         }
@@ -317,7 +305,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                             case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleRemoteError(requestId, exception);
                             case BLACK_HOLE, DISCONNECTED -> {
                                 logger.trace("delaying exception response to {}: channel is {}", requestDescription, connectionStatus);
-                                onBlackholedResponse(requestId, action, destinationTransport);
+                                onBlackholedDuringSend(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
                         }
