@@ -173,7 +173,13 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
                     @Override
                     public void run() {
-                        handleRemoteError(requestId, new NodeNotConnectedException(destinationTransport.getLocalNode(), "node rebooted"));
+                        handleRemoteError(
+                            requestId,
+                            new NodeNotConnectedException(
+                                destinationTransport.getLocalNode(),
+                                "node rebooted: " + destinationTransport.getLocalNode()
+                            )
+                        );
                     }
 
                     @Override
