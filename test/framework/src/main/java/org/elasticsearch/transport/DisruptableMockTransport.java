@@ -53,6 +53,34 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
     protected abstract void execute(Runnable runnable);
 
+    private void wrapAndExecute(Runnable runnable) {
+        execute(runnable instanceof RebootSensitiveRunnable rebootSensitiveRunnable ? new RebootSensitiveRunnable() {
+            @Override
+            public void ifRebooted() {
+                rebootSensitiveRunnable.ifRebooted();
+            }
+
+            public void run() {
+                runnable.run();
+            }
+
+            @Override
+            public String toString() {
+                return "DMT@" + getLocalNode() + "[" + runnable + "]";
+            }
+        } : new Runnable() {
+            @Override
+            public void run() {
+                runnable.run();
+            }
+
+            @Override
+            public String toString() {
+                return "DMT@" + getLocalNode() + "[" + runnable + "]";
+            }
+        });
+    }
+
     public DiscoveryNode getLocalNode() {
         return localNode;
     }
@@ -91,20 +119,6 @@ public abstract class DisruptableMockTransport extends MockTransport {
             } else {
                 listener.onResponse(new CloseableConnection() {
 
-                    {
-                        addCloseListener(new ActionListener<>() {
-                            @Override
-                            public void onResponse(Void unused) {
-                                logger.info("onResponse closed connection from [{}] to [{}]", getLocalNode(), node);
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                logger.info("onFailure closed connection from [{}] to [{}]", getLocalNode(), node);
-                            }
-                        });
-                    }
-
                     @Override
                     public DiscoveryNode getNode() {
                         return node;
@@ -114,7 +128,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                     public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
                         throws TransportException {
                         if (blockedActions.contains(action)) {
-                            execute(new RebootSensitiveRunnable() {
+                            wrapAndExecute(new RebootSensitiveRunnable() {
                                 @Override
                                 public void ifRebooted() {
                                     cleanupResponseHandler(requestId);
@@ -161,7 +175,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
         request.incRef();
 
-        destinationTransport.execute(new RebootSensitiveRunnable() {
+        destinationTransport.wrapAndExecute(new RebootSensitiveRunnable() {
             @Override
             public void run() {
                 try {
@@ -180,7 +194,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
             @Override
             public void ifRebooted() {
                 request.decRef();
-                execute(new RebootSensitiveRunnable() {
+                wrapAndExecute(new RebootSensitiveRunnable() {
                     @Override
                     public void ifRebooted() {
                         cleanupResponseHandler(requestId);
@@ -239,7 +253,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     protected void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace("dropping {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
+        logger.trace("DMT@{} dropping {}", getLocalNode(), getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
             @Override
@@ -255,7 +269,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     protected void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        destinationTransport.execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
+        destinationTransport.wrapAndExecute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
     }
 
     protected void onConnectedDuringSend(
@@ -283,10 +297,14 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
             @Override
             public void sendResponse(final TransportResponse response) {
-                execute(new RebootSensitiveRunnable() {
+                wrapAndExecute(new RebootSensitiveRunnable() {
                     @Override
                     public void ifRebooted() {
-                        logger.trace("response to {}: ifRebooted()", requestDescription);
+                        logger.trace(
+                            "DMT@{} response to {}: ifRebooted()",
+                            DisruptableMockTransport.this.getLocalNode(),
+                            requestDescription
+                        );
                         response.decRef();
                         cleanupResponseHandler(requestId);
                     }
@@ -296,12 +314,22 @@ public abstract class DisruptableMockTransport extends MockTransport {
                         final ConnectionStatus connectionStatus = destinationTransport.getConnectionStatus(getLocalNode());
                         switch (connectionStatus) {
                             case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> {
-                                logger.trace("response to {}: handleResponse({})", requestDescription, response);
+                                logger.trace(
+                                    "DMT@{} response to {}: handleResponse({})",
+                                    DisruptableMockTransport.this.getLocalNode(),
+                                    requestDescription,
+                                    response
+                                );
                                 handleResponse(requestId, response);
                             }
                             case BLACK_HOLE, DISCONNECTED -> {
                                 response.decRef();
-                                logger.trace("delaying response to {}: channel is {}", requestDescription, connectionStatus);
+                                logger.trace(
+                                    "DMT@{} delaying response to {}: channel is {}",
+                                    DisruptableMockTransport.this.getLocalNode(),
+                                    requestDescription,
+                                    connectionStatus
+                                );
                                 onBlackholedDuringSend(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
@@ -317,7 +345,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
             @Override
             public void sendResponse(Exception exception) {
-                execute(new RebootSensitiveRunnable() {
+                wrapAndExecute(new RebootSensitiveRunnable() {
                     @Override
                     public void ifRebooted() {
                         cleanupResponseHandler(requestId);
@@ -329,7 +357,12 @@ public abstract class DisruptableMockTransport extends MockTransport {
                         switch (connectionStatus) {
                             case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleRemoteError(requestId, exception);
                             case BLACK_HOLE, DISCONNECTED -> {
-                                logger.trace("delaying exception response to {}: channel is {}", requestDescription, connectionStatus);
+                                logger.trace(
+                                    "DMT@{} delaying exception response to {}: channel is {}",
+                                    DisruptableMockTransport.this.getLocalNode(),
+                                    requestDescription,
+                                    connectionStatus
+                                );
                                 onBlackholedDuringSend(requestId, action, destinationTransport);
                             }
                             default -> throw new AssertionError("unexpected status: " + connectionStatus);
