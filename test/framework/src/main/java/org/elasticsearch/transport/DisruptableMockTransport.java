@@ -152,7 +152,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 try {
                     final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
                     switch (connectionStatus) {
-                        case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> onBlackholedDuringSend(requestId, action, destinationTransport);
+                        case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> onBlackholedRequest(requestId, action, destinationTransport);
                         case DISCONNECTED -> onDisconnectedDuringSend(requestId, action, destinationTransport);
                         case CONNECTED -> onConnectedDuringSend(requestId, action, request, destinationTransport);
                         default -> throw new AssertionError("unexpected status: " + connectionStatus);
@@ -217,8 +217,8 @@ public abstract class DisruptableMockTransport extends MockTransport {
         return format("[%s][%s] from %s to %s", requestId, action, getLocalNode(), destination);
     }
 
-    private void onBlackholedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace("dropping {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
+    private void onBlackholedRequest(long requestId, String action, DisruptableMockTransport destinationTransport) {
+        logger.trace("dropping request {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
             @Override
@@ -234,11 +234,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     private void onBlackholedResponse(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        logger.trace(
-            "DMT@{} dropping response {}",
-            getLocalNode(),
-            getRequestDescription(requestId, action, destinationTransport.getLocalNode())
-        );
+        logger.trace("dropping response {}", getRequestDescription(requestId, action, destinationTransport.getLocalNode()));
         // Delaying the response until explicitly instructed, to simulate a very long delay
         blackholedRequests.add(new Runnable() {
             @Override
