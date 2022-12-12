@@ -1416,7 +1416,8 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         value = "org.elasticsearch:INFO,"
             + "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE,"
             + "org.elasticsearch.cluster.coordination:TRACE,"
-            + "org.elasticsearch.discovery:TRACE"
+            + "org.elasticsearch.discovery:TRACE,"
+            + "org.elasticsearch.transport:TRACE"
     )
     public void testAppliesNoMasterBlockAllIfConfigured() {
         testAppliesNoMasterBlock("all", NO_MASTER_BLOCK_ALL);
