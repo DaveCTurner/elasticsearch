@@ -153,7 +153,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
                     final ConnectionStatus connectionStatus = getConnectionStatus(destinationTransport.getLocalNode());
                     switch (connectionStatus) {
                         case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> onBlackholedRequest(requestId, action, destinationTransport);
-                        case DISCONNECTED -> onDisconnectedDuringSend(requestId, action, destinationTransport);
+                        case DISCONNECTED -> execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
                         case CONNECTED -> onConnectedDuringSend(requestId, action, request, destinationTransport);
                         default -> throw new AssertionError("unexpected status: " + connectionStatus);
                     }
@@ -223,7 +223,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
         blackholedRequests.add(new Runnable() {
             @Override
             public void run() {
-                onDisconnectedDuringSend(requestId, action, destinationTransport);
+                execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
             }
 
             @Override
@@ -247,10 +247,6 @@ public abstract class DisruptableMockTransport extends MockTransport {
                 return "deferred handling of dropped " + getRequestDescription(requestId, action, destinationTransport.getLocalNode());
             }
         });
-    }
-
-    private void onDisconnectedDuringSend(long requestId, String action, DisruptableMockTransport destinationTransport) {
-        destinationTransport.execute(getDisconnectException(requestId, action, destinationTransport.getLocalNode()));
     }
 
     private void onConnectedDuringSend(
