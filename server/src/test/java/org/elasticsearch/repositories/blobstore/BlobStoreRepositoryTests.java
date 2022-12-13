@@ -337,7 +337,9 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
             repositoryData.getGenId()
         );
 
-        snapshotDetailsAsserter.accept(PlainActionFuture.get(repository::getRepositoryData).getSnapshotDetails(snapshotId));
+        snapshotDetailsAsserter.accept(
+            PlainActionFuture.<RepositoryData, RuntimeException>get(repository::getRepositoryData).getSnapshotDetails(snapshotId)
+        );
     }
 
     private static void writeIndexGen(BlobStoreRepository repository, RepositoryData repositoryData, long generation) throws Exception {
