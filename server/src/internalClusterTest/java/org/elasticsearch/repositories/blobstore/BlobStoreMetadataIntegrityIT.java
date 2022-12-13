@@ -11,9 +11,15 @@ package org.elasticsearch.repositories.blobstore;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
+import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
+import org.junit.After;
+import org.junit.Before;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,10 +34,22 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
     private static final String REPOSITORY_NAME = "test-repo";
 
-    public void testIntegrityCheck() throws Exception {
+    private Releasable integrityCheckSuppressor;
 
+    @Before
+    public void suppressIntegrityChecks() {
         disableRepoConsistencyCheck("testing integrity checks involves breaking the repo");
+        assertNull(integrityCheckSuppressor);
+        integrityCheckSuppressor = new BlobStoreIndexShardSnapshotsIntegritySuppressor();
+    }
 
+    @After
+    public void enableIntegrityChecks() {
+        Releasables.closeExpectNoException(integrityCheckSuppressor);
+        integrityCheckSuppressor = null;
+    }
+
+    public void testIntegrityCheck() throws Exception {
         final var repoPath = randomRepoPath();
         createRepository(
             REPOSITORY_NAME,
@@ -78,14 +96,20 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             logger.info("repo contents: {}", blob);
         }
 
-        for (int i = 0; i < 200; i++) {
+        final var repositoryDataFuture = new PlainActionFuture<RepositoryData>();
+        repository.getRepositoryData(repositoryDataFuture);
+        final var repositoryData = repositoryDataFuture.get();
+        final var repositoryDataBlob = repoPath.resolve("index-" + repositoryData.getGenId());
+
+        for (int i = 0; i < 20000; i++) {
             final var blobToDamage = randomFrom(blobs);
             final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
-            logger.info("--> deleting {}", blobToDamage);
-
-            if (isDataBlob || randomBoolean()) {
+            final var isIndexBlob = blobToDamage.equals(repositoryDataBlob);
+            if (isDataBlob || isIndexBlob || randomBoolean()) {
+                logger.info("--> deleting {}", blobToDamage);
                 Files.move(blobToDamage, tempDir.resolve("tmp"));
             } else {
+                logger.info("--> corrupting {}", blobToDamage);
                 Files.copy(blobToDamage, tempDir.resolve("tmp"));
                 CorruptionUtils.corruptFile(random(), blobToDamage);
             }

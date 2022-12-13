@@ -336,6 +336,11 @@ public class BlobStoreIndexShardSnapshot implements ToXContentFragment {
             } else if (checksum == null) {
                 throw new ElasticsearchParseException("missing checksum for name [" + name + "]");
             }
+            try {
+                org.apache.lucene.util.Version.parse(writtenBy);
+            } catch (Exception e) {
+                throw new ElasticsearchParseException("invalid written_by [" + writtenBy + "]");
+            }
             return new FileInfo(name, new StoreFileMetadata(physicalName, length, checksum, writtenBy, metaHash, writerUuid), partSize);
         }
 
