@@ -3639,7 +3639,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 );
                 try {
                     final var indexMetadataListenersByBlobId = new HashMap<String, ListenableActionFuture<IndexMetadata>>();
-                    final var shardBlobListenersByShard = ConcurrentCollections.<
+                    final var shardBlobsListenersByShard = ConcurrentCollections.<
                         Integer,
                         ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
                     for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
@@ -3647,11 +3647,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
                         indexMetadataListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
                             final var indexMetadataFuture = new ListenableActionFuture<IndexMetadata>();
-                            indexMetadataFuture.addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
+                            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(indexMetadataFuture, () -> {
+                                final var indexMetadata = getSnapshotIndexMetaData(repositoryData, snapshotId, indexId);
                                 shardCountRef.updateAndGet(current -> Math.max(current, indexMetadata.getNumberOfShards()));
-
                                 for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
-                                    shardBlobListenersByShard.computeIfAbsent(i, shardId -> {
+                                    shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
                                         final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
                                         threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
                                             .execute(
@@ -3660,19 +3660,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                         return shardBlobsFuture;
                                     });
                                 }
+                                return indexMetadata;
                             }));
-                            threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
-                                .execute(
-                                    ActionRunnable.supply(
-                                        indexMetadataFuture,
-                                        () -> getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
-                                    )
-                                );
                             return indexMetadataFuture;
                         }).addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
                             for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
                                 final var shardId = i;
-                                shardBlobListenersByShard.get(i)
+                                shardBlobsListenersByShard.get(i)
                                     .addListener(
                                         makeListener(
                                             indexMetadataChecksRef,
