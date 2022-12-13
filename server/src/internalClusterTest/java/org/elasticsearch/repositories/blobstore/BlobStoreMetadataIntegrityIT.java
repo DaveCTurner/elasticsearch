@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
+import org.elasticsearch.test.CorruptionUtils;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +30,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
     public void testIntegrityCheck() throws Exception {
 
+        disableRepoConsistencyCheck("testing integrity checks involves breaking the repo");
+
         final var repoPath = randomRepoPath();
         createRepository(
             REPOSITORY_NAME,
@@ -37,12 +40,12 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         final var repository = internalCluster().getCurrentMasterNodeInstance(RepositoriesService.class).repository(REPOSITORY_NAME);
 
-        final var indexCount = 1; // between(1, 2);
+        final var indexCount = between(1, 3);
         for (int i = 0; i < indexCount; i++) {
             createIndexWithRandomDocs("test-index-" + i, between(1, 1000));
         }
 
-        for (int snapshotIndex = 0; snapshotIndex < 1; snapshotIndex++) {
+        for (int snapshotIndex = 0; snapshotIndex < 4; snapshotIndex++) {
             final var indexRequests = new ArrayList<IndexRequestBuilder>();
             for (int i = 0; i < indexCount; i++) {
                 if (randomBoolean()) {
@@ -76,18 +79,26 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         }
 
         for (int i = 0; i < 200; i++) {
-            final var blobToDelete = randomFrom(blobs);
-            logger.info("--> deleting {}", blobToDelete);
-            Files.move(blobToDelete, tempDir.resolve("tmp"));
+            final var blobToDamage = randomFrom(blobs);
+            final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
+            logger.info("--> deleting {}", blobToDamage);
+
+            if (isDataBlob || randomBoolean()) {
+                Files.move(blobToDamage, tempDir.resolve("tmp"));
+            } else {
+                Files.copy(blobToDamage, tempDir.resolve("tmp"));
+                CorruptionUtils.corruptFile(random(), blobToDamage);
+            }
             try {
                 final var failFuture = new PlainActionFuture<Void>();
                 repository.verifyMetadataIntegrity(failFuture);
                 final var exception = expectThrows(IllegalStateException.class, () -> failFuture.actionGet(30, TimeUnit.SECONDS));
-                if (blobToDelete.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)) {
-                    assertThat(exception.getMessage(), containsString(blobToDelete.getFileName().toString()));
+                if (isDataBlob) {
+                    assertThat(exception.getMessage(), containsString(blobToDamage.getFileName().toString()));
                 }
             } finally {
-                Files.move(tempDir.resolve("tmp"), blobToDelete);
+                Files.deleteIfExists(blobToDamage);
+                Files.move(tempDir.resolve("tmp"), blobToDamage);
             }
 
             final var repairFuture = new PlainActionFuture<Void>();
