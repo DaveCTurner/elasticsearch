@@ -3715,46 +3715,56 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
             for (final var fileInfo : shardSnapshot.indexFiles()) {
-                if (fileInfo.metadata().hashEqualsContents()) {
-                    if (fileInfo.length() != fileInfo.metadata().length()) {
+                verifyFileInfo(snapshotId.toString(), indexId, shardId, shardBlobs, fileInfo);
+            }
+        }
+
+        private void verifyFileInfo(
+            String snapshot,
+            IndexId indexId,
+            int shardId,
+            Map<String, BlobMetadata> shardBlobs,
+            FileInfo fileInfo
+        ) {
+            if (fileInfo.metadata().hashEqualsContents()) {
+                if (fileInfo.length() != fileInfo.metadata().length()) {
+                    addFailure(
+                        "[%s] snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
+                        repositoryName,
+                        snapshot,
+                        indexId,
+                        shardId,
+                        fileInfo.physicalName(),
+                        fileInfo.metadata().length(),
+                        fileInfo.length()
+                    );
+                }
+            } else {
+                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                    final var blobName = fileInfo.partName(part);
+                    final var blobInfo = shardBlobs.get(blobName);
+                    if (blobInfo == null) {
                         addFailure(
-                            "[%s] snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
+                            "[%s] snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
                             repositoryName,
-                            snapshotId,
+                            snapshot,
                             indexId,
                             shardId,
-                            fileInfo.physicalName(),
-                            fileInfo.metadata().length(),
-                            fileInfo.length()
+                            blobName,
+                            fileInfo.physicalName()
                         );
-                    }
-                } else {
-                    for (int part = 0; part < fileInfo.numberOfParts(); part++) {
-                        final var blobName = fileInfo.partName(part);
-                        final var blobInfo = shardBlobs.get(blobName);
-                        if (blobInfo == null) {
-                            addFailure(
-                                "[%s] snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
-                                repositoryName,
-                                snapshotId,
-                                indexId,
-                                shardId,
-                                blobName,
-                                fileInfo.physicalName()
-                            );
-                        } else if (blobInfo.length() != fileInfo.partBytes(part)) {
-                            addFailure(
-                                "[%s] snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
-                                repositoryName,
-                                snapshotId,
-                                indexId,
-                                shardId,
-                                blobName,
-                                fileInfo.physicalName(),
-                                blobInfo.length(),
-                                fileInfo.partBytes(part)
-                            );
-                        }
+                    } else if (blobInfo.length() != fileInfo.partBytes(part)) {
+                        addFailure(
+                            "[%s] snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                            repositoryName,
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            blobInfo.length(),
+                            fileInfo.partBytes(part)
+                        );
                     }
                 }
             }
@@ -3775,9 +3785,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 shardGenerationChecksRef,
                                 shardBlobs -> threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
                                     .execute(ActionRunnable.supply(makeListener(shardGenerationChecksRef, blobStoreIndexShardSnapshots -> {
-
-                                        addFailure("TODO verify integrity of blobStoreIndexShardSnapshots [%s/%d]", indexId, shardId); // TODO
-
+                                        for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                                            snapshotFiles.snapshot(); // TODO validate
+                                            snapshotFiles.shardStateIdentifier(); // TODO validate
+                                            for (final var fileInfo : snapshotFiles.indexFiles()) {
+                                                verifyFileInfo(snapshotFiles.snapshot(), indexId, shardId, shardBlobs, fileInfo);
+                                            }
+                                        }
                                     }),
                                         () -> getBlobStoreIndexShardSnapshots(
                                             indexId,
