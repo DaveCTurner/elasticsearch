@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
@@ -62,8 +63,10 @@ class MetadataVerifier {
     }
 
     void run() {
+        // TODO cancellability
+
         try {
-            blobStoreRepository.getRepositoryData(makeListener(finalRefs, this::onRepositoryDataReceived));
+            blobStoreRepository.getRepositoryData(makeListener(finalRefs, this::onRepositoryDataReceived, "verify repository"));
         } finally {
             finalRefs.decRef();
         }
@@ -93,7 +96,7 @@ class MetadataVerifier {
                     repositoryData.getGenId()
                 );
             }
-        });
+        }, "verify loaded repo data");
 
         final var snapshotsByIndex = repositoryData.getIndices()
             .values()
@@ -120,13 +123,13 @@ class MetadataVerifier {
                         addFailure("[%s] snapshot [%s] contains unexpected index [%s]", repositoryName, snapshotId, index);
                     }
                 }
-            }));
+            }, "verify snapshot info for %s", snapshotId));
 
             forkSupply(finalRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
                 if (metadata.indices().isEmpty() == false) {
                     addFailure("[%s] snapshot [%s] contains unexpected index metadata within global metadata", repositoryName, snapshotId);
                 }
-            });
+            }, "verify global metadata for %s", snapshotId);
         }
 
         for (final var indicesEntry : repositoryData.getIndices().entrySet()) {
@@ -138,6 +141,8 @@ class MetadataVerifier {
             }
 
             // TODO must limit the number of indices currently being processed to avoid loading all the IndexMetadata at once
+
+            // TODO consider distributing the workload, giving each node a subset of indices to process
 
             finalRefs.incRef(); // released in onIndexMetadataChecksComplete
             final var shardBlobsListenersByShard = ConcurrentCollections.<
@@ -178,12 +183,20 @@ class MetadataVerifier {
                                                 blobStoreRepository.shardContainer(indexId, shardId),
                                                 snapshotId
                                             ),
-                                            shardSnapshot -> verifyShardSnapshot(snapshotId, indexId, shardId, shardBlobs, shardSnapshot)
-                                        )
+                                            shardSnapshot -> verifyShardSnapshot(snapshotId, indexId, shardId, shardBlobs, shardSnapshot),
+                                            "verify snapshot [%s] for shard %s/%d",
+                                            snapshotId,
+                                            indexId,
+                                            shardId
+                                        ),
+                                        "await listing for %s/%d before verifying snapshot [%s]",
+                                        indexId,
+                                        shardId,
+                                        snapshotId
                                     )
                                 );
                         }
-                    }));
+                    }, "await index metadata for %s before verifying shards", indexId));
                 }
                 if (indexMetadataListenersByBlobId.isEmpty()) {
                     throw new IllegalStateException(format("[%s] index [%s] has no metadata", repositoryName, indexId));
@@ -298,8 +311,14 @@ class MetadataVerifier {
                                             verifyFileInfo(snapshotFiles.snapshot(), indexId, shardId, shardBlobs, fileInfo);
                                         }
                                     }
-                                }
-                            )
+                                },
+                                "check shard generations for %s/%d",
+                                indexId,
+                                shardId
+                            ),
+                            "await listing for %s/%d before checking shard generations",
+                            indexId,
+                            shardId
                         )
                     );
             }
@@ -308,17 +327,36 @@ class MetadataVerifier {
         }
     }
 
-    private <T> ActionListener<T> makeListener(RefCounted refCounted, CheckedConsumer<T, Exception> consumer) {
+    private AtomicLong idGenerator = new AtomicLong();
+
+    private <T> ActionListener<T> makeListener(
+        RefCounted refCounted,
+        CheckedConsumer<T, Exception> consumer,
+        String format,
+        Object... args
+    ) {
+        final var description = format("[%d] ", idGenerator.incrementAndGet()) + format(format, args);
+        logger.info("start {}", description);
         refCounted.incRef();
-        return ActionListener.runAfter(ActionListener.wrap(consumer, e -> failures.add(e.getMessage())), refCounted::decRef);
+        return ActionListener.runAfter(ActionListener.wrap(consumer, e -> failures.add(e.getMessage())), () -> {
+            logger.info("end {}", description);
+            refCounted.decRef();
+        });
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
+        // TODO limit concurrency here, don't max out the SNAPSHOT_META threadpool
         blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(listener, supplier));
     }
 
-    private <T> void forkSupply(RefCounted refCounted, CheckedSupplier<T, Exception> supplier, CheckedConsumer<T, Exception> consumer) {
-        forkSupply(supplier, makeListener(refCounted, consumer));
+    private <T> void forkSupply(
+        RefCounted refCounted,
+        CheckedSupplier<T, Exception> supplier,
+        CheckedConsumer<T, Exception> consumer,
+        String format,
+        Object... args
+    ) {
+        forkSupply(supplier, makeListener(refCounted, consumer, format, args));
     }
 
     private void onCompletion() {
