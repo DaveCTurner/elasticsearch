@@ -101,7 +101,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         final var repositoryData = repositoryDataFuture.get();
         final var repositoryDataBlob = repoPath.resolve("index-" + repositoryData.getGenId());
 
-        for (int i = 0; i < 20000; i++) {
+        for (int i = 0; i < 2000; i++) {
             final var blobToDamage = randomFrom(blobs);
             final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
             final var isIndexBlob = blobToDamage.equals(repositoryDataBlob);
