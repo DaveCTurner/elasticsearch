@@ -69,6 +69,7 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
@@ -137,9 +138,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -3537,6 +3541,89 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 logger.warn("store cannot be marked as corrupted", inner);
             }
         }
+    }
+
+    @Override
+    public void verifyMetadataIntegrity(ActionListener<Void> listener) {
+        final var repositoryName = metadata.name();
+        final var isComplete = new AtomicBoolean();
+        getRepositoryData(ActionListener.runBefore(listener, () -> isComplete.set(true)).delegateFailure((l, repositoryData) -> {
+
+            logger.info("[{}] verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
+                repositoryName,
+                repositoryData.getGenId(),
+                repositoryData.getUuid(),
+                repositoryData.getClusterUUID());
+
+            // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
+            for (final var snapshotId : repositoryData.getSnapshotIds()) {
+                if (repositoryData.hasMissingDetails(snapshotId)) {
+                    throw new IllegalStateException(format("[%s] snapshot [%s] has missing snapshot details", repositoryName, snapshotId));
+                }
+            }
+
+            for (Map.Entry<String, IndexId> entry : repositoryData.getIndices().entrySet()) {
+                final var name = entry.getKey();
+                final var indexId = entry.getValue();
+                if (name.equals(indexId.getName()) == false) {
+                    throw new IllegalStateException(format("[%s] index name [%s] has mismatched name in [%s]",
+                        repositoryName, name, indexId));
+                }
+
+                final var indexMetadataChecksListener = new ListenableActionFuture<Void>();
+                final var indexMetadataChecksRef = AbstractRefCounted.of(() -> indexMetadataChecksListener.onResponse(null));
+                final var shardCountRef = new AtomicInteger();
+                try {
+                    final var seenMetaBlobIds = new HashSet<String>();
+                    for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
+                        final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
+                        if (seenMetaBlobIds.add(indexMetaBlobId)) {
+                            indexMetadataChecksRef.incRef();
+                            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(
+                                new AbstractRunnable() {
+                                    @Override
+                                    public void onAfter() {
+                                        indexMetadataChecksRef.decRef();
+                                    }
+
+                                    @Override
+                                    public void onFailure(Exception e) {
+                                        l.onFailure(e);
+                                    }
+
+                                    @Override
+                                    protected void doRun() throws Exception {
+                                        if (isComplete.get()) {
+                                            throw new IllegalStateException("already complete");
+                                        }
+
+                                        final var indexMetadata = getSnapshotIndexMetaData(repositoryData, snapshotId, indexId);
+                                        shardCountRef.updateAndGet(current -> Math.max(current, indexMetadata.getNumberOfShards()));
+                                    }
+                                });
+                        }
+                    }
+
+                    if (seenMetaBlobIds.isEmpty()) {
+                        throw new IllegalStateException(format("[%s] index [%s] has no metadata", repositoryName, indexId));
+                    }
+                } finally {
+                    indexMetadataChecksRef.decRef();
+                }
+
+                indexMetadataChecksListener.addListener(l.delegateFailure((l2, ignored) -> {
+
+//                    repositoryData.shardGenerations().getShardGen()
+
+                }));
+
+
+
+
+            }
+
+            l.onResponse(null);
+        }));
     }
 
     public boolean supportURLRepo() {

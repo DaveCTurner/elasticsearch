@@ -9,6 +9,7 @@ package org.elasticsearch.repositories;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -308,5 +309,9 @@ public interface Repository extends LifecycleComponent {
 
     static boolean assertSnapshotMetaThread() {
         return ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT_META);
+    }
+
+    default void verifyMetadataIntegrity(ActionListener<Void> listener) {
+        listener.onFailure(new UnsupportedOperationException("this repository type does not support metadata integrity verification"));
     }
 }
