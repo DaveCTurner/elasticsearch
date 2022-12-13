@@ -336,10 +336,10 @@ class MetadataVerifier {
         Object... args
     ) {
         final var description = format("[%d] ", idGenerator.incrementAndGet()) + format(format, args);
-        logger.info("start {}", description);
+        logger.trace("start {}", description);
         refCounted.incRef();
         return ActionListener.runAfter(ActionListener.wrap(consumer, e -> failures.add(e.getMessage())), () -> {
-            logger.info("end {}", description);
+            logger.trace("end {}", description);
             refCounted.decRef();
         });
     }
