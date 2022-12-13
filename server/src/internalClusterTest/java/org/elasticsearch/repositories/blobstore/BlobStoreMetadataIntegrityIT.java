@@ -11,7 +11,6 @@ package org.elasticsearch.repositories.blobstore;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.repositories.RepositoriesService;
-import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 
 import java.util.ArrayList;
@@ -26,8 +25,10 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
     public void testIntegrityCheck() throws Exception {
 
         createRepository(REPOSITORY_NAME, "fs");
-        logger.info("--> repo created: {}",
-            client().admin().cluster().prepareGetRepositories(REPOSITORY_NAME).get().repositories().get(0).settings());
+        logger.info(
+            "--> repo created: {}",
+            client().admin().cluster().prepareGetRepositories(REPOSITORY_NAME).get().repositories().get(0).settings()
+        );
 
         final var indexCount = between(1, 2);
         for (int i = 0; i < indexCount; i++) {
@@ -56,11 +57,11 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
         final var future = new PlainActionFuture<Void>();
         internalCluster().getCurrentMasterNodeInstance(RepositoriesService.class)
-            .repository(REPOSITORY_NAME).verifyMetadataIntegrity(future);
+            .repository(REPOSITORY_NAME)
+            .verifyMetadataIntegrity(future);
         future.get(30, TimeUnit.SECONDS);
 
         logger.info("--> pause");
-
 
     }
 
