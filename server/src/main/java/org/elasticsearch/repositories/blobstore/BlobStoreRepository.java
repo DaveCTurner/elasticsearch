@@ -3602,7 +3602,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         private void addFailure(String format, Object... args) {
-            failures.add(format(format, args));
+            final var failure = format(format, args);
+            logger.info("addFailure: {}", failure);
+            failures.add(failure);
         }
 
         private void onRepositoryDataReceived(RepositoryData repositoryData) {
