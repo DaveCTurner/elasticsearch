@@ -13,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -152,26 +151,27 @@ class MetadataVerifier {
                 () -> onIndexMetadataChecksComplete(repositoryData, indexId, shardBlobsListenersByShard)
             );
             try {
-                final var indexMetadataListenersByBlobId = new HashMap<String, ListenableActionFuture<IndexMetadata>>();
+                final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
                 for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
                     // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
                     final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
-                    indexMetadataListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                        final var indexMetadataFuture = new ListenableActionFuture<IndexMetadata>();
+                    shardCountListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
+                        final var shardCountFuture = new ListenableActionFuture<Integer>();
                         forkSupply(() -> {
-                            final var indexMetadata = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId);
-                            for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
+                            final var shardCount = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
+                                .getNumberOfShards();
+                            for (int i = 0; i < shardCount; i++) {
                                 shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
                                     final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
                                     forkSupply(() -> blobStoreRepository.shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
                                     return shardBlobsFuture;
                                 });
                             }
-                            return indexMetadata;
-                        }, indexMetadataFuture);
-                        return indexMetadataFuture;
-                    }).addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
-                        for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
+                            return shardCount;
+                        }, shardCountFuture);
+                        return shardCountFuture;
+                    }).addListener(makeListener(indexMetadataChecksRef, shardCount -> {
+                        for (int i = 0; i < shardCount; i++) {
                             final var shardId = i;
                             shardBlobsListenersByShard.get(i)
                                 .addListener(
@@ -198,7 +198,7 @@ class MetadataVerifier {
                         }
                     }, "await index metadata for %s before verifying shards", indexId));
                 }
-                if (indexMetadataListenersByBlobId.isEmpty()) {
+                if (shardCountListenersByBlobId.isEmpty()) {
                     throw new IllegalStateException(format("[%s] index [%s] has no metadata", repositoryName, indexId));
                 }
             } finally {
