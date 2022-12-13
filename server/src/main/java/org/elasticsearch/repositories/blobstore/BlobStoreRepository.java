@@ -3587,6 +3587,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final String repositoryName = metadata.name();
         private final Set<String> failures = ConcurrentCollections.newConcurrentSet();
         private final AtomicBoolean isComplete = new AtomicBoolean();
+        private final Object mutex = new Object();
 
         MetadataVerifier(ActionListener<Void> finalListener) {
             this.finalListener = finalListener;
@@ -3637,26 +3638,62 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 );
                 try {
                     final var indexMetadataListenersByBlobId = new HashMap<String, ListenableActionFuture<IndexMetadata>>();
+                    final var shardBlobListenersByShard = ConcurrentCollections.<
+                        Integer,
+                        ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
                     for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
                         // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
                         final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
                         indexMetadataListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                            final var future = new ListenableActionFuture<IndexMetadata>();
-                            future.addListener(
-                                makeListener(
-                                    indexMetadataChecksRef,
-                                    indexMetadata -> shardCountRef.updateAndGet(
-                                        current -> Math.max(current, indexMetadata.getNumberOfShards())
-                                    )
-                                )
-                            );
+                            final var indexMetadataFuture = new ListenableActionFuture<IndexMetadata>();
+                            indexMetadataFuture.addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
+                                shardCountRef.updateAndGet(current -> Math.max(current, indexMetadata.getNumberOfShards()));
+
+                                for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
+                                    shardBlobListenersByShard.computeIfAbsent(i, shardId -> {
+                                        final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
+                                        threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
+                                            .execute(
+                                                ActionRunnable.supply(shardBlobsFuture, () -> shardContainer(indexId, shardId).listBlobs())
+                                            );
+                                        return shardBlobsFuture;
+                                    });
+                                }
+                            }));
                             threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
                                 .execute(
-                                    ActionRunnable.supply(future, () -> getSnapshotIndexMetaData(repositoryData, snapshotId, indexId))
+                                    ActionRunnable.supply(
+                                        indexMetadataFuture,
+                                        () -> getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
+                                    )
                                 );
-                            return future;
+                            return indexMetadataFuture;
                         }).addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
-                            // TODO verify that every shard is ok in this snapshot
+                            for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
+                                final var shardId = i;
+                                shardBlobListenersByShard.get(i)
+                                    .addListener(
+                                        makeListener(
+                                            indexMetadataChecksRef,
+                                            shardBlobs -> threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
+                                                .execute(
+                                                    ActionRunnable.supply(
+                                                        makeListener(
+                                                            indexMetadataChecksRef,
+                                                            shardSnapshot -> verifyShardSnapshot(
+                                                                snapshotId,
+                                                                indexId,
+                                                                shardId,
+                                                                shardBlobs,
+                                                                shardSnapshot
+                                                            )
+                                                        ),
+                                                        () -> loadShardSnapshot(shardContainer(indexId, shardId), snapshotId)
+                                                    )
+                                                )
+                                        )
+                                    );
+                            }
                         }));
                     }
                     if (indexMetadataListenersByBlobId.isEmpty()) {
@@ -3664,6 +3701,52 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     }
                 } finally {
                     indexMetadataChecksRef.decRef();
+                }
+            }
+        }
+
+        private void verifyShardSnapshot(
+            SnapshotId snapshotId,
+            IndexId indexId,
+            int shardId,
+            Map<String, BlobMetadata> shardBlobs,
+            BlobStoreIndexShardSnapshot shardSnapshot
+        ) {
+            if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
+                addFailure(
+                    "[%s] snapshot [%s] for shard [{}/{}] has mismatched name [{}]",
+                    repositoryName,
+                    snapshotId,
+                    shardId,
+                    shardSnapshot.snapshot()
+                );
+            }
+
+            for (final var fileInfo : shardSnapshot.indexFiles()) {
+                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                    final var blobName = fileInfo.partName(part);
+                    final var blobInfo = shardBlobs.get(blobName);
+                    if (blobInfo == null) {
+                        addFailure(
+                            "[%s] snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                            repositoryName,
+                            snapshotId,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName()
+                        );
+                    } else if (blobInfo.length() != fileInfo.partBytes(part)) {
+                        addFailure(
+                            "[%s] snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                            repositoryName,
+                            snapshotId,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName()
+                        );
+                    }
                 }
             }
         }
