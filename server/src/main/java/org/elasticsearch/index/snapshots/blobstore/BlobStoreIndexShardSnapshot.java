@@ -319,7 +319,10 @@ public class BlobStoreIndexShardSnapshot implements ToXContentFragment {
                     }
                     case WRITER_UUID -> {
                         writerUuid = new BytesRef(parser.binaryValue());
-                        assert writerUuid.length > 0;
+                        assert BlobStoreIndexShardSnapshots.INTEGRITY_ASSERTIONS_ENABLED == false || writerUuid.length > 0;
+                        if (writerUuid.length == 0) {
+                            throw new ElasticsearchParseException("invalid (empty) writer uuid");
+                        }
                     }
                     default -> XContentParserUtils.throwUnknownField(currentFieldName, parser);
                 }
