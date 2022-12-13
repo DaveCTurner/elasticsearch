@@ -43,6 +43,7 @@ import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.Numbers;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
@@ -3613,7 +3614,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 repositoryData.getClusterUUID()
             );
 
-            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(makeListener(finalRefs, loadedRepoData -> {
+            forkSupply(finalRefs, () -> getRepositoryData(repositoryData.getGenId()), loadedRepoData -> {
                 if (loadedRepoData.getGenId() != repositoryData.getGenId()) {
                     addFailure(
                         "[%s] has repository data generation [{}], expected [{}]",
@@ -3622,7 +3623,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         repositoryData.getGenId()
                     );
                 }
-            }), () -> getRepositoryData(repositoryData.getGenId())));
+            });
 
             final var snapshotsByIndex = repositoryData.getIndices()
                 .values()
@@ -3651,7 +3652,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     }
                 }));
 
-                threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(makeListener(finalRefs, metadata -> {
+                forkSupply(finalRefs, () -> getSnapshotGlobalMetadata(snapshotId), metadata -> {
                     if (metadata.indices().isEmpty() == false) {
                         addFailure(
                             "[%s] snapshot [%s] contains unexpected index metadata within global metadata",
@@ -3659,7 +3660,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             snapshotId
                         );
                     }
-                }), () -> getSnapshotGlobalMetadata(snapshotId)));
+                });
             }
 
             for (final var indicesEntry : repositoryData.getIndices().entrySet()) {
@@ -3686,20 +3687,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
                         indexMetadataListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
                             final var indexMetadataFuture = new ListenableActionFuture<IndexMetadata>();
-                            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(indexMetadataFuture, () -> {
+                            forkSupply(() -> {
                                 final var indexMetadata = getSnapshotIndexMetaData(repositoryData, snapshotId, indexId);
                                 for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
                                     shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
                                         final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
-                                        threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
-                                            .execute(
-                                                ActionRunnable.supply(shardBlobsFuture, () -> shardContainer(indexId, shardId).listBlobs())
-                                            );
+                                        forkSupply(() -> shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
                                         return shardBlobsFuture;
                                     });
                                 }
                                 return indexMetadata;
-                            }));
+                            }, indexMetadataFuture);
                             return indexMetadataFuture;
                         }).addListener(makeListener(indexMetadataChecksRef, indexMetadata -> {
                             for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
@@ -3708,22 +3706,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                     .addListener(
                                         makeListener(
                                             indexMetadataChecksRef,
-                                            shardBlobs -> threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
-                                                .execute(
-                                                    ActionRunnable.supply(
-                                                        makeListener(
-                                                            indexMetadataChecksRef,
-                                                            shardSnapshot -> verifyShardSnapshot(
-                                                                snapshotId,
-                                                                indexId,
-                                                                shardId,
-                                                                shardBlobs,
-                                                                shardSnapshot
-                                                            )
-                                                        ),
-                                                        () -> loadShardSnapshot(shardContainer(indexId, shardId), snapshotId)
-                                                    )
+                                            shardBlobs -> forkSupply(
+                                                indexMetadataChecksRef,
+                                                () -> loadShardSnapshot(shardContainer(indexId, shardId), snapshotId),
+                                                shardSnapshot -> verifyShardSnapshot(
+                                                    snapshotId,
+                                                    indexId,
+                                                    shardId,
+                                                    shardBlobs,
+                                                    shardSnapshot
                                                 )
+                                            )
                                         )
                                     );
                             }
@@ -3824,8 +3817,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         .addListener(
                             makeListener(
                                 shardGenerationChecksRef,
-                                shardBlobs -> threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
-                                    .execute(ActionRunnable.supply(makeListener(shardGenerationChecksRef, blobStoreIndexShardSnapshots -> {
+                                shardBlobs -> forkSupply(
+                                    shardGenerationChecksRef,
+                                    () -> getBlobStoreIndexShardSnapshots(
+                                        indexId,
+                                        shardId,
+                                        Objects.requireNonNull(
+                                            repositoryData.shardGenerations().getShardGen(indexId, shardId),
+                                            "shard generations for " + indexId + "/" + shardId
+                                        )
+                                    ),
+                                    blobStoreIndexShardSnapshots -> {
                                         for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
                                             snapshotFiles.snapshot(); // TODO validate
                                             snapshotFiles.shardStateIdentifier(); // TODO validate
@@ -3833,16 +3835,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                                 verifyFileInfo(snapshotFiles.snapshot(), indexId, shardId, shardBlobs, fileInfo);
                                             }
                                         }
-                                    }),
-                                        () -> getBlobStoreIndexShardSnapshots(
-                                            indexId,
-                                            shardId,
-                                            Objects.requireNonNull(
-                                                repositoryData.shardGenerations().getShardGen(indexId, shardId),
-                                                "shard generations for " + indexId + "/" + shardId
-                                            )
-                                        )
-                                    ))
+                                    }
+                                )
                             )
                         );
                 }
@@ -3854,6 +3848,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private <T> ActionListener<T> makeListener(RefCounted refCounted, CheckedConsumer<T, Exception> consumer) {
             refCounted.incRef();
             return ActionListener.runAfter(ActionListener.wrap(consumer, e -> failures.add(e.getMessage())), refCounted::decRef);
+        }
+
+        private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
+            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(listener, supplier));
+        }
+
+        private <T> void forkSupply(RefCounted refCounted, CheckedSupplier<T, Exception> supplier, CheckedConsumer<T, Exception> consumer) {
+            forkSupply(supplier, makeListener(refCounted, consumer));
         }
 
         private void onCompletion() {
