@@ -3587,7 +3587,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final String repositoryName = metadata.name();
         private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
         private final AtomicBoolean isComplete = new AtomicBoolean();
-        private final Object mutex = new Object();
 
         MetadataVerifier(ActionListener<Void> finalListener) {
             this.finalListener = finalListener;
@@ -3614,11 +3613,53 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 repositoryData.getClusterUUID()
             );
 
-            // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
+            threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(makeListener(finalRefs, loadedRepoData -> {
+                if (loadedRepoData.getGenId() != repositoryData.getGenId()) {
+                    addFailure(
+                        "[%s] has repository data generation [{}], expected [{}]",
+                        repositoryName,
+                        loadedRepoData.getGenId(),
+                        repositoryData.getGenId()
+                    );
+                }
+            }), () -> getRepositoryData(repositoryData.getGenId())));
+
+            final var snapshotsByIndex = repositoryData.getIndices()
+                .values()
+                .stream()
+                .collect(Collectors.toMap(IndexId::getName, indexId -> new HashSet<>(repositoryData.getSnapshots(indexId))));
+
             for (final var snapshotId : repositoryData.getSnapshotIds()) {
                 if (repositoryData.hasMissingDetails(snapshotId)) {
+                    // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
                     addFailure("[%s] snapshot [%s] has missing snapshot details", repositoryName, snapshotId);
                 }
+
+                getSnapshotInfo(snapshotId, makeListener(finalRefs, snapshotInfo -> {
+                    if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
+                        addFailure(
+                            "[%s] snapshot [%s] has unexpected ID in info blob: [%s]",
+                            repositoryName,
+                            snapshotId,
+                            snapshotInfo.snapshotId()
+                        );
+                    }
+                    for (final var index : snapshotInfo.indices()) {
+                        if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
+                            addFailure("[%s] snapshot [%s] contains unexpected index [%s]", repositoryName, snapshotId, index);
+                        }
+                    }
+                }));
+
+                threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(makeListener(finalRefs, metadata -> {
+                    if (metadata.indices().isEmpty() == false) {
+                        addFailure(
+                            "[%s] snapshot [%s] contains unexpected index metadata within global metadata",
+                            repositoryName,
+                            snapshotId
+                        );
+                    }
+                }), () -> getSnapshotGlobalMetadata(snapshotId)));
             }
 
             for (final var indicesEntry : repositoryData.getIndices().entrySet()) {

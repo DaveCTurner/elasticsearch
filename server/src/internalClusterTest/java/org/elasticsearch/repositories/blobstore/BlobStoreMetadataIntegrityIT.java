@@ -10,13 +10,18 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.hamcrest.Matchers.containsString;
 
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
 
@@ -24,18 +29,20 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
     public void testIntegrityCheck() throws Exception {
 
-        createRepository(REPOSITORY_NAME, "fs");
-        logger.info(
-            "--> repo created: {}",
-            client().admin().cluster().prepareGetRepositories(REPOSITORY_NAME).get().repositories().get(0).settings()
+        final var repoPath = randomRepoPath();
+        createRepository(
+            REPOSITORY_NAME,
+            "fs",
+            Settings.builder().put(BlobStoreRepository.SUPPORT_URL_REPO.getKey(), false).put("location", repoPath)
         );
+        final var repository = internalCluster().getCurrentMasterNodeInstance(RepositoriesService.class).repository(REPOSITORY_NAME);
 
-        final var indexCount = between(1, 2);
+        final var indexCount = 1; // between(1, 2);
         for (int i = 0; i < indexCount; i++) {
             createIndexWithRandomDocs("test-index-" + i, between(1, 1000));
         }
 
-        for (int snapshotIndex = 0; snapshotIndex < 3; snapshotIndex++) {
+        for (int snapshotIndex = 0; snapshotIndex < 1; snapshotIndex++) {
             final var indexRequests = new ArrayList<IndexRequestBuilder>();
             for (int i = 0; i < indexCount; i++) {
                 if (randomBoolean()) {
@@ -55,14 +62,37 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
         }
 
-        final var future = new PlainActionFuture<Void>();
-        internalCluster().getCurrentMasterNodeInstance(RepositoriesService.class)
-            .repository(REPOSITORY_NAME)
-            .verifyMetadataIntegrity(future);
-        future.get(30, TimeUnit.SECONDS);
+        final var successFuture = new PlainActionFuture<Void>();
+        repository.verifyMetadataIntegrity(successFuture);
+        successFuture.get(30, TimeUnit.SECONDS);
+        final var tempDir = createTempDir();
 
-        logger.info("--> pause");
+        final List<Path> blobs;
+        try (var paths = Files.walk(repoPath)) {
+            blobs = paths.filter(Files::isRegularFile).sorted().toList();
+        }
+        for (final var blob : blobs) {
+            logger.info("repo contents: {}", blob);
+        }
 
+        for (int i = 0; i < 200; i++) {
+            final var blobToDelete = randomFrom(blobs);
+            logger.info("--> deleting {}", blobToDelete);
+            Files.move(blobToDelete, tempDir.resolve("tmp"));
+            try {
+                final var failFuture = new PlainActionFuture<Void>();
+                repository.verifyMetadataIntegrity(failFuture);
+                final var exception = expectThrows(IllegalStateException.class, () -> failFuture.actionGet(30, TimeUnit.SECONDS));
+                if (blobToDelete.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)) {
+                    assertThat(exception.getMessage(), containsString(blobToDelete.getFileName().toString()));
+                }
+            } finally {
+                Files.move(tempDir.resolve("tmp"), blobToDelete);
+            }
+
+            final var repairFuture = new PlainActionFuture<Void>();
+            repository.verifyMetadataIntegrity(repairFuture);
+            repairFuture.get(30, TimeUnit.SECONDS);
+        }
     }
-
 }
