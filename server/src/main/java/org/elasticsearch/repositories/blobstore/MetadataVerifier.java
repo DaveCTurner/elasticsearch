@@ -327,7 +327,7 @@ class MetadataVerifier {
         }
     }
 
-    private AtomicLong idGenerator = new AtomicLong();
+    private final AtomicLong idGenerator = new AtomicLong();
 
     private <T> ActionListener<T> makeListener(
         RefCounted refCounted,
