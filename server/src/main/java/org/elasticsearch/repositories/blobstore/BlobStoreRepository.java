@@ -138,6 +138,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -3585,7 +3586,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final ActionListener<Void> finalListener;
         private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
         private final String repositoryName = metadata.name();
-        private final Set<String> failures = ConcurrentCollections.newConcurrentSet();
+        private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
         private final AtomicBoolean isComplete = new AtomicBoolean();
         private final Object mutex = new Object();
 
@@ -3723,29 +3724,46 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
             for (final var fileInfo : shardSnapshot.indexFiles()) {
-                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
-                    final var blobName = fileInfo.partName(part);
-                    final var blobInfo = shardBlobs.get(blobName);
-                    if (blobInfo == null) {
+                if (fileInfo.metadata().hashEqualsContents()) {
+                    if (fileInfo.length() != fileInfo.metadata().length()) {
                         addFailure(
-                            "[%s] snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                            "[%s] snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
                             repositoryName,
                             snapshotId,
                             indexId,
                             shardId,
-                            blobName,
-                            fileInfo.physicalName()
+                            fileInfo.physicalName(),
+                            fileInfo.metadata().length(),
+                            fileInfo.length()
                         );
-                    } else if (blobInfo.length() != fileInfo.partBytes(part)) {
-                        addFailure(
-                            "[%s] snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
-                            repositoryName,
-                            snapshotId,
-                            indexId,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName()
-                        );
+                    }
+                } else {
+                    for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                        final var blobName = fileInfo.partName(part);
+                        final var blobInfo = shardBlobs.get(blobName);
+                        if (blobInfo == null) {
+                            addFailure(
+                                "[%s] snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                                repositoryName,
+                                snapshotId,
+                                indexId,
+                                shardId,
+                                blobName,
+                                fileInfo.physicalName()
+                            );
+                        } else if (blobInfo.length() != fileInfo.partBytes(part)) {
+                            addFailure(
+                                "[%s] snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                                repositoryName,
+                                snapshotId,
+                                indexId,
+                                shardId,
+                                blobName,
+                                fileInfo.physicalName(),
+                                blobInfo.length(),
+                                fileInfo.partBytes(part)
+                            );
+                        }
                     }
                 }
             }
