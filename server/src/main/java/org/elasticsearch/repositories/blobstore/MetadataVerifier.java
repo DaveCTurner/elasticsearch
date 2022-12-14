@@ -192,9 +192,7 @@ class MetadataVerifier implements Releasable {
         final var shardBlobsListenersByShard = ConcurrentCollections.<
             Integer,
             ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
-        final var indexMetadataChecksRef = AbstractRefCounted.of(
-            () -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard)
-        );
+        final var indexMetadataChecksRef = AbstractRefCounted.of(() -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard));
         try {
             final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
             for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
