@@ -166,66 +166,82 @@ class MetadataVerifier implements Releasable {
 
             // TODO consider distributing the workload, giving each node a subset of indices to process
 
+            final var indexSnapshots = repositoryData.getSnapshots(indexId);
+
             try (
                 var indexMetadataChecksRef = wrap(
-                    makeVoidListener(indexRefs, this::onIndexMetadataChecksComplete, "waiting for metadata checks of index [%s]", indexId)
+                    makeVoidListener(
+                        indexRefs,
+                        this::onIndexMetadataChecksComplete,
+                        "waiting for verification of snapshots of index [%s]",
+                        indexId
+                    )
+                );
+                var shardSnapshotIterator = new ThrottledIterator<>(
+                    makeVoidListener(
+                        indexMetadataChecksRef,
+                        () -> {},
+                        "checking [%d] snapshots for index [%s]",
+                        indexSnapshots.size(),
+                        indexId
+                    ),
+                    indexSnapshots.iterator(),
+                    this::verifyIndexSnapshot,
+                    5
                 )
             ) {
-                for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
-                    // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
-
-                    if (expectedSnapshots.contains(snapshotId) == false) {
-                        addFailure("index [%s] has mismatched snapshot [%s]", indexId, snapshotId);
-                    }
-
-                    final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
-                    shardCountListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                        final var shardCountFuture = new ListenableActionFuture<Integer>();
-                        forkSupply(() -> {
-                            final var shardCount = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
-                                .getNumberOfShards();
-                            for (int i = 0; i < shardCount; i++) {
-                                shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
-                                    final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
-                                    forkSupply(() -> blobStoreRepository.shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
-                                    return shardBlobsFuture;
-                                });
-                            }
-                            return shardCount;
-                        }, shardCountFuture);
-                        return shardCountFuture;
-                    }).addListener(makeListener(indexMetadataChecksRef, shardCount -> {
-                        for (int i = 0; i < shardCount; i++) {
-                            final var shardId = i;
-                            shardBlobsListenersByShard.get(i)
-                                .addListener(
-                                    makeListener(
-                                        indexMetadataChecksRef,
-                                        shardBlobs -> forkSupply(
-                                            indexMetadataChecksRef,
-                                            () -> blobStoreRepository.loadShardSnapshot(
-                                                blobStoreRepository.shardContainer(indexId, shardId),
-                                                snapshotId
-                                            ),
-                                            shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardBlobs, shardSnapshot),
-                                            "verify snapshot [%s] for shard %s/%d",
-                                            snapshotId,
-                                            indexId,
-                                            shardId
-                                        ),
-                                        "await listing for %s/%d before verifying snapshot [%s]",
-                                        indexId,
-                                        shardId,
-                                        snapshotId
-                                    )
-                                );
-                        }
-                    }, "await index metadata for %s before verifying shards", indexId));
-                }
-                if (shardCountListenersByBlobId.isEmpty()) {
-                    throw new IllegalStateException(format("index [%s] has no metadata", indexId));
-                }
+                shardSnapshotIterator.run();
             }
+        }
+
+        private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
+            if (expectedSnapshots.contains(snapshotId) == false) {
+                addFailure("index [%s] has mismatched snapshot [%s]", indexId, snapshotId);
+            }
+
+            final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
+            shardCountListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
+                final var shardCountFuture = new ListenableActionFuture<Integer>();
+                forkSupply(() -> {
+                    final var shardCount = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
+                        .getNumberOfShards();
+                    for (int i = 0; i < shardCount; i++) {
+                        shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
+                            final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
+                            forkSupply(() -> blobStoreRepository.shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
+                            return shardBlobsFuture;
+                        });
+                    }
+                    return shardCount;
+                }, shardCountFuture);
+                return shardCountFuture;
+            }).addListener(makeListener(indexSnapshotRefs, shardCount -> {
+                for (int i = 0; i < shardCount; i++) {
+                    final var shardId = i;
+                    shardBlobsListenersByShard.get(i)
+                        .addListener(
+                            makeListener(
+                                indexSnapshotRefs,
+                                shardBlobs -> forkSupply(
+                                    indexSnapshotRefs,
+                                    () -> blobStoreRepository.loadShardSnapshot(
+                                        blobStoreRepository.shardContainer(indexId, shardId),
+                                        snapshotId
+                                    ),
+                                    shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardBlobs, shardSnapshot),
+                                    "verify snapshot [%s] for shard %s/%d",
+                                    snapshotId,
+                                    indexId,
+                                    shardId
+                                ),
+                                "await listing for %s/%d before verifying snapshot [%s]",
+                                indexId,
+                                shardId,
+                                snapshotId
+                            )
+                        );
+                }
+            }, "await index metadata for %s before verifying shards", indexId));
         }
 
         private void verifyShardSnapshot(
@@ -297,46 +313,57 @@ class MetadataVerifier implements Releasable {
         }
 
         private void onIndexMetadataChecksComplete() {
+            if (shardCountListenersByBlobId.isEmpty()) {
+                throw new IllegalStateException(format("index [%s] has no metadata", indexId));
+            }
+
             try (
                 var shardGenerationChecksRef = wrap(makeVoidListener(indexRefs, () -> {}, "checking shard generations for [%s]", indexId))
             ) {
                 // TODO throttle here too
                 for (final var shardEntry : shardBlobsListenersByShard.entrySet()) {
-                    final int shardId = shardEntry.getKey();
-                    shardEntry.getValue()
-                        .addListener(
-                            makeListener(
-                                shardGenerationChecksRef,
-                                shardBlobs -> forkSupply(
-                                    shardGenerationChecksRef,
-                                    () -> blobStoreRepository.getBlobStoreIndexShardSnapshots(
-                                        indexId,
-                                        shardId,
-                                        Objects.requireNonNull(
-                                            repositoryData.shardGenerations().getShardGen(indexId, shardId),
-                                            "shard generations for " + indexId + "/" + shardId
-                                        )
-                                    ),
-                                    blobStoreIndexShardSnapshots -> {
-                                        for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
-                                            snapshotFiles.snapshot(); // TODO validate
-                                            snapshotFiles.shardStateIdentifier(); // TODO validate
-                                            for (final var fileInfo : snapshotFiles.indexFiles()) {
-                                                verifyFileInfo(snapshotFiles.snapshot(), shardId, shardBlobs, fileInfo);
-                                            }
-                                        }
-                                    },
-                                    "check shard generations for %s/%d",
-                                    indexId,
-                                    shardId
-                                ),
-                                "await listing for %s/%d before checking shard generations",
-                                indexId,
-                                shardId
-                            )
-                        );
+                    verifyShardGenerations(shardGenerationChecksRef, shardEntry);
                 }
             }
+        }
+
+        private void verifyShardGenerations(
+            RefCounted shardGenerationChecksRef,
+            Map.Entry<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardEntry
+        ) {
+            final int shardId = shardEntry.getKey();
+            shardEntry.getValue()
+                .addListener(
+                    makeListener(
+                        shardGenerationChecksRef,
+                        shardBlobs -> forkSupply(
+                            shardGenerationChecksRef,
+                            () -> blobStoreRepository.getBlobStoreIndexShardSnapshots(
+                                indexId,
+                                shardId,
+                                Objects.requireNonNull(
+                                    repositoryData.shardGenerations().getShardGen(indexId, shardId),
+                                    "shard generations for " + indexId + "/" + shardId
+                                )
+                            ),
+                            blobStoreIndexShardSnapshots -> {
+                                for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                                    snapshotFiles.snapshot(); // TODO validate
+                                    snapshotFiles.shardStateIdentifier(); // TODO validate
+                                    for (final var fileInfo : snapshotFiles.indexFiles()) {
+                                        verifyFileInfo(snapshotFiles.snapshot(), shardId, shardBlobs, fileInfo);
+                                    }
+                                }
+                            },
+                            "check shard generations for %s/%d",
+                            indexId,
+                            shardId
+                        ),
+                        "await listing for %s/%d before checking shard generations",
+                        indexId,
+                        shardId
+                    )
+                );
         }
     }
 
