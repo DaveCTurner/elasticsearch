@@ -130,78 +130,82 @@ class MetadataVerifier implements Releasable {
                 continue;
             }
 
-            final var expectedSnapshots = snapshotsByIndex.get(name);
+            verifyIndex(indexId);
+        }
+    }
 
-            // TODO must limit the number of indices currently being processed to avoid loading all the IndexMetadata at once
+    private void verifyIndex(IndexId indexId) {
+        final var expectedSnapshots = snapshotsByIndex.get(indexId.getName());
 
-            // TODO consider distributing the workload, giving each node a subset of indices to process
+        // TODO must limit the number of indices currently being processed to avoid loading all the IndexMetadata at once
 
-            finalRefs.incRef(); // released in onIndexMetadataChecksComplete
-            final var shardBlobsListenersByShard = ConcurrentCollections.<
-                Integer,
-                ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
-            final var indexMetadataChecksRef = AbstractRefCounted.of(
-                () -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard)
-            );
-            try {
-                final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
-                for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
-                    // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
+        // TODO consider distributing the workload, giving each node a subset of indices to process
 
-                    if (expectedSnapshots.contains(snapshotId) == false) {
-                        addFailure("index [%s] has mismatched snapshot [%s]", name, indexId, snapshotId);
-                    }
+        finalRefs.incRef(); // released in onIndexMetadataChecksComplete
+        final var shardBlobsListenersByShard = ConcurrentCollections.<
+            Integer,
+            ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
+        final var indexMetadataChecksRef = AbstractRefCounted.of(
+            () -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard)
+        );
+        try {
+            final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
+            for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
+                // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
 
-                    final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
-                    shardCountListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
-                        final var shardCountFuture = new ListenableActionFuture<Integer>();
-                        forkSupply(() -> {
-                            final var shardCount = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
-                                .getNumberOfShards();
-                            for (int i = 0; i < shardCount; i++) {
-                                shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
-                                    final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
-                                    forkSupply(() -> blobStoreRepository.shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
-                                    return shardBlobsFuture;
-                                });
-                            }
-                            return shardCount;
-                        }, shardCountFuture);
-                        return shardCountFuture;
-                    }).addListener(makeListener(indexMetadataChecksRef, shardCount -> {
+                if (expectedSnapshots.contains(snapshotId) == false) {
+                    addFailure("index [%s] has mismatched snapshot [%s]", indexId, snapshotId);
+                }
+
+                final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
+                shardCountListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
+                    final var shardCountFuture = new ListenableActionFuture<Integer>();
+                    forkSupply(() -> {
+                        final var shardCount = blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId)
+                            .getNumberOfShards();
                         for (int i = 0; i < shardCount; i++) {
-                            final var shardId = i;
-                            shardBlobsListenersByShard.get(i)
-                                .addListener(
-                                    makeListener(
-                                        indexMetadataChecksRef,
-                                        shardBlobs -> forkSupply(
-                                            indexMetadataChecksRef,
-                                            () -> blobStoreRepository.loadShardSnapshot(
-                                                blobStoreRepository.shardContainer(indexId, shardId),
-                                                snapshotId
-                                            ),
-                                            shardSnapshot -> verifyShardSnapshot(snapshotId, indexId, shardId, shardBlobs, shardSnapshot),
-                                            "verify snapshot [%s] for shard %s/%d",
-                                            snapshotId,
-                                            indexId,
-                                            shardId
-                                        ),
-                                        "await listing for %s/%d before verifying snapshot [%s]",
-                                        indexId,
-                                        shardId,
-                                        snapshotId
-                                    )
-                                );
+                            shardBlobsListenersByShard.computeIfAbsent(i, shardId -> {
+                                final var shardBlobsFuture = new ListenableActionFuture<Map<String, BlobMetadata>>();
+                                forkSupply(() -> blobStoreRepository.shardContainer(indexId, shardId).listBlobs(), shardBlobsFuture);
+                                return shardBlobsFuture;
+                            });
                         }
-                    }, "await index metadata for %s before verifying shards", indexId));
-                }
-                if (shardCountListenersByBlobId.isEmpty()) {
-                    throw new IllegalStateException(format("index [%s] has no metadata", indexId));
-                }
-            } finally {
-                indexMetadataChecksRef.decRef();
+                        return shardCount;
+                    }, shardCountFuture);
+                    return shardCountFuture;
+                }).addListener(makeListener(indexMetadataChecksRef, shardCount -> {
+                    for (int i = 0; i < shardCount; i++) {
+                        final var shardId = i;
+                        shardBlobsListenersByShard.get(i)
+                            .addListener(
+                                makeListener(
+                                    indexMetadataChecksRef,
+                                    shardBlobs -> forkSupply(
+                                        indexMetadataChecksRef,
+                                        () -> blobStoreRepository.loadShardSnapshot(
+                                            blobStoreRepository.shardContainer(indexId, shardId),
+                                            snapshotId
+                                        ),
+                                        shardSnapshot -> verifyShardSnapshot(snapshotId, indexId, shardId, shardBlobs, shardSnapshot),
+                                        "verify snapshot [%s] for shard %s/%d",
+                                        snapshotId,
+                                        indexId,
+                                        shardId
+                                    ),
+                                    "await listing for %s/%d before verifying snapshot [%s]",
+                                    indexId,
+                                    shardId,
+                                    snapshotId
+                                )
+                            );
+                    }
+                }, "await index metadata for %s before verifying shards", indexId));
             }
+            if (shardCountListenersByBlobId.isEmpty()) {
+                throw new IllegalStateException(format("index [%s] has no metadata", indexId));
+            }
+        } finally {
+            indexMetadataChecksRef.decRef();
         }
     }
 
