@@ -15,7 +15,6 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
-import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.CheckedRunnable;
@@ -41,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.*;
 import static org.elasticsearch.core.Strings.format;
 
 class MetadataVerifier implements Releasable {
@@ -154,16 +154,17 @@ class MetadataVerifier implements Releasable {
 
         // TODO consider distributing the workload, giving each node a subset of indices to process
 
-        final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = ConcurrentCollections
-            .newConcurrentMap();
-        final var indexMetadataChecksListener = makeVoidListener(
-            refCounted,
-            () -> onIndexMetadataChecksComplete(refCounted, indexId, shardBlobsListenersByShard),
-            "waiting for metadata checks of index [%s]",
-            indexId
-        );
-        final var indexMetadataChecksRef = AbstractRefCounted.of(() -> indexMetadataChecksListener.onResponse(null));
-        try {
+        final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = newConcurrentMap();
+        try (
+            var indexMetadataChecksRef = wrap(
+                makeVoidListener(
+                    refCounted,
+                    () -> onIndexMetadataChecksComplete(refCounted, indexId, shardBlobsListenersByShard),
+                    "waiting for metadata checks of index [%s]",
+                    indexId
+                )
+            )
+        ) {
             final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
             for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
                 // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
@@ -219,8 +220,6 @@ class MetadataVerifier implements Releasable {
             if (shardCountListenersByBlobId.isEmpty()) {
                 throw new IllegalStateException(format("index [%s] has no metadata", indexId));
             }
-        } finally {
-            indexMetadataChecksRef.decRef();
         }
     }
 
@@ -293,9 +292,7 @@ class MetadataVerifier implements Releasable {
         IndexId indexId,
         Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListeners
     ) {
-        final var shardGenerationChecksListener = makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId);
-        final var shardGenerationChecksRef = AbstractRefCounted.of(() -> shardGenerationChecksListener.onResponse(null));
-        try {
+        try (var shardGenerationChecksRef = wrap(makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId))) {
             // TODO throttle here too
             for (final var shardEntry : shardBlobsListeners.entrySet()) {
                 final int shardId = shardEntry.getKey();
@@ -332,21 +329,10 @@ class MetadataVerifier implements Releasable {
                         )
                     );
             }
-        } finally {
-            shardGenerationChecksRef.decRef();
         }
     }
 
     private final AtomicLong idGenerator = new AtomicLong();
-
-    private ActionListener<Void> makeVoidListener(
-        RefCounted refCounted,
-        CheckedRunnable<Exception> runnable,
-        String format,
-        Object... args
-    ) {
-        return makeListener(refCounted, ignored -> runnable.run(), format, args);
-    }
 
     private <T> ActionListener<T> makeListener(
         RefCounted refCounted,
@@ -361,6 +347,15 @@ class MetadataVerifier implements Releasable {
             logger.trace("end {}", description);
             refCounted.decRef();
         });
+    }
+
+    private ActionListener<Void> makeVoidListener(
+        RefCounted refCounted,
+        CheckedRunnable<Exception> runnable,
+        String format,
+        Object... args
+    ) {
+        return makeListener(refCounted, ignored -> runnable.run(), format, args);
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
@@ -388,8 +383,40 @@ class MetadataVerifier implements Releasable {
         }
     }
 
+    private interface RefCountedListenerWrapper extends Releasable, RefCounted {}
+
+    private static RefCountedListenerWrapper wrap(ActionListener<Void> listener) {
+        final var refCounted = AbstractRefCounted.of(() -> listener.onResponse(null));
+        return new RefCountedListenerWrapper() {
+            @Override
+            public void incRef() {
+                refCounted.incRef();
+            }
+
+            @Override
+            public boolean tryIncRef() {
+                return refCounted.tryIncRef();
+            }
+
+            @Override
+            public boolean decRef() {
+                return refCounted.decRef();
+            }
+
+            @Override
+            public boolean hasReferences() {
+                return refCounted.hasReferences();
+            }
+
+            @Override
+            public void close() {
+                decRef();
+            }
+        };
+    }
+
     private static class ThrottledIterator<T> implements Releasable {
-        private final RefCounted refCounted;
+        private final RefCountedListenerWrapper refCounted;
         private final Iterator<T> iterator;
         private final BiConsumer<RefCounted, T> consumer;
         private final Semaphore permits;
@@ -400,7 +427,7 @@ class MetadataVerifier implements Releasable {
             BiConsumer<RefCounted, T> consumer,
             int maxConcurrency
         ) {
-            this.refCounted = AbstractRefCounted.of(() -> completionListener.onResponse(null));
+            this.refCounted = wrap(completionListener);
             this.iterator = iterator;
             this.consumer = consumer;
             this.permits = new Semaphore(maxConcurrency);
@@ -436,7 +463,7 @@ class MetadataVerifier implements Releasable {
 
         @Override
         public void close() {
-            refCounted.decRef();
+            refCounted.close();
         }
     }
 }
