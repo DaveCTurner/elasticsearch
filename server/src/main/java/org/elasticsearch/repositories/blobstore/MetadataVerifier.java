@@ -46,6 +46,10 @@ import static org.elasticsearch.core.Strings.format;
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
+    private static final int SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
+    private static final int INDEX_VERIFICATION_CONCURRENCY = 5;
+    private static final int INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
+
     private final BlobStoreRepository blobStoreRepository;
     private final ActionListener<Void> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
@@ -90,16 +94,12 @@ class MetadataVerifier implements Releasable {
     }
 
     private void verifySnapshots() {
-        try (
-            var snapshotsVerifier = new ThrottledIterator<>(
-                makeVoidListener(finalRefs, this::verifyIndices, "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
-                repositoryData.getSnapshotIds().iterator(),
-                this::verifySnapshot,
-                5
-            )
-        ) {
-            snapshotsVerifier.run();
-        }
+        runThrottled(
+            makeVoidListener(finalRefs, this::verifyIndices, "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
+            repositoryData.getSnapshotIds().iterator(),
+            this::verifySnapshot,
+            SNAPSHOT_VERIFICATION_CONCURRENCY
+        );
     }
 
     private void verifySnapshot(RefCounted snapshotRefs, SnapshotId snapshotId) {
@@ -137,16 +137,12 @@ class MetadataVerifier implements Releasable {
             }
         }
 
-        try (
-            var indicesVerifier = new ThrottledIterator<>(
-                makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
-                indicesMap.values().iterator(),
-                (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
-                5
-            )
-        ) {
-            indicesVerifier.run();
-        }
+        runThrottled(
+            makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
+            indicesMap.values().iterator(),
+            (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
+            INDEX_VERIFICATION_CONCURRENCY
+        );
     }
 
     private class IndexVerifier {
@@ -176,8 +172,9 @@ class MetadataVerifier implements Releasable {
                         "waiting for verification of snapshots of index [%s]",
                         indexId
                     )
-                );
-                var shardSnapshotIterator = new ThrottledIterator<>(
+                )
+            ) {
+                runThrottled(
                     makeVoidListener(
                         indexMetadataChecksRef,
                         () -> {},
@@ -187,10 +184,8 @@ class MetadataVerifier implements Releasable {
                     ),
                     indexSnapshots.iterator(),
                     this::verifyIndexSnapshot,
-                    5
-                )
-            ) {
-                shardSnapshotIterator.run();
+                    INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY
+                );
             }
         }
 
@@ -320,7 +315,6 @@ class MetadataVerifier implements Releasable {
             try (
                 var shardGenerationChecksRef = wrap(makeVoidListener(indexRefs, () -> {}, "checking shard generations for [%s]", indexId))
             ) {
-                // TODO throttle here too
                 for (final var shardEntry : shardBlobsListenersByShard.entrySet()) {
                     verifyShardGenerations(shardGenerationChecksRef, shardEntry);
                 }
@@ -394,7 +388,6 @@ class MetadataVerifier implements Releasable {
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
-        // TODO limit concurrency here, don't max out the SNAPSHOT_META threadpool
         blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(listener, supplier));
     }
 
@@ -448,6 +441,17 @@ class MetadataVerifier implements Releasable {
                 decRef();
             }
         };
+    }
+
+    private static <T> void runThrottled(
+        ActionListener<Void> completionListener,
+        Iterator<T> iterator,
+        BiConsumer<RefCounted, T> consumer,
+        int maxConcurrency
+    ) {
+        try (var throttledIterator = new ThrottledIterator<>(completionListener, iterator, consumer, maxConcurrency)) {
+            throttledIterator.run();
+        }
     }
 
     private static class ThrottledIterator<T> implements Releasable {
