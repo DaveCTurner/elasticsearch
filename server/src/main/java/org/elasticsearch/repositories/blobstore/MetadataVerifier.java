@@ -52,6 +52,7 @@ import static org.elasticsearch.core.Strings.format;
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
+    // TODO read these from the request
     private static final int THREADPOOL_CONCURRENCY = 5;
     private static final int SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
     private static final int INDEX_VERIFICATION_CONCURRENCY = 5;
@@ -424,6 +425,7 @@ class MetadataVerifier implements Releasable {
         }
     }
 
+    // TODO drop verbose logging/description
     private final AtomicLong idGenerator = new AtomicLong();
 
     private <T> ActionListener<T> makeListener(
