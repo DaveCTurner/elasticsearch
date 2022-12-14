@@ -90,31 +90,35 @@ class MetadataVerifier implements Releasable {
 
         try {
             for (final var snapshotId : repositoryData.getSnapshotIds()) {
-                if (repositoryData.hasMissingDetails(snapshotId)) {
-                    // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
-                    addFailure("snapshot [%s] has missing snapshot details", snapshotId);
-                }
-
-                blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(perSnapshotVerificationRef, snapshotInfo -> {
-                    if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
-                        addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
-                    }
-                    for (final var index : snapshotInfo.indices()) {
-                        if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
-                            addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
-                        }
-                    }
-                }, "verify snapshot info for %s", snapshotId));
-
-                forkSupply(perSnapshotVerificationRef, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
-                    if (metadata.indices().isEmpty() == false) {
-                        addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
-                    }
-                }, "verify global metadata for %s", snapshotId);
+                verifySnapshot(perSnapshotVerificationRef, snapshotId);
             }
         } finally {
             perSnapshotVerificationRef.decRef();
         }
+    }
+
+    private void verifySnapshot(RefCounted refCounted, SnapshotId snapshotId) {
+        if (repositoryData.hasMissingDetails(snapshotId)) {
+            // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
+            addFailure("snapshot [%s] has missing snapshot details", snapshotId);
+        }
+
+        blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(refCounted, snapshotInfo -> {
+            if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
+                addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
+            }
+            for (final var index : snapshotInfo.indices()) {
+                if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
+                    addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
+                }
+            }
+        }, "verify snapshot info for %s", snapshotId));
+
+        forkSupply(refCounted, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
+            if (metadata.indices().isEmpty() == false) {
+                addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
+            }
+        }, "verify global metadata for %s", snapshotId);
     }
 
     private void verifyIndices() {
