@@ -279,6 +279,10 @@ class MetadataVerifier implements Releasable {
             }
         }
 
+        private static String formatExact(ByteSizeValue byteSizeValue) {
+            return format("%s/%dB", byteSizeValue.toString(), byteSizeValue.getBytes());
+        }
+
         private void verifyFileInfo(
             String snapshot,
             int shardId,
@@ -290,82 +294,50 @@ class MetadataVerifier implements Releasable {
                 final var actualLength = ByteSizeValue.ofBytes(fileInfo.metadata().hash().length);
                 if (fileLength.getBytes() != actualLength.getBytes()) {
                     addFailure(
-                        "snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
+                        "snapshot [%s] for shard [%s/%d] has virtual blob [%s] for [%s] with length [%s] instead of [%s]",
                         snapshot,
                         indexId,
                         shardId,
+                        fileInfo.name(),
                         fileInfo.physicalName(),
-                        fileInfo.metadata().length(),
-                        fileInfo.length()
+                        formatExact(actualLength),
+                        formatExact(fileLength)
                     );
-                    //
-                    // addFailure((builder, params) -> {
-                    // builder.field("index", indexId);
-                    // builder.field("shard", shardId);
-                    // builder.field("snapshot", snapshot);
-                    // builder.field("file", fileInfo.physicalName());
-                    // builder.field("checksum", fileInfo.checksum());
-                    // builder.field("part", 1);
-                    // builder.field("blob", fileInfo.name());
-                    // builder.field("error", "mismatched virtual blob size");
-                    // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                    // builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
-                    // return builder;
-                    // });
                 }
             } else {
-                for (int i = 0; i < fileInfo.numberOfParts(); i++) {
-                    final var part = i;
+                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
                     final var blobName = fileInfo.partName(part);
                     final var blobInfo = shardBlobs.get(blobName);
                     final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
                     if (blobInfo == null) {
-                        // addFailure((builder, params) -> {
-                        // builder.field("index", indexId);
-                        // builder.field("shard", shardId);
-                        // builder.field("snapshot", snapshot);
-                        // builder.field("file", fileInfo.physicalName());
-                        // builder.field("checksum", fileInfo.checksum());
-                        // builder.field("part", part);
-                        // builder.field("blob", blobName);
-                        // builder.field("error", "missing blob");
-                        // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                        // builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                        // return builder;
-                        // });
                         addFailure(
-                            "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
-                            snapshot,
-                            indexId,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName()
-                        );
-
-                    } else if (blobInfo.length() != partLength.getBytes()) {
-                        // addFailure((builder, params) -> {
-                        // builder.field("index", indexId);
-                        // builder.field("shard", shardId);
-                        // builder.field("snapshot", snapshot);
-                        // builder.field("file", fileInfo.physicalName());
-                        // builder.field("checksum", fileInfo.checksum());
-                        // builder.field("part", part);
-                        // builder.field("blob", blobName);
-                        // builder.field("error", "mismatched blob size");
-                        // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                        // builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                        // builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
-                        // return builder;
-                        // });
-                        addFailure(
-                            "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                            "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s] part [%d/%d]; "
+                                + "file length [%s], part length [%s]",
                             snapshot,
                             indexId,
                             shardId,
                             blobName,
                             fileInfo.physicalName(),
-                            blobInfo.length(),
-                            fileInfo.partBytes(part)
+                            part,
+                            fileInfo.numberOfParts(),
+                            formatExact(fileLength),
+                            formatExact(partLength)
+                        );
+
+                    } else if (blobInfo.length() != partLength.getBytes()) {
+                        addFailure(
+                            "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] part [%d/%d] with length [%s] instead of [%s]; "
+                                + "file length [%s]",
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            part,
+                            fileInfo.numberOfParts(),
+                            formatExact(ByteSizeValue.ofBytes(blobInfo.length())),
+                            formatExact(partLength),
+                            formatExact(fileLength)
                         );
                     }
                 }
