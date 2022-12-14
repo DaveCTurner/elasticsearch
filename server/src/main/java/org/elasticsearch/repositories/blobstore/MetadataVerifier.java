@@ -38,6 +38,7 @@ import java.util.TreeSet;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.core.Strings.format;
@@ -95,20 +96,22 @@ class MetadataVerifier implements Releasable {
             }
         });
         try {
-            new SnapshotVerifier(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator()).run();
+            new SnapshotVerifier(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator(), this::verifySnapshot).run();
         } finally {
             perSnapshotVerificationRef.decRef();
         }
     }
 
-    private class SnapshotVerifier {
+    private static class SnapshotVerifier {
         private final RefCounted refCounted;
         private final Iterator<SnapshotId> snapshotIdIterator;
+        private final BiConsumer<RefCounted, SnapshotId> consumer;
         private final Semaphore permits = new Semaphore(5);
 
-        SnapshotVerifier(RefCounted refCounted, Iterator<SnapshotId> snapshotIdIterator) {
+        SnapshotVerifier(RefCounted refCounted, Iterator<SnapshotId> snapshotIdIterator, BiConsumer<RefCounted, SnapshotId> consumer) {
             this.refCounted = refCounted;
             this.snapshotIdIterator = snapshotIdIterator;
+            this.consumer = consumer;
         }
 
         private synchronized Optional<SnapshotId> nextSnapshotId() {
@@ -136,7 +139,7 @@ class MetadataVerifier implements Releasable {
                     }
                 });
                 try {
-                    verifySnapshot(snapshotRefCount, maybeNextId.get());
+                    consumer.accept(snapshotRefCount, maybeNextId.get());
                 } finally {
                     snapshotRefCount.decRef();
                 }
