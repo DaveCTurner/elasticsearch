@@ -19,6 +19,7 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.RefCounted;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
@@ -34,41 +35,31 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.core.Strings.format;
 
-class MetadataVerifier {
+class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
     private final BlobStoreRepository blobStoreRepository;
-    private final LongFunction<RepositoryData> repositoryDataLoader;
     private final ActionListener<Void> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
+    private final RepositoryData repositoryData;
     private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
     private final AtomicBoolean isComplete = new AtomicBoolean();
 
-    MetadataVerifier(
-        BlobStoreRepository blobStoreRepository,
-        LongFunction<RepositoryData> repositoryDataLoader,
-        ActionListener<Void> finalListener
-    ) {
+    MetadataVerifier(BlobStoreRepository blobStoreRepository, RepositoryData repositoryData, ActionListener<Void> finalListener) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
-        this.repositoryDataLoader = repositoryDataLoader;
+        this.repositoryData = repositoryData;
         this.finalListener = finalListener;
     }
 
-    void run() {
-        // TODO cancellability
-
-        try {
-            blobStoreRepository.getRepositoryData(makeListener(finalRefs, this::onRepositoryDataReceived, "verify repository"));
-        } finally {
-            finalRefs.decRef();
-        }
+    @Override
+    public void close() {
+        finalRefs.decRef();
     }
 
     private void addFailure(String format, Object... args) {
@@ -77,7 +68,7 @@ class MetadataVerifier {
         failures.add(failure);
     }
 
-    private void onRepositoryDataReceived(RepositoryData repositoryData) {
+    public void run() {
         logger.info(
             "[{}] verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
             repositoryName,
@@ -85,17 +76,6 @@ class MetadataVerifier {
             repositoryData.getUuid(),
             repositoryData.getClusterUUID()
         );
-
-        forkSupply(finalRefs, () -> repositoryDataLoader.apply(repositoryData.getGenId()), loadedRepoData -> {
-            if (loadedRepoData.getGenId() != repositoryData.getGenId()) {
-                addFailure(
-                    "[%s] has repository data generation [{}], expected [{}]",
-                    repositoryName,
-                    loadedRepoData.getGenId(),
-                    repositoryData.getGenId()
-                );
-            }
-        }, "verify loaded repo data");
 
         final var snapshotsByIndex = repositoryData.getIndices()
             .values()
@@ -148,7 +128,7 @@ class MetadataVerifier {
                 Integer,
                 ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
             final var indexMetadataChecksRef = AbstractRefCounted.of(
-                () -> onIndexMetadataChecksComplete(repositoryData, indexId, shardBlobsListenersByShard)
+                () -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard)
             );
             try {
                 final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
@@ -281,7 +261,6 @@ class MetadataVerifier {
     }
 
     private void onIndexMetadataChecksComplete(
-        RepositoryData repositoryData,
         IndexId indexId,
         Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListeners
     ) {

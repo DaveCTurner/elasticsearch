@@ -131,6 +131,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -3541,7 +3542,34 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     @Override
     public void verifyMetadataIntegrity(ActionListener<Void> listener) {
-        new MetadataVerifier(this, this::getRepositoryData, listener).run();
+        getRepositoryData(listener.delegateFailure((l, repositoryData) -> {
+            logger.info(
+                "[{}] verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
+                metadata.name(),
+                repositoryData.getGenId(),
+                repositoryData.getUuid(),
+                repositoryData.getClusterUUID()
+            );
+
+            threadPool.executor(ThreadPool.Names.SNAPSHOT_META)
+                .execute(ActionRunnable.supply(l.delegateFailure((l2, loadedRepositoryData) -> {
+                    // really just checking that the repo data can be loaded, but may as well check a little consistency too
+                    if (loadedRepositoryData.getGenId() != repositoryData.getGenId()) {
+                        throw new IllegalStateException(
+                            String.format(
+                                Locale.ROOT,
+                                "[%s] has repository data generation [%d], expected [%d]",
+                                metadata.name(),
+                                loadedRepositoryData.getGenId(),
+                                repositoryData.getGenId()
+                            )
+                        );
+                    }
+                    try (var metadataVerifier = new MetadataVerifier(this, repositoryData, l2)) {
+                        metadataVerifier.run();
+                    }
+                }), () -> getRepositoryData(repositoryData.getGenId())));
+        }));
     }
 
     public boolean supportURLRepo() {
