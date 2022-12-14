@@ -16,6 +16,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
+import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
 import org.junit.After;
@@ -116,7 +117,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             try {
                 final var failFuture = new PlainActionFuture<Void>();
                 repository.verifyMetadataIntegrity(failFuture);
-                final var exception = expectThrows(IllegalStateException.class, () -> failFuture.actionGet(30, TimeUnit.SECONDS));
+                final var exception = expectThrows(RepositoryException.class, () -> failFuture.actionGet(30, TimeUnit.SECONDS));
                 if (isDataBlob) {
                     assertThat(exception.getMessage(), containsString(blobToDamage.getFileName().toString()));
                 }

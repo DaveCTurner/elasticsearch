@@ -23,6 +23,7 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
+import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -402,7 +403,7 @@ class MetadataVerifier implements Releasable {
             if (failures.isEmpty()) {
                 finalListener.onResponse(null);
             } else {
-                finalListener.onFailure(new IllegalStateException(String.join("\n", failures)));
+                finalListener.onFailure(new RepositoryException(repositoryName, String.join("\n", failures)));
             }
         }
     }
