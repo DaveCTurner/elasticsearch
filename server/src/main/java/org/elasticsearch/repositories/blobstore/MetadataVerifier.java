@@ -28,10 +28,13 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -81,19 +84,62 @@ class MetadataVerifier implements Releasable {
             repositoryData.getClusterUUID()
         );
 
-        verifySnapshots();
-    }
+        finalRefs.incRef();
 
-    private void verifySnapshots() {
-
-        final var perSnapshotVerificationRef = AbstractRefCounted.of(this::verifyIndices);
-
-        try {
-            for (final var snapshotId : repositoryData.getSnapshotIds()) {
-                verifySnapshot(perSnapshotVerificationRef, snapshotId);
+        final var perSnapshotVerificationRef = AbstractRefCounted.of(() -> {
+            try {
+                verifyIndices();
+            } finally {
+                finalRefs.decRef();
             }
+        });
+        try {
+            new SnapshotVerifier(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator()).run();
         } finally {
             perSnapshotVerificationRef.decRef();
+        }
+    }
+
+    private class SnapshotVerifier {
+        private final RefCounted refCounted;
+        private final Iterator<SnapshotId> snapshotIdIterator;
+        private final Semaphore permits = new Semaphore(5);
+
+        SnapshotVerifier(RefCounted refCounted, Iterator<SnapshotId> snapshotIdIterator) {
+            this.refCounted = refCounted;
+            this.snapshotIdIterator = snapshotIdIterator;
+        }
+
+        private synchronized Optional<SnapshotId> nextSnapshotId() {
+            if (snapshotIdIterator.hasNext()) {
+                return Optional.of(snapshotIdIterator.next());
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        void run() {
+            while (permits.tryAcquire()) {
+                final var maybeNextId = nextSnapshotId();
+                if (maybeNextId.isEmpty()) {
+                    permits.release();
+                    return;
+                }
+                refCounted.incRef();
+                final var snapshotRefCount = AbstractRefCounted.of(() -> {
+                    permits.release();
+                    try {
+                        run();
+                    } finally {
+                        refCounted.decRef();
+                    }
+                });
+                try {
+                    verifySnapshot(snapshotRefCount, maybeNextId.get());
+                } finally {
+                    snapshotRefCount.decRef();
+                }
+            }
         }
     }
 
