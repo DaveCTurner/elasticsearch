@@ -83,7 +83,7 @@ class MetadataVerifier implements Releasable {
             .stream()
             .collect(Collectors.toMap(IndexId::getName, indexId -> Set.copyOf(this.repositoryData.getSnapshots(indexId))));
 
-        this.threadPoolPermits = new Semaphore(verifyRequest.getThreadpoolConcurrency());
+        this.threadPoolPermits = new Semaphore(Math.max(1, verifyRequest.getThreadpoolConcurrency()));
     }
 
     @Override

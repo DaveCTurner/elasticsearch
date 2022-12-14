@@ -35,7 +35,7 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final var verifyRequest = new VerifyRepositoryIntegrityAction.Request(
             request.param("repository"),
-            request.paramAsInt("threadpool_concurrency", 5),
+            request.paramAsInt("threadpool_concurrency", 0),
             request.paramAsInt("snapshot_verification_concurrency", 5),
             request.paramAsInt("index_verification_concurrency", 5),
             request.paramAsInt("index_snapshot_verification_concurrency", 5),
