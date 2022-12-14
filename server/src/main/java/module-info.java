@@ -70,6 +70,7 @@ module org.elasticsearch.server {
     exports org.elasticsearch.action.admin.cluster.repositories.cleanup;
     exports org.elasticsearch.action.admin.cluster.repositories.delete;
     exports org.elasticsearch.action.admin.cluster.repositories.get;
+    exports org.elasticsearch.action.admin.cluster.repositories.integrity;
     exports org.elasticsearch.action.admin.cluster.repositories.put;
     exports org.elasticsearch.action.admin.cluster.repositories.verify;
     exports org.elasticsearch.action.admin.cluster.reroute;
@@ -357,8 +358,6 @@ module org.elasticsearch.server {
     exports org.elasticsearch.watcher;
 
     opens org.elasticsearch.common.logging to org.apache.logging.log4j.core;
-
-    exports org.elasticsearch.action.admin.cluster.repositories.integrity;
 
     provides java.util.spi.CalendarDataProvider with org.elasticsearch.common.time.IsoCalendarDataProvider;
     provides org.elasticsearch.xcontent.ErrorOnUnknown with org.elasticsearch.common.xcontent.SuggestingErrorOnUnknown;
