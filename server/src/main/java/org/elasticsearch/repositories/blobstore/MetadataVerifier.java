@@ -77,40 +77,56 @@ class MetadataVerifier implements Releasable {
             repositoryData.getClusterUUID()
         );
 
+        verifySnapshots();
+    }
+
+    private void verifySnapshots() {
         final var snapshotsByIndex = repositoryData.getIndices()
             .values()
             .stream()
             .collect(Collectors.toMap(IndexId::getName, indexId -> new HashSet<>(repositoryData.getSnapshots(indexId))));
 
-        for (final var snapshotId : repositoryData.getSnapshotIds()) {
-            if (repositoryData.hasMissingDetails(snapshotId)) {
-                // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
-                addFailure("[%s] snapshot [%s] has missing snapshot details", repositoryName, snapshotId);
-            }
+        final var perSnapshotVerificationRef = AbstractRefCounted.of(this::verifyIndices);
 
-            blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(finalRefs, snapshotInfo -> {
-                if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
-                    addFailure(
-                        "[%s] snapshot [%s] has unexpected ID in info blob: [%s]",
-                        repositoryName,
-                        snapshotId,
-                        snapshotInfo.snapshotId()
-                    );
+        try {
+            for (final var snapshotId : repositoryData.getSnapshotIds()) {
+                if (repositoryData.hasMissingDetails(snapshotId)) {
+                    // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
+                    addFailure("[%s] snapshot [%s] has missing snapshot details", repositoryName, snapshotId);
                 }
-                for (final var index : snapshotInfo.indices()) {
-                    if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
-                        addFailure("[%s] snapshot [%s] contains unexpected index [%s]", repositoryName, snapshotId, index);
+
+                blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(perSnapshotVerificationRef, snapshotInfo -> {
+                    if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
+                        addFailure(
+                            "[%s] snapshot [%s] has unexpected ID in info blob: [%s]",
+                            repositoryName,
+                            snapshotId,
+                            snapshotInfo.snapshotId()
+                        );
                     }
-                }
-            }, "verify snapshot info for %s", snapshotId));
+                    for (final var index : snapshotInfo.indices()) {
+                        if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
+                            addFailure("[%s] snapshot [%s] contains unexpected index [%s]", repositoryName, snapshotId, index);
+                        }
+                    }
+                }, "verify snapshot info for %s", snapshotId));
 
-            forkSupply(finalRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
-                if (metadata.indices().isEmpty() == false) {
-                    addFailure("[%s] snapshot [%s] contains unexpected index metadata within global metadata", repositoryName, snapshotId);
-                }
-            }, "verify global metadata for %s", snapshotId);
+                forkSupply(perSnapshotVerificationRef, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
+                    if (metadata.indices().isEmpty() == false) {
+                        addFailure(
+                            "[%s] snapshot [%s] contains unexpected index metadata within global metadata",
+                            repositoryName,
+                            snapshotId
+                        );
+                    }
+                }, "verify global metadata for %s", snapshotId);
+            }
+        } finally {
+            perSnapshotVerificationRef.decRef();
         }
+    }
 
+    private void verifyIndices() {
         for (final var indicesEntry : repositoryData.getIndices().entrySet()) {
             final var name = indicesEntry.getKey();
             final var indexId = indicesEntry.getValue();
