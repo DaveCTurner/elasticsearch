@@ -102,13 +102,13 @@ class MetadataVerifier implements Releasable {
         }
     }
 
-    private void verifySnapshot(RefCounted refCounted, SnapshotId snapshotId) {
+    private void verifySnapshot(RefCounted snapshotRefs, SnapshotId snapshotId) {
         if (repositoryData.hasMissingDetails(snapshotId)) {
             // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
             addFailure("snapshot [%s] has missing snapshot details", snapshotId);
         }
 
-        blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(refCounted, snapshotInfo -> {
+        blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
             if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
                 addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
             }
@@ -119,7 +119,7 @@ class MetadataVerifier implements Releasable {
             }
         }, "verify snapshot info for %s", snapshotId));
 
-        forkSupply(refCounted, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
+        forkSupply(snapshotRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
             if (metadata.indices().isEmpty() == false) {
                 addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
             }
@@ -141,7 +141,7 @@ class MetadataVerifier implements Releasable {
             var indicesVerifier = new ThrottledIterator<>(
                 makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
                 indicesMap.values().iterator(),
-                this::verifyIndex,
+                (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
                 5
             )
         ) {
@@ -150,14 +150,14 @@ class MetadataVerifier implements Releasable {
     }
 
     private class IndexVerifier {
-        private final RefCounted refCounted;
+        private final RefCounted indexRefs;
         private final IndexId indexId;
         private final Set<SnapshotId> expectedSnapshots;
         private final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = newConcurrentMap();
         private final Map<String, ListenableActionFuture<Integer>> shardCountListenersByBlobId = new HashMap<>();
 
-        IndexVerifier(RefCounted refCounted, IndexId indexId) {
-            this.refCounted = refCounted;
+        IndexVerifier(RefCounted indexRefs, IndexId indexId) {
+            this.indexRefs = indexRefs;
             this.indexId = indexId;
             this.expectedSnapshots = snapshotsByIndex.get(this.indexId.getName());
         }
@@ -168,7 +168,7 @@ class MetadataVerifier implements Releasable {
 
             try (
                 var indexMetadataChecksRef = wrap(
-                    makeVoidListener(refCounted, this::onIndexMetadataChecksComplete, "waiting for metadata checks of index [%s]", indexId)
+                    makeVoidListener(indexRefs, this::onIndexMetadataChecksComplete, "waiting for metadata checks of index [%s]", indexId)
                 )
             ) {
                 for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
@@ -298,7 +298,7 @@ class MetadataVerifier implements Releasable {
 
         private void onIndexMetadataChecksComplete() {
             try (
-                var shardGenerationChecksRef = wrap(makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId))
+                var shardGenerationChecksRef = wrap(makeVoidListener(indexRefs, () -> {}, "checking shard generations for [%s]", indexId))
             ) {
                 // TODO throttle here too
                 for (final var shardEntry : shardBlobsListenersByShard.entrySet()) {
@@ -338,10 +338,6 @@ class MetadataVerifier implements Releasable {
                 }
             }
         }
-    }
-
-    private void verifyIndex(RefCounted refCounted, IndexId indexId) {
-        new IndexVerifier(refCounted, indexId).run();
     }
 
     private final AtomicLong idGenerator = new AtomicLong();
