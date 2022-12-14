@@ -212,9 +212,10 @@ class MetadataVerifier implements Releasable {
     ) {
         if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
             addFailure(
-                "[%s] snapshot [%s] for shard [{}/{}] has mismatched name [{}]",
+                "[%s] snapshot [%s] for shard [%s/%d] has mismatched name [%s]",
                 repositoryName,
                 snapshotId,
+                indexId,
                 shardId,
                 shardSnapshot.snapshot()
             );
