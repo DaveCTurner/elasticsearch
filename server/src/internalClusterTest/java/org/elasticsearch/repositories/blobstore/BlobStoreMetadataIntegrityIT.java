@@ -17,6 +17,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
+import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
 import org.junit.After;
@@ -126,6 +127,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                         allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
                     );
                 }
+            } catch (RepositoryException e) {
+                // ok, this means e.g. we couldn't even read the index blob
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
