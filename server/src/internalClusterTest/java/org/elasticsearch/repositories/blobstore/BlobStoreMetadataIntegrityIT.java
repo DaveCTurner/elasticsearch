@@ -10,7 +10,6 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
@@ -29,6 +28,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
@@ -130,18 +130,30 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 CorruptionUtils.corruptFile(random(), blobToDamage);
             }
             try {
+                final var isCancelled = new AtomicBoolean();
+
                 final var verificationResponse = PlainActionFuture.get(
                     (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
                         listener,
-                        () -> false
+                        () -> {
+                            if (rarely() && rarely()) {
+                                isCancelled.set(true);
+                                return true;
+                            }
+                            return isCancelled.get();
+                        }
                     ),
                     30,
                     TimeUnit.SECONDS
                 );
                 assertThat(verificationResponse, not(empty()));
-                if (isDataBlob) {
+                final var responseString = verificationResponse.stream().map(Throwable::getMessage).collect(Collectors.joining("\n"));
+                if (isCancelled.get()) {
+                    assertThat(responseString, containsString("verification task cancelled before completion"));
+                }
+                if (isDataBlob && isCancelled.get() == false) {
                     assertThat(
-                        verificationResponse.stream().map(Strings::toString).collect(Collectors.joining("\n")),
+                        responseString,
                         allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
                     );
                 }

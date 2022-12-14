@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -27,6 +28,7 @@ import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.snapshots.SnapshotId;
+import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.HashMap;
@@ -98,9 +100,16 @@ class MetadataVerifier implements Releasable {
     }
 
     private void addFailure(Exception exception) {
+        if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
+            return;
+        }
         if (failureCount.incrementAndGet() <= MAX_FAILURES) {
             logger.info(() -> format("[%s] exception during metadata verification: {}", repositoryName), exception);
-            failures.add(new RepositoryVerificationException(repositoryName, "exception during metadata verification", exception));
+            failures.add(
+                exception instanceof RepositoryVerificationException rve
+                    ? rve
+                    : new RepositoryVerificationException(repositoryName, "exception during metadata verification", exception)
+            );
         }
     }
 
@@ -289,7 +298,11 @@ class MetadataVerifier implements Releasable {
         }
 
         private static String formatExact(ByteSizeValue byteSizeValue) {
-            return format("%s/%dB", byteSizeValue.toString(), byteSizeValue.getBytes());
+            if (byteSizeValue.getBytes() >= ByteSizeUnit.KB.toBytes(1)) {
+                return format("%s/%dB", byteSizeValue.toString(), byteSizeValue.getBytes());
+            } else {
+                return byteSizeValue.toString();
+            }
         }
 
         private void verifyFileInfo(
@@ -452,7 +465,7 @@ class MetadataVerifier implements Releasable {
 
             if (isCancelledSupplier.getAsBoolean()) {
                 try {
-                    runnable.onFailure(new RepositoryVerificationException(repositoryName, "verification task cancelled"));
+                    runnable.onFailure(new TaskCancelledException("task cancelled"));
                     continue;
                 } finally {
                     threadPoolPermits.release();
@@ -516,6 +529,10 @@ class MetadataVerifier implements Releasable {
                     format("found %d verification failures in total, %d suppressed", finalFailureCount, finalFailureCount - MAX_FAILURES)
                 )
             );
+        }
+
+        if (isCancelledSupplier.getAsBoolean()) {
+            failures.add(new RepositoryVerificationException(repositoryName, "verification task cancelled before completion"));
         }
 
         finalListener.onResponse(failures.stream().toList());
