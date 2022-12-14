@@ -9,6 +9,7 @@ package org.elasticsearch.repositories;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -312,6 +313,7 @@ public interface Repository extends LifecycleComponent {
     }
 
     default void verifyMetadataIntegrity(
+        VerifyRepositoryIntegrityAction.Request request,
         ActionListener<List<RepositoryVerificationException>> listener,
         BooleanSupplier isCancelledSupplier
     ) {

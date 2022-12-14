@@ -8,6 +8,7 @@
 
 package org.elasticsearch.repositories.blobstore;
 
+import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.settings.Settings;
@@ -18,6 +19,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.RepositoryVerificationException;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
 import org.junit.After;
@@ -35,6 +37,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
@@ -90,17 +93,15 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
         }
 
-        assertThat(
-            PlainActionFuture.get(
-                (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
-                    listener,
-                    () -> false
-                ),
-                30,
-                TimeUnit.SECONDS
-            ),
-            empty()
+        final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME);
+
+        final var response = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
+            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+            30,
+            TimeUnit.SECONDS
         );
+        assertThat(response.getRestStatus(), equalTo(RestStatus.OK));
+        assertThat(response.getExceptions(), empty());
 
         final var tempDir = createTempDir();
 
@@ -134,6 +135,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
                 final var verificationResponse = PlainActionFuture.get(
                     (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
+                        request,
                         listener,
                         () -> {
                             if (rarely() && rarely()) {
@@ -164,17 +166,13 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
             }
 
-            assertThat(
-                PlainActionFuture.get(
-                    (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
-                        listener,
-                        () -> false
-                    ),
-                    30,
-                    TimeUnit.SECONDS
-                ),
-                empty()
+            final var repairResponse = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
+                listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+                30,
+                TimeUnit.SECONDS
             );
+            assertThat(repairResponse.getRestStatus(), equalTo(RestStatus.OK));
+            assertThat(repairResponse.getExceptions(), empty());
         }
     }
 }

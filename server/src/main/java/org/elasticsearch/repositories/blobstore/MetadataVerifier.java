@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
@@ -58,6 +59,7 @@ class MetadataVerifier implements Releasable {
     private static final int MAX_FAILURES = 10000;
 
     private final BlobStoreRepository blobStoreRepository;
+    private final VerifyRepositoryIntegrityAction.Request verifyRequest;
     private final ActionListener<List<RepositoryVerificationException>> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
@@ -71,12 +73,14 @@ class MetadataVerifier implements Releasable {
 
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
+        VerifyRepositoryIntegrityAction.Request verifyRequest,
         RepositoryData repositoryData,
         BooleanSupplier isCancelledSupplier,
         ActionListener<List<RepositoryVerificationException>> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
+        this.verifyRequest = verifyRequest;
         this.repositoryData = repositoryData;
         this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;

@@ -118,6 +118,10 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                 return RestStatus.INTERNAL_SERVER_ERROR;
             }
         }
+
+        public List<RepositoryVerificationException> getExceptions() {
+            return exceptions;
+        }
     }
 
     public static class TransportAction extends TransportMasterNodeReadAction<Request, Response> {
@@ -155,9 +159,10 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
 
         @Override
         protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) throws Exception {
+            // TODO add mechanism to block blob deletions while this is running
             final var cancellableTask = (CancellableTask) task;
             repositoriesService.repository(request.repository)
-                .verifyMetadataIntegrity(listener.map(Response::new), cancellableTask::isCancelled);
+                .verifyMetadataIntegrity(request, listener.map(Response::new), cancellableTask::isCancelled);
         }
     }
 }

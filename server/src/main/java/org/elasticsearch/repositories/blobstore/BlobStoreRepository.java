@@ -27,6 +27,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.SingleResultDeduplicator;
 import org.elasticsearch.action.StepListener;
+import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -3543,6 +3544,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     @Override
     public void verifyMetadataIntegrity(
+        VerifyRepositoryIntegrityAction.Request request,
         ActionListener<List<RepositoryVerificationException>> listener,
         BooleanSupplier isCancelledSupplier
     ) {
@@ -3569,7 +3571,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             )
                         );
                     }
-                    try (var metadataVerifier = new MetadataVerifier(this, repositoryData, isCancelledSupplier, l2)) {
+                    try (var metadataVerifier = new MetadataVerifier(this, request, repositoryData, isCancelledSupplier, l2)) {
                         metadataVerifier.run();
                     }
                 }), () -> getRepositoryData(repositoryData.getGenId())));
