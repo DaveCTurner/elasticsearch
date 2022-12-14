@@ -115,6 +115,7 @@ import org.elasticsearch.snapshots.SnapshotsService;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentParser;
@@ -3541,7 +3542,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void verifyMetadataIntegrity(ActionListener<Void> listener) {
+    public void verifyMetadataIntegrity(ActionListener<List<ToXContentObject>> listener) {
         getRepositoryData(listener.delegateFailure((l, repositoryData) -> {
             logger.info(
                 "[{}] verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",

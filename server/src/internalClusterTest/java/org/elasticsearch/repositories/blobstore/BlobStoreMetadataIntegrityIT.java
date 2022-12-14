@@ -10,13 +10,13 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
-import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
 import org.junit.After;
@@ -27,9 +27,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
 
@@ -84,9 +88,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
         }
 
-        final var successFuture = new PlainActionFuture<Void>();
-        repository.verifyMetadataIntegrity(successFuture);
-        successFuture.get(30, TimeUnit.SECONDS);
+        assertThat(PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS), empty());
+
         final var tempDir = createTempDir();
 
         final List<Path> blobs;
@@ -115,20 +118,20 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 CorruptionUtils.corruptFile(random(), blobToDamage);
             }
             try {
-                final var failFuture = new PlainActionFuture<Void>();
-                repository.verifyMetadataIntegrity(failFuture);
-                final var exception = expectThrows(RepositoryException.class, () -> failFuture.actionGet(30, TimeUnit.SECONDS));
+                final var verificationResponse = PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS);
+                assertThat(verificationResponse, not(empty()));
                 if (isDataBlob) {
-                    assertThat(exception.getMessage(), containsString(blobToDamage.getFileName().toString()));
+                    assertThat(
+                        verificationResponse.stream().map(Strings::toString).collect(Collectors.joining("\n")),
+                        allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
+                    );
                 }
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
             }
 
-            final var repairFuture = new PlainActionFuture<Void>();
-            repository.verifyMetadataIntegrity(repairFuture);
-            repairFuture.get(30, TimeUnit.SECONDS);
+            assertThat(PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS), empty());
         }
     }
 }

@@ -10,10 +10,12 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -24,18 +26,18 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
-import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.ToXContentFragment;
+import org.elasticsearch.xcontent.ToXContentObject;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,18 +57,22 @@ class MetadataVerifier implements Releasable {
     private static final int INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
 
     private final BlobStoreRepository blobStoreRepository;
-    private final ActionListener<Void> finalListener;
+    private final ActionListener<List<ToXContentObject>> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final RepositoryData repositoryData;
     // TODO more structured output, not just strings
-    private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
+    private final Queue<ToXContentObject> failures = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isComplete = new AtomicBoolean();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
     private final Semaphore threadPoolPermits = new Semaphore(THREADPOOL_CONCURRENCY);
     private final Queue<AbstractRunnable> executorQueue = new ConcurrentLinkedQueue<>();
 
-    MetadataVerifier(BlobStoreRepository blobStoreRepository, RepositoryData repositoryData, ActionListener<Void> finalListener) {
+    MetadataVerifier(
+        BlobStoreRepository blobStoreRepository,
+        RepositoryData repositoryData,
+        ActionListener<List<ToXContentObject>> finalListener
+    ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
         this.repositoryData = repositoryData;
@@ -82,10 +88,15 @@ class MetadataVerifier implements Releasable {
         finalRefs.decRef();
     }
 
-    private void addFailure(String format, Object... args) {
-        final var failure = format(format, args);
-        logger.info("[{}] found metadata verification failure: {}", repositoryName, failure);
-        failures.add(format("[%s] %s", repositoryName, failure));
+    private void addFailure(ToXContentFragment failureBody) {
+        final ToXContentObject failureObject = (builder, params) -> {
+            builder.startObject();
+            failureBody.toXContent(builder, params);
+            builder.endObject();
+            return builder;
+        };
+        logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject));
+        failures.add(failureObject);
     }
 
     public void run() {
@@ -112,23 +123,41 @@ class MetadataVerifier implements Releasable {
     private void verifySnapshot(RefCounted snapshotRefs, SnapshotId snapshotId) {
         if (repositoryData.hasMissingDetails(snapshotId)) {
             // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
-            addFailure("snapshot [%s] has missing snapshot details", snapshotId);
+            addFailure((builder, params) -> {
+                builder.field("snapshot", snapshotId);
+                builder.field("error", "missing snapshot details");
+                return builder;
+            });
         }
 
         blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
             if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
-                addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
+                addFailure((builder, params) -> {
+                    builder.field("snapshot", snapshotId);
+                    builder.field("error", "unexpected ID in info blob");
+                    builder.field("bad_id", snapshotInfo.snapshotId());
+                    return builder;
+                });
             }
             for (final var index : snapshotInfo.indices()) {
                 if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
-                    addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
+                    addFailure((builder, params) -> {
+                        builder.field("snapshot", snapshotId);
+                        builder.field("error", "unexpected index");
+                        builder.field("index_name", index);
+                        return builder;
+                    });
                 }
             }
         }, "verify snapshot info for %s", snapshotId));
 
         forkSupply(snapshotRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
             if (metadata.indices().isEmpty() == false) {
-                addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
+                addFailure((builder, params) -> {
+                    builder.field("snapshot", snapshotId);
+                    builder.field("error", "unexpected index metadata within global metadata");
+                    return builder;
+                });
             }
         }, "verify global metadata for %s", snapshotId);
     }
@@ -140,7 +169,12 @@ class MetadataVerifier implements Releasable {
             final var name = indicesEntry.getKey();
             final var indexId = indicesEntry.getValue();
             if (name.equals(indexId.getName()) == false) {
-                addFailure("index name [%s] has mismatched name in [%s]", name, indexId);
+                addFailure((builder, params) -> {
+                    builder.field("index", indexId);
+                    builder.field("error", "index name mismatch");
+                    builder.field("bad_name", name);
+                    return builder;
+                });
             }
         }
 
@@ -198,7 +232,12 @@ class MetadataVerifier implements Releasable {
 
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
             if (expectedSnapshots.contains(snapshotId) == false) {
-                addFailure("index [%s] has mismatched snapshot [%s]", indexId, snapshotId);
+                addFailure((builder, params) -> {
+                    builder.field("index", indexId);
+                    builder.field("snapshot", snapshotId);
+                    builder.field("error", "unexpected snapshot");
+                    return builder;
+                });
             }
 
             final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
@@ -253,13 +292,14 @@ class MetadataVerifier implements Releasable {
             BlobStoreIndexShardSnapshot shardSnapshot
         ) {
             if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
-                addFailure(
-                    "snapshot [%s] for shard [%s/%d] has mismatched name [%s]",
-                    snapshotId,
-                    indexId,
-                    shardId,
-                    shardSnapshot.snapshot()
-                );
+                addFailure((builder, params) -> {
+                    builder.field("index", indexId);
+                    builder.field("shard", shardId);
+                    builder.field("snapshot", snapshotId);
+                    builder.field("error", "mismatched index shard snapshot name");
+                    builder.field("bad_name", shardSnapshot.snapshot());
+                    return builder;
+                });
             }
 
             for (final var fileInfo : shardSnapshot.indexFiles()) {
@@ -275,40 +315,52 @@ class MetadataVerifier implements Releasable {
         ) {
             if (fileInfo.metadata().hashEqualsContents()) {
                 if (fileInfo.length() != fileInfo.metadata().length()) {
-                    addFailure(
-                        "snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
-                        snapshot,
-                        indexId,
-                        shardId,
-                        fileInfo.physicalName(),
-                        fileInfo.metadata().length(),
-                        fileInfo.length()
-                    );
+                    addFailure((builder, params) -> {
+                        builder.field("index", indexId);
+                        builder.field("shard", shardId);
+                        builder.field("snapshot", snapshot);
+                        builder.field("file", fileInfo.physicalName());
+                        builder.field("checksum", fileInfo.checksum());
+                        builder.field("part", 1);
+                        builder.field("blob", fileInfo.name());
+                        builder.field("error", "mismatched virtual blob size");
+                        builder.field("expected_length", fileInfo.length());
+                        builder.field("actual_length", fileInfo.metadata().length());
+                        return builder;
+                    });
                 }
             } else {
-                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                for (int i = 0; i < fileInfo.numberOfParts(); i++) {
+                    final var part = i;
                     final var blobName = fileInfo.partName(part);
                     final var blobInfo = shardBlobs.get(blobName);
                     if (blobInfo == null) {
-                        addFailure(
-                            "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
-                            snapshot,
-                            indexId,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName()
-                        );
+                        addFailure((builder, params) -> {
+                            builder.field("index", indexId);
+                            builder.field("shard", shardId);
+                            builder.field("snapshot", snapshot);
+                            builder.field("file", fileInfo.physicalName());
+                            builder.field("checksum", fileInfo.checksum());
+                            builder.field("part", part);
+                            builder.field("blob", blobName);
+                            builder.field("error", "missing blob");
+                            builder.field("expected_length", fileInfo.length());
+                            return builder;
+                        });
                     } else if (blobInfo.length() != fileInfo.partBytes(part)) {
-                        addFailure(
-                            "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
-                            snapshot,
-                            indexId,
-                            shardId,
-                            blobName,
-                            fileInfo.physicalName(),
-                            blobInfo.length(),
-                            fileInfo.partBytes(part)
-                        );
+                        addFailure((builder, params) -> {
+                            builder.field("index", indexId);
+                            builder.field("shard", shardId);
+                            builder.field("snapshot", snapshot);
+                            builder.field("file", fileInfo.physicalName());
+                            builder.field("checksum", fileInfo.checksum());
+                            builder.field("part", part);
+                            builder.field("blob", blobName);
+                            builder.field("error", "mismatched blob size");
+                            builder.field("expected_length", fileInfo.length());
+                            builder.field("actual_length", blobInfo.length());
+                            return builder;
+                        });
                     }
                 }
             }
@@ -379,7 +431,10 @@ class MetadataVerifier implements Releasable {
         final var description = format("[%d] ", idGenerator.incrementAndGet()) + format(format, args);
         logger.trace("start {}", description);
         refCounted.incRef();
-        return ActionListener.runAfter(ActionListener.wrap(consumer, e -> addFailure("%s", e.getMessage())), () -> {
+        return ActionListener.runAfter(ActionListener.wrap(consumer, e -> addFailure((builder, params) -> {
+            ElasticsearchException.generateFailureXContent(builder, params, e, true);
+            return builder;
+        })), () -> {
             logger.trace("end {}", description);
             refCounted.decRef();
         });
@@ -463,11 +518,7 @@ class MetadataVerifier implements Releasable {
 
     private void onCompletion() {
         if (isComplete.compareAndSet(false, true)) {
-            if (failures.isEmpty()) {
-                finalListener.onResponse(null);
-            } else {
-                finalListener.onFailure(new RepositoryException(repositoryName, String.join("\n", failures)));
-            }
+            finalListener.onResponse(failures.stream().toList());
         }
     }
 
