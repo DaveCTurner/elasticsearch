@@ -49,12 +49,17 @@ class MetadataVerifier implements Releasable {
     private final RepositoryData repositoryData;
     private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
     private final AtomicBoolean isComplete = new AtomicBoolean();
+    private final Map<String, HashSet<SnapshotId>> snapshotsByIndex;
 
     MetadataVerifier(BlobStoreRepository blobStoreRepository, RepositoryData repositoryData, ActionListener<Void> finalListener) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
         this.repositoryData = repositoryData;
         this.finalListener = finalListener;
+        this.snapshotsByIndex = this.repositoryData.getIndices()
+            .values()
+            .stream()
+            .collect(Collectors.toMap(IndexId::getName, indexId -> new HashSet<>(this.repositoryData.getSnapshots(indexId))));
     }
 
     @Override
@@ -81,10 +86,6 @@ class MetadataVerifier implements Releasable {
     }
 
     private void verifySnapshots() {
-        final var snapshotsByIndex = repositoryData.getIndices()
-            .values()
-            .stream()
-            .collect(Collectors.toMap(IndexId::getName, indexId -> new HashSet<>(repositoryData.getSnapshots(indexId))));
 
         final var perSnapshotVerificationRef = AbstractRefCounted.of(this::verifyIndices);
 
