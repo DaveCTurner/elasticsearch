@@ -85,29 +85,31 @@ class MetadataVerifier implements Releasable {
             repositoryData.getClusterUUID()
         );
 
-        finalRefs.incRef();
-        final var perSnapshotVerificationRef = AbstractRefCounted.of(() -> {
-            try {
-                verifyIndices();
-            } finally {
-                finalRefs.decRef();
-            }
-        });
-        try {
-            new ThrottledIterator<>(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator(), this::verifySnapshot, 5).run();
-        } finally {
-            perSnapshotVerificationRef.decRef();
+        try (
+            var snapshotVerifier = new ThrottledIterator<>(
+                makeListener(finalRefs, ignored -> verifyIndices(), "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
+                repositoryData.getSnapshotIds().iterator(),
+                this::verifySnapshot,
+                5
+            )
+        ) {
+            snapshotVerifier.run();
         }
     }
 
-    private static class ThrottledIterator<T> {
+    private static class ThrottledIterator<T> implements Releasable {
         private final RefCounted refCounted;
         private final Iterator<T> iterator;
         private final BiConsumer<RefCounted, T> consumer;
         private final Semaphore permits;
 
-        ThrottledIterator(RefCounted refCounted, Iterator<T> iterator, BiConsumer<RefCounted, T> consumer, int maxConcurrency) {
-            this.refCounted = refCounted;
+        ThrottledIterator(
+            ActionListener<Void> completionListener,
+            Iterator<T> iterator,
+            BiConsumer<RefCounted, T> consumer,
+            int maxConcurrency
+        ) {
+            this.refCounted = AbstractRefCounted.of(() -> completionListener.onResponse(null));
             this.iterator = iterator;
             this.consumer = consumer;
             this.permits = new Semaphore(maxConcurrency);
@@ -140,6 +142,11 @@ class MetadataVerifier implements Releasable {
                 }
             }
         }
+
+        @Override
+        public void close() {
+            refCounted.decRef();
+        }
     }
 
     private void verifySnapshot(RefCounted refCounted, SnapshotId snapshotId) {
@@ -167,22 +174,30 @@ class MetadataVerifier implements Releasable {
     }
 
     private void verifyIndices() {
-        for (final var indicesEntry : repositoryData.getIndices().entrySet()) {
+        final var indicesMap = repositoryData.getIndices();
+
+        for (final var indicesEntry : indicesMap.entrySet()) {
             final var name = indicesEntry.getKey();
             final var indexId = indicesEntry.getValue();
             if (name.equals(indexId.getName()) == false) {
                 addFailure("index name [%s] has mismatched name in [%s]", name, indexId);
-                continue;
             }
+        }
 
-            verifyIndex(indexId);
+        try (
+            var indexVerifier = new ThrottledIterator<>(
+                makeListener(finalRefs, ignored -> {}, "verifying [%d] indices", indicesMap.size()),
+                indicesMap.values().iterator(),
+                this::verifyIndex,
+                5
+            )
+        ) {
+            indexVerifier.run();
         }
     }
 
-    private void verifyIndex(IndexId indexId) {
+    private void verifyIndex(RefCounted refCounted, IndexId indexId) {
         final var expectedSnapshots = snapshotsByIndex.get(indexId.getName());
-
-        // TODO must limit the number of indices currently being processed to avoid loading all the IndexMetadata at once
 
         // TODO consider distributing the workload, giving each node a subset of indices to process
 
