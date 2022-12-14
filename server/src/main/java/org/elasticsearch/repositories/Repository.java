@@ -26,7 +26,6 @@ import org.elasticsearch.snapshots.SnapshotDeleteListener;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -311,7 +310,7 @@ public interface Repository extends LifecycleComponent {
         return ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT_META);
     }
 
-    default void verifyMetadataIntegrity(ActionListener<List<ToXContentObject>> listener) {
+    default void verifyMetadataIntegrity(ActionListener<List<RepositoryVerificationException>> listener) {
         listener.onFailure(new UnsupportedOperationException("this repository type does not support metadata integrity verification"));
     }
 }

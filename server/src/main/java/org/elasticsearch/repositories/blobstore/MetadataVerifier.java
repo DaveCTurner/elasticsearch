@@ -10,12 +10,10 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
@@ -27,11 +25,9 @@ import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
+import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.ToXContentFragment;
-import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -46,7 +42,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE;
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.elasticsearch.core.Strings.format;
 
@@ -60,11 +55,11 @@ class MetadataVerifier implements Releasable {
     private static final int MAX_FAILURES = 10000;
 
     private final BlobStoreRepository blobStoreRepository;
-    private final ActionListener<List<ToXContentObject>> finalListener;
+    private final ActionListener<List<RepositoryVerificationException>> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final RepositoryData repositoryData;
-    private final Queue<ToXContentObject> failures = new ConcurrentLinkedQueue<>();
+    private final Queue<RepositoryVerificationException> failures = new ConcurrentLinkedQueue<>();
     private final AtomicLong failureCount = new AtomicLong();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
     private final Semaphore threadPoolPermits = new Semaphore(THREADPOOL_CONCURRENCY);
@@ -73,7 +68,7 @@ class MetadataVerifier implements Releasable {
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
         RepositoryData repositoryData,
-        ActionListener<List<ToXContentObject>> finalListener
+        ActionListener<List<RepositoryVerificationException>> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
@@ -90,16 +85,18 @@ class MetadataVerifier implements Releasable {
         finalRefs.decRef();
     }
 
-    private void addFailure(ToXContentFragment failureBody) {
+    private void addFailure(String format, Object... args) {
         if (failureCount.incrementAndGet() <= MAX_FAILURES) {
-            final ToXContentObject failureObject = (builder, params) -> {
-                builder.startObject();
-                failureBody.toXContent(builder, params);
-                builder.endObject();
-                return builder;
-            };
-            logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject, true, true));
-            failures.add(failureObject);
+            final var failure = format(format, args);
+            logger.info("[{}] found metadata verification failure: {}", repositoryName, failure);
+            failures.add(new RepositoryVerificationException(repositoryName, failure));
+        }
+    }
+
+    private void addFailure(Exception exception) {
+        if (failureCount.incrementAndGet() <= MAX_FAILURES) {
+            logger.info(() -> format("[%s] exception during metadata verification: {}", repositoryName), exception);
+            failures.add(new RepositoryVerificationException(repositoryName, "exception during metadata verification", exception));
         }
     }
 
@@ -127,41 +124,23 @@ class MetadataVerifier implements Releasable {
     private void verifySnapshot(RefCounted snapshotRefs, SnapshotId snapshotId) {
         if (repositoryData.hasMissingDetails(snapshotId)) {
             // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
-            addFailure((builder, params) -> {
-                builder.field("snapshot", snapshotId);
-                builder.field("error", "missing snapshot details");
-                return builder;
-            });
+            addFailure("snapshot [%s] has missing snapshot details", snapshotId);
         }
 
         blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
             if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
-                addFailure((builder, params) -> {
-                    builder.field("snapshot", snapshotId);
-                    builder.field("error", "unexpected ID in info blob");
-                    builder.field("bad_id", snapshotInfo.snapshotId());
-                    return builder;
-                });
+                addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
             }
             for (final var index : snapshotInfo.indices()) {
                 if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
-                    addFailure((builder, params) -> {
-                        builder.field("snapshot", snapshotId);
-                        builder.field("error", "unexpected index");
-                        builder.field("index_name", index);
-                        return builder;
-                    });
+                    addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
                 }
             }
         }, "verify snapshot info for %s", snapshotId));
 
         forkSupply(snapshotRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
             if (metadata.indices().isEmpty() == false) {
-                addFailure((builder, params) -> {
-                    builder.field("snapshot", snapshotId);
-                    builder.field("error", "unexpected index metadata within global metadata");
-                    return builder;
-                });
+                addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
             }
         }, "verify global metadata for %s", snapshotId);
     }
@@ -173,12 +152,7 @@ class MetadataVerifier implements Releasable {
             final var name = indicesEntry.getKey();
             final var indexId = indicesEntry.getValue();
             if (name.equals(indexId.getName()) == false) {
-                addFailure((builder, params) -> {
-                    builder.field("index", indexId);
-                    builder.field("error", "index name mismatch");
-                    builder.field("bad_name", name);
-                    return builder;
-                });
+                addFailure("index name [%s] has mismatched name in [%s]", name, indexId);
             }
         }
 
@@ -236,12 +210,7 @@ class MetadataVerifier implements Releasable {
 
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
             if (expectedSnapshots.contains(snapshotId) == false) {
-                addFailure((builder, params) -> {
-                    builder.field("index", indexId);
-                    builder.field("snapshot", snapshotId);
-                    builder.field("error", "unexpected snapshot");
-                    return builder;
-                });
+                addFailure("index [%s] has mismatched snapshot [%s]", indexId, snapshotId);
             }
 
             final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
@@ -296,14 +265,13 @@ class MetadataVerifier implements Releasable {
             BlobStoreIndexShardSnapshot shardSnapshot
         ) {
             if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
-                addFailure((builder, params) -> {
-                    builder.field("index", indexId);
-                    builder.field("shard", shardId);
-                    builder.field("snapshot", snapshotId);
-                    builder.field("error", "mismatched index shard snapshot name");
-                    builder.field("bad_name", shardSnapshot.snapshot());
-                    return builder;
-                });
+                addFailure(
+                    "snapshot [%s] for shard [%s/%d] has mismatched name [%s]",
+                    snapshotId,
+                    indexId,
+                    shardId,
+                    shardSnapshot.snapshot()
+                );
             }
 
             for (final var fileInfo : shardSnapshot.indexFiles()) {
@@ -321,19 +289,29 @@ class MetadataVerifier implements Releasable {
             if (fileInfo.metadata().hashEqualsContents()) {
                 final var actualLength = ByteSizeValue.ofBytes(fileInfo.metadata().hash().length);
                 if (fileLength.getBytes() != actualLength.getBytes()) {
-                    addFailure((builder, params) -> {
-                        builder.field("index", indexId);
-                        builder.field("shard", shardId);
-                        builder.field("snapshot", snapshot);
-                        builder.field("file", fileInfo.physicalName());
-                        builder.field("checksum", fileInfo.checksum());
-                        builder.field("part", 1);
-                        builder.field("blob", fileInfo.name());
-                        builder.field("error", "mismatched virtual blob size");
-                        builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                        builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
-                        return builder;
-                    });
+                    addFailure(
+                        "snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
+                        snapshot,
+                        indexId,
+                        shardId,
+                        fileInfo.physicalName(),
+                        fileInfo.metadata().length(),
+                        fileInfo.length()
+                    );
+                    //
+                    // addFailure((builder, params) -> {
+                    // builder.field("index", indexId);
+                    // builder.field("shard", shardId);
+                    // builder.field("snapshot", snapshot);
+                    // builder.field("file", fileInfo.physicalName());
+                    // builder.field("checksum", fileInfo.checksum());
+                    // builder.field("part", 1);
+                    // builder.field("blob", fileInfo.name());
+                    // builder.field("error", "mismatched virtual blob size");
+                    // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                    // builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
+                    // return builder;
+                    // });
                 }
             } else {
                 for (int i = 0; i < fileInfo.numberOfParts(); i++) {
@@ -342,34 +320,53 @@ class MetadataVerifier implements Releasable {
                     final var blobInfo = shardBlobs.get(blobName);
                     final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
                     if (blobInfo == null) {
-                        addFailure((builder, params) -> {
-                            builder.field("index", indexId);
-                            builder.field("shard", shardId);
-                            builder.field("snapshot", snapshot);
-                            builder.field("file", fileInfo.physicalName());
-                            builder.field("checksum", fileInfo.checksum());
-                            builder.field("part", part);
-                            builder.field("blob", blobName);
-                            builder.field("error", "missing blob");
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            return builder;
-                        });
+                        // addFailure((builder, params) -> {
+                        // builder.field("index", indexId);
+                        // builder.field("shard", shardId);
+                        // builder.field("snapshot", snapshot);
+                        // builder.field("file", fileInfo.physicalName());
+                        // builder.field("checksum", fileInfo.checksum());
+                        // builder.field("part", part);
+                        // builder.field("blob", blobName);
+                        // builder.field("error", "missing blob");
+                        // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        // builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
+                        // return builder;
+                        // });
+                        addFailure(
+                            "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName()
+                        );
+
                     } else if (blobInfo.length() != partLength.getBytes()) {
-                        addFailure((builder, params) -> {
-                            builder.field("index", indexId);
-                            builder.field("shard", shardId);
-                            builder.field("snapshot", snapshot);
-                            builder.field("file", fileInfo.physicalName());
-                            builder.field("checksum", fileInfo.checksum());
-                            builder.field("part", part);
-                            builder.field("blob", blobName);
-                            builder.field("error", "mismatched blob size");
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
-                            return builder;
-                        });
+                        // addFailure((builder, params) -> {
+                        // builder.field("index", indexId);
+                        // builder.field("shard", shardId);
+                        // builder.field("snapshot", snapshot);
+                        // builder.field("file", fileInfo.physicalName());
+                        // builder.field("checksum", fileInfo.checksum());
+                        // builder.field("part", part);
+                        // builder.field("blob", blobName);
+                        // builder.field("error", "mismatched blob size");
+                        // builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        // builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
+                        // builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
+                        // return builder;
+                        // });
+                        addFailure(
+                            "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            blobInfo.length(),
+                            fileInfo.partBytes(part)
+                        );
                     }
                 }
             }
@@ -440,15 +437,7 @@ class MetadataVerifier implements Releasable {
         final var description = format("[%d] ", idGenerator.incrementAndGet()) + format(format, args);
         logger.trace("start {}", description);
         refCounted.incRef();
-        return ActionListener.runAfter(ActionListener.wrap(consumer, e -> addFailure((builder, params) -> {
-            ElasticsearchException.generateFailureXContent(
-                builder,
-                new ToXContent.DelegatingMapParams(Map.of(REST_EXCEPTION_SKIP_STACK_TRACE, Boolean.toString(false)), params),
-                e,
-                true
-            );
-            return builder;
-        })), () -> {
+        return ActionListener.runAfter(ActionListener.wrap(consumer, this::addFailure), () -> {
             logger.trace("end {}", description);
             refCounted.decRef();
         });
@@ -534,10 +523,10 @@ class MetadataVerifier implements Releasable {
         final var finalFailureCount = failureCount.get();
         if (finalFailureCount > MAX_FAILURES) {
             failures.add(
-                ((builder, params) -> builder.startObject()
-                    .field("error", "too many failures")
-                    .field("count", finalFailureCount)
-                    .endObject())
+                new RepositoryVerificationException(
+                    repositoryName,
+                    format("found %d verification failures in total, %d suppressed", finalFailureCount, finalFailureCount - MAX_FAILURES)
+                )
             );
         }
 
