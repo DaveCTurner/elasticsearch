@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.Semaphore;
@@ -87,7 +86,6 @@ class MetadataVerifier implements Releasable {
         );
 
         finalRefs.incRef();
-
         final var perSnapshotVerificationRef = AbstractRefCounted.of(() -> {
             try {
                 verifyIndices();
@@ -96,41 +94,38 @@ class MetadataVerifier implements Releasable {
             }
         });
         try {
-            new SnapshotVerifier(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator(), this::verifySnapshot).run();
+            new ThrottledIterator<>(perSnapshotVerificationRef, repositoryData.getSnapshotIds().iterator(), this::verifySnapshot, 5).run();
         } finally {
             perSnapshotVerificationRef.decRef();
         }
     }
 
-    private static class SnapshotVerifier {
+    private static class ThrottledIterator<T> {
         private final RefCounted refCounted;
-        private final Iterator<SnapshotId> snapshotIdIterator;
-        private final BiConsumer<RefCounted, SnapshotId> consumer;
-        private final Semaphore permits = new Semaphore(5);
+        private final Iterator<T> iterator;
+        private final BiConsumer<RefCounted, T> consumer;
+        private final Semaphore permits;
 
-        SnapshotVerifier(RefCounted refCounted, Iterator<SnapshotId> snapshotIdIterator, BiConsumer<RefCounted, SnapshotId> consumer) {
+        ThrottledIterator(RefCounted refCounted, Iterator<T> iterator, BiConsumer<RefCounted, T> consumer, int maxConcurrency) {
             this.refCounted = refCounted;
-            this.snapshotIdIterator = snapshotIdIterator;
+            this.iterator = iterator;
             this.consumer = consumer;
-        }
-
-        private synchronized Optional<SnapshotId> nextSnapshotId() {
-            if (snapshotIdIterator.hasNext()) {
-                return Optional.of(snapshotIdIterator.next());
-            } else {
-                return Optional.empty();
-            }
+            this.permits = new Semaphore(maxConcurrency);
         }
 
         void run() {
             while (permits.tryAcquire()) {
-                final var maybeNextId = nextSnapshotId();
-                if (maybeNextId.isEmpty()) {
-                    permits.release();
-                    return;
+                final T item;
+                synchronized (iterator) {
+                    if (iterator.hasNext()) {
+                        item = iterator.next();
+                    } else {
+                        permits.release();
+                        return;
+                    }
                 }
                 refCounted.incRef();
-                final var snapshotRefCount = AbstractRefCounted.of(() -> {
+                final var itemRefCount = AbstractRefCounted.of(() -> {
                     permits.release();
                     try {
                         run();
@@ -139,9 +134,9 @@ class MetadataVerifier implements Releasable {
                     }
                 });
                 try {
-                    consumer.accept(snapshotRefCount, maybeNextId.get());
+                    consumer.accept(itemRefCount, item);
                 } finally {
-                    snapshotRefCount.decRef();
+                    itemRefCount.decRef();
                 }
             }
         }
