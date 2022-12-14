@@ -91,14 +91,14 @@ class MetadataVerifier implements Releasable {
 
     private void verifySnapshots() {
         try (
-            var snapshotVerifier = new ThrottledIterator<>(
+            var snapshotsVerifier = new ThrottledIterator<>(
                 makeVoidListener(finalRefs, this::verifyIndices, "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
                 repositoryData.getSnapshotIds().iterator(),
                 this::verifySnapshot,
                 5
             )
         ) {
-            snapshotVerifier.run();
+            snapshotsVerifier.run();
         }
     }
 
@@ -138,14 +138,14 @@ class MetadataVerifier implements Releasable {
         }
 
         try (
-            var indexVerifier = new ThrottledIterator<>(
+            var indicesVerifier = new ThrottledIterator<>(
                 makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
                 indicesMap.values().iterator(),
                 this::verifyIndex,
                 5
             )
         ) {
-            indexVerifier.run();
+            indicesVerifier.run();
         }
     }
 
