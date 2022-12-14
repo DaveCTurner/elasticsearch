@@ -132,7 +132,7 @@ class MetadataVerifier implements Releasable {
 
     private void verifySnapshots() {
         runThrottled(
-            makeVoidListener(finalRefs, this::verifyIndices, "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
+            makeVoidListener(finalRefs, this::verifyIndices),
             repositoryData.getSnapshotIds().iterator(),
             this::verifySnapshot,
             SNAPSHOT_VERIFICATION_CONCURRENCY
@@ -159,13 +159,13 @@ class MetadataVerifier implements Releasable {
                     addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
                 }
             }
-        }, "verify snapshot info for %s", snapshotId));
+        }));
 
         forkSupply(snapshotRefs, () -> blobStoreRepository.getSnapshotGlobalMetadata(snapshotId), metadata -> {
             if (metadata.indices().isEmpty() == false) {
                 addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
             }
-        }, "verify global metadata for %s", snapshotId);
+        });
     }
 
     private void verifyIndices() {
@@ -180,7 +180,7 @@ class MetadataVerifier implements Releasable {
         }
 
         runThrottled(
-            makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
+            makeVoidListener(finalRefs, () -> {}),
             indicesMap.values().iterator(),
             (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
             INDEX_VERIFICATION_CONCURRENCY
@@ -206,24 +206,9 @@ class MetadataVerifier implements Releasable {
 
             final var indexSnapshots = repositoryData.getSnapshots(indexId);
 
-            try (
-                var indexMetadataChecksRef = wrap(
-                    makeVoidListener(
-                        indexRefs,
-                        this::onIndexMetadataChecksComplete,
-                        "waiting for verification of snapshots of index [%s]",
-                        indexId
-                    )
-                )
-            ) {
+            try (var indexMetadataChecksRef = wrap(makeVoidListener(indexRefs, this::onIndexMetadataChecksComplete))) {
                 runThrottled(
-                    makeVoidListener(
-                        indexMetadataChecksRef,
-                        () -> {},
-                        "checking [%d] snapshots for index [%s]",
-                        indexSnapshots.size(),
-                        indexId
-                    ),
+                    makeVoidListener(indexMetadataChecksRef, () -> {}),
                     indexSnapshots.iterator(),
                     this::verifyIndexSnapshot,
                     INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY
@@ -265,20 +250,12 @@ class MetadataVerifier implements Releasable {
                                         blobStoreRepository.shardContainer(indexId, shardId),
                                         snapshotId
                                     ),
-                                    shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardBlobs, shardSnapshot),
-                                    "verify snapshot [%s] for shard %s/%d",
-                                    snapshotId,
-                                    indexId,
-                                    shardId
-                                ),
-                                "await listing for %s/%d before verifying snapshot [%s]",
-                                indexId,
-                                shardId,
-                                snapshotId
+                                    shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardBlobs, shardSnapshot)
+                                )
                             )
                         );
                 }
-            }, "await index metadata for %s before verifying shards", indexId));
+            }));
         }
 
         private void verifyShardSnapshot(
@@ -376,9 +353,7 @@ class MetadataVerifier implements Releasable {
                 throw new IllegalStateException(format("index [%s] has no metadata", indexId));
             }
 
-            try (
-                var shardGenerationChecksRef = wrap(makeVoidListener(indexRefs, () -> {}, "checking shard generations for [%s]", indexId))
-            ) {
+            try (var shardGenerationChecksRef = wrap(makeVoidListener(indexRefs, () -> {}))) {
                 for (final var shardEntry : shardBlobsListenersByShard.entrySet()) {
                     verifyShardGenerations(shardGenerationChecksRef, shardEntry);
                 }
@@ -412,44 +387,20 @@ class MetadataVerifier implements Releasable {
                                         verifyFileInfo(snapshotFiles.snapshot(), shardId, shardBlobs, fileInfo);
                                     }
                                 }
-                            },
-                            "check shard generations for %s/%d",
-                            indexId,
-                            shardId
-                        ),
-                        "await listing for %s/%d before checking shard generations",
-                        indexId,
-                        shardId
+                            }
+                        )
                     )
                 );
         }
     }
 
-    // TODO drop verbose logging/description
-    private final AtomicLong idGenerator = new AtomicLong();
-
-    private <T> ActionListener<T> makeListener(
-        RefCounted refCounted,
-        CheckedConsumer<T, Exception> consumer,
-        String format,
-        Object... args
-    ) {
-        final var description = format("[%d] ", idGenerator.incrementAndGet()) + format(format, args);
-        logger.trace("start {}", description);
+    private <T> ActionListener<T> makeListener(RefCounted refCounted, CheckedConsumer<T, Exception> consumer) {
         refCounted.incRef();
-        return ActionListener.runAfter(ActionListener.wrap(consumer, this::addFailure), () -> {
-            logger.trace("end {}", description);
-            refCounted.decRef();
-        });
+        return ActionListener.runAfter(ActionListener.wrap(consumer, this::addFailure), refCounted::decRef);
     }
 
-    private ActionListener<Void> makeVoidListener(
-        RefCounted refCounted,
-        CheckedRunnable<Exception> runnable,
-        String format,
-        Object... args
-    ) {
-        return makeListener(refCounted, ignored -> runnable.run(), format, args);
+    private ActionListener<Void> makeVoidListener(RefCounted refCounted, CheckedRunnable<Exception> runnable) {
+        return makeListener(refCounted, ignored -> runnable.run());
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
@@ -516,14 +467,8 @@ class MetadataVerifier implements Releasable {
         }
     }
 
-    private <T> void forkSupply(
-        RefCounted refCounted,
-        CheckedSupplier<T, Exception> supplier,
-        CheckedConsumer<T, Exception> consumer,
-        String format,
-        Object... args
-    ) {
-        forkSupply(supplier, makeListener(refCounted, consumer, format, args));
+    private <T> void forkSupply(RefCounted refCounted, CheckedSupplier<T, Exception> supplier, CheckedConsumer<T, Exception> consumer) {
+        forkSupply(supplier, makeListener(refCounted, consumer));
     }
 
     private void onCompletion() {
