@@ -143,6 +143,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -3541,7 +3542,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void verifyMetadataIntegrity(ActionListener<List<RepositoryVerificationException>> listener) {
+    public void verifyMetadataIntegrity(
+        ActionListener<List<RepositoryVerificationException>> listener,
+        BooleanSupplier isCancelledSupplier
+    ) {
         getRepositoryData(listener.delegateFailure((l, repositoryData) -> {
             logger.info(
                 "[{}] verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
@@ -3565,7 +3569,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             )
                         );
                     }
-                    try (var metadataVerifier = new MetadataVerifier(this, repositoryData, l2)) {
+                    try (var metadataVerifier = new MetadataVerifier(this, repositoryData, isCancelledSupplier, l2)) {
                         metadataVerifier.run();
                     }
                 }), () -> getRepositoryData(repositoryData.getGenId())));

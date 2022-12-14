@@ -18,6 +18,7 @@ import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsI
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
+import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
 import org.junit.After;
@@ -89,7 +90,17 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
         }
 
-        assertThat(PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS), empty());
+        assertThat(
+            PlainActionFuture.get(
+                (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
+                    listener,
+                    () -> false
+                ),
+                30,
+                TimeUnit.SECONDS
+            ),
+            empty()
+        );
 
         final var tempDir = createTempDir();
 
@@ -119,7 +130,14 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 CorruptionUtils.corruptFile(random(), blobToDamage);
             }
             try {
-                final var verificationResponse = PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS);
+                final var verificationResponse = PlainActionFuture.get(
+                    (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
+                        listener,
+                        () -> false
+                    ),
+                    30,
+                    TimeUnit.SECONDS
+                );
                 assertThat(verificationResponse, not(empty()));
                 if (isDataBlob) {
                     assertThat(
@@ -134,7 +152,17 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
             }
 
-            assertThat(PlainActionFuture.get(repository::verifyMetadataIntegrity, 30, TimeUnit.SECONDS), empty());
+            assertThat(
+                PlainActionFuture.get(
+                    (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
+                        listener,
+                        () -> false
+                    ),
+                    30,
+                    TimeUnit.SECONDS
+                ),
+                empty()
+            );
         }
     }
 }

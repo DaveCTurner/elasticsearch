@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -310,7 +311,10 @@ public interface Repository extends LifecycleComponent {
         return ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT_META);
     }
 
-    default void verifyMetadataIntegrity(ActionListener<List<RepositoryVerificationException>> listener) {
+    default void verifyMetadataIntegrity(
+        ActionListener<List<RepositoryVerificationException>> listener,
+        BooleanSupplier isCancelledSupplier
+    ) {
         listener.onFailure(new UnsupportedOperationException("this repository type does not support metadata integrity verification"));
     }
 }

@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
@@ -59,6 +60,7 @@ class MetadataVerifier implements Releasable {
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final RepositoryData repositoryData;
+    private final BooleanSupplier isCancelledSupplier;
     private final Queue<RepositoryVerificationException> failures = new ConcurrentLinkedQueue<>();
     private final AtomicLong failureCount = new AtomicLong();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
@@ -68,11 +70,13 @@ class MetadataVerifier implements Releasable {
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
         RepositoryData repositoryData,
+        BooleanSupplier isCancelledSupplier,
         ActionListener<List<RepositoryVerificationException>> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
         this.repositoryData = repositoryData;
+        this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;
         this.snapshotsByIndex = this.repositoryData.getIndices()
             .values()
@@ -125,6 +129,11 @@ class MetadataVerifier implements Releasable {
         if (repositoryData.hasMissingDetails(snapshotId)) {
             // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
             addFailure("snapshot [%s] has missing snapshot details", snapshotId);
+        }
+
+        if (isCancelledSupplier.getAsBoolean()) {
+            // getSnapshotInfo does its own forking so we must check for cancellation here
+            return;
         }
 
         blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
@@ -441,7 +450,14 @@ class MetadataVerifier implements Releasable {
                 return;
             }
 
-            // TODO add cancellation support
+            if (isCancelledSupplier.getAsBoolean()) {
+                try {
+                    runnable.onFailure(new RepositoryVerificationException(repositoryName, "verification task cancelled"));
+                    continue;
+                } finally {
+                    threadPoolPermits.release();
+                }
+            }
 
             blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(new AbstractRunnable() {
                 @Override
