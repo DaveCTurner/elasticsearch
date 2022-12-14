@@ -103,8 +103,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             return Iterators.concat(
                 Iterators.single((builder, params) -> builder.startObject().startArray("errors")),
                 exceptions.stream().<ToXContent>map(e -> (builder, params) -> {
+                    builder.startObject();
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                    return builder;
+                    return builder.endObject();
                 }).iterator(),
                 Iterators.single((builder, params) -> builder.endArray().endObject())
             );
