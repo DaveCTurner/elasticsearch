@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.CheckedRunnable;
@@ -32,8 +33,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -46,6 +49,7 @@ import static org.elasticsearch.core.Strings.format;
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
+    private static final int THREADPOOL_CONCURRENCY = 5;
     private static final int SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
     private static final int INDEX_VERIFICATION_CONCURRENCY = 5;
     private static final int INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
@@ -58,6 +62,8 @@ class MetadataVerifier implements Releasable {
     private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
     private final AtomicBoolean isComplete = new AtomicBoolean();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
+    private final Semaphore threadPoolPermits = new Semaphore(THREADPOOL_CONCURRENCY);
+    private final Queue<AbstractRunnable> executorQueue = new ConcurrentLinkedQueue<>();
 
     MetadataVerifier(BlobStoreRepository blobStoreRepository, RepositoryData repositoryData, ActionListener<Void> finalListener) {
         this.blobStoreRepository = blobStoreRepository;
@@ -388,7 +394,60 @@ class MetadataVerifier implements Releasable {
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
-        blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(ActionRunnable.supply(listener, supplier));
+        fork(ActionRunnable.supply(listener, supplier));
+    }
+
+    private void fork(AbstractRunnable runnable) {
+        executorQueue.add(runnable);
+        tryProcessQueue();
+    }
+
+    private void tryProcessQueue() {
+        while (threadPoolPermits.tryAcquire()) {
+            final var runnable = executorQueue.poll();
+            if (runnable == null) {
+                threadPoolPermits.release();
+                return;
+            }
+
+            // TODO add cancellation support
+
+            blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(new AbstractRunnable() {
+                @Override
+                public void onRejection(Exception e) {
+                    try {
+                        runnable.onRejection(e);
+                    } finally {
+                        onCompletion();
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    try {
+                        runnable.onFailure(e);
+                    } finally {
+                        onCompletion();
+                    }
+                }
+
+                @Override
+                protected void doRun() {
+                    runnable.run();
+                    onCompletion();
+                }
+
+                @Override
+                public String toString() {
+                    return runnable.toString();
+                }
+
+                private void onCompletion() {
+                    threadPoolPermits.release();
+                    tryProcessQueue();
+                }
+            });
+        }
     }
 
     private <T> void forkSupply(
