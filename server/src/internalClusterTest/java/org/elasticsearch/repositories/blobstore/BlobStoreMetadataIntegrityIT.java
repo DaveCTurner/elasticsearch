@@ -93,7 +93,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
         }
 
-        final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME);
+        final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, 5, 5, 5, 5, 10000);
 
         final var response = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
             listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),

@@ -53,14 +53,36 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
     public static class Request extends MasterNodeReadRequest<Request> {
 
         private final String repository;
+        private final int threadpoolConcurrency;
+        private final int snapshotVerificationConcurrency;
+        private final int indexVerificationConcurrency;
+        private final int indexSnapshotVerificationConcurrency;
+        private final int maxFailures;
 
-        public Request(String repository) {
+        public Request(
+            String repository,
+            int threadpoolConcurrency,
+            int snapshotVerificationConcurrency,
+            int indexVerificationConcurrency,
+            int indexSnapshotVerificationConcurrency,
+            int maxFailures
+        ) {
             this.repository = repository;
+            this.threadpoolConcurrency = threadpoolConcurrency;
+            this.snapshotVerificationConcurrency = snapshotVerificationConcurrency;
+            this.indexVerificationConcurrency = indexVerificationConcurrency;
+            this.indexSnapshotVerificationConcurrency = indexSnapshotVerificationConcurrency;
+            this.maxFailures = maxFailures;
         }
 
         public Request(StreamInput in) throws IOException {
             super(in);
             this.repository = in.readString();
+            this.threadpoolConcurrency = in.readVInt();
+            this.snapshotVerificationConcurrency = in.readVInt();
+            this.indexVerificationConcurrency = in.readVInt();
+            this.indexSnapshotVerificationConcurrency = in.readVInt();
+            this.maxFailures = in.readVInt();
         }
 
         @Override
@@ -80,23 +102,23 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
         }
 
         public int getThreadpoolConcurrency() {
-            return 5;
+            return threadpoolConcurrency;
         }
 
         public int getSnapshotVerificationConcurrency() {
-            return 5;
+            return snapshotVerificationConcurrency;
         }
 
         public int getIndexVerificationConcurrency() {
-            return 5;
+            return indexVerificationConcurrency;
         }
 
         public int getIndexSnapshotVerificationConcurrency() {
-            return 5;
+            return indexSnapshotVerificationConcurrency;
         }
 
         public int getMaxFailures() {
-            return 10000;
+            return maxFailures;
         }
     }
 
