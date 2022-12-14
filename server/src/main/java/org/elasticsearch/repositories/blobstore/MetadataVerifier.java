@@ -42,7 +42,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -58,15 +57,15 @@ class MetadataVerifier implements Releasable {
     private static final int SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
     private static final int INDEX_VERIFICATION_CONCURRENCY = 5;
     private static final int INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
+    private static final int MAX_FAILURES = 10000;
 
     private final BlobStoreRepository blobStoreRepository;
     private final ActionListener<List<ToXContentObject>> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final RepositoryData repositoryData;
-    // TODO more structured output, not just strings
     private final Queue<ToXContentObject> failures = new ConcurrentLinkedQueue<>();
-    private final AtomicBoolean isComplete = new AtomicBoolean();
+    private final AtomicLong failureCount = new AtomicLong();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
     private final Semaphore threadPoolPermits = new Semaphore(THREADPOOL_CONCURRENCY);
     private final Queue<AbstractRunnable> executorQueue = new ConcurrentLinkedQueue<>();
@@ -92,14 +91,16 @@ class MetadataVerifier implements Releasable {
     }
 
     private void addFailure(ToXContentFragment failureBody) {
-        final ToXContentObject failureObject = (builder, params) -> {
-            builder.startObject();
-            failureBody.toXContent(builder, params);
-            builder.endObject();
-            return builder;
-        };
-        logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject, true, true));
-        failures.add(failureObject);
+        if (failureCount.incrementAndGet() <= MAX_FAILURES) {
+            final ToXContentObject failureObject = (builder, params) -> {
+                builder.startObject();
+                failureBody.toXContent(builder, params);
+                builder.endObject();
+                return builder;
+            };
+            logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject, true, true));
+            failures.add(failureObject);
+        }
     }
 
     public void run() {
@@ -530,9 +531,17 @@ class MetadataVerifier implements Releasable {
     }
 
     private void onCompletion() {
-        if (isComplete.compareAndSet(false, true)) {
-            finalListener.onResponse(failures.stream().toList());
+        final var finalFailureCount = failureCount.get();
+        if (finalFailureCount > MAX_FAILURES) {
+            failures.add(
+                ((builder, params) -> builder.startObject()
+                    .field("error", "too many failures")
+                    .field("count", finalFailureCount)
+                    .endObject())
+            );
         }
+
+        finalListener.onResponse(failures.stream().toList());
     }
 
     private interface RefCountedListenerWrapper extends Releasable, RefCounted {}
