@@ -18,6 +18,7 @@ import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
@@ -85,9 +86,13 @@ class MetadataVerifier implements Releasable {
             repositoryData.getClusterUUID()
         );
 
+        verifySnapshots();
+    }
+
+    private void verifySnapshots() {
         try (
             var snapshotVerifier = new ThrottledIterator<>(
-                makeListener(finalRefs, ignored -> verifyIndices(), "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
+                makeVoidListener(finalRefs, this::verifyIndices, "verifying [%d] snapshots", repositoryData.getSnapshotIds().size()),
                 repositoryData.getSnapshotIds().iterator(),
                 this::verifySnapshot,
                 5
@@ -134,7 +139,7 @@ class MetadataVerifier implements Releasable {
 
         try (
             var indexVerifier = new ThrottledIterator<>(
-                makeListener(finalRefs, ignored -> {}, "verifying [%d] indices", indicesMap.size()),
+                makeVoidListener(finalRefs, () -> {}, "verifying [%d] indices", indicesMap.size()),
                 indicesMap.values().iterator(),
                 this::verifyIndex,
                 5
@@ -149,11 +154,15 @@ class MetadataVerifier implements Releasable {
 
         // TODO consider distributing the workload, giving each node a subset of indices to process
 
-        finalRefs.incRef(); // released in onIndexMetadataChecksComplete
-        final var shardBlobsListenersByShard = ConcurrentCollections.<
-            Integer,
-            ListenableActionFuture<Map<String, BlobMetadata>>>newConcurrentMap();
-        final var indexMetadataChecksRef = AbstractRefCounted.of(() -> onIndexMetadataChecksComplete(indexId, shardBlobsListenersByShard));
+        final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = ConcurrentCollections
+            .newConcurrentMap();
+        final var indexMetadataChecksListener = makeVoidListener(
+            refCounted,
+            () -> onIndexMetadataChecksComplete(refCounted, indexId, shardBlobsListenersByShard),
+            "waiting for metadata checks of index [%s]",
+            indexId
+        );
+        final var indexMetadataChecksRef = AbstractRefCounted.of(() -> indexMetadataChecksListener.onResponse(null));
         try {
             final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
             for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
@@ -280,10 +289,12 @@ class MetadataVerifier implements Releasable {
     }
 
     private void onIndexMetadataChecksComplete(
+        RefCounted refCounted,
         IndexId indexId,
         Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListeners
     ) {
-        final var shardGenerationChecksRef = AbstractRefCounted.of(finalRefs::decRef);
+        final var shardGenerationChecksListener = makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId);
+        final var shardGenerationChecksRef = AbstractRefCounted.of(() -> shardGenerationChecksListener.onResponse(null));
         try {
             // TODO throttle here too
             for (final var shardEntry : shardBlobsListeners.entrySet()) {
@@ -327,6 +338,15 @@ class MetadataVerifier implements Releasable {
     }
 
     private final AtomicLong idGenerator = new AtomicLong();
+
+    private ActionListener<Void> makeVoidListener(
+        RefCounted refCounted,
+        CheckedRunnable<Exception> runnable,
+        String format,
+        Object... args
+    ) {
+        return makeListener(refCounted, ignored -> runnable.run(), format, args);
+    }
 
     private <T> ActionListener<T> makeListener(
         RefCounted refCounted,
