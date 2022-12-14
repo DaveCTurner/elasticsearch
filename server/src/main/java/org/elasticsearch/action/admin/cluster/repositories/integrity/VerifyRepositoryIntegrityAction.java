@@ -78,6 +78,26 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
         public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
             return new CancellableTask(id, type, action, getDescription(), parentTaskId, headers);
         }
+
+        public int getThreadpoolConcurrency() {
+            return 5;
+        }
+
+        public int getSnapshotVerificationConcurrency() {
+            return 5;
+        }
+
+        public int getIndexVerificationConcurrency() {
+            return 5;
+        }
+
+        public int getIndexSnapshotVerificationConcurrency() {
+            return 5;
+        }
+
+        public int getMaxFailures() {
+            return 10000;
+        }
     }
 
     public static class Response extends ActionResponse implements ChunkedToXContent {

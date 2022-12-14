@@ -52,24 +52,17 @@ import static org.elasticsearch.core.Strings.format;
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
-    // TODO read these from the request
-    private static final int THREADPOOL_CONCURRENCY = 5;
-    private static final int SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
-    private static final int INDEX_VERIFICATION_CONCURRENCY = 5;
-    private static final int INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY = 5;
-    private static final int MAX_FAILURES = 10000;
-
     private final BlobStoreRepository blobStoreRepository;
-    private final VerifyRepositoryIntegrityAction.Request verifyRequest;
     private final ActionListener<List<RepositoryVerificationException>> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
+    private final VerifyRepositoryIntegrityAction.Request verifyRequest;
     private final RepositoryData repositoryData;
     private final BooleanSupplier isCancelledSupplier;
     private final Queue<RepositoryVerificationException> failures = new ConcurrentLinkedQueue<>();
     private final AtomicLong failureCount = new AtomicLong();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
-    private final Semaphore threadPoolPermits = new Semaphore(THREADPOOL_CONCURRENCY);
+    private final Semaphore threadPoolPermits;
     private final Queue<AbstractRunnable> executorQueue = new ConcurrentLinkedQueue<>();
 
     MetadataVerifier(
@@ -89,6 +82,8 @@ class MetadataVerifier implements Releasable {
             .values()
             .stream()
             .collect(Collectors.toMap(IndexId::getName, indexId -> Set.copyOf(this.repositoryData.getSnapshots(indexId))));
+
+        this.threadPoolPermits = new Semaphore(verifyRequest.getThreadpoolConcurrency());
     }
 
     @Override
@@ -97,7 +92,7 @@ class MetadataVerifier implements Releasable {
     }
 
     private void addFailure(String format, Object... args) {
-        if (failureCount.incrementAndGet() <= MAX_FAILURES) {
+        if (failureCount.incrementAndGet() <= verifyRequest.getMaxFailures()) {
             final var failure = format(format, args);
             logger.info("[{}] found metadata verification failure: {}", repositoryName, failure);
             failures.add(new RepositoryVerificationException(repositoryName, failure));
@@ -108,7 +103,7 @@ class MetadataVerifier implements Releasable {
         if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
             return;
         }
-        if (failureCount.incrementAndGet() <= MAX_FAILURES) {
+        if (failureCount.incrementAndGet() <= verifyRequest.getMaxFailures()) {
             logger.info(() -> format("[%s] exception during metadata verification: {}", repositoryName), exception);
             failures.add(
                 exception instanceof RepositoryVerificationException rve
@@ -135,7 +130,7 @@ class MetadataVerifier implements Releasable {
             makeVoidListener(finalRefs, this::verifyIndices),
             repositoryData.getSnapshotIds().iterator(),
             this::verifySnapshot,
-            SNAPSHOT_VERIFICATION_CONCURRENCY
+            verifyRequest.getSnapshotVerificationConcurrency()
         );
     }
 
@@ -183,7 +178,7 @@ class MetadataVerifier implements Releasable {
             makeVoidListener(finalRefs, () -> {}),
             indicesMap.values().iterator(),
             (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
-            INDEX_VERIFICATION_CONCURRENCY
+            verifyRequest.getIndexVerificationConcurrency()
         );
     }
 
@@ -211,7 +206,7 @@ class MetadataVerifier implements Releasable {
                     makeVoidListener(indexMetadataChecksRef, () -> {}),
                     indexSnapshots.iterator(),
                     this::verifyIndexSnapshot,
-                    INDEX_SNAPSHOT_VERIFICATION_CONCURRENCY
+                    verifyRequest.getIndexSnapshotVerificationConcurrency()
                 );
             }
         }
@@ -473,11 +468,15 @@ class MetadataVerifier implements Releasable {
 
     private void onCompletion() {
         final var finalFailureCount = failureCount.get();
-        if (finalFailureCount > MAX_FAILURES) {
+        if (finalFailureCount > verifyRequest.getMaxFailures()) {
             failures.add(
                 new RepositoryVerificationException(
                     repositoryName,
-                    format("found %d verification failures in total, %d suppressed", finalFailureCount, finalFailureCount - MAX_FAILURES)
+                    format(
+                        "found %d verification failures in total, %d suppressed",
+                        finalFailureCount,
+                        finalFailureCount - verifyRequest.getMaxFailures()
+                    )
                 )
             );
         }
