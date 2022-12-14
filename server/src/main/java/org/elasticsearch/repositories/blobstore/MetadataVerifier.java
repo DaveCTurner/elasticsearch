@@ -17,6 +17,7 @@ import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
@@ -28,6 +29,7 @@ import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentFragment;
 import org.elasticsearch.xcontent.ToXContentObject;
 
@@ -45,6 +47,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+import static org.elasticsearch.ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE;
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.elasticsearch.core.Strings.format;
 
@@ -95,7 +98,7 @@ class MetadataVerifier implements Releasable {
             builder.endObject();
             return builder;
         };
-        logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject));
+        logger.info("[{}] found metadata verification failure: {}", repositoryName, Strings.toString(failureObject, true, true));
         failures.add(failureObject);
     }
 
@@ -313,8 +316,10 @@ class MetadataVerifier implements Releasable {
             Map<String, BlobMetadata> shardBlobs,
             BlobStoreIndexShardSnapshot.FileInfo fileInfo
         ) {
+            final var fileLength = ByteSizeValue.ofBytes(fileInfo.length());
             if (fileInfo.metadata().hashEqualsContents()) {
-                if (fileInfo.length() != fileInfo.metadata().length()) {
+                final var actualLength = ByteSizeValue.ofBytes(fileInfo.metadata().hash().length);
+                if (fileLength.getBytes() != actualLength.getBytes()) {
                     addFailure((builder, params) -> {
                         builder.field("index", indexId);
                         builder.field("shard", shardId);
@@ -324,8 +329,8 @@ class MetadataVerifier implements Releasable {
                         builder.field("part", 1);
                         builder.field("blob", fileInfo.name());
                         builder.field("error", "mismatched virtual blob size");
-                        builder.field("expected_length", fileInfo.length());
-                        builder.field("actual_length", fileInfo.metadata().length());
+                        builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
                         return builder;
                     });
                 }
@@ -334,6 +339,7 @@ class MetadataVerifier implements Releasable {
                     final var part = i;
                     final var blobName = fileInfo.partName(part);
                     final var blobInfo = shardBlobs.get(blobName);
+                    final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
                     if (blobInfo == null) {
                         addFailure((builder, params) -> {
                             builder.field("index", indexId);
@@ -344,10 +350,11 @@ class MetadataVerifier implements Releasable {
                             builder.field("part", part);
                             builder.field("blob", blobName);
                             builder.field("error", "missing blob");
-                            builder.field("expected_length", fileInfo.length());
+                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
                             return builder;
                         });
-                    } else if (blobInfo.length() != fileInfo.partBytes(part)) {
+                    } else if (blobInfo.length() != partLength.getBytes()) {
                         addFailure((builder, params) -> {
                             builder.field("index", indexId);
                             builder.field("shard", shardId);
@@ -357,8 +364,9 @@ class MetadataVerifier implements Releasable {
                             builder.field("part", part);
                             builder.field("blob", blobName);
                             builder.field("error", "mismatched blob size");
-                            builder.field("expected_length", fileInfo.length());
-                            builder.field("actual_length", blobInfo.length());
+                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
+                            builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
                             return builder;
                         });
                     }
@@ -432,7 +440,12 @@ class MetadataVerifier implements Releasable {
         logger.trace("start {}", description);
         refCounted.incRef();
         return ActionListener.runAfter(ActionListener.wrap(consumer, e -> addFailure((builder, params) -> {
-            ElasticsearchException.generateFailureXContent(builder, params, e, true);
+            ElasticsearchException.generateFailureXContent(
+                builder,
+                new ToXContent.DelegatingMapParams(Map.of(REST_EXCEPTION_SKIP_STACK_TRACE, Boolean.toString(false)), params),
+                e,
+                true
+            );
             return builder;
         })), () -> {
             logger.trace("end {}", description);
