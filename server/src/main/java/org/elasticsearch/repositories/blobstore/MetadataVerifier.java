@@ -59,6 +59,7 @@ class MetadataVerifier implements Releasable {
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final RepositoryData repositoryData;
+    // TODO more structured output, not just strings
     private final Set<String> failures = Collections.synchronizedSet(new TreeSet<>());
     private final AtomicBoolean isComplete = new AtomicBoolean();
     private final Map<String, Set<SnapshotId>> snapshotsByIndex;
