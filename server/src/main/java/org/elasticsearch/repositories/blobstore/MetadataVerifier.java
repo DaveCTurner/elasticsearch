@@ -97,58 +97,6 @@ class MetadataVerifier implements Releasable {
         }
     }
 
-    private static class ThrottledIterator<T> implements Releasable {
-        private final RefCounted refCounted;
-        private final Iterator<T> iterator;
-        private final BiConsumer<RefCounted, T> consumer;
-        private final Semaphore permits;
-
-        ThrottledIterator(
-            ActionListener<Void> completionListener,
-            Iterator<T> iterator,
-            BiConsumer<RefCounted, T> consumer,
-            int maxConcurrency
-        ) {
-            this.refCounted = AbstractRefCounted.of(() -> completionListener.onResponse(null));
-            this.iterator = iterator;
-            this.consumer = consumer;
-            this.permits = new Semaphore(maxConcurrency);
-        }
-
-        void run() {
-            while (permits.tryAcquire()) {
-                final T item;
-                synchronized (iterator) {
-                    if (iterator.hasNext()) {
-                        item = iterator.next();
-                    } else {
-                        permits.release();
-                        return;
-                    }
-                }
-                refCounted.incRef();
-                final var itemRefCount = AbstractRefCounted.of(() -> {
-                    permits.release();
-                    try {
-                        run();
-                    } finally {
-                        refCounted.decRef();
-                    }
-                });
-                try {
-                    consumer.accept(itemRefCount, item);
-                } finally {
-                    itemRefCount.decRef();
-                }
-            }
-        }
-
-        @Override
-        public void close() {
-            refCounted.decRef();
-        }
-    }
-
     private void verifySnapshot(RefCounted refCounted, SnapshotId snapshotId) {
         if (repositoryData.hasMissingDetails(snapshotId)) {
             // may not always be true for repositories that haven't been touched by newer versions; TODO make this check optional
@@ -337,6 +285,7 @@ class MetadataVerifier implements Releasable {
     ) {
         final var shardGenerationChecksRef = AbstractRefCounted.of(finalRefs::decRef);
         try {
+            // TODO throttle here too
             for (final var shardEntry : shardBlobsListeners.entrySet()) {
                 final int shardId = shardEntry.getKey();
                 shardEntry.getValue()
@@ -416,6 +365,58 @@ class MetadataVerifier implements Releasable {
             } else {
                 finalListener.onFailure(new RepositoryException(repositoryName, String.join("\n", failures)));
             }
+        }
+    }
+
+    private static class ThrottledIterator<T> implements Releasable {
+        private final RefCounted refCounted;
+        private final Iterator<T> iterator;
+        private final BiConsumer<RefCounted, T> consumer;
+        private final Semaphore permits;
+
+        ThrottledIterator(
+            ActionListener<Void> completionListener,
+            Iterator<T> iterator,
+            BiConsumer<RefCounted, T> consumer,
+            int maxConcurrency
+        ) {
+            this.refCounted = AbstractRefCounted.of(() -> completionListener.onResponse(null));
+            this.iterator = iterator;
+            this.consumer = consumer;
+            this.permits = new Semaphore(maxConcurrency);
+        }
+
+        void run() {
+            while (permits.tryAcquire()) {
+                final T item;
+                synchronized (iterator) {
+                    if (iterator.hasNext()) {
+                        item = iterator.next();
+                    } else {
+                        permits.release();
+                        return;
+                    }
+                }
+                refCounted.incRef();
+                final var itemRefCount = AbstractRefCounted.of(() -> {
+                    permits.release();
+                    try {
+                        run();
+                    } finally {
+                        refCounted.decRef();
+                    }
+                });
+                try {
+                    consumer.accept(itemRefCount, item);
+                } finally {
+                    itemRefCount.decRef();
+                }
+            }
+        }
+
+        @Override
+        public void close() {
+            refCounted.decRef();
         }
     }
 }
