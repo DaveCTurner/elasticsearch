@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.*;
+import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.elasticsearch.core.Strings.format;
 
 class MetadataVerifier implements Releasable {
@@ -152,29 +152,25 @@ class MetadataVerifier implements Releasable {
     private class IndexVerifier {
         private final RefCounted refCounted;
         private final IndexId indexId;
+        private final Set<SnapshotId> expectedSnapshots;
+        private final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = newConcurrentMap();
+        private final Map<String, ListenableActionFuture<Integer>> shardCountListenersByBlobId = new HashMap<>();
 
         IndexVerifier(RefCounted refCounted, IndexId indexId) {
             this.refCounted = refCounted;
             this.indexId = indexId;
+            this.expectedSnapshots = snapshotsByIndex.get(this.indexId.getName());
         }
 
         void run() {
-            final var expectedSnapshots = snapshotsByIndex.get(indexId.getName());
 
             // TODO consider distributing the workload, giving each node a subset of indices to process
 
-            final Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListenersByShard = newConcurrentMap();
             try (
                 var indexMetadataChecksRef = wrap(
-                    makeVoidListener(
-                        refCounted,
-                        () -> onIndexMetadataChecksComplete(refCounted, indexId, shardBlobsListenersByShard),
-                        "waiting for metadata checks of index [%s]",
-                        indexId
-                    )
+                    makeVoidListener(refCounted, this::onIndexMetadataChecksComplete, "waiting for metadata checks of index [%s]", indexId)
                 )
             ) {
-                final var shardCountListenersByBlobId = new HashMap<String, ListenableActionFuture<Integer>>();
                 for (final var snapshotId : repositoryData.getSnapshots(indexId)) {
                     // TODO must limit the number of snapshots currently being processed to avoid loading all the metadata at once
 
@@ -211,7 +207,7 @@ class MetadataVerifier implements Releasable {
                                                 blobStoreRepository.shardContainer(indexId, shardId),
                                                 snapshotId
                                             ),
-                                            shardSnapshot -> verifyShardSnapshot(snapshotId, indexId, shardId, shardBlobs, shardSnapshot),
+                                            shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardBlobs, shardSnapshot),
                                             "verify snapshot [%s] for shard %s/%d",
                                             snapshotId,
                                             indexId,
@@ -231,119 +227,121 @@ class MetadataVerifier implements Releasable {
                 }
             }
         }
-    }
 
-    private void verifyIndex(RefCounted refCounted, IndexId indexId) {
-        new IndexVerifier(refCounted, indexId).run();
-    }
-
-    private void verifyShardSnapshot(
-        SnapshotId snapshotId,
-        IndexId indexId,
-        int shardId,
-        Map<String, BlobMetadata> shardBlobs,
-        BlobStoreIndexShardSnapshot shardSnapshot
-    ) {
-        if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
-            addFailure("snapshot [%s] for shard [%s/%d] has mismatched name [%s]", snapshotId, indexId, shardId, shardSnapshot.snapshot());
-        }
-
-        for (final var fileInfo : shardSnapshot.indexFiles()) {
-            verifyFileInfo(snapshotId.toString(), indexId, shardId, shardBlobs, fileInfo);
-        }
-    }
-
-    private void verifyFileInfo(
-        String snapshot,
-        IndexId indexId,
-        int shardId,
-        Map<String, BlobMetadata> shardBlobs,
-        BlobStoreIndexShardSnapshot.FileInfo fileInfo
-    ) {
-        if (fileInfo.metadata().hashEqualsContents()) {
-            if (fileInfo.length() != fileInfo.metadata().length()) {
+        private void verifyShardSnapshot(
+            SnapshotId snapshotId,
+            int shardId,
+            Map<String, BlobMetadata> shardBlobs,
+            BlobStoreIndexShardSnapshot shardSnapshot
+        ) {
+            if (shardSnapshot.snapshot().equals(snapshotId.getName()) == false) {
                 addFailure(
-                    "snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
-                    snapshot,
+                    "snapshot [%s] for shard [%s/%d] has mismatched name [%s]",
+                    snapshotId,
                     indexId,
                     shardId,
-                    fileInfo.physicalName(),
-                    fileInfo.metadata().length(),
-                    fileInfo.length()
+                    shardSnapshot.snapshot()
                 );
             }
-        } else {
-            for (int part = 0; part < fileInfo.numberOfParts(); part++) {
-                final var blobName = fileInfo.partName(part);
-                final var blobInfo = shardBlobs.get(blobName);
-                if (blobInfo == null) {
+
+            for (final var fileInfo : shardSnapshot.indexFiles()) {
+                verifyFileInfo(snapshotId.toString(), shardId, shardBlobs, fileInfo);
+            }
+        }
+
+        private void verifyFileInfo(
+            String snapshot,
+            int shardId,
+            Map<String, BlobMetadata> shardBlobs,
+            BlobStoreIndexShardSnapshot.FileInfo fileInfo
+        ) {
+            if (fileInfo.metadata().hashEqualsContents()) {
+                if (fileInfo.length() != fileInfo.metadata().length()) {
                     addFailure(
-                        "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                        "snapshot [%s] for shard [%s/%d] has virtual blob for [%s] with length [%d] instead of [%d]",
                         snapshot,
                         indexId,
                         shardId,
-                        blobName,
-                        fileInfo.physicalName()
-                    );
-                } else if (blobInfo.length() != fileInfo.partBytes(part)) {
-                    addFailure(
-                        "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
-                        snapshot,
-                        indexId,
-                        shardId,
-                        blobName,
                         fileInfo.physicalName(),
-                        blobInfo.length(),
-                        fileInfo.partBytes(part)
+                        fileInfo.metadata().length(),
+                        fileInfo.length()
                     );
+                }
+            } else {
+                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                    final var blobName = fileInfo.partName(part);
+                    final var blobInfo = shardBlobs.get(blobName);
+                    if (blobInfo == null) {
+                        addFailure(
+                            "snapshot [%s] for shard [%s/%d] has missing blob [%s] for [%s]",
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName()
+                        );
+                    } else if (blobInfo.length() != fileInfo.partBytes(part)) {
+                        addFailure(
+                            "snapshot [%s] for shard [%s/%d] has blob [%s] for [%s] with length [%d] instead of [%d]",
+                            snapshot,
+                            indexId,
+                            shardId,
+                            blobName,
+                            fileInfo.physicalName(),
+                            blobInfo.length(),
+                            fileInfo.partBytes(part)
+                        );
+                    }
+                }
+            }
+        }
+
+        private void onIndexMetadataChecksComplete() {
+            try (
+                var shardGenerationChecksRef = wrap(makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId))
+            ) {
+                // TODO throttle here too
+                for (final var shardEntry : shardBlobsListenersByShard.entrySet()) {
+                    final int shardId = shardEntry.getKey();
+                    shardEntry.getValue()
+                        .addListener(
+                            makeListener(
+                                shardGenerationChecksRef,
+                                shardBlobs -> forkSupply(
+                                    shardGenerationChecksRef,
+                                    () -> blobStoreRepository.getBlobStoreIndexShardSnapshots(
+                                        indexId,
+                                        shardId,
+                                        Objects.requireNonNull(
+                                            repositoryData.shardGenerations().getShardGen(indexId, shardId),
+                                            "shard generations for " + indexId + "/" + shardId
+                                        )
+                                    ),
+                                    blobStoreIndexShardSnapshots -> {
+                                        for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
+                                            snapshotFiles.snapshot(); // TODO validate
+                                            snapshotFiles.shardStateIdentifier(); // TODO validate
+                                            for (final var fileInfo : snapshotFiles.indexFiles()) {
+                                                verifyFileInfo(snapshotFiles.snapshot(), shardId, shardBlobs, fileInfo);
+                                            }
+                                        }
+                                    },
+                                    "check shard generations for %s/%d",
+                                    indexId,
+                                    shardId
+                                ),
+                                "await listing for %s/%d before checking shard generations",
+                                indexId,
+                                shardId
+                            )
+                        );
                 }
             }
         }
     }
 
-    private void onIndexMetadataChecksComplete(
-        RefCounted refCounted,
-        IndexId indexId,
-        Map<Integer, ListenableActionFuture<Map<String, BlobMetadata>>> shardBlobsListeners
-    ) {
-        try (var shardGenerationChecksRef = wrap(makeVoidListener(refCounted, () -> {}, "checking shard generations for [%s]", indexId))) {
-            // TODO throttle here too
-            for (final var shardEntry : shardBlobsListeners.entrySet()) {
-                final int shardId = shardEntry.getKey();
-                shardEntry.getValue()
-                    .addListener(
-                        makeListener(
-                            shardGenerationChecksRef,
-                            shardBlobs -> forkSupply(
-                                shardGenerationChecksRef,
-                                () -> blobStoreRepository.getBlobStoreIndexShardSnapshots(
-                                    indexId,
-                                    shardId,
-                                    Objects.requireNonNull(
-                                        repositoryData.shardGenerations().getShardGen(indexId, shardId),
-                                        "shard generations for " + indexId + "/" + shardId
-                                    )
-                                ),
-                                blobStoreIndexShardSnapshots -> {
-                                    for (final var snapshotFiles : blobStoreIndexShardSnapshots.snapshots()) {
-                                        snapshotFiles.snapshot(); // TODO validate
-                                        snapshotFiles.shardStateIdentifier(); // TODO validate
-                                        for (final var fileInfo : snapshotFiles.indexFiles()) {
-                                            verifyFileInfo(snapshotFiles.snapshot(), indexId, shardId, shardBlobs, fileInfo);
-                                        }
-                                    }
-                                },
-                                "check shard generations for %s/%d",
-                                indexId,
-                                shardId
-                            ),
-                            "await listing for %s/%d before checking shard generations",
-                            indexId,
-                            shardId
-                        )
-                    );
-            }
-        }
+    private void verifyIndex(RefCounted refCounted, IndexId indexId) {
+        new IndexVerifier(refCounted, indexId).run();
     }
 
     private final AtomicLong idGenerator = new AtomicLong();
