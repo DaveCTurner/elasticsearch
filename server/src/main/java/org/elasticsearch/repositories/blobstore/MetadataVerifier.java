@@ -239,7 +239,6 @@ class MetadataVerifier implements Releasable {
 
         void run() {
             if (requestedIndices.isEmpty() == false && requestedIndices.contains(indexId.getName()) == false) {
-                forkSupply(indexRefs, () -> null, ignored -> {}); // TODO temp fix to avoid stack overflow
                 return;
             }
 
@@ -642,7 +641,7 @@ class MetadataVerifier implements Releasable {
     }
 
     private static class ThrottledIterator<T> implements Releasable {
-        private final RefCountedListenerWrapper refCounted;
+        private final RefCountedListenerWrapper throttleRefs;
         private final Iterator<T> iterator;
         private final BiConsumer<RefCounted, T> consumer;
         private final Semaphore permits;
@@ -655,7 +654,7 @@ class MetadataVerifier implements Releasable {
             int maxConcurrency,
             ProgressLogger progressLogger
         ) {
-            this.refCounted = wrap(completionListener);
+            this.throttleRefs = wrap(completionListener);
             this.iterator = iterator;
             this.consumer = consumer;
             this.permits = new Semaphore(maxConcurrency);
@@ -673,28 +672,54 @@ class MetadataVerifier implements Releasable {
                         return;
                     }
                 }
-                refCounted.incRef();
-                final var itemRefCount = AbstractRefCounted.of(() -> {
-                    progressLogger.maybeLogProgress();
-                    permits.release();
-                    try {
-                        // TODO fix this recursion
-                        run();
-                    } finally {
-                        refCounted.decRef();
-                    }
-                });
-                try {
-                    consumer.accept(itemRefCount, item);
-                } finally {
-                    itemRefCount.decRef();
+                try (var itemRefsWrapper = new RefCountedWrapper()) {
+                    consumer.accept(itemRefsWrapper.unwrap(), item);
                 }
             }
         }
 
         @Override
         public void close() {
-            refCounted.close();
+            throttleRefs.close();
+        }
+
+        // Wraps a RefCounted with protection against calling back into run() from within safeDecRef()
+        private class RefCountedWrapper implements Releasable {
+            private boolean isRecursive;
+            private final RefCounted itemRefs = AbstractRefCounted.of(this::onItemCompletion);
+
+            RefCountedWrapper() {
+                throttleRefs.incRef();
+            }
+
+            RefCounted unwrap() {
+                return itemRefs;
+            }
+
+            private synchronized boolean isRecursive() {
+                return isRecursive;
+            }
+
+            private void onItemCompletion() {
+                progressLogger.maybeLogProgress();
+                permits.release();
+                try {
+                    if (isRecursive() == false) {
+                        run();
+                    }
+                } finally {
+                    throttleRefs.decRef();
+                }
+            }
+
+            @Override
+            public synchronized void close() {
+                // if the decRef() below releases the last ref and calls onItemCompletion(), no other thread blocks on us; conversely
+                // if decRef() doesn't release the last ref then we release this mutex immediately so the closing thread can proceed
+                isRecursive = true;
+                itemRefs.decRef();
+                isRecursive = false;
+            }
         }
     }
 
