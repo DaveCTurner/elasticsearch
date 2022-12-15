@@ -310,6 +310,14 @@ class MetadataVerifier implements Releasable {
             }
         }
 
+        private List<SnapshotId> getSnapshotsWithIndexMetadataBlob(String indexMetaBlobId) {
+            final var indexMetaDataGenerations = repositoryData.indexMetaDataGenerations();
+            return repositoryData.getSnapshotIds()
+                .stream()
+                .filter(s -> indexMetaBlobId.equals(indexMetaDataGenerations.indexMetaBlobId(s, indexId)))
+                .toList();
+        }
+
         private int getNumberOfShards(String indexMetaBlobId, SnapshotId snapshotId) {
             try {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
@@ -317,7 +325,12 @@ class MetadataVerifier implements Releasable {
                 addFailure(
                     new RepositoryVerificationException(
                         repositoryName,
-                        format("failed to load index %s metadata for [%s] from blob [%s]", indexId, snapshotId, indexMetaBlobId),
+                        format(
+                            "failed to load index %s metadata from blob [%s] for %s",
+                            indexId,
+                            indexMetaBlobId,
+                            getSnapshotsWithIndexMetadataBlob(indexMetaBlobId)
+                        ),
                         e
                     )
                 );
