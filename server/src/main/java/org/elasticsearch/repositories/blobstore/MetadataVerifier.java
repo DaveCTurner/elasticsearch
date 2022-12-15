@@ -104,9 +104,9 @@ class MetadataVerifier implements Releasable {
 
     private void addFailure(String format, Object... args) {
         final var failureNumber = failureCount.incrementAndGet();
+        final var failure = format(format, args);
+        logger.debug("[{}] found metadata verification failure [{}]: {}", repositoryName, failureNumber, failure);
         if (failureNumber <= verifyRequest.getMaxFailures()) {
-            final var failure = format(format, args);
-            logger.debug("[{}] found metadata verification failure [{}]: {}", repositoryName, failureNumber, failure);
             failures.add(new RepositoryVerificationException(repositoryName, failure));
         }
     }
@@ -116,8 +116,8 @@ class MetadataVerifier implements Releasable {
             return;
         }
         final var failureNumber = failureCount.incrementAndGet();
+        logger.debug(() -> format("[%s] exception [%d] during metadata verification", repositoryName, failureNumber), exception);
         if (failureNumber <= verifyRequest.getMaxFailures()) {
-            logger.debug(() -> format("[%s] exception [%d] during metadata verification", repositoryName, failureNumber), exception);
             failures.add(
                 exception instanceof RepositoryVerificationException rve
                     ? rve
