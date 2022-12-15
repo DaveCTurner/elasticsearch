@@ -675,13 +675,13 @@ class MetadataVerifier implements Releasable {
                 }
                 refCounted.incRef();
                 final var itemRefCount = AbstractRefCounted.of(() -> {
+                    progressLogger.maybeLogProgress();
                     permits.release();
                     try {
                         // TODO fix this recursion
                         run();
                     } finally {
                         refCounted.decRef();
-                        progressLogger.maybeLogProgress();
                     }
                 });
                 try {
