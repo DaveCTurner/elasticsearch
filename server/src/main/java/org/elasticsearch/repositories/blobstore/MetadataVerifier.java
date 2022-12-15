@@ -255,17 +255,19 @@ class MetadataVerifier implements Releasable {
         }
 
         private void logRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
-            if (totalSnapshotCount == restorableSnapshotCount) {
-                logger.debug("[{}] index {} is fully restorable from [{}] snapshots", repositoryName, indexId, totalSnapshotCount);
-            } else {
-                logger.debug(
-                    "[{}] index {} is not fully restorable: of [{}] snapshots, [{}] are restorable and [{}] are not",
-                    repositoryName,
-                    indexId,
-                    totalSnapshotCount,
-                    restorableSnapshotCount,
-                    totalSnapshotCount - restorableSnapshotCount
-                );
+            if (isCancelledSupplier.getAsBoolean() == false) {
+                if (totalSnapshotCount == restorableSnapshotCount) {
+                    logger.debug("[{}] index {} is fully restorable from [{}] snapshots", repositoryName, indexId, totalSnapshotCount);
+                } else {
+                    logger.debug(
+                        "[{}] index {} is not fully restorable: of [{}] snapshots, [{}] are restorable and [{}] are not",
+                        repositoryName,
+                        indexId,
+                        totalSnapshotCount,
+                        restorableSnapshotCount,
+                        totalSnapshotCount - restorableSnapshotCount
+                    );
+                }
             }
         }
 
@@ -796,7 +798,7 @@ class MetadataVerifier implements Releasable {
 
         void maybeLogProgress() {
             final var count = currentCount.incrementAndGet();
-            if (count == expectedMax || count % logFrequency == 0) {
+            if (count == expectedMax || count % logFrequency == 0 && isCancelledSupplier.getAsBoolean() == false) {
                 logger.info("[{}] processed [{}] of [{}] {}", repositoryName, count, expectedMax, type);
             }
         }
