@@ -239,6 +239,7 @@ class MetadataVerifier implements Releasable {
 
         void run() {
             if (requestedIndices.isEmpty() == false && requestedIndices.contains(indexId.getName()) == false) {
+                forkSupply(indexRefs, () -> null, ignored -> {}); // TODO temp fix to avoid stack overflow
                 return;
             }
 
@@ -676,6 +677,7 @@ class MetadataVerifier implements Releasable {
                 final var itemRefCount = AbstractRefCounted.of(() -> {
                     permits.release();
                     try {
+                        // TODO fix this recursion
                         run();
                     } finally {
                         refCounted.decRef();
