@@ -538,7 +538,8 @@ class MetadataVerifier implements Releasable {
                     try {
                         runnable.onRejection(e);
                     } finally {
-                        onCompletion();
+                        threadPoolPermits.release();
+                        // no need to call tryProcessQueue() again here, we're still running it
                     }
                 }
 
