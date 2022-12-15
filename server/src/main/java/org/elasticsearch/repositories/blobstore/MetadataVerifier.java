@@ -42,6 +42,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
@@ -230,11 +231,13 @@ class MetadataVerifier implements Releasable {
         private final Set<SnapshotId> expectedSnapshots;
         private final Map<Integer, ListenableActionFuture<ShardContainerContents>> shardContainerContentsListener = newConcurrentMap();
         private final Map<String, ListenableActionFuture<Integer>> shardCountListenersByBlobId = newConcurrentMap();
+        private final AtomicInteger totalSnapshotCount = new AtomicInteger();
+        private final AtomicInteger restorableSnapshotCount = new AtomicInteger();
 
         IndexVerifier(RefCounted indexRefs, IndexId indexId) {
             this.indexRefs = indexRefs;
             this.indexId = indexId;
-            this.expectedSnapshots = snapshotsByIndex.get(this.indexId.getName());
+            this.expectedSnapshots = snapshotsByIndex.get(indexId.getName());
         }
 
         void run() {
@@ -243,7 +246,16 @@ class MetadataVerifier implements Releasable {
             }
 
             runThrottled(
-                makeVoidListener(indexRefs, () -> {}),
+                makeVoidListener(
+                    indexRefs,
+                    () -> logger.debug(
+                        "[{}] index {} is restorable from [{}] of [{}] snapshots",
+                        repositoryName,
+                        indexId,
+                        restorableSnapshotCount.get(),
+                        totalSnapshotCount.get()
+                    )
+                ),
                 repositoryData.getSnapshots(indexId).iterator(),
                 this::verifyIndexSnapshot,
                 verifyRequest.getIndexSnapshotVerificationConcurrency(),
@@ -252,6 +264,8 @@ class MetadataVerifier implements Releasable {
         }
 
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
+            totalSnapshotCount.incrementAndGet();
+
             if (expectedSnapshots.contains(snapshotId) == false) {
                 addFailure("index %s has mismatched snapshot [%s]", indexId, snapshotId);
             }
@@ -278,19 +292,32 @@ class MetadataVerifier implements Releasable {
                 }, shardCountFuture);
                 return shardCountFuture;
             }).addListener(makeListener(indexSnapshotRefs, shardCount -> {
-                for (int i = 0; i < shardCount; i++) {
-                    final var shardId = i;
-                    shardContainerContentsListener.get(i)
-                        .addListener(
-                            makeListener(
-                                indexSnapshotRefs,
-                                shardContainerContents -> forkSupply(
-                                    indexSnapshotRefs,
-                                    () -> getBlobStoreIndexShardSnapshot(snapshotId, shardId),
-                                    shardSnapshot -> verifyShardSnapshot(snapshotId, shardId, shardContainerContents, shardSnapshot)
+                final var restorableShardCount = new AtomicInteger();
+                try (var shardSnapshotsRefs = wrap(makeVoidListener(indexSnapshotRefs, () -> {
+                    if (shardCount > 0 && shardCount == restorableShardCount.get()) {
+                        restorableSnapshotCount.incrementAndGet();
+                    }
+                }))) {
+                    for (int i = 0; i < shardCount; i++) {
+                        final var shardId = i;
+                        shardContainerContentsListener.get(i)
+                            .addListener(
+                                makeListener(
+                                    shardSnapshotsRefs,
+                                    shardContainerContents -> forkSupply(
+                                        shardSnapshotsRefs,
+                                        () -> getBlobStoreIndexShardSnapshot(snapshotId, shardId),
+                                        shardSnapshot -> verifyShardSnapshot(
+                                            snapshotId,
+                                            shardId,
+                                            shardContainerContents,
+                                            shardSnapshot,
+                                            restorableShardCount::incrementAndGet
+                                        )
+                                    )
                                 )
-                            )
-                        );
+                            );
+                    }
                 }
             }));
         }
@@ -356,7 +383,8 @@ class MetadataVerifier implements Releasable {
             SnapshotId snapshotId,
             int shardId,
             ShardContainerContents shardContainerContents,
-            BlobStoreIndexShardSnapshot shardSnapshot
+            BlobStoreIndexShardSnapshot shardSnapshot,
+            Runnable runIfRestorable
         ) {
             if (shardSnapshot == null) {
                 return;
@@ -372,8 +400,12 @@ class MetadataVerifier implements Releasable {
                 );
             }
 
+            var restorable = true;
             for (final var fileInfo : shardSnapshot.indexFiles()) {
-                verifyFileInfo(snapshotId.toString(), shardId, shardContainerContents.blobsByName(), fileInfo);
+                restorable &= verifyFileInfo(snapshotId.toString(), shardId, shardContainerContents.blobsByName(), fileInfo);
+            }
+            if (restorable) {
+                runIfRestorable.run();
             }
 
             final var blobStoreIndexShardSnapshots = shardContainerContents.blobStoreIndexShardSnapshots();
@@ -448,7 +480,7 @@ class MetadataVerifier implements Releasable {
             }
         }
 
-        private void verifyFileInfo(
+        private boolean verifyFileInfo(
             String snapshot,
             int shardId,
             Map<String, BlobMetadata> shardBlobs,
@@ -468,6 +500,7 @@ class MetadataVerifier implements Releasable {
                         formatExact(actualLength),
                         formatExact(fileLength)
                     );
+                    return false;
                 }
             } else {
                 for (int part = 0; part < fileInfo.numberOfParts(); part++) {
@@ -488,7 +521,7 @@ class MetadataVerifier implements Releasable {
                             formatExact(fileLength),
                             formatExact(partLength)
                         );
-
+                        return false;
                     } else if (blobInfo.length() != partLength.getBytes()) {
                         addFailure(
                             "snapshot [%s] for shard %s[%d] has blob [%s] for [%s] part [%d/%d] with length [%s] instead of [%s]; "
@@ -504,9 +537,11 @@ class MetadataVerifier implements Releasable {
                             formatExact(partLength),
                             formatExact(fileLength)
                         );
+                        return false;
                     }
                 }
             }
+            return true;
         }
     }
 
