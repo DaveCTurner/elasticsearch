@@ -231,8 +231,8 @@ class MetadataVerifier implements Releasable {
         private final Set<SnapshotId> expectedSnapshots;
         private final Map<Integer, ListenableActionFuture<ShardContainerContents>> shardContainerContentsListener = newConcurrentMap();
         private final Map<String, ListenableActionFuture<Integer>> shardCountListenersByBlobId = newConcurrentMap();
-        private final AtomicInteger totalSnapshotCount = new AtomicInteger();
-        private final AtomicInteger restorableSnapshotCount = new AtomicInteger();
+        private final AtomicInteger totalSnapshotCounter = new AtomicInteger();
+        private final AtomicInteger restorableSnapshotCounter = new AtomicInteger();
 
         IndexVerifier(RefCounted indexRefs, IndexId indexId) {
             this.indexRefs = indexRefs;
@@ -246,16 +246,7 @@ class MetadataVerifier implements Releasable {
             }
 
             runThrottled(
-                makeVoidListener(
-                    indexRefs,
-                    () -> logger.debug(
-                        "[{}] index {} is restorable from [{}] of [{}] snapshots",
-                        repositoryName,
-                        indexId,
-                        restorableSnapshotCount.get(),
-                        totalSnapshotCount.get()
-                    )
-                ),
+                makeVoidListener(indexRefs, () -> logRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get())),
                 repositoryData.getSnapshots(indexId).iterator(),
                 this::verifyIndexSnapshot,
                 verifyRequest.getIndexSnapshotVerificationConcurrency(),
@@ -263,8 +254,23 @@ class MetadataVerifier implements Releasable {
             );
         }
 
+        private void logRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
+            if (totalSnapshotCount == restorableSnapshotCount) {
+                logger.debug("[{}] index {} is fully restorable from [{}] snapshots", repositoryName, indexId, totalSnapshotCount);
+            } else {
+                logger.debug(
+                    "[{}] index {} is not fully restorable: of [{}] snapshots, [{}] are restorable and [{}] are not",
+                    repositoryName,
+                    indexId,
+                    totalSnapshotCount,
+                    restorableSnapshotCount,
+                    totalSnapshotCount - restorableSnapshotCount
+                );
+            }
+        }
+
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
-            totalSnapshotCount.incrementAndGet();
+            totalSnapshotCounter.incrementAndGet();
 
             if (expectedSnapshots.contains(snapshotId) == false) {
                 addFailure("index %s has mismatched snapshot [%s]", indexId, snapshotId);
@@ -295,7 +301,7 @@ class MetadataVerifier implements Releasable {
                 final var restorableShardCount = new AtomicInteger();
                 try (var shardSnapshotsRefs = wrap(makeVoidListener(indexSnapshotRefs, () -> {
                     if (shardCount > 0 && shardCount == restorableShardCount.get()) {
-                        restorableSnapshotCount.incrementAndGet();
+                        restorableSnapshotCounter.incrementAndGet();
                     }
                 }))) {
                     for (int i = 0; i < shardCount; i++) {
