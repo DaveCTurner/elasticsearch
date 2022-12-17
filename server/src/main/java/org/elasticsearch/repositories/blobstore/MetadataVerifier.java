@@ -20,9 +20,9 @@ import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
-import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
@@ -149,11 +149,11 @@ class MetadataVerifier implements Releasable {
 
     private void verifySnapshots() {
         runThrottled(
-            makeVoidListener(finalRefs, this::verifyIndices),
             repositoryData.getSnapshotIds().iterator(),
             this::verifySnapshot,
             verifyRequest.getSnapshotVerificationConcurrency(),
-            snapshotProgressLogger
+            snapshotProgressLogger,
+            wrapRunnable(finalRefs, this::verifyIndices)
         );
     }
 
@@ -212,11 +212,11 @@ class MetadataVerifier implements Releasable {
         }
 
         runThrottled(
-            makeVoidListener(finalRefs, () -> {}),
             indicesMap.values().iterator(),
             (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
             verifyRequest.getIndexVerificationConcurrency(),
-            indexProgressLogger
+            indexProgressLogger,
+            wrapRunnable(finalRefs, () -> {})
         );
     }
 
@@ -246,11 +246,11 @@ class MetadataVerifier implements Releasable {
             }
 
             runThrottled(
-                makeVoidListener(indexRefs, () -> logRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get())),
                 repositoryData.getSnapshots(indexId).iterator(),
                 this::verifyIndexSnapshot,
                 verifyRequest.getIndexSnapshotVerificationConcurrency(),
-                indexSnapshotProgressLogger
+                indexSnapshotProgressLogger,
+                wrapRunnable(indexRefs, () -> logRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get()))
             );
         }
 
@@ -301,11 +301,12 @@ class MetadataVerifier implements Releasable {
                 return shardCountFuture;
             }).addListener(makeListener(indexSnapshotRefs, shardCount -> {
                 final var restorableShardCount = new AtomicInteger();
-                try (var shardSnapshotsRefs = wrap(makeVoidListener(indexSnapshotRefs, () -> {
+                final var shardSnapshotsRefs = AbstractRefCounted.of(wrapRunnable(indexSnapshotRefs, () -> {
                     if (shardCount > 0 && shardCount == restorableShardCount.get()) {
                         restorableSnapshotCounter.incrementAndGet();
                     }
-                }))) {
+                }));
+                try {
                     for (int i = 0; i < shardCount; i++) {
                         final var shardId = i;
                         shardContainerContentsListener.get(i)
@@ -326,6 +327,8 @@ class MetadataVerifier implements Releasable {
                                 )
                             );
                     }
+                } finally {
+                    shardSnapshotsRefs.decRef();
                 }
             }));
         }
@@ -558,8 +561,15 @@ class MetadataVerifier implements Releasable {
         return ActionListener.runAfter(ActionListener.wrap(consumer, this::addFailure), refCounted::decRef);
     }
 
-    private ActionListener<Void> makeVoidListener(RefCounted refCounted, CheckedRunnable<Exception> runnable) {
-        return makeListener(refCounted, ignored -> runnable.run());
+    private Runnable wrapRunnable(RefCounted refCounted, Runnable runnable) {
+        refCounted.incRef();
+        return () -> {
+            try {
+                runnable.run();
+            } finally {
+                refCounted.decRef();
+            }
+        };
     }
 
     private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
@@ -653,131 +663,14 @@ class MetadataVerifier implements Releasable {
         finalListener.onResponse(failures.stream().toList());
     }
 
-    private interface RefCountedListenerWrapper extends Releasable, RefCounted {}
-
-    private static RefCountedListenerWrapper wrap(ActionListener<Void> listener) {
-        final var refCounted = AbstractRefCounted.of(() -> listener.onResponse(null));
-        return new RefCountedListenerWrapper() {
-            @Override
-            public void incRef() {
-                refCounted.incRef();
-            }
-
-            @Override
-            public boolean tryIncRef() {
-                return refCounted.tryIncRef();
-            }
-
-            @Override
-            public boolean decRef() {
-                return refCounted.decRef();
-            }
-
-            @Override
-            public boolean hasReferences() {
-                return refCounted.hasReferences();
-            }
-
-            @Override
-            public void close() {
-                decRef();
-            }
-        };
-    }
-
     private static <T> void runThrottled(
-        ActionListener<Void> completionListener,
         Iterator<T> iterator,
-        BiConsumer<RefCounted, T> consumer,
+        BiConsumer<RefCounted, T> itemConsumer,
         int maxConcurrency,
-        ProgressLogger progressLogger
+        ProgressLogger progressLogger,
+        Runnable onCompletion
     ) {
-        try (var throttledIterator = new ThrottledIterator<>(completionListener, iterator, consumer, maxConcurrency, progressLogger)) {
-            throttledIterator.run();
-        }
-    }
-
-    private static class ThrottledIterator<T> implements Releasable {
-        private final RefCountedListenerWrapper throttleRefs;
-        private final Iterator<T> iterator;
-        private final BiConsumer<RefCounted, T> consumer;
-        private final Semaphore permits;
-        private final ProgressLogger progressLogger;
-
-        ThrottledIterator(
-            ActionListener<Void> completionListener,
-            Iterator<T> iterator,
-            BiConsumer<RefCounted, T> consumer,
-            int maxConcurrency,
-            ProgressLogger progressLogger
-        ) {
-            this.throttleRefs = wrap(completionListener);
-            this.iterator = iterator;
-            this.consumer = consumer;
-            this.permits = new Semaphore(maxConcurrency);
-            this.progressLogger = progressLogger;
-        }
-
-        void run() {
-            while (permits.tryAcquire()) {
-                final T item;
-                synchronized (iterator) {
-                    if (iterator.hasNext()) {
-                        item = iterator.next();
-                    } else {
-                        permits.release();
-                        return;
-                    }
-                }
-                try (var itemRefsWrapper = new RefCountedWrapper()) {
-                    consumer.accept(itemRefsWrapper.unwrap(), item);
-                }
-            }
-        }
-
-        @Override
-        public void close() {
-            throttleRefs.close();
-        }
-
-        // Wraps a RefCounted with protection against calling back into run() from within safeDecRef()
-        private class RefCountedWrapper implements Releasable {
-            private boolean isRecursive;
-            private final RefCounted itemRefs = AbstractRefCounted.of(this::onItemCompletion);
-
-            RefCountedWrapper() {
-                throttleRefs.incRef();
-            }
-
-            RefCounted unwrap() {
-                return itemRefs;
-            }
-
-            private synchronized boolean isRecursive() {
-                return isRecursive;
-            }
-
-            private void onItemCompletion() {
-                progressLogger.maybeLogProgress();
-                permits.release();
-                try {
-                    if (isRecursive() == false) {
-                        run();
-                    }
-                } finally {
-                    throttleRefs.decRef();
-                }
-            }
-
-            @Override
-            public synchronized void close() {
-                // if the decRef() below releases the last ref and calls onItemCompletion(), no other thread blocks on us; conversely
-                // if decRef() doesn't release the last ref then we release this mutex immediately so the closing thread can proceed
-                isRecursive = true;
-                itemRefs.decRef();
-                isRecursive = false;
-            }
-        }
+        ThrottledIterator.run(iterator, itemConsumer, maxConcurrency, progressLogger::maybeLogProgress, onCompletion);
     }
 
     private class ProgressLogger {
