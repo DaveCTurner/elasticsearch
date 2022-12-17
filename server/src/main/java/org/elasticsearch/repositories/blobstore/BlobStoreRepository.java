@@ -32,6 +32,7 @@ import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.ThreadedActionListener;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.RepositoryCleanupInProgress;
@@ -58,6 +59,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
+import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.store.InputStreamIndexInput;
 import org.elasticsearch.common.metrics.CounterMetric;
@@ -3544,6 +3546,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     @Override
     public void verifyMetadataIntegrity(
+        Client client,
+        Supplier<RecyclerBytesStreamOutput> bytesStreamOutputSupplier,
         VerifyRepositoryIntegrityAction.Request request,
         ActionListener<List<RepositoryVerificationException>> listener,
         BooleanSupplier isCancelledSupplier
@@ -3571,7 +3575,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             )
                         );
                     }
-                    try (var metadataVerifier = new MetadataVerifier(this, request, repositoryData, isCancelledSupplier, l2)) {
+                    try (var metadataVerifier = new MetadataVerifier(this, client, request, repositoryData, isCancelledSupplier, l2)) {
                         metadataVerifier.run();
                     }
                 }), () -> readOnly ? repositoryData : getRepositoryData(repositoryData.getGenId())));

@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
@@ -230,6 +231,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
     public static class TransportAction extends TransportMasterNodeReadAction<Request, Response> {
 
         private final RepositoriesService repositoriesService;
+        private final NodeClient client;
 
         @Inject
         public TransportAction(
@@ -238,7 +240,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             RepositoriesService repositoriesService,
             ThreadPool threadPool,
             ActionFilters actionFilters,
-            IndexNameExpressionResolver indexNameExpressionResolver
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            NodeClient client
         ) {
             super(
                 NAME,
@@ -253,6 +256,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                 ThreadPool.Names.SNAPSHOT_META
             );
             this.repositoriesService = repositoriesService;
+            this.client = client;
         }
 
         @Override
@@ -266,6 +270,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             final var cancellableTask = (CancellableTask) task;
             repositoriesService.repository(request.getRepository())
                 .verifyMetadataIntegrity(
+                    client,
+                    transportService::newNetworkBytesStream,
                     request.withDefaultThreadpoolConcurrency(clusterService.getSettings()),
                     listener.map(Response::new),
                     cancellableTask::isCancelled

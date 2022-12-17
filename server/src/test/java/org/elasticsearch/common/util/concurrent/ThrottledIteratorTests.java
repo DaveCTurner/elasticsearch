@@ -30,7 +30,7 @@ public class ThrottledIteratorTests extends ESTestCase {
 
     public void testConcurrency() throws InterruptedException {
         final var maxConstrainedThreads = between(1, 3);
-        final var maxRelaxedThreads = between(1,100);
+        final var maxRelaxedThreads = between(1, 100);
         final var constrainedQueue = between(3, 6);
         final var threadPool = new TestThreadPool(
             "test",

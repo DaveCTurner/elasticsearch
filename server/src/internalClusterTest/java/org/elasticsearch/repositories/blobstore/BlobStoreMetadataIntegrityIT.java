@@ -12,6 +12,7 @@ import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepos
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
@@ -21,8 +22,10 @@ import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.test.CorruptionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.junit.After;
 import org.junit.Before;
 
@@ -35,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANCE;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -60,6 +64,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         integrityCheckSuppressor = null;
     }
 
+    @TestLogging(reason = "testing", value = "org.elasticsearch.repositories.blobstore.MetadataVerifier:DEBUG")
     public void testIntegrityCheck() throws Exception {
         final var repoPath = randomRepoPath();
         createRepository(
@@ -104,16 +109,14 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         assertThat(response.getRestStatus(), equalTo(RestStatus.OK));
         assertThat(response.getExceptions(), empty());
 
+        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+
         final var tempDir = createTempDir();
 
         final List<Path> blobs;
         try (var paths = Files.walk(repoPath)) {
             blobs = paths.filter(Files::isRegularFile).sorted().toList();
         }
-        for (final var blob : blobs) {
-            logger.info("repo contents: {}", blob);
-        }
-
         final var repositoryDataFuture = new PlainActionFuture<RepositoryData>();
         repository.getRepositoryData(repositoryDataFuture);
         final var repositoryData = repositoryDataFuture.get();
@@ -136,6 +139,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
                 final var verificationResponse = PlainActionFuture.get(
                     (PlainActionFuture<List<RepositoryVerificationException>> listener) -> repository.verifyMetadataIntegrity(
+                        client(),
+                        () -> new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE),
                         request,
                         listener,
                         () -> {
@@ -149,6 +154,9 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                     30,
                     TimeUnit.SECONDS
                 );
+                for (SearchHit hit : client().prepareSearch("metadata_verification_results").setSize(10000).get().getHits().getHits()) {
+                    logger.info("--> {}", Strings.toString(hit));
+                }
                 assertThat(verificationResponse, not(empty()));
                 final var responseString = verificationResponse.stream().map(Throwable::getMessage).collect(Collectors.joining("\n"));
                 if (isCancelled.get()) {
@@ -165,6 +173,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
+                assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
             }
 
             final var repairResponse = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
@@ -174,6 +183,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             );
             assertThat(repairResponse.getRestStatus(), equalTo(RestStatus.OK));
             assertThat(repairResponse.getExceptions(), empty());
+            assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
         }
     }
 }
