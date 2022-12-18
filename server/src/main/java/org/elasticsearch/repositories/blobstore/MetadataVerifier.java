@@ -202,18 +202,8 @@ class MetadataVerifier implements Releasable {
     }
 
     private void verifyIndices() {
-        final var indicesMap = repositoryData.getIndices();
-
-        for (final var indicesEntry : indicesMap.entrySet()) {
-            final var name = indicesEntry.getKey();
-            final var indexId = indicesEntry.getValue();
-            if (name.equals(indexId.getName()) == false) {
-                addFailure("index name [%s] has mismatched name in %s", name, indexId);
-            }
-        }
-
         runThrottled(
-            indicesMap.values().iterator(),
+            repositoryData.getIndices().values().iterator(),
             (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
             verifyRequest.getIndexVerificationConcurrency(),
             indexProgressLogger,
@@ -271,28 +261,22 @@ class MetadataVerifier implements Releasable {
 
         private void logRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
-                if (totalSnapshotCount == restorableSnapshotCount) {
-                    logger.debug("[{}] index {} is fully restorable from [{}] snapshots", repositoryName, indexId, totalSnapshotCount);
-                } else {
-                    logger.debug(
-                        "[{}] index {} is not fully restorable: of [{}] snapshots, [{}] are restorable and [{}] are not",
-                        repositoryName,
-                        indexId,
-                        totalSnapshotCount,
-                        restorableSnapshotCount,
-                        totalSnapshotCount - restorableSnapshotCount
-                    );
-                }
+                addResult(indexRefs, (builder, params) -> {
+                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    builder.field("restorability",
+                        totalSnapshotCount == restorableSnapshotCount ?
+                        "full" : 0 < restorableSnapshotCount ? "partial" : "none");
+                    builder.field("snapshots", totalSnapshotCount);
+                    builder.field("restorable_snapshots", restorableSnapshotCount);
+                    builder.field("unrestorable_snapshots", totalSnapshotCount - restorableSnapshotCount);
+                    return builder;
+                });
             }
         }
 
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
             totalSnapshotCounter.incrementAndGet();
-
-            if (expectedSnapshots.contains(snapshotId) == false) {
-                addFailure("index %s has mismatched snapshot [%s]", indexId, snapshotId);
-            }
-
+            
             final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
             if (snapshotDescription == null) {
                 addFailure("index %s has unknown snapshot [%s]", indexId, snapshotId);
