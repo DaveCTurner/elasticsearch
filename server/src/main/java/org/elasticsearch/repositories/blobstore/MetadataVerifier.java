@@ -63,7 +63,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
-import static org.elasticsearch.core.Strings.format;
 
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
@@ -76,10 +75,7 @@ class MetadataVerifier implements Releasable {
     private final VerifyRepositoryIntegrityAction.Request verifyRequest;
     private final RepositoryData repositoryData;
     private final BooleanSupplier isCancelledSupplier;
-    private final Queue<RepositoryVerificationException> failures = ConcurrentCollections.newQueue();
-    private final AtomicLong failureCount = new AtomicLong();
     private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
-    private final Map<String, Set<SnapshotId>> snapshotsByIndex;
     private final Semaphore threadPoolPermits;
     private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
     private final ProgressLogger snapshotProgressLogger;
@@ -102,46 +98,16 @@ class MetadataVerifier implements Releasable {
         this.repositoryData = repositoryData;
         this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;
-        this.snapshotsByIndex = this.repositoryData.getIndices()
-            .values()
-            .stream()
-            .collect(Collectors.toMap(IndexId::getName, indexId -> Set.copyOf(this.repositoryData.getSnapshots(indexId))));
-
         this.threadPoolPermits = new Semaphore(Math.max(1, verifyRequest.getThreadpoolConcurrency()));
         this.snapshotProgressLogger = new ProgressLogger("snapshots", repositoryData.getSnapshotIds().size(), 100);
         this.indexProgressLogger = new ProgressLogger("indices", repositoryData.getIndices().size(), 20);
         this.indexSnapshotProgressLogger = new ProgressLogger("index snapshots", repositoryData.getIndexSnapshotCount(), 1000);
-
         this.requestedIndices = Set.of(verifyRequest.getIndices());
     }
 
     @Override
     public void close() {
         finalRefs.decRef();
-    }
-
-    private void addFailure(String format, Object... args) {
-        final var failureNumber = failureCount.incrementAndGet();
-        final var failure = format(format, args);
-        logger.debug("[{}] found metadata verification failure [{}]: {}", repositoryName, failureNumber, failure);
-        if (failureNumber <= verifyRequest.getMaxFailures()) {
-            failures.add(new RepositoryVerificationException(repositoryName, failure));
-        }
-    }
-
-    private void addFailure(Exception exception) {
-        if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
-            return;
-        }
-        final var failureNumber = failureCount.incrementAndGet();
-        logger.debug(() -> format("[%s] exception [%d] during metadata verification", repositoryName, failureNumber), exception);
-        if (failureNumber <= verifyRequest.getMaxFailures()) {
-            failures.add(
-                exception instanceof RepositoryVerificationException rve
-                    ? rve
-                    : new RepositoryVerificationException(repositoryName, "exception during metadata verification", exception)
-            );
-        }
     }
 
     private static final String RESULTS_INDEX = "metadata_verification_results";
@@ -207,21 +173,7 @@ class MetadataVerifier implements Releasable {
             (refCounted, indexId) -> new IndexVerifier(refCounted, indexId).run(),
             verifyRequest.getIndexVerificationConcurrency(),
             indexProgressLogger,
-            wrapRunnable(
-                finalRefs,
-                () -> client.admin()
-                    .indices()
-                    .prepareFlush(RESULTS_INDEX)
-                    .execute(
-                        makeListener(
-                            finalRefs,
-                            ignored1 -> client.admin()
-                                .indices()
-                                .prepareRefresh(RESULTS_INDEX)
-                                .execute(makeListener(finalRefs, ignored2 -> {}))
-                        )
-                    )
-            )
+            wrapRunnable(finalRefs, () -> {})
         );
     }
 
@@ -233,7 +185,6 @@ class MetadataVerifier implements Releasable {
     private class IndexVerifier {
         private final RefCounted indexRefs;
         private final IndexId indexId;
-        private final Set<SnapshotId> expectedSnapshots;
         private final Map<Integer, ListenableActionFuture<ShardContainerContents>> shardContainerContentsListener = newConcurrentMap();
         private final Map<String, ListenableActionFuture<IndexDescription>> indexDescriptionListenersByBlobId = newConcurrentMap();
         private final AtomicInteger totalSnapshotCounter = new AtomicInteger();
@@ -242,7 +193,6 @@ class MetadataVerifier implements Releasable {
         IndexVerifier(RefCounted indexRefs, IndexId indexId) {
             this.indexRefs = indexRefs;
             this.indexId = indexId;
-            this.expectedSnapshots = snapshotsByIndex.get(indexId.getName());
         }
 
         void run() {
@@ -376,14 +326,6 @@ class MetadataVerifier implements Releasable {
             }
         }
 
-        private List<SnapshotId> getSnapshotsWithIndexMetadataBlob(String indexMetaBlobId) {
-            final var indexMetaDataGenerations = repositoryData.indexMetaDataGenerations();
-            return repositoryData.getSnapshotIds()
-                .stream()
-                .filter(s -> indexMetaBlobId.equals(indexMetaDataGenerations.indexMetaBlobId(s, indexId)))
-                .toList();
-        }
-
         private int getNumberOfShards(String indexMetaBlobId, SnapshotId snapshotId) {
             try {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
@@ -469,7 +411,14 @@ class MetadataVerifier implements Releasable {
                 for (SnapshotFiles summary : blobStoreIndexShardSnapshots.snapshots()) {
                     if (summary.snapshot().equals(snapshotDescription.snapshotId().getName())) {
                         foundSnapshot = true;
-                        verifyConsistentShardFiles(snapshotDescription.snapshotId(), shardId, shardSnapshot, summary);
+                        verifyConsistentShardFiles(
+                            shardSnapshotRefs,
+                            snapshotDescription,
+                            indexDescription,
+                            shardId,
+                            shardSnapshot,
+                            summary
+                        );
                         break;
                     }
                 }
@@ -479,7 +428,7 @@ class MetadataVerifier implements Releasable {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
-                        builder.field("error", "missing in shard-level summary");
+                        builder.field("failure", "missing in shard-level summary");
                         return builder;
                     }));
                 }
@@ -487,7 +436,9 @@ class MetadataVerifier implements Releasable {
         }
 
         private void verifyConsistentShardFiles(
-            SnapshotId snapshotId,
+            RefCounted shardSnapshotRefs,
+            SnapshotDescription snapshotDescription,
+            IndexDescription indexDescription,
             int shardId,
             BlobStoreIndexShardSnapshot shardSnapshot,
             SnapshotFiles summary
@@ -499,21 +450,23 @@ class MetadataVerifier implements Releasable {
             for (final var summaryFile : summary.indexFiles()) {
                 final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                 if (snapshotFile == null) {
-                    addFailure(
-                        "snapshot [%s] for shard %s[%d] has no entry for file [%s] found in summary",
-                        snapshotId,
-                        indexId,
-                        shardId,
-                        summaryFile.physicalName()
-                    );
+                    addResult(shardSnapshotRefs, (builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("file_name", summaryFile.physicalName());
+                        builder.field("failure", "snapshot summary file missing from snapshot metadata");
+                        return builder;
+                    });
                 } else if (summaryFile.isSame(snapshotFile) == false) {
-                    addFailure(
-                        "snapshot [%s] for shard %s[%d] has a mismatched entry for file [%s]",
-                        snapshotId,
-                        indexId,
-                        shardId,
-                        summaryFile.physicalName()
-                    );
+                    addResult(shardSnapshotRefs, (builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("file_name", summaryFile.physicalName());
+                        builder.field("failure", "snapshot summary file different from snapshot metadata entry");
+                        return builder;
+                    });
                 }
             }
 
@@ -522,13 +475,14 @@ class MetadataVerifier implements Releasable {
                 .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
             for (final var snapshotFile : shardSnapshot.indexFiles()) {
                 if (summaryFiles.get(snapshotFile.physicalName()) == null) {
-                    addFailure(
-                        "snapshot [%s] for shard %s[%d] has no entry in the shard-level summary for file [%s]",
-                        snapshotId,
-                        indexId,
-                        shardId,
-                        snapshotFile.physicalName()
-                    );
+                    addResult(shardSnapshotRefs, (builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("file_name", snapshotFile.physicalName());
+                        builder.field("failure", "snapshot metadata file missing from snapshot summary");
+                        return builder;
+                    });
                 }
             }
         }
@@ -550,6 +504,7 @@ class MetadataVerifier implements Releasable {
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
                         builder.field("error", "mismatched virtual blob length");
+                        builder.field("file_name", fileInfo.physicalName());
                         builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
                         builder.humanReadableField("expected_length_in_bytes", "expected_length", fileLength);
                         return builder;
@@ -699,25 +654,28 @@ class MetadataVerifier implements Releasable {
     }
 
     private void onCompletion() {
-        final var finalFailureCount = failureCount.get();
-        if (finalFailureCount > verifyRequest.getMaxFailures()) {
-            failures.add(
-                new RepositoryVerificationException(
-                    repositoryName,
-                    format(
-                        "found %d verification failures in total, %d suppressed",
-                        finalFailureCount,
-                        finalFailureCount - verifyRequest.getMaxFailures()
+        final var completionRefs = AbstractRefCounted.of(
+            () -> client.admin()
+                .indices()
+                .prepareFlush(RESULTS_INDEX)
+                .execute(
+                    finalListener.delegateFailure(
+                        (l1, ignored1) -> client.admin()
+                            .indices()
+                            .prepareRefresh(RESULTS_INDEX)
+                            .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(List.of())))
                     )
                 )
-            );
+        );
+        try {
+            addResult(completionRefs, (builder, params) -> {
+                builder.field("completed", true);
+                builder.field("cancelled", isCancelledSupplier.getAsBoolean());
+                return builder;
+            });
+        } finally {
+            completionRefs.decRef();
         }
-
-        if (isCancelledSupplier.getAsBoolean()) {
-            failures.add(new RepositoryVerificationException(repositoryName, "verification task cancelled before completion"));
-        }
-
-        finalListener.onResponse(failures.stream().toList());
     }
 
     private static <T> void runThrottled(

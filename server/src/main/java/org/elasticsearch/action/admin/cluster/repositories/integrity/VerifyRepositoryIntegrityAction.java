@@ -62,7 +62,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
         private final int snapshotVerificationConcurrency;
         private final int indexVerificationConcurrency;
         private final int indexSnapshotVerificationConcurrency;
-        private final int maxFailures;
 
         public Request(
             String repository,
@@ -70,8 +69,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             int threadpoolConcurrency,
             int snapshotVerificationConcurrency,
             int indexVerificationConcurrency,
-            int indexSnapshotVerificationConcurrency,
-            int maxFailures
+            int indexSnapshotVerificationConcurrency
         ) {
             this.repository = repository;
             this.indices = Objects.requireNonNull(indices, "indices");
@@ -83,7 +81,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                 1,
                 indexSnapshotVerificationConcurrency
             );
-            this.maxFailures = requireMin("maxFailures", 1, maxFailures);
         }
 
         private static int requireMin(String name, int min, int value) {
@@ -101,7 +98,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             this.snapshotVerificationConcurrency = in.readVInt();
             this.indexVerificationConcurrency = in.readVInt();
             this.indexSnapshotVerificationConcurrency = in.readVInt();
-            this.maxFailures = in.readVInt();
         }
 
         @Override
@@ -113,7 +109,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             out.writeVInt(snapshotVerificationConcurrency);
             out.writeVInt(indexVerificationConcurrency);
             out.writeVInt(indexSnapshotVerificationConcurrency);
-            out.writeVInt(maxFailures);
         }
 
         @Override
@@ -150,10 +145,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             return indexSnapshotVerificationConcurrency;
         }
 
-        public int getMaxFailures() {
-            return maxFailures;
-        }
-
         public Request withDefaultThreadpoolConcurrency(Settings settings) {
             if (threadpoolConcurrency == 0) {
                 final var request = new Request(
@@ -162,8 +153,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                     Math.max(1, EsExecutors.allocatedProcessors(settings) / 2),
                     snapshotVerificationConcurrency,
                     indexVerificationConcurrency,
-                    indexSnapshotVerificationConcurrency,
-                    maxFailures
+                    indexSnapshotVerificationConcurrency
                 );
                 request.masterNodeTimeout(masterNodeTimeout());
                 return request;
