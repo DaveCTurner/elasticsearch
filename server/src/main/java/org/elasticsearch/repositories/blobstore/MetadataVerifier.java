@@ -172,10 +172,6 @@ class MetadataVerifier implements Releasable {
     }
 
     private void verifySnapshot(RefCounted snapshotRefs, SnapshotId snapshotId) {
-        if (verifyRequest.permitMissingSnapshotDetails() == false && repositoryData.hasMissingDetails(snapshotId)) {
-            addFailure("snapshot [%s] has missing snapshot details", snapshotId);
-        }
-
         if (isCancelledSupplier.getAsBoolean()) {
             // getSnapshotInfo does its own forking so we must check for cancellation here
             return;

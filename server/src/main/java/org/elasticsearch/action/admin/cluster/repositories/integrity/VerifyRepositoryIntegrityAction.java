@@ -63,7 +63,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
         private final int indexVerificationConcurrency;
         private final int indexSnapshotVerificationConcurrency;
         private final int maxFailures;
-        private final boolean permitMissingSnapshotDetails;
 
         public Request(
             String repository,
@@ -72,8 +71,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             int snapshotVerificationConcurrency,
             int indexVerificationConcurrency,
             int indexSnapshotVerificationConcurrency,
-            int maxFailures,
-            boolean permitMissingSnapshotDetails
+            int maxFailures
         ) {
             this.repository = repository;
             this.indices = Objects.requireNonNull(indices, "indices");
@@ -85,8 +83,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                 1,
                 indexSnapshotVerificationConcurrency
             );
-            this.maxFailures = requireMin("maxFailure", 1, maxFailures);
-            this.permitMissingSnapshotDetails = permitMissingSnapshotDetails;
+            this.maxFailures = requireMin("maxFailures", 1, maxFailures);
         }
 
         private static int requireMin(String name, int min, int value) {
@@ -105,7 +102,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             this.indexVerificationConcurrency = in.readVInt();
             this.indexSnapshotVerificationConcurrency = in.readVInt();
             this.maxFailures = in.readVInt();
-            this.permitMissingSnapshotDetails = in.readBoolean();
         }
 
         @Override
@@ -118,7 +114,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             out.writeVInt(indexVerificationConcurrency);
             out.writeVInt(indexSnapshotVerificationConcurrency);
             out.writeVInt(maxFailures);
-            out.writeBoolean(permitMissingSnapshotDetails);
         }
 
         @Override
@@ -159,10 +154,6 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
             return maxFailures;
         }
 
-        public boolean permitMissingSnapshotDetails() {
-            return permitMissingSnapshotDetails;
-        }
-
         public Request withDefaultThreadpoolConcurrency(Settings settings) {
             if (threadpoolConcurrency == 0) {
                 final var request = new Request(
@@ -172,8 +163,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                     snapshotVerificationConcurrency,
                     indexVerificationConcurrency,
                     indexSnapshotVerificationConcurrency,
-                    maxFailures,
-                    permitMissingSnapshotDetails
+                    maxFailures
                 );
                 request.masterNodeTimeout(masterNodeTimeout());
                 return request;
