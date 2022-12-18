@@ -263,9 +263,10 @@ class MetadataVerifier implements Releasable {
             if (isCancelledSupplier.getAsBoolean() == false) {
                 addResult(indexRefs, (builder, params) -> {
                     new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
-                    builder.field("restorability",
-                        totalSnapshotCount == restorableSnapshotCount ?
-                        "full" : 0 < restorableSnapshotCount ? "partial" : "none");
+                    builder.field(
+                        "restorability",
+                        totalSnapshotCount == restorableSnapshotCount ? "full" : 0 < restorableSnapshotCount ? "partial" : "none"
+                    );
                     builder.field("snapshots", totalSnapshotCount);
                     builder.field("restorable_snapshots", restorableSnapshotCount);
                     builder.field("unrestorable_snapshots", totalSnapshotCount - restorableSnapshotCount);
@@ -326,8 +327,12 @@ class MetadataVerifier implements Releasable {
                                     shardSnapshotsRefs,
                                     shardContainerContents -> forkSupply(
                                         shardSnapshotsRefs,
-                                        () -> getBlobStoreIndexShardSnapshot(shardSnapshotsRefs,
-                                            snapshotDescription, indexDescription, shardId),
+                                        () -> getBlobStoreIndexShardSnapshot(
+                                            shardSnapshotsRefs,
+                                            snapshotDescription,
+                                            indexDescription,
+                                            shardId
+                                        ),
                                         shardSnapshot -> verifyShardSnapshot(
                                             shardSnapshotsRefs,
                                             indexDescription,
@@ -347,13 +352,17 @@ class MetadataVerifier implements Releasable {
             }));
         }
 
-        private BlobStoreIndexShardSnapshot getBlobStoreIndexShardSnapshot(RefCounted shardSnapshotRefs,
-                                                                           SnapshotDescription snapshotDescription,
-                                                                           IndexDescription indexDescription,
-                                                                           int shardId) {
+        private BlobStoreIndexShardSnapshot getBlobStoreIndexShardSnapshot(
+            RefCounted shardSnapshotRefs,
+            SnapshotDescription snapshotDescription,
+            IndexDescription indexDescription,
+            int shardId
+        ) {
             try {
-                return blobStoreRepository.loadShardSnapshot(blobStoreRepository.shardContainer(indexId, shardId),
-                    snapshotDescription.snapshotId());
+                return blobStoreRepository.loadShardSnapshot(
+                    blobStoreRepository.shardContainer(indexId, shardId),
+                    snapshotDescription.snapshotId()
+                );
             } catch (Exception e) {
                 addResult(shardSnapshotRefs, (builder, params) -> {
                     snapshotDescription.writeXContent(builder);
@@ -593,7 +602,20 @@ class MetadataVerifier implements Releasable {
 
     private <T> ActionListener<T> makeListener(RefCounted refCounted, CheckedConsumer<T, Exception> consumer) {
         refCounted.incRef();
-        return ActionListener.runAfter(ActionListener.wrap(consumer, this::addFailure), refCounted::decRef);
+        return ActionListener.runAfter(
+            ActionListener.wrap(consumer, exception -> addExceptionResult(refCounted, exception)),
+            refCounted::decRef
+        );
+    }
+
+    private void addExceptionResult(RefCounted refCounted, Exception exception) {
+        if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
+            return;
+        }
+        addResult(refCounted, (builder, params) -> {
+            ElasticsearchException.generateFailureXContent(builder, params, exception, true);
+            return builder;
+        });
     }
 
     private Runnable wrapRunnable(RefCounted refCounted, Runnable runnable) {

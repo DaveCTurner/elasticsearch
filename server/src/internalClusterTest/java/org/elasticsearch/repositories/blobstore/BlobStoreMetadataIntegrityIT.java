@@ -101,7 +101,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             final var snapshotInfo = clusterAdmin().prepareCreateSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex)
                 .setIncludeGlobalState(randomBoolean())
                 .setWaitForCompletion(true)
-                .get().getSnapshotInfo();
+                .get()
+                .getSnapshotInfo();
             assertThat(snapshotInfo.successfulShards(), is(snapshotInfo.totalShards()));
             assertThat(snapshotInfo.state(), is(SnapshotState.SUCCESS));
         }
