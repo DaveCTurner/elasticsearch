@@ -24,7 +24,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
-import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -55,6 +54,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
@@ -276,10 +276,15 @@ class MetadataVerifier implements Releasable {
 
         private void verifyIndexSnapshot(RefCounted indexSnapshotRefs, SnapshotId snapshotId) {
             totalSnapshotCounter.incrementAndGet();
-            
+
             final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
             if (snapshotDescription == null) {
-                addFailure("index %s has unknown snapshot [%s]", indexId, snapshotId);
+                addResult(indexSnapshotRefs, (builder, params) -> {
+                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    new SnapshotDescription(snapshotId, 0, 0).writeXContent(builder);
+                    builder.field("failure", "unknown snapshot for index");
+                    return builder;
+                });
                 return;
             }
 
@@ -288,20 +293,21 @@ class MetadataVerifier implements Releasable {
                 final var indexDescriptionFuture = new ListenableActionFuture<IndexDescription>();
                 forkSupply(() -> {
                     final var shardCount = getNumberOfShards(indexMetaBlobId, snapshotId);
+                    final var indexDescription = new IndexDescription(indexId.getId(), indexId.getName(), shardCount);
                     for (int i = 0; i < shardCount; i++) {
                         shardContainerContentsListener.computeIfAbsent(i, shardId -> {
                             final var shardContainerContentsFuture = new ListenableActionFuture<ShardContainerContents>();
                             forkSupply(
                                 () -> new ShardContainerContents(
                                     blobStoreRepository.shardContainer(indexId, shardId).listBlobs(),
-                                    getBlobStoreIndexShardSnapshots(shardId)
+                                    getBlobStoreIndexShardSnapshots(indexDescription, shardId)
                                 ),
                                 shardContainerContentsFuture
                             );
                             return shardContainerContentsFuture;
                         });
                     }
-                    return new IndexDescription(indexId.getId(), indexId.getName(), shardCount);
+                    return indexDescription;
                 }, indexDescriptionFuture);
                 return indexDescriptionFuture;
             }).addListener(makeListener(indexSnapshotRefs, indexDescription -> {
@@ -320,7 +326,8 @@ class MetadataVerifier implements Releasable {
                                     shardSnapshotsRefs,
                                     shardContainerContents -> forkSupply(
                                         shardSnapshotsRefs,
-                                        () -> getBlobStoreIndexShardSnapshot(snapshotId, shardId),
+                                        () -> getBlobStoreIndexShardSnapshot(shardSnapshotsRefs,
+                                            snapshotDescription, indexDescription, shardId),
                                         shardSnapshot -> verifyShardSnapshot(
                                             shardSnapshotsRefs,
                                             indexDescription,
@@ -340,17 +347,22 @@ class MetadataVerifier implements Releasable {
             }));
         }
 
-        private BlobStoreIndexShardSnapshot getBlobStoreIndexShardSnapshot(SnapshotId snapshotId, int shardId) {
+        private BlobStoreIndexShardSnapshot getBlobStoreIndexShardSnapshot(RefCounted shardSnapshotRefs,
+                                                                           SnapshotDescription snapshotDescription,
+                                                                           IndexDescription indexDescription,
+                                                                           int shardId) {
             try {
-                return blobStoreRepository.loadShardSnapshot(blobStoreRepository.shardContainer(indexId, shardId), snapshotId);
+                return blobStoreRepository.loadShardSnapshot(blobStoreRepository.shardContainer(indexId, shardId),
+                    snapshotDescription.snapshotId());
             } catch (Exception e) {
-                addFailure(
-                    new RepositoryVerificationException(
-                        repositoryName,
-                        format("failed to load shard %s[%d] snapshot for [%s]", indexId, shardId, snapshotId),
-                        e
-                    )
-                );
+                addResult(shardSnapshotRefs, (builder, params) -> {
+                    snapshotDescription.writeXContent(builder);
+                    indexDescription.writeXContent(builder);
+                    builder.field("shard", shardId);
+                    builder.field("failure", "could not load shard snapshot");
+                    ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                    return builder;
+                });
                 return null;
             }
         }
@@ -367,32 +379,38 @@ class MetadataVerifier implements Releasable {
             try {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
             } catch (Exception e) {
-                addFailure(
-                    new RepositoryVerificationException(
-                        repositoryName,
-                        format(
-                            "failed to load index %s metadata from blob [%s] for %s",
-                            indexId,
-                            indexMetaBlobId,
-                            getSnapshotsWithIndexMetadataBlob(indexMetaBlobId)
-                        ),
-                        e
-                    )
-                );
+                addResult(indexRefs, (builder, params) -> {
+                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    builder.field("failure", "could not load index metadata");
+                    builder.field("metadata_blob", indexMetaBlobId);
+                    ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                    return builder;
+                });
                 return 0;
             }
         }
 
-        private BlobStoreIndexShardSnapshots getBlobStoreIndexShardSnapshots(int shardId) {
+        private BlobStoreIndexShardSnapshots getBlobStoreIndexShardSnapshots(IndexDescription indexDescription, int shardId) {
             final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
             if (shardGen == null) {
-                addFailure("unknown shard generation for %s[%d]", indexId, shardId);
+                addResult(indexRefs, (builder, params) -> {
+                    indexDescription.writeXContent(builder);
+                    builder.field("shard", shardId);
+                    builder.field("failure", "shard generation not defined");
+                    return builder;
+                });
                 return null;
             }
             try {
                 return blobStoreRepository.getBlobStoreIndexShardSnapshots(indexId, shardId, shardGen);
             } catch (Exception e) {
-                addFailure(e);
+                addResult(indexRefs, (builder, params) -> {
+                    indexDescription.writeXContent(builder);
+                    builder.field("shard", shardId);
+                    builder.field("failure", "could not load shard generation");
+                    ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                    return builder;
+                });
                 return null;
             }
         }
@@ -503,14 +521,6 @@ class MetadataVerifier implements Releasable {
                         snapshotFile.physicalName()
                     );
                 }
-            }
-        }
-
-        private static String formatExact(ByteSizeValue byteSizeValue) {
-            if (byteSizeValue.getBytes() >= ByteSizeUnit.KB.toBytes(1)) {
-                return format("%s/%dB", byteSizeValue.toString(), byteSizeValue.getBytes());
-            } else {
-                return byteSizeValue.toString();
             }
         }
 
@@ -731,6 +741,10 @@ class MetadataVerifier implements Releasable {
             return;
         }
         pendingResults.add(Tuple.tuple(indexRequest, onCompletion));
+        processPendingResults();
+    }
+
+    private void processPendingResults() {
         while (resultsIndexingSemaphore.tryAcquire()) {
             final var bulkRequest = new BulkRequest();
             final var completionActions = new ArrayList<Runnable>();
@@ -746,15 +760,20 @@ class MetadataVerifier implements Releasable {
                 return;
             }
 
+            final var isRecursing = new AtomicBoolean(true);
             client.bulk(bulkRequest, ActionListener.<BulkResponse>wrap(() -> {
                 resultsIndexingSemaphore.release();
                 for (final var completionAction : completionActions) {
                     completionAction.run();
                 }
+                if (isRecursing.get() == false) {
+                    processPendingResults();
+                }
             }).delegateResponse((l, e) -> {
                 logger.error("error indexing results", e);
                 l.onFailure(e);
             }));
+            isRecursing.set(false);
         }
     }
 
