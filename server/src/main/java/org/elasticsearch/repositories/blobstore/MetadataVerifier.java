@@ -10,6 +10,7 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
@@ -178,38 +179,24 @@ class MetadataVerifier implements Releasable {
         }
 
         blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
-            if (snapshotInfo.snapshotId().equals(snapshotId) == false) {
-                addFailure("snapshot [%s] has unexpected ID in info blob: [%s]", snapshotId, snapshotInfo.snapshotId());
-                return;
-            }
-
             final var snapshotDescription = new SnapshotDescription(snapshotId, snapshotInfo.startTime(), snapshotInfo.endTime());
             snapshotDescriptionsById.put(snapshotId.getUUID(), snapshotDescription);
-            for (final var index : snapshotInfo.indices()) {
-                if (snapshotsByIndex.get(index).contains(snapshotId) == false) {
-                    addFailure("snapshot [%s] contains unexpected index [%s]", snapshotId, index);
-                }
-            }
+            forkSupply(snapshotRefs, () -> getSnapshotGlobalMetadata(snapshotRefs, snapshotDescription), metadata -> {
+                // no checks here, loading it is enough
+            });
         }));
-
-        forkSupply(snapshotRefs, () -> getSnapshotGlobalMetadata(snapshotId), metadata -> {
-            if (metadata != null && metadata.indices().isEmpty() == false) {
-                addFailure("snapshot [%s] contains unexpected index metadata within global metadata", snapshotId);
-            }
-        });
     }
 
-    private Metadata getSnapshotGlobalMetadata(SnapshotId snapshotId) {
+    private Metadata getSnapshotGlobalMetadata(RefCounted snapshotRefs, SnapshotDescription snapshotDescription) {
         try {
-            return blobStoreRepository.getSnapshotGlobalMetadata(snapshotId);
+            return blobStoreRepository.getSnapshotGlobalMetadata(snapshotDescription.snapshotId());
         } catch (Exception e) {
-            addFailure(
-                new RepositoryVerificationException(
-                    repositoryName,
-                    format("failed to get snapshot global metadata for [%s]", snapshotId),
-                    e
-                )
-            );
+            addResult(snapshotRefs, (builder, params) -> {
+                snapshotDescription.writeXContent(builder);
+                builder.field("failure", "failed to get snapshot global metadata");
+                ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                return builder;
+            });
             return null;
         }
     }

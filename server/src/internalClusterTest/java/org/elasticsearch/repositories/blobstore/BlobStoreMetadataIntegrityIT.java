@@ -24,6 +24,7 @@ import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
+import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.test.CorruptionUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.junit.After;
@@ -43,6 +44,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
@@ -96,7 +98,12 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             }
             indexRandom(true, indexRequests);
             assertEquals(0, client().admin().indices().prepareFlush().get().getFailedShards());
-            createFullSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex);
+            final var snapshotInfo = clusterAdmin().prepareCreateSnapshot(REPOSITORY_NAME, "test-snapshot-" + snapshotIndex)
+                .setIncludeGlobalState(randomBoolean())
+                .setWaitForCompletion(true)
+                .get().getSnapshotInfo();
+            assertThat(snapshotInfo.successfulShards(), is(snapshotInfo.totalShards()));
+            assertThat(snapshotInfo.state(), is(SnapshotState.SUCCESS));
         }
 
         final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 5, 5, 5, 5, 10000);
