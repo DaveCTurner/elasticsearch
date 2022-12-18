@@ -42,6 +42,7 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
             request.paramAsInt("index_verification_concurrency", 5),
             request.paramAsInt("index_snapshot_verification_concurrency", 5)
         );
+        // TODO add wait_for_completion=false support
         verifyRequest.masterNodeTimeout(request.paramAsTime("master_timeout", verifyRequest.masterNodeTimeout()));
         return channel -> new RestCancellableNodeClient(client, request.getHttpChannel()).admin()
             .cluster()

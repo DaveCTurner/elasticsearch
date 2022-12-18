@@ -67,6 +67,22 @@ import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.new
 class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
+    enum Anomaly {
+        FAILED_TO_LOAD_GLOBAL_METADATA,
+        FAILED_TO_LOAD_SHARD_SNAPSHOT,
+        FAILED_TO_LOAD_INDEX_METADATA,
+        FAILED_TO_LOAD_SHARD_GENERATION,
+        UNDEFINED_SHARD_GENERATION,
+        UNEXPECTED_EXCEPTION,
+        FILE_IN_SHARD_GENERATION_NOT_SNAPSHOT,
+        SNAPSHOT_SHARD_GENERATION_MISMATCH,
+        FILE_IN_SNAPSHOT_NOT_SHARD_GENERATION,
+        MISMATCHED_VIRTUAL_BLOB_LENGTH,
+        MISSING_BLOB,
+        MISMATCHED_BLOB_LENGTH,
+        UNKNOWN_SNAPSHOT_FOR_INDEX,
+    }
+
     private final BlobStoreRepository blobStoreRepository;
     private final Client client;
     private final ActionListener<List<RepositoryVerificationException>> finalListener;
@@ -75,6 +91,7 @@ class MetadataVerifier implements Releasable {
     private final VerifyRepositoryIntegrityAction.Request verifyRequest;
     private final RepositoryData repositoryData;
     private final BooleanSupplier isCancelledSupplier;
+    private final AtomicLong anomalyCount = new AtomicLong();
     private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
     private final Semaphore threadPoolPermits;
     private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
@@ -157,9 +174,8 @@ class MetadataVerifier implements Releasable {
         try {
             return blobStoreRepository.getSnapshotGlobalMetadata(snapshotDescription.snapshotId());
         } catch (Exception e) {
-            addResult(snapshotRefs, (builder, params) -> {
+            addAnomaly(Anomaly.FAILED_TO_LOAD_GLOBAL_METADATA, snapshotRefs, (builder, params) -> {
                 snapshotDescription.writeXContent(builder);
-                builder.field("failure", "failed to get snapshot global metadata");
                 ElasticsearchException.generateFailureXContent(builder, params, e, true);
                 return builder;
             });
@@ -205,11 +221,11 @@ class MetadataVerifier implements Releasable {
                 this::verifyIndexSnapshot,
                 verifyRequest.getIndexSnapshotVerificationConcurrency(),
                 indexSnapshotProgressLogger,
-                wrapRunnable(indexRefs, () -> logRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get()))
+                wrapRunnable(indexRefs, () -> recordRestorability(totalSnapshotCounter.get(), restorableSnapshotCounter.get()))
             );
         }
 
-        private void logRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
+        private void recordRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
                 addResult(indexRefs, (builder, params) -> {
                     new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
@@ -230,10 +246,9 @@ class MetadataVerifier implements Releasable {
 
             final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
             if (snapshotDescription == null) {
-                addResult(indexSnapshotRefs, (builder, params) -> {
+                addAnomaly(Anomaly.UNKNOWN_SNAPSHOT_FOR_INDEX, indexSnapshotRefs, (builder, params) -> {
                     new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
                     new SnapshotDescription(snapshotId, 0, 0).writeXContent(builder);
-                    builder.field("failure", "unknown snapshot for index");
                     return builder;
                 });
                 return;
@@ -314,11 +329,10 @@ class MetadataVerifier implements Releasable {
                     snapshotDescription.snapshotId()
                 );
             } catch (Exception e) {
-                addResult(shardSnapshotRefs, (builder, params) -> {
+                addAnomaly(Anomaly.FAILED_TO_LOAD_SHARD_SNAPSHOT, shardSnapshotRefs, (builder, params) -> {
                     snapshotDescription.writeXContent(builder);
                     indexDescription.writeXContent(builder);
                     builder.field("shard", shardId);
-                    builder.field("failure", "could not load shard snapshot");
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
                     return builder;
                 });
@@ -330,9 +344,8 @@ class MetadataVerifier implements Releasable {
             try {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
             } catch (Exception e) {
-                addResult(indexRefs, (builder, params) -> {
+                addAnomaly(Anomaly.FAILED_TO_LOAD_INDEX_METADATA, indexRefs, (builder, params) -> {
                     new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
-                    builder.field("failure", "could not load index metadata");
                     builder.field("metadata_blob", indexMetaBlobId);
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
                     return builder;
@@ -344,21 +357,18 @@ class MetadataVerifier implements Releasable {
         private BlobStoreIndexShardSnapshots getBlobStoreIndexShardSnapshots(IndexDescription indexDescription, int shardId) {
             final var shardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
             if (shardGen == null) {
-                addResult(indexRefs, (builder, params) -> {
+                addAnomaly(Anomaly.UNDEFINED_SHARD_GENERATION, indexRefs, (builder, params) -> {
                     indexDescription.writeXContent(builder);
-                    builder.field("shard", shardId);
-                    builder.field("failure", "shard generation not defined");
-                    return builder;
+                    return builder.field("shard", shardId);
                 });
                 return null;
             }
             try {
                 return blobStoreRepository.getBlobStoreIndexShardSnapshots(indexId, shardId, shardGen);
             } catch (Exception e) {
-                addResult(indexRefs, (builder, params) -> {
+                addAnomaly(Anomaly.FAILED_TO_LOAD_SHARD_GENERATION, indexRefs, (builder, params) -> {
                     indexDescription.writeXContent(builder);
                     builder.field("shard", shardId);
-                    builder.field("failure", "could not load shard generation");
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
                     return builder;
                 });
@@ -377,17 +387,6 @@ class MetadataVerifier implements Releasable {
         ) {
             if (shardSnapshot == null) {
                 return;
-            }
-
-            if (shardSnapshot.snapshot().equals(snapshotDescription.snapshotId().getName()) == false) {
-                addResult(shardSnapshotRefs, ((builder, params) -> {
-                    snapshotDescription.writeXContent(builder);
-                    indexDescription.writeXContent(builder);
-                    builder.field("shard", shardId);
-                    builder.field("error", "mismatched snapshot name");
-                    builder.field("shard_snapshot_name", shardSnapshot.snapshot());
-                    return builder;
-                }));
             }
 
             var restorable = true;
@@ -450,21 +449,19 @@ class MetadataVerifier implements Releasable {
             for (final var summaryFile : summary.indexFiles()) {
                 final var snapshotFile = snapshotFiles.get(summaryFile.physicalName());
                 if (snapshotFile == null) {
-                    addResult(shardSnapshotRefs, (builder, params) -> {
+                    addAnomaly(Anomaly.FILE_IN_SHARD_GENERATION_NOT_SNAPSHOT, shardSnapshotRefs, (builder, params) -> {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
                         builder.field("file_name", summaryFile.physicalName());
-                        builder.field("failure", "snapshot summary file missing from snapshot metadata");
                         return builder;
                     });
                 } else if (summaryFile.isSame(snapshotFile) == false) {
-                    addResult(shardSnapshotRefs, (builder, params) -> {
+                    addAnomaly(Anomaly.SNAPSHOT_SHARD_GENERATION_MISMATCH, shardSnapshotRefs, (builder, params) -> {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
                         builder.field("file_name", summaryFile.physicalName());
-                        builder.field("failure", "snapshot summary file different from snapshot metadata entry");
                         return builder;
                     });
                 }
@@ -475,12 +472,11 @@ class MetadataVerifier implements Releasable {
                 .collect(Collectors.toMap(BlobStoreIndexShardSnapshot.FileInfo::physicalName, Function.identity()));
             for (final var snapshotFile : shardSnapshot.indexFiles()) {
                 if (summaryFiles.get(snapshotFile.physicalName()) == null) {
-                    addResult(shardSnapshotRefs, (builder, params) -> {
+                    addAnomaly(Anomaly.FILE_IN_SNAPSHOT_NOT_SHARD_GENERATION, shardSnapshotRefs, (builder, params) -> {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
                         builder.field("file_name", snapshotFile.physicalName());
-                        builder.field("failure", "snapshot metadata file missing from snapshot summary");
                         return builder;
                     });
                 }
@@ -499,11 +495,10 @@ class MetadataVerifier implements Releasable {
             if (fileInfo.metadata().hashEqualsContents()) {
                 final var actualLength = ByteSizeValue.ofBytes(fileInfo.metadata().hash().length);
                 if (fileLength.getBytes() != actualLength.getBytes()) {
-                    addResult(shardSnapshotRefs, ((builder, params) -> {
+                    addAnomaly(Anomaly.MISMATCHED_VIRTUAL_BLOB_LENGTH, shardSnapshotRefs, ((builder, params) -> {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
-                        builder.field("error", "mismatched virtual blob length");
                         builder.field("file_name", fileInfo.physicalName());
                         builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
                         builder.humanReadableField("expected_length_in_bytes", "expected_length", fileLength);
@@ -518,11 +513,10 @@ class MetadataVerifier implements Releasable {
                     final var blobInfo = shardBlobs.get(blobName);
                     final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
                     if (blobInfo == null) {
-                        addResult(shardSnapshotRefs, ((builder, params) -> {
+                        addAnomaly(Anomaly.MISSING_BLOB, shardSnapshotRefs, ((builder, params) -> {
                             snapshotDescription.writeXContent(builder);
                             indexDescription.writeXContent(builder);
                             builder.field("shard", shardId);
-                            builder.field("error", "missing blob");
                             builder.field("blob_name", blobName);
                             builder.field("file_name", fileInfo.physicalName());
                             builder.field("part", finalPart);
@@ -533,11 +527,10 @@ class MetadataVerifier implements Releasable {
                         }));
                         return false;
                     } else if (blobInfo.length() != partLength.getBytes()) {
-                        addResult(shardSnapshotRefs, ((builder, params) -> {
+                        addAnomaly(Anomaly.MISMATCHED_BLOB_LENGTH, shardSnapshotRefs, ((builder, params) -> {
                             snapshotDescription.writeXContent(builder);
                             indexDescription.writeXContent(builder);
                             builder.field("shard", shardId);
-                            builder.field("error", "unexpected blob length");
                             builder.field("blob_name", blobName);
                             builder.field("file_name", fileInfo.physicalName());
                             builder.field("part", finalPart);
@@ -567,7 +560,7 @@ class MetadataVerifier implements Releasable {
         if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
             return;
         }
-        addResult(refCounted, (builder, params) -> {
+        addAnomaly(Anomaly.UNEXPECTED_EXCEPTION, refCounted, (builder, params) -> {
             ElasticsearchException.generateFailureXContent(builder, params, exception, true);
             return builder;
         });
@@ -671,6 +664,7 @@ class MetadataVerifier implements Releasable {
             addResult(completionRefs, (builder, params) -> {
                 builder.field("completed", true);
                 builder.field("cancelled", isCancelledSupplier.getAsBoolean());
+                builder.field("total_anomalies", anomalyCount.get());
                 return builder;
             });
         } finally {
@@ -771,6 +765,11 @@ class MetadataVerifier implements Releasable {
             logger.error("error generating failure output", e);
             return null;
         }
+    }
+
+    private void addAnomaly(Anomaly anomaly, RefCounted refCounted, ToXContent toXContent) {
+        anomalyCount.incrementAndGet();
+        addResult(refCounted, (builder, params) -> toXContent.toXContent(builder.field("anomaly", anomaly.toString()), params));
     }
 
     private void addResult(RefCounted refCounted, ToXContent toXContent) {
