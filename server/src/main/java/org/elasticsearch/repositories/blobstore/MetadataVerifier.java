@@ -38,7 +38,6 @@ import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
 import org.elasticsearch.index.snapshots.blobstore.SnapshotFiles;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
-import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.snapshots.SnapshotId;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -49,7 +48,6 @@ import org.elasticsearch.xcontent.XContentFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -85,7 +83,7 @@ class MetadataVerifier implements Releasable {
 
     private final BlobStoreRepository blobStoreRepository;
     private final Client client;
-    private final ActionListener<List<RepositoryVerificationException>> finalListener;
+    private final ActionListener<Void> finalListener;
     private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
     private final String repositoryName;
     private final VerifyRepositoryIntegrityAction.Request verifyRequest;
@@ -106,7 +104,7 @@ class MetadataVerifier implements Releasable {
         VerifyRepositoryIntegrityAction.Request verifyRequest,
         RepositoryData repositoryData,
         BooleanSupplier isCancelledSupplier,
-        ActionListener<List<RepositoryVerificationException>> finalListener
+        ActionListener<Void> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
@@ -656,7 +654,7 @@ class MetadataVerifier implements Releasable {
                         (l1, ignored1) -> client.admin()
                             .indices()
                             .prepareRefresh(RESULTS_INDEX)
-                            .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(List.of())))
+                            .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(null)))
                     )
                 )
         );

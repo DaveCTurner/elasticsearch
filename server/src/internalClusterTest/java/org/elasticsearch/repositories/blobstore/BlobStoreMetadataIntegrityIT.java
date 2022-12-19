@@ -12,16 +12,15 @@ import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepos
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.index.query.ExistsQueryBuilder;
+import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
-import org.elasticsearch.repositories.RepositoryVerificationException;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.snapshots.SnapshotState;
@@ -35,18 +34,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
-import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANCE;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.lessThan;
 
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
 
@@ -109,15 +101,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         }
 
         final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 5, 5, 5, 5);
-
-        final var response = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
-            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
-            30,
-            TimeUnit.SECONDS
-        );
-//        assertThat(response.getRestStatus(), equalTo(RestStatus.OK));
-//        assertThat(response.getExceptions(), empty());
-        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+        verifyAndAssertSuccessful(indexCount, request);
 
         final var tempDir = createTempDir();
 
@@ -143,55 +127,154 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 CorruptionUtils.corruptFile(random(), blobToDamage);
             }
             try {
-                final var isCancelled = new AtomicBoolean();
+                // TODO include some cancellation tests
 
-                final var verificationResponse = PlainActionFuture.get(
-                    (PlainActionFuture<Void> listener) -> repository.verifyMetadataIntegrity(
-                        client(),
-                        () -> new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE),
-                        request,
-                        listener,
-                        () -> {
-                            if (rarely() && rarely()) {
-                                isCancelled.set(true);
-                                return true;
-                            }
-                            return isCancelled.get();
+                final var anomalies = verifyAndGetAnomalies(indexCount, request);
+                if (isDataBlob) {
+                    boolean foundMissingBlobAnomaly = false;
+                    for (SearchHit anomaly : anomalies) {
+                        final var source = anomaly.getSourceAsMap();
+                        if (MetadataVerifier.Anomaly.MISSING_BLOB.toString().equals(source.get("anomaly"))
+                            && blobToDamage.getFileName().toString().equals(source.get("blob_name"))) {
+                            foundMissingBlobAnomaly = true;
+                            break;
                         }
-                    ),
-                    30,
-                    TimeUnit.SECONDS
-                );
-                for (SearchHit hit : client().prepareSearch("metadata_verification_results").setSize(10000).get().getHits().getHits()) {
-                    logger.info("--> {}", Strings.toString(hit));
+                    }
+                    assertTrue(foundMissingBlobAnomaly);
                 }
-                assertThat(verificationResponse, not(nullValue()));
-//                final var responseString = verificationResponse.stream().map(Throwable::getMessage).collect(Collectors.joining("\n"));
-//                if (isCancelled.get()) {
-//                    assertThat(responseString, containsString("verification task cancelled before completion"));
-//                }
-//                if (isDataBlob && isCancelled.get() == false) {
-//                    assertThat(
-//                        responseString,
-//                        allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
-//                    );
-//                }
+
+                //
+                // final var isCancelled = new AtomicBoolean();
+                //
+                // final var verificationResponse = PlainActionFuture.get(
+                // (PlainActionFuture<Void> listener) -> repository.verifyMetadataIntegrity(
+                // client(),
+                // () -> new RecyclerBytesStreamOutput(NON_RECYCLING_INSTANCE),
+                // request,
+                // listener,
+                // () -> {
+                // if (rarely() && rarely()) {
+                // isCancelled.set(true);
+                // return true;
+                // }
+                // return isCancelled.get();
+                // }
+                // ),
+                // 30,
+                // TimeUnit.SECONDS
+                // );
+                // for (SearchHit hit : client().prepareSearch("metadata_verification_results").setSize(10000).get().getHits().getHits()) {
+                // logger.info("--> {}", Strings.toString(hit));
+                // }
+                // assertThat(verificationResponse, not(nullValue()));
+                // final var responseString = verificationResponse.stream().map(Throwable::getMessage).collect(Collectors.joining("\n"));
+                // if (isCancelled.get()) {
+                // assertThat(responseString, containsString("verification task cancelled before completion"));
+                // }
+                // if (isDataBlob && isCancelled.get() == false) {
+                // assertThat(
+                // responseString,
+                // allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
+                // );
+                // }
             } catch (RepositoryException e) {
                 // ok, this means e.g. we couldn't even read the index blob
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
-                assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
             }
 
-            final var repairResponse = PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
-                listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
-                30,
-                TimeUnit.SECONDS
-            );
-//            assertThat(repairResponse.getRestStatus(), equalTo(RestStatus.OK));
-//            assertThat(repairResponse.getExceptions(), empty());
-            assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+            verifyAndAssertSuccessful(indexCount, request);
         }
+    }
+
+    private void verifyAndAssertSuccessful(int indexCount, VerifyRepositoryIntegrityAction.Request request) {
+        PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
+            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+            30,
+            TimeUnit.SECONDS
+        );
+        assertEquals(
+            0,
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new ExistsQueryBuilder("anomaly"))
+                .get()
+                .getHits()
+                .getTotalHits().value
+        );
+        assertEquals(
+            indexCount,
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new ExistsQueryBuilder("restorability"))
+                .setTrackTotalHits(true)
+                .get()
+                .getHits()
+                .getTotalHits().value
+        );
+        assertEquals(
+            indexCount,
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new TermQueryBuilder("restorability", "full"))
+                .setTrackTotalHits(true)
+                .get()
+                .getHits()
+                .getTotalHits().value
+        );
+        assertEquals(
+            0,
+            client().prepareSearch("metadata_verification_results")
+                .setSize(1)
+                .setQuery(new TermQueryBuilder("completed", true))
+                .get()
+                .getHits()
+                .getHits()[0].getSourceAsMap().get("total_anomalies")
+        );
+        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+    }
+
+    private SearchHit[] verifyAndGetAnomalies(int indexCount, VerifyRepositoryIntegrityAction.Request request) {
+        PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
+            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+            30,
+            TimeUnit.SECONDS
+        );
+        final var anomalyHits = client().prepareSearch("metadata_verification_results")
+            .setSize(10000)
+            .setQuery(new ExistsQueryBuilder("anomaly"))
+            .get()
+            .getHits();
+        assertThat(anomalyHits.getTotalHits().value, greaterThan(0L));
+        assertEquals(
+            indexCount,
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new ExistsQueryBuilder("restorability"))
+                .setTrackTotalHits(true)
+                .get()
+                .getHits()
+                .getTotalHits().value
+        );
+        assertThat(
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new TermQueryBuilder("restorability", "full"))
+                .setTrackTotalHits(true)
+                .get()
+                .getHits()
+                .getTotalHits().value,
+            lessThan((long) indexCount)
+        );
+        final int totalAnomalies = (int) client().prepareSearch("metadata_verification_results")
+            .setSize(1)
+            .setQuery(new TermQueryBuilder("completed", true))
+            .get()
+            .getHits()
+            .getHits()[0].getSourceAsMap().get("total_anomalies");
+        assertThat(totalAnomalies, greaterThan(0));
+        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+        return anomalyHits.getHits();
     }
 }

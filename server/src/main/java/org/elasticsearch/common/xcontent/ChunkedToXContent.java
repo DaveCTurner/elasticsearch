@@ -8,7 +8,6 @@
 
 package org.elasticsearch.common.xcontent;
 
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
