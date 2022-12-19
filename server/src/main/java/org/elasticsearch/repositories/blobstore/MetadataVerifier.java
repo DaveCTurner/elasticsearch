@@ -98,6 +98,39 @@ class MetadataVerifier implements Releasable {
     private final ProgressLogger indexSnapshotProgressLogger;
     private final Set<String> requestedIndices;
 
+    public static void run(
+        BlobStoreRepository blobStoreRepository,
+        Client client,
+        VerifyRepositoryIntegrityAction.Request verifyRequest,
+        BooleanSupplier isCancelledSupplier,
+        ActionListener<Void> listener
+    ) {
+        logger.info("[{}] verifying metadata integrity", blobStoreRepository.getMetadata().name());
+        blobStoreRepository.getRepositoryData(listener.delegateFailure((l, repositoryData) -> {
+            try (
+                var metadataVerifier = new MetadataVerifier(
+                    blobStoreRepository,
+                    client,
+                    verifyRequest,
+                    repositoryData,
+                    isCancelledSupplier,
+                    ActionListener.runAfter(
+                        l,
+                        () -> logger.info(
+                            "[{}] completed verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
+                            blobStoreRepository.getMetadata().name(),
+                            repositoryData.getGenId(),
+                            repositoryData.getUuid(),
+                            repositoryData.getClusterUUID()
+                        )
+                    )
+                )
+            ) {
+                metadataVerifier.start();
+            }
+        }));
+    }
+
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
         Client client,
@@ -127,7 +160,7 @@ class MetadataVerifier implements Releasable {
 
     private static final String RESULTS_INDEX = "metadata_verification_results";
 
-    public void run() {
+    private void start() {
         logger.info(
             "[{}] verifying metadata integrity for index generation [{}]: "
                 + "repo UUID [{}], cluster UUID [{}], snapshots [{}], indices [{}], index snapshots [{}]",
@@ -659,12 +692,16 @@ class MetadataVerifier implements Releasable {
                 )
         );
         try {
-            addResult(completionRefs, (builder, params) -> {
-                builder.field("completed", true);
-                builder.field("cancelled", isCancelledSupplier.getAsBoolean());
-                builder.field("total_anomalies", anomalyCount.get());
-                return builder;
-            });
+            blobStoreRepository.getRepositoryData(makeListener(completionRefs, finalRepositoryData -> {
+                final var finalRepositoryGeneration = finalRepositoryData.getGenId();
+                addResult(completionRefs, (builder, params) -> {
+                    builder.field("completed", true);
+                    builder.field("cancelled", isCancelledSupplier.getAsBoolean());
+                    builder.field("final_repository_generation", finalRepositoryGeneration);
+                    builder.field("total_anomalies", anomalyCount.get());
+                    return builder;
+                });
+            }));
         } finally {
             completionRefs.decRef();
         }

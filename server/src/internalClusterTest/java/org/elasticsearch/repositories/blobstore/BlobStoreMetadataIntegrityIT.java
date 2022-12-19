@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
@@ -100,8 +101,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             assertThat(snapshotInfo.state(), is(SnapshotState.SUCCESS));
         }
 
-        final var request = new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 5, 5, 5, 5);
-        verifyAndAssertSuccessful(indexCount, request);
+        verifyAndAssertSuccessful(indexCount);
 
         final var tempDir = createTempDir();
 
@@ -129,7 +129,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             try {
                 // TODO include some cancellation tests
 
-                final var anomalies = verifyAndGetAnomalies(indexCount, request);
+                final var anomalies = verifyAndGetAnomalies(indexCount, blobToDamage);
                 if (isDataBlob) {
                     boolean foundMissingBlobAnomaly = false;
                     for (SearchHit anomaly : anomalies) {
@@ -179,18 +179,23 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 // }
             } catch (RepositoryException e) {
                 // ok, this means e.g. we couldn't even read the index blob
+                assertTrue(isIndexBlob);
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
             }
 
-            verifyAndAssertSuccessful(indexCount, request);
+            verifyAndAssertSuccessful(indexCount);
         }
     }
 
-    private void verifyAndAssertSuccessful(int indexCount, VerifyRepositoryIntegrityAction.Request request) {
+    private void verifyAndAssertSuccessful(int indexCount) {
         PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
-            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+            listener -> client().execute(
+                VerifyRepositoryIntegrityAction.INSTANCE,
+                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 5, 5, 5, 5),
+                listener
+            ),
             30,
             TimeUnit.SECONDS
         );
@@ -235,9 +240,13 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
     }
 
-    private SearchHit[] verifyAndGetAnomalies(int indexCount, VerifyRepositoryIntegrityAction.Request request) {
+    private SearchHit[] verifyAndGetAnomalies(long indexCount, Path damagedBlob) {
         PlainActionFuture.<VerifyRepositoryIntegrityAction.Response, RuntimeException>get(
-            listener -> client().execute(VerifyRepositoryIntegrityAction.INSTANCE, request, listener),
+            listener -> client().execute(
+                VerifyRepositoryIntegrityAction.INSTANCE,
+                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 5, 5, 5, 5),
+                listener
+            ),
             30,
             TimeUnit.SECONDS
         );
@@ -265,7 +274,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .get()
                 .getHits()
                 .getTotalHits().value,
-            lessThan((long) indexCount)
+            damagedBlob.getFileName().startsWith("index-") ? equalTo(indexCount) : lessThan(indexCount)
         );
         final int totalAnomalies = (int) client().prepareSearch("metadata_verification_results")
             .setSize(1)
