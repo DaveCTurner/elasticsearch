@@ -129,7 +129,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             try {
                 // TODO include some cancellation tests
 
-                final var anomalies = verifyAndGetAnomalies(indexCount, blobToDamage);
+                final var anomalies = verifyAndGetAnomalies(indexCount, repoPath.relativize(blobToDamage));
                 if (isDataBlob) {
                     boolean foundMissingBlobAnomaly = false;
                     for (SearchHit anomaly : anomalies) {
@@ -266,6 +266,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .getHits()
                 .getTotalHits().value
         );
+        final var damagedFileName = damagedBlob.getFileName().toString();
         assertThat(
             client().prepareSearch("metadata_verification_results")
                 .setSize(0)
@@ -274,7 +275,10 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .get()
                 .getHits()
                 .getTotalHits().value,
-            damagedBlob.getFileName().startsWith("index-") ? equalTo(indexCount) : lessThan(indexCount)
+            damagedFileName.startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)
+                                       || damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)
+                || (damagedFileName.startsWith(BlobStoreRepository.METADATA_PREFIX) && damagedBlob.startsWith("indices"))
+                ? lessThan(indexCount) : equalTo(indexCount)
         );
         final int totalAnomalies = (int) client().prepareSearch("metadata_verification_results")
             .setSize(1)

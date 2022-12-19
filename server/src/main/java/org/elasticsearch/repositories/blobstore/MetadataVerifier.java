@@ -32,6 +32,7 @@ import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
@@ -81,23 +82,6 @@ class MetadataVerifier implements Releasable {
         UNKNOWN_SNAPSHOT_FOR_INDEX,
     }
 
-    private final BlobStoreRepository blobStoreRepository;
-    private final Client client;
-    private final ActionListener<Void> finalListener;
-    private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
-    private final String repositoryName;
-    private final VerifyRepositoryIntegrityAction.Request verifyRequest;
-    private final RepositoryData repositoryData;
-    private final BooleanSupplier isCancelledSupplier;
-    private final AtomicLong anomalyCount = new AtomicLong();
-    private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
-    private final Semaphore threadPoolPermits;
-    private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
-    private final ProgressLogger snapshotProgressLogger;
-    private final ProgressLogger indexProgressLogger;
-    private final ProgressLogger indexSnapshotProgressLogger;
-    private final Set<String> requestedIndices;
-
     public static void run(
         BlobStoreRepository blobStoreRepository,
         Client client,
@@ -114,16 +98,34 @@ class MetadataVerifier implements Releasable {
                     verifyRequest,
                     repositoryData,
                     isCancelledSupplier,
-                    ActionListener.runAfter(
-                        l,
-                        () -> logger.info(
-                            "[{}] completed verifying metadata integrity for index generation [{}]: repo UUID [{}], cluster UUID [{}]",
-                            blobStoreRepository.getMetadata().name(),
-                            repositoryData.getGenId(),
-                            repositoryData.getUuid(),
-                            repositoryData.getClusterUUID()
-                        )
-                    )
+                    new ActionListener<>() {
+                        @Override
+                        public void onResponse(Long anomalyCount) {
+                            logger.info(
+                                "[{}] completed verifying metadata integrity for index generation [{}]: " +
+                                "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
+                                blobStoreRepository.getMetadata().name(),
+                                repositoryData.getGenId(),
+                                repositoryData.getUuid(),
+                                repositoryData.getClusterUUID(),
+                                anomalyCount
+                            );
+                            l.onResponse(null);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            logger.info(
+                                () -> Strings.format(
+                                    "[%s] failed verifying metadata integrity for index generation [%d]: repo UUID [%s], cluster UUID [%s]",
+                                    blobStoreRepository.getMetadata().name(),
+                                    repositoryData.getGenId(),
+                                    repositoryData.getUuid(),
+                                    repositoryData.getClusterUUID()
+                                ));
+                            l.onFailure(e);
+                        }
+                    }
                 )
             ) {
                 metadataVerifier.start();
@@ -131,13 +133,30 @@ class MetadataVerifier implements Releasable {
         }));
     }
 
+    private final BlobStoreRepository blobStoreRepository;
+    private final Client client;
+    private final ActionListener<Long> finalListener;
+    private final RefCounted finalRefs = AbstractRefCounted.of(this::onCompletion);
+    private final String repositoryName;
+    private final VerifyRepositoryIntegrityAction.Request verifyRequest;
+    private final RepositoryData repositoryData;
+    private final BooleanSupplier isCancelledSupplier;
+    private final AtomicLong anomalyCount = new AtomicLong();
+    private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
+    private final Semaphore threadPoolPermits;
+    private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
+    private final ProgressLogger snapshotProgressLogger;
+    private final ProgressLogger indexProgressLogger;
+    private final ProgressLogger indexSnapshotProgressLogger;
+    private final Set<String> requestedIndices;
+
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
         Client client,
         VerifyRepositoryIntegrityAction.Request verifyRequest,
         RepositoryData repositoryData,
         BooleanSupplier isCancelledSupplier,
-        ActionListener<Void> finalListener
+        ActionListener<Long> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
         this.repositoryName = blobStoreRepository.metadata.name();
@@ -687,7 +706,7 @@ class MetadataVerifier implements Releasable {
                         (l1, ignored1) -> client.admin()
                             .indices()
                             .prepareRefresh(RESULTS_INDEX)
-                            .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(null)))
+                            .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(anomalyCount.get())))
                     )
                 )
         );
