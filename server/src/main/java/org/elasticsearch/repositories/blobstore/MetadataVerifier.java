@@ -259,7 +259,7 @@ class MetadataVerifier implements Releasable {
         private void recordRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
                 addResult(indexRefs, (builder, params) -> {
-                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    writeIndexId(indexId, builder);
                     builder.field(
                         "restorability",
                         totalSnapshotCount == restorableSnapshotCount ? "full" : 0 < restorableSnapshotCount ? "partial" : "none"
@@ -278,7 +278,7 @@ class MetadataVerifier implements Releasable {
             final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
             if (snapshotDescription == null) {
                 addAnomaly(Anomaly.UNKNOWN_SNAPSHOT_FOR_INDEX, indexSnapshotRefs, (builder, params) -> {
-                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    writeIndexId(indexId, builder);
                     new SnapshotDescription(snapshotId, 0, 0).writeXContent(builder);
                     return builder;
                 });
@@ -290,7 +290,7 @@ class MetadataVerifier implements Releasable {
                 final var indexDescriptionFuture = new ListenableActionFuture<IndexDescription>();
                 forkSupply(() -> {
                     final var shardCount = getNumberOfShards(indexMetaBlobId, snapshotId);
-                    final var indexDescription = new IndexDescription(indexId.getId(), indexId.getName(), shardCount);
+                    final var indexDescription = new IndexDescription(indexId, indexMetaBlobId, shardCount);
                     for (int i = 0; i < shardCount; i++) {
                         shardContainerContentsListener.computeIfAbsent(i, shardId -> {
                             final var shardContainerContentsFuture = new ListenableActionFuture<ShardContainerContents>();
@@ -376,7 +376,7 @@ class MetadataVerifier implements Releasable {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
             } catch (Exception e) {
                 addAnomaly(Anomaly.FAILED_TO_LOAD_INDEX_METADATA, indexRefs, (builder, params) -> {
-                    new IndexDescription(indexId.getId(), indexId.getName(), 0).writeXContent(builder);
+                    writeIndexId(indexId, builder);
                     builder.field("metadata_blob", indexMetaBlobId);
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
                     return builder;
@@ -823,14 +823,19 @@ class MetadataVerifier implements Releasable {
         }
     }
 
-    private record IndexDescription(String indexId, String indexName, int shardCount) {
+    private record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {
         void writeXContent(XContentBuilder builder) throws IOException {
             builder.startObject("index");
-            builder.field("id", indexId);
-            builder.field("name", indexName);
+            writeIndexId(indexId, builder);
+            builder.field("metadata_blob", indexMetadataBlob);
             builder.field("shards", shardCount);
             builder.endObject();
         }
+    }
+
+    private static void writeIndexId(IndexId indexId, XContentBuilder builder) throws IOException {
+        builder.field("id", indexId.getId());
+        builder.field("name", indexId.getName());
     }
 
 }
