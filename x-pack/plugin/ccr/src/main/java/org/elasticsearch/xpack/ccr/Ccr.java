@@ -133,6 +133,7 @@ import static org.elasticsearch.xpack.core.XPackSettings.CCR_ENABLED_SETTING;
 public class Ccr extends Plugin implements ActionPlugin, PersistentTaskPlugin, EnginePlugin, RepositoryPlugin, ClusterPlugin {
 
     public static final String CCR_THREAD_POOL_NAME = "ccr";
+    public static final String CCR_THREAD_POOL_SETTINGS_PREFIX = "xpack.ccr.ccr_thread_pool";
     public static final String CCR_CUSTOM_METADATA_KEY = "ccr";
     public static final String CCR_CUSTOM_METADATA_LEADER_INDEX_SHARD_HISTORY_UUIDS = "leader_index_shard_history_uuids";
     public static final String CCR_CUSTOM_METADATA_LEADER_INDEX_UUID_KEY = "leader_index_uuid";
@@ -378,7 +379,7 @@ public class Ccr extends Plugin implements ActionPlugin, PersistentTaskPlugin, E
         }
 
         return Collections.singletonList(
-            new FixedExecutorBuilder(settings, CCR_THREAD_POOL_NAME, 32, 100, "xpack.ccr.ccr_thread_pool", false)
+            new FixedExecutorBuilder(settings, CCR_THREAD_POOL_NAME, 32, 100, CCR_THREAD_POOL_SETTINGS_PREFIX, false)
         );
     }
 

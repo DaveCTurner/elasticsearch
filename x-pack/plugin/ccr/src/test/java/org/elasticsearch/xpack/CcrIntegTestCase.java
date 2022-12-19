@@ -123,6 +123,7 @@ import static org.elasticsearch.snapshots.RestoreService.restoreInProgress;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
 import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.xpack.ccr.Ccr.CCR_THREAD_POOL_SETTINGS_PREFIX;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -308,6 +309,11 @@ public abstract class CcrIntegTestCase extends ESTestCase {
         builder.put(LicenseService.SELF_GENERATED_LICENSE_TYPE.getKey(), "trial");
         // Let cluster state api return quickly in order to speed up auto follow tests:
         builder.put(CcrSettings.CCR_WAIT_FOR_METADATA_TIMEOUT.getKey(), TimeValue.timeValueMillis(100));
+
+        // TODO randomize
+        builder.put(CCR_THREAD_POOL_SETTINGS_PREFIX + ".size", 1);
+        builder.put(CCR_THREAD_POOL_SETTINGS_PREFIX + ".queue_size", 1);
+
         if (leaderCluster) {
             builder.put(leaderClusterSettings());
         } else {
