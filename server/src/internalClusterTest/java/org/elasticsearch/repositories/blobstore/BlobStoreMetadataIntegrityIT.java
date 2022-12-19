@@ -20,7 +20,6 @@ import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
-import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.snapshots.SnapshotState;
@@ -105,20 +104,20 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
 
         final var tempDir = createTempDir();
 
-        final List<Path> blobs;
-        try (var paths = Files.walk(repoPath)) {
-            blobs = paths.filter(Files::isRegularFile).sorted().toList();
-        }
         final var repositoryDataFuture = new PlainActionFuture<RepositoryData>();
         repository.getRepositoryData(repositoryDataFuture);
         final var repositoryData = repositoryDataFuture.get();
         final var repositoryDataBlob = repoPath.resolve("index-" + repositoryData.getGenId());
 
+        final List<Path> blobs;
+        try (var paths = Files.walk(repoPath)) {
+            blobs = paths.filter(path -> Files.isRegularFile(path) && path.equals(repositoryDataBlob) == false).sorted().toList();
+        }
+
         for (int i = 0; i < 2000; i++) {
             final var blobToDamage = randomFrom(blobs);
             final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
-            final var isIndexBlob = blobToDamage.equals(repositoryDataBlob);
-            if (isDataBlob || isIndexBlob || randomBoolean()) {
+            if (isDataBlob || randomBoolean()) {
                 logger.info("--> deleting {}", blobToDamage);
                 Files.move(blobToDamage, tempDir.resolve("tmp"));
             } else {
@@ -177,9 +176,6 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 // allOf(containsString(blobToDamage.getFileName().toString()), containsString("missing blob"))
                 // );
                 // }
-            } catch (RepositoryException e) {
-                // ok, this means e.g. we couldn't even read the index blob
-                assertTrue(isIndexBlob);
             } finally {
                 Files.deleteIfExists(blobToDamage);
                 Files.move(tempDir.resolve("tmp"), blobToDamage);
@@ -276,9 +272,10 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .getHits()
                 .getTotalHits().value,
             damagedFileName.startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)
-                                       || damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)
+                || damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)
                 || (damagedFileName.startsWith(BlobStoreRepository.METADATA_PREFIX) && damagedBlob.startsWith("indices"))
-                ? lessThan(indexCount) : equalTo(indexCount)
+                    ? lessThan(indexCount)
+                    : equalTo(indexCount)
         );
         final int totalAnomalies = (int) client().prepareSearch("metadata_verification_results")
             .setSize(1)

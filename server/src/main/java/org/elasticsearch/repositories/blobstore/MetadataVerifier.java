@@ -102,8 +102,8 @@ class MetadataVerifier implements Releasable {
                         @Override
                         public void onResponse(Long anomalyCount) {
                             logger.info(
-                                "[{}] completed verifying metadata integrity for index generation [{}]: " +
-                                "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
+                                "[{}] completed verifying metadata integrity for index generation [{}]: "
+                                    + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
                                 blobStoreRepository.getMetadata().name(),
                                 repositoryData.getGenId(),
                                 repositoryData.getUuid(),
@@ -122,7 +122,8 @@ class MetadataVerifier implements Releasable {
                                     repositoryData.getGenId(),
                                     repositoryData.getUuid(),
                                     repositoryData.getClusterUUID()
-                                ));
+                                )
+                            );
                             l.onFailure(e);
                         }
                     }
