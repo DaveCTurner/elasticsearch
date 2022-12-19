@@ -319,7 +319,7 @@ public interface Repository extends LifecycleComponent {
         Client client,
         Supplier<RecyclerBytesStreamOutput> bytesStreamOutputSupplier,
         VerifyRepositoryIntegrityAction.Request request,
-        ActionListener<List<RepositoryVerificationException>> listener,
+        ActionListener<Void> listener,
         BooleanSupplier isCancelledSupplier
     ) {
         listener.onFailure(new UnsupportedOperationException("this repository type does not support metadata integrity verification"));

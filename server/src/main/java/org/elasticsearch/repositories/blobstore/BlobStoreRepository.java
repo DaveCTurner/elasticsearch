@@ -3549,7 +3549,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         Client client,
         Supplier<RecyclerBytesStreamOutput> bytesStreamOutputSupplier,
         VerifyRepositoryIntegrityAction.Request request,
-        ActionListener<List<RepositoryVerificationException>> listener,
+        ActionListener<Void> listener,
         BooleanSupplier isCancelledSupplier
     ) {
         getRepositoryData(listener.delegateFailure((l, repositoryData) -> {

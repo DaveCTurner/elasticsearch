@@ -165,46 +165,21 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
 
     public static class Response extends ActionResponse implements ChunkedToXContent {
 
-        private final List<RepositoryVerificationException> exceptions;
-
-        public Response(List<RepositoryVerificationException> exceptions) {
-            this.exceptions = exceptions;
+        public Response() {
+            // TODO report on spawned task
         }
 
         public Response(StreamInput in) throws IOException {
             super(in);
-            this.exceptions = in.readList(RepositoryVerificationException::new);
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
-            out.writeList(exceptions);
         }
 
         @Override
         public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params outerParams) {
-            return Iterators.concat(
-                Iterators.single((builder, params) -> builder.startObject().startArray("errors")),
-                exceptions.stream().<ToXContent>map(e -> (builder, params) -> {
-                    builder.startObject();
-                    ElasticsearchException.generateFailureXContent(builder, params, e, true);
-                    return builder.endObject();
-                }).iterator(),
-                Iterators.single((builder, params) -> builder.endArray().endObject())
-            );
-        }
-
-        @Override
-        public RestStatus getRestStatus() {
-            if (exceptions.isEmpty()) {
-                return RestStatus.OK;
-            } else {
-                return RestStatus.INTERNAL_SERVER_ERROR;
-            }
-        }
-
-        public List<RepositoryVerificationException> getExceptions() {
-            return exceptions;
+            return Iterators.single((builder, params) -> builder.startObject().endObject());
         }
     }
 
@@ -253,7 +228,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<VerifyRepository
                     client,
                     transportService::newNetworkBytesStream,
                     request.withDefaultThreadpoolConcurrency(clusterService.getSettings()),
-                    listener.map(Response::new),
+                    listener.map(ignored -> new Response()),
                     cancellableTask::isCancelled
                 );
         }

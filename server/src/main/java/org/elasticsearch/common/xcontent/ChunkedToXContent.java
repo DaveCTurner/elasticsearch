@@ -43,8 +43,4 @@ public interface ChunkedToXContent {
             return builder;
         };
     }
-
-    default RestStatus getRestStatus() {
-        return RestStatus.OK;
-    }
 }
