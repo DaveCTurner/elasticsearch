@@ -164,7 +164,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             blobs = paths.filter(path -> Files.isRegularFile(path) && path.equals(repositoryDataBlob) == false).sorted().toList();
         }
 
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < 20; i++) {
             final var blobToDamage = randomFrom(blobs);
             final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
             final var truncate = randomBoolean();
