@@ -856,7 +856,8 @@ class MetadataVerifier implements Releasable {
     private record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {
         void writeXContent(XContentBuilder builder) throws IOException {
             builder.startObject("index");
-            writeIndexId(indexId, builder);
+            builder.field("id", indexId.getId());
+            builder.field("name", indexId.getName());
             builder.field("metadata_blob", indexMetadataBlob);
             builder.field("shards", shardCount);
             builder.endObject();
@@ -864,8 +865,10 @@ class MetadataVerifier implements Releasable {
     }
 
     private static void writeIndexId(IndexId indexId, XContentBuilder builder) throws IOException {
+        builder.startObject("index");
         builder.field("id", indexId.getId());
         builder.field("name", indexId.getName());
+        builder.endObject();
     }
 
 }
