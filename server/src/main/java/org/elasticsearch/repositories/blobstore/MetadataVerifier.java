@@ -45,6 +45,7 @@ import org.elasticsearch.index.snapshots.blobstore.SnapshotFiles;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.snapshots.SnapshotId;
+import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.ToXContent;
@@ -76,6 +77,7 @@ class MetadataVerifier implements Releasable {
     private static final Logger logger = LogManager.getLogger(MetadataVerifier.class);
 
     enum Anomaly {
+        FAILED_TO_LOAD_SNAPSHOT_INFO,
         FAILED_TO_LOAD_GLOBAL_METADATA,
         FAILED_TO_LOAD_SHARD_SNAPSHOT,
         FAILED_TO_LOAD_INDEX_METADATA,
@@ -330,12 +332,23 @@ class MetadataVerifier implements Releasable {
             return;
         }
 
-        blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, snapshotInfo -> {
+        blobStoreRepository.getSnapshotInfo(snapshotId, makeListener(snapshotRefs, (SnapshotInfo snapshotInfo) -> {
+            if (snapshotInfo == null) {
+                // failed to load (already reported)
+                return;
+            }
             final var snapshotDescription = new SnapshotDescription(snapshotId, snapshotInfo.startTime(), snapshotInfo.endTime());
             snapshotDescriptionsById.put(snapshotId.getUUID(), snapshotDescription);
             forkSupply(snapshotRefs, () -> getSnapshotGlobalMetadata(snapshotRefs, snapshotDescription), metadata -> {
                 // no checks here, loading it is enough
             });
+        }).delegateResponse((l, e) -> {
+            addAnomaly(Anomaly.FAILED_TO_LOAD_SNAPSHOT_INFO, snapshotRefs, (builder, params) -> {
+                new SnapshotDescription(snapshotId, 0, 0).writeXContent(builder);
+                ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                return builder;
+            });
+            l.onResponse(null);
         }));
     }
 

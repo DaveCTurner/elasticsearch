@@ -335,14 +335,35 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                     ? lessThan(indexCount)
                     : equalTo(indexCount)
         );
-        final int totalAnomalies = (int) client().prepareSearch("metadata_verification_results")
+        assertThat((int) client().prepareSearch("metadata_verification_results")
             .setSize(1)
             .setQuery(new TermQueryBuilder("completed", true))
             .get()
             .getHits()
-            .getHits()[0].getSourceAsMap().get("total_anomalies");
-        assertThat(totalAnomalies, greaterThan(0));
+            .getHits()[0].getSourceAsMap().get("total_anomalies"), greaterThan(0));
+        if (damagedBlob.toString().startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)) {
+            assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SNAPSHOT_INFO);
+        } else if (damagedFileName.startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)) {
+            assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SHARD_SNAPSHOT);
+        } else if (damagedBlob.toString().startsWith(BlobStoreRepository.METADATA_PREFIX)) {
+            assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_GLOBAL_METADATA);
+        } else if (damagedFileName.startsWith(BlobStoreRepository.METADATA_PREFIX)) {
+            assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_INDEX_METADATA);
+        } else if (damagedFileName.startsWith(BlobStoreRepository.INDEX_FILE_PREFIX)) {
+            assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SHARD_GENERATION);
+        }
         assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
         return anomalyHits.getHits();
+    }
+
+    private void assertAnomaly(MetadataVerifier.Anomaly anomaly) {
+        assertThat(client().prepareSearch("metadata_verification_results")
+            .setSize(0)
+            .setQuery(new TermQueryBuilder("anomaly", anomaly.toString()))
+            .setTrackTotalHits(true)
+            .get()
+            .getHits()
+            .getTotalHits()
+            .value, greaterThan(0L));
     }
 }
