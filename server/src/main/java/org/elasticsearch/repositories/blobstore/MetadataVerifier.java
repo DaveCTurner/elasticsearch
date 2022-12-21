@@ -268,7 +268,7 @@ class MetadataVerifier implements Releasable {
     private final AtomicLong indexSnapshotProgress = new AtomicLong();
     private final AtomicLong blobsVerified = new AtomicLong();
     private final AtomicLong blobBytesVerified = new AtomicLong();
-    private final AtomicLong throttledNanos = new AtomicLong();
+    private final AtomicLong throttledNanos;
 
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
@@ -301,6 +301,8 @@ class MetadataVerifier implements Releasable {
         this.indexCount = repositoryData.getIndices().size();
         this.indexSnapshotCount = repositoryData.getIndexSnapshotCount();
         this.rateLimiter = new RateLimiter.SimpleRateLimiter(verifyRequest.getMaxBytesPerSec().getMbFrac());
+
+        this.throttledNanos = new AtomicLong(verifyRequest.getVerifyBlobContents() ? 1 : 0); // nonzero if verifying so status reported
     }
 
     @Override
@@ -784,6 +786,8 @@ class MetadataVerifier implements Releasable {
                     }));
                     l.onResponse(null);
                 }));
+            } else {
+                blobBytesVerified.addAndGet(fileInfo.length());
             }
         }
     }
