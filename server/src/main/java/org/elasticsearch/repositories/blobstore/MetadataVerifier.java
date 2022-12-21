@@ -82,14 +82,13 @@ class MetadataVerifier implements Releasable {
         FAILED_TO_LOAD_SHARD_SNAPSHOT,
         FAILED_TO_LOAD_INDEX_METADATA,
         FAILED_TO_LOAD_SHARD_GENERATION,
+        MISSING_BLOB,
+        MISMATCHED_BLOB_LENGTH,
         UNDEFINED_SHARD_GENERATION,
         UNEXPECTED_EXCEPTION,
         FILE_IN_SHARD_GENERATION_NOT_SNAPSHOT,
         SNAPSHOT_SHARD_GENERATION_MISMATCH,
         FILE_IN_SNAPSHOT_NOT_SHARD_GENERATION,
-        MISMATCHED_VIRTUAL_BLOB_LENGTH,
-        MISSING_BLOB,
-        MISMATCHED_BLOB_LENGTH,
         UNKNOWN_SNAPSHOT_FOR_INDEX,
         SNAPSHOT_NOT_IN_SHARD_GENERATION,
     }
@@ -672,21 +671,7 @@ class MetadataVerifier implements Releasable {
             BlobStoreIndexShardSnapshot.FileInfo fileInfo
         ) {
             final var fileLength = ByteSizeValue.ofBytes(fileInfo.length());
-            if (fileInfo.metadata().hashEqualsContents()) {
-                final var actualLength = ByteSizeValue.ofBytes(fileInfo.metadata().hash().length);
-                if (fileLength.getBytes() != actualLength.getBytes()) {
-                    addAnomaly(Anomaly.MISMATCHED_VIRTUAL_BLOB_LENGTH, shardSnapshotRefs, ((builder, params) -> {
-                        snapshotDescription.writeXContent(builder);
-                        indexDescription.writeXContent(builder);
-                        builder.field("shard", shardId);
-                        builder.field("file_name", fileInfo.physicalName());
-                        builder.humanReadableField("actual_length_in_bytes", "actual_length", actualLength);
-                        builder.humanReadableField("expected_length_in_bytes", "expected_length", fileLength);
-                        return builder;
-                    }));
-                    return false;
-                }
-            } else {
+            if (fileInfo.metadata().hashEqualsContents() == false) {
                 for (int part = 0; part < fileInfo.numberOfParts(); part++) {
                     final var finalPart = part;
                     final var blobName = fileInfo.partName(part);
