@@ -286,12 +286,12 @@ class MetadataVerifier implements Releasable {
         this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;
         this.metadataExecutor = new ThrottlingExecutor(
-            new Semaphore(Math.max(1, verifyRequest.getThreadPoolConcurrency())),
+            new Semaphore(Math.max(1, verifyRequest.getMetaThreadPoolConcurrency())),
             isCancelledSupplier,
             blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
         );
         this.snapshotExecutor = new ThrottlingExecutor(
-            new Semaphore(1),
+            new Semaphore(Math.max(1, verifyRequest.getBlobThreadPoolConcurrency())),
             isCancelledSupplier,
             blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT)
         );

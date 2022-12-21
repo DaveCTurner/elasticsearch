@@ -54,7 +54,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
 
         private final String repository;
         private final String resultsIndex;
-        private final int threadPoolConcurrency;
+        private final int metaThreadPoolConcurrency;
+        private final int blobThreadPoolConcurrency;
         private final int snapshotVerificationConcurrency;
         private final int indexVerificationConcurrency;
         private final int indexSnapshotVerificationConcurrency;
@@ -64,7 +65,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         public Request(
             String repository,
             String resultsIndex,
-            int threadPoolConcurrency,
+            int metaThreadPoolConcurrency,
+            int blobThreadPoolConcurrency,
             int snapshotVerificationConcurrency,
             int indexVerificationConcurrency,
             int indexSnapshotVerificationConcurrency,
@@ -73,7 +75,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         ) {
             this.repository = Objects.requireNonNull(repository, "repository");
             this.resultsIndex = Objects.requireNonNull(resultsIndex, "resultsIndex");
-            this.threadPoolConcurrency = requireNonNegative("threadPoolConcurrency", threadPoolConcurrency);
+            this.metaThreadPoolConcurrency = requireNonNegative("metaThreadPoolConcurrency", metaThreadPoolConcurrency);
+            this.blobThreadPoolConcurrency = requireNonNegative("blobThreadPoolConcurrency", blobThreadPoolConcurrency);
             this.snapshotVerificationConcurrency = requireNonNegative("snapshotVerificationConcurrency", snapshotVerificationConcurrency);
             this.indexVerificationConcurrency = requireNonNegative("indexVerificationConcurrency", indexVerificationConcurrency);
             this.indexSnapshotVerificationConcurrency = requireNonNegative(
@@ -98,7 +101,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             super(in);
             this.repository = in.readString();
             this.resultsIndex = in.readString();
-            this.threadPoolConcurrency = in.readVInt();
+            this.metaThreadPoolConcurrency = in.readVInt();
+            this.blobThreadPoolConcurrency = in.readVInt();
             this.snapshotVerificationConcurrency = in.readVInt();
             this.indexVerificationConcurrency = in.readVInt();
             this.indexSnapshotVerificationConcurrency = in.readVInt();
@@ -111,7 +115,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             super.writeTo(out);
             out.writeString(repository);
             out.writeString(resultsIndex);
-            out.writeVInt(threadPoolConcurrency);
+            out.writeVInt(metaThreadPoolConcurrency);
+            out.writeVInt(blobThreadPoolConcurrency);
             out.writeVInt(snapshotVerificationConcurrency);
             out.writeVInt(indexVerificationConcurrency);
             out.writeVInt(indexSnapshotVerificationConcurrency);
@@ -142,8 +147,12 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             return resultsIndex;
         }
 
-        public int getThreadPoolConcurrency() {
-            return threadPoolConcurrency;
+        public int getMetaThreadPoolConcurrency() {
+            return metaThreadPoolConcurrency;
+        }
+
+        public int getBlobThreadPoolConcurrency() {
+            return blobThreadPoolConcurrency;
         }
 
         public int getSnapshotVerificationConcurrency() {
@@ -168,7 +177,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
 
         public Request withResolvedDefaults(long currentTimeMillis, ThreadPool.Info threadPoolInfo) {
             if (org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex) == false
-                && threadPoolConcurrency > 0
+                && metaThreadPoolConcurrency > 0
+                && blobThreadPoolConcurrency > 0
                 && snapshotVerificationConcurrency > 0
                 && indexVerificationConcurrency > 0
                 && indexSnapshotVerificationConcurrency > 0) {
@@ -182,7 +192,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex)
                     ? ("repository-metadata-verification-" + repository + "-" + currentTimeMillis)
                     : resultsIndex,
-                threadPoolConcurrency > 0 ? threadPoolConcurrency : halfMaxThreads,
+                metaThreadPoolConcurrency > 0 ? metaThreadPoolConcurrency : halfMaxThreads,
+                blobThreadPoolConcurrency > 0 ? blobThreadPoolConcurrency : 1,
                 snapshotVerificationConcurrency > 0 ? snapshotVerificationConcurrency : halfMaxThreads,
                 indexVerificationConcurrency > 0 ? indexVerificationConcurrency : maxThreads,
                 indexSnapshotVerificationConcurrency > 0 ? indexSnapshotVerificationConcurrency : 1,

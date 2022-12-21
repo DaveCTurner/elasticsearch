@@ -46,7 +46,8 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
         final var verifyRequest = new VerifyRepositoryIntegrityAction.Request(
             request.param("repository"),
             request.param("results_index", ""),
-            request.paramAsInt("thread_pool_concurrency", 0),
+            request.paramAsInt("metadata_threads", 0),
+            request.paramAsInt("data_threads", 0),
             request.paramAsInt("snapshot_verification_concurrency", 0),
             request.paramAsInt("index_verification_concurrency", 0),
             request.paramAsInt("index_snapshot_verification_concurrency", 0),
