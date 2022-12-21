@@ -751,6 +751,7 @@ class MetadataVerifier implements Releasable {
             if (verifyRequest.getVerifyBlobContents()) {
                 shardContainerContents.blobContentsListeners.computeIfAbsent(fileInfo.name(), ignored -> {
                     var listener = new ListenableActionFuture<Void>();
+                    // TODO do this on a remote node?
                     snapshotExecutor.forkSupply(() -> {
                         try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
                             @Override
@@ -974,6 +975,9 @@ class MetadataVerifier implements Releasable {
 
         @Override
         public byte readByte() throws IOException {
+            if (isCancelledSupplier.getAsBoolean()) {
+                throw new TaskCancelledException("task cancelled");
+            }
             final var read = inputStream.read();
             if (read == -1) {
                 throw new EOFException();
@@ -986,6 +990,9 @@ class MetadataVerifier implements Releasable {
         @Override
         public void readBytes(byte[] b, int offset, int len) throws IOException {
             while (len > 0) {
+                if (isCancelledSupplier.getAsBoolean()) {
+                    throw new TaskCancelledException("task cancelled");
+                }
                 final var read = inputStream.read(b, offset, len);
                 if (read == -1) {
                     throw new EOFException();
