@@ -26,7 +26,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.CancellableTask;
@@ -136,7 +135,28 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
 
         @Override
         public String getDescription() {
-            return Strings.format("verify metadata integrity of repository [%s]", repository);
+            return "verify repository integrity {"
+                + "repository='"
+                + repository
+                + '\''
+                + ", resultsIndex='"
+                + resultsIndex
+                + '\''
+                + ", metaThreadPoolConcurrency="
+                + metaThreadPoolConcurrency
+                + ", blobThreadPoolConcurrency="
+                + blobThreadPoolConcurrency
+                + ", snapshotVerificationConcurrency="
+                + snapshotVerificationConcurrency
+                + ", indexVerificationConcurrency="
+                + indexVerificationConcurrency
+                + ", indexSnapshotVerificationConcurrency="
+                + indexSnapshotVerificationConcurrency
+                + ", verifyBlobContents="
+                + verifyBlobContents
+                + ", maxBytesPerSec="
+                + maxBytesPerSec
+                + '}';
         }
 
         public String getRepository() {
@@ -175,7 +195,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             return maxBytesPerSec;
         }
 
-        public Request withResolvedDefaults(long currentTimeMillis, ThreadPool.Info threadPoolInfo) {
+        public Request withResolvedDefaults(long currentTimeMillis, ThreadPool.Info metadataThreadPoolInfo) {
             if (org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex) == false
                 && metaThreadPoolConcurrency > 0
                 && blobThreadPoolConcurrency > 0
@@ -185,7 +205,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 return this;
             }
 
-            final var maxThreads = Math.max(1, threadPoolInfo.getMax());
+            final var maxThreads = Math.max(1, metadataThreadPoolInfo.getMax());
             final var halfMaxThreads = Math.max(1, maxThreads / 2);
             final var request = new Request(
                 repository,
@@ -202,6 +222,11 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             );
             request.masterNodeTimeout(masterNodeTimeout());
             return request;
+        }
+
+        @Override
+        public String toString() {
+            return getDescription();
         }
     }
 
