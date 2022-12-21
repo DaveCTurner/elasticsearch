@@ -789,20 +789,15 @@ class MetadataVerifier implements Releasable {
 
     private <T> ActionListener<T> makeListener(RefCounted refCounted, CheckedConsumer<T, Exception> consumer) {
         refCounted.incRef();
-        return ActionListener.runAfter(
-            ActionListener.wrap(consumer, exception -> addExceptionResult(refCounted, exception)),
-            refCounted::decRef
-        );
-    }
-
-    private void addExceptionResult(RefCounted refCounted, Exception exception) {
-        if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
-            return;
-        }
-        addAnomaly(Anomaly.UNEXPECTED_EXCEPTION, refCounted, (builder, params) -> {
-            ElasticsearchException.generateFailureXContent(builder, params, exception, true);
-            return builder;
-        });
+        return ActionListener.runAfter(ActionListener.wrap(consumer, exception -> {
+            if (isCancelledSupplier.getAsBoolean() && exception instanceof TaskCancelledException) {
+                return;
+            }
+            addAnomaly(Anomaly.UNEXPECTED_EXCEPTION, refCounted, (builder, params) -> {
+                ElasticsearchException.generateFailureXContent(builder, params, exception, true);
+                return builder;
+            });
+        }), refCounted::decRef);
     }
 
     private Runnable wrapRunnable(RefCounted refCounted, Runnable runnable) {

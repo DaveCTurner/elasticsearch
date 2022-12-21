@@ -270,15 +270,13 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             builder.field("verified", indexSnapshotsVerified);
             builder.field("total", indexSnapshotCount);
             builder.endObject();
-            if (blobsVerified > 0 || blobBytesVerified > 0) {
-                builder.startObject("blobs");
-                builder.field("verified", blobsVerified);
-                if (blobBytesVerified > 0) {
-                    builder.humanReadableField("verified_size_in_bytes", "verified_size", ByteSizeValue.ofBytes(blobBytesVerified));
-                    builder.humanReadableField("throttled_nanos", "throttled_time", TimeValue.timeValueNanos(throttledNanos));
-                }
-                builder.endObject();
+            builder.startObject("blobs");
+            builder.field("verified", blobsVerified);
+            if (blobBytesVerified > 0) {
+                builder.humanReadableField("verified_size_in_bytes", "verified_size", ByteSizeValue.ofBytes(blobBytesVerified));
+                builder.humanReadableField("throttled_time_in_millis", "throttled_time", TimeValue.timeValueNanos(throttledNanos));
             }
+            builder.endObject();
             builder.field("anomalies", anomalyCount);
             builder.field("results_index", resultsIndex);
             builder.endObject();
