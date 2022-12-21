@@ -89,6 +89,7 @@ class MetadataVerifier implements Releasable {
         MISSING_BLOB,
         MISMATCHED_BLOB_LENGTH,
         UNKNOWN_SNAPSHOT_FOR_INDEX,
+        SNAPSHOT_NOT_IN_SHARD_GENERATION,
     }
 
     private static void mappedField(XContentBuilder builder, String fieldName, String type) throws IOException {
@@ -118,8 +119,8 @@ class MetadataVerifier implements Releasable {
             mappedField(builder, "uuid", "keyword");
             mappedField(builder, "repository_generation", "long");
             mappedField(builder, "final_repository_generation", "long");
-            mappedField(builder, "cancelled", "boolean");
             mappedField(builder, "completed", "boolean");
+            mappedField(builder, "cancelled", "boolean");
             mappedField(builder, "total_anomalies", "long");
 
             builder.startObject("error").field("type", "object").field("dynamic", "false").endObject();
@@ -137,8 +138,8 @@ class MetadataVerifier implements Releasable {
             mappedField(builder, "metadata_blob", "keyword");
             mappedField(builder, "shards", "long");
             builder.endObject().endObject();
-
             mappedField(builder, "shard", "long");
+
             mappedField(builder, "anomaly", "keyword");
             mappedField(builder, "blob_name", "keyword");
             mappedField(builder, "part", "long");
@@ -147,8 +148,9 @@ class MetadataVerifier implements Releasable {
             mappedField(builder, "file_length_in_bytes", "long");
             mappedField(builder, "part_length_in_bytes", "long");
             mappedField(builder, "actual_length_in_bytes", "long");
-            mappedField(builder, "restorability", "keyword");
+            mappedField(builder, "expected_length_in_bytes", "long");
 
+            mappedField(builder, "restorability", "keyword");
             mappedField(builder, "total_snapshots", "long");
             mappedField(builder, "restorable_snapshots", "long");
             mappedField(builder, "unrestorable_snapshots", "long");
@@ -395,7 +397,7 @@ class MetadataVerifier implements Releasable {
         private void recordRestorability(int totalSnapshotCount, int restorableSnapshotCount) {
             if (isCancelledSupplier.getAsBoolean() == false) {
                 addResult(indexRefs, (builder, params) -> {
-                    writeIndexId(indexId, builder);
+                    writeIndexId(indexId, builder, b -> {});
                     builder.field(
                         "restorability",
                         totalSnapshotCount == restorableSnapshotCount ? "full" : 0 < restorableSnapshotCount ? "partial" : "none"
@@ -414,7 +416,7 @@ class MetadataVerifier implements Releasable {
             final var snapshotDescription = snapshotDescriptionsById.get(snapshotId.getUUID());
             if (snapshotDescription == null) {
                 addAnomaly(Anomaly.UNKNOWN_SNAPSHOT_FOR_INDEX, indexSnapshotRefs, (builder, params) -> {
-                    writeIndexId(indexId, builder);
+                    writeIndexId(indexId, builder, b -> {});
                     new SnapshotDescription(snapshotId, 0, 0).writeXContent(builder);
                     return builder;
                 });
@@ -512,8 +514,7 @@ class MetadataVerifier implements Releasable {
                 return blobStoreRepository.getSnapshotIndexMetaData(repositoryData, snapshotId, indexId).getNumberOfShards();
             } catch (Exception e) {
                 addAnomaly(Anomaly.FAILED_TO_LOAD_INDEX_METADATA, indexRefs, (builder, params) -> {
-                    writeIndexId(indexId, builder);
-                    builder.field("metadata_blob", indexMetaBlobId);
+                    writeIndexId(indexId, builder, b -> b.field("metadata_blob", indexMetaBlobId));
                     ElasticsearchException.generateFailureXContent(builder, params, e, true);
                     return builder;
                 });
@@ -590,13 +591,12 @@ class MetadataVerifier implements Releasable {
                 }
 
                 if (foundSnapshot == false) {
-                    addResult(shardSnapshotRefs, ((builder, params) -> {
+                    addAnomaly(Anomaly.SNAPSHOT_NOT_IN_SHARD_GENERATION, shardSnapshotRefs, (builder, params) -> {
                         snapshotDescription.writeXContent(builder);
                         indexDescription.writeXContent(builder);
                         builder.field("shard", shardId);
-                        builder.field("failure", "missing in shard-level summary");
                         return builder;
-                    }));
+                    });
                 }
             }
         }
@@ -937,27 +937,28 @@ class MetadataVerifier implements Releasable {
             builder.startObject("snapshot");
             builder.field("id", snapshotId.getUUID());
             builder.field("name", snapshotId.getName());
-            builder.field("start_time", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
-            builder.field("end_time", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
+            if (startTimeMillis != 0) {
+                builder.field("start_time", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
+            }
+            if (endTimeMillis != 0) {
+                builder.field("end_time", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
+            }
             builder.endObject();
         }
     }
 
     private record IndexDescription(IndexId indexId, String indexMetadataBlob, int shardCount) {
         void writeXContent(XContentBuilder builder) throws IOException {
-            builder.startObject("index");
-            builder.field("id", indexId.getId());
-            builder.field("name", indexId.getName());
-            builder.field("metadata_blob", indexMetadataBlob);
-            builder.field("shards", shardCount);
-            builder.endObject();
+            writeIndexId(indexId, builder, b -> b.field("metadata_blob", indexMetadataBlob).field("shards", shardCount));
         }
     }
 
-    private static void writeIndexId(IndexId indexId, XContentBuilder builder) throws IOException {
+    private static void writeIndexId(IndexId indexId, XContentBuilder builder, CheckedConsumer<XContentBuilder, IOException> extra)
+        throws IOException {
         builder.startObject("index");
         builder.field("id", indexId.getId());
         builder.field("name", indexId.getName());
+        extra.accept(builder);
         builder.endObject();
     }
 
