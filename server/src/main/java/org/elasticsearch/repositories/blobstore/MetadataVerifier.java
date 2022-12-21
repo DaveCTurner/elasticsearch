@@ -11,9 +11,11 @@ package org.elasticsearch.repositories.blobstore;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexAction;
@@ -96,50 +98,78 @@ class MetadataVerifier implements Releasable {
         Consumer<Supplier<VerifyRepositoryIntegrityAction.Status>> statusSupplierConsumer,
         ActionListener<Void> listener
     ) {
-        logger.info("[{}] verifying metadata integrity", blobStoreRepository.getMetadata().name());
-        blobStoreRepository.getRepositoryData(listener.delegateFailure((l, repositoryData) -> {
-            try (
-                var metadataVerifier = new MetadataVerifier(
-                    blobStoreRepository,
-                    client,
-                    verifyRequest,
-                    repositoryData,
-                    isCancelledSupplier,
-                    new ActionListener<>() {
-                        @Override
-                        public void onResponse(Long anomalyCount) {
-                            logger.info(
-                                "[{}] completed verifying metadata integrity for index generation [{}]: "
-                                    + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
-                                blobStoreRepository.getMetadata().name(),
+        logger.info("[{}] verifying metadata integrity and writing results to [{}]", verifyRequest.getRepository(), RESULTS_INDEX);
+
+        final var repositoryDataFuture = new ListenableActionFuture<RepositoryData>();
+        blobStoreRepository.getRepositoryData(repositoryDataFuture);
+
+        // TODO define (strict) mappings for index
+
+        client.admin().indices().prepareCreate(RESULTS_INDEX).execute(new ActionListener<>() {
+            @Override
+            public void onResponse(CreateIndexResponse createIndexResponse) {
+                onSuccess();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                if (e instanceof ResourceAlreadyExistsException) {
+                    onSuccess();
+                } else {
+                    listener.onFailure(e);
+                }
+            }
+
+            private void onSuccess() {
+                repositoryDataFuture.addListener(listener.delegateFailure((l, repositoryData) -> {
+                    try (
+                        var metadataVerifier = new MetadataVerifier(
+                            blobStoreRepository,
+                            client,
+                            verifyRequest,
+                            repositoryData,
+                            isCancelledSupplier,
+                            createLoggingListener(l, repositoryData)
+                        )
+                    ) {
+                        statusSupplierConsumer.accept(metadataVerifier::getStatus);
+                        metadataVerifier.start();
+                    }
+                }));
+            }
+
+            private ActionListener<Long> createLoggingListener(ActionListener<Void> l, RepositoryData repositoryData) {
+                return new ActionListener<>() {
+                    @Override
+                    public void onResponse(Long anomalyCount) {
+                        logger.info(
+                            "[{}] completed verifying metadata integrity for index generation [{}]: "
+                                + "repo UUID [{}], cluster UUID [{}], anomalies [{}]",
+                            verifyRequest.getRepository(),
+                            repositoryData.getGenId(),
+                            repositoryData.getUuid(),
+                            repositoryData.getClusterUUID(),
+                            anomalyCount
+                        );
+                        l.onResponse(null);
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        logger.warn(
+                            () -> Strings.format(
+                                "[%s] failed verifying metadata integrity for index generation [%d]: repo UUID [%s], cluster UUID [%s]",
+                                verifyRequest.getRepository(),
                                 repositoryData.getGenId(),
                                 repositoryData.getUuid(),
-                                repositoryData.getClusterUUID(),
-                                anomalyCount
-                            );
-                            l.onResponse(null);
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            logger.info(
-                                () -> Strings.format(
-                                    "[%s] failed verifying metadata integrity for index generation [%d]: repo UUID [%s], cluster UUID [%s]",
-                                    blobStoreRepository.getMetadata().name(),
-                                    repositoryData.getGenId(),
-                                    repositoryData.getUuid(),
-                                    repositoryData.getClusterUUID()
-                                )
-                            );
-                            l.onFailure(e);
-                        }
+                                repositoryData.getClusterUUID()
+                            )
+                        );
+                        l.onFailure(e);
                     }
-                )
-            ) {
-                statusSupplierConsumer.accept(metadataVerifier::getStatus);
-                metadataVerifier.start();
+                };
             }
-        }));
+        });
     }
 
     private final BlobStoreRepository blobStoreRepository;
@@ -221,17 +251,16 @@ class MetadataVerifier implements Releasable {
             indexSnapshotCount
         );
 
-        // TODO define (strict) mappings for index
-        client.admin().indices().prepareCreate(RESULTS_INDEX).execute(makeListener(finalRefs, createIndexResponse -> verifySnapshots()));
+        verifySnapshots(this::verifyIndices);
     }
 
-    private void verifySnapshots() {
+    private void verifySnapshots(Runnable onCompletion) {
         runThrottled(
             repositoryData.getSnapshotIds().iterator(),
             this::verifySnapshot,
             verifyRequest.getSnapshotVerificationConcurrency(),
             snapshotProgress,
-            wrapRunnable(finalRefs, this::verifyIndices)
+            wrapRunnable(finalRefs, onCompletion)
         );
     }
 
@@ -847,8 +876,8 @@ class MetadataVerifier implements Releasable {
             builder.startObject("snapshot");
             builder.field("id", snapshotId.getUUID());
             builder.field("name", snapshotId.getName());
-            builder.field("start_time_millis", startTimeMillis);
-            builder.field("end_time_millis", startTimeMillis);
+            builder.field("start_time_millis", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
+            builder.field("end_time_millis", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
             builder.endObject();
         }
     }

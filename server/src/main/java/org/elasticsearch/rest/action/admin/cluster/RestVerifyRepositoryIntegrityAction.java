@@ -9,6 +9,7 @@
 package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -53,24 +54,18 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
         verifyRequest.masterNodeTimeout(request.paramAsTime("master_timeout", verifyRequest.masterNodeTimeout()));
         return channel -> {
             final var taskFuture = new ListenableActionFuture<TaskId>();
-            final var task = client.executeLocally(
-                VerifyRepositoryIntegrityAction.INSTANCE,
-                verifyRequest,
-                ActionListener.wrap(
-                    ignored -> taskFuture.addListener(
-                        ActionListener.wrap(
-                            t -> logSuccess(t, verifyRequest),
-                            e -> logFailure(TaskId.EMPTY_TASK_ID, e, null, verifyRequest)
-                        )
-                    ),
-                    e1 -> taskFuture.addListener(
-                        ActionListener.wrap(
-                            t -> logFailure(t, e1, null, verifyRequest),
-                            e2 -> logFailure(TaskId.EMPTY_TASK_ID, e1, e2, verifyRequest)
-                        )
+            final var listener = ActionListener.wrap(
+                (ActionResponse.Empty ignored) -> taskFuture.addListener(
+                    ActionListener.wrap(t -> logSuccess(t, verifyRequest), e -> logFailure(TaskId.EMPTY_TASK_ID, e, null, verifyRequest))
+                ),
+                e1 -> taskFuture.addListener(
+                    ActionListener.wrap(
+                        t -> logFailure(t, e1, null, verifyRequest),
+                        e2 -> logFailure(TaskId.EMPTY_TASK_ID, e1, e2, verifyRequest)
                     )
                 )
             );
+            final var task = client.executeLocally(VerifyRepositoryIntegrityAction.INSTANCE, verifyRequest, listener);
             final var taskId = new TaskId(client.getLocalNodeId(), task.getId());
             taskFuture.onResponse(taskId);
             try (var builder = channel.newBuilder()) {
