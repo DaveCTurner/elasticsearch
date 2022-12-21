@@ -21,7 +21,6 @@ import org.elasticsearch.index.query.ExistsQueryBuilder;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshotsIntegritySuppressor;
 import org.elasticsearch.repositories.RepositoriesService;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
@@ -183,22 +182,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             try {
                 // TODO include some cancellation tests
 
-                final var anomalies = verifyAndGetAnomalies(indexCount, repoPath.relativize(blobToDamage));
-                if (isDataBlob) {
-                    final var expectedAnomaly = truncate
-                        ? MetadataVerifier.Anomaly.MISMATCHED_BLOB_LENGTH
-                        : MetadataVerifier.Anomaly.MISSING_BLOB;
-                    var foundExpectedAnomaly = false;
-                    for (SearchHit anomaly : anomalies) {
-                        final var source = anomaly.getSourceAsMap();
-                        if (expectedAnomaly.toString().equals(source.get("anomaly"))
-                            && blobToDamage.getFileName().toString().equals(source.get("blob_name"))) {
-                            foundExpectedAnomaly = true;
-                            break;
-                        }
-                    }
-                    assertTrue(foundExpectedAnomaly);
-                }
+                verifyAndGetAnomalies(indexCount, repoPath.relativize(blobToDamage), truncate);
 
                 //
                 // final var isCancelled = new AtomicBoolean();
@@ -294,7 +278,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
     }
 
-    private SearchHit[] verifyAndGetAnomalies(long indexCount, Path damagedBlob) {
+    private void verifyAndGetAnomalies(long indexCount, Path damagedBlob, boolean truncate) {
         PlainActionFuture.<ActionResponse.Empty, RuntimeException>get(
             listener -> client().execute(
                 VerifyRepositoryIntegrityAction.INSTANCE,
@@ -304,12 +288,15 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             30,
             TimeUnit.SECONDS
         );
-        final var anomalyHits = client().prepareSearch("metadata_verification_results")
-            .setSize(10000)
-            .setQuery(new ExistsQueryBuilder("anomaly"))
-            .get()
-            .getHits();
-        assertThat(anomalyHits.getTotalHits().value, greaterThan(0L));
+        assertThat(
+            client().prepareSearch("metadata_verification_results")
+                .setSize(10000)
+                .setQuery(new ExistsQueryBuilder("anomaly"))
+                .get()
+                .getHits()
+                .getTotalHits().value,
+            greaterThan(0L)
+        );
         assertEquals(
             indexCount,
             client().prepareSearch("metadata_verification_results")
@@ -335,12 +322,15 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                     ? lessThan(indexCount)
                     : equalTo(indexCount)
         );
-        assertThat((int) client().prepareSearch("metadata_verification_results")
-            .setSize(1)
-            .setQuery(new TermQueryBuilder("completed", true))
-            .get()
-            .getHits()
-            .getHits()[0].getSourceAsMap().get("total_anomalies"), greaterThan(0));
+        assertThat(
+            (int) client().prepareSearch("metadata_verification_results")
+                .setSize(1)
+                .setQuery(new TermQueryBuilder("completed", true))
+                .get()
+                .getHits()
+                .getHits()[0].getSourceAsMap().get("total_anomalies"),
+            greaterThan(0)
+        );
         if (damagedBlob.toString().startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)) {
             assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SNAPSHOT_INFO);
         } else if (damagedFileName.startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)) {
@@ -351,19 +341,22 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_INDEX_METADATA);
         } else if (damagedFileName.startsWith(BlobStoreRepository.INDEX_FILE_PREFIX)) {
             assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SHARD_GENERATION);
+        } else if (damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)) {
+            assertAnomaly(truncate ? MetadataVerifier.Anomaly.MISMATCHED_BLOB_LENGTH : MetadataVerifier.Anomaly.MISSING_BLOB);
         }
         assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
-        return anomalyHits.getHits();
     }
 
     private void assertAnomaly(MetadataVerifier.Anomaly anomaly) {
-        assertThat(client().prepareSearch("metadata_verification_results")
-            .setSize(0)
-            .setQuery(new TermQueryBuilder("anomaly", anomaly.toString()))
-            .setTrackTotalHits(true)
-            .get()
-            .getHits()
-            .getTotalHits()
-            .value, greaterThan(0L));
+        assertThat(
+            client().prepareSearch("metadata_verification_results")
+                .setSize(0)
+                .setQuery(new TermQueryBuilder("anomaly", anomaly.toString()))
+                .setTrackTotalHits(true)
+                .get()
+                .getHits()
+                .getTotalHits().value,
+            greaterThan(0L)
+        );
     }
 }
