@@ -15,6 +15,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.index.query.ExistsQueryBuilder;
@@ -149,6 +150,8 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 assertThat(status.indexSnapshotCount(), greaterThanOrEqualTo((long) indexCount));
                 assertEquals(0, status.indexSnapshotsVerified());
                 assertEquals(0, status.anomalyCount());
+                assertEquals(0, status.blobsVerified());
+                assertEquals(0, status.blobBytesVerified());
             } else {
                 assert false : Strings.toString(task);
             }
@@ -168,22 +171,23 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             final var blobToDamage = randomFrom(blobs);
             final var isDataBlob = blobToDamage.getFileName().toString().startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
             final var truncate = randomBoolean();
+            final var corrupt = randomBoolean();
             if (truncate) {
                 logger.info("--> truncating {}", blobToDamage);
                 Files.copy(blobToDamage, tempDir.resolve("tmp"));
                 Files.write(blobToDamage, new byte[0]);
-            } else if (isDataBlob || randomBoolean()) {
-                logger.info("--> deleting {}", blobToDamage);
-                Files.move(blobToDamage, tempDir.resolve("tmp"));
-            } else {
+            } else if (corrupt) {
                 logger.info("--> corrupting {}", blobToDamage);
                 Files.copy(blobToDamage, tempDir.resolve("tmp"));
                 CorruptionUtils.corruptFile(random(), blobToDamage);
+            } else {
+                logger.info("--> deleting {}", blobToDamage);
+                Files.move(blobToDamage, tempDir.resolve("tmp"));
             }
             try {
                 // TODO include some cancellation tests
 
-                verifyAndGetAnomalies(indexCount, repoPath.relativize(blobToDamage), truncate);
+                verifyAndGetAnomalies(indexCount, repoPath.relativize(blobToDamage), truncate, corrupt);
 
                 //
                 // final var isCancelled = new AtomicBoolean();
@@ -232,7 +236,16 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         PlainActionFuture.<ActionResponse.Empty, RuntimeException>get(
             listener -> client().execute(
                 VerifyRepositoryIntegrityAction.INSTANCE,
-                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, RESULTS_INDEX, 0, 0, 0, 0),
+                new VerifyRepositoryIntegrityAction.Request(
+                    REPOSITORY_NAME,
+                    RESULTS_INDEX,
+                    0,
+                    0,
+                    0,
+                    0,
+                    randomBoolean(),
+                    ByteSizeValue.ofMb(10)
+                ),
                 listener
             ),
             30,
@@ -276,11 +289,22 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         assertAcked(client().admin().indices().prepareDelete(RESULTS_INDEX));
     }
 
-    private void verifyAndGetAnomalies(long indexCount, Path damagedBlob, boolean truncate) {
+    private void verifyAndGetAnomalies(long indexCount, Path damagedBlob, boolean truncate, boolean corrupt) {
+        final var damagedFileName = damagedBlob.getFileName().toString();
+        final var isDataBlob = damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX);
         PlainActionFuture.<ActionResponse.Empty, RuntimeException>get(
             listener -> client().execute(
                 VerifyRepositoryIntegrityAction.INSTANCE,
-                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, RESULTS_INDEX, 0, 0, 0, 0),
+                new VerifyRepositoryIntegrityAction.Request(
+                    REPOSITORY_NAME,
+                    RESULTS_INDEX,
+                    0,
+                    0,
+                    0,
+                    0,
+                    (isDataBlob && truncate == false && corrupt) || randomBoolean(),
+                    ByteSizeValue.ofMb(10)
+                ),
                 listener
             ),
             30,
@@ -305,7 +329,6 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .getHits()
                 .getTotalHits().value
         );
-        final var damagedFileName = damagedBlob.getFileName().toString();
         assertThat(
             client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
@@ -315,7 +338,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                 .getHits()
                 .getTotalHits().value,
             damagedFileName.startsWith(BlobStoreRepository.SNAPSHOT_PREFIX)
-                || damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)
+                || isDataBlob
                 || (damagedFileName.startsWith(BlobStoreRepository.METADATA_PREFIX) && damagedBlob.startsWith("indices"))
                     ? lessThan(indexCount)
                     : equalTo(indexCount)
@@ -339,8 +362,12 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
             assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_INDEX_METADATA);
         } else if (damagedFileName.startsWith(BlobStoreRepository.INDEX_FILE_PREFIX)) {
             assertAnomaly(MetadataVerifier.Anomaly.FAILED_TO_LOAD_SHARD_GENERATION);
-        } else if (damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)) {
-            assertAnomaly(truncate ? MetadataVerifier.Anomaly.MISMATCHED_BLOB_LENGTH : MetadataVerifier.Anomaly.MISSING_BLOB);
+        } else if (isDataBlob) {
+            assertAnomaly(
+                truncate ? MetadataVerifier.Anomaly.MISMATCHED_BLOB_LENGTH
+                    : corrupt ? MetadataVerifier.Anomaly.CORRUPT_DATA_BLOB
+                    : MetadataVerifier.Anomaly.MISSING_BLOB
+            );
         }
         assertAcked(client().admin().indices().prepareDelete(RESULTS_INDEX));
     }

@@ -10,6 +10,9 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.codecs.CodecUtil;
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.RateLimiter;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
@@ -41,6 +44,8 @@ import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
+import org.elasticsearch.index.snapshots.blobstore.RateLimitingInputStream;
+import org.elasticsearch.index.snapshots.blobstore.SlicedInputStream;
 import org.elasticsearch.index.snapshots.blobstore.SnapshotFiles;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoryData;
@@ -52,13 +57,16 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -83,6 +91,7 @@ class MetadataVerifier implements Releasable {
         FAILED_TO_LOAD_SHARD_GENERATION,
         MISSING_BLOB,
         MISMATCHED_BLOB_LENGTH,
+        CORRUPT_DATA_BLOB,
         UNDEFINED_SHARD_GENERATION,
         UNEXPECTED_EXCEPTION,
         FILE_IN_SHARD_GENERATION_NOT_SNAPSHOT,
@@ -247,9 +256,10 @@ class MetadataVerifier implements Releasable {
     private final BooleanSupplier isCancelledSupplier;
     private final AtomicLong anomalyCount = new AtomicLong();
     private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
-    private final Semaphore threadPoolPermits;
-    private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
+    private final ThrottlingExecutor metadataExecutor;
+    private final ThrottlingExecutor snapshotExecutor;
     private final String resultsIndex;
+    private final RateLimiter rateLimiter;
 
     private final long snapshotCount;
     private final AtomicLong snapshotProgress = new AtomicLong();
@@ -257,6 +267,9 @@ class MetadataVerifier implements Releasable {
     private final AtomicLong indexProgress = new AtomicLong();
     private final long indexSnapshotCount;
     private final AtomicLong indexSnapshotProgress = new AtomicLong();
+    private final AtomicLong blobsVerified = new AtomicLong();
+    private final AtomicLong blobBytesVerified = new AtomicLong();
+    private final AtomicLong throttledNanos = new AtomicLong();
 
     MetadataVerifier(
         BlobStoreRepository blobStoreRepository,
@@ -273,12 +286,22 @@ class MetadataVerifier implements Releasable {
         this.repositoryData = repositoryData;
         this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;
-        this.threadPoolPermits = new Semaphore(Math.max(1, verifyRequest.getThreadPoolConcurrency()));
+        this.metadataExecutor = new ThrottlingExecutor(
+            new Semaphore(Math.max(1, verifyRequest.getThreadPoolConcurrency())),
+            isCancelledSupplier,
+            blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
+        );
+        this.snapshotExecutor = new ThrottlingExecutor(
+            new Semaphore(1),
+            isCancelledSupplier,
+            blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT)
+        );
         this.resultsIndex = verifyRequest.getResultsIndex();
 
         this.snapshotCount = repositoryData.getSnapshotIds().size();
         this.indexCount = repositoryData.getIndices().size();
         this.indexSnapshotCount = repositoryData.getIndexSnapshotCount();
+        this.rateLimiter = new RateLimiter.SimpleRateLimiter(verifyRequest.getMaxBytesPerSec().getMbFrac());
     }
 
     @Override
@@ -297,6 +320,9 @@ class MetadataVerifier implements Releasable {
             indexProgress.get(),
             indexSnapshotCount,
             indexSnapshotProgress.get(),
+            blobsVerified.get(),
+            blobBytesVerified.get(),
+            throttledNanos.get(),
             anomalyCount.get(),
             resultsIndex
         );
@@ -379,7 +405,8 @@ class MetadataVerifier implements Releasable {
 
     private record ShardContainerContents(
         Map<String, BlobMetadata> blobsByName,
-        BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots
+        BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots,
+        Map<String, ListenableActionFuture<Void>> blobContentsListeners
     ) {}
 
     private class IndexVerifier {
@@ -437,16 +464,17 @@ class MetadataVerifier implements Releasable {
             final var indexMetaBlobId = repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, indexId);
             indexDescriptionListenersByBlobId.computeIfAbsent(indexMetaBlobId, ignored -> {
                 final var indexDescriptionFuture = new ListenableActionFuture<IndexDescription>();
-                forkSupply(() -> {
+                metadataExecutor.forkSupply(() -> {
                     final var shardCount = getNumberOfShards(indexMetaBlobId, snapshotId);
                     final var indexDescription = new IndexDescription(indexId, indexMetaBlobId, shardCount);
                     for (int i = 0; i < shardCount; i++) {
                         shardContainerContentsListener.computeIfAbsent(i, shardId -> {
                             final var shardContainerContentsFuture = new ListenableActionFuture<ShardContainerContents>();
-                            forkSupply(
+                            metadataExecutor.forkSupply(
                                 () -> new ShardContainerContents(
                                     blobStoreRepository.shardContainer(indexId, shardId).listBlobs(),
-                                    getBlobStoreIndexShardSnapshots(indexDescription, shardId)
+                                    getBlobStoreIndexShardSnapshots(indexDescription, shardId),
+                                    ConcurrentCollections.newConcurrentMap()
                                 ),
                                 shardContainerContentsFuture
                             );
@@ -568,20 +596,26 @@ class MetadataVerifier implements Releasable {
                 return;
             }
 
-            var restorable = true;
-            for (final var fileInfo : shardSnapshot.indexFiles()) {
-                restorable &= verifyFileInfo(
-                    shardSnapshotRefs,
+            final var restorable = new AtomicBoolean(true);
+            runThrottled(
+                shardSnapshot.indexFiles().iterator(),
+                (fileRefs, fileInfo) -> verifyFileInfo(
+                    fileRefs,
                     snapshotDescription,
                     indexDescription,
                     shardId,
-                    shardContainerContents.blobsByName(),
+                    shardContainerContents,
+                    restorable,
                     fileInfo
-                );
-            }
-            if (restorable) {
-                runIfRestorable.run();
-            }
+                ),
+                1,
+                blobsVerified,
+                wrapRunnable(shardSnapshotRefs, () -> {
+                    if (restorable.get()) {
+                        runIfRestorable.run();
+                    }
+                })
+            );
 
             final var blobStoreIndexShardSnapshots = shardContainerContents.blobStoreIndexShardSnapshots();
             if (blobStoreIndexShardSnapshots != null) {
@@ -661,54 +695,96 @@ class MetadataVerifier implements Releasable {
             }
         }
 
-        private boolean verifyFileInfo(
-            RefCounted shardSnapshotRefs,
+        private void verifyFileInfo(
+            RefCounted fileRefs,
             SnapshotDescription snapshotDescription,
             IndexDescription indexDescription,
             int shardId,
-            Map<String, BlobMetadata> shardBlobs,
+            ShardContainerContents shardContainerContents,
+            AtomicBoolean restorable,
             BlobStoreIndexShardSnapshot.FileInfo fileInfo
         ) {
+            if (fileInfo.metadata().hashEqualsContents()) {
+                return;
+            }
+
+            final var shardBlobs = shardContainerContents.blobsByName();
             final var fileLength = ByteSizeValue.ofBytes(fileInfo.length());
-            if (fileInfo.metadata().hashEqualsContents() == false) {
-                for (int part = 0; part < fileInfo.numberOfParts(); part++) {
-                    final var finalPart = part;
-                    final var blobName = fileInfo.partName(part);
-                    final var blobInfo = shardBlobs.get(blobName);
-                    final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
-                    if (blobInfo == null) {
-                        addAnomaly(Anomaly.MISSING_BLOB, shardSnapshotRefs, ((builder, params) -> {
-                            snapshotDescription.writeXContent(builder);
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            builder.field("blob_name", blobName);
-                            builder.field("file_name", fileInfo.physicalName());
-                            builder.field("part", finalPart);
-                            builder.field("number_of_parts", fileInfo.numberOfParts());
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            return builder;
-                        }));
-                        return false;
-                    } else if (blobInfo.length() != partLength.getBytes()) {
-                        addAnomaly(Anomaly.MISMATCHED_BLOB_LENGTH, shardSnapshotRefs, ((builder, params) -> {
-                            snapshotDescription.writeXContent(builder);
-                            indexDescription.writeXContent(builder);
-                            builder.field("shard", shardId);
-                            builder.field("blob_name", blobName);
-                            builder.field("file_name", fileInfo.physicalName());
-                            builder.field("part", finalPart);
-                            builder.field("number_of_parts", fileInfo.numberOfParts());
-                            builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
-                            builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
-                            builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
-                            return builder;
-                        }));
-                        return false;
-                    }
+            for (int part = 0; part < fileInfo.numberOfParts(); part++) {
+                final var finalPart = part;
+                final var blobName = fileInfo.partName(part);
+                final var blobInfo = shardBlobs.get(blobName);
+                final var partLength = ByteSizeValue.ofBytes(fileInfo.partBytes(part));
+                if (blobInfo == null) {
+                    restorable.set(false);
+                    addAnomaly(Anomaly.MISSING_BLOB, fileRefs, ((builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("blob_name", blobName);
+                        builder.field("file_name", fileInfo.physicalName());
+                        builder.field("part", finalPart);
+                        builder.field("number_of_parts", fileInfo.numberOfParts());
+                        builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
+                        return builder;
+                    }));
+                    return;
+                } else if (blobInfo.length() != partLength.getBytes()) {
+                    restorable.set(false);
+                    addAnomaly(Anomaly.MISMATCHED_BLOB_LENGTH, fileRefs, ((builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("blob_name", blobName);
+                        builder.field("file_name", fileInfo.physicalName());
+                        builder.field("part", finalPart);
+                        builder.field("number_of_parts", fileInfo.numberOfParts());
+                        builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        builder.humanReadableField("part_length_in_bytes", "part_length", partLength);
+                        builder.humanReadableField("actual_length_in_bytes", "actual_length", ByteSizeValue.ofBytes(blobInfo.length()));
+                        return builder;
+                    }));
+                    return;
                 }
             }
-            return true;
+
+            if (verifyRequest.getVerifyBlobContents()) {
+                shardContainerContents.blobContentsListeners.computeIfAbsent(fileInfo.name(), ignored -> {
+                    var listener = new ListenableActionFuture<Void>();
+                    snapshotExecutor.forkSupply(() -> {
+                        try (var slicedStream = new SlicedInputStream(fileInfo.numberOfParts()) {
+                            @Override
+                            protected InputStream openSlice(int slice) throws IOException {
+                                return blobStoreRepository.shardContainer(indexDescription.indexId(), shardId)
+                                    .readBlob(fileInfo.partName(slice));
+                            }
+                        };
+                            var rateLimitedStream = new RateLimitingInputStream(slicedStream, () -> rateLimiter, throttledNanos::addAndGet);
+                            var indexInput = new IndexInputWrapper(rateLimitedStream, fileInfo.length())
+                        ) {
+                            CodecUtil.checksumEntireFile(indexInput);
+                            listener.onResponse(null);
+                        }
+                        return null;
+                    }, listener);
+                    return listener;
+                }).addListener(makeListener(fileRefs, (Void ignored) -> {}).delegateResponse((l, e) -> {
+                    restorable.set(false);
+                    addAnomaly(Anomaly.CORRUPT_DATA_BLOB, fileRefs, ((builder, params) -> {
+                        snapshotDescription.writeXContent(builder);
+                        indexDescription.writeXContent(builder);
+                        builder.field("shard", shardId);
+                        builder.field("blob_name", fileInfo.name());
+                        builder.field("file_name", fileInfo.physicalName());
+                        builder.field("number_of_parts", fileInfo.numberOfParts());
+                        builder.humanReadableField("file_length_in_bytes", "file_length", fileLength);
+                        ElasticsearchException.generateFailureXContent(builder, params, e, true);
+                        return builder;
+                    }));
+                    l.onResponse(null);
+                }));
+            }
         }
     }
 
@@ -739,75 +815,6 @@ class MetadataVerifier implements Releasable {
                 refCounted.decRef();
             }
         };
-    }
-
-    private <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
-        fork(ActionRunnable.supply(listener, supplier));
-    }
-
-    private void fork(AbstractRunnable runnable) {
-        executorQueue.add(runnable);
-        tryProcessQueue();
-    }
-
-    private void tryProcessQueue() {
-        while (threadPoolPermits.tryAcquire()) {
-            final var runnable = executorQueue.poll();
-            if (runnable == null) {
-                threadPoolPermits.release();
-                return;
-            }
-
-            if (isCancelledSupplier.getAsBoolean()) {
-                try {
-                    runnable.onFailure(new TaskCancelledException("task cancelled"));
-                    continue;
-                } finally {
-                    threadPoolPermits.release();
-                }
-            }
-
-            blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META).execute(new AbstractRunnable() {
-                @Override
-                public void onRejection(Exception e) {
-                    try {
-                        runnable.onRejection(e);
-                    } finally {
-                        threadPoolPermits.release();
-                        // no need to call tryProcessQueue() again here, we're still running it
-                    }
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    try {
-                        runnable.onFailure(e);
-                    } finally {
-                        onCompletion();
-                    }
-                }
-
-                @Override
-                protected void doRun() {
-                    runnable.run();
-                    onCompletion();
-                }
-
-                @Override
-                public String toString() {
-                    return runnable.toString();
-                }
-
-                private void onCompletion() {
-                    threadPoolPermits.release();
-                    tryProcessQueue();
-                }
-            });
-        }
-    }
-
-    private <T> void forkSupply(RefCounted refCounted, CheckedSupplier<T, Exception> supplier, CheckedConsumer<T, Exception> consumer) {
-        forkSupply(supplier, makeListener(refCounted, consumer));
     }
 
     private void onCompletion() {
@@ -858,6 +865,7 @@ class MetadataVerifier implements Releasable {
             onCompletion.run();
             return;
         }
+        logger.debug(() -> Strings.format("recording result document: %s", indexRequest.source().utf8ToString()));
         pendingResults.add(Tuple.tuple(indexRequest, onCompletion));
         processPendingResults();
     }
@@ -957,6 +965,149 @@ class MetadataVerifier implements Releasable {
         builder.field("name", indexId.getName());
         extra.accept(builder);
         builder.endObject();
+    }
+
+    private class IndexInputWrapper extends IndexInput {
+        private final InputStream inputStream;
+        private final long length;
+        long filePointer = 0L;
+
+        IndexInputWrapper(InputStream inputStream, long length) {
+            super("");
+            this.inputStream = inputStream;
+            this.length = length;
+        }
+
+        @Override
+        public byte readByte() throws IOException {
+            final var read = inputStream.read();
+            if (read == -1) {
+                throw new EOFException();
+            }
+            filePointer += 1;
+            blobBytesVerified.incrementAndGet();
+            return (byte) read;
+        }
+
+        @Override
+        public void readBytes(byte[] b, int offset, int len) throws IOException {
+            while (len > 0) {
+                final var read = inputStream.read(b, offset, len);
+                if (read == -1) {
+                    throw new EOFException();
+                }
+                filePointer += read;
+                blobBytesVerified.addAndGet(read);
+                len -= read;
+                offset += read;
+            }
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public long getFilePointer() {
+            return filePointer;
+        }
+
+        @Override
+        public void seek(long pos) {
+            if (filePointer != pos) {
+                assert false : "cannot seek";
+                throw new UnsupportedOperationException("seek");
+            }
+        }
+
+        @Override
+        public long length() {
+            return length;
+        }
+
+        @Override
+        public IndexInput slice(String sliceDescription, long offset, long length) {
+            assert false;
+            throw new UnsupportedOperationException("slice");
+        }
+    }
+
+    private <T> void forkSupply(RefCounted refCounted, CheckedSupplier<T, Exception> supplier, CheckedConsumer<T, Exception> consumer) {
+        metadataExecutor.forkSupply(supplier, makeListener(refCounted, consumer));
+    }
+
+    private static class ThrottlingExecutor {
+        private final Semaphore threadPoolPermits;
+        private final BooleanSupplier isCancelledSupplier;
+        private final ExecutorService executor;
+        private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
+
+        ThrottlingExecutor(Semaphore threadPoolPermits, BooleanSupplier isCancelledSupplier, ExecutorService executor) {
+            this.threadPoolPermits = threadPoolPermits;
+            this.isCancelledSupplier = isCancelledSupplier;
+            this.executor = executor;
+        }
+
+        <T> void forkSupply(CheckedSupplier<T, Exception> supplier, ActionListener<T> listener) {
+            executorQueue.add(ActionRunnable.supply(listener, supplier));
+            tryProcessQueue();
+        }
+
+        private void tryProcessQueue() {
+            while (threadPoolPermits.tryAcquire()) {
+                final var runnable = executorQueue.poll();
+                if (runnable == null) {
+                    threadPoolPermits.release();
+                    return;
+                }
+
+                if (isCancelledSupplier.getAsBoolean()) {
+                    try {
+                        runnable.onFailure(new TaskCancelledException("task cancelled"));
+                        continue;
+                    } finally {
+                        threadPoolPermits.release();
+                    }
+                }
+
+                executor.execute(new AbstractRunnable() {
+                    @Override
+                    public void onRejection(Exception e) {
+                        try {
+                            runnable.onRejection(e);
+                        } finally {
+                            threadPoolPermits.release();
+                            // no need to call tryProcessQueue() again here, we're still running it
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        try {
+                            runnable.onFailure(e);
+                        } finally {
+                            onCompletion();
+                        }
+                    }
+
+                    @Override
+                    protected void doRun() {
+                        runnable.run();
+                        onCompletion();
+                    }
+
+                    @Override
+                    public String toString() {
+                        return runnable.toString();
+                    }
+
+                    private void onCompletion() {
+                        threadPoolPermits.release();
+                        tryProcessQueue();
+                    }
+                });
+            }
+        }
+
     }
 
 }

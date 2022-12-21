@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -48,7 +49,9 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
             request.paramAsInt("thread_pool_concurrency", 0),
             request.paramAsInt("snapshot_verification_concurrency", 0),
             request.paramAsInt("index_verification_concurrency", 0),
-            request.paramAsInt("index_snapshot_verification_concurrency", 0)
+            request.paramAsInt("index_snapshot_verification_concurrency", 0),
+            request.paramAsBoolean("verify_blob_contents", true),
+            request.paramAsSize("max_verify_bytes_per_sec", ByteSizeValue.ofMb(10))
         );
         verifyRequest.masterNodeTimeout(request.paramAsTime("master_timeout", verifyRequest.masterNodeTimeout()));
         return channel -> {

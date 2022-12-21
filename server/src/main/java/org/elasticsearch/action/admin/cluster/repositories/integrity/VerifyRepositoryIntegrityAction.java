@@ -25,7 +25,9 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Strings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.TaskId;
@@ -56,6 +58,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         private final int snapshotVerificationConcurrency;
         private final int indexVerificationConcurrency;
         private final int indexSnapshotVerificationConcurrency;
+        private final boolean verifyBlobContents;
+        private final ByteSizeValue maxBytesPerSec;
 
         public Request(
             String repository,
@@ -63,7 +67,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             int threadPoolConcurrency,
             int snapshotVerificationConcurrency,
             int indexVerificationConcurrency,
-            int indexSnapshotVerificationConcurrency
+            int indexSnapshotVerificationConcurrency,
+            boolean verifyBlobContents,
+            ByteSizeValue maxBytesPerSec
         ) {
             this.repository = Objects.requireNonNull(repository, "repository");
             this.resultsIndex = Objects.requireNonNull(resultsIndex, "resultsIndex");
@@ -74,6 +80,11 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 "indexSnapshotVerificationConcurrency",
                 indexSnapshotVerificationConcurrency
             );
+            this.verifyBlobContents = verifyBlobContents;
+            if (maxBytesPerSec.getBytes() < 1) {
+                throw new IllegalArgumentException("invalid rate limit");
+            }
+            this.maxBytesPerSec = maxBytesPerSec;
         }
 
         private static int requireNonNegative(String name, int value) {
@@ -91,6 +102,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             this.snapshotVerificationConcurrency = in.readVInt();
             this.indexVerificationConcurrency = in.readVInt();
             this.indexSnapshotVerificationConcurrency = in.readVInt();
+            this.verifyBlobContents = in.readBoolean();
+            this.maxBytesPerSec = ByteSizeValue.readFrom(in);
         }
 
         @Override
@@ -102,6 +115,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             out.writeVInt(snapshotVerificationConcurrency);
             out.writeVInt(indexVerificationConcurrency);
             out.writeVInt(indexSnapshotVerificationConcurrency);
+            out.writeBoolean(verifyBlobContents);
+            maxBytesPerSec.writeTo(out);
         }
 
         @Override
@@ -143,6 +158,14 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             return indexSnapshotVerificationConcurrency;
         }
 
+        public boolean getVerifyBlobContents() {
+            return verifyBlobContents;
+        }
+
+        public ByteSizeValue getMaxBytesPerSec() {
+            return maxBytesPerSec;
+        }
+
         public Request withResolvedDefaults(long currentTimeMillis, ThreadPool.Info threadPoolInfo) {
             if (org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex) == false
                 && threadPoolConcurrency > 0
@@ -162,7 +185,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 threadPoolConcurrency > 0 ? threadPoolConcurrency : halfMaxThreads,
                 snapshotVerificationConcurrency > 0 ? snapshotVerificationConcurrency : halfMaxThreads,
                 indexVerificationConcurrency > 0 ? indexVerificationConcurrency : maxThreads,
-                indexSnapshotVerificationConcurrency > 0 ? indexSnapshotVerificationConcurrency : 1
+                indexSnapshotVerificationConcurrency > 0 ? indexSnapshotVerificationConcurrency : 1,
+                verifyBlobContents,
+                maxBytesPerSec
             );
             request.masterNodeTimeout(masterNodeTimeout());
             return request;
@@ -179,6 +204,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         long indicesVerified,
         long indexSnapshotCount,
         long indexSnapshotsVerified,
+        long blobsVerified,
+        long blobBytesVerified,
+        long throttledNanos,
         long anomalyCount,
         String resultsIndex
     ) implements org.elasticsearch.tasks.Task.Status {
@@ -190,6 +218,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 in.readString(),
                 in.readVLong(),
                 in.readString(),
+                in.readVLong(),
+                in.readVLong(),
+                in.readVLong(),
                 in.readVLong(),
                 in.readVLong(),
                 in.readVLong(),
@@ -212,6 +243,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             out.writeVLong(indicesVerified);
             out.writeVLong(indexSnapshotCount);
             out.writeVLong(indexSnapshotsVerified);
+            out.writeVLong(blobsVerified);
+            out.writeVLong(blobBytesVerified);
+            out.writeVLong(throttledNanos);
             out.writeVLong(anomalyCount);
             out.writeString(resultsIndex);
         }
@@ -236,6 +270,15 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             builder.field("verified", indexSnapshotsVerified);
             builder.field("total", indexSnapshotCount);
             builder.endObject();
+            if (blobsVerified > 0 || blobBytesVerified > 0) {
+                builder.startObject("blobs");
+                builder.field("verified", blobsVerified);
+                if (blobBytesVerified > 0) {
+                    builder.humanReadableField("verified_size_in_bytes", "verified_size", ByteSizeValue.ofBytes(blobBytesVerified));
+                    builder.humanReadableField("throttled_nanos", "throttled_time", TimeValue.timeValueNanos(throttledNanos));
+                }
+                builder.endObject();
+            }
             builder.field("anomalies", anomalyCount);
             builder.field("results_index", resultsIndex);
             builder.endObject();
