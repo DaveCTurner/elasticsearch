@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexAction;
@@ -90,6 +91,10 @@ class MetadataVerifier implements Releasable {
         UNKNOWN_SNAPSHOT_FOR_INDEX,
     }
 
+    private static void mappedField(XContentBuilder builder, String fieldName, String type) throws IOException {
+        builder.startObject(fieldName).field("type", type).endObject();
+    }
+
     public static void run(
         BlobStoreRepository blobStoreRepository,
         Client client,
@@ -103,9 +108,62 @@ class MetadataVerifier implements Releasable {
         final var repositoryDataFuture = new ListenableActionFuture<RepositoryData>();
         blobStoreRepository.getRepositoryData(repositoryDataFuture);
 
-        // TODO define (strict) mappings for index
+        final var createIndex = client.admin().indices().prepareCreate(RESULTS_INDEX);
 
-        client.admin().indices().prepareCreate(RESULTS_INDEX).execute(new ActionListener<>() {
+        try (var builder = XContentFactory.jsonBuilder()) {
+            builder.startObject().startObject("_doc").field("dynamic", "strict").startObject("properties");
+
+            mappedField(builder, "@timestamp", "date");
+            mappedField(builder, "repository", "keyword");
+            mappedField(builder, "uuid", "keyword");
+            mappedField(builder, "repository_generation", "long");
+            mappedField(builder, "final_repository_generation", "long");
+            mappedField(builder, "cancelled", "boolean");
+            mappedField(builder, "completed", "boolean");
+            mappedField(builder, "total_anomalies", "long");
+
+            builder.startObject("error").field("type", "object").field("dynamic", "false").endObject();
+
+            builder.startObject("snapshot").startObject("properties");
+            mappedField(builder, "name", "keyword");
+            mappedField(builder, "id", "keyword");
+            mappedField(builder, "start_time", "date");
+            mappedField(builder, "end_time", "date");
+            builder.endObject().endObject();
+
+            builder.startObject("index").startObject("properties");
+            mappedField(builder, "name", "keyword");
+            mappedField(builder, "id", "keyword");
+            mappedField(builder, "metadata_blob", "keyword");
+            mappedField(builder, "shards", "long");
+            builder.endObject().endObject();
+
+            mappedField(builder, "shard", "long");
+            mappedField(builder, "anomaly", "keyword");
+            mappedField(builder, "blob_name", "keyword");
+            mappedField(builder, "part", "long");
+            mappedField(builder, "number_of_parts", "long");
+            mappedField(builder, "file_name", "keyword");
+            mappedField(builder, "file_length_in_bytes", "long");
+            mappedField(builder, "part_length_in_bytes", "long");
+            mappedField(builder, "actual_length_in_bytes", "long");
+            mappedField(builder, "restorability", "keyword");
+
+            mappedField(builder, "total_snapshots", "long");
+            mappedField(builder, "restorable_snapshots", "long");
+            mappedField(builder, "unrestorable_snapshots", "long");
+
+            builder.endObject();
+            builder.endObject();
+            builder.endObject();
+            createIndex.setMapping(builder);
+        } catch (Exception e) {
+            logger.error("error generating index mapping", e);
+            listener.onFailure(e);
+            return;
+        }
+
+        createIndex.execute(new ActionListener<>() {
             @Override
             public void onResponse(CreateIndexResponse createIndexResponse) {
                 onSuccess();
@@ -342,7 +400,7 @@ class MetadataVerifier implements Releasable {
                         "restorability",
                         totalSnapshotCount == restorableSnapshotCount ? "full" : 0 < restorableSnapshotCount ? "partial" : "none"
                     );
-                    builder.field("snapshots", totalSnapshotCount);
+                    builder.field("total_snapshots", totalSnapshotCount);
                     builder.field("restorable_snapshots", restorableSnapshotCount);
                     builder.field("unrestorable_snapshots", totalSnapshotCount - restorableSnapshotCount);
                     return builder;
@@ -824,7 +882,13 @@ class MetadataVerifier implements Releasable {
             }
 
             final var isRecursing = new AtomicBoolean(true);
-            client.bulk(bulkRequest, ActionListener.<BulkResponse>wrap(() -> {
+            client.bulk(bulkRequest, ActionListener.runAfter(ActionListener.<BulkResponse>wrap(bulkResponse -> {
+                for (BulkItemResponse bulkItemResponse : bulkResponse) {
+                    if (bulkItemResponse.isFailed()) {
+                        logger.error("error indexing result", bulkItemResponse.getFailure().getCause());
+                    }
+                }
+            }, e -> logger.error("error indexing results", e)), () -> {
                 resultsIndexingSemaphore.release();
                 for (final var completionAction : completionActions) {
                     completionAction.run();
@@ -832,9 +896,6 @@ class MetadataVerifier implements Releasable {
                 if (isRecursing.get() == false) {
                     processPendingResults();
                 }
-            }).delegateResponse((l, e) -> {
-                logger.error("error indexing results", e);
-                l.onFailure(e);
             }));
             isRecursing.set(false);
         }
@@ -876,8 +937,8 @@ class MetadataVerifier implements Releasable {
             builder.startObject("snapshot");
             builder.field("id", snapshotId.getUUID());
             builder.field("name", snapshotId.getName());
-            builder.field("start_time_millis", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
-            builder.field("end_time_millis", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
+            builder.field("start_time", dateFormatter.format(Instant.ofEpochMilli(startTimeMillis)));
+            builder.field("end_time", dateFormatter.format(Instant.ofEpochMilli(endTimeMillis)));
             builder.endObject();
         }
     }
