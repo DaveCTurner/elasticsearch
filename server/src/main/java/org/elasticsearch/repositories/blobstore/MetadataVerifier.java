@@ -21,7 +21,6 @@ import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepos
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
@@ -887,7 +886,7 @@ class MetadataVerifier implements Releasable {
             }
 
             final var isRecursing = new AtomicBoolean(true);
-            client.bulk(bulkRequest, ActionListener.runAfter(ActionListener.<BulkResponse>wrap(bulkResponse -> {
+            client.bulk(bulkRequest, ActionListener.runAfter(ActionListener.wrap(bulkResponse -> {
                 for (BulkItemResponse bulkItemResponse : bulkResponse) {
                     if (bulkItemResponse.isFailed()) {
                         logger.error("error indexing result", bulkItemResponse.getFailure().getCause());
