@@ -48,6 +48,7 @@ import static org.hamcrest.Matchers.not;
 public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase {
 
     private static final String REPOSITORY_NAME = "test-repo";
+    private static final String RESULTS_INDEX = "verify_results";
 
     private Releasable integrityCheckSuppressor;
 
@@ -231,7 +232,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         PlainActionFuture.<ActionResponse.Empty, RuntimeException>get(
             listener -> client().execute(
                 VerifyRepositoryIntegrityAction.INSTANCE,
-                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 0, 0, 0, 0),
+                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, RESULTS_INDEX, 0, 0, 0, 0),
                 listener
             ),
             30,
@@ -239,7 +240,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         assertEquals(
             0,
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new ExistsQueryBuilder("anomaly"))
                 .get()
@@ -248,7 +249,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         assertEquals(
             indexCount,
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new ExistsQueryBuilder("restorability"))
                 .setTrackTotalHits(true)
@@ -258,7 +259,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         assertEquals(
             indexCount,
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new TermQueryBuilder("restorability", "full"))
                 .setTrackTotalHits(true)
@@ -268,28 +269,25 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         assertEquals(
             0,
-            client().prepareSearch("metadata_verification_results")
-                .setSize(1)
-                .setQuery(new TermQueryBuilder("completed", true))
-                .get()
-                .getHits()
-                .getHits()[0].getSourceAsMap().get("total_anomalies")
+            client().prepareSearch(RESULTS_INDEX).setSize(1).setQuery(new TermQueryBuilder("completed", true)).get().getHits().getHits()[0]
+                .getSourceAsMap()
+                .get("total_anomalies")
         );
-        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+        assertAcked(client().admin().indices().prepareDelete(RESULTS_INDEX));
     }
 
     private void verifyAndGetAnomalies(long indexCount, Path damagedBlob, boolean truncate) {
         PlainActionFuture.<ActionResponse.Empty, RuntimeException>get(
             listener -> client().execute(
                 VerifyRepositoryIntegrityAction.INSTANCE,
-                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, Strings.EMPTY_ARRAY, 0, 0, 0, 0),
+                new VerifyRepositoryIntegrityAction.Request(REPOSITORY_NAME, RESULTS_INDEX, 0, 0, 0, 0),
                 listener
             ),
             30,
             TimeUnit.SECONDS
         );
         assertThat(
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(10000)
                 .setQuery(new ExistsQueryBuilder("anomaly"))
                 .get()
@@ -299,7 +297,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         assertEquals(
             indexCount,
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new ExistsQueryBuilder("restorability"))
                 .setTrackTotalHits(true)
@@ -309,7 +307,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         );
         final var damagedFileName = damagedBlob.getFileName().toString();
         assertThat(
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new TermQueryBuilder("restorability", "full"))
                 .setTrackTotalHits(true)
@@ -323,7 +321,7 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
                     : equalTo(indexCount)
         );
         assertThat(
-            (int) client().prepareSearch("metadata_verification_results")
+            (int) client().prepareSearch(RESULTS_INDEX)
                 .setSize(1)
                 .setQuery(new TermQueryBuilder("completed", true))
                 .get()
@@ -344,12 +342,12 @@ public class BlobStoreMetadataIntegrityIT extends AbstractSnapshotIntegTestCase 
         } else if (damagedFileName.startsWith(BlobStoreRepository.UPLOADED_DATA_BLOB_PREFIX)) {
             assertAnomaly(truncate ? MetadataVerifier.Anomaly.MISMATCHED_BLOB_LENGTH : MetadataVerifier.Anomaly.MISSING_BLOB);
         }
-        assertAcked(client().admin().indices().prepareDelete("metadata_verification_results"));
+        assertAcked(client().admin().indices().prepareDelete(RESULTS_INDEX));
     }
 
     private void assertAnomaly(MetadataVerifier.Anomaly anomaly) {
         assertThat(
-            client().prepareSearch("metadata_verification_results")
+            client().prepareSearch(RESULTS_INDEX)
                 .setSize(0)
                 .setQuery(new TermQueryBuilder("anomaly", anomaly.toString()))
                 .setTrackTotalHits(true)

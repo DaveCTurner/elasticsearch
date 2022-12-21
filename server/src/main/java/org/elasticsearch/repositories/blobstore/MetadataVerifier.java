@@ -59,7 +59,6 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -105,12 +104,17 @@ class MetadataVerifier implements Releasable {
         Consumer<Supplier<VerifyRepositoryIntegrityAction.Status>> statusSupplierConsumer,
         ActionListener<Void> listener
     ) {
-        logger.info("[{}] verifying metadata integrity and writing results to [{}]", verifyRequest.getRepository(), RESULTS_INDEX);
+
+        logger.info(
+            "[{}] verifying metadata integrity and writing results to [{}]",
+            verifyRequest.getRepository(),
+            verifyRequest.getResultsIndex()
+        );
 
         final var repositoryDataFuture = new ListenableActionFuture<RepositoryData>();
         blobStoreRepository.getRepositoryData(repositoryDataFuture);
 
-        final var createIndex = client.admin().indices().prepareCreate(RESULTS_INDEX);
+        final var createIndex = client.admin().indices().prepareCreate(verifyRequest.getResultsIndex());
 
         try (var builder = XContentFactory.jsonBuilder()) {
             builder.startObject().startObject("_doc").field("dynamic", "strict").startObject("properties");
@@ -245,7 +249,7 @@ class MetadataVerifier implements Releasable {
     private final Map<String, SnapshotDescription> snapshotDescriptionsById = ConcurrentCollections.newConcurrentMap();
     private final Semaphore threadPoolPermits;
     private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
-    private final Set<String> requestedIndices;
+    private final String resultsIndex;
 
     private final long snapshotCount;
     private final AtomicLong snapshotProgress = new AtomicLong();
@@ -270,7 +274,7 @@ class MetadataVerifier implements Releasable {
         this.isCancelledSupplier = isCancelledSupplier;
         this.finalListener = finalListener;
         this.threadPoolPermits = new Semaphore(Math.max(1, verifyRequest.getThreadPoolConcurrency()));
-        this.requestedIndices = Set.of(verifyRequest.getIndices());
+        this.resultsIndex = verifyRequest.getResultsIndex();
 
         this.snapshotCount = repositoryData.getSnapshotIds().size();
         this.indexCount = repositoryData.getIndices().size();
@@ -281,8 +285,6 @@ class MetadataVerifier implements Releasable {
     public void close() {
         finalRefs.decRef();
     }
-
-    private static final String RESULTS_INDEX = "metadata_verification_results";
 
     VerifyRepositoryIntegrityAction.Status getStatus() {
         return new VerifyRepositoryIntegrityAction.Status(
@@ -295,7 +297,8 @@ class MetadataVerifier implements Releasable {
             indexProgress.get(),
             indexSnapshotCount,
             indexSnapshotProgress.get(),
-            anomalyCount.get()
+            anomalyCount.get(),
+            resultsIndex
         );
     }
 
@@ -393,10 +396,6 @@ class MetadataVerifier implements Releasable {
         }
 
         void run() {
-            if (requestedIndices.isEmpty() == false && requestedIndices.contains(indexId.getName()) == false) {
-                return;
-            }
-
             runThrottled(
                 repositoryData.getSnapshots(indexId).iterator(),
                 this::verifyIndexSnapshot,
@@ -815,12 +814,12 @@ class MetadataVerifier implements Releasable {
         final var completionRefs = AbstractRefCounted.of(
             () -> client.admin()
                 .indices()
-                .prepareFlush(RESULTS_INDEX)
+                .prepareFlush(resultsIndex)
                 .execute(
                     finalListener.delegateFailure(
                         (l1, ignored1) -> client.admin()
                             .indices()
-                            .prepareRefresh(RESULTS_INDEX)
+                            .prepareRefresh(resultsIndex)
                             .execute(l1.delegateFailure((l2, ignored2) -> l2.onResponse(anomalyCount.get())))
                     )
                 )
@@ -913,7 +912,7 @@ class MetadataVerifier implements Releasable {
             builder.field("repository_generation", repositoryData.getGenId());
             toXContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
             builder.endObject();
-            return new IndexRequestBuilder(client, IndexAction.INSTANCE, RESULTS_INDEX).setSource(builder).request();
+            return new IndexRequestBuilder(client, IndexAction.INSTANCE, resultsIndex).setSource(builder).request();
         } catch (Exception e) {
             logger.error("error generating failure output", e);
             return null;

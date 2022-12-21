@@ -51,7 +51,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
     public static class Request extends MasterNodeReadRequest<Request> {
 
         private final String repository;
-        private final String[] indices;
+        private final String resultsIndex;
         private final int threadPoolConcurrency;
         private final int snapshotVerificationConcurrency;
         private final int indexVerificationConcurrency;
@@ -59,14 +59,14 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
 
         public Request(
             String repository,
-            String[] indices,
+            String resultsIndex,
             int threadPoolConcurrency,
             int snapshotVerificationConcurrency,
             int indexVerificationConcurrency,
             int indexSnapshotVerificationConcurrency
         ) {
-            this.repository = repository;
-            this.indices = Objects.requireNonNull(indices, "indices");
+            this.repository = Objects.requireNonNull(repository, "repository");
+            this.resultsIndex = Objects.requireNonNull(resultsIndex, "resultsIndex");
             this.threadPoolConcurrency = requireNonNegative("threadPoolConcurrency", threadPoolConcurrency);
             this.snapshotVerificationConcurrency = requireNonNegative("snapshotVerificationConcurrency", snapshotVerificationConcurrency);
             this.indexVerificationConcurrency = requireNonNegative("indexVerificationConcurrency", indexVerificationConcurrency);
@@ -86,7 +86,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         public Request(StreamInput in) throws IOException {
             super(in);
             this.repository = in.readString();
-            this.indices = in.readStringArray();
+            this.resultsIndex = in.readString();
             this.threadPoolConcurrency = in.readVInt();
             this.snapshotVerificationConcurrency = in.readVInt();
             this.indexVerificationConcurrency = in.readVInt();
@@ -97,7 +97,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
             out.writeString(repository);
-            out.writeStringArray(indices);
+            out.writeString(resultsIndex);
             out.writeVInt(threadPoolConcurrency);
             out.writeVInt(snapshotVerificationConcurrency);
             out.writeVInt(indexVerificationConcurrency);
@@ -123,8 +123,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             return repository;
         }
 
-        public String[] getIndices() {
-            return indices;
+        public String getResultsIndex() {
+            return resultsIndex;
         }
 
         public int getThreadPoolConcurrency() {
@@ -143,8 +143,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             return indexSnapshotVerificationConcurrency;
         }
 
-        public Request withDefaultThreadpoolConcurrency(ThreadPool.Info threadPoolInfo) {
-            if (threadPoolConcurrency > 0
+        public Request withResolvedDefaults(long currentTimeMillis, ThreadPool.Info threadPoolInfo) {
+            if (org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex) == false
+                && threadPoolConcurrency > 0
                 && snapshotVerificationConcurrency > 0
                 && indexVerificationConcurrency > 0
                 && indexSnapshotVerificationConcurrency > 0) {
@@ -155,7 +156,9 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             final var halfMaxThreads = Math.max(1, maxThreads / 2);
             final var request = new Request(
                 repository,
-                indices,
+                org.elasticsearch.common.Strings.isNullOrBlank(resultsIndex)
+                    ? ("repository-metadata-verification-" + repository + "-" + currentTimeMillis)
+                    : resultsIndex,
                 threadPoolConcurrency > 0 ? threadPoolConcurrency : halfMaxThreads,
                 snapshotVerificationConcurrency > 0 ? snapshotVerificationConcurrency : halfMaxThreads,
                 indexVerificationConcurrency > 0 ? indexVerificationConcurrency : maxThreads,
@@ -176,7 +179,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
         long indicesVerified,
         long indexSnapshotCount,
         long indexSnapshotsVerified,
-        long anomalyCount
+        long anomalyCount,
+        String resultsIndex
     ) implements org.elasticsearch.tasks.Task.Status {
 
         public static String NAME = "verify_repository_status";
@@ -192,7 +196,8 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 in.readVLong(),
                 in.readVLong(),
                 in.readVLong(),
-                in.readVLong()
+                in.readVLong(),
+                in.readString()
             );
         }
 
@@ -208,6 +213,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             out.writeVLong(indexSnapshotCount);
             out.writeVLong(indexSnapshotsVerified);
             out.writeVLong(anomalyCount);
+            out.writeString(resultsIndex);
         }
 
         @Override
@@ -231,6 +237,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             builder.field("total", indexSnapshotCount);
             builder.endObject();
             builder.field("anomalies", anomalyCount);
+            builder.field("results_index", resultsIndex);
             builder.endObject();
             return builder;
         }
@@ -316,7 +323,10 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                 .verifyMetadataIntegrity(
                     client,
                     transportService::newNetworkBytesStream,
-                    request.withDefaultThreadpoolConcurrency(clusterService.threadPool().info(ThreadPool.Names.SNAPSHOT_META)),
+                    request.withResolvedDefaults(
+                        clusterService.threadPool().absoluteTimeInMillis(),
+                        clusterService.threadPool().info(ThreadPool.Names.SNAPSHOT_META)
+                    ),
                     ActionListener.runAfter(
                         listener.map(ignored -> ActionResponse.Empty.INSTANCE),
                         () -> clusterService.removeListener(noLongerMasterListener)

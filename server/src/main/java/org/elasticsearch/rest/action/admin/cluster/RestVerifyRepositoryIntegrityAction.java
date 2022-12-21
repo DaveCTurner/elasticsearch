@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.repositories.integrity.VerifyRepositoryIntegrityAction;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -45,7 +44,7 @@ public class RestVerifyRepositoryIntegrityAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final var verifyRequest = new VerifyRepositoryIntegrityAction.Request(
             request.param("repository"),
-            request.paramAsStringArray("indices", Strings.EMPTY_ARRAY),
+            request.param("results_index", ""),
             request.paramAsInt("thread_pool_concurrency", 0),
             request.paramAsInt("snapshot_verification_concurrency", 0),
             request.paramAsInt("index_verification_concurrency", 0),
