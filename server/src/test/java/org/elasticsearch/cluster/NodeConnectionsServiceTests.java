@@ -120,12 +120,12 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                     continue;
                 }
 
-                logger.info("--> triggering disconnect from [{}]", connection.getNode());
+                logger.info("triggering disconnect from [{}]", connection.getNode());
                 PlainActionFuture.<Void, RuntimeException>get(future -> {
                     connection.addRemovedListener(future);
                     connection.close();
                 }, 10, TimeUnit.SECONDS);
-                logger.info("--> completed disconnect from [{}]", connection.getNode());
+                logger.info("completed disconnect from [{}]", connection.getNode());
             }
             logger.info("--> disruption thread done");
         }, "disruption thread");
@@ -133,10 +133,10 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
         for (int i = 0; i < 10; i++) {
             final DiscoveryNodes connectNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
-            logger.info("--> connecting to {}", connectNodes);
+            logger.info("[{}] connecting to {}", i, connectNodes);
             PlainActionFuture.get(future -> service.connectToNodes(connectNodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
             final DiscoveryNodes disconnectExceptNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
-            logger.info("--> disconnecting from all except {}", disconnectExceptNodes);
+            logger.info("[{}] disconnecting from all except {}", i, disconnectExceptNodes);
             service.disconnectFromNodesExcept(disconnectExceptNodes);
         }
 
