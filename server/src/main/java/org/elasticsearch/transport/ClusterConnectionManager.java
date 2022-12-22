@@ -216,20 +216,19 @@ public class ClusterConnectionManager implements ConnectionManager {
                 conn -> connectionValidator.validate(conn, resolvedProfile, ActionListener.runAfter(ActionListener.wrap(ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
                     try {
-                        logger.info("adding [{}] to connectedNodes", node);
                         if (connectedNodes.putIfAbsent(node, conn) != null) {
                             assert false : "redundant connection to " + node;
                             logger.warn("existing connection to node [{}], closing new redundant connection", node);
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
-                            logger.info("added [{}] to connectedNodes", node);
+                            logger.debug("connected to node [{}]", node);
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
                                 conn.addCloseListener(ActionListener.wrap(() -> {
-                                    logger.info("removing [{}] from connectedNodes in close listener", node);
+                                    logger.trace("removing [{}] from connectedNodes in close listener", node);
                                     var removed = connectedNodes.remove(node, conn);
-                                    logger.info("removed [{}] from connectedNodes in close listener: [{}]", node, removed);
+                                    logger.trace("removed [{}] from connectedNodes in close listener: [{}]", node, removed);
                                     connectionListener.onNodeDisconnected(node, conn);
                                     conn.onRemoved();
                                 }));
