@@ -64,6 +64,7 @@ import java.util.function.Predicate;
 import static java.util.Collections.emptySet;
 import static org.elasticsearch.cluster.NodeConnectionsService.CLUSTER_NODE_RECONNECT_INTERVAL_SETTING;
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 
 public class NodeConnectionsServiceTests extends ESTestCase {
@@ -512,9 +513,13 @@ public class NodeConnectionsServiceTests extends ESTestCase {
     }
 
     private void assertConnected(TransportService transportService, Iterable<DiscoveryNode> nodes) {
+        final var disconnectedNodes = new ArrayList<DiscoveryNode>();
         for (DiscoveryNode node : nodes) {
-            assertTrue("not connected to " + node, transportService.nodeConnected(node));
+            if (transportService.nodeConnected(node) == false) {
+                disconnectedNodes.add(node);
+            }
         }
+        assertThat("connected to all of " + nodes, disconnectedNodes, empty());
     }
 
     @Override
