@@ -32,6 +32,7 @@ import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.time.FormatNames;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.ThrottledIterator;
@@ -108,7 +109,7 @@ class MetadataVerifier implements Releasable {
         BlobStoreRepository blobStoreRepository,
         Client client,
         VerifyRepositoryIntegrityAction.Request verifyRequest,
-        BooleanSupplier isCancelledSupplier,
+        CancellableThreads cancellableThreads,
         Consumer<Supplier<VerifyRepositoryIntegrityAction.Status>> statusSupplierConsumer,
         ActionListener<Void> listener
     ) {
@@ -201,7 +202,7 @@ class MetadataVerifier implements Releasable {
                             client,
                             verifyRequest,
                             repositoryData,
-                            isCancelledSupplier,
+                            cancellableThreads,
                             createLoggingListener(l, repositoryData)
                         )
                     ) {
@@ -275,7 +276,7 @@ class MetadataVerifier implements Releasable {
         Client client,
         VerifyRepositoryIntegrityAction.Request verifyRequest,
         RepositoryData repositoryData,
-        BooleanSupplier isCancelledSupplier,
+        CancellableThreads cancellableThreads,
         ActionListener<Long> finalListener
     ) {
         this.blobStoreRepository = blobStoreRepository;
@@ -283,16 +284,16 @@ class MetadataVerifier implements Releasable {
         this.client = client;
         this.verifyRequest = verifyRequest;
         this.repositoryData = repositoryData;
-        this.isCancelledSupplier = isCancelledSupplier;
+        this.isCancelledSupplier = cancellableThreads::isCancelled;
         this.finalListener = finalListener;
         this.metadataExecutor = new ThrottlingExecutor(
-            new Semaphore(Math.max(1, verifyRequest.getMetaThreadPoolConcurrency())),
-            isCancelledSupplier,
+            verifyRequest.getMetaThreadPoolConcurrency(),
+            cancellableThreads,
             blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT_META)
         );
         this.snapshotExecutor = new ThrottlingExecutor(
-            new Semaphore(Math.max(1, verifyRequest.getBlobThreadPoolConcurrency())),
-            isCancelledSupplier,
+            verifyRequest.getBlobThreadPoolConcurrency(),
+            cancellableThreads,
             blobStoreRepository.threadPool().executor(ThreadPool.Names.SNAPSHOT)
         );
         this.resultsIndex = verifyRequest.getResultsIndex();
@@ -1042,13 +1043,13 @@ class MetadataVerifier implements Releasable {
 
     private static class ThrottlingExecutor {
         private final Semaphore threadPoolPermits;
-        private final BooleanSupplier isCancelledSupplier;
+        private final CancellableThreads cancellableThreads;
         private final ExecutorService executor;
         private final Queue<AbstractRunnable> executorQueue = ConcurrentCollections.newQueue();
 
-        ThrottlingExecutor(Semaphore threadPoolPermits, BooleanSupplier isCancelledSupplier, ExecutorService executor) {
-            this.threadPoolPermits = threadPoolPermits;
-            this.isCancelledSupplier = isCancelledSupplier;
+        ThrottlingExecutor(int concurrency, CancellableThreads cancellableThreads, ExecutorService executor) {
+            this.threadPoolPermits = new Semaphore(Math.max(1, concurrency));
+            this.cancellableThreads = cancellableThreads;
             this.executor = executor;
         }
 
@@ -1065,7 +1066,7 @@ class MetadataVerifier implements Releasable {
                     return;
                 }
 
-                if (isCancelledSupplier.getAsBoolean()) {
+                if (cancellableThreads.isCancelled()) {
                     try {
                         runnable.onFailure(new TaskCancelledException("task cancelled"));
                         continue;
@@ -1096,7 +1097,8 @@ class MetadataVerifier implements Releasable {
 
                     @Override
                     protected void doRun() {
-                        runnable.run();
+                        cancellableThreads.checkForCancel();
+                        cancellableThreads.execute(runnable::run);
                         onCompletion();
                     }
 

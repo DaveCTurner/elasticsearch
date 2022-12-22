@@ -68,6 +68,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
@@ -146,7 +147,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -3550,10 +3550,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         Supplier<RecyclerBytesStreamOutput> bytesStreamOutputSupplier,
         VerifyRepositoryIntegrityAction.Request request,
         ActionListener<Void> listener,
-        BooleanSupplier isCancelledSupplier,
+        CancellableThreads cancellableThreads,
         Consumer<Supplier<VerifyRepositoryIntegrityAction.Status>> statusSupplierConsumer
     ) {
-        MetadataVerifier.run(this, client, request, isCancelledSupplier, statusSupplierConsumer, listener);
+        MetadataVerifier.run(this, client, request, cancellableThreads, statusSupplierConsumer, listener);
     }
 
     public boolean supportURLRepo() {

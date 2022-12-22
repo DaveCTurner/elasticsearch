@@ -20,6 +20,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
@@ -34,7 +35,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -320,7 +320,7 @@ public interface Repository extends LifecycleComponent {
         Supplier<RecyclerBytesStreamOutput> bytesStreamOutputSupplier,
         VerifyRepositoryIntegrityAction.Request request,
         ActionListener<Void> listener,
-        BooleanSupplier isCancelledSupplier,
+        CancellableThreads cancellableThreads,
         Consumer<Supplier<VerifyRepositoryIntegrityAction.Status>> statusSupplierConsumer
     ) {
         listener.onFailure(new UnsupportedOperationException("this repository type does not support metadata integrity verification"));

@@ -26,6 +26,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.CancellableTask;
@@ -389,9 +390,12 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
             // TODO add mechanism to block blob deletions while this is running
             final var verifyTask = (Task) task;
 
+            final var cancellableThreads = new CancellableThreads();
+            verifyTask.addListener(() -> cancellableThreads.cancel("task cancelled"));
+
             final ClusterStateListener noLongerMasterListener = event -> {
                 if (event.localNodeMaster() == false) {
-                    transportService.getTaskManager().cancel(verifyTask, "no longer master", () -> {});
+                    cancellableThreads.cancel("no longer master");
                 }
             };
             clusterService.addListener(noLongerMasterListener);
@@ -408,7 +412,7 @@ public class VerifyRepositoryIntegrityAction extends ActionType<ActionResponse.E
                         listener.map(ignored -> ActionResponse.Empty.INSTANCE),
                         () -> clusterService.removeListener(noLongerMasterListener)
                     ),
-                    verifyTask::isCancelled,
+                    cancellableThreads,
                     verifyTask::setStatusSupplier
                 );
         }
