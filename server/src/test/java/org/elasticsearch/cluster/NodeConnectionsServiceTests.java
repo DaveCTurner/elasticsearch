@@ -97,9 +97,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         final AtomicBoolean keepGoing = new AtomicBoolean(true);
         final Thread reconnectionThread = new Thread(() -> {
             while (keepGoing.get()) {
-                final PlainActionFuture<Void> future = new PlainActionFuture<>();
-                service.ensureConnections(() -> future.onResponse(null));
-                future.actionGet();
+                PlainActionFuture.get(future -> service.ensureConnections(() -> future.onResponse(null)));
             }
         }, "reconnection thread");
         reconnectionThread.start();
@@ -116,27 +114,23 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                     continue;
                 }
 
-                final PlainActionFuture<Void> future = new PlainActionFuture<>();
-                connection.addRemovedListener(future);
-                connection.close();
-                future.actionGet(10, TimeUnit.SECONDS);
+                PlainActionFuture.<Void, RuntimeException>get(future -> {
+                    connection.addRemovedListener(future);
+                    connection.close();
+                }, 10, TimeUnit.SECONDS);
             }
         }, "disruption thread");
         disruptionThread.start();
 
         for (int i = 0; i < 10; i++) {
             final DiscoveryNodes connectNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
-            final PlainActionFuture<Void> future = new PlainActionFuture<>();
-            service.connectToNodes(connectNodes, () -> future.onResponse(null));
-            future.actionGet(10, TimeUnit.SECONDS);
+            PlainActionFuture.get(future -> service.connectToNodes(connectNodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
             final DiscoveryNodes disconnectExceptNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
             service.disconnectFromNodesExcept(disconnectExceptNodes);
         }
 
         final DiscoveryNodes nodes = discoveryNodesFromList(randomSubsetOf(allNodes));
-        final PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
-        service.connectToNodes(nodes, () -> connectFuture.onResponse(null));
-        connectFuture.actionGet(10, TimeUnit.SECONDS);
+        PlainActionFuture.get(future -> service.connectToNodes(nodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
         service.disconnectFromNodesExcept(nodes);
 
         assertTrue(keepGoing.compareAndSet(true, false));
@@ -144,9 +138,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         disruptionThread.join();
 
         if (isDisrupting) {
-            final PlainActionFuture<Void> ensureFuture = new PlainActionFuture<>();
-            service.ensureConnections(() -> ensureFuture.onResponse(null));
-            ensureFuture.actionGet(10, TimeUnit.SECONDS);
+            PlainActionFuture.get(future -> service.ensureConnections(() -> future.onResponse(null)), 10, TimeUnit.SECONDS);
         }
 
         assertBusy(() -> assertConnectedExactlyToNodes(nodes));
