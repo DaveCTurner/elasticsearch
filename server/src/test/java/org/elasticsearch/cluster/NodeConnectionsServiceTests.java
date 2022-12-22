@@ -91,14 +91,18 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         return builder.build();
     }
 
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.NodeConnectionsService:TRACE")
     public void testEventuallyConnectsOnlyToAppliedNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
         final AtomicBoolean keepGoing = new AtomicBoolean(true);
         final Thread reconnectionThread = new Thread(() -> {
             while (keepGoing.get()) {
+                logger.info("--> starting ensureConnections");
                 PlainActionFuture.get(future -> service.ensureConnections(() -> future.onResponse(null)));
+                logger.info("--> completed ensureConnections");
             }
+            logger.info("--> reconnection thread done");
         }, "reconnection thread");
         reconnectionThread.start();
 
@@ -114,34 +118,46 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                     continue;
                 }
 
+                logger.info("--> triggering disconnect from [{}]", connection.getNode());
                 PlainActionFuture.<Void, RuntimeException>get(future -> {
                     connection.addRemovedListener(future);
                     connection.close();
                 }, 10, TimeUnit.SECONDS);
+                logger.info("--> completed disconnect from [{}]", connection.getNode());
             }
+            logger.info("--> disruption thread done");
         }, "disruption thread");
         disruptionThread.start();
 
         for (int i = 0; i < 10; i++) {
             final DiscoveryNodes connectNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+            logger.info("--> connecting to {}", connectNodes);
             PlainActionFuture.get(future -> service.connectToNodes(connectNodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
             final DiscoveryNodes disconnectExceptNodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+            logger.info("--> disconnecting from all except {}", disconnectExceptNodes);
             service.disconnectFromNodesExcept(disconnectExceptNodes);
         }
 
         final DiscoveryNodes nodes = discoveryNodesFromList(randomSubsetOf(allNodes));
+        logger.info("--> connecting to final nodes: {}", nodes);
         PlainActionFuture.get(future -> service.connectToNodes(nodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
+        logger.info("--> disconnecting from all except final nodes: {}", nodes);
         service.disconnectFromNodesExcept(nodes);
 
+        logger.info("--> stopping background threads");
         assertTrue(keepGoing.compareAndSet(true, false));
         reconnectionThread.join();
         disruptionThread.join();
 
         if (isDisrupting) {
+            logger.info("--> final ensureConnections call");
             PlainActionFuture.get(future -> service.ensureConnections(() -> future.onResponse(null)), 10, TimeUnit.SECONDS);
         }
 
-        assertBusy(() -> assertConnectedExactlyToNodes(nodes));
+        assertBusy(() -> {
+            logger.info("--> checking connections to {}", nodes);
+            assertConnectedExactlyToNodes(nodes);
+        });
     }
 
     public void testPeriodicReconnection() {
