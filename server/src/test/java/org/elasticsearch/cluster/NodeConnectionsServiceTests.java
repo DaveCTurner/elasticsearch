@@ -91,7 +91,8 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         return builder.build();
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.NodeConnectionsService:TRACE")
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.NodeConnectionsService:TRACE," +
+                                          "org.elasticsearch.transport.ClusterConnectionManager:TRACE")
     public void testEventuallyConnectsOnlyToAppliedNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
