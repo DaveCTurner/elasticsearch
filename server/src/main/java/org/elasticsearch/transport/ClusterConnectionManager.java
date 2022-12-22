@@ -226,7 +226,9 @@ public class ClusterConnectionManager implements ConnectionManager {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
                                 conn.addCloseListener(ActionListener.wrap(() -> {
-                                    connectedNodes.remove(node, conn);
+                                    logger.trace("removing [{}] from connectedNodes in close listener", node);
+                                    var removed = connectedNodes.remove(node, conn);
+                                    logger.trace("removed [{}] from connectedNodes in close listener: [{}]", node, removed);
                                     connectionListener.onNodeDisconnected(node, conn);
                                     conn.onRemoved();
                                 }));
@@ -295,7 +297,9 @@ public class ClusterConnectionManager implements ConnectionManager {
      */
     @Override
     public void disconnectFromNode(DiscoveryNode node) {
+        logger.trace("removing [{}] from connectedNodes in disconnectFromNode", node);
         Transport.Connection nodeChannels = connectedNodes.remove(node);
+        logger.trace("removed [{}] from connectedNodes in disconnectFromNode: [{}]", node, nodeChannels != null);
         if (nodeChannels != null) {
             // if we found it and removed it we close
             nodeChannels.close();
