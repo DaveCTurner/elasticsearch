@@ -218,6 +218,7 @@ public class ClusterConnectionManager implements ConnectionManager {
             ActionListener.wrap(
                 conn -> connectionValidator.validate(conn, resolvedProfile, ActionListener.runAfter(ActionListener.wrap(ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
+                    final var managerRefs = AbstractRefCounted.of(conn::onRemoved);
                     try {
                         if (connectedNodes.putIfAbsent(node, conn) != null) {
                             assert false : "redundant connection to " + node;
@@ -225,6 +226,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
                             logger.debug("connected to node [{}]", node);
+                            managerRefs.incRef();
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
@@ -235,7 +237,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                                     var removed = connectedNodes.remove(node, conn);
                                     logger.trace("removed [{}] from connectedNodes in close listener: [{}]", node, removed);
                                     connectionListener.onNodeDisconnected(node, conn);
-                                    conn.onRemoved();
+                                    managerRefs.decRef();
                                 }));
 
                                 Thread.yield();
@@ -261,6 +263,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                         ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
                         logger.trace("removed [{}] from pendingConnections", node);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
+                        managerRefs.decRef();
                         releaseOnce.run();
                         future.onResponse(conn);
                     }
