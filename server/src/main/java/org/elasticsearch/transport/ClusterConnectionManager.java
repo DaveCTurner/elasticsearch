@@ -158,7 +158,7 @@ public class ClusterConnectionManager implements ConnectionManager {
 
                     @Override
                     public String toString() {
-                        return "release of acquired connection [" + connection + "]";
+                        return "release of acquired ref [" + connectionRefId + "] to connection [" + connection + "]";
                     }
                 }));
                 return;
