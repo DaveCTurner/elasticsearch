@@ -629,14 +629,14 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                         private final long connectionId = idGenerator.incrementAndGet();
 
                         {
-                            logger.info("--> creating connection [{}] to [{}]", connectionId, node);
+                            logger.info("creating connection [{}] to [{}]", connectionId, node);
                         }
 
                         private final ListenableActionFuture<Void> closeListener = new ListenableActionFuture<>();
                         private final ListenableActionFuture<Void> removedListener = new ListenableActionFuture<>();
 
                         private final RefCounted refCounted = AbstractRefCounted.of(() -> {
-                            logger.info("--> closing unused connection [{}] to [{}]", connectionId, node);
+                            logger.info("closing unused connection [{}] to [{}]", connectionId, node);
                             closeListener.onResponse(null);
                         });
 
@@ -656,7 +656,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
                         @Override
                         public void close() {
-                            logger.info("--> explicitly closing connection [{}] to [{}]", connectionId, node);
+                            logger.info("explicitly closing connection [{}] to [{}]", connectionId, node);
                             closeListener.onResponse(null);
                         }
 
