@@ -117,6 +117,14 @@ public class ClusterConnectionManager implements ConnectionManager {
         );
     }
 
+    private static void safeSleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            throw new AssertionError(e);
+        }
+    }
+
     /**
      * Connects to the given node, or acquires another reference to an existing connection to the given node if a connection already exists.
      * If a connection already exists but has been completely released (so it's in the process of closing) then this method will wait for
@@ -225,9 +233,12 @@ public class ClusterConnectionManager implements ConnectionManager {
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
                             logger.debug("connected to node [{}]", node);
+                            safeSleep(100);
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
+                                safeSleep(100);
+
                                 conn.addCloseListener(ActionListener.wrap(() -> {
                                     logger.trace("removing [{}] from connectedNodes in close listener", node);
                                     var removed = connectedNodes.remove(node, conn);
