@@ -284,9 +284,13 @@ public class ClusterConnectionManager implements ConnectionManager {
                         ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
                         logger.trace("removed [{}] from pendingConnections, [{}] no longer pending", node, conn);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
+                        Thread.yield();
                         managerRefs.decRef();
+                        Thread.yield();
                         releaseOnce.run();
+                        Thread.yield();
                         future.onResponse(conn);
+                        Thread.yield();
                     }
                 }, e -> {
                     assert Transports.assertNotTransportThread("connection validator failure");
