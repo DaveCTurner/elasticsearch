@@ -16,6 +16,7 @@ import org.elasticsearch.cluster.coordination.FollowersChecker;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterApplier;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Setting;
@@ -249,6 +250,13 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 transportService.connectToNode(discoveryNode, new ActionListener<>() {
                     @Override
                     public void onResponse(Releasable connectionReleasable) {
+
+                        try {
+                            Thread.sleep(Randomness.get().nextInt(100));
+                        } catch (InterruptedException e) {
+                            throw new AssertionError("unexpected", e);
+                        }
+
                         if (alreadyConnected) {
                             logger.trace(
                                 "[{}] [{}] refreshed connection to {}: [{}]",
