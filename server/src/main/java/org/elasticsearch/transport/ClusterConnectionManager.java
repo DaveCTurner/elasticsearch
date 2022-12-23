@@ -228,6 +228,8 @@ public class ClusterConnectionManager implements ConnectionManager {
                             try {
                                 connectionListener.onNodeConnected(node, conn);
                             } finally {
+                                Thread.yield();
+
                                 conn.addCloseListener(ActionListener.wrap(() -> {
                                     logger.trace("removing [{}] from connectedNodes in close listener", node);
                                     var removed = connectedNodes.remove(node, conn);
@@ -235,6 +237,8 @@ public class ClusterConnectionManager implements ConnectionManager {
                                     connectionListener.onNodeDisconnected(node, conn);
                                     conn.onRemoved();
                                 }));
+
+                                Thread.yield();
 
                                 conn.addCloseListener(ActionListener.wrap(() -> {
                                     if (connectingRefCounter.hasReferences() == false) {
@@ -252,7 +256,10 @@ public class ClusterConnectionManager implements ConnectionManager {
                             }
                         }
                     } finally {
+                        Thread.yield();
+                        logger.trace("removing [{}] from pendingConnections", node);
                         ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
+                        logger.trace("removed [{}] from pendingConnections", node);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
                         releaseOnce.run();
                         future.onResponse(conn);
