@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.elasticsearch.common.settings.Setting.Property;
@@ -213,14 +214,18 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         });
     }
 
+    private static AtomicLong idGenerator = new AtomicLong();
+
     private class ConnectionTarget {
         private final DiscoveryNode discoveryNode;
+        private final long targetId = idGenerator.incrementAndGet();
 
         private final AtomicInteger consecutiveFailureCount = new AtomicInteger();
         private final AtomicReference<Releasable> connectionRef = new AtomicReference<>();
 
         ConnectionTarget(DiscoveryNode discoveryNode) {
             this.discoveryNode = discoveryNode;
+            logger.trace("create connection target [{}] to [{}]", targetId, discoveryNode);
         }
 
         private void setConnectionRef(Releasable connectionReleasable) {
@@ -232,9 +237,9 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 final boolean alreadyConnected = transportService.nodeConnected(discoveryNode);
 
                 if (alreadyConnected) {
-                    logger.trace("refreshing connection to {}", discoveryNode);
+                    logger.trace("[{}] refreshing connection to {}", targetId, discoveryNode);
                 } else {
-                    logger.debug("connecting to {}", discoveryNode);
+                    logger.debug("[{}] connecting to {}", targetId, discoveryNode);
                 }
 
                 // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something
@@ -243,19 +248,24 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                     @Override
                     public void onResponse(Releasable connectionReleasable) {
                         if (alreadyConnected) {
-                            logger.trace("refreshed connection to {}", discoveryNode);
+                            logger.trace("[{}] refreshed connection to {}: [{}]", targetId, discoveryNode, connectionReleasable);
                         } else {
-                            logger.debug("connected to {}", discoveryNode);
+                            logger.debug("[{}] connected to {}: [{}]", targetId, discoveryNode, connectionReleasable);
                         }
                         consecutiveFailureCount.set(0);
                         setConnectionRef(connectionReleasable);
 
-                        final boolean isActive;
+                        final ConnectionTarget currentTarget;
                         synchronized (mutex) {
-                            isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
+                            currentTarget = targetsByNode.get(discoveryNode);
                         }
-                        if (isActive == false) {
-                            logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
+                        if (currentTarget != ConnectionTarget.this) {
+                            logger.debug(
+                                "[{}] connected to stale {}, superseded by {} - releasing stale connection",
+                                targetId,
+                                discoveryNode,
+                                currentTarget
+                            );
                             setConnectionRef(null);
                         }
                         if (listener != null) {
@@ -284,14 +294,12 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
         void disconnect() {
             setConnectionRef(null);
-            logger.debug("disconnected from {}", discoveryNode);
+            logger.debug("[{}] disconnected from {}", targetId, discoveryNode);
         }
 
         @Override
         public String toString() {
-            synchronized (mutex) {
-                return "ConnectionTarget{" + "discoveryNode=" + discoveryNode + '}';
-            }
+            return "ConnectionTarget{id=" + targetId + ",discoveryNode=" + discoveryNode + '}';
         }
     }
 }
