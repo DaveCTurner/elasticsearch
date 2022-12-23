@@ -21,6 +21,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
@@ -33,9 +34,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.elasticsearch.common.settings.Setting.Property;
 import static org.elasticsearch.common.settings.Setting.positiveTimeSetting;
@@ -117,7 +120,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 } else {
                     // known node, try and ensure it's connected but do not wait
                     logger.trace("checking connection to existing node [{}]", discoveryNode);
-                    runnables.add(connectionTarget.connect(null));
+                    runnables.add(connectionTarget.connect(NOOP));
                     runnables.add(() -> listener.onResponse(null));
                 }
             }
@@ -213,11 +216,16 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         });
     }
 
+    private static final ActionListener<Void> NOOP = ActionListener.noop();
+
     private class ConnectionTarget {
         private final DiscoveryNode discoveryNode;
 
         private final AtomicInteger consecutiveFailureCount = new AtomicInteger();
         private final AtomicReference<Releasable> connectionRef = new AtomicReference<>();
+
+        private final AtomicInteger pendingListenerCount = new AtomicInteger();
+        private final Queue<ActionListener<Void>> pendingListeners = ConcurrentCollections.newQueue();
 
         ConnectionTarget(DiscoveryNode discoveryNode) {
             this.discoveryNode = discoveryNode;
@@ -229,57 +237,77 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
         Runnable connect(ActionListener<Void> listener) {
             return () -> {
-                final boolean alreadyConnected = transportService.nodeConnected(discoveryNode);
+                pendingListeners.add(listener);
+                final var newListenerCount = pendingListenerCount.incrementAndGet();
+                assert newListenerCount >= 1;
+                if (newListenerCount == 1) {
+                    doConnect(1);
+                }
+            };
+        }
 
-                if (alreadyConnected) {
-                    logger.trace("refreshing connection to {}", discoveryNode);
-                } else {
-                    logger.debug("connecting to {}", discoveryNode);
+        private void doConnect(int listenerCount) {
+            final boolean alreadyConnected = transportService.nodeConnected(discoveryNode);
+
+            if (alreadyConnected) {
+                logger.trace("refreshing connection to {}", discoveryNode);
+            } else {
+                logger.debug("connecting to {}", discoveryNode);
+            }
+
+            // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something
+            // else has opened a fresh connection to the node. Therefore we always call connectToNode() and update connectionRef.
+            transportService.connectToNode(discoveryNode, new ActionListener<>() {
+                @Override
+                public void onResponse(Releasable connectionReleasable) {
+                    if (alreadyConnected) {
+                        logger.trace("refreshed connection to {}", discoveryNode);
+                    } else {
+                        logger.debug("connected to {}", discoveryNode);
+                    }
+                    consecutiveFailureCount.set(0);
+                    setConnectionRef(connectionReleasable);
+
+                    final boolean isActive;
+                    synchronized (mutex) {
+                        isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
+                    }
+                    if (isActive == false) {
+                        logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
+                        setConnectionRef(null);
+                    }
+
+                    completeListeners(l -> l.onResponse(null));
                 }
 
-                // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something
-                // else has opened a fresh connection to the node. Therefore we always call connectToNode() and update connectionRef.
-                transportService.connectToNode(discoveryNode, new ActionListener<>() {
-                    @Override
-                    public void onResponse(Releasable connectionReleasable) {
-                        if (alreadyConnected) {
-                            logger.trace("refreshed connection to {}", discoveryNode);
-                        } else {
-                            logger.debug("connected to {}", discoveryNode);
-                        }
-                        consecutiveFailureCount.set(0);
-                        setConnectionRef(connectionReleasable);
+                @Override
+                public void onFailure(Exception e) {
+                    final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
+                    // only warn every 6th failure
+                    final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
+                    logger.log(
+                        level,
+                        () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount),
+                        e
+                    );
+                    setConnectionRef(null);
+                    completeListeners(l -> l.onFailure(e));
+                }
 
-                        final boolean isActive;
-                        synchronized (mutex) {
-                            isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
-                        }
-                        if (isActive == false) {
-                            logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
-                            setConnectionRef(null);
-                        }
-                        if (listener != null) {
-                            listener.onResponse(null);
-                        }
+                private void completeListeners(Consumer<ActionListener<Void>> consumer) {
+                    for (int i = 0; i < listenerCount; i++) {
+                        final var listener = pendingListeners.poll();
+                        assert listener != null;
+                        consumer.accept(listener);
                     }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
-                        // only warn every 6th failure
-                        final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
-                        logger.log(
-                            level,
-                            () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount),
-                            e
-                        );
-                        setConnectionRef(null);
-                        if (listener != null) {
-                            listener.onFailure(e);
-                        }
+                    final int newListeners = pendingListenerCount.addAndGet(-listenerCount);
+                    assert newListeners >= 0;
+                    if (newListeners > 0) {
+                        threadPool.generic().execute(() -> doConnect(newListeners));
                     }
-                });
-            };
+                }
+            });
         }
 
         void disconnect() {
