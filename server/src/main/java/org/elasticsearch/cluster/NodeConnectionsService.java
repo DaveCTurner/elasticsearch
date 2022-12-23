@@ -258,7 +258,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                                 connectionReleasable
                             );
                         } else {
-                            logger.debug("[{}] [{}] connected to {}: [{}]", connectId, targetId, discoveryNode, connectionReleasable);
+                            logger.debug("[{}] [{}] connected to {}: [{}]", targetId, connectId, discoveryNode, connectionReleasable);
                         }
                         consecutiveFailureCount.set(0);
                         setConnectionRef(connectionReleasable);
