@@ -214,7 +214,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         });
     }
 
-    private static AtomicLong idGenerator = new AtomicLong();
+    private static final AtomicLong idGenerator = new AtomicLong();
 
     private class ConnectionTarget {
         private final DiscoveryNode discoveryNode;
