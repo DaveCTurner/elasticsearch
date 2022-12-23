@@ -177,6 +177,7 @@ public class ClusterConnectionManager implements ConnectionManager {
 
         final Transport.Connection existingConnection = connectedNodes.get(node);
         if (existingConnection != null) {
+            logger.trace("already connected to [{}]", node);
             connectingRefCounter.decRef();
             acquiringListener.onResponse(existingConnection);
             return;
@@ -185,6 +186,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         final ListenableFuture<Transport.Connection> currentListener = new ListenableFuture<>();
         final ListenableFuture<Transport.Connection> existingListener = pendingConnections.putIfAbsent(node, currentListener);
         if (existingListener != null) {
+            logger.trace("already connecting to [{}]", node);
             try {
                 // wait on previous entry to complete connection attempt
                 existingListener.addListener(acquiringListener);
@@ -201,6 +203,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         // extra connection to the node. We could _just_ check here, but checking up front skips the work to mark the connection as pending.
         final Transport.Connection existingConnectionRecheck = connectedNodes.get(node);
         if (existingConnectionRecheck != null) {
+            logger.trace("already just connected to [{}]", node);
             ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
             assert future == currentListener : "Listener in pending map is different than the expected listener";
             connectingRefCounter.decRef();
