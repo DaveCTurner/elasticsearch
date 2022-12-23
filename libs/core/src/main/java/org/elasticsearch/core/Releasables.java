@@ -102,9 +102,17 @@ public enum Releasables {
      */
     public static Releasable releaseOnce(final Releasable releasable) {
         final AtomicBoolean released = new AtomicBoolean(false);
-        return () -> {
-            if (released.compareAndSet(false, true)) {
-                releasable.close();
+        return new Releasable() {
+            @Override
+            public void close() {
+                if (released.compareAndSet(false, true)) {
+                    releasable.close();
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "releaseOnce[" + releasable + "]";
             }
         };
     }

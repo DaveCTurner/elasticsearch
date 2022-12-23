@@ -29,6 +29,7 @@ import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.RefCounted;
+import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
@@ -58,6 +59,7 @@ import java.util.Set;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -92,8 +94,10 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         return builder.build();
     }
 
-    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.NodeConnectionsService:TRACE," +
-                                          "org.elasticsearch.transport.ClusterConnectionManager:TRACE")
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.NodeConnectionsService:TRACE," + "org.elasticsearch.transport.ClusterConnectionManager:TRACE"
+    )
     public void testEventuallyConnectsOnlyToAppliedNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
@@ -569,6 +573,8 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
     }
 
+    private static final AtomicLong idGenerator = new AtomicLong();
+
     private final class MockTransport implements Transport {
         private final ResponseHandlers responseHandlers = new ResponseHandlers();
         private final RequestHandlers requestHandlers = new RequestHandlers();
@@ -620,10 +626,19 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                 threadPool.generic().execute(() -> {
                     runConnectionBlock(connectionBlock);
                     listener.onResponse(new Connection() {
+                        private final long connectionId = idGenerator.incrementAndGet();
+
+                        {
+                            logger.info("--> creating connection [{}] to [{}]", connectionId, node);
+                        }
+
                         private final ListenableActionFuture<Void> closeListener = new ListenableActionFuture<>();
                         private final ListenableActionFuture<Void> removedListener = new ListenableActionFuture<>();
 
-                        private final RefCounted refCounted = AbstractRefCounted.of(() -> closeListener.onResponse(null));
+                        private final RefCounted refCounted = AbstractRefCounted.of(() -> {
+                            logger.info("--> closing unused connection [{}] to [{}]", connectionId, node);
+                            closeListener.onResponse(null);
+                        });
 
                         @Override
                         public DiscoveryNode getNode() {
@@ -641,6 +656,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
                         @Override
                         public void close() {
+                            logger.info("--> explicitly closing connection [{}] to [{}]", connectionId, node);
                             closeListener.onResponse(null);
                         }
 
@@ -677,6 +693,11 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                         @Override
                         public boolean hasReferences() {
                             return refCounted.hasReferences();
+                        }
+
+                        @Override
+                        public String toString() {
+                            return Strings.format("connection [%d] to [%s]", connectionId, node);
                         }
                     });
                 });

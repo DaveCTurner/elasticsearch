@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class manages node connections within a cluster. The connection is opened by the underlying transport.
@@ -117,6 +118,8 @@ public class ClusterConnectionManager implements ConnectionManager {
         );
     }
 
+    private static final AtomicLong idGenerator = new AtomicLong();
+
     /**
      * Connects to the given node, or acquires another reference to an existing connection to the given node if a connection already exists.
      * If a connection already exists but has been completely released (so it's in the process of closing) then this method will wait for
@@ -143,7 +146,21 @@ public class ClusterConnectionManager implements ConnectionManager {
 
         final ActionListener<Transport.Connection> acquiringListener = listener.delegateFailure((delegate, connection) -> {
             if (connection.tryIncRef()) {
-                delegate.onResponse(Releasables.releaseOnce(connection::decRef));
+                final var connectionRefId = idGenerator.incrementAndGet();
+                logger.trace("acquired ref [{}] to [{}]", connectionRefId, connection);
+                delegate.onResponse(Releasables.releaseOnce(new Releasable() {
+                    @Override
+                    public void close() {
+                        logger.trace("releasing ref [{}] to [{}]", connectionRefId, connection);
+                        connection.decRef();
+                        logger.trace("released ref [{}] to [{}]", connectionRefId, connection);
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "release of acquired connection [" + connection + "]";
+                    }
+                }));
                 return;
             }
 
@@ -225,7 +242,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                             logger.warn("existing connection to node [{}], closing new redundant connection", node);
                             IOUtils.closeWhileHandlingException(conn);
                         } else {
-                            logger.debug("connected to node [{}]", node);
+                            logger.debug("connected to node [{}] with [{}]", node, conn);
                             managerRefs.incRef();
                             try {
                                 connectionListener.onNodeConnected(node, conn);
@@ -233,9 +250,9 @@ public class ClusterConnectionManager implements ConnectionManager {
                                 Thread.yield();
 
                                 conn.addCloseListener(ActionListener.wrap(() -> {
-                                    logger.trace("removing [{}] from connectedNodes in close listener", node);
+                                    logger.trace("removing [{}] from connectedNodes in close listener for [{}]", node, conn);
                                     var removed = connectedNodes.remove(node, conn);
-                                    logger.trace("removed [{}] from connectedNodes in close listener: [{}]", node, removed);
+                                    logger.trace("removed [{}] from connectedNodes in close listener for [{}]: [{}]", node, removed, conn);
                                     connectionListener.onNodeDisconnected(node, conn);
                                     managerRefs.decRef();
                                 }));
@@ -246,22 +263,26 @@ public class ClusterConnectionManager implements ConnectionManager {
                                     if (connectingRefCounter.hasReferences() == false) {
                                         logger.trace("connection manager shut down, closing transport connection to [{}]", node);
                                     } else if (conn.hasReferences()) {
-                                        logger.info("transport connection to [{}] closed by remote", node.descriptionWithoutAttributes());
+                                        logger.info(
+                                            "transport connection [{}] to [{}] closed by remote",
+                                            conn,
+                                            node.descriptionWithoutAttributes()
+                                        );
                                         // In production code we only close connections via ref-counting, so this message confirms that a
                                         // 'node-left ... reason: disconnected' event was caused by external factors. Put differently, if a
                                         // node leaves the cluster with "reason: disconnected" but without this message being logged then
                                         // that's a bug.
                                     } else {
-                                        logger.debug("closing unused transport connection to [{}]", node);
+                                        logger.debug("closing unused transport connection [{}] to [{}]", conn, node);
                                     }
                                 }));
                             }
                         }
                     } finally {
                         Thread.yield();
-                        logger.trace("removing [{}] from pendingConnections", node);
+                        logger.trace("removing [{}] from pendingConnections, [{}] no longer pending", node, conn);
                         ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
-                        logger.trace("removed [{}] from pendingConnections", node);
+                        logger.trace("removed [{}] from pendingConnections, [{}] no longer pending", node, conn);
                         assert future == currentListener : "Listener in pending map is different than the expected listener";
                         managerRefs.decRef();
                         releaseOnce.run();
@@ -271,7 +292,11 @@ public class ClusterConnectionManager implements ConnectionManager {
                     assert Transports.assertNotTransportThread("connection validator failure");
                     IOUtils.closeWhileHandlingException(conn);
                     failConnectionListener(node, releaseOnce, e, currentListener);
-                }), conn::decRef)),
+                }), () -> {
+                    logger.trace("releasing manager ref for [{}]", conn);
+                    conn.decRef();
+                    logger.trace("released manager ref for [{}]", conn);
+                })),
                 e -> {
                     assert Transports.assertNotTransportThread("internalOpenConnection failure");
                     failConnectionListener(node, releaseOnce, e, currentListener);
