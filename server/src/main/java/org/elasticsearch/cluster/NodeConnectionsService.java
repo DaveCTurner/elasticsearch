@@ -215,6 +215,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
     }
 
     private static final AtomicLong idGenerator = new AtomicLong();
+    private static final AtomicLong connectIdGenerator = new AtomicLong();
 
     private class ConnectionTarget {
         private final DiscoveryNode discoveryNode;
@@ -235,11 +236,12 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         Runnable connect(ActionListener<Void> listener) {
             return () -> {
                 final boolean alreadyConnected = transportService.nodeConnected(discoveryNode);
+                final long connectId = connectIdGenerator.incrementAndGet();
 
                 if (alreadyConnected) {
-                    logger.trace("[{}] refreshing connection to {}", targetId, discoveryNode);
+                    logger.trace("[{}] [{}] refreshing connection to {}", targetId, connectId, discoveryNode);
                 } else {
-                    logger.debug("[{}] connecting to {}", targetId, discoveryNode);
+                    logger.debug("[{}] [{}] connecting to {}", targetId, connectId, discoveryNode);
                 }
 
                 // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something
@@ -248,9 +250,15 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                     @Override
                     public void onResponse(Releasable connectionReleasable) {
                         if (alreadyConnected) {
-                            logger.trace("[{}] refreshed connection to {}: [{}]", targetId, discoveryNode, connectionReleasable);
+                            logger.trace(
+                                "[{}] [{}] refreshed connection to {}: [{}]",
+                                targetId,
+                                connectId,
+                                discoveryNode,
+                                connectionReleasable
+                            );
                         } else {
-                            logger.debug("[{}] connected to {}: [{}]", targetId, discoveryNode, connectionReleasable);
+                            logger.debug("[{}] [{}] connected to {}: [{}]", connectId, targetId, discoveryNode, connectionReleasable);
                         }
                         consecutiveFailureCount.set(0);
                         setConnectionRef(connectionReleasable);
@@ -261,8 +269,9 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                         }
                         if (currentTarget != ConnectionTarget.this) {
                             logger.debug(
-                                "[{}] connected to stale {}, superseded by {} - releasing stale connection",
+                                "[{}] [{}] connected to stale {}, superseded by {} - releasing stale connection",
                                 targetId,
+                                connectId,
                                 discoveryNode,
                                 currentTarget
                             );
