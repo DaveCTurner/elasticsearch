@@ -11,6 +11,7 @@ package org.elasticsearch.cluster;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.Build;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
@@ -611,7 +612,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             try {
                 connectionBlock.run();
             } catch (Exception e) {
-                throw new AssertionError(e);
+                ExceptionsHelper.maybeDieOnAnotherThread(new AssertionError(e));
             }
         }
 
