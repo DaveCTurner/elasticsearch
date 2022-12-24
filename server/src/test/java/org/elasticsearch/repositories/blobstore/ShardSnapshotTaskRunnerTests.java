@@ -11,10 +11,10 @@ package org.elasticsearch.repositories.blobstore;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.shard.ShardId;
@@ -68,15 +68,17 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
 
         public void snapshotShard(SnapshotShardContext context) {
             int filesToUpload = randomIntBetween(0, 10);
-            if (filesToUpload == 0) {
-                finishedShardSnapshots.incrementAndGet();
-            } else {
-                expectedFileSnapshotTasks.addAndGet(filesToUpload);
-                ActionListener<Void> uploadListener = new CountDownActionListener(filesToUpload, finishedShardSnapshots::incrementAndGet);
-                for (int i = 0; i < filesToUpload; i++) {
-                    taskRunner.enqueueFileSnapshot(context, ShardSnapshotTaskRunnerTests::dummyFileInfo, uploadListener);
-                }
+            var shardSnapshotRefs = AbstractRefCounted.of(finishedShardSnapshots::incrementAndGet);
+            expectedFileSnapshotTasks.addAndGet(filesToUpload);
+            for (int i = 0; i < filesToUpload; i++) {
+                shardSnapshotRefs.incRef();
+                taskRunner.enqueueFileSnapshot(
+                    context,
+                    ShardSnapshotTaskRunnerTests::dummyFileInfo,
+                    ActionListener.wrap(shardSnapshotRefs::decRef)
+                );
             }
+            shardSnapshotRefs.decRef();
             finishedShardSnapshotTasks.incrementAndGet();
         }
 

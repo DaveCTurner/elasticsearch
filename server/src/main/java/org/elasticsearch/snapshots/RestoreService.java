@@ -14,7 +14,6 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -59,6 +58,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.Tuple;
@@ -251,7 +251,11 @@ public class RestoreService implements ClusterStateApplier {
         try {
             // Try and fill in any missing repository UUIDs in case they're needed during the restore
             final StepListener<Void> repositoryUuidRefreshListener = new StepListener<>();
-            refreshRepositoryUuids(refreshRepositoryUuidOnRestore, repositoriesService, repositoryUuidRefreshListener);
+            refreshRepositoryUuids(
+                refreshRepositoryUuidOnRestore,
+                repositoriesService,
+                () -> repositoryUuidRefreshListener.onResponse(null)
+            );
 
             // Read snapshot info and metadata from the repository
             final String repositoryName = request.repository();
@@ -493,59 +497,52 @@ public class RestoreService implements ClusterStateApplier {
      *
      * @param enabled If {@code false} this method completes the listener immediately
      * @param repositoriesService Supplies the repositories to check
-     * @param refreshListener Listener that is completed when all repositories have been refreshed.
+     * @param onCompletion Action that is run when all repositories have been refreshed.
      */
     // Exposed for tests
-    static void refreshRepositoryUuids(boolean enabled, RepositoriesService repositoriesService, ActionListener<Void> refreshListener) {
+    static void refreshRepositoryUuids(boolean enabled, RepositoriesService repositoriesService, Runnable onCompletion) {
 
-        if (enabled == false) {
-            logger.debug("repository UUID refresh is disabled");
-            refreshListener.onResponse(null);
-            return;
-        }
+        final var refreshRefs = AbstractRefCounted.of(onCompletion);
+        try {
+            if (enabled == false) {
+                logger.debug("repository UUID refresh is disabled");
+                return;
+            }
 
-        // We only care about BlobStoreRepositories because they're the only ones that can contain a searchable snapshot, and we only care
-        // about ones with missing UUIDs. It's possible to have the UUID change from under us if, e.g., the repository was wiped by an
-        // external force, but in this case any searchable snapshots are lost anyway so it doesn't really matter.
-        final List<Repository> repositories = repositoriesService.getRepositories()
-            .values()
-            .stream()
-            .filter(
-                repository -> repository instanceof BlobStoreRepository
-                    && repository.getMetadata().uuid().equals(RepositoryData.MISSING_UUID)
-            )
-            .toList();
-        if (repositories.isEmpty()) {
-            logger.debug("repository UUID refresh is not required");
-            refreshListener.onResponse(null);
-            return;
-        }
+            var refreshing = false;
+            for (final var repository : repositoriesService.getRepositories().values()) {
+                if (repository instanceof BlobStoreRepository && repository.getMetadata().uuid().equals(RepositoryData.MISSING_UUID)) {
+                    // We only care about BlobStoreRepositories because they're the only ones that can contain a searchable snapshot, and we
+                    // only care about ones with missing UUIDs. It's possible to have the UUID change from under us if, e.g., the repository
+                    // was wiped by an external force, but in this case any searchable snapshots are lost anyway so it doesn't really
+                    // matter.
 
-        logger.info(
-            "refreshing repository UUIDs for repositories [{}]",
-            repositories.stream().map(repository -> repository.getMetadata().name()).collect(Collectors.joining(","))
-        );
-        final ActionListener<RepositoryData> countDownListener = new CountDownActionListener(
-            repositories.size(),
-            new ActionListener<Void>() {
-                @Override
-                public void onResponse(Void ignored) {
-                    logger.debug("repository UUID refresh completed");
-                    refreshListener.onResponse(null);
-                }
+                    final var repositoryName = repository.getMetadata().name();
+                    logger.info("refreshing repository UUID for repository [{}]", repositoryName);
+                    refreshing = true;
+                    refreshRefs.incRef();
+                    repository.getRepositoryData(new ActionListener<>() {
+                        @Override
+                        public void onResponse(RepositoryData ignored) {
+                            logger.debug("repository [{}] UUID refresh completed", repositoryName);
+                            refreshRefs.decRef();
+                        }
 
-                @Override
-                public void onFailure(Exception e) {
-                    logger.debug("repository UUID refresh failed", e);
-                    refreshListener.onResponse(null); // this refresh is best-effort, the restore should proceed either way
+                        @Override
+                        public void onFailure(Exception e) {
+                            logger.debug(() -> format("repository [%s] UUID refresh failed", repositoryName), e);
+                            refreshRefs.decRef();
+                        }
+                    });
                 }
             }
-        ).map(repositoryData -> null /* don't collect the RepositoryData */);
 
-        for (Repository repository : repositories) {
-            repository.getRepositoryData(countDownListener);
+            if (refreshing == false) {
+                logger.debug("repository UUID refresh is not required");
+            }
+        } finally {
+            refreshRefs.decRef();
         }
-
     }
 
     private boolean isSystemIndex(IndexMetadata indexMetadata) {

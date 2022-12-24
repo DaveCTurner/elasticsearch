@@ -22,7 +22,6 @@ import org.elasticsearch.action.bulk.TransportBulkAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.ingest.DeletePipelineRequest;
 import org.elasticsearch.action.ingest.PutPipelineRequest;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -46,6 +45,7 @@ import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.env.Environment;
@@ -687,16 +687,12 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
             @Override
             protected void doRun() {
                 final Thread originalThread = Thread.currentThread();
-                final ActionListener<Void> onFinished = new CountDownActionListener(
-                    numberOfActionRequests,
-                    () -> onCompletion.accept(originalThread, null)
-                );
+                final var refs = AbstractRefCounted.of(() -> onCompletion.accept(originalThread, null));
 
                 int i = 0;
                 for (DocWriteRequest<?> actionRequest : actionRequests) {
                     IndexRequest indexRequest = TransportBulkAction.getIndexWriteRequest(actionRequest);
                     if (indexRequest == null) {
-                        onFinished.onResponse(null);
                         i++;
                         continue;
                     }
@@ -716,15 +712,17 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
                     } else if (IngestService.NOOP_PIPELINE_NAME.equals(finalPipelineId) == false) {
                         pipelines = List.of(finalPipelineId);
                     } else {
-                        onFinished.onResponse(null);
                         i++;
                         continue;
                     }
 
-                    executePipelines(i, pipelines.iterator(), hasFinalPipeline, indexRequest, onDropped, onFailure, onFinished);
+                    refs.incRef();
+                    executePipelines(i, pipelines.iterator(), hasFinalPipeline, indexRequest, onDropped, onFailure, refs::decRef);
 
                     i++;
                 }
+
+                refs.decRef();
             }
         });
     }
@@ -736,7 +734,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
         final IndexRequest indexRequest,
         final IntConsumer onDropped,
         final BiConsumer<Integer, Exception> onFailure,
-        final ActionListener<Void> onFinished
+        final Runnable onFinished
     ) {
         assert it.hasNext();
         final String pipelineId = it.next();
@@ -765,7 +763,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
                     );
                     onFailure.accept(slot, e);
                     // document failed! no further processing of this doc
-                    onFinished.onResponse(null);
+                    onFinished.run();
                     return;
                 }
 
@@ -781,7 +779,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
                             new IllegalStateException("final pipeline [" + pipelineId + "] can't change the target index")
                         );
                         // document failed! no further processing of this doc
-                        onFinished.onResponse(null);
+                        onFinished.run();
                         return;
                     } else {
                         indexRequest.isPipelineResolved(false);
@@ -798,7 +796,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
                 if (newIt.hasNext()) {
                     executePipelines(slot, newIt, newHasFinalPipeline, indexRequest, onDropped, onFailure, onFinished);
                 } else {
-                    onFinished.onResponse(null);
+                    onFinished.run();
                 }
             });
         } catch (Exception e) {
@@ -807,7 +805,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
                 e
             );
             onFailure.accept(slot, e);
-            onFinished.onResponse(null);
+            onFinished.run();
         }
     }
 

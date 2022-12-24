@@ -14,11 +14,12 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ResultDeduplicator;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.support.ChannelActionListener;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.action.support.GroupedActionListener;
+import org.elasticsearch.action.support.RefCountingListeners;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -100,31 +101,38 @@ public class TaskCancellationService {
         if (task.shouldCancelChildrenOnCancellation()) {
             logger.trace("cancelling task [{}] and its descendants", taskId);
             StepListener<Void> completedListener = new StepListener<>();
-            CountDownActionListener countDownListener = new CountDownActionListener(3, completedListener);
-            Collection<Transport.Connection> childConnections = taskManager.startBanOnChildTasks(task.getId(), reason, () -> {
-                logger.trace("child tasks of parent [{}] are completed", taskId);
-                countDownListener.onResponse(null);
-            });
-            taskManager.cancel(task, reason, () -> {
-                logger.trace("task [{}] is cancelled", taskId);
-                countDownListener.onResponse(null);
-            });
-            StepListener<Void> setBanListener = new StepListener<>();
-            setBanOnChildConnections(reason, waitForCompletion, task, childConnections, setBanListener);
-            setBanListener.addListener(countDownListener);
-            // If we start unbanning when the last child task completed and that child task executed with a specific user, then unban
-            // requests are denied because internal requests can't run with a user. We need to remove bans with the current thread context.
-            final Runnable removeBansRunnable = transportService.getThreadPool()
-                .getThreadContext()
-                .preserveContext(() -> removeBanOnChildConnections(task, childConnections));
-            // We remove bans after all child tasks are completed although in theory we can do it on a per-connection basis.
-            completedListener.whenComplete(r -> removeBansRunnable.run(), e -> removeBansRunnable.run());
-            // if wait_for_completion is true, then only return when (1) bans are placed on child connections, (2) child tasks are
-            // completed or failed, (3) the main task is cancelled. Otherwise, return after bans are placed on child connections.
-            if (waitForCompletion) {
-                completedListener.addListener(listener);
-            } else {
-                setBanListener.addListener(listener);
+            try (var listeners = new RefCountingListeners(completedListener)) {
+                var childrenBannedListener = listeners.acquire();
+                Collection<Transport.Connection> childConnections = taskManager.startBanOnChildTasks(task.getId(), reason, () -> {
+                    logger.trace("child tasks of parent [{}] are completed", taskId);
+                    childrenBannedListener.onResponse(null);
+                });
+
+                var taskCancelledListener = listeners.acquire();
+                taskManager.cancel(task, reason, () -> {
+                    logger.trace("task [{}] is cancelled", taskId);
+                    taskCancelledListener.onResponse(null);
+                });
+
+                StepListener<Void> setBanListener = new StepListener<>();
+                setBanOnChildConnections(reason, waitForCompletion, task, childConnections, setBanListener);
+
+                setBanListener.addListener(listeners.acquire());
+                // If we start unbanning when the last child task completed and that child task executed with a specific user, then unban
+                // requests are denied because internal requests can't run with a user. We need to remove bans with the current thread
+                // context.
+                final Runnable removeBansRunnable = transportService.getThreadPool()
+                    .getThreadContext()
+                    .preserveContext(() -> removeBanOnChildConnections(task, childConnections));
+                // We remove bans after all child tasks are completed although in theory we can do it on a per-connection basis.
+                completedListener.whenComplete(r -> removeBansRunnable.run(), e -> removeBansRunnable.run());
+                // if wait_for_completion is true, then only return when (1) bans are placed on child connections, (2) child tasks are
+                // completed or failed, (3) the main task is cancelled. Otherwise, return after bans are placed on child connections.
+                if (waitForCompletion) {
+                    completedListener.addListener(listener);
+                } else {
+                    setBanListener.addListener(listener);
+                }
             }
         } else {
             logger.trace("task [{}] doesn't have any children that should be cancelled", taskId);
@@ -150,24 +158,19 @@ public class TaskCancellationService {
         }
         final TaskId taskId = new TaskId(localNodeId(), task.getId());
         logger.trace("cancelling child tasks of [{}] on child connections {}", taskId, childConnections);
-        CountDownActionListener countDownListener = new CountDownActionListener(childConnections.size(), listener);
-        final BanParentTaskRequest banRequest = BanParentTaskRequest.createSetBanParentTaskRequest(taskId, reason, waitForCompletion);
-        for (Transport.Connection connection : childConnections) {
-            assert TransportService.unwrapConnection(connection) == connection : "Child connection must be unwrapped";
-            transportService.sendRequest(
-                connection,
-                BAN_PARENT_ACTION_NAME,
-                banRequest,
-                TransportRequestOptions.EMPTY,
-                new EmptyTransportResponseHandler(ThreadPool.Names.SAME) {
-                    @Override
-                    public void handleResponse(TransportResponse.Empty response) {
+        try (var childListeners = new RefCountingListeners(listener)) {
+            final BanParentTaskRequest banRequest = BanParentTaskRequest.createSetBanParentTaskRequest(taskId, reason, waitForCompletion);
+            for (Transport.Connection connection : childConnections) {
+                assert TransportService.unwrapConnection(connection) == connection : "Child connection must be unwrapped";
+                transportService.sendRequest(
+                    connection,
+                    BAN_PARENT_ACTION_NAME,
+                    banRequest,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(childListeners.acquire().map(r -> {
                         logger.trace("sent ban for tasks with the parent [{}] for connection [{}]", taskId, connection);
-                        countDownListener.onResponse(null);
-                    }
-
-                    @Override
-                    public void handleException(TransportException exp) {
+                        return null;
+                    }).delegateResponse((l, exp) -> {
                         final Throwable cause = ExceptionsHelper.unwrapCause(exp);
                         assert cause instanceof ElasticsearchSecurityException == false;
                         if (isUnimportantBanFailure(cause)) {
@@ -188,11 +191,10 @@ public class TaskCancellationService {
                                 exp.getMessage()
                             );
                         }
-
-                        countDownListener.onFailure(exp);
-                    }
-                }
-            );
+                        l.onFailure(exp);
+                    }), in -> TransportResponse.Empty.INSTANCE, ThreadPool.Names.SAME)
+                );
+            }
         }
     }
 

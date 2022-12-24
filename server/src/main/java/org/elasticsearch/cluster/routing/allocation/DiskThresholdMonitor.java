@@ -11,7 +11,6 @@ package org.elasticsearch.cluster.routing.allocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterState;
@@ -31,6 +30,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.set.Sets;
+import org.elasticsearch.core.AbstractRefCounted;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -301,12 +301,12 @@ public class DiskThresholdMonitor {
             }
         }
 
-        final ActionListener<Void> listener = new CountDownActionListener(3, this::checkFinished);
+        final var checkRefs = AbstractRefCounted.of(this::checkFinished);
 
         if (reroute) {
             logger.debug("rerouting shards: [{}]", explanation);
+            checkRefs.incRef();
             rerouteService.reroute("disk threshold monitor", Priority.HIGH, ActionListener.wrap(reroutedClusterState -> {
-
                 for (DiskUsage diskUsage : usagesOverHighThreshold) {
                     final RoutingNode routingNode = reroutedClusterState.getRoutingNodes().node(diskUsage.getNodeId());
                     final DiskUsage usageIncludingRelocations;
@@ -357,15 +357,14 @@ public class DiskThresholdMonitor {
                 }
 
                 setLastRunTimeMillis();
-                listener.onResponse(null);
+                checkRefs.decRef();
             }, e -> {
                 logger.debug("reroute failed", e);
                 setLastRunTimeMillis();
-                listener.onFailure(e);
+                checkRefs.decRef();
             }));
         } else {
             logger.trace("no reroute required");
-            listener.onResponse(null);
         }
 
         // Generate a map of node name to ID so we can use it to look up node replacement targets
@@ -406,19 +405,20 @@ public class DiskThresholdMonitor {
                     + indicesToAutoRelease
                     + " since they are now allocated to nodes with sufficient disk space"
             );
-            updateIndicesReadOnly(indicesToAutoRelease, listener, false);
+            checkRefs.incRef();
+            updateIndicesReadOnly(indicesToAutoRelease, checkRefs::decRef, false);
         } else {
             logger.trace("no auto-release required");
-            listener.onResponse(null);
         }
 
         indicesToMarkReadOnly.removeIf(index -> state.getBlocks().indexBlocked(ClusterBlockLevel.WRITE, index));
         logger.trace("marking indices as read-only: [{}]", indicesToMarkReadOnly);
         if (indicesToMarkReadOnly.isEmpty() == false) {
-            updateIndicesReadOnly(indicesToMarkReadOnly, listener, true);
-        } else {
-            listener.onResponse(null);
+            checkRefs.incRef();
+            updateIndicesReadOnly(indicesToMarkReadOnly, checkRefs::decRef, true);
         }
+
+        checkRefs.decRef();
     }
 
     // exposed for tests to override
@@ -453,15 +453,15 @@ public class DiskThresholdMonitor {
         lastRunTimeMillis.getAndUpdate(l -> Math.max(l, currentTimeMillisSupplier.getAsLong()));
     }
 
-    protected void updateIndicesReadOnly(Set<String> indicesToUpdate, ActionListener<Void> listener, boolean readOnly) {
+    protected void updateIndicesReadOnly(Set<String> indicesToUpdate, Runnable onCompletion, boolean readOnly) {
         // set read-only block but don't block on the response
         ActionListener<Void> wrappedListener = ActionListener.wrap(r -> {
             setLastRunTimeMillis();
-            listener.onResponse(r);
+            onCompletion.run();
         }, e -> {
             logger.debug(() -> "setting indices [" + readOnly + "] read-only failed", e);
             setLastRunTimeMillis();
-            listener.onFailure(e);
+            onCompletion.run();
         });
         Settings readOnlySettings = readOnly ? READ_ONLY_ALLOW_DELETE_SETTINGS : NOT_READ_ONLY_ALLOW_DELETE_SETTINGS;
         client.admin()

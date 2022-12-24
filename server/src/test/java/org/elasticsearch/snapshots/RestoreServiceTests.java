@@ -121,16 +121,16 @@ public class RestoreServiceTests extends ESTestCase {
         assertEquals(Collections.singletonList(renamedIndex), renamedDataStream.getIndices());
     }
 
-    public void testRefreshRepositoryUuidsDoesNothingIfDisabled() {
+    public void testRefreshRepositoryUuidsDoesNothingIfDisabled() throws Exception {
         final PlainActionFuture<Void> listener = new PlainActionFuture<>();
         final RepositoriesService repositoriesService = mock(RepositoriesService.class);
-        RestoreService.refreshRepositoryUuids(false, repositoriesService, listener);
+        RestoreService.refreshRepositoryUuids(false, repositoriesService, () -> listener.onResponse(null));
         assertTrue(listener.isDone());
+        assertNull(listener.get(0L, TimeUnit.SECONDS));
         verifyNoMoreInteractions(repositoriesService);
     }
 
     public void testRefreshRepositoryUuidsRefreshesAsNeeded() throws Exception {
-        final PlainActionFuture<Void> listener = new PlainActionFuture<>();
 
         final int repositoryCount = between(1, 5);
         final Map<String, Repository> repositories = Maps.newMapWithExpectedSize(repositoryCount);
@@ -175,9 +175,11 @@ public class RestoreServiceTests extends ESTestCase {
             }
         }
 
+        final PlainActionFuture<Void> listener = new PlainActionFuture<>();
         final RepositoriesService repositoriesService = mock(RepositoriesService.class);
         when(repositoriesService.getRepositories()).thenReturn(repositories);
-        RestoreService.refreshRepositoryUuids(true, repositoriesService, listener);
+        RestoreService.refreshRepositoryUuids(true, repositoriesService, () -> listener.onResponse(null));
+        assertTrue(listener.isDone());
         assertNull(listener.get(0L, TimeUnit.SECONDS));
         assertThat(pendingRefreshes, empty());
         finalAssertions.forEach(Runnable::run);
