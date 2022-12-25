@@ -270,7 +270,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         // connection attempts to node0 block indefinitely
         final CyclicBarrier connectionBarrier = new CyclicBarrier(2);
         try {
-            nodeConnectionBlocks.put(node0, () -> connectionBarrier.await(10, TimeUnit.SECONDS));
+            nodeConnectionBlocks.put(node0, connectionBarrier::await);
             transportService.disconnectFromNode(node0);
 
             // can still connect to another node without blocking
