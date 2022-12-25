@@ -171,7 +171,7 @@ public class BroadcastReplicationTests extends ESTestCase {
         assertBroadcastResponse(1, 1, 0, response.get(), null);
     }
 
-    public void testResultCombine() throws InterruptedException, ExecutionException, IOException {
+    public void testResultCombine() throws InterruptedException, ExecutionException {
         final String index = "test";
         int numShards = 1 + randomInt(3);
         setState(clusterService, stateWithAssignedPrimariesAndOneReplica(index, numShards));
@@ -232,7 +232,7 @@ public class BroadcastReplicationTests extends ESTestCase {
         assertThat(shards.get(0), equalTo(shardId));
     }
 
-    private class TestBroadcastReplicationAction extends TransportBroadcastReplicationAction<
+    private static class TestBroadcastReplicationAction extends TransportBroadcastReplicationAction<
         DummyBroadcastRequest,
         BaseBroadcastResponse,
         BasicReplicationRequest,
@@ -320,7 +320,7 @@ public class BroadcastReplicationTests extends ESTestCase {
         }
     }
 
-    public static class DummyBroadcastRequest extends BroadcastRequest<DummyBroadcastRequest> {
+    private static class DummyBroadcastRequest extends BroadcastRequest<DummyBroadcastRequest> {
         DummyBroadcastRequest(String... indices) {
             super(indices);
         }
