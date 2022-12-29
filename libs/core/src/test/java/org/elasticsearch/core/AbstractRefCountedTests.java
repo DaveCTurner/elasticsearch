@@ -5,9 +5,8 @@
  * in compliance with, at your election, the Elastic License 2.0 or the Server
  * Side Public License, v 1.
  */
-package org.elasticsearch.common.util.concurrent;
+package org.elasticsearch.core;
 
-import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.test.ESTestCase;
 import org.hamcrest.Matchers;
 
@@ -18,10 +17,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
-public class RefCountedTests extends ESTestCase {
+public class AbstractRefCountedTests extends ESTestCase {
 
     public void testRefCount() {
-        MyRefCounted counted = new MyRefCounted();
+        RefCounted counted = createRefCounted();
 
         int incs = randomIntBetween(1, 100);
         for (int i = 0; i < incs; i++) {
@@ -30,12 +29,12 @@ public class RefCountedTests extends ESTestCase {
             } else {
                 assertTrue(counted.tryIncRef());
             }
-            counted.ensureOpen();
+            assertTrue(counted.hasReferences());
         }
 
         for (int i = 0; i < incs; i++) {
             counted.decRef();
-            counted.ensureOpen();
+            assertTrue(counted.hasReferences());
         }
 
         counted.incRef();
@@ -46,12 +45,12 @@ public class RefCountedTests extends ESTestCase {
             } else {
                 assertTrue(counted.tryIncRef());
             }
-            counted.ensureOpen();
+            assertTrue(counted.hasReferences());
         }
 
         for (int i = 0; i < incs; i++) {
             counted.decRef();
-            counted.ensureOpen();
+            assertTrue(counted.hasReferences());
         }
 
         counted.decRef();
@@ -60,11 +59,11 @@ public class RefCountedTests extends ESTestCase {
             expectThrows(IllegalStateException.class, counted::incRef).getMessage(),
             equalTo(AbstractRefCounted.ALREADY_CLOSED_MESSAGE)
         );
-        assertThat(expectThrows(IllegalStateException.class, counted::ensureOpen).getMessage(), equalTo("closed"));
+        assertFalse(counted.hasReferences());
     }
 
     public void testMultiThreaded() throws InterruptedException {
-        final MyRefCounted counted = new MyRefCounted();
+        AbstractRefCounted counted = createRefCounted();
         Thread[] threads = new Thread[randomIntBetween(2, 5)];
         final CountDownLatch latch = new CountDownLatch(1);
         final CopyOnWriteArrayList<Exception> exceptions = new CopyOnWriteArrayList<>();
@@ -75,11 +74,8 @@ public class RefCountedTests extends ESTestCase {
                     for (int j = 0; j < 10000; j++) {
                         counted.incRef();
                         assertTrue(counted.hasReferences());
-                        try {
-                            counted.ensureOpen();
-                        } finally {
-                            counted.decRef();
-                        }
+                        Thread.yield();
+                        counted.decRef();
                     }
                 } catch (Exception e) {
                     exceptions.add(e);
@@ -92,7 +88,7 @@ public class RefCountedTests extends ESTestCase {
             thread.join();
         }
         counted.decRef();
-        assertThat(expectThrows(IllegalStateException.class, counted::ensureOpen).getMessage(), equalTo("closed"));
+        assertFalse(counted.hasReferences());
         assertThat(
             expectThrows(IllegalStateException.class, counted::incRef).getMessage(),
             equalTo(AbstractRefCounted.ALREADY_CLOSED_MESSAGE)
@@ -102,21 +98,22 @@ public class RefCountedTests extends ESTestCase {
         assertThat(exceptions, Matchers.emptyIterable());
     }
 
-    private static final class MyRefCounted extends AbstractRefCounted {
+    public void testToString() {
+        assertEquals("refCounted[runnable description]", createRefCounted().toString());
+    }
 
-        private final AtomicBoolean closed = new AtomicBoolean(false);
-
-        @Override
-        protected void closeInternal() {
-            this.closed.set(true);
-        }
-
-        public void ensureOpen() {
-            if (closed.get()) {
-                assertEquals(0, this.refCount());
-                assertFalse(hasReferences());
-                throw new IllegalStateException("closed");
+    private static AbstractRefCounted createRefCounted() {
+        final var closed = new AtomicBoolean();
+        return AbstractRefCounted.of(new Runnable() {
+            @Override
+            public void run() {
+                assertTrue(closed.compareAndSet(false, true));
             }
-        }
+
+            @Override
+            public String toString() {
+                return "runnable description";
+            }
+        });
     }
 }

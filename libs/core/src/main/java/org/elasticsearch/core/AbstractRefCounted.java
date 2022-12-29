@@ -8,6 +8,7 @@
 
 package org.elasticsearch.core;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -94,11 +95,21 @@ public abstract class AbstractRefCounted implements RefCounted {
      * Construct an {@link AbstractRefCounted} which runs the given {@link Runnable} when all references are released.
      */
     public static AbstractRefCounted of(Runnable onClose) {
+        Objects.requireNonNull(onClose);
         return new AbstractRefCounted() {
             @Override
             protected void closeInternal() {
                 onClose.run();
             }
+
+            @Override
+            public String toString() {
+                return wrapToString(onClose.toString());
+            }
         };
+    }
+
+    public static String wrapToString(String inner) {
+        return "refCounted[" + inner + "]";
     }
 }
