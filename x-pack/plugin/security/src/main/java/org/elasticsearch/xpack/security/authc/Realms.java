@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.security.authc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -16,7 +17,6 @@ import org.elasticsearch.common.logging.DeprecationCategory;
 import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.Maps;
-import org.elasticsearch.common.util.concurrent.CountDown;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
@@ -307,58 +307,59 @@ public class Realms extends AbstractLifecycleComponent implements Iterable<Realm
     public void usageStats(ActionListener<Map<String, Object>> listener) {
         final XPackLicenseState licenseStateSnapshot = licenseState.copyCurrentLicenseState();
         Map<String, Object> realmMap = new HashMap<>();
-        final AtomicBoolean failed = new AtomicBoolean(false);
-        final List<Realm> realmList = getActiveRealms().stream().filter(r -> ReservedRealm.TYPE.equals(r.type()) == false).toList();
-        final CountDown countDown = new CountDown(realmList.size());
-        final Runnable doCountDown = () -> {
-            if ((realmList.isEmpty() || countDown.countDown()) && failed.get() == false) {
-                // iterate over the factories so we can add enabled & available info
-                for (String type : factories.keySet()) {
-                    assert ReservedRealm.TYPE.equals(type) == false;
-                    realmMap.compute(type, (key, value) -> {
-                        if (value == null) {
-                            return MapBuilder.<String, Object>newMapBuilder()
-                                .put("enabled", false)
-                                .put("available", isRealmTypeAvailable(licenseStateSnapshot, type))
-                                .map();
-                        }
 
-                        assert value instanceof Map;
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> realmTypeUsage = (Map<String, Object>) value;
-                        realmTypeUsage.put("enabled", true);
-                        realmTypeUsage.put("available", true);
-                        return value;
-                    });
-                }
-                listener.onResponse(realmMap);
+        final var failed = new AtomicBoolean(false);
+        final var failFastListener = ActionListener.notifyOnce(listener.delegateResponse((l, e) -> {
+            failed.set(true);
+            l.onFailure(e);
+        }));
+
+        try (var realmRefs = new RefCountingRunnable(() -> {
+            if (failed.get()) {
+                return;
             }
-        };
 
-        if (realmList.isEmpty()) {
-            doCountDown.run();
-        } else {
-            for (Realm realm : realmList) {
-                realm.usageStats(ActionListener.wrap(stats -> {
-                    if (failed.get() == false) {
-                        synchronized (realmMap) {
-                            realmMap.compute(realm.type(), (key, value) -> {
-                                if (value == null) {
-                                    Object realmTypeUsage = convertToMapOfLists(stats);
-                                    return realmTypeUsage;
-                                }
-                                assert value instanceof Map;
-                                combineMaps((Map<String, Object>) value, stats);
-                                return value;
-                            });
-                        }
-                        doCountDown.run();
+            // iterate over the factories so we can add enabled & available info
+            for (String type : factories.keySet()) {
+                assert ReservedRealm.TYPE.equals(type) == false;
+                realmMap.compute(type, (key, value) -> {
+                    if (value == null) {
+                        return MapBuilder.<String, Object>newMapBuilder()
+                            .put("enabled", false)
+                            .put("available", isRealmTypeAvailable(licenseStateSnapshot, type))
+                            .map();
                     }
-                }, e -> {
-                    if (failed.compareAndSet(false, true)) {
-                        listener.onFailure(e);
+
+                    assert value instanceof Map;
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> realmTypeUsage = (Map<String, Object>) value;
+                    realmTypeUsage.put("enabled", true);
+                    realmTypeUsage.put("available", true);
+                    return value;
+                });
+            }
+            failFastListener.onResponse(realmMap);
+        })) {
+            for (Realm realm : getActiveRealms()) {
+                if (ReservedRealm.TYPE.equals(realm.type())) {
+                    continue;
+                }
+
+                realm.usageStats(ActionListener.releaseAfter(failFastListener.delegateFailure((l, stats) -> {
+                    if (failed.get()) {
+                        return;
                     }
-                }));
+                    synchronized (realmMap) {
+                        realmMap.compute(realm.type(), (key, value) -> {
+                            if (value == null) {
+                                return convertToMapOfLists(stats);
+                            }
+                            assert value instanceof Map;
+                            combineMaps((Map<String, Object>) value, stats);
+                            return value;
+                        });
+                    }
+                }), realmRefs.acquire()));
             }
         }
     }
