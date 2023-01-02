@@ -35,6 +35,7 @@ public final class SnapshotShardContext extends ActionListener.Delegating<ShardS
     private final IndexShardSnapshotStatus snapshotStatus;
     private final Version repositoryMetaVersion;
     private final long snapshotStartTime;
+    private volatile boolean isFailed;
 
     /**
      * @param store                 store to be snapshotted
@@ -115,5 +116,13 @@ public final class SnapshotShardContext extends ActionListener.Delegating<ShardS
     @Override
     public void onResponse(ShardSnapshotResult result) {
         delegate.onResponse(result);
+    }
+
+    public boolean isFailed() {
+        return isFailed;
+    }
+
+    public void setFailed() {
+        isFailed = true;
     }
 }

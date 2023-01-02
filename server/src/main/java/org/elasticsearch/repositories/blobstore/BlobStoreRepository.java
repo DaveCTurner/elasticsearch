@@ -55,6 +55,7 @@ import org.elasticsearch.common.blobstore.fs.FsBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
@@ -147,6 +148,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
@@ -2736,7 +2738,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             int indexTotalNumberOfFiles = 0;
             long indexIncrementalSize = 0;
             long indexTotalFileSize = 0;
-            final BlockingQueue<BlobStoreIndexShardSnapshot.FileInfo> filesToSnapshot = new LinkedBlockingQueue<>();
+            final List<BlobStoreIndexShardSnapshot.FileInfo> filesToSnapshot = new ArrayList<>();
             int filesInShardMetadataCount = 0;
             long filesInShardMetadataSize = 0;
 
@@ -2900,7 +2902,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 };
             }
 
-            final StepListener<Collection<Void>> allFilesUploadedListener = new StepListener<>();
+            final StepListener<Void> allFilesUploadedListener = new StepListener<>();
             allFilesUploadedListener.whenComplete(v -> {
                 final IndexShardSnapshotStatus.Copy lastSnapshotStatus = snapshotStatus.moveToFinalize(snapshotIndexCommit.getGeneration());
 
@@ -2939,9 +2941,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 );
                 snapshotStatus.moveToDone(threadPool.absoluteTimeInMillis(), shardSnapshotResult);
                 context.onResponse(shardSnapshotResult);
-            }, context::onFailure);
+            }, e1 -> {
+                try {
+                    deleteFromContainer(shardContainer, getBlobCleanupIterator(filesToSnapshot));
+                } catch (Exception e2) {
+                    e1.addSuppressed(e2);
+                }
+                context.onFailure(e1);
+            });
             if (indexIncrementalFileCount == 0 || filesToSnapshot.isEmpty()) {
-                allFilesUploadedListener.onResponse(Collections.emptyList());
+                allFilesUploadedListener.onResponse(null);
                 return;
             }
             snapshotFiles(context, filesToSnapshot, allFilesUploadedListener);
@@ -2950,15 +2959,38 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
     }
 
+    private static Iterator<String> getBlobCleanupIterator(Iterable<FileInfo> filesToSnapshot) {
+        final Iterator<? extends String> wildcardIterator = Iterators.flatMap(
+            filesToSnapshot.iterator(),
+            f -> IntStream.range(0, f.numberOfParts()).mapToObj(f::partName).iterator()
+        );
+        return new Iterator<>() {
+            // extra layer of wrapping to align the types.
+            @Override
+            public boolean hasNext() {
+                return wildcardIterator.hasNext();
+            }
+
+            @Override
+            public String next() {
+                return wildcardIterator.next();
+            }
+        };
+    }
+
     protected void snapshotFiles(
         SnapshotShardContext context,
-        BlockingQueue<FileInfo> filesToSnapshot,
-        ActionListener<Collection<Void>> allFilesUploadedListener
+        List<FileInfo> filesToSnapshot,
+        ActionListener<Void> allFilesUploadedListener
     ) {
         final int noOfFilesToSnapshot = filesToSnapshot.size();
-        final ActionListener<Void> filesListener = fileQueueListener(filesToSnapshot, noOfFilesToSnapshot, allFilesUploadedListener);
-        for (int i = 0; i < noOfFilesToSnapshot; i++) {
-            shardSnapshotTaskRunner.enqueueFileSnapshot(context, filesToSnapshot::poll, filesListener);
+        final ActionListener<Void> filesListener = new CountDownActionListener(noOfFilesToSnapshot, allFilesUploadedListener)
+            .delegateResponse((l, e) -> {
+                context.setFailed(); // prevent any future uploads from starting
+                allFilesUploadedListener.onResponse(null);
+            });
+        for (FileInfo fileInfo : filesToSnapshot) {
+            shardSnapshotTaskRunner.enqueueFileSnapshot(context, fileInfo, filesListener);
         }
     }
 
@@ -3470,6 +3502,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
      * @param fileInfo file to snapshot
      */
     protected void snapshotFile(SnapshotShardContext context, FileInfo fileInfo) throws IOException {
+        if (context.isFailed()) {
+            return;
+        }
         final IndexId indexId = context.indexId();
         final Store store = context.store();
         final ShardId shardId = store.shardId();
@@ -3503,6 +3538,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     private void checkAborted() {
                         if (snapshotStatus.isAborted()) {
                             logger.debug("[{}] [{}] Aborted on the file [{}], exiting", shardId, snapshotId, fileInfo.physicalName());
+                            throw new AbortedSnapshotException();
+                        }
+                        if (context.isFailed()) {
+                            logger.debug("[{}] [{}] failed during file [{}], exiting", shardId, snapshotId, fileInfo.physicalName());
                             throw new AbortedSnapshotException();
                         }
                     }

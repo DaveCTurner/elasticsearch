@@ -9,7 +9,6 @@
 package org.elasticsearch.repositories.blobstore;
 
 import org.elasticsearch.Version;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -49,13 +48,12 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -435,14 +433,13 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         // Generate some FileInfo, as the files that get uploaded as part of the shard snapshot
         SnapshotShardContext context = ShardSnapshotTaskRunnerTests.dummyContext();
         int noOfFiles = randomIntBetween(10, 100);
-        BlockingQueue<BlobStoreIndexShardSnapshot.FileInfo> files = new LinkedBlockingQueue<>(noOfFiles);
-        PlainActionFuture<Void> listenerCalled = PlainActionFuture.newFuture();
-        ActionListener<Collection<Void>> allFilesUploadListener = ActionListener.wrap(() -> listenerCalled.onResponse(null));
+        List<BlobStoreIndexShardSnapshot.FileInfo> files = new ArrayList<>(noOfFiles);
+        PlainActionFuture<Void> allFilesUploadListener = PlainActionFuture.newFuture();
         for (int i = 0; i < noOfFiles; i++) {
             files.add(ShardSnapshotTaskRunnerTests.dummyFileInfo());
         }
         repository.snapshotFiles(context, files, allFilesUploadListener);
-        listenerCalled.get();
+        allFilesUploadListener.get();
     }
 
     private Environment createEnvironment() {

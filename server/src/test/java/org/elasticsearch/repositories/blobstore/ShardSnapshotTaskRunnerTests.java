@@ -74,7 +74,7 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
                 expectedFileSnapshotTasks.addAndGet(filesToUpload);
                 ActionListener<Void> uploadListener = new CountDownActionListener(filesToUpload, finishedShardSnapshots::incrementAndGet);
                 for (int i = 0; i < filesToUpload; i++) {
-                    taskRunner.enqueueFileSnapshot(context, ShardSnapshotTaskRunnerTests::dummyFileInfo, uploadListener);
+                    taskRunner.enqueueFileSnapshot(context, ShardSnapshotTaskRunnerTests.dummyFileInfo(), uploadListener);
                 }
             }
             finishedShardSnapshotTasks.incrementAndGet();
@@ -171,12 +171,12 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
         // Shard snapshot and file snapshot tasks for earlier snapshots have higher priority
         assertThat(
             workers.new ShardSnapshotTask(s1Context).compareTo(
-                workers.new FileSnapshotTask(s2Context, ShardSnapshotTaskRunnerTests::dummyFileInfo, listener)
+                workers.new FileSnapshotTask(s2Context, ShardSnapshotTaskRunnerTests.dummyFileInfo(), listener)
             ),
             lessThan(0)
         );
         assertThat(
-            workers.new FileSnapshotTask(s1Context, ShardSnapshotTaskRunnerTests::dummyFileInfo, listener).compareTo(
+            workers.new FileSnapshotTask(s1Context, ShardSnapshotTaskRunnerTests.dummyFileInfo(), listener).compareTo(
                 workers.new ShardSnapshotTask(s2Context)
             ),
             lessThan(0)
@@ -184,7 +184,7 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
         // Two tasks with the same start time and of the same type are ordered by snapshot UUID
         assertThat(workers.new ShardSnapshotTask(s2Context).compareTo(workers.new ShardSnapshotTask(s3Context)), lessThan(0));
         assertThat(
-            workers.new FileSnapshotTask(s2Context, ShardSnapshotTaskRunnerTests::dummyFileInfo, listener).compareTo(
+            workers.new FileSnapshotTask(s2Context, ShardSnapshotTaskRunnerTests.dummyFileInfo(), listener).compareTo(
                 workers.new ShardSnapshotTask(s3Context)
             ),
             lessThan(0)
@@ -192,7 +192,7 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
         // Shard snapshot task has a higher priority over file snapshot within the same snapshot
         assertThat(
             workers.new ShardSnapshotTask(s1Context).compareTo(
-                workers.new FileSnapshotTask(s1Context, ShardSnapshotTaskRunnerTests::dummyFileInfo, listener)
+                workers.new FileSnapshotTask(s1Context, ShardSnapshotTaskRunnerTests.dummyFileInfo(), listener)
             ),
             lessThan(0)
         );
