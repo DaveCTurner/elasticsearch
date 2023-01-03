@@ -15,6 +15,7 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.admin.cluster.coordination.ClusterFormationInfoAction;
 import org.elasticsearch.action.admin.cluster.coordination.CoordinationDiagnosticsAction;
 import org.elasticsearch.action.admin.cluster.coordination.MasterHistoryAction;
@@ -79,6 +80,7 @@ import org.elasticsearch.transport.DisruptableMockTransport.ConnectionStatus;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -468,6 +470,26 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                             synchronized (clusterNode.coordinator.mutex) {
                                 clusterNode.coordinator.becomeCandidate("runRandomly");
                             }
+                        }).run();
+                    } else if (rarely()) {
+                        final ClusterNode sourceNode = getAnyNode();
+                        final ClusterNode targetNode = getAnyNode();
+                        targetNode.onNode(() -> {
+                            logger.debug(
+                                "----> [runRandomly {}] triggering spurious election for [{}] on [{}]",
+                                thisStep,
+                                sourceNode.getId(),
+                                targetNode.getId()
+                            );
+                            sourceNode.transportService.sendRequest(
+                                targetNode.getLocalNode(),
+                                JoinHelper.START_JOIN_ACTION_NAME,
+                                new StartJoinRequest(sourceNode.localNode, targetNode.coordinator.getCurrentTerm() + between(-2, 3)),
+                                new ActionListenerResponseHandler<TransportResponse.Empty>(
+                                    ActionListener.noop(),
+                                    in -> TransportResponse.Empty.INSTANCE
+                                )
+                            );
                         }).run();
                     } else if (rarely()) {
                         final ClusterNode clusterNode = getAnyNode();
