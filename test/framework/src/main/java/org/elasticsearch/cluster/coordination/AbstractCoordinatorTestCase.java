@@ -474,23 +474,25 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     } else if (rarely()) {
                         final ClusterNode sourceNode = getAnyNode();
                         final ClusterNode targetNode = getAnyNode();
-                        targetNode.onNode(() -> {
-                            logger.debug(
-                                "----> [runRandomly {}] triggering spurious election for [{}] on [{}]",
-                                thisStep,
-                                sourceNode.getId(),
-                                targetNode.getId()
-                            );
-                            sourceNode.transportService.sendRequest(
-                                targetNode.getLocalNode(),
-                                JoinHelper.START_JOIN_ACTION_NAME,
-                                new StartJoinRequest(sourceNode.localNode, targetNode.coordinator.getCurrentTerm() + between(-2, 3)),
-                                new ActionListenerResponseHandler<TransportResponse.Empty>(
-                                    ActionListener.noop(),
-                                    in -> TransportResponse.Empty.INSTANCE
-                                )
-                            );
-                        }).run();
+                        if (sourceNode.localNode.isMasterNode()) {
+                            targetNode.onNode(() -> {
+                                logger.debug(
+                                    "----> [runRandomly {}] triggering spurious election for [{}] on [{}]",
+                                    thisStep,
+                                    sourceNode.getId(),
+                                    targetNode.getId()
+                                );
+                                sourceNode.transportService.sendRequest(
+                                    targetNode.getLocalNode(),
+                                    JoinHelper.START_JOIN_ACTION_NAME,
+                                    new StartJoinRequest(sourceNode.localNode, targetNode.coordinator.getCurrentTerm() + between(-2, 3)),
+                                    new ActionListenerResponseHandler<TransportResponse.Empty>(
+                                        ActionListener.noop(),
+                                        in -> TransportResponse.Empty.INSTANCE
+                                    )
+                                );
+                            }).run();
+                        }
                     } else if (rarely()) {
                         final ClusterNode clusterNode = getAnyNode();
 
