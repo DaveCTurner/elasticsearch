@@ -483,9 +483,9 @@ public class IndexShardTests extends IndexShardTestCase {
         promoteReplica(
             indexShard,
             Collections.singleton(replicaRouting.allocationId().getId()),
-            new IndexShardRoutingTable.Builder(replicaRouting.shardId())
-                .addShard(TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED))
-                .addShard(replicaRouting).build()
+            new IndexShardRoutingTable.Builder(replicaRouting.shardId()).addShard(
+                TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED)
+            ).addShard(replicaRouting).build()
         );
 
         final int delayedOperations = scaledRandomIntBetween(1, 64);
@@ -573,9 +573,9 @@ public class IndexShardTests extends IndexShardTestCase {
         promoteReplica(
             indexShard,
             Collections.singleton(replicaRouting.allocationId().getId()),
-            new IndexShardRoutingTable.Builder(replicaRouting.shardId())
-                .addShard(TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED))
-                .addShard(replicaRouting).build()
+            new IndexShardRoutingTable.Builder(replicaRouting.shardId()).addShard(
+                TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED)
+            ).addShard(replicaRouting).build()
         );
 
         stop.set(true);
@@ -598,9 +598,9 @@ public class IndexShardTests extends IndexShardTestCase {
         promoteReplica(
             indexShard,
             Collections.singleton(replicaRouting.allocationId().getId()),
-            new IndexShardRoutingTable.Builder(replicaRouting.shardId())
-                .addShard(TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED))
-                .addShard(replicaRouting).build()
+            new IndexShardRoutingTable.Builder(replicaRouting.shardId()).addShard(
+                TestShardRouting.newShardRouting(replicaRouting.shardId(), "ignored", true, ShardRoutingState.STARTED)
+            ).addShard(replicaRouting).build()
         );
 
         /*

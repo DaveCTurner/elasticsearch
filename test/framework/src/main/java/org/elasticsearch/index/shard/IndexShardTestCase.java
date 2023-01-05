@@ -862,11 +862,9 @@ public abstract class IndexShardTestCase extends ESTestCase {
             replica.routingEntry().allocationId()
         );
 
-        final IndexShardRoutingTable newRoutingTable = new IndexShardRoutingTable.Builder(routingTable)
-            .removeShard(routingTable.primaryShard())
-            .removeShard(replica.routingEntry())
-            .addShard(routingEntry)
-            .build();
+        final IndexShardRoutingTable newRoutingTable = new IndexShardRoutingTable.Builder(routingTable).removeShard(
+            routingTable.primaryShard()
+        ).removeShard(replica.routingEntry()).addShard(routingEntry).build();
         replica.updateShardState(
             routingEntry,
             replica.getPendingPrimaryTerm() + 1,

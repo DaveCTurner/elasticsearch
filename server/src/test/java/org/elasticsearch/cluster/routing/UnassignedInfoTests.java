@@ -81,8 +81,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             UnassignedInfo.Reason.MANUAL_ALLOCATION,
             UnassignedInfo.Reason.INDEX_CLOSED,
             UnassignedInfo.Reason.NODE_RESTARTING,
-            UnassignedInfo.Reason.UNPROMOTABLE_REPLICA
-        };
+            UnassignedInfo.Reason.UNPROMOTABLE_REPLICA };
         for (int i = 0; i < order.length; i++) {
             assertThat(order[i].ordinal(), equalTo(i));
         }
@@ -143,10 +142,15 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
         try (var in = bytes.streamInput()) {
             in.setVersion(version);
             UnassignedInfo read = new UnassignedInfo(in);
-            assertThat(read.getReason(), equalTo(
-                meta.getReason() == UnassignedInfo.Reason.UNPROMOTABLE_REPLICA
-                && version.before(UnassignedInfo.VERSION_UNPROMOTABLE_REPLICA_ADDED)
-                ? UnassignedInfo.Reason.PRIMARY_FAILED : meta.getReason()));
+            assertThat(
+                read.getReason(),
+                equalTo(
+                    meta.getReason() == UnassignedInfo.Reason.UNPROMOTABLE_REPLICA
+                        && version.before(UnassignedInfo.VERSION_UNPROMOTABLE_REPLICA_ADDED)
+                            ? UnassignedInfo.Reason.PRIMARY_FAILED
+                            : meta.getReason()
+                )
+            );
             assertThat(read.getUnassignedTimeInMillis(), equalTo(meta.getUnassignedTimeInMillis()));
             assertThat(read.getMessage(), equalTo(meta.getMessage()));
             assertThat(read.getDetails(), equalTo(meta.getDetails()));
