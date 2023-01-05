@@ -12,6 +12,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
@@ -51,7 +52,9 @@ public class BalanceUnbalancedClusterTests extends CatAllocationTestCase {
             .put(IndexMetadata.builder(index).settings(settings(Version.CURRENT)).numberOfShards(5).numberOfReplicas(1))
             .build();
 
-        RoutingTable initialRoutingTable = RoutingTable.builder(state.routingTable()).addAsNew(metadata.index(index)).build();
+        RoutingTable initialRoutingTable = RoutingTable.builder(state.routingTable())
+            .addAsNew(metadata.index(index), TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
 
         ClusterState clusterState = ClusterState.builder(state).metadata(metadata).routingTable(initialRoutingTable).build();
         clusterState = strategy.reroute(clusterState, "reroute", ActionListener.noop());

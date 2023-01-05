@@ -533,7 +533,7 @@ public class MetadataTests extends ESTestCase {
             .build();
         final BytesStreamOutput out = new BytesStreamOutput();
         originalMeta.writeTo(out);
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
         final Metadata fromStreamMeta = Metadata.readFrom(
             new NamedWriteableAwareStreamInput(out.bytes().streamInput(), namedWriteableRegistry)
         );
@@ -610,7 +610,7 @@ public class MetadataTests extends ESTestCase {
         final Metadata originalMeta = Metadata.builder().indexGraveyard(graveyard).build();
         final BytesStreamOutput out = new BytesStreamOutput();
         originalMeta.writeTo(out);
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
         final Metadata fromStreamMeta = Metadata.readFrom(
             new NamedWriteableAwareStreamInput(out.bytes().streamInput(), namedWriteableRegistry)
         );
@@ -1361,7 +1361,7 @@ public class MetadataTests extends ESTestCase {
         final Metadata orig = randomMetadata();
         final BytesStreamOutput out = new BytesStreamOutput();
         orig.writeTo(out);
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
         final Metadata fromStreamMeta = Metadata.readFrom(
             new NamedWriteableAwareStreamInput(out.bytes().streamInput(), namedWriteableRegistry)
         );

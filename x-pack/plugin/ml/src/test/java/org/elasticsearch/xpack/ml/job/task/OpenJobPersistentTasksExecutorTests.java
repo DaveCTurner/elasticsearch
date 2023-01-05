@@ -13,6 +13,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -259,7 +260,8 @@ public class OpenJobPersistentTasksExecutorTests extends ESTestCase {
                 shardId,
                 true,
                 RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+                TestShardCopyRoles.EMPTY_ROLE
             );
             shardRouting = shardRouting.initialize("node_id", null, 0L);
             shardRouting = shardRouting.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);

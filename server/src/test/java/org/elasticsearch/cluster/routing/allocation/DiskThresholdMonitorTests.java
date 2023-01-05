@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.DiskUsage;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -91,10 +92,10 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
             )
             .build();
         RoutingTable routingTable = RoutingTable.builder()
-            .addAsNew(metadata.index("test"))
-            .addAsNew(metadata.index("test_1"))
-            .addAsNew(metadata.index("test_2"))
-            .addAsNew(metadata.index("frozen"))
+            .addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("test_1"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("test_2"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("frozen"), TestShardCopyRoles.EMPTY_FACTORY)
             .build();
         final ClusterState clusterState = applyStartedShardsUntilNoChange(
             ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
@@ -434,7 +435,10 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
             .put(IndexMetadata.builder("test_1").settings(settings(Version.CURRENT)).numberOfShards(2).numberOfReplicas(1))
             .put(IndexMetadata.builder("test_2").settings(settings(Version.CURRENT)).numberOfShards(2).numberOfReplicas(1))
             .build();
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test_1")).addAsNew(metadata.index("test_2")).build();
+        RoutingTable routingTable = RoutingTable.builder()
+            .addAsNew(metadata.index("test_1"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("test_2"), TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
         final ClusterState clusterState = applyStartedShardsUntilNoChange(
             ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
                 .metadata(metadata)
@@ -767,7 +771,10 @@ public class DiskThresholdMonitorTests extends ESAllocationTestCase {
             .put(IndexMetadata.builder("test_1").settings(settings(Version.CURRENT)).numberOfShards(2).numberOfReplicas(1))
             .put(IndexMetadata.builder("test_2").settings(settings(Version.CURRENT)).numberOfShards(2).numberOfReplicas(1))
             .build();
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test_1")).addAsNew(metadata.index("test_2")).build();
+        RoutingTable routingTable = RoutingTable.builder()
+            .addAsNew(metadata.index("test_1"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("test_2"), TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
         final ClusterState clusterState = applyStartedShardsUntilNoChange(
             ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
                 .metadata(metadata)

@@ -16,6 +16,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -64,7 +65,11 @@ public class SearchableSnapshotAllocatorTests extends ESAllocationTestCase {
 
         final Metadata metadata = buildSingleShardIndexMetadata(shardId);
         final RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
-        routingTableBuilder.addAsRestore(metadata.index(shardId.getIndex()), randomSnapshotSource(shardId));
+        routingTableBuilder.addAsRestore(
+            metadata.index(shardId.getIndex()),
+            randomSnapshotSource(shardId),
+            TestShardCopyRoles.EMPTY_FACTORY
+        );
 
         final ClusterState state = buildClusterState(nodes, metadata, routingTableBuilder);
         final long shardSize = randomNonNegativeLong();
@@ -138,7 +143,11 @@ public class SearchableSnapshotAllocatorTests extends ESAllocationTestCase {
 
         final Metadata metadata = buildSingleShardIndexMetadata(shardId);
         final RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
-        routingTableBuilder.addAsRestore(metadata.index(shardId.getIndex()), randomSnapshotSource(shardId));
+        routingTableBuilder.addAsRestore(
+            metadata.index(shardId.getIndex()),
+            randomSnapshotSource(shardId),
+            TestShardCopyRoles.EMPTY_FACTORY
+        );
 
         final ClusterState state = buildClusterState(nodes, metadata, routingTableBuilder);
         final RoutingAllocation allocation = buildAllocation(
@@ -177,7 +186,11 @@ public class SearchableSnapshotAllocatorTests extends ESAllocationTestCase {
 
         final Metadata metadata = buildSingleShardIndexMetadata(shardId, builder -> builder.put(SNAPSHOT_PARTIAL_SETTING.getKey(), true));
         final RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
-        routingTableBuilder.addAsRestore(metadata.index(shardId.getIndex()), randomSnapshotSource(shardId));
+        routingTableBuilder.addAsRestore(
+            metadata.index(shardId.getIndex()),
+            randomSnapshotSource(shardId),
+            TestShardCopyRoles.EMPTY_FACTORY
+        );
 
         final ClusterState state = buildClusterState(nodes, metadata, routingTableBuilder);
         final RoutingAllocation allocation = buildAllocation(

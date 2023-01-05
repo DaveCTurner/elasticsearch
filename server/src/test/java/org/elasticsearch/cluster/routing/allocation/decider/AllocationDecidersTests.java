@@ -11,6 +11,7 @@ package org.elasticsearch.cluster.routing.allocation.decider;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -328,7 +329,8 @@ public class AllocationDecidersTests extends ESTestCase {
             new ShardId(index, 0),
             true,
             RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "_message")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "_message"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
     }
 

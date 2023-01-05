@@ -36,6 +36,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -198,6 +199,6 @@ public class MockTransport extends StubbableTransport {
     }
 
     protected NamedWriteableRegistry writeableRegistry() {
-        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
     }
 }

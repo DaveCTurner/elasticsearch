@@ -68,7 +68,7 @@ import static org.hamcrest.Matchers.is;
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.SUITE, numDataNodes = 0, numClientNodes = 0)
 public class ClusterStateDiffIT extends ESIntegTestCase {
     public void testClusterStateDiffSerialization() throws Exception {
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
         DiscoveryNode masterNode = randomNode("master");
         DiscoveryNode otherNode = randomNode("other");
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(masterNode).add(otherNode).localNodeId(masterNode.getId()).build();

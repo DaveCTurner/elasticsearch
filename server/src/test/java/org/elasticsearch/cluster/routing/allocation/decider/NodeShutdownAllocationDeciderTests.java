@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
@@ -46,7 +47,8 @@ public class NodeShutdownAllocationDeciderTests extends ESAllocationTestCase {
         new ShardId("myindex", "myindex", 0),
         true,
         RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created")
+        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created"),
+        TestShardCopyRoles.EMPTY_ROLE
     );
     private final ClusterSettings clusterSettings = new ClusterSettings(Settings.EMPTY, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
     private final NodeShutdownAllocationDecider decider = new NodeShutdownAllocationDecider();
@@ -62,7 +64,8 @@ public class NodeShutdownAllocationDeciderTests extends ESAllocationTestCase {
         new TestGatewayAllocator(),
         new BalancedShardsAllocator(Settings.EMPTY),
         EmptyClusterInfoService.INSTANCE,
-        EmptySnapshotsInfoService.INSTANCE
+        EmptySnapshotsInfoService.INSTANCE,
+        TestShardCopyRoles.EMPTY_FACTORY
     );
 
     private final String idxName = "test-idx";

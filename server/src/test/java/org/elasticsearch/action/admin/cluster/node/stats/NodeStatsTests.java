@@ -12,6 +12,7 @@ import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.IndexShardStats;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.coordination.ClusterStateSerializationStats;
 import org.elasticsearch.cluster.coordination.PendingClusterStateStats;
 import org.elasticsearch.cluster.coordination.PublishClusterStateStats;
@@ -23,6 +24,7 @@ import org.elasticsearch.cluster.service.ClusterApplierRecordingService;
 import org.elasticsearch.cluster.service.ClusterApplierRecordingService.Stats.Recording;
 import org.elasticsearch.cluster.service.ClusterStateUpdateStats;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.network.HandlingTimeTracker;
 import org.elasticsearch.common.util.Maps;
@@ -90,7 +92,7 @@ public class NodeStatsTests extends ESTestCase {
         NodeStats nodeStats = createNodeStats();
         try (BytesStreamOutput out = new BytesStreamOutput()) {
             nodeStats.writeTo(out);
-            try (StreamInput in = out.bytes().streamInput()) {
+            try (StreamInput in = new NamedWriteableAwareStreamInput(out.bytes().streamInput(), writableRegistry())) {
                 NodeStats deserializedNodeStats = new NodeStats(in);
                 assertEquals(nodeStats.getNode(), deserializedNodeStats.getNode());
                 assertEquals(nodeStats.getTimestamp(), deserializedNodeStats.getTimestamp());
@@ -636,7 +638,8 @@ public class NodeStatsTests extends ESTestCase {
             shardId,
             true,
             RecoverySource.PeerRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "message")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "message"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         Path path = createTempDir().resolve("indices")
             .resolve(shardRouting.shardId().getIndex().getUUID())

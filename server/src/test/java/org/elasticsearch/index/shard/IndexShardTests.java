@@ -52,6 +52,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.IndexScopedSettings;
@@ -1564,7 +1565,7 @@ public class IndexShardTests extends IndexShardTestCase {
         // try to serialize it to ensure values survive the serialization
         BytesStreamOutput out = new BytesStreamOutput();
         stats.writeTo(out);
-        StreamInput in = out.bytes().streamInput();
+        StreamInput in = new NamedWriteableAwareStreamInput(out.bytes().streamInput(), writableRegistry());
         stats = new ShardStats(in);
 
         XContentBuilder builder = jsonBuilder();

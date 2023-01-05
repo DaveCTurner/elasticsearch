@@ -22,6 +22,7 @@ import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -400,7 +401,8 @@ public class ClusterStatsMonitoringDocTests extends BaseMonitoringDocTestCase<Cl
             shardId,
             true,
             RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-            unassignedInfo
+            unassignedInfo,
+            TestShardCopyRoles.EMPTY_ROLE
         );
 
         final ShardStats mockShardStats = mock(ShardStats.class);

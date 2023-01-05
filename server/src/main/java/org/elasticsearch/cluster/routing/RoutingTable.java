@@ -474,7 +474,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable>, Diffable<Routi
          * @param indices          the indices to update the number of replicas for
          * @return the builder
          */
-        public Builder updateNumberOfReplicas(final int numberOfReplicas, final String[] indices) {
+        public Builder updateNumberOfReplicas(final int numberOfReplicas, final String[] indices, final ShardCopyRoleFactory roleFactory) {
             if (indicesRouting == null) {
                 throw new IllegalStateException("once build is called the builder cannot be reused");
             }
@@ -494,7 +494,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable>, Diffable<Routi
                 if (currentNumberOfReplicas < numberOfReplicas) {
                     // now, add "empty" ones
                     for (int i = 0; i < (numberOfReplicas - currentNumberOfReplicas); i++) {
-                        builder.addReplica();
+                        builder.addReplica(roleFactory.newReplicaRole());
                     }
                 } else if (currentNumberOfReplicas > numberOfReplicas) {
                     for (int i = 0; i < (currentNumberOfReplicas - numberOfReplicas); i++) {
@@ -506,65 +506,73 @@ public class RoutingTable implements Iterable<IndexRoutingTable>, Diffable<Routi
             return this;
         }
 
-        public Builder addAsNew(IndexMetadata indexMetadata) {
+        public Builder addAsNew(IndexMetadata indexMetadata, ShardCopyRoleFactory roleFactory) {
             if (indexMetadata.getState() == IndexMetadata.State.OPEN) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex()).initializeAsNew(
-                    indexMetadata
+                    indexMetadata,
+                    roleFactory
                 );
                 add(indexRoutingBuilder);
             }
             return this;
         }
 
-        public Builder addAsRecovery(IndexMetadata indexMetadata) {
+        public Builder addAsRecovery(IndexMetadata indexMetadata, ShardCopyRoleFactory roleFactory) {
             if (indexMetadata.getState() == IndexMetadata.State.OPEN || isIndexVerifiedBeforeClosed(indexMetadata)) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex())
-                    .initializeAsRecovery(indexMetadata);
+                    .initializeAsRecovery(indexMetadata, roleFactory);
                 add(indexRoutingBuilder);
             }
             return this;
         }
 
-        public Builder addAsFromDangling(IndexMetadata indexMetadata) {
+        public Builder addAsFromDangling(IndexMetadata indexMetadata, ShardCopyRoleFactory roleFactory) {
             if (indexMetadata.getState() == IndexMetadata.State.OPEN || isIndexVerifiedBeforeClosed(indexMetadata)) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex())
-                    .initializeAsFromDangling(indexMetadata);
+                    .initializeAsFromDangling(indexMetadata, roleFactory);
                 add(indexRoutingBuilder);
             }
             return this;
         }
 
-        public Builder addAsFromCloseToOpen(IndexMetadata indexMetadata) {
+        public Builder addAsFromCloseToOpen(IndexMetadata indexMetadata, ShardCopyRoleFactory roleFactory) {
             if (indexMetadata.getState() == IndexMetadata.State.OPEN) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex())
-                    .initializeAsFromCloseToOpen(indexMetadata, indicesRouting.get(indexMetadata.getIndex().getName()));
+                    .initializeAsFromCloseToOpen(indexMetadata, indicesRouting.get(indexMetadata.getIndex().getName()), roleFactory);
                 add(indexRoutingBuilder);
             }
             return this;
         }
 
-        public Builder addAsFromOpenToClose(IndexMetadata indexMetadata) {
+        public Builder addAsFromOpenToClose(IndexMetadata indexMetadata, ShardCopyRoleFactory roleFactory) {
             assert isIndexVerifiedBeforeClosed(indexMetadata);
             IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex())
-                .initializeAsFromOpenToClose(indexMetadata, indicesRouting.get(indexMetadata.getIndex().getName()));
+                .initializeAsFromOpenToClose(indexMetadata, indicesRouting.get(indexMetadata.getIndex().getName()), roleFactory);
             return add(indexRoutingBuilder);
         }
 
-        public Builder addAsRestore(IndexMetadata indexMetadata, SnapshotRecoverySource recoverySource) {
+        public Builder addAsRestore(IndexMetadata indexMetadata, SnapshotRecoverySource recoverySource, ShardCopyRoleFactory roleFactory) {
             IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex()).initializeAsRestore(
                 indexMetadata,
                 recoverySource,
-                indicesRouting.get(indexMetadata.getIndex().getName())
+                indicesRouting.get(indexMetadata.getIndex().getName()),
+                roleFactory
             );
             add(indexRoutingBuilder);
             return this;
         }
 
-        public Builder addAsNewRestore(IndexMetadata indexMetadata, SnapshotRecoverySource recoverySource, Set<Integer> ignoreShards) {
+        public Builder addAsNewRestore(
+            IndexMetadata indexMetadata,
+            SnapshotRecoverySource recoverySource,
+            Set<Integer> ignoreShards,
+            ShardCopyRoleFactory roleFactory
+        ) {
             IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetadata.getIndex()).initializeAsNewRestore(
                 indexMetadata,
                 recoverySource,
-                ignoreShards
+                ignoreShards,
+                roleFactory
             );
             add(indexRoutingBuilder);
             return this;

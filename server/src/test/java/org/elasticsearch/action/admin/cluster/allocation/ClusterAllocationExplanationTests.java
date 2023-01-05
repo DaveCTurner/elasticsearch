@@ -22,6 +22,7 @@ import org.elasticsearch.cluster.routing.allocation.ShardAllocationDecision;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.index.Index;
@@ -58,7 +59,7 @@ public final class ClusterAllocationExplanationTests extends ESTestCase {
         ClusterAllocationExplanation cae = randomClusterAllocationExplanation(randomBoolean(), randomBoolean());
         BytesStreamOutput out = new BytesStreamOutput();
         cae.writeTo(out);
-        StreamInput in = out.bytes().streamInput();
+        StreamInput in = new NamedWriteableAwareStreamInput(out.bytes().streamInput(), writableRegistry());
         ClusterAllocationExplanation cae2 = new ClusterAllocationExplanation(in);
         assertEquals(cae.isSpecificShard(), cae2.isSpecificShard());
         assertEquals(cae.getShard(), cae2.getShard());

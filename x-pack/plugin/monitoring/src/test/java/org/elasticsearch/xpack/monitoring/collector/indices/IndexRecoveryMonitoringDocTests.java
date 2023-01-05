@@ -10,6 +10,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryResponse;
 import org.elasticsearch.action.admin.indices.shards.IndicesShardStoresResponse;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.routing.RecoverySource;
@@ -107,7 +108,7 @@ public class IndexRecoveryMonitoringDocTests extends BaseMonitoringDocTestCase<I
         final ShardId shardId = new ShardId("_index_a", "_uuid_a", 0);
         final RecoverySource source = RecoverySource.PeerRecoverySource.INSTANCE;
         final UnassignedInfo unassignedInfo = new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "_index_info_a");
-        final ShardRouting shardRouting = ShardRouting.newUnassigned(shardId, true, source, unassignedInfo)
+        final ShardRouting shardRouting = ShardRouting.newUnassigned(shardId, true, source, unassignedInfo, TestShardCopyRoles.EMPTY_ROLE)
             .initialize("_node_id", "_allocation_id", 123L);
 
         final Map<String, List<RecoveryState>> shardRecoveryStates = new HashMap<>();

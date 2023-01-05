@@ -28,6 +28,7 @@ import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -183,7 +184,7 @@ public class TriggeredWatchStoreTests extends ESTestCase {
                     )
                 )
             );
-            indexRoutingTableBuilder.addReplica();
+            indexRoutingTableBuilder.addReplica(TestShardCopyRoles.EMPTY_ROLE);
         }
         routingTableBuilder.add(indexRoutingTableBuilder.build());
 
@@ -208,7 +209,7 @@ public class TriggeredWatchStoreTests extends ESTestCase {
                 TestShardRouting.newShardRouting(shardId, "_node_id", null, true, ShardRoutingState.STARTED)
             )
         );
-        indexRoutingTableBuilder.addReplica();
+        indexRoutingTableBuilder.addReplica(TestShardCopyRoles.EMPTY_ROLE);
         routingTableBuilder.add(indexRoutingTableBuilder.build());
         csBuilder.metadata(metadataBuilder);
         csBuilder.routingTable(routingTableBuilder.build());
@@ -340,7 +341,7 @@ public class TriggeredWatchStoreTests extends ESTestCase {
                 TestShardRouting.newShardRouting(shardId, "_node_id", null, true, ShardRoutingState.STARTED)
             )
         );
-        indexRoutingTableBuilder.addReplica();
+        indexRoutingTableBuilder.addReplica(TestShardCopyRoles.EMPTY_ROLE);
         routingTableBuilder.add(indexRoutingTableBuilder.build());
         csBuilder.metadata(metadataBuilder);
         csBuilder.routingTable(routingTableBuilder.build());
@@ -374,7 +375,7 @@ public class TriggeredWatchStoreTests extends ESTestCase {
                 TestShardRouting.newShardRouting("triggered-watches-alias", 0, "_node_id", null, true, ShardRoutingState.STARTED)
             )
         );
-        indexRoutingTableBuilder.addReplica();
+        indexRoutingTableBuilder.addReplica(TestShardCopyRoles.EMPTY_ROLE);
         final Index otherIndex = metadataBuilder.get("whatever").getIndex();
         IndexRoutingTable.Builder otherIndexRoutingTableBuilder = IndexRoutingTable.builder(otherIndex);
         otherIndexRoutingTableBuilder.addIndexShard(

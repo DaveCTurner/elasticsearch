@@ -16,6 +16,7 @@ import org.elasticsearch.client.internal.AdminClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.client.internal.IndicesAdminClient;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -102,8 +103,13 @@ public class IndexRecoveryCollectorTests extends BaseCollectorTestCase {
             ShardId shardId = new ShardId("_index_" + i, "_uuid_" + i, i);
             RecoverySource source = RecoverySource.PeerRecoverySource.INSTANCE;
             final UnassignedInfo unassignedInfo = new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "_index_info_" + i);
-            final ShardRouting shardRouting = ShardRouting.newUnassigned(shardId, true, source, unassignedInfo)
-                .initialize(localNode.getId(), "_allocation_id", 10 * i);
+            final ShardRouting shardRouting = ShardRouting.newUnassigned(
+                shardId,
+                true,
+                source,
+                unassignedInfo,
+                TestShardCopyRoles.EMPTY_ROLE
+            ).initialize(localNode.getId(), "_allocation_id", 10 * i);
 
             final RecoveryState recoveryState = new RecoveryState(shardRouting, localNode, localNode);
             recoveryStates.put("_index_" + i, singletonList(recoveryState));

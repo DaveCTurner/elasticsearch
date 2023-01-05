@@ -40,6 +40,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction.FailedShardUpdateTask;
 import org.elasticsearch.cluster.action.shard.ShardStateAction.StartedShardEntry;
@@ -154,7 +155,8 @@ public class ClusterStateChanges {
             new TestGatewayAllocator(),
             new BalancedShardsAllocator(SETTINGS),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
         shardFailedClusterStateTaskExecutor = new ShardStateAction.ShardFailedClusterStateTaskExecutor(allocationService, null);
         shardStartedClusterStateTaskExecutor = new ShardStateAction.ShardStartedClusterStateTaskExecutor(allocationService, null);

@@ -44,6 +44,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.ShardCopyRoleFactory;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.allocator.AllocationActionMultiListener;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -224,7 +225,8 @@ public class MetadataIndexStateService {
                     final Tuple<ClusterState, List<IndexResult>> closingResult = closeRoutingTable(
                         state,
                         task.blockedIndices,
-                        task.verifyResults
+                        task.verifyResults,
+                        allocationService.getShardCopyRoleFactory()
                     );
                     state = closingResult.v1();
                     final List<IndexResult> indices = closingResult.v2();
@@ -808,7 +810,8 @@ public class MetadataIndexStateService {
     static Tuple<ClusterState, List<IndexResult>> closeRoutingTable(
         final ClusterState currentState,
         final Map<Index, ClusterBlock> blockedIndices,
-        final Map<Index, IndexResult> verifyResult
+        final Map<Index, IndexResult> verifyResult,
+        ShardCopyRoleFactory roleFactory
     ) {
         final Metadata.Builder metadata = Metadata.builder(currentState.metadata());
         final ClusterBlocks.Builder blocks = ClusterBlocks.builder(currentState.blocks());
@@ -887,7 +890,7 @@ public class MetadataIndexStateService {
                         .settingsVersion(indexMetadata.getSettingsVersion() + 1)
                         .settings(Settings.builder().put(indexMetadata.getSettings()).put(VERIFIED_BEFORE_CLOSE_SETTING.getKey(), true))
                 );
-                routingTable.addAsFromOpenToClose(metadata.getSafe(index));
+                routingTable.addAsFromOpenToClose(metadata.getSafe(index), roleFactory);
 
                 logger.debug("closing index {} succeeded", index);
                 closedIndices.add(index.getName());
@@ -1153,7 +1156,10 @@ public class MetadataIndexStateService {
             final RoutingTable.Builder routingTable = RoutingTable.builder(updatedState.routingTable());
             for (IndexMetadata previousIndexMetadata : indicesToOpen) {
                 if (previousIndexMetadata.getState() != IndexMetadata.State.OPEN) {
-                    routingTable.addAsFromCloseToOpen(updatedState.metadata().getIndexSafe(previousIndexMetadata.getIndex()));
+                    routingTable.addAsFromCloseToOpen(
+                        updatedState.metadata().getIndexSafe(previousIndexMetadata.getIndex()),
+                        allocationService.getShardCopyRoleFactory()
+                    );
                 }
             }
             return ClusterState.builder(updatedState).routingTable(routingTable).build();

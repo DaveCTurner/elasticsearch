@@ -17,6 +17,7 @@ import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
@@ -379,7 +380,8 @@ public class TransformCheckpointServiceNodeTests extends TransformSingleNodeTest
                     shardId,
                     true,
                     RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+                    TestShardCopyRoles.EMPTY_ROLE
                 );
                 Path path = createTempDir().resolve("indices").resolve(index.getUUID()).resolve(String.valueOf(i));
 

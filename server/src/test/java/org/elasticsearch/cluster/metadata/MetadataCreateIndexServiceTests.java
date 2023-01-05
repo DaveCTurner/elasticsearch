@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -151,7 +152,7 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
         metaBuilder.put(indexMetadata, false);
         Metadata metadata = metaBuilder.build();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
-        routingTableBuilder.addAsNew(metadata.index(name));
+        routingTableBuilder.addAsNew(metadata.index(name), TestShardCopyRoles.EMPTY_FACTORY);
 
         RoutingTable routingTable = routingTableBuilder.build();
         ClusterState clusterState = ClusterState.builder(
@@ -267,7 +268,8 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             new TestGatewayAllocator(),
             new BalancedShardsAllocator(Settings.EMPTY),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
 
         RoutingTable routingTable = service.reroute(clusterState, "reroute", ActionListener.noop()).routingTable();
@@ -369,7 +371,8 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             new TestGatewayAllocator(),
             new BalancedShardsAllocator(Settings.EMPTY),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
 
         RoutingTable routingTable = service.reroute(clusterState, "reroute", ActionListener.noop()).routingTable();
@@ -517,7 +520,8 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             new TestGatewayAllocator(),
             new BalancedShardsAllocator(Settings.EMPTY),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
 
         final RoutingTable initialRoutingTable = service.reroute(initialClusterState, "reroute", ActionListener.noop()).routingTable();
@@ -985,8 +989,10 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             .build();
 
         assertThat(
-            expectThrows(IllegalStateException.class, () -> clusterStateCreateIndex(currentClusterState, Set.of(), newIndex, null))
-                .getMessage(),
+            expectThrows(
+                IllegalStateException.class,
+                () -> clusterStateCreateIndex(currentClusterState, Set.of(), newIndex, null, TestShardCopyRoles.EMPTY_FACTORY)
+            ).getMessage(),
             startsWith("alias [alias1] has more than one write index [")
         );
     }
@@ -1005,7 +1011,8 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             currentClusterState,
             Set.of(INDEX_READ_ONLY_BLOCK),
             newIndexMetadata,
-            null
+            null,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
         assertThat(updatedClusterState.blocks().getIndexBlockWithId("test", INDEX_READ_ONLY_BLOCK.id()), is(INDEX_READ_ONLY_BLOCK));
         assertThat(updatedClusterState.routingTable().index("test"), is(notNullValue()));
@@ -1050,7 +1057,8 @@ public class MetadataCreateIndexServiceTests extends ESTestCase {
             currentClusterState,
             Set.of(INDEX_READ_ONLY_BLOCK),
             newIndexMetadata,
-            metadataTransformer
+            metadataTransformer,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
         assertTrue(updatedClusterState.metadata().findAllAliases(new String[] { "my-index" }).containsKey("my-index"));
         assertNotNull(updatedClusterState.metadata().findAllAliases(new String[] { "my-index" }).get("my-index"));

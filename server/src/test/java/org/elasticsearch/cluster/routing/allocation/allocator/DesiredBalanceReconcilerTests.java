@@ -14,6 +14,7 @@ import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
@@ -204,11 +205,11 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata0 = randomPriorityIndex("index-0", 1, 1);
         metadata.put(indexMetadata0, true);
-        routingTable.addAsNew(indexMetadata0);
+        routingTable.addAsNew(indexMetadata0, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var indexMetadata1 = randomPriorityIndex("index-1", 1, 1);
         metadata.put(indexMetadata1, true);
-        routingTable.addAsNew(indexMetadata1);
+        routingTable.addAsNew(indexMetadata1, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -293,7 +294,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             shardsRemaining -= shardCount;
             final var indexMetadata = randomPriorityIndex("index-" + indexNum++, shardCount, 3);
             metadata.put(indexMetadata, true);
-            routingTable.addAsNew(indexMetadata);
+            routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
         }
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
@@ -373,8 +374,8 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         metadata.put(indexMetadata0, true);
         metadata.put(indexMetadata1, true);
-        routingTable.addAsNew(indexMetadata0);
-        routingTable.addAsNew(indexMetadata1);
+        routingTable.addAsNew(indexMetadata0, TestShardCopyRoles.EMPTY_FACTORY);
+        routingTable.addAsNew(indexMetadata1, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var comparisonResult = Comparator.<IndexMetadata>comparingInt(indexMetadata -> indexMetadata.isSystem() ? 1 : 0)
             .thenComparingInt(IndexMetadata::priority)
@@ -492,7 +493,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
         for (var i = 0; i < 5; i++) {
             final var indexMetadata = randomPriorityIndex("index-" + i, between(1, 5), between(0, 4));
             metadata.put(indexMetadata, true);
-            routingTable.addAsNew(indexMetadata);
+            routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
         }
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
@@ -547,7 +548,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var existingIndexMetadata = randomPriorityIndex("index-existing", 1, 0);
         metadata.put(existingIndexMetadata, true);
-        routingTable.addAsRecovery(existingIndexMetadata);
+        routingTable.addAsRecovery(existingIndexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var restoredIndexMetadata = randomPriorityIndex("index-restored", 1, 0);
         metadata.put(restoredIndexMetadata, true);
@@ -557,7 +558,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             Version.CURRENT,
             new IndexId("index", UUIDs.randomBase64UUID(random()))
         );
-        routingTable.addAsRestore(restoredIndexMetadata, recoverySource);
+        routingTable.addAsRestore(restoredIndexMetadata, recoverySource, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -622,7 +623,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata = randomPriorityIndex("index-0", 1, between(0, 5));
         metadata.put(indexMetadata, true);
-        routingTable.addAsNew(indexMetadata);
+        routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -681,7 +682,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata = randomPriorityIndex("index-0", 1, between(0, 5));
         metadata.put(indexMetadata, true);
-        routingTable.addAsNew(indexMetadata);
+        routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -739,7 +740,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata0 = randomPriorityIndex("index-0", 2, 0);
         metadata.put(indexMetadata0, true);
-        routingTable.addAsNew(indexMetadata0);
+        routingTable.addAsNew(indexMetadata0, TestShardCopyRoles.EMPTY_FACTORY);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -810,7 +811,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata = randomPriorityIndex("index-0", 3, 1);
         metadata.put(indexMetadata, true);
-        routingTable.addAsNew(indexMetadata);
+        routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
 
         var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -934,7 +935,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
 
         final var indexMetadata = randomPriorityIndex("index-0", 3, 1);
         metadata.put(indexMetadata, true);
-        routingTable.addAsNew(indexMetadata);
+        routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
 
         var clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes)
@@ -1099,7 +1100,7 @@ public class DesiredBalanceReconcilerTests extends ESTestCase {
             public ShardAllocationDecision decideShardAllocation(ShardRouting shard, RoutingAllocation allocation) {
                 throw new AssertionError("should not be called");
             }
-        }, clusterInfoService, snapshotsInfoService);
+        }, clusterInfoService, snapshotsInfoService, TestShardCopyRoles.EMPTY_FACTORY);
         allocationService.setExistingShardsAllocators(Map.of(GatewayAllocator.ALLOCATOR_NAME, new NoOpExistingShardsAllocator()));
         return allocationService;
     }

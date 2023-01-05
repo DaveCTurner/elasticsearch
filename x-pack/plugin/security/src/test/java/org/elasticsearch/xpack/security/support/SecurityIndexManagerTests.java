@@ -18,6 +18,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
@@ -139,7 +140,8 @@ public class SecurityIndexManagerTests extends ESTestCase {
             new ShardId(index, 0),
             true,
             RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         String nodeId = ESTestCase.randomAlphaOfLength(8);
         clusterStateBuilder.routingTable(
@@ -216,7 +218,8 @@ public class SecurityIndexManagerTests extends ESTestCase {
                                         new ShardId(prevIndex, 0),
                                         true,
                                         RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-                                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+                                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+                                        TestShardCopyRoles.EMPTY_ROLE
                                     )
                                         .initialize(UUIDs.randomBase64UUID(random()), null, 0L)
                                         .moveToUnassigned(new UnassignedInfo(UnassignedInfo.Reason.ALLOCATION_FAILED, ""))

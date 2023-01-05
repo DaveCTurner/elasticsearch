@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -56,7 +57,7 @@ public class ExpectedShardSizeAllocationTests extends ESAllocationTestCase {
             )
             .build();
 
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test")).build();
+        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build();
 
         ClusterState clusterState = ClusterState.builder(
             org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)
@@ -102,7 +103,7 @@ public class ExpectedShardSizeAllocationTests extends ESAllocationTestCase {
         Metadata metadata = Metadata.builder()
             .put(IndexMetadata.builder("test").settings(settings(Version.CURRENT)).numberOfShards(1).numberOfReplicas(0))
             .build();
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test")).build();
+        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build();
         ClusterState clusterState = ClusterState.builder(
             org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)
         ).metadata(metadata).routingTable(routingTable).build();

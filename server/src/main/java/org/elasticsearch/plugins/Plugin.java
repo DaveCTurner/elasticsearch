@@ -12,7 +12,7 @@ import org.elasticsearch.bootstrap.BootstrapCheck;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
+import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.io.stream.NamedWriteable;
@@ -96,7 +96,7 @@ public abstract class Plugin implements Closeable {
         IndexNameExpressionResolver indexNameExpressionResolver,
         Supplier<RepositoriesService> repositoriesServiceSupplier,
         Tracer tracer,
-        AllocationDeciders allocationDeciders
+        AllocationService allocationService
     ) {
         return Collections.emptyList();
     }

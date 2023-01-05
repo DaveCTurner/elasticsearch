@@ -15,6 +15,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
@@ -1038,7 +1039,7 @@ public class PersistentTasksClusterServiceTests extends ESTestCase {
             .numberOfReplicas(1)
             .build();
         metadata.put(indexMetadata, false);
-        routingTable.addAsNew(indexMetadata);
+        routingTable.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
     }
 
     /** Creates a PersistentTasksClusterService with a single PersistentTasksExecutor implemented by a BiFunction **/

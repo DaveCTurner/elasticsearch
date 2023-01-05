@@ -104,7 +104,7 @@ public class RepositoriesMetadataSerializationTests extends ChunkedToXContentDif
 
     @Override
     protected NamedWriteableRegistry getNamedWriteableRegistry() {
-        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
     }
 
     @Override

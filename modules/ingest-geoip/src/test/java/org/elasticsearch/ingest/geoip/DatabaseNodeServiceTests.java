@@ -20,6 +20,7 @@ import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -383,7 +384,8 @@ public class DatabaseNodeServiceTests extends ESTestCase {
             new ShardId(index, 0),
             true,
             RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         String nodeId = ESTestCase.randomAlphaOfLength(8);
         shardRouting = shardRouting.initialize(nodeId, null, shardRouting.getExpectedShardSize());

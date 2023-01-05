@@ -13,6 +13,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.DesiredNode;
 import org.elasticsearch.cluster.metadata.DesiredNodeWithStatus;
 import org.elasticsearch.cluster.metadata.DesiredNodes;
@@ -86,7 +87,8 @@ public class DataTierAllocationDeciderTests extends ESAllocationTestCase {
         new ShardId("myindex", "myindex", 0),
         true,
         RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created")
+        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created"),
+        TestShardCopyRoles.EMPTY_ROLE
     );
 
     public void testIndexPrefer() {

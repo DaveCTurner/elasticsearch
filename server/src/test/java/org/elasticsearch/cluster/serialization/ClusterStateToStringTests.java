@@ -12,6 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -39,7 +40,7 @@ public class ClusterStateToStringTests extends ESAllocationTestCase {
             )
             .build();
 
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test_idx")).build();
+        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test_idx"), TestShardCopyRoles.EMPTY_FACTORY).build();
 
         DiscoveryNodes nodes = DiscoveryNodes.builder()
             .add(new DiscoveryNode("node_foo", buildNewFakeTransportAddress(), emptyMap(), emptySet(), Version.CURRENT))

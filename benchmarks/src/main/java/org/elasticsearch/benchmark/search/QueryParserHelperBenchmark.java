@@ -148,7 +148,7 @@ public class QueryParserHelperBenchmark {
             null,
             XContentParserConfiguration.EMPTY.withRegistry(new NamedXContentRegistry(ClusterModule.getNamedXWriteables()))
                 .withDeprecationHandler(LoggingDeprecationHandler.INSTANCE),
-            new NamedWriteableRegistry(ClusterModule.getNamedWriteables()),
+            new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of())),
             null,
             new IndexSearcher(indexReader),
             () -> nowInMillis,

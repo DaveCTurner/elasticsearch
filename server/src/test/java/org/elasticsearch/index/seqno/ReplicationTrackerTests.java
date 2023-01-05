@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.TestShardRouting;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
@@ -801,7 +802,7 @@ public class ReplicationTrackerTests extends ReplicationTrackerTestCase {
         // send primary context through the wire
         BytesStreamOutput output = new BytesStreamOutput();
         primaryContext.writeTo(output);
-        StreamInput streamInput = output.bytes().streamInput();
+        StreamInput streamInput = new NamedWriteableAwareStreamInput(output.bytes().streamInput(), writableRegistry());
         primaryContext = new ReplicationTracker.PrimaryContext(streamInput);
         switch (randomInt(3)) {
             case 0 -> {

@@ -116,7 +116,7 @@ public final class MockTransportService extends TransportService {
 
     public static TcpTransport newMockTransport(Settings settings, Version version, ThreadPool threadPool) {
         settings = Settings.builder().put(TransportSettings.PORT.getKey(), ESTestCase.getPortRange()).put(settings).build();
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
         return new Netty4Transport(
             settings,
             version,

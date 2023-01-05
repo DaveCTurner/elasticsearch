@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.allocation;
 
 import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.RoutingNode;
@@ -77,7 +78,7 @@ public class ClusterAllocationExplainActionTests extends ESTestCase {
                         throw new UnsupportedOperationException("cannot explain");
                     }
                 }
-            }, null, null)
+            }, null, null, TestShardCopyRoles.EMPTY_FACTORY)
         );
 
         assertEquals(shard.currentNodeId(), cae.getCurrentNode().getId());

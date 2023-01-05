@@ -11,6 +11,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
@@ -127,7 +128,8 @@ public class TransportGetShutdownStatusActionTests extends ESTestCase {
             allocationDeciders,
             new BalancedShardsAllocator(Settings.EMPTY),
             clusterInfoService,
-            snapshotsInfoService
+            snapshotsInfoService,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
         allocationService.setExistingShardsAllocators(Map.of(GatewayAllocator.ALLOCATOR_NAME, new TestGatewayAllocator()));
     }

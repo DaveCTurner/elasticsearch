@@ -22,6 +22,7 @@ import org.elasticsearch.test.ESTestCase;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 
 public class ClusterStateResponseTests extends AbstractWireSerializingTestCase<ClusterStateResponse> {
 
@@ -53,6 +54,6 @@ public class ClusterStateResponseTests extends AbstractWireSerializingTestCase<C
 
     @Override
     protected NamedWriteableRegistry getNamedWriteableRegistry() {
-        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
     }
 }

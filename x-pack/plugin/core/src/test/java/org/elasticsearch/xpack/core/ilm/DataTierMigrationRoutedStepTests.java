@@ -8,6 +8,7 @@ package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -237,7 +238,7 @@ public class DataTierMigrationRoutedStepTests extends AbstractStepTestCase<DataT
         {
             IndexRoutingTable.Builder indexRoutingTable = IndexRoutingTable.builder(index)
                 .addShard(TestShardRouting.newShardRouting(new ShardId(index, 0), "node1", true, ShardRoutingState.STARTED))
-                .addReplica();
+                .addReplica(TestShardCopyRoles.EMPTY_ROLE);
 
             ClusterState clusterState = ClusterState.builder(ClusterState.EMPTY_STATE)
                 .metadata(Metadata.builder().put(indexMetadata, true).build())

@@ -81,7 +81,8 @@ public final class Allocators {
             NoopGatewayAllocator.INSTANCE,
             new BalancedShardsAllocator(settings),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
     }
 

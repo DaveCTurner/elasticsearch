@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.indices.stats.IndexShardStats;
 import org.elasticsearch.action.admin.indices.stats.IndexStats;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingHelper;
@@ -110,7 +111,8 @@ public class IndexMetadataStatsTests extends ESTestCase {
             new ShardId(indexName, "__na__", shard),
             primary,
             recoverySource,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foo")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foo"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         shardRouting = ShardRoutingHelper.initialize(shardRouting, UUIDs.randomBase64UUID());
         shardRouting = ShardRoutingHelper.moveToStarted(shardRouting);

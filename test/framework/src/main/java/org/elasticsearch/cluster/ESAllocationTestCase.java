@@ -364,7 +364,14 @@ public abstract class ESAllocationTestCase extends ESTestCase {
             ClusterInfoService clusterInfoService,
             SnapshotsInfoService snapshotsInfoService
         ) {
-            super(allocationDeciders, gatewayAllocator, shardsAllocator, clusterInfoService, snapshotsInfoService);
+            super(
+                allocationDeciders,
+                gatewayAllocator,
+                shardsAllocator,
+                clusterInfoService,
+                snapshotsInfoService,
+                TestShardCopyRoles.EMPTY_FACTORY
+            );
         }
 
         public void setNanoTimeOverride(long nanoTime) {

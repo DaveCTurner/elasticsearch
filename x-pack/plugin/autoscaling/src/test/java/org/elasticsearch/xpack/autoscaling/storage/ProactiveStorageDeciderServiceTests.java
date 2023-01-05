@@ -11,6 +11,7 @@ import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.DiskUsage;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.DataStream;
 import org.elasticsearch.cluster.metadata.DataStreamTestHelper;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
@@ -92,7 +93,12 @@ public class ProactiveStorageDeciderServiceTests extends AutoscalingTestCase {
             }
         });
         AllocationDeciders allocationDeciders = new AllocationDeciders(allocationDecidersList);
-        ProactiveStorageDeciderService service = new ProactiveStorageDeciderService(Settings.EMPTY, clusterSettings, allocationDeciders);
+        ProactiveStorageDeciderService service = new ProactiveStorageDeciderService(
+            Settings.EMPTY,
+            clusterSettings,
+            allocationDeciders,
+            TestShardCopyRoles.EMPTY_FACTORY
+        );
         AutoscalingCapacity currentCapacity = ReactiveStorageDeciderDecisionTests.randomCurrentCapacity();
         ClusterInfo info = randomClusterInfo(state);
         AutoscalingDeciderContext context = new AutoscalingDeciderContext() {
@@ -173,6 +179,7 @@ public class ProactiveStorageDeciderServiceTests extends AutoscalingTestCase {
         ReactiveStorageDeciderService.AllocationState allocationState = new ReactiveStorageDeciderService.AllocationState(
             state,
             null,
+            TestShardCopyRoles.EMPTY_FACTORY,
             null,
             null,
             null,
@@ -205,6 +212,7 @@ public class ProactiveStorageDeciderServiceTests extends AutoscalingTestCase {
         ReactiveStorageDeciderService.AllocationState allocationState = new ReactiveStorageDeciderService.AllocationState(
             state,
             null,
+            TestShardCopyRoles.EMPTY_FACTORY,
             null,
             randomClusterInfo(state),
             null,
@@ -249,6 +257,7 @@ public class ProactiveStorageDeciderServiceTests extends AutoscalingTestCase {
         ReactiveStorageDeciderService.AllocationState allocationState = new ReactiveStorageDeciderService.AllocationState(
             state,
             null,
+            TestShardCopyRoles.EMPTY_FACTORY,
             null,
             info,
             null,
@@ -357,7 +366,7 @@ public class ProactiveStorageDeciderServiceTests extends AutoscalingTestCase {
     }
 
     private RoutingTable.Builder addRouting(Iterable<IndexMetadata> indices, RoutingTable.Builder builder) {
-        indices.forEach(builder::addAsNew);
+        indices.forEach(indexMetadata -> builder.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY));
         return builder;
     }
 

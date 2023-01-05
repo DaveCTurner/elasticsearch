@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.DiskUsage;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -971,7 +972,7 @@ public class DesiredBalanceComputerTests extends ESTestCase {
         return ClusterState.builder(ClusterName.DEFAULT)
             .nodes(discoveryNodes.masterNodeId("master").localNodeId("master"))
             .metadata(Metadata.builder().put(indexMetadata, true))
-            .routingTable(RoutingTable.builder().addAsNew(indexMetadata))
+            .routingTable(RoutingTable.builder().addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY))
             .build();
     }
 

@@ -28,6 +28,7 @@ import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.NodeConnectionsService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase.Cluster.ClusterNode;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
 import org.elasticsearch.cluster.coordination.LinearizabilityChecker.History;
@@ -1079,7 +1080,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
         private NamedWriteableRegistry getNamedWriteableRegistry() {
             return new NamedWriteableRegistry(
-                Stream.concat(ClusterModule.getNamedWriteables().stream(), extraNamedWriteables().stream()).collect(Collectors.toList())
+                Stream.concat(ClusterModule.getNamedWriteables(List.of()).stream(), extraNamedWriteables().stream())
+                    .collect(Collectors.toList())
             );
         }
 
@@ -1294,6 +1296,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     settings,
                     new BatchedRerouteService(clusterService, allocationService::reroute),
                     clusterService,
+                    TestShardCopyRoles.EMPTY_FACTORY,
                     threadPool
                 );
 

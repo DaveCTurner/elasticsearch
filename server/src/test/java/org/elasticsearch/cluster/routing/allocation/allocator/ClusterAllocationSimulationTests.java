@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.DiskUsage;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -131,7 +132,7 @@ public class ClusterAllocationSimulationTests extends ESAllocationTestCase {
 
         final var routingTableBuilder = RoutingTable.builder();
         for (final var indexMetadata : metadata) {
-            routingTableBuilder.addAsNew(indexMetadata);
+            routingTableBuilder.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
         }
 
         final var nodeSizeBytesByTier = Map.of(

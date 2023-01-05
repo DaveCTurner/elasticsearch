@@ -14,6 +14,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -42,7 +43,9 @@ public class UpdateNumberOfReplicasTests extends ESAllocationTestCase {
             .put(IndexMetadata.builder("test").settings(settings(Version.CURRENT)).numberOfShards(1).numberOfReplicas(1))
             .build();
 
-        RoutingTable initialRoutingTable = RoutingTable.builder().addAsNew(metadata.index("test")).build();
+        RoutingTable initialRoutingTable = RoutingTable.builder()
+            .addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
 
         ClusterState clusterState = ClusterState.builder(
             org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)
@@ -85,7 +88,9 @@ public class UpdateNumberOfReplicasTests extends ESAllocationTestCase {
 
         logger.info("add another replica");
         final String[] indices = { "test" };
-        RoutingTable updatedRoutingTable = RoutingTable.builder(clusterState.routingTable()).updateNumberOfReplicas(2, indices).build();
+        RoutingTable updatedRoutingTable = RoutingTable.builder(clusterState.routingTable())
+            .updateNumberOfReplicas(2, indices, TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
         metadata = Metadata.builder(clusterState.metadata()).updateNumberOfReplicas(2, indices).build();
         clusterState = ClusterState.builder(clusterState).routingTable(updatedRoutingTable).metadata(metadata).build();
 
@@ -142,7 +147,9 @@ public class UpdateNumberOfReplicasTests extends ESAllocationTestCase {
         );
 
         logger.info("now remove a replica");
-        updatedRoutingTable = RoutingTable.builder(clusterState.routingTable()).updateNumberOfReplicas(1, indices).build();
+        updatedRoutingTable = RoutingTable.builder(clusterState.routingTable())
+            .updateNumberOfReplicas(1, indices, TestShardCopyRoles.EMPTY_FACTORY)
+            .build();
         metadata = Metadata.builder(clusterState.metadata()).updateNumberOfReplicas(1, indices).build();
         clusterState = ClusterState.builder(clusterState).routingTable(updatedRoutingTable).metadata(metadata).build();
 

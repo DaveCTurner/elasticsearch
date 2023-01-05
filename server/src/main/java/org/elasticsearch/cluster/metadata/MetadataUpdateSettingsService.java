@@ -213,7 +213,11 @@ public class MetadataUpdateSettingsService {
                      * TODO: should we update the in-sync allocation IDs once the data is deleted by the node?
                      */
                     routingTableBuilder = RoutingTable.builder(currentState.routingTable());
-                    routingTableBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
+                    routingTableBuilder.updateNumberOfReplicas(
+                        updatedNumberOfReplicas,
+                        actualIndices,
+                        allocationService.getShardCopyRoleFactory()
+                    );
                     metadataBuilder.updateNumberOfReplicas(updatedNumberOfReplicas, actualIndices);
                     logger.info("updating number_of_replicas to [{}] for indices {}", updatedNumberOfReplicas, actualIndices);
                 }

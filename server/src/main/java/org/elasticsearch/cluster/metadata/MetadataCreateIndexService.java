@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
 import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.ShardCopyRoleFactory;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
@@ -504,7 +505,13 @@ public class MetadataCreateIndexService {
 
             indexService.getIndexEventListener().beforeIndexAddedToCluster(indexMetadata.getIndex(), indexMetadata.getSettings());
 
-            ClusterState updated = clusterStateCreateIndex(currentState, request.blocks(), indexMetadata, metadataTransformer);
+            ClusterState updated = clusterStateCreateIndex(
+                currentState,
+                request.blocks(),
+                indexMetadata,
+                metadataTransformer,
+                allocationService.getShardCopyRoleFactory()
+            );
             if (request.performReroute()) {
                 updated = allocationService.reroute(updated, "index [" + indexMetadata.getIndex().getName() + "] created", rerouteListener);
             }
@@ -1219,7 +1226,8 @@ public class MetadataCreateIndexService {
         ClusterState currentState,
         Set<ClusterBlock> clusterBlocks,
         IndexMetadata indexMetadata,
-        BiConsumer<Metadata.Builder, IndexMetadata> metadataTransformer
+        BiConsumer<Metadata.Builder, IndexMetadata> metadataTransformer,
+        ShardCopyRoleFactory roleFactory
     ) {
         final Metadata newMetadata;
         if (metadataTransformer != null) {
@@ -1237,7 +1245,7 @@ public class MetadataCreateIndexService {
         ClusterState updatedState = ClusterState.builder(currentState).blocks(blocks).metadata(newMetadata).build();
 
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder(updatedState.routingTable())
-            .addAsNew(updatedState.metadata().index(indexName));
+            .addAsNew(updatedState.metadata().index(indexName), roleFactory);
         return ClusterState.builder(updatedState).routingTable(routingTableBuilder.build()).build();
     }
 

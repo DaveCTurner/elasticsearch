@@ -12,6 +12,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.action.shard.ShardStateAction.FailedShardEntry;
 import org.elasticsearch.cluster.action.shard.ShardStateAction.FailedShardUpdateTask;
@@ -64,8 +65,8 @@ public class InSyncAllocationIdTests extends ESAllocationTestCase {
             )
             .build();
         RoutingTable routingTable = RoutingTable.builder()
-            .addAsNew(metadata.index("test"))
-            .addAsRecovery(metadata.index("test-old"))
+            .addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsRecovery(metadata.index("test-old"), TestShardCopyRoles.EMPTY_FACTORY)
             .build();
         ClusterState clusterState = ClusterState.builder(
             org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)
@@ -324,7 +325,11 @@ public class InSyncAllocationIdTests extends ESAllocationTestCase {
 
         logger.info("decrease number of replicas to 0");
         clusterState = ClusterState.builder(clusterState)
-            .routingTable(RoutingTable.builder(clusterState.routingTable()).updateNumberOfReplicas(0, new String[] { "test" }).build())
+            .routingTable(
+                RoutingTable.builder(clusterState.routingTable())
+                    .updateNumberOfReplicas(0, new String[] { "test" }, TestShardCopyRoles.EMPTY_FACTORY)
+                    .build()
+            )
             .metadata(Metadata.builder(clusterState.metadata()).updateNumberOfReplicas(0, new String[] { "test" }))
             .build();
 
@@ -386,7 +391,7 @@ public class InSyncAllocationIdTests extends ESAllocationTestCase {
         Metadata metadata = Metadata.builder()
             .put(IndexMetadata.builder("test").settings(settings(Version.CURRENT)).numberOfShards(1).numberOfReplicas(1))
             .build();
-        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test")).build();
+        RoutingTable routingTable = RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build();
         ClusterState clusterState = ClusterState.builder(
             org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)
         ).metadata(metadata).routingTable(routingTable).build();

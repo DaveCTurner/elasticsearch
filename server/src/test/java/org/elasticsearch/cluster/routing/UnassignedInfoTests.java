@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
@@ -151,7 +152,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         for (ShardRouting shard : shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED)) {
             assertThat(shard.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.INDEX_CREATED));
@@ -169,7 +170,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsRecovery(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsRecovery(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         for (ShardRouting shard : shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED)) {
             assertThat(shard.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.CLUSTER_RECOVERED));
@@ -199,7 +200,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
                         .add(newNode("node-5"))
                 )
                 .metadata(metadata0)
-                .routingTable(RoutingTable.builder().addAsNew(metadata0.index("test")).build())
+                .routingTable(RoutingTable.builder().addAsNew(metadata0.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
                 .build(),
             allocationService
         );
@@ -226,7 +227,10 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         final var clusterState2 = ClusterState.builder(clusterState1)
             .metadata(metadata1)
-            .routingTable(RoutingTable.builder(clusterState1.routingTable()).addAsFromOpenToClose(metadata1.index("test")))
+            .routingTable(
+                RoutingTable.builder(clusterState1.routingTable())
+                    .addAsFromOpenToClose(metadata1.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            )
             .build();
 
         assertLastAllocatedNodeIdsAssigned(
@@ -245,7 +249,10 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         final var clusterState4 = ClusterState.builder(clusterState3)
             .metadata(metadata4)
-            .routingTable(RoutingTable.builder(clusterState3.routingTable()).addAsFromCloseToOpen(metadata4.index("test")))
+            .routingTable(
+                RoutingTable.builder(clusterState3.routingTable())
+                    .addAsFromCloseToOpen(metadata4.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            )
             .build();
 
         assertLastAllocatedNodeIdsAssigned(
@@ -313,7 +320,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsFromCloseToOpen(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsFromCloseToOpen(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         for (ShardRouting shard : shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED)) {
             assertThat(shard.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.INDEX_REOPENED));
@@ -341,7 +348,8 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
                             Version.CURRENT,
                             new IndexId("test", UUIDs.randomBase64UUID(random()))
                         ),
-                        new HashSet<>()
+                        new HashSet<>(),
+                        TestShardCopyRoles.EMPTY_FACTORY
                     )
                     .build()
             )
@@ -374,7 +382,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
                         .add(newNode("node-5"))
                 )
                 .metadata(metadata0)
-                .routingTable(RoutingTable.builder().addAsNew(metadata0.index("test")).build())
+                .routingTable(RoutingTable.builder().addAsNew(metadata0.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
                 .build(),
             allocationService
         );
@@ -386,7 +394,10 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         final var clusterState1 = ClusterState.builder(clusterState0)
             .metadata(metadata1)
-            .routingTable(RoutingTable.builder(clusterState0.routingTable()).addAsFromOpenToClose(metadata1.index("test")))
+            .routingTable(
+                RoutingTable.builder(clusterState0.routingTable())
+                    .addAsFromOpenToClose(metadata1.index("test"), TestShardCopyRoles.EMPTY_FACTORY)
+            )
             .build();
 
         assertLastAllocatedNodeIdsAssigned(
@@ -419,7 +430,8 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
                             new Snapshot("rep1", new SnapshotId("snp1", UUIDs.randomBase64UUID())),
                             Version.CURRENT,
                             new IndexId("test", UUIDs.randomBase64UUID(random()))
-                        )
+                        ),
+                        TestShardCopyRoles.EMPTY_FACTORY
                     )
             )
             .build();
@@ -442,7 +454,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsFromDangling(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsFromDangling(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         for (ShardRouting shard : shardsWithState(clusterState.getRoutingNodes(), UNASSIGNED)) {
             assertThat(shard.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.DANGLING_INDEX_IMPORTED));
@@ -457,7 +469,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
         final Index index = metadata.index("test").getIndex();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index(index)).build())
+            .routingTable(RoutingTable.builder().addAsNew(metadata.index(index), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         clusterState = ClusterState.builder(clusterState).nodes(DiscoveryNodes.builder().add(newNode("node1"))).build();
         clusterState = allocation.reroute(clusterState, "reroute", ActionListener.noop());
@@ -468,7 +480,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
         for (int i = 0; i < indexRoutingTable.size(); i++) {
             builder.addIndexShard(new IndexShardRoutingTable.Builder(indexRoutingTable.shard(i)));
         }
-        builder.addReplica();
+        builder.addReplica(TestShardCopyRoles.EMPTY_ROLE);
         clusterState = ClusterState.builder(clusterState)
             .routingTable(RoutingTable.builder(clusterState.routingTable()).add(builder).build())
             .build();
@@ -512,7 +524,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         clusterState = ClusterState.builder(clusterState)
             .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")))
@@ -550,7 +562,7 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test")).build())
+            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test"), TestShardCopyRoles.EMPTY_FACTORY).build())
             .build();
         clusterState = ClusterState.builder(clusterState)
             .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")))
@@ -761,7 +773,12 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test1")).addAsNew(metadata.index("test2")).build())
+            .routingTable(
+                RoutingTable.builder()
+                    .addAsNew(metadata.index("test1"), TestShardCopyRoles.EMPTY_FACTORY)
+                    .addAsNew(metadata.index("test2"), TestShardCopyRoles.EMPTY_FACTORY)
+                    .build()
+            )
             .build();
         clusterState = ClusterState.builder(clusterState)
             .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")))
@@ -802,7 +819,12 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             .build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
             .metadata(metadata)
-            .routingTable(RoutingTable.builder().addAsNew(metadata.index("test1")).addAsNew(metadata.index("test2")).build())
+            .routingTable(
+                RoutingTable.builder()
+                    .addAsNew(metadata.index("test1"), TestShardCopyRoles.EMPTY_FACTORY)
+                    .addAsNew(metadata.index("test2"), TestShardCopyRoles.EMPTY_FACTORY)
+                    .build()
+            )
             .build();
         clusterState = ClusterState.builder(clusterState)
             .nodes(DiscoveryNodes.builder().add(newNode("node1")).add(newNode("node2")))

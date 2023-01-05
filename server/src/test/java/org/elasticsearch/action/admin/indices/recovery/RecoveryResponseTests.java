@@ -9,6 +9,7 @@
 package org.elasticsearch.action.admin.indices.recovery;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -49,7 +50,8 @@ public class RecoveryResponseTests extends ESTestCase {
                                         new ShardId("index-" + i, "index-uuid-" + i, 0),
                                         randomBoolean(),
                                         RecoverySource.PeerRecoverySource.INSTANCE,
-                                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+                                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+                                        TestShardCopyRoles.EMPTY_ROLE
                                     ).initialize(sourceNode.getId(), null, randomNonNegativeLong()),
                                     sourceNode,
                                     targetNode

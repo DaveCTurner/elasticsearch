@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.Diff;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.MetadataIndexStateService;
@@ -74,10 +75,16 @@ public class RoutingTableTests extends ESAllocationTestCase {
         Metadata metadata = Metadata.builder().put(createIndexMetadata(TEST_INDEX_1)).put(createIndexMetadata(TEST_INDEX_2)).build();
 
         RoutingTable testRoutingTable = new RoutingTable.Builder().add(
-            new IndexRoutingTable.Builder(metadata.index(TEST_INDEX_1).getIndex()).initializeAsNew(metadata.index(TEST_INDEX_1)).build()
+            new IndexRoutingTable.Builder(metadata.index(TEST_INDEX_1).getIndex()).initializeAsNew(
+                metadata.index(TEST_INDEX_1),
+                TestShardCopyRoles.EMPTY_FACTORY
+            ).build()
         )
             .add(
-                new IndexRoutingTable.Builder(metadata.index(TEST_INDEX_2).getIndex()).initializeAsNew(metadata.index(TEST_INDEX_2)).build()
+                new IndexRoutingTable.Builder(metadata.index(TEST_INDEX_2).getIndex()).initializeAsNew(
+                    metadata.index(TEST_INDEX_2),
+                    TestShardCopyRoles.EMPTY_FACTORY
+                ).build()
             )
             .build();
         this.clusterState = ClusterState.builder(org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
@@ -342,7 +349,7 @@ public class RoutingTableTests extends ESAllocationTestCase {
             assertThat(e.getMessage(), containsString("cannot be reused"));
         }
         try {
-            b.updateNumberOfReplicas(1, new String[] { "foo" });
+            b.updateNumberOfReplicas(1, new String[] { "foo" }, TestShardCopyRoles.EMPTY_FACTORY);
             fail("expected exception");
         } catch (IllegalStateException e) {
             assertThat(e.getMessage(), containsString("cannot be reused"));
@@ -414,14 +421,16 @@ public class RoutingTableTests extends ESAllocationTestCase {
     public void testAddAsRecovery() {
         {
             final IndexMetadata indexMetadata = createIndexMetadata(TEST_INDEX_1).state(IndexMetadata.State.OPEN).build();
-            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(indexMetadata).build();
+            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY)
+                .build();
             assertThat(routingTable.hasIndex(TEST_INDEX_1), is(true));
             assertThat(routingTable.allShards(TEST_INDEX_1).size(), is(this.shardsPerIndex));
             assertThat(routingTable.index(TEST_INDEX_1).shardsWithState(UNASSIGNED).size(), is(this.shardsPerIndex));
         }
         {
             final IndexMetadata indexMetadata = createIndexMetadata(TEST_INDEX_1).state(IndexMetadata.State.CLOSE).build();
-            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(indexMetadata).build();
+            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY)
+                .build();
             assertThat(routingTable.hasIndex(TEST_INDEX_1), is(false));
             expectThrows(IndexNotFoundException.class, () -> routingTable.allShards(TEST_INDEX_1));
         }
@@ -436,7 +445,10 @@ public class RoutingTableTests extends ESAllocationTestCase {
                         .build()
                 )
                 .settingsVersion(indexMetadata.getSettingsVersion() + 1);
-            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(indexMetadataBuilder.build()).build();
+            final RoutingTable routingTable = new RoutingTable.Builder().addAsRecovery(
+                indexMetadataBuilder.build(),
+                TestShardCopyRoles.EMPTY_FACTORY
+            ).build();
             assertThat(routingTable.hasIndex(TEST_INDEX_1), is(true));
             assertThat(routingTable.allShards(TEST_INDEX_1).size(), is(this.shardsPerIndex));
             assertThat(routingTable.index(TEST_INDEX_1).shardsWithState(UNASSIGNED).size(), is(this.shardsPerIndex));

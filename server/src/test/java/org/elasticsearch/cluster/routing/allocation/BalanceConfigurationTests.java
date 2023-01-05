@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -165,7 +166,7 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
         Metadata metadata = metadataBuilder.build();
 
         for (IndexMetadata indexMetadata : metadata.indices().values()) {
-            routingTableBuilder.addAsNew(indexMetadata);
+            routingTableBuilder.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
         }
 
         RoutingTable initialRoutingTable = routingTableBuilder.build();
@@ -402,7 +403,8 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
                 }
             },
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
         Metadata.Builder metadataBuilder = Metadata.builder();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
@@ -413,7 +415,7 @@ public class BalanceConfigurationTests extends ESAllocationTestCase {
         metadataBuilder = metadataBuilder.put(indexMeta);
         Metadata metadata = metadataBuilder.build();
         for (IndexMetadata indexMetadata : metadata.indices().values()) {
-            routingTableBuilder.addAsNew(indexMetadata);
+            routingTableBuilder.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
         }
         RoutingTable routingTable = routingTableBuilder.build();
         DiscoveryNodes.Builder nodes = DiscoveryNodes.builder();

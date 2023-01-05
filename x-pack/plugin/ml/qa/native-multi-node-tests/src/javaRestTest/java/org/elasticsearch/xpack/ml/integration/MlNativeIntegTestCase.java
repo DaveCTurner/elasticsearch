@@ -286,7 +286,7 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
     @Override
     protected void ensureClusterStateConsistency() throws IOException {
         if (cluster() != null && cluster().size() > 0) {
-            List<NamedWriteableRegistry.Entry> entries = new ArrayList<>(ClusterModule.getNamedWriteables());
+            List<NamedWriteableRegistry.Entry> entries = new ArrayList<>(ClusterModule.getNamedWriteables(List.of()));
             entries.addAll(new SearchModule(Settings.EMPTY, Collections.emptyList()).getNamedWriteables());
             entries.add(
                 new NamedWriteableRegistry.Entry(

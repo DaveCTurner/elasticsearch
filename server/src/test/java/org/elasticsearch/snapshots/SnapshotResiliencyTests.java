@@ -1568,7 +1568,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             private final Logger logger = LogManager.getLogger(TestClusterNode.class);
 
             private final NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(
-                Stream.concat(ClusterModule.getNamedWriteables().stream(), NetworkModule.getNamedWriteables().stream()).toList()
+                Stream.concat(ClusterModule.getNamedWriteables(List.of()).stream(), NetworkModule.getNamedWriteables().stream()).toList()
             );
 
             private final TransportService transportService;

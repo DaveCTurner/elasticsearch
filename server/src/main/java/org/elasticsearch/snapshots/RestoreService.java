@@ -124,8 +124,7 @@ import static org.elasticsearch.snapshots.SnapshotsService.NO_FEATURE_STATES_VAL
  * First {@link #restoreSnapshot(RestoreSnapshotRequest, org.elasticsearch.action.ActionListener)}
  * method reads information about snapshot and metadata from repository. In update cluster state task it checks restore
  * preconditions, restores global state if needed, creates {@link RestoreInProgress} record with list of shards that needs
- * to be restored and adds this shard to the routing table using
- * {@link RoutingTable.Builder#addAsRestore(IndexMetadata, SnapshotRecoverySource)} method.
+ * to be restored and adds this shard to the routing table using {@link RoutingTable.Builder#addAsRestore} method.
  * <p>
  * Individual shards are getting restored as part of normal recovery process in
  * {@link IndexShard#restoreFromRepository} )}
@@ -1341,7 +1340,12 @@ public class RestoreService implements ClusterStateApplier {
                     if (partial) {
                         populateIgnoredShards(index.getName(), ignoreShards);
                     }
-                    rtBuilder.addAsNewRestore(updatedIndexMetadata, recoverySource, ignoreShards);
+                    rtBuilder.addAsNewRestore(
+                        updatedIndexMetadata,
+                        recoverySource,
+                        ignoreShards,
+                        allocationService.getShardCopyRoleFactory()
+                    );
                     blocks.addBlocks(updatedIndexMetadata);
                 } else {
                     // Index exists and it's closed - open it in metadata and start recovery
@@ -1361,7 +1365,7 @@ public class RestoreService implements ClusterStateApplier {
                         ensureNoAliasNameConflicts(snapshotIndexMetadata);
                     }
                     updatedIndexMetadata = indexMdBuilder.build();
-                    rtBuilder.addAsRestore(updatedIndexMetadata, recoverySource);
+                    rtBuilder.addAsRestore(updatedIndexMetadata, recoverySource, allocationService.getShardCopyRoleFactory());
                     blocks.updateBlocks(updatedIndexMetadata);
                 }
 

@@ -13,6 +13,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -55,7 +56,8 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
             new TestGatewayAllocator(),
             new BalancedShardsAllocator(Settings.EMPTY),
             EmptyClusterInfoService.INSTANCE,
-            EmptySnapshotsInfoService.INSTANCE
+            EmptySnapshotsInfoService.INSTANCE,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
     }
 
@@ -70,7 +72,7 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
         );
         Metadata metadata = metaBuilder.build();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder();
-        routingTableBuilder.addAsNew(metadata.index("source"));
+        routingTableBuilder.addAsNew(metadata.index("source"), TestShardCopyRoles.EMPTY_FACTORY);
 
         RoutingTable routingTable = routingTableBuilder.build();
         ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY))
@@ -135,7 +137,7 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
         );
         Metadata metadata = metaBuilder.build();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder(clusterState.routingTable());
-        routingTableBuilder.addAsNew(metadata.index("target"));
+        routingTableBuilder.addAsNew(metadata.index("target"), TestShardCopyRoles.EMPTY_FACTORY);
 
         clusterState = ClusterState.builder(clusterState).routingTable(routingTableBuilder.build()).metadata(metadata).build();
         Index idx = clusterState.metadata().index("target").getIndex();
@@ -174,7 +176,7 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
         );
         Metadata metadata = metaBuilder.build();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder(clusterState.routingTable());
-        routingTableBuilder.addAsNew(metadata.index("target"));
+        routingTableBuilder.addAsNew(metadata.index("target"), TestShardCopyRoles.EMPTY_FACTORY);
 
         clusterState = ClusterState.builder(clusterState).routingTable(routingTableBuilder.build()).metadata(metadata).build();
         Index idx = clusterState.metadata().index("target").getIndex();
@@ -231,7 +233,7 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
         );
         Metadata metadata = metaBuilder.build();
         RoutingTable.Builder routingTableBuilder = RoutingTable.builder(clusterState.routingTable());
-        routingTableBuilder.addAsNew(metadata.index("target"));
+        routingTableBuilder.addAsNew(metadata.index("target"), TestShardCopyRoles.EMPTY_FACTORY);
 
         clusterState = ClusterState.builder(clusterState).routingTable(routingTableBuilder.build()).metadata(metadata).build();
         Index idx = clusterState.metadata().index("target").getIndex();
@@ -339,7 +341,8 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
             new ShardId(target.getIndex(), 0),
             true,
             RecoverySource.LocalShardsRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         assertThat(decider.getForcedInitialShardAllocationToNodes(localRecoveryShard, allocation), equalTo(Optional.of(Set.of("node-1"))));
 
@@ -347,7 +350,8 @@ public class ResizeAllocationDeciderTests extends ESAllocationTestCase {
             new ShardId(target.getIndex(), 0),
             true,
             RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "index created"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         assertThat(decider.getForcedInitialShardAllocationToNodes(newShard, allocation), equalTo(Optional.empty()));
     }

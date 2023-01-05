@@ -14,6 +14,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
@@ -355,7 +356,8 @@ public class NativeRolesStoreTests extends ESTestCase {
             new ShardId(index, 0),
             true,
             RecoverySource.ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(Reason.INDEX_CREATED, "")
+            new UnassignedInfo(Reason.INDEX_CREATED, ""),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         RoutingTable routingTable = RoutingTable.builder()
             .add(

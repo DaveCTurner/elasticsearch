@@ -12,6 +12,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -104,7 +105,8 @@ public class VersionStatsTests extends AbstractWireSerializingTestCase<VersionSt
             shardId,
             true,
             RecoverySource.PeerRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "message")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "message"),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         Path path = createTempDir().resolve("indices")
             .resolve(shardRouting.shardId().getIndex().getUUID())

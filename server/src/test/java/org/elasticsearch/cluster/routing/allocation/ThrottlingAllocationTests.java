@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
 import org.elasticsearch.cluster.RestoreInProgress;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -362,9 +363,9 @@ public class ThrottlingAllocationTests extends ESAllocationTestCase {
             IndexMetadata indexMetadata = indexMetadataBuilder.build();
             metadataBuilder.put(indexMetadata, false);
             switch (recoveryType) {
-                case 0 -> routingTableBuilder.addAsRecovery(indexMetadata);
-                case 1 -> routingTableBuilder.addAsFromCloseToOpen(indexMetadata);
-                case 2 -> routingTableBuilder.addAsFromDangling(indexMetadata);
+                case 0 -> routingTableBuilder.addAsRecovery(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
+                case 1 -> routingTableBuilder.addAsFromCloseToOpen(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
+                case 2 -> routingTableBuilder.addAsFromDangling(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
                 case 3 -> {
                     snapshotIndices.add(index.getName());
                     routingTableBuilder.addAsNewRestore(
@@ -375,7 +376,8 @@ public class ThrottlingAllocationTests extends ESAllocationTestCase {
                             Version.CURRENT,
                             new IndexId(indexMetadata.getIndex().getName(), UUIDs.randomBase64UUID(random()))
                         ),
-                        new HashSet<>()
+                        new HashSet<>(),
+                        TestShardCopyRoles.EMPTY_FACTORY
                     );
                 }
                 case 4 -> {
@@ -387,10 +389,11 @@ public class ThrottlingAllocationTests extends ESAllocationTestCase {
                             snapshot,
                             Version.CURRENT,
                             new IndexId(indexMetadata.getIndex().getName(), UUIDs.randomBase64UUID(random()))
-                        )
+                        ),
+                        TestShardCopyRoles.EMPTY_FACTORY
                     );
                 }
-                case 5 -> routingTableBuilder.addAsNew(indexMetadata);
+                case 5 -> routingTableBuilder.addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY);
                 default -> throw new IndexOutOfBoundsException();
             }
         }
@@ -444,7 +447,8 @@ public class ThrottlingAllocationTests extends ESAllocationTestCase {
                 new ShardId(index, shard),
                 primary,
                 primary ? RecoverySource.EmptyStoreRecoverySource.INSTANCE : RecoverySource.PeerRecoverySource.INSTANCE,
-                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "test")
+                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "test"),
+                TestShardCopyRoles.EMPTY_ROLE
             );
             ShardRouting started = ShardRoutingHelper.moveToStarted(ShardRoutingHelper.initialize(unassigned, node1.getId()));
             indexMetadata.putInSyncAllocationIds(shard, Collections.singleton(started.allocationId().getId()));

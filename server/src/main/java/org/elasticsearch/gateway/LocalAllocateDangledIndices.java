@@ -199,7 +199,7 @@ public class LocalAllocateDangledIndices {
                         metadata.put(newIndexMetadata, false);
                         blocks.addBlocks(newIndexMetadata);
                         if (newIndexMetadata.getState() == IndexMetadata.State.OPEN || isIndexVerifiedBeforeClosed(indexMetadata)) {
-                            routingTableBuilder.addAsFromDangling(newIndexMetadata);
+                            routingTableBuilder.addAsFromDangling(newIndexMetadata, allocationService.getShardCopyRoleFactory());
                         }
                         sb.append("[").append(newIndexMetadata.getIndex()).append("/").append(newIndexMetadata.getState()).append("]");
                     }

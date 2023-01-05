@@ -22,6 +22,7 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -478,7 +479,8 @@ public class TransportRolloverActionTests extends ESTestCase {
                     shardId,
                     primary,
                     primary ? RecoverySource.EmptyStoreRecoverySource.INSTANCE : RecoverySource.PeerRecoverySource.INSTANCE,
-                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+                    TestShardCopyRoles.EMPTY_ROLE
                 );
                 shardRouting = shardRouting.initialize("node-0", null, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);
                 shardRouting = shardRouting.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);

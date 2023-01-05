@@ -11,6 +11,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.GroupShardsIterator;
 import org.elasticsearch.cluster.routing.RecoverySource;
@@ -724,7 +725,8 @@ public class SearchAsyncActionTests extends ESTestCase {
                 new ShardId(index, i),
                 true,
                 RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foobar")
+                new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foobar"),
+                TestShardCopyRoles.EMPTY_ROLE
             );
             if (primaryNode != null) {
                 routing = routing.initialize(primaryNode.getId(), i + "p", 0);
@@ -736,7 +738,8 @@ public class SearchAsyncActionTests extends ESTestCase {
                     new ShardId(index, i),
                     false,
                     RecoverySource.PeerRecoverySource.INSTANCE,
-                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foobar")
+                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "foobar"),
+                    TestShardCopyRoles.EMPTY_ROLE
                 );
                 if (replicaNode != null) {
                     routing = routing.initialize(replicaNode.getId(), i + "r", 0);

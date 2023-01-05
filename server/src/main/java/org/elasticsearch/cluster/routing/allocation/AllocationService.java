@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.ShardCopyRoleFactory;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.UnassignedInfo.AllocationStatus;
@@ -76,6 +77,7 @@ public class AllocationService {
     private final ShardsAllocator shardsAllocator;
     private final ClusterInfoService clusterInfoService;
     private final SnapshotsInfoService snapshotsInfoService;
+    private final ShardCopyRoleFactory roleFactory;
 
     // only for tests that use the GatewayAllocator as the unique ExistingShardsAllocator
     public AllocationService(
@@ -83,9 +85,10 @@ public class AllocationService {
         GatewayAllocator gatewayAllocator,
         ShardsAllocator shardsAllocator,
         ClusterInfoService clusterInfoService,
-        SnapshotsInfoService snapshotsInfoService
+        SnapshotsInfoService snapshotsInfoService,
+        ShardCopyRoleFactory roleFactory
     ) {
-        this(allocationDeciders, shardsAllocator, clusterInfoService, snapshotsInfoService);
+        this(allocationDeciders, shardsAllocator, clusterInfoService, snapshotsInfoService, roleFactory);
         setExistingShardsAllocators(Collections.singletonMap(GatewayAllocator.ALLOCATOR_NAME, gatewayAllocator));
     }
 
@@ -93,12 +96,14 @@ public class AllocationService {
         AllocationDeciders allocationDeciders,
         ShardsAllocator shardsAllocator,
         ClusterInfoService clusterInfoService,
-        SnapshotsInfoService snapshotsInfoService
+        SnapshotsInfoService snapshotsInfoService,
+        ShardCopyRoleFactory roleFactory
     ) {
         this.allocationDeciders = allocationDeciders;
         this.shardsAllocator = shardsAllocator;
         this.clusterInfoService = clusterInfoService;
         this.snapshotsInfoService = snapshotsInfoService;
+        this.roleFactory = roleFactory;
     }
 
     /**
@@ -115,6 +120,10 @@ public class AllocationService {
      */
     public AllocationDeciders getAllocationDeciders() {
         return allocationDeciders;
+    }
+
+    public ShardCopyRoleFactory getShardCopyRoleFactory() {
+        return roleFactory;
     }
 
     /**
@@ -304,7 +313,7 @@ public class AllocationService {
                 final String[] indices = entry.getValue().toArray(Strings.EMPTY_ARRAY);
                 // we do *not* update the in sync allocation ids as they will be removed upon the first index
                 // operation which make these copies stale
-                routingTableBuilder.updateNumberOfReplicas(numberOfReplicas, indices);
+                routingTableBuilder.updateNumberOfReplicas(numberOfReplicas, indices, roleFactory);
                 metadataBuilder.updateNumberOfReplicas(numberOfReplicas, indices);
                 // update settings version for each index
                 for (final String index : indices) {

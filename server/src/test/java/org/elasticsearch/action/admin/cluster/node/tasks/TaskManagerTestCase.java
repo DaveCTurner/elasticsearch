@@ -192,7 +192,7 @@ public abstract class TaskManagerTestCase extends ESTestCase {
                     threadPool,
                     new NetworkService(Collections.emptyList()),
                     PageCacheRecycler.NON_RECYCLING_INSTANCE,
-                    new NamedWriteableRegistry(ClusterModule.getNamedWriteables()),
+                    new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of())),
                     new NoneCircuitBreakerService(),
                     new SharedGroupFactory(settings)
                 ),

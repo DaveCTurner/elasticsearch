@@ -25,6 +25,8 @@ import org.elasticsearch.cluster.metadata.MetadataMappingService;
 import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
 import org.elasticsearch.cluster.metadata.RepositoriesMetadata;
 import org.elasticsearch.cluster.routing.DelayedAllocationService;
+import org.elasticsearch.cluster.routing.ShardCopyRole;
+import org.elasticsearch.cluster.routing.ShardCopyRoleFactory;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.ExistingShardsAllocator;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
@@ -57,6 +59,9 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.io.stream.NamedWriteable;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry.Entry;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.io.stream.Writeable.Reader;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
@@ -70,6 +75,7 @@ import org.elasticsearch.ingest.IngestMetadata;
 import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
 import org.elasticsearch.persistent.PersistentTasksNodeService;
 import org.elasticsearch.plugins.ClusterPlugin;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.ScriptMetadata;
 import org.elasticsearch.snapshots.SnapshotsInfoService;
 import org.elasticsearch.tasks.Task;
@@ -78,6 +84,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.upgrades.FeatureMigrationResults;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ParseField;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -113,6 +120,7 @@ public class ClusterModule extends AbstractModule {
     // pkg private for tests
     final Collection<AllocationDecider> deciderList;
     final ShardsAllocator shardsAllocator;
+    private final ShardCopyRoleFactory shardCopyRoleFactory;
 
     public ClusterModule(
         Settings settings,
@@ -138,15 +146,46 @@ public class ClusterModule extends AbstractModule {
         );
         this.clusterService = clusterService;
         this.indexNameExpressionResolver = new IndexNameExpressionResolver(threadPool.getThreadContext(), systemIndices);
-        this.allocationService = new AllocationService(allocationDeciders, shardsAllocator, clusterInfoService, snapshotsInfoService);
+        this.shardCopyRoleFactory = getShardCopyRoleFactory(clusterPlugins);
+        this.allocationService = new AllocationService(
+            allocationDeciders,
+            shardsAllocator,
+            clusterInfoService,
+            snapshotsInfoService,
+            shardCopyRoleFactory
+        );
         this.metadataDeleteIndexService = new MetadataDeleteIndexService(settings, clusterService, allocationService);
+    }
+
+    static ShardCopyRoleFactory getShardCopyRoleFactory(List<ClusterPlugin> clusterPlugins) {
+        final var factories = clusterPlugins.stream().map(ClusterPlugin::getShardRoleFactory).filter(Objects::nonNull).toList();
+        return switch (factories.size()) {
+            case 0 -> new ShardCopyRoleFactory() {
+                @Override
+                public ShardCopyRole newReplicaRole() {
+                    return EmptyShardCopyRole.INSTANCE;
+                }
+
+                @Override
+                public ShardCopyRole newRestoredRole(int copyIndex) {
+                    return EmptyShardCopyRole.INSTANCE;
+                }
+
+                @Override
+                public ShardCopyRole newEmptyRole(int copyIndex) {
+                    return EmptyShardCopyRole.INSTANCE;
+                }
+            };
+            case 1 -> factories.get(0);
+            default -> throw new IllegalArgumentException("multiple plugins define shard role factories, which is not permitted");
+        };
     }
 
     private ClusterState reconcile(ClusterState clusterState, Consumer<RoutingAllocation> routingAllocationConsumer) {
         return allocationService.executeWithRoutingAllocation(clusterState, "reconcile-desired-balance", routingAllocationConsumer);
     }
 
-    public static List<Entry> getNamedWriteables() {
+    public static List<Entry> getNamedWriteables(List<Reader<ShardCopyRole>> shardRoleReaders) {
         List<Entry> entries = new ArrayList<>();
         // Cluster State
         registerClusterCustom(entries, SnapshotsInProgress.TYPE, SnapshotsInProgress::new, SnapshotsInProgress::readDiffFrom);
@@ -197,6 +236,14 @@ public class ClusterModule extends AbstractModule {
         // Health API
         entries.addAll(HealthNodeTaskExecutor.getNamedWriteables());
         entries.addAll(HealthMetadataService.getNamedWriteables());
+
+        // Pluggable shard role
+        entries.add(new Entry(ShardCopyRole.class, ShardCopyRole.WRITEABLE_NAME, switch (shardRoleReaders.size()) {
+            case 0 -> EmptyShardCopyRole::readFrom;
+            case 1 -> shardRoleReaders.get(0);
+            default -> throw new IllegalArgumentException("multiple plugins define shard roles, which is not permitted");
+        }));
+
         return entries;
     }
 
@@ -403,6 +450,7 @@ public class ClusterModule extends AbstractModule {
         bind(TaskResultsService.class).asEagerSingleton();
         bind(AllocationDeciders.class).toInstance(allocationDeciders);
         bind(ShardsAllocator.class).toInstance(shardsAllocator);
+        bind(ShardCopyRoleFactory.class).toInstance(shardCopyRoleFactory);
     }
 
     public void setExistingShardsAllocators(GatewayAllocator gatewayAllocator) {
@@ -425,6 +473,54 @@ public class ClusterModule extends AbstractModule {
             }
         }
         allocationService.setExistingShardsAllocators(existingShardsAllocators);
+    }
+
+    public static Collection<Writeable.Reader<ShardCopyRole>> getShardCopyRoleReaders(Plugin plugin) {
+        if (plugin instanceof ClusterPlugin clusterPlugin) {
+            final var shardRoleReader = clusterPlugin.getShardRoleReader();
+            if (shardRoleReader != null) {
+                return List.of(shardRoleReader);
+            }
+        }
+        return List.of();
+    }
+
+    private static class EmptyShardCopyRole implements ShardCopyRole {
+        // Should not be used explicitly anywhere outside this class; see TestShardCopyRoles for values to be used in tests
+
+        static EmptyShardCopyRole INSTANCE = new EmptyShardCopyRole();
+
+        @Override
+        public XContentBuilder toXContent(XContentBuilder builder, Params params) {
+            return builder;
+        }
+
+        @Override
+        public String getWriteableName() {
+            return ShardCopyRole.WRITEABLE_NAME;
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) {}
+
+        @Override
+        public String toString() {
+            return "";
+        }
+
+        static ShardCopyRole readFrom(StreamInput in) {
+            return INSTANCE;
+        }
+
+        @Override
+        public boolean isPromotableToPrimary() {
+            return true;
+        }
+
+        @Override
+        public boolean isSearchable() {
+            return true;
+        }
     }
 
 }

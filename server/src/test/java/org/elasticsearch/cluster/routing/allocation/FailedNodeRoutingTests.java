@@ -18,6 +18,7 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -69,8 +70,8 @@ public class FailedNodeRoutingTests extends ESAllocationTestCase {
             .build();
 
         RoutingTable initialRoutingTable = RoutingTable.builder()
-            .addAsNew(metadata.index("test1"))
-            .addAsNew(metadata.index("test2"))
+            .addAsNew(metadata.index("test1"), TestShardCopyRoles.EMPTY_FACTORY)
+            .addAsNew(metadata.index("test2"), TestShardCopyRoles.EMPTY_FACTORY)
             .build();
 
         ClusterState clusterState = ClusterState.builder(

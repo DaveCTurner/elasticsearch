@@ -8,6 +8,7 @@
 
 package org.elasticsearch.cluster.routing;
 
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.routing.RecoverySource.ExistingStoreRecoverySource;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.index.shard.ShardId;
@@ -31,7 +32,8 @@ public class AllocationIdTests extends ESTestCase {
             new ShardId("test", "_na_", 0),
             true,
             ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         assertThat(shard.allocationId(), nullValue());
 
@@ -56,7 +58,8 @@ public class AllocationIdTests extends ESTestCase {
             new ShardId("test", "_na_", 0),
             true,
             ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         shard = shard.initialize("node1", null, -1);
         shard = shard.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);
@@ -84,7 +87,8 @@ public class AllocationIdTests extends ESTestCase {
             new ShardId("test", "_na_", 0),
             true,
             ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         shard = shard.initialize("node1", null, -1);
         shard = shard.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);
@@ -109,7 +113,8 @@ public class AllocationIdTests extends ESTestCase {
             new ShardId("test", "_na_", 0),
             true,
             ExistingStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         shard = shard.initialize("node1", null, -1);
         shard = shard.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);

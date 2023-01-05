@@ -1575,7 +1575,7 @@ public abstract class ESTestCase extends LuceneTestCase {
      * The {@link NamedWriteableRegistry} to use for this test. Subclasses should override and use liberally.
      */
     protected NamedWriteableRegistry writableRegistry() {
-        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables());
+        return new NamedWriteableRegistry(ClusterModule.getNamedWriteables(List.of()));
     }
 
     /**

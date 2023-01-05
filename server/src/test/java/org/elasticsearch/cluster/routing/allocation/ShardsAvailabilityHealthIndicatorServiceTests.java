@@ -11,6 +11,7 @@ package org.elasticsearch.cluster.routing.allocation;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -1640,7 +1641,8 @@ public class ShardsAvailabilityHealthIndicatorServiceTests extends ESTestCase {
             shardId,
             primary,
             getSource(primary, allocation.state),
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         if (allocation.state == INITIALIZING) {
             return routing;

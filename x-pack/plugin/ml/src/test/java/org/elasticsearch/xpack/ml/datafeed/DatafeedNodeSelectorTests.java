@@ -11,6 +11,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.DataStreamTestHelper;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -722,7 +723,8 @@ public class DatafeedNodeSelectorTests extends ESTestCase {
                     shardId,
                     true,
                     RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+                    TestShardCopyRoles.EMPTY_ROLE
                 );
             }
 

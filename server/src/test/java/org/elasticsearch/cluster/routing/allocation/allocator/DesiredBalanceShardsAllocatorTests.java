@@ -15,6 +15,7 @@ import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -159,7 +160,9 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
                 var indexMetadata = createIndex("test-index");
                 var newState = ClusterState.builder(currentState)
                     .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
-                    .routingTable(RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata))
+                    .routingTable(
+                        RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY)
+                    )
                     .build();
                 return allocationService.reroute(
                     newState,
@@ -263,7 +266,9 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
                 var indexMetadata = createIndex(indexName);
                 var newState = ClusterState.builder(currentState)
                     .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
-                    .routingTable(RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata))
+                    .routingTable(
+                        RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY)
+                    )
                     .build();
                 return allocationService.reroute(newState, "test", ActionListener.wrap(response -> {
                     assertThat(
@@ -361,7 +366,9 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
                 var indexMetadata = createIndex("index-1");
                 var newState = ClusterState.builder(currentState)
                     .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
-                    .routingTable(RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata))
+                    .routingTable(
+                        RoutingTable.builder(currentState.routingTable()).addAsNew(indexMetadata, TestShardCopyRoles.EMPTY_FACTORY)
+                    )
                     .build();
                 return allocationService.reroute(
                     newState,
@@ -433,7 +440,8 @@ public class DesiredBalanceShardsAllocatorTests extends ESTestCase {
             gatewayAllocator,
             desiredBalanceShardsAllocator,
             () -> ClusterInfo.EMPTY,
-            () -> SnapshotShardSizeInfo.EMPTY
+            () -> SnapshotShardSizeInfo.EMPTY,
+            TestShardCopyRoles.EMPTY_FACTORY
         );
     }
 

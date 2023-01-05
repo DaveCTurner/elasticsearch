@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.transform.checkpoint;
 
 import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.PeerRecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
@@ -207,7 +208,8 @@ public class TransformsCheckpointServiceTests extends ESTestCase {
                         shardId,
                         primary,
                         primary ? RecoverySource.EmptyStoreRecoverySource.INSTANCE : PeerRecoverySource.INSTANCE,
-                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null)
+                        new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, null),
+                        TestShardCopyRoles.EMPTY_ROLE
                     );
                     shardRouting = shardRouting.initialize("node-0", null, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);
                     shardRouting = shardRouting.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);

@@ -13,6 +13,7 @@ import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.TestShardCopyRoles;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -123,7 +124,8 @@ public class TrainedModelStatsServiceTests extends ESTestCase {
                     shardId,
                     true,
                     RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+                    new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+                    TestShardCopyRoles.EMPTY_ROLE
                 );
                 shardRouting = shardRouting.initialize("node_id", null, 0L);
                 routingTable.add(
@@ -344,7 +346,8 @@ public class TrainedModelStatsServiceTests extends ESTestCase {
             shardId,
             true,
             RecoverySource.EmptyStoreRecoverySource.INSTANCE,
-            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, "")
+            new UnassignedInfo(UnassignedInfo.Reason.INDEX_CREATED, ""),
+            TestShardCopyRoles.EMPTY_ROLE
         );
         shardRouting = shardRouting.initialize("node_id", null, 0L);
         shardRouting = shardRouting.moveToStarted(ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE);
