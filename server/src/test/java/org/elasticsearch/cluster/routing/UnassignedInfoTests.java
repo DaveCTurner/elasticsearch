@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.routing.UnassignedInfo.AllocationStatus;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.FailedShard;
 import org.elasticsearch.common.UUIDs;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.ByteBufferStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -35,6 +36,7 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotId;
+import org.elasticsearch.test.VersionUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -78,7 +80,9 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
             UnassignedInfo.Reason.FORCED_EMPTY_PRIMARY,
             UnassignedInfo.Reason.MANUAL_ALLOCATION,
             UnassignedInfo.Reason.INDEX_CLOSED,
-            UnassignedInfo.Reason.NODE_RESTARTING };
+            UnassignedInfo.Reason.NODE_RESTARTING,
+            UnassignedInfo.Reason.UNPROMOTABLE_REPLICA
+        };
         for (int i = 0; i < order.length; i++) {
             assertThat(order[i].ordinal(), equalTo(i));
         }
@@ -127,18 +131,29 @@ public class UnassignedInfoTests extends ESAllocationTestCase {
         } else {
             meta = new UnassignedInfo(reason, randomBoolean() ? randomAlphaOfLength(4) : null);
         }
-        BytesStreamOutput out = new BytesStreamOutput();
-        meta.writeTo(out);
-        out.close();
+        final var version = VersionUtils.randomCompatibleVersion(random(), Version.CURRENT);
+        final BytesReference bytes;
+        try (var out = new BytesStreamOutput()) {
+            out.setVersion(version);
+            meta.writeTo(out);
+            out.close();
+            bytes = out.bytes();
+        }
 
-        UnassignedInfo read = new UnassignedInfo(out.bytes().streamInput());
-        assertThat(read.getReason(), equalTo(meta.getReason()));
-        assertThat(read.getUnassignedTimeInMillis(), equalTo(meta.getUnassignedTimeInMillis()));
-        assertThat(read.getMessage(), equalTo(meta.getMessage()));
-        assertThat(read.getDetails(), equalTo(meta.getDetails()));
-        assertThat(read.getNumFailedAllocations(), equalTo(meta.getNumFailedAllocations()));
-        assertThat(read.getFailedNodeIds(), equalTo(meta.getFailedNodeIds()));
-        assertThat(read.getLastAllocatedNodeId(), equalTo(meta.getLastAllocatedNodeId()));
+        try (var in = bytes.streamInput()) {
+            in.setVersion(version);
+            UnassignedInfo read = new UnassignedInfo(in);
+            assertThat(read.getReason(), equalTo(
+                meta.getReason() == UnassignedInfo.Reason.UNPROMOTABLE_REPLICA
+                && version.before(UnassignedInfo.VERSION_UNPROMOTABLE_REPLICA_ADDED)
+                ? UnassignedInfo.Reason.PRIMARY_FAILED : meta.getReason()));
+            assertThat(read.getUnassignedTimeInMillis(), equalTo(meta.getUnassignedTimeInMillis()));
+            assertThat(read.getMessage(), equalTo(meta.getMessage()));
+            assertThat(read.getDetails(), equalTo(meta.getDetails()));
+            assertThat(read.getNumFailedAllocations(), equalTo(meta.getNumFailedAllocations()));
+            assertThat(read.getFailedNodeIds(), equalTo(meta.getFailedNodeIds()));
+            assertThat(read.getLastAllocatedNodeId(), equalTo(meta.getLastAllocatedNodeId()));
+        }
     }
 
     public void testIndexCreated() {
