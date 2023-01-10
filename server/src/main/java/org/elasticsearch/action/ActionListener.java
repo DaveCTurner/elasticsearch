@@ -419,22 +419,61 @@ public interface ActionListener<Response> {
      * not be executed.
      */
     static <Response> ActionListener<Response> runBefore(ActionListener<Response> delegate, CheckedRunnable<?> runBefore) {
-        return new RunBeforeActionListener<>(delegate, runBefore);
+        return runBefore(delegate, new CheckedConsumer<>() {
+            @Override
+            public void accept(Response ignored) throws Exception {
+                runBefore.run();
+            }
+
+            @Override
+            public String toString() {
+                return runBefore.toString();
+            }
+        }, new CheckedConsumer<>() {
+            @Override
+            public void accept(Exception ignored) throws Exception {
+                runBefore.run();
+            }
+
+            @Override
+            public String toString() {
+                return "ibid";
+            }
+        });
+    }
+
+    /**
+     * Wraps a given listener and returns a new listener which executes the relevant callback before the listener is notified via either
+     * {@code #onResponse} or {@code #onFailure}. If the callback throws an exception then it will be passed to the listener's
+     * {@code #onFailure} and its {@code #onResponse} will not be executed.
+     */
+    static <Response> ActionListener<Response> runBefore(
+        ActionListener<Response> delegate,
+        CheckedConsumer<Response, ?> runBeforeOnResponse,
+        CheckedConsumer<Exception, ?> runBeforeOnException
+    ) {
+        return new RunBeforeActionListener<>(delegate, runBeforeOnResponse, runBeforeOnException);
     }
 
     final class RunBeforeActionListener<T> extends Delegating<T, T> {
 
-        private final CheckedRunnable<?> runBefore;
+        private final CheckedConsumer<T, ?> runBeforeOnResponse;
+        private final CheckedConsumer<Exception, ?> runBeforeOnException;
 
-        protected RunBeforeActionListener(ActionListener<T> delegate, CheckedRunnable<?> runBefore) {
+        protected RunBeforeActionListener(
+            ActionListener<T> delegate,
+            CheckedConsumer<T, ?> runBeforeOnResponse,
+            CheckedConsumer<Exception, ?> runBeforeOnException
+        ) {
             super(delegate);
-            this.runBefore = runBefore;
+            this.runBeforeOnResponse = runBeforeOnResponse;
+            this.runBeforeOnException = runBeforeOnException;
         }
 
         @Override
         public void onResponse(T response) {
             try {
-                runBefore.run();
+                runBeforeOnResponse.accept(response);
             } catch (Exception ex) {
                 super.onFailure(ex);
                 return;
@@ -445,7 +484,7 @@ public interface ActionListener<Response> {
         @Override
         public void onFailure(Exception e) {
             try {
-                runBefore.run();
+                runBeforeOnException.accept(e);
             } catch (Exception ex) {
                 e.addSuppressed(ex);
             }
@@ -454,7 +493,7 @@ public interface ActionListener<Response> {
 
         @Override
         public String toString() {
-            return super.toString() + "/" + runBefore;
+            return super.toString() + "/" + runBeforeOnResponse + "/" + runBeforeOnException;
         }
     }
 

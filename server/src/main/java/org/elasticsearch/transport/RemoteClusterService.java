@@ -12,9 +12,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.OriginalIndices;
-import org.elasticsearch.action.support.CountDownActionListener;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -335,17 +335,10 @@ public final class RemoteClusterService extends RemoteClusterAware implements Cl
         final PlainActionFuture<Void> future = new PlainActionFuture<>();
         Set<String> enabledClusters = RemoteClusterAware.getEnabledRemoteClusters(settings);
 
-        if (enabledClusters.isEmpty()) {
-            return;
-        }
-
-        CountDownActionListener listener = new CountDownActionListener(enabledClusters.size(), future);
-        for (String clusterAlias : enabledClusters) {
-            updateRemoteCluster(clusterAlias, settings, listener);
-        }
-
-        if (enabledClusters.isEmpty()) {
-            future.onResponse(null);
+        try (var listeners = new RefCountingListener(10, future)) {
+            for (String clusterAlias : enabledClusters) {
+                updateRemoteCluster(clusterAlias, settings, listeners.acquire());
+            }
         }
 
         try {
