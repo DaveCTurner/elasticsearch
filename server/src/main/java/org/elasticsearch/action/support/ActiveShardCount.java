@@ -169,13 +169,12 @@ public record ActiveShardCount(int value) implements Writeable {
      * to meet the required shard count represented by this instance.
      */
     public boolean enoughShardsActive(final IndexShardRoutingTable shardRoutingTable) {
-        final int activeShardCount = shardRoutingTable.activeSearchShards().size();
         if (this == ActiveShardCount.ALL) {
             return shardRoutingTable.activeShards().size() == shardRoutingTable.size();
         } else if (this == ActiveShardCount.DEFAULT) {
-            return activeShardCount >= 1;
+            return shardRoutingTable.activeSearchShards().size() >= 1;
         } else {
-            return activeShardCount >= value;
+            return shardRoutingTable.activeShards().size() >= value;
         }
     }
 
