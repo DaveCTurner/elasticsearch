@@ -295,7 +295,9 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     }
 
     public void notifyListener(RecoveryFailedException e, boolean sendShardFailure) {
+        logger.info("--> org.elasticsearch.indices.recovery.RecoveryTarget.notifyListener 1 " + sendShardFailure, e);
         listener.onRecoveryFailure(state(), e, sendShardFailure);
+        logger.info("--> org.elasticsearch.indices.recovery.RecoveryTarget.notifyListener 2 " + sendShardFailure, e);
     }
 
     /** mark the current recovery as done */

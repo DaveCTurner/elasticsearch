@@ -195,7 +195,7 @@ public class RecoveriesCollection {
     public void failRecovery(long id, RecoveryFailedException e, boolean sendShardFailure) {
         RecoveryTarget removed = onGoingRecoveries.remove(id);
         if (removed != null) {
-            logger.trace(
+            logger.info(
                 "{} failing recovery from {}, id [{}]. Send shard failure: [{}]",
                 removed.shardId(),
                 removed.sourceNode(),
@@ -210,8 +210,8 @@ public class RecoveriesCollection {
     public void markRecoveryAsDone(long id) {
         RecoveryTarget removed = onGoingRecoveries.remove(id);
         if (removed != null) {
-            logger.trace("{} marking recovery from {} as done, id [{}]", removed.shardId(), removed.sourceNode(), removed.recoveryId());
-            removed.markAsDone();
+            logger.info("{} marking recovery from {} as done, id [{}]", removed.shardId(), removed.sourceNode(), removed.recoveryId());
+                removed.markAsDone();
         }
     }
 

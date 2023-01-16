@@ -27,6 +27,7 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.StopWatch;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
@@ -147,6 +148,18 @@ public class RecoverySourceHandler {
         this.maxConcurrentOperations = maxConcurrentOperations;
         this.maxConcurrentSnapshotFileDownloads = maxConcurrentSnapshotFileDownloads;
         this.useSnapshots = useSnapshots;
+
+        future.addListener(new ActionListener<>() {
+            @Override
+            public void onResponse(RecoveryResponse recoveryResponse) {
+                logger.info("--> [{}]: sending response", shard.routingEntry());
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                logger.info(() -> Strings.format("--> [%s]: sending error", shard.routingEntry()), e);
+            }
+        });
     }
 
     public StartRecoveryRequest getRequest() {
@@ -369,6 +382,7 @@ public class RecoverySourceHandler {
             sendSnapshotStep.whenComplete(r -> finalizeRecovery(r.targetLocalCheckpoint, trimAboveSeqNo, finalizeStep), onFailure);
 
             finalizeStep.whenComplete(r -> {
+                logger.info("--> finalizeStep.whenComplete 1");
                 final long phase1ThrottlingWaitTime = 0L; // TODO: return the actual throttle time
                 final SendSnapshotResult sendSnapshotResult = sendSnapshotStep.result();
                 final SendFileResult sendFileResult = sendFileStep.result();
@@ -386,9 +400,13 @@ public class RecoverySourceHandler {
                     sendSnapshotResult.tookTime.millis()
                 );
                 try {
+                    logger.info("--> finalizeStep.whenComplete 2");
                     future.onResponse(response);
+                    logger.info("--> finalizeStep.whenComplete 3");
                 } finally {
+                    logger.info("--> finalizeStep.whenComplete 4");
                     IOUtils.close(resources);
+                    logger.info("--> finalizeStep.whenComplete 5");
                 }
             }, onFailure);
         } catch (Exception e) {

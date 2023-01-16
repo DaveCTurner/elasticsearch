@@ -700,7 +700,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             final TimeValue recoveryTime = new TimeValue(timer.time());
             // do this through ongoing recoveries to remove it from the collection
             onGoingRecoveries.markRecoveryAsDone(recoveryId);
-            if (logger.isTraceEnabled()) {
+            if (logger.isTraceEnabled() || true) {
                 StringBuilder sb = new StringBuilder();
                 sb.append('[')
                     .append(request.shardId().getIndex().getName())
@@ -735,7 +735,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                     .append(timeValueMillis(recoveryResponse.phase2Time))
                     .append("]")
                     .append("\n");
-                logger.trace("{}", sb);
+                logger.info("{}", sb);
             } else {
                 logger.debug("{} recovery done from [{}], took [{}]", request.shardId(), request.sourceNode(), recoveryTime);
             }
@@ -743,8 +743,8 @@ public class PeerRecoveryTargetService implements IndexEventListener {
 
         @Override
         public void handleException(TransportException e) {
-            if (logger.isTraceEnabled()) {
-                logger.trace(
+            if (logger.isTraceEnabled() || true) {
+                logger.info(
                     () -> format("[%s][%s] Got exception on recovery", request.shardId().getIndex().getName(), request.shardId().id()),
                     e
                 );
@@ -752,10 +752,12 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             Throwable cause = ExceptionsHelper.unwrapCause(e);
             if (transportService.lifecycleState() != Lifecycle.State.STARTED) {
                 // the node is shutting down, we just fail the recovery to release resources
+                logger.info("RecoveryResponseHandler#handleException: fail due to shutdown");
                 onGoingRecoveries.failRecovery(recoveryId, new RecoveryFailedException(request, "node is shutting down", cause), false);
                 return;
             }
             if (cause instanceof CancellableThreads.ExecutionCancelledException) {
+                logger.info("RecoveryResponseHandler#handleException: ExecutionCancelledException");
                 // this can also come from the source wrapped in a RemoteTransportException
                 onGoingRecoveries.failRecovery(
                     recoveryId,
@@ -765,12 +767,14 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                 return;
             }
             if (cause instanceof RecoveryEngineException) {
+                logger.info("RecoveryResponseHandler#handleException: RecoveryEngineException");
                 // unwrap an exception that was thrown as part of the recovery
                 cause = cause.getCause();
             }
             // do it twice, in case we have double transport exception
             cause = ExceptionsHelper.unwrapCause(cause);
             if (cause instanceof RecoveryEngineException) {
+                logger.info("RecoveryResponseHandler#handleException: RecoveryEngineException again");
                 // unwrap an exception that was thrown as part of the recovery
                 cause = cause.getCause();
             }
@@ -781,6 +785,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                 || cause instanceof IndexNotFoundException
                 || cause instanceof ShardNotFoundException) {
                 // if the target is not ready yet, retry
+                logger.info("RecoveryResponseHandler#handleException: retry", cause);
                 retryRecovery(
                     recoveryId,
                     "remote shard not ready",
@@ -793,6 +798,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             // PeerRecoveryNotFound is returned when the source node cannot find the recovery requested by
             // the REESTABLISH_RECOVERY request. In this case, we delay and then attempt to restart.
             if (cause instanceof DelayRecoveryException || cause instanceof PeerRecoveryNotFound) {
+                logger.info("RecoveryResponseHandler#handleException: delay", cause);
                 retryRecovery(recoveryId, cause, recoverySettings.retryDelayStateSync(), recoverySettings.activityTimeout());
                 return;
             }
@@ -810,11 +816,19 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             }
 
             if (cause instanceof AlreadyClosedException) {
+                logger.info("RecoveryResponseHandler#handleException: already closed", cause);
                 onGoingRecoveries.failRecovery(recoveryId, new RecoveryFailedException(request, "source shard is closed", cause), false);
                 return;
             }
 
-            onGoingRecoveries.failRecovery(recoveryId, new RecoveryFailedException(request, e), true);
+            try {
+                logger.info("RecoveryResponseHandler#handleException: fell through", e);
+                onGoingRecoveries.failRecovery(recoveryId, new RecoveryFailedException(request, e), true);
+            } catch (Exception e2) {
+                e.addSuppressed(e2);
+                assert false : e;
+                throw e;
+            }
         }
 
         @Override

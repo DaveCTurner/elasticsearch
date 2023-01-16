@@ -8,6 +8,8 @@
 
 package org.elasticsearch.action.support;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
@@ -25,6 +27,8 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_WAIT_FOR_
  * of active shard copies for a given shard in an index.
  */
 public record ActiveShardCount(int value) implements Writeable {
+
+    private static final Logger logger = LogManager.getLogger(ActiveShardCount.class);
 
     private static final int ACTIVE_SHARD_COUNT_DEFAULT = -2;
     private static final int ALL_ACTIVE_SHARDS = -1;
@@ -149,7 +153,7 @@ public record ActiveShardCount(int value) implements Writeable {
                 return false;
             }
             ActiveShardCount waitForActiveShards = this;
-            if (waitForActiveShards == ActiveShardCount.DEFAULT) {
+            if (waitForActiveShards == ActiveShardCount.DEFAULT && SETTING_WAIT_FOR_ACTIVE_SHARDS.exists(indexMetadata.getSettings())) {
                 waitForActiveShards = SETTING_WAIT_FOR_ACTIVE_SHARDS.get(indexMetadata.getSettings());
             }
             for (int i = 0; i < indexRoutingTable.size(); i++) {
@@ -172,6 +176,7 @@ public record ActiveShardCount(int value) implements Writeable {
         if (this == ActiveShardCount.ALL) {
             return shardRoutingTable.activeShards().size() == shardRoutingTable.size();
         } else if (this == ActiveShardCount.DEFAULT) {
+            logger.info("--> [{}] vs DEFAULT shard count: {}", shardRoutingTable.shardId(), shardRoutingTable.activeSearchShards());
             return shardRoutingTable.activeSearchShards().size() >= 1;
         } else {
             return shardRoutingTable.activeShards().size() >= value;

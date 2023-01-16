@@ -726,15 +726,19 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         @Nullable Exception failure,
         ClusterState state
     ) {
+        logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 1");
         try {
             AllocatedIndex<? extends Shard> indexService = indicesService.indexService(shardRouting.shardId().getIndex());
             if (indexService != null) {
                 Shard shard = indexService.getShardOrNull(shardRouting.shardId().id());
                 if (shard != null && shard.routingEntry().isSameAllocation(shardRouting)) {
+                    logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 2");
                     indexService.removeShard(shardRouting.shardId().id(), message);
                 }
             }
+            logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 3");
         } catch (ShardNotFoundException e) {
+            logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 4");
             // the node got closed on us, ignore it
         } catch (Exception inner) {
             inner.addSuppressed(failure);
@@ -749,8 +753,11 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             );
         }
         if (sendShardFailure) {
+            logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 5");
             sendFailShard(shardRouting, message, failure, state);
+            logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 6");
         }
+        logger.info("--> org.elasticsearch.indices.cluster.IndicesClusterStateService.failAndRemoveShard 7");
     }
 
     private void sendFailShard(ShardRouting shardRouting, String message, @Nullable Exception failure, ClusterState state) {

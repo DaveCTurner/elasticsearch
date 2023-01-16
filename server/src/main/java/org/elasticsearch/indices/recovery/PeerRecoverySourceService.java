@@ -179,7 +179,10 @@ public class PeerRecoverySourceService extends AbstractLifecycleComponent implem
     class StartRecoveryTransportRequestHandler implements TransportRequestHandler<StartRecoveryRequest> {
         @Override
         public void messageReceived(final StartRecoveryRequest request, final TransportChannel channel, Task task) throws Exception {
-            recover(request, task, new ChannelActionListener<>(channel, Actions.START_RECOVERY, request));
+            recover(request, task, new ChannelActionListener<>(channel, Actions.START_RECOVERY, request).map(response -> {
+                logger.info("--> sending success response to START_RECOVERY request");
+                return response;
+            }));
         }
     }
 

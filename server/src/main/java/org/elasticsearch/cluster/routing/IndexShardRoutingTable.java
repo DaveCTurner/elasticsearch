@@ -8,6 +8,8 @@
 
 package org.elasticsearch.cluster.routing;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.ExponentiallyWeightedMovingAverage;
@@ -43,6 +45,8 @@ import static org.elasticsearch.common.util.CollectionUtils.wrapUnmodifiableOrEm
  * replicas (instances) for a single index shard.
  */
 public class IndexShardRoutingTable {
+
+    private static final Logger logger = LogManager.getLogger(IndexShardRoutingTable.class);
 
     final ShardShuffler shuffler;
     final ShardId shardId;
@@ -116,6 +120,21 @@ public class IndexShardRoutingTable {
         this.activeSearchShards = allShardsSearchable ? this.activeShards : wrapUnmodifiableOrEmptySingleton(activeSearchShards);
         this.assignedShards = wrapUnmodifiableOrEmptySingleton(assignedShards);
         this.allInitializingShards = wrapUnmodifiableOrEmptySingleton(allInitializingShards);
+
+        final StringBuilder description = new StringBuilder("--> [").append(shardId).append("]\n");
+        for (int i = 0; i < size(); i++) {
+            description.append("  ").append(shards.get(i)).append("\n");
+        }
+        description.append("-- active: ");
+        for (ShardRouting shardRouting : activeShards) {
+            description.append("  ").append(shardRouting).append("\n");
+        }
+        description.append("-- activeSearch: ");
+        for (ShardRouting shardRouting : activeSearchShards) {
+            description.append("  ").append(shardRouting).append("\n");
+        }
+
+        logger.info("{}", description.toString());
     }
 
     /**
