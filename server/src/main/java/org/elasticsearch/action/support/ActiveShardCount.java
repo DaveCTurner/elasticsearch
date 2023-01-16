@@ -171,9 +171,7 @@ public record ActiveShardCount(int value) implements Writeable {
     public boolean enoughShardsActive(final IndexShardRoutingTable shardRoutingTable) {
         final int activeShardCount = shardRoutingTable.activeSearchShards().size();
         if (this == ActiveShardCount.ALL) {
-            // adding 1 for the primary in addition to the total number of replicas,
-            // which gives us the total number of shard copies
-            return activeShardCount == shardRoutingTable.size();
+            return shardRoutingTable.activeShards().size() == shardRoutingTable.size();
         } else if (this == ActiveShardCount.DEFAULT) {
             return activeShardCount >= 1;
         } else {

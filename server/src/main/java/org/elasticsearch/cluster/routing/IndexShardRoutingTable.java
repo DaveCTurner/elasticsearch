@@ -147,7 +147,7 @@ public class IndexShardRoutingTable {
      * @return a {@link List} of active (STARTED or RELOCATING) shards with a role that supports searches
      */
     public List<ShardRouting> activeSearchShards() {
-        return this.activeShards;
+        return this.activeSearchShards;
     }
 
     /**
