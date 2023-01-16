@@ -12,14 +12,14 @@ import org.elasticsearch.test.cluster.SettingsProvider;
 import org.elasticsearch.test.cluster.local.LocalClusterSpec.LocalNodeSpec;
 import org.elasticsearch.test.cluster.local.distribution.DistributionType;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class DefaultSettingsProvider implements SettingsProvider {
     @Override
     public Map<String, String> get(LocalNodeSpec nodeSpec) {
-        Map<String, String> settings = new HashMap<>();
+        Map<String, String> settings = new LinkedHashMap<>();
 
         settings.put("node.name", nodeSpec.getName());
         settings.put("node.attr.testattr", "test");

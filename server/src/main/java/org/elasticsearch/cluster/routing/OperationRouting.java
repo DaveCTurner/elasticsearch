@@ -8,6 +8,8 @@
 
 package org.elasticsearch.cluster.routing;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -30,6 +32,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class OperationRouting {
+
+    private static final Logger logger = LogManager.getLogger(OperationRouting.class);
 
     public static final Setting<Boolean> USE_ADAPTIVE_REPLICA_SELECTION_SETTING = Setting.boolSetting(
         "cluster.routing.use_adaptive_replica_selection",
@@ -105,6 +109,7 @@ public class OperationRouting {
                 nodeCounts
             );
             if (iterator != null) {
+                logger.info("--> searchShards: {}", iterator.getShardRoutings());
                 set.add(iterator);
             }
         }

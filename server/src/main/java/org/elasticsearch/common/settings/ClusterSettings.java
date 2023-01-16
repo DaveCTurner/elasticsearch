@@ -8,6 +8,7 @@
 package org.elasticsearch.common.settings;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.configuration.TransportAddVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.indices.close.TransportCloseIndexAction;
 import org.elasticsearch.action.bulk.WriteAckDelay;
@@ -133,6 +134,8 @@ import java.util.stream.Stream;
  */
 public final class ClusterSettings extends AbstractScopedSettings {
 
+    private static final Logger logger = LogManager.getLogger(ClusterSettings.class);
+
     public ClusterSettings(final Settings nodeSettings, final Set<Setting<?>> settingsSet) {
         this(nodeSettings, settingsSet, Collections.emptySet());
     }
@@ -187,6 +190,7 @@ public final class ClusterSettings extends AbstractScopedSettings {
                         Loggers.setLevel(LogManager.getRootLogger(), rootLevel);
                     }
                 } else {
+                    logger.info("--> set logger [{}] to [{}]", component, value.get(key));
                     Loggers.setLevel(LogManager.getLogger(component), value.get(key));
                 }
             }

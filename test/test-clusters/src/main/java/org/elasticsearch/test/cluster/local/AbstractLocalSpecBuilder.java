@@ -17,6 +17,7 @@ import org.elasticsearch.test.cluster.util.resource.Resource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
 public abstract class AbstractLocalSpecBuilder<T extends LocalSpecBuilder<?>> implements LocalSpecBuilder<T> {
     private final AbstractLocalSpecBuilder<?> parent;
     private final List<SettingsProvider> settingsProviders = new ArrayList<>();
-    private final Map<String, String> settings = new HashMap<>();
+    private final Map<String, String> settings = new LinkedHashMap<>();
     private final List<EnvironmentProvider> environmentProviders = new ArrayList<>();
     private final Map<String, String> environment = new HashMap<>();
     private final Set<String> modules = new HashSet<>();

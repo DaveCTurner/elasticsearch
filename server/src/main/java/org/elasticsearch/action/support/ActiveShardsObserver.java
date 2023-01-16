@@ -46,6 +46,8 @@ public enum ActiveShardsObserver {
         final TimeValue timeout,
         final ActionListener<Boolean> listener
     ) {
+        logger.info("--> waitForActiveShards: activeShardCount = {}", activeShardCount);
+
         if (activeShardCount == ActiveShardCount.NONE) {
             // not waiting, so just run whatever we were to run when the waiting is
             listener.onResponse(true);

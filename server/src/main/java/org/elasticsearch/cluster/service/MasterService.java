@@ -377,6 +377,8 @@ public class MasterService extends AbstractLifecycleComponent {
                     new ActionListener<>() {
                         @Override
                         public void onResponse(Void unused) {
+                            logger.info("--> cluster state published: {}", newClusterState);
+
                             final long notificationStartTime = threadPool.rawRelativeTimeInMillis();
                             for (final var executionResult : executionResults) {
                                 executionResult.onPublishSuccess(newClusterState);
@@ -773,7 +775,7 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         private void finish() {
-            logger.trace("all expected nodes acknowledged cluster_state update (version: {})", clusterStateVersion);
+            logger.info("all expected nodes acknowledged cluster_state update (version: {})", clusterStateVersion);
             if (ackTimeoutCallback != null) {
                 ackTimeoutCallback.cancel();
             }

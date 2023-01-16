@@ -14,7 +14,6 @@ import org.elasticsearch.common.ExponentiallyWeightedMovingAverage;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.core.Nullable;
@@ -34,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.elasticsearch.common.util.CollectionUtils.wrapUnmodifiableOrEmptySingleton;
+
 /**
  * {@link IndexShardRoutingTable} encapsulates all instances of a single shard.
  * Each Elasticsearch index consists of multiple shards, each shard encapsulates
@@ -50,6 +51,7 @@ public class IndexShardRoutingTable {
     final List<ShardRouting> replicas;
     final ShardRouting[] shards;
     final List<ShardRouting> activeShards;
+    final List<ShardRouting> activeSearchShards;
     final List<ShardRouting> assignedShards;
     final boolean allShardsStarted;
 
@@ -67,9 +69,11 @@ public class IndexShardRoutingTable {
         ShardRouting primary = null;
         List<ShardRouting> replicas = new ArrayList<>();
         List<ShardRouting> activeShards = new ArrayList<>();
+        List<ShardRouting> activeSearchShards = new ArrayList<>();
         List<ShardRouting> assignedShards = new ArrayList<>();
         List<ShardRouting> allInitializingShards = new ArrayList<>();
         boolean allShardsStarted = true;
+        boolean allShardsSearchable = true;
         for (ShardRouting shard : this.shards) {
             if (shard.primary()) {
                 assert primary == null : "duplicate primary: " + primary + " vs " + shard;
@@ -78,6 +82,14 @@ public class IndexShardRoutingTable {
                 replicas.add(shard);
             }
             if (shard.active()) {
+                if (shard.role().isSearchable()) {
+                    if (allShardsSearchable == false) {
+                        activeSearchShards.add(shard);
+                    }
+                } else if (allShardsSearchable) {
+                    allShardsSearchable = false;
+                    activeSearchShards.addAll(activeShards);
+                }
                 activeShards.add(shard);
             }
             if (shard.initializing()) {
@@ -99,15 +111,14 @@ public class IndexShardRoutingTable {
         }
         this.allShardsStarted = allShardsStarted;
         this.primary = primary;
-        this.replicas = CollectionUtils.wrapUnmodifiableOrEmptySingleton(replicas);
-        this.activeShards = CollectionUtils.wrapUnmodifiableOrEmptySingleton(activeShards);
-        this.assignedShards = CollectionUtils.wrapUnmodifiableOrEmptySingleton(assignedShards);
-        this.allInitializingShards = CollectionUtils.wrapUnmodifiableOrEmptySingleton(allInitializingShards);
+        this.replicas = wrapUnmodifiableOrEmptySingleton(replicas);
+        this.activeShards = wrapUnmodifiableOrEmptySingleton(activeShards);
+        this.activeSearchShards = allShardsSearchable ? this.activeShards : wrapUnmodifiableOrEmptySingleton(activeSearchShards);
+        this.assignedShards = wrapUnmodifiableOrEmptySingleton(assignedShards);
+        this.allInitializingShards = wrapUnmodifiableOrEmptySingleton(allInitializingShards);
     }
 
     /**
-     * Returns the shards id
-     *
      * @return id of the shard
      */
     public ShardId shardId() {
@@ -126,11 +137,16 @@ public class IndexShardRoutingTable {
     }
 
     /**
-     * Returns a {@link List} of active shards
-     *
-     * @return a {@link List} of shards
+     * @return a {@link List} of active (STARTED or RELOCATING) shards
      */
     public List<ShardRouting> activeShards() {
+        return this.activeShards;
+    }
+
+    /**
+     * @return a {@link List} of active (STARTED or RELOCATING) shards with a role that supports searches
+     */
+    public List<ShardRouting> activeSearchShards() {
         return this.activeShards;
     }
 
