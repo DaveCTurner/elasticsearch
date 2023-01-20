@@ -124,7 +124,7 @@ public class ClientYamlTestExecutionContext {
             return null;
         }
         if (bodies.size() == 1) {
-            XContentType xContentType = getContentType(headers, XContentType.values());
+            XContentType xContentType = getContentType(headers, new XContentType[] { XContentType.JSON });
             BytesRef bytesRef = bodyAsBytesRef(bodies.get(0), xContentType);
             return new ByteArrayEntity(
                 bytesRef.bytes,
@@ -133,7 +133,7 @@ public class ClientYamlTestExecutionContext {
                 ContentType.create(xContentType.mediaTypeWithoutParameters(), StandardCharsets.UTF_8)
             );
         } else {
-            XContentType xContentType = getContentType(headers, STREAMING_CONTENT_TYPES);
+            XContentType xContentType = getContentType(headers, new XContentType[] { XContentType.JSON });
             List<BytesRef> bytesRefList = new ArrayList<>(bodies.size());
             int totalBytesLength = 0;
             for (Map<String, Object> body : bodies) {
