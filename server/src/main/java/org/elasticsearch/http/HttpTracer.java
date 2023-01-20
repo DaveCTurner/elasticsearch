@@ -11,6 +11,7 @@ package org.elasticsearch.http;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
@@ -21,6 +22,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.elasticsearch.core.Strings.format;
 
@@ -72,7 +74,7 @@ class HttpTracer {
                     restRequest.uri(),
                     restRequest.getHttpChannel(),
                     RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse(""),
-                    restRequest.content().utf8ToString()
+                    Optional.ofNullable(restRequest.content()).orElse(BytesArray.EMPTY).utf8ToString()
                 ),
                 e
             );
@@ -110,7 +112,7 @@ class HttpTracer {
                 contentLength,
                 httpChannel,
                 success,
-                restResponse.content().utf8ToString()
+                Optional.ofNullable(restResponse.content()).orElse(BytesArray.EMPTY).utf8ToString()
             )
         );
     }
