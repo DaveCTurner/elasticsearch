@@ -1494,6 +1494,7 @@ public class Node implements Closeable {
         injector.getInstance(ResourceWatcherService.class).close();
         injector.getInstance(HttpServerTransport.class).stop();
 
+        injector.getInstance(Coordinator.class).prepareToStop();
         injector.getInstance(SnapshotsService.class).stop();
         injector.getInstance(SnapshotShardsService.class).stop();
         injector.getInstance(RepositoriesService.class).stop();

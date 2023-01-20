@@ -1879,6 +1879,11 @@ public final class InternalTestCluster extends TestCluster {
     }
 
     private Set<String> excludeMasters(Collection<NodeAndClient> nodeAndClients) {
+
+        if (0 < 1) {
+            return Set.of();
+        }
+
         assert Thread.holdsLock(this);
         final Set<String> excludedNodeNames = new HashSet<>();
         if (autoManageMasterNodes && nodeAndClients.size() > 0) {

@@ -160,15 +160,18 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
 
     @Override
     protected void doExecute(Task task, final Request request, ActionListener<Response> listener) {
-        ClusterState state = clusterService.state();
+        executeWithState(task, request, clusterService.state(), listener);
+    }
+
+    protected void executeWithState(Task task, Request request, ClusterState clusterState, ActionListener<Response> listener) {
         if (supportsReservedState()) {
-            validateForReservedState(request, state);
+            validateForReservedState(request, clusterState);
         }
-        logger.trace("starting processing request [{}] with cluster state version [{}]", request, state.version());
+        logger.trace("starting processing request [{}] with cluster state version [{}]", request, clusterState.version());
         if (task != null) {
             request.setParentTask(clusterService.localNode().getId(), task.getId());
         }
-        new AsyncSingleAction(task, request, listener).doStart(state);
+        new AsyncSingleAction(task, request, listener).doStart(clusterState);
     }
 
     class AsyncSingleAction {

@@ -11,10 +11,13 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -86,6 +89,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -127,6 +131,13 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         Setting.Property.NodeScope
     );
 
+    public static final Setting<TimeValue> LEAVE_CLUSTER_TIMEOUT = Setting.timeSetting(
+        "cluster.leave.timeout",
+        TimeValue.timeValueMillis(30000),
+        TimeValue.ZERO,
+        Setting.Property.NodeScope
+    );
+
     public static final String COMMIT_STATE_ACTION_NAME = "internal:cluster/coordination/commit_state";
 
     private final Settings settings;
@@ -152,6 +163,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     private final TimeValue publishTimeout;
     private final TimeValue publishInfoTimeout;
     private final TimeValue singleNodeClusterSeedHostsCheckInterval;
+    private final TimeValue leaveClusterTimeout;
     @Nullable
     private Scheduler.Cancellable singleNodeClusterChecker = null;
     private final PublicationTransportHandler publicationHandler;
@@ -236,6 +248,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         this.publishTimeout = PUBLISH_TIMEOUT_SETTING.get(settings);
         this.publishInfoTimeout = PUBLISH_INFO_TIMEOUT_SETTING.get(settings);
         this.singleNodeClusterSeedHostsCheckInterval = SINGLE_NODE_CLUSTER_SEED_HOSTS_CHECK_INTERVAL_SETTING.get(settings);
+        this.leaveClusterTimeout = LEAVE_CLUSTER_TIMEOUT.get(settings);
         this.random = random;
         this.electionSchedulerFactory = new ElectionSchedulerFactory(settings, random, transportService.getThreadPool());
         this.preVoteCollector = new PreVoteCollector(
@@ -337,11 +350,19 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     }
 
     private void removeNode(DiscoveryNode discoveryNode, String reason) {
+        removeNode(discoveryNode, reason, ActionListener.noop());
+    }
+
+    void removeNode(DiscoveryNode discoveryNode, String reason, ActionListener<Void> listener) {
         synchronized (mutex) {
             if (mode == Mode.LEADER) {
                 masterService.submitStateUpdateTask(
                     "node-left",
-                    new NodeLeftExecutor.Task(discoveryNode, reason, () -> joinReasonService.onNodeRemoved(discoveryNode, reason)),
+                    new NodeLeftExecutor.Task(
+                        discoveryNode,
+                        reason,
+                        ActionListener.runBefore(listener, () -> joinReasonService.onNodeRemoved(discoveryNode, reason))
+                    ),
                     ClusterStateTaskConfig.build(Priority.IMMEDIATE),
                     nodeLeftExecutor
                 );
@@ -1662,6 +1683,80 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 }
             }
             return false;
+        }
+    }
+
+    public void prepareToStop() {
+        logger.info("preparing to stop");
+        joinHelper.close(); // prevent re-joining the cluster before we leave
+
+        if (leaveClusterTimeout.equals(TimeValue.ZERO)) {
+            logger.info("no timeout, proceeding");
+            return;
+        }
+
+        // depart from the cluster as gracefully as possible
+        DiscoveryNode currentLeader;
+        synchronized (mutex) {
+            if (mode == Mode.CANDIDATE) {
+                logger.info("no master, proceeding");
+                // no cluster to leave, just carry on
+                return;
+            }
+            assert lastKnownLeader.isPresent() : mode;
+            currentLeader = lastKnownLeader.get();
+        }
+
+        final DiscoveryNode proposedLeader;
+        if (currentLeader.equals(getLocalNode())) {
+            final var masterCandidates = getLastAcceptedState().nodes()
+                .getMasterNodes()
+                .values()
+                .stream()
+                .filter(n -> n.equals(getLocalNode()) == false && n.getVersion().onOrAfter(Version.V_8_7_0))
+                .toList();
+            if (masterCandidates.isEmpty()) {
+                // no other master to nominate, just carry on
+                logger.info("no master candidates, proceeding");
+                return;
+            }
+            proposedLeader = masterCandidates.get(random.nextInt(masterCandidates.size()));
+            logger.info("proposing new leader [{}]", proposedLeader.descriptionWithoutAttributes());
+            synchronized (mutex) {
+                if (mode == Mode.LEADER) {
+                    abdicateTo(proposedLeader);
+                }
+            }
+        } else {
+            proposedLeader = currentLeader;
+            logger.info("departing from current leader [{}]", proposedLeader.descriptionWithoutAttributes());
+        }
+
+        final PlainActionFuture<Void> future = new PlainActionFuture<>();
+        transportService.connectToNode(proposedLeader, future.delegateFailure((l, connectionRef) -> {
+            transportService.sendRequest(
+                proposedLeader,
+                LeaveClusterAction.NAME,
+                new LeaveClusterAction.Request(getLocalNode()),
+                TransportRequestOptions.timeout(leaveClusterTimeout),
+                new ActionListenerResponseHandler<>(
+                    ActionListener.releaseAfter(l.map(ignored -> null), connectionRef),
+                    in -> ActionResponse.Empty.INSTANCE,
+                    Names.SAME
+                )
+            );
+        }));
+
+        try {
+            future.get(leaveClusterTimeout.millis(), TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            logger.info(
+                () -> Strings.format(
+                    "failed to gracefully leave the cluster, proposedLeader=[%s]",
+                    proposedLeader.descriptionWithoutAttributes()
+                ),
+                e
+            );
         }
     }
 

@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -53,7 +54,7 @@ public class NodeLeftExecutorTests extends ESTestCase {
         }
         final List<NodeLeftExecutor.Task> tasks = removeBuilder.build()
             .stream()
-            .map(node -> new NodeLeftExecutor.Task(node, randomBoolean() ? "left" : "failed", () -> {}))
+            .map(node -> new NodeLeftExecutor.Task(node, randomBoolean() ? "left" : "failed", ActionListener.noop()))
             .toList();
 
         assertSame(clusterState, ClusterStateTaskExecutorUtils.executeAndAssertSuccessful(clusterState, executor, tasks));
@@ -83,7 +84,7 @@ public class NodeLeftExecutorTests extends ESTestCase {
             final DiscoveryNode node = node(i);
             builder.add(node);
             if (first || randomBoolean()) {
-                tasks.add(new NodeLeftExecutor.Task(node, randomBoolean() ? "left" : "failed", () -> {}));
+                tasks.add(new NodeLeftExecutor.Task(node, randomBoolean() ? "left" : "failed", ActionListener.noop()));
             }
             first = false;
         }
@@ -136,7 +137,7 @@ public class NodeLeftExecutorTests extends ESTestCase {
                     future -> clusterService.getMasterService()
                         .submitStateUpdateTask(
                             "test",
-                            new NodeLeftExecutor.Task(nodeToRemove, "test reason", () -> future.onResponse(null)),
+                            new NodeLeftExecutor.Task(nodeToRemove, "test reason", future),
                             ClusterStateTaskConfig.build(Priority.NORMAL),
                             executor
                         )

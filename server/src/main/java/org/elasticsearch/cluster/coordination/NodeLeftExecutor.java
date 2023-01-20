@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.coordination;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
@@ -25,11 +26,12 @@ public class NodeLeftExecutor implements ClusterStateTaskExecutor<NodeLeftExecut
 
     private final AllocationService allocationService;
 
-    public record Task(DiscoveryNode node, String reason, Runnable onClusterStateProcessed) implements ClusterStateTaskListener {
+    public record Task(DiscoveryNode node, String reason, ActionListener<Void> listener) implements ClusterStateTaskListener {
 
         @Override
         public void onFailure(final Exception e) {
             logger.log(MasterService.isPublishFailureException(e) ? Level.DEBUG : Level.ERROR, "unexpected failure during [node-left]", e);
+            listener.onFailure(e);
         }
 
         @Override
@@ -65,7 +67,7 @@ public class NodeLeftExecutor implements ClusterStateTaskExecutor<NodeLeftExecut
                 if (reason != null) {
                     logger.info("node-left: [{}] with reason [{}]", task.node().descriptionWithoutAttributes(), reason);
                 }
-                task.onClusterStateProcessed.run();
+                task.listener().onResponse(null);
             });
         }
 

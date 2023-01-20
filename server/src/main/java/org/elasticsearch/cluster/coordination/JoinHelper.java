@@ -77,6 +77,8 @@ public class JoinHelper {
     private final AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
     private final Map<DiscoveryNode, Releasable> joinConnections = new HashMap<>(); // synchronized on itself
 
+    private volatile boolean closed;
+
     JoinHelper(
         AllocationService allocationService,
         MasterService masterService,
@@ -220,11 +222,18 @@ public class JoinHelper {
 
     public void sendJoinRequest(DiscoveryNode destination, long term, Optional<Join> optionalJoin) {
         assert destination.isMasterNode() : "trying to join master-ineligible " + destination;
+
+        if (closed) {
+            logger.debug("dropping join request to [{}]: shutting down", destination);
+            return;
+        }
+
         final StatusInfo statusInfo = nodeHealthService.getHealth();
         if (statusInfo.getStatus() == UNHEALTHY) {
             logger.debug("dropping join request to [{}]: [{}]", destination, statusInfo.getInfo());
             return;
         }
+
         final JoinRequest joinRequest = new JoinRequest(transportService.getLocalNode(), term, optionalJoin);
         final Tuple<DiscoveryNode, JoinRequest> dedupKey = Tuple.tuple(destination, joinRequest);
         final var pendingJoinInfo = new PendingJoinInfo(transportService.getThreadPool().relativeTimeInMillis());
@@ -378,6 +387,10 @@ public class JoinHelper {
             }
         }
         return result;
+    }
+
+    void close() {
+        closed = true;
     }
 
     interface JoinAccumulator {

@@ -440,7 +440,7 @@ public class ClusterStateChanges {
         return runTasks(
             nodeLeftExecutor,
             clusterState,
-            nodes.stream().map(n -> new NodeLeftExecutor.Task(n, "dummy reason", () -> {})).toList()
+            nodes.stream().map(n -> new NodeLeftExecutor.Task(n, "dummy reason", ActionListener.noop())).toList()
         );
     }
 
