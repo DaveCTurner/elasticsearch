@@ -37,7 +37,7 @@ setup:
             stored_only : "The quick brown fox is brown."
 
   - do:
-      refresh:
+      indices.refresh:
         index: test
 
 ---
