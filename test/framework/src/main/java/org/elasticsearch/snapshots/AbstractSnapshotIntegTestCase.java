@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.get.TransportGetRepositoriesAction;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
@@ -178,7 +179,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
     }
 
     protected RepositoryData getRepositoryData(Repository repository) {
-        return PlainActionFuture.get(repository::getRepositoryData);
+        return ActionListeners.get(repository::getRepositoryData);
     }
 
     public static long getFailureCount(String repository) {
@@ -408,7 +409,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
             )
         );
         final BlobStoreRepository blobStoreRepository = getRepositoryOnMaster(repoName);
-        PlainActionFuture.get(
+        ActionListeners.get(
             f -> blobStoreRepository.threadPool()
                 .generic()
                 .execute(
@@ -535,7 +536,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
             SnapshotState.FAILED,
             Collections.emptyMap()
         );
-        PlainActionFuture.<RepositoryData, Exception>get(
+        ActionListeners.<RepositoryData>get(
             f -> repo.finalizeSnapshot(
                 new FinalizeSnapshotContext(
                     ShardGenerations.EMPTY,

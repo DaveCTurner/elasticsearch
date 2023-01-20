@@ -23,6 +23,7 @@ import org.apache.lucene.util.Bits;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -362,7 +363,7 @@ public class SourceOnlySnapshotShardTests extends IndexShardTestCase {
         );
         IndexMetadata metadata = runAsSnapshot(
             threadPool,
-            () -> repository.getSnapshotIndexMetaData(PlainActionFuture.get(repository::getRepositoryData), snapshotId, indexId)
+            () -> repository.getSnapshotIndexMetaData(ActionListeners.get(repository::getRepositoryData), snapshotId, indexId)
         );
         IndexShard restoredShard = newShard(
             shardRouting,

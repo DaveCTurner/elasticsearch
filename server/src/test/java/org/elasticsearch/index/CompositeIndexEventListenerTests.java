@@ -11,8 +11,8 @@ package org.elasticsearch.index;
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.index.shard.IndexEventListener;
 import org.elasticsearch.index.shard.IndexShard;
@@ -77,7 +77,7 @@ public class CompositeIndexEventListenerTests extends IndexShardTestCase {
             );
 
             final CheckedRunnable<Exception> beforeIndexShardRecoveryRunner = () -> assertNull(
-                PlainActionFuture.<Void, Exception>get(
+                ActionListeners.<Void>get(
                     fut -> indexEventListener.beforeIndexShardRecovery(shard, shard.indexSettings(), fut),
                     10,
                     TimeUnit.SECONDS

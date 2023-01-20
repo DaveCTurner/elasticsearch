@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
-import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.mockito.Mockito;
 
@@ -48,7 +48,7 @@ public abstract class AbstractUnfollowIndexStepTestCase<T extends AbstractUnfoll
 
         T step = newInstance(randomStepKey(), randomStepKey());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
         Mockito.verifyNoMoreInteractions(client);
     }
 

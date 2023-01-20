@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Level;
 import org.elasticsearch.Build;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -299,9 +300,13 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
             // a blocked reconnection attempt doesn't also block the node from being deregistered
             service.disconnectFromNodesExcept(nodes1);
-            assertThat(PlainActionFuture.get(disconnectFuture1 -> {
+            assertThat(ActionListeners.get(disconnectFuture1 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture1));
-                connectionBarrier.await(10, TimeUnit.SECONDS);
+                try {
+                    connectionBarrier.await(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new AssertionError(e);
+                }
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
 
@@ -313,9 +318,13 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             service.disconnectFromNodesExcept(nodes1);
             assertConnectedExactlyToNodes(nodes1);
 
-            assertThat(PlainActionFuture.get(disconnectFuture2 -> {
+            assertThat(ActionListeners.get(disconnectFuture2 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture2));
-                connectionBarrier.await(10, TimeUnit.SECONDS);
+                try {
+                    connectionBarrier.await(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new AssertionError(e);
+                }
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
             assertTrue(future5.isDone());
@@ -723,18 +732,18 @@ public class NodeConnectionsServiceTests extends ESTestCase {
     }
 
     private static void connectToNodes(NodeConnectionsService service, DiscoveryNodes discoveryNodes) {
-        PlainActionFuture.get(future -> service.connectToNodes(discoveryNodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
+        ActionListeners.get(future -> service.connectToNodes(discoveryNodes, () -> future.onResponse(null)), 10, TimeUnit.SECONDS);
     }
 
     private static void ensureConnections(NodeConnectionsService service) {
-        PlainActionFuture.get(future -> service.ensureConnections(() -> future.onResponse(null)), 10, TimeUnit.SECONDS);
+        ActionListeners.get(future -> service.ensureConnections(() -> future.onResponse(null)), 10, TimeUnit.SECONDS);
     }
 
     private static void closeConnection(TransportService transportService, DiscoveryNode discoveryNode) {
         try {
             final var connection = transportService.getConnection(discoveryNode);
             connection.close();
-            PlainActionFuture.get(connection::addRemovedListener, 10, TimeUnit.SECONDS);
+            ActionListeners.get(connection::addRemovedListener, 10, TimeUnit.SECONDS);
         } catch (NodeNotConnectedException e) {
             // ok
         }

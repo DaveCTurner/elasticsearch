@@ -8,8 +8,8 @@ package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.transport.NoNodeAvailableException;
 import org.elasticsearch.cluster.ClusterState;
@@ -214,7 +214,7 @@ public class SetSingleNodeAllocateStepTests extends AbstractStepTestCase<SetSing
 
         expectThrows(
             NoNodeAvailableException.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
 
         Mockito.verifyNoMoreInteractions(client);
@@ -310,10 +310,7 @@ public class SetSingleNodeAllocateStepTests extends AbstractStepTestCase<SetSing
 
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
-            )
+            expectThrows(Exception.class, () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f)))
         );
 
         Mockito.verify(client, Mockito.only()).admin();
@@ -361,7 +358,7 @@ public class SetSingleNodeAllocateStepTests extends AbstractStepTestCase<SetSing
 
         IndexNotFoundException e = expectThrows(
             IndexNotFoundException.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
         assertEquals(indexMetadata.getIndex(), e.getIndex());
 
@@ -626,7 +623,7 @@ public class SetSingleNodeAllocateStepTests extends AbstractStepTestCase<SetSing
             return null;
         }).when(indicesClient).updateSettings(Mockito.any(), Mockito.any());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -653,7 +650,7 @@ public class SetSingleNodeAllocateStepTests extends AbstractStepTestCase<SetSing
 
         expectThrows(
             NoNodeAvailableException.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
 
         Mockito.verifyNoMoreInteractions(client);

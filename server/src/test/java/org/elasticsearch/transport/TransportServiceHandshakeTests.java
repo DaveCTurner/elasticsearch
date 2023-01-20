@@ -10,7 +10,7 @@ package org.elasticsearch.transport;
 
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
-import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
@@ -130,7 +130,7 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                 TestProfiles.LIGHT_PROFILE
             )
         ) {
-            DiscoveryNode connectedNode = PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut));
+            DiscoveryNode connectedNode = ActionListeners.get(fut -> transportServiceA.handshake(connection, timeout, fut));
             assertNotNull(connectedNode);
             // the name and version should be updated
             assertEquals(connectedNode.getName(), "TS_B");
@@ -168,7 +168,7 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                ActionListeners.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
             }
         });
         assertThat(
@@ -202,7 +202,7 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                ActionListeners.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
             }
         });
         assertThat(
@@ -265,7 +265,7 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                ActionListeners.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
             }
         });
         assertThat(

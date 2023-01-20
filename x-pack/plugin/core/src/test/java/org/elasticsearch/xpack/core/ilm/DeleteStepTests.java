@@ -8,8 +8,8 @@ package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.DataStream;
@@ -82,7 +82,7 @@ public class DeleteStepTests extends AbstractStepTestCase<DeleteStep> {
         ClusterState clusterState = ClusterState.builder(emptyClusterState())
             .metadata(Metadata.builder().put(indexMetadata, true).build())
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -110,10 +110,7 @@ public class DeleteStepTests extends AbstractStepTestCase<DeleteStep> {
             .build();
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
-            )
+            expectThrows(Exception.class, () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f)))
         );
     }
 

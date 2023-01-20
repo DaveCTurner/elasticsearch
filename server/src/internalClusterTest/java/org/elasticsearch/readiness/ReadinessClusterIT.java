@@ -7,7 +7,7 @@
  */
 package org.elasticsearch.readiness;
 
-import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -328,7 +328,7 @@ public class ReadinessClusterIT extends ESIntegTestCase implements ReadinessClie
     }
 
     private void causeClusterStateUpdate() {
-        PlainActionFuture.get(
+        ActionListeners.get(
             fut -> internalCluster().getCurrentMasterNodeInstance(ClusterService.class)
                 .submitUnbatchedStateUpdateTask("poke", new ClusterStateUpdateTask() {
                     @Override

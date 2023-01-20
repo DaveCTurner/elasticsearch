@@ -10,6 +10,7 @@ package org.elasticsearch.repositories.blobstore;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequestBuilder;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
@@ -64,7 +65,7 @@ import static org.hamcrest.Matchers.nullValue;
 public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase {
 
     public static RepositoryData getRepositoryData(Repository repository) {
-        return PlainActionFuture.get(repository::getRepositoryData);
+        return ActionListeners.get(repository::getRepositoryData);
     }
 
     protected abstract String repositoryType();
@@ -272,7 +273,7 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
         final BlobStoreRepository blobStoreRepository = (BlobStoreRepository) internalCluster().getAnyMasterNodeInstance(
             RepositoriesService.class
         ).repository(repository);
-        return PlainActionFuture.get(
+        return ActionListeners.get(
             f -> blobStoreRepository.threadPool().generic().execute(ActionRunnable.supply(f, blobStoreRepository::blobStore))
         );
     }

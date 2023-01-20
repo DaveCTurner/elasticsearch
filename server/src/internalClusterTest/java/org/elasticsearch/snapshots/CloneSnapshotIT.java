@@ -8,11 +8,11 @@
 package org.elasticsearch.snapshots;
 
 import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotIndexStatus;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotStatus;
-import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.SnapshotsInProgress;
@@ -78,7 +78,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         } else {
             currentShardGen = repositoryData.shardGenerations().getShardGen(indexId, shardId);
         }
-        final ShardSnapshotResult shardSnapshotResult = PlainActionFuture.get(
+        final ShardSnapshotResult shardSnapshotResult = ActionListeners.get(
             f -> repository.cloneShardSnapshot(sourceSnapshotInfo.snapshotId(), targetSnapshotId, repositoryShardId, currentShardGen, f)
         );
         final ShardGeneration newShardGeneration = shardSnapshotResult.getGeneration();
@@ -107,7 +107,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertTrue(snapshotFiles.get(0).isSame(snapshotFiles.get(1)));
 
         // verify that repeated cloning is idempotent
-        final ShardSnapshotResult shardSnapshotResult2 = PlainActionFuture.get(
+        final ShardSnapshotResult shardSnapshotResult2 = ActionListeners.get(
             f -> repository.cloneShardSnapshot(sourceSnapshotInfo.snapshotId(), targetSnapshotId, repositoryShardId, newShardGeneration, f)
         );
         assertEquals(newShardGeneration, shardSnapshotResult2.getGeneration());
@@ -887,7 +887,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         RepositoryShardId repositoryShardId,
         ShardGeneration generation
     ) {
-        return PlainActionFuture.get(
+        return ActionListeners.get(
             f -> repository.threadPool()
                 .generic()
                 .execute(
@@ -909,7 +909,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         RepositoryShardId repositoryShardId,
         SnapshotId snapshotId
     ) {
-        return PlainActionFuture.get(
+        return ActionListeners.get(
             f -> repository.threadPool()
                 .generic()
                 .execute(

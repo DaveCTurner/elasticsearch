@@ -9,6 +9,7 @@
 package org.elasticsearch.snapshots;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ESAllocationTestCase;
@@ -384,7 +385,7 @@ public class InternalSnapshotsInfoServiceTests extends ESTestCase {
     }
 
     private void applyClusterState(final String reason, final Function<ClusterState, ClusterState> applier) {
-        PlainActionFuture.<Void, RuntimeException>get(
+        ActionListeners.<Void>get(
             future -> clusterService.getClusterApplierService()
                 .onNewClusterState(reason, () -> applier.apply(clusterService.state()), future),
             10,

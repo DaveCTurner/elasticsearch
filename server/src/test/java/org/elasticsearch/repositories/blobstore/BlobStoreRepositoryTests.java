@@ -10,6 +10,7 @@ package org.elasticsearch.repositories.blobstore;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -319,7 +320,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
             );
         };
 
-        final RepositoryData repositoryData = PlainActionFuture.get(repository::getRepositoryData);
+        final RepositoryData repositoryData = ActionListeners.get(repository::getRepositoryData);
         final RepositoryData.SnapshotDetails snapshotDetails = repositoryData.getSnapshotDetails(snapshotId);
         snapshotDetailsAsserter.accept(snapshotDetails);
 
@@ -337,11 +338,11 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
             repositoryData.getGenId()
         );
 
-        snapshotDetailsAsserter.accept(PlainActionFuture.get(repository::getRepositoryData).getSnapshotDetails(snapshotId));
+        snapshotDetailsAsserter.accept(ActionListeners.get(repository::getRepositoryData).getSnapshotDetails(snapshotId));
     }
 
     private static void writeIndexGen(BlobStoreRepository repository, RepositoryData repositoryData, long generation) throws Exception {
-        PlainActionFuture.<RepositoryData, Exception>get(
+        ActionListeners.<RepositoryData>get(
             f -> repository.writeIndexGen(repositoryData, generation, Version.CURRENT, Function.identity(), f)
         );
     }

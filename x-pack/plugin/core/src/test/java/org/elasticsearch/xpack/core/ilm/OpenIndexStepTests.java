@@ -9,9 +9,9 @@ package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
-import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.internal.AdminClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.IndicesAdminClient;
@@ -80,7 +80,7 @@ public class OpenIndexStepTests extends AbstractStepTestCase<OpenIndexStep> {
             return null;
         }).when(indicesClient).open(Mockito.any(), Mockito.any());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -114,10 +114,7 @@ public class OpenIndexStepTests extends AbstractStepTestCase<OpenIndexStep> {
 
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
-            )
+            expectThrows(Exception.class, () -> ActionListeners.<Void>get(f -> step.performAction(indexMetadata, null, null, f)))
         );
 
         Mockito.verify(client, Mockito.only()).admin();

@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ilm;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -94,7 +94,7 @@ public class RollupStepTests extends AbstractStepTestCase<RollupStep> {
         mockClientRollupCall(index);
 
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     public void testPerformActionFailureInvalidExecutionState() {
@@ -145,7 +145,7 @@ public class RollupStepTests extends AbstractStepTestCase<RollupStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .metadata(Metadata.builder().put(newInstance(dataStreamName, List.of(indexMetadata.getIndex()))).put(indexMetadata, true))
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        ActionListeners.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     /**

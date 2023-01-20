@@ -8,30 +8,14 @@
 
 package org.elasticsearch.action.support;
 
-import org.elasticsearch.core.CheckedConsumer;
-
-import java.util.concurrent.TimeUnit;
-
 public class PlainActionFuture<T> extends AdapterActionFuture<T, T> {
 
     public static <T> PlainActionFuture<T> newFuture() {
         return new PlainActionFuture<>();
     }
 
-    public static <T, E extends Exception> T get(CheckedConsumer<PlainActionFuture<T>, E> e) throws E {
-        PlainActionFuture<T> fut = newFuture();
-        e.accept(fut);
-        return fut.actionGet();
-    }
-
-    public static <T, E extends Exception> T get(CheckedConsumer<PlainActionFuture<T>, E> e, long timeout, TimeUnit unit) throws E {
-        PlainActionFuture<T> fut = newFuture();
-        e.accept(fut);
-        return fut.actionGet(timeout, unit);
-    }
-
     @Override
-    protected T convert(T listenerResponse) {
+    protected final T convert(T listenerResponse) {
         return listenerResponse;
     }
 }
