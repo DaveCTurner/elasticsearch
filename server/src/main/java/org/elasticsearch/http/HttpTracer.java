@@ -76,7 +76,9 @@ class HttpTracer {
                 restRequest.getHttpChannel(),
                 RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse("")
             );
-            logger.trace(prefix, e);
+            if (e != null) {
+                logger.trace(prefix, e);
+            }
             try (var s = ChunkedLoggingStream.create(logger, Level.TRACE, prefix, ReferenceDocs.UNSTABLE_CLUSTER_TROUBLESHOOTING)) {
                 restRequest.content().writeTo(s);
             } catch (IOException e2) {

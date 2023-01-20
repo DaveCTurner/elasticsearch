@@ -67,6 +67,7 @@ setup:
       search:
         index: test
         body:
+          profile: true
           query:
             nested:
               path: "nested"
