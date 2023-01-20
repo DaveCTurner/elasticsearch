@@ -68,7 +68,7 @@ public class DefaultSettingsProvider implements SettingsProvider {
         String nodeNames = nodeSpec.getCluster()
             .getNodes()
             .stream()
-            .filter(n -> n.getSetting("node.roles", "[master]").contains("master"))
+            .filter(LocalNodeSpec::isMasterEligible)
             .map(LocalNodeSpec::getName)
             .collect(Collectors.joining(","));
         settings.put("cluster.initial_master_nodes", "[" + nodeNames + "]");
