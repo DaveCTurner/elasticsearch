@@ -65,13 +65,14 @@ class HttpTracer {
             // so include it here as part of the message
             logger.trace(
                 () -> format(
-                    "[%s][%s][%s][%s] received request from [%s]%s",
+                    "[%s][%s][%s][%s] received request from [%s]%s\n%s",
                     restRequest.getRequestId(),
                     restRequest.header(Task.X_OPAQUE_ID_HTTP_HEADER),
                     restRequest.method(),
                     restRequest.uri(),
                     restRequest.getHttpChannel(),
-                    RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse("")
+                    RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse(""),
+                    restRequest.content().utf8ToString()
                 ),
                 e
             );
@@ -101,14 +102,15 @@ class HttpTracer {
         // trace id is included in the ThreadContext for the response
         logger.trace(
             () -> format(
-                "[%s][%s][%s][%s][%s] sent response to [%s] success [%s]",
+                "[%s][%s][%s][%s][%s] sent response to [%s] success [%s]\n%s",
                 requestId,
                 opaqueHeader,
                 restResponse.status(),
                 restResponse.contentType(),
                 contentLength,
                 httpChannel,
-                success
+                success,
+                restResponse.content().utf8ToString()
             )
         );
     }
