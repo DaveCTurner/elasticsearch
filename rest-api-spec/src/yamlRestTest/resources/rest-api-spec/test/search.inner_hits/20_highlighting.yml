@@ -36,6 +36,10 @@ setup:
             stored : "The quick brown fox is brown."
             stored_only : "The quick brown fox is brown."
 
+  - do:
+      refresh:
+        index: test
+
 ---
 "Unified highlighter":
   - do:
