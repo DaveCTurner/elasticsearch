@@ -16,6 +16,7 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.xcontent.ToXContent;
@@ -34,6 +35,7 @@ import static java.util.Collections.singletonMap;
 import static org.elasticsearch.ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE;
 import static org.elasticsearch.ElasticsearchException.REST_EXCEPTION_SKIP_STACK_TRACE_DEFAULT;
 import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.elasticsearch.transport.BytesRefRecycler.NON_RECYCLING_INSTANCE;
 
 public class RestResponse {
 
@@ -78,8 +80,23 @@ public class RestResponse {
         this(status, responseMediaType, content, null);
     }
 
+    private static BytesReference removeChunking(ChunkedRestResponseBody content) {
+        try (var out = new BytesStreamOutput()) {
+            while (content.isDone() == false) {
+                try (var chunk = content.encodeChunk(32768, NON_RECYCLING_INSTANCE)) {
+                    chunk.writeTo(out);
+                }
+            }
+
+            out.flush();
+            return out.bytes();
+        } catch (Exception e) {
+            throw new AssertionError("unexpected", e);
+        }
+    }
+
     public RestResponse(RestStatus status, ChunkedRestResponseBody content) {
-        this(status, content.getResponseContentTypeString(), null, content);
+        this(status, content.getResponseContentTypeString(), removeChunking(content), null);
     }
 
     /**
