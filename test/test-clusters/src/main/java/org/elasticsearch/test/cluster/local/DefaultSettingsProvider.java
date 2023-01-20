@@ -65,7 +65,12 @@ public class DefaultSettingsProvider implements SettingsProvider {
         settings.put("action.destructive_requires_name", "false");
 
         // Setup cluster discovery
-        String nodeNames = nodeSpec.getCluster().getNodes().stream().map(LocalNodeSpec::getName).collect(Collectors.joining(","));
+        String nodeNames = nodeSpec.getCluster()
+            .getNodes()
+            .stream()
+            .filter(n -> n.getSetting("node.roles", "[master]").contains("master"))
+            .map(LocalNodeSpec::getName)
+            .collect(Collectors.joining(","));
         settings.put("cluster.initial_master_nodes", "[" + nodeNames + "]");
         settings.put("discovery.seed_providers", "file");
         settings.put("discovery.seed_hosts", "[]");
