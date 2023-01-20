@@ -68,7 +68,7 @@ class HttpTracer {
             // trace.id in the response log is included from threadcontext, which isn't set at request log time
             // so include it here as part of the message
             final var prefix = format(
-                "[%s][%s][%s][%s] received request from [%s]%s\n%s",
+                "[%s][%s][%s][%s] received request from [%s]%s",
                 restRequest.getRequestId(),
                 restRequest.header(Task.X_OPAQUE_ID_HTTP_HEADER),
                 restRequest.method(),
