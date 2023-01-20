@@ -11,7 +11,6 @@ package org.elasticsearch.http;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
@@ -22,7 +21,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.elasticsearch.core.Strings.format;
 
@@ -67,14 +65,13 @@ class HttpTracer {
             // so include it here as part of the message
             logger.trace(
                 () -> format(
-                    "[%s][%s][%s][%s] received request from [%s]%s\n%s",
+                    "[%s][%s][%s][%s] received request from [%s]%s",
                     restRequest.getRequestId(),
                     restRequest.header(Task.X_OPAQUE_ID_HTTP_HEADER),
                     restRequest.method(),
                     restRequest.uri(),
                     restRequest.getHttpChannel(),
-                    RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse(""),
-                    Optional.ofNullable(restRequest.content()).orElse(BytesArray.EMPTY).utf8ToString()
+                    RestUtils.extractTraceId(restRequest.header(Task.TRACE_PARENT_HTTP_HEADER)).map(t -> " trace.id: " + t).orElse("")
                 ),
                 e
             );
@@ -104,15 +101,14 @@ class HttpTracer {
         // trace id is included in the ThreadContext for the response
         logger.trace(
             () -> format(
-                "[%s][%s][%s][%s][%s] sent response to [%s] success [%s]\n%s",
+                "[%s][%s][%s][%s][%s] sent response to [%s] success [%s]",
                 requestId,
                 opaqueHeader,
                 restResponse.status(),
                 restResponse.contentType(),
                 contentLength,
                 httpChannel,
-                success,
-                Optional.ofNullable(restResponse.content()).orElse(BytesArray.EMPTY).utf8ToString()
+                success
             )
         );
     }
