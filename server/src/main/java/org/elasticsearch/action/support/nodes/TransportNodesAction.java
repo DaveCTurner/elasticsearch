@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.FanOutListener;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.cluster.ClusterState;
@@ -22,7 +23,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -134,7 +134,7 @@ public abstract class TransportNodesAction<
         final var responses = new ArrayList<NodeResponse>(request.concreteNodes().length);
         final var exceptions = new ArrayList<FailedNodeException>(0);
 
-        final var resultListener = new ListenableFuture<NodesResponse>();
+        final var resultListener = new FanOutListener<NodesResponse>();
         final var resultListenerCompleter = new RunOnce(() -> {
             if (task instanceof CancellableTask cancellableTask) {
                 if (cancellableTask.notifyIfCancelled(resultListener)) {
@@ -146,7 +146,7 @@ public abstract class TransportNodesAction<
                 .execute(ActionRunnable.wrap(resultListener, l -> newResponseAsync(task, request, responses, exceptions, l)));
         });
 
-        final var nodeCancellationListener = new ListenableFuture<NodeResponse>(); // collects node listeners & completes them if cancelled
+        final var nodeCancellationListener = new FanOutListener<NodeResponse>(); // collects node listeners & completes them if cancelled
         if (task instanceof CancellableTask cancellableTask) {
             cancellableTask.addListener(() -> {
                 assert cancellableTask.isCancelled();
@@ -158,7 +158,7 @@ public abstract class TransportNodesAction<
         final var transportRequestOptions = TransportRequestOptions.timeout(request.timeout());
 
         try (var refs = new RefCountingRunnable(() -> {
-            resultListener.addListener(listener);
+            resultListener.addListener(null, listener);
             resultListenerCompleter.run();
         })) {
             for (final var node : request.concreteNodes()) {
@@ -189,7 +189,7 @@ public abstract class TransportNodesAction<
                 });
 
                 if (task instanceof CancellableTask) {
-                    nodeCancellationListener.addListener(nodeResponseListener);
+                    nodeCancellationListener.addListener(null, nodeResponseListener);
                 }
 
                 final var nodeRequest = newNodeRequest(request);
