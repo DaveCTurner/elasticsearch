@@ -31,7 +31,7 @@ java.lang.Object#wait(long,int)
 java.lang.Object#notify()
 java.lang.Object#notifyAll()
 
-@defaulMessage CompletableFuture catches Throwable so risks swallowing Errors, and also permits blocking on inappropriate threads. Use a subclass of BaseFuture instead (e.g. PlainActionFuture, ListenableFuture, ...)
+@defaultMessage CompletableFuture catches Throwable so risks swallowing Errors, and also permits blocking on inappropriate threads. Use a subclass of BaseFuture instead (e.g. PlainActionFuture, ListenableFuture, ...)
 java.util.concurrent.CompletableFuture
 
 @defaultMessage Beware of the behavior of this method on MIN_VALUE
