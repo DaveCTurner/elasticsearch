@@ -11,6 +11,8 @@ package org.elasticsearch.action.support;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
+import org.elasticsearch.common.util.concurrent.TestBarrier;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.FixedExecutorBuilder;
@@ -22,6 +24,10 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 
 public class ThreadedActionListenerTests extends ESTestCase {
 
@@ -46,8 +52,7 @@ public class ThreadedActionListenerTests extends ESTestCase {
             threadPool.generic().execute(() -> {
                 for (int i = 0; i < listenerCount; i++) {
                     final var pool = randomFrom(pools);
-                    final var listener = new ThreadedActionListener<Void>(
-                        logger,
+                    final var listener = new ThreadedActionListener<>(
                         threadPool,
                         pool,
                         ActionListener.wrap(countdownLatch::countDown),
@@ -74,6 +79,76 @@ public class ThreadedActionListenerTests extends ESTestCase {
             assertTrue(threadPool.awaitTermination(10, TimeUnit.SECONDS));
         }
         assertTrue(countdownLatch.await(10, TimeUnit.SECONDS));
+    }
+
+    public void testThreadContext() throws InterruptedException {
+        final var executorName = "test-thread";
+        final var threadPool = new TestThreadPool(
+            "test",
+            Settings.EMPTY,
+            new FixedExecutorBuilder(Settings.EMPTY, executorName, 1, 1, executorName, randomBoolean())
+        );
+        try {
+            enum CompletionType {
+                SUCCESS,
+                FAILURE,
+                REJECTION
+            }
+            final var completionType = randomFrom(CompletionType.values());
+            final var threadContext = threadPool.getThreadContext();
+            final var completionLatch = new CountDownLatch(1);
+            final ActionListener<Void> listener;
+            try (var ignored = threadContext.stashContext()) {
+                threadContext.putHeader("test-header", "test-value");
+                listener = new ThreadedActionListener<>(threadPool, executorName, new ActionListener<>() {
+                    @Override
+                    public void onResponse(Void unused) {
+                        assertEquals(CompletionType.SUCCESS, completionType);
+                        assertContext();
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        switch (completionType) {
+                            case SUCCESS -> fail();
+                            case FAILURE -> assertThat(e, instanceOf(IllegalStateException.class));
+                            case REJECTION -> assertThat(e, instanceOf(EsRejectedExecutionException.class));
+                        }
+                        assertContext();
+                    }
+
+                    private void assertContext() {
+                        if (completionType != CompletionType.REJECTION) {
+                            assertThat(Thread.currentThread().getName(), containsString("[test-thread]"));
+                        }
+                        assertEquals("test-value", threadContext.getHeader("test-header"));
+                        completionLatch.countDown();
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "test listener";
+                    }
+                }, false);
+            }
+            assertThat(listener.toString(), allOf(containsString(executorName), containsString("test listener")));
+            final var barrier = new TestBarrier(2);
+            threadPool.executor(executorName).execute(barrier::await); // block the thread
+            switch (completionType) {
+                case SUCCESS -> listener.onResponse(null);
+                case FAILURE -> listener.onFailure(new IllegalStateException("test"));
+                case REJECTION -> {
+                    threadPool.executor(executorName).execute(() -> {}); // fill the queue
+                    listener.onResponse(null);
+                    assertTrue(completionLatch.await(0, TimeUnit.SECONDS));
+                }
+            }
+            barrier.await(); // release the thread
+            assertTrue(completionLatch.await(10, TimeUnit.SECONDS));
+
+        } finally {
+            TestThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS);
+        }
     }
 
 }

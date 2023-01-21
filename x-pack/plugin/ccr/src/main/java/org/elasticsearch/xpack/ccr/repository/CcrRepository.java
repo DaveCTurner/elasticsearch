@@ -191,20 +191,18 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
         assert snapshotIds.size() == 1 && SNAPSHOT_ID.equals(snapshotIds.iterator().next())
             : "RemoteClusterRepository only supports " + SNAPSHOT_ID + " as the SnapshotId but saw " + snapshotIds;
         try {
-            csDeduplicator.execute(
-                new ThreadedActionListener<>(logger, threadPool, ThreadPool.Names.SNAPSHOT_META, context.map(response -> {
-                    Metadata responseMetadata = response.metadata();
-                    Map<String, IndexMetadata> indicesMap = responseMetadata.indices();
-                    return new SnapshotInfo(
-                        new Snapshot(this.metadata.name(), SNAPSHOT_ID),
-                        List.copyOf(indicesMap.keySet()),
-                        List.copyOf(responseMetadata.dataStreams().keySet()),
-                        List.of(),
-                        response.getNodes().getMaxNodeVersion(),
-                        SnapshotState.SUCCESS
-                    );
-                }), false)
-            );
+            csDeduplicator.execute(new ThreadedActionListener<>(threadPool, ThreadPool.Names.SNAPSHOT_META, context.map(response -> {
+                Metadata responseMetadata = response.metadata();
+                Map<String, IndexMetadata> indicesMap = responseMetadata.indices();
+                return new SnapshotInfo(
+                    new Snapshot(this.metadata.name(), SNAPSHOT_ID),
+                    List.copyOf(indicesMap.keySet()),
+                    List.copyOf(responseMetadata.dataStreams().keySet()),
+                    List.of(),
+                    response.getNodes().getMaxNodeVersion(),
+                    SnapshotState.SUCCESS
+                );
+            }), false));
         } catch (Exception e) {
             assert false : e;
             context.onFailure(e);

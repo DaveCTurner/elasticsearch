@@ -100,9 +100,8 @@ public class ExpiredModelSnapshotsRemover extends AbstractExpiredJobDataRemover 
     @Override
     void calcCutoffEpochMs(String jobId, long retentionDays, ActionListener<CutoffDetails> listener) {
         ThreadedActionListener<CutoffDetails> threadedActionListener = new ThreadedActionListener<>(
-            LOGGER,
-            threadPool,
-            MachineLearning.UTILITY_THREAD_POOL_NAME,
+            threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            ThreadedActionListener.TODO_SHOULD_THIS_CAPTURE_CONTEXT,
             listener,
             false
         );

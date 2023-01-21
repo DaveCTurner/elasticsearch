@@ -286,7 +286,6 @@ public class RecoverySourceHandler {
                             shard.removePeerRecoveryRetentionLease(
                                 request.targetNode().getId(),
                                 new ThreadedActionListener<>(
-                                    logger,
                                     shard.getThreadPool(),
                                     ThreadPool.Names.GENERIC,
                                     deleteRetentionLeaseStep,
@@ -980,7 +979,7 @@ public class RecoverySourceHandler {
                 final StepListener<ReplicationResponse> cloneRetentionLeaseStep = new StepListener<>();
                 final RetentionLease clonedLease = shard.cloneLocalPeerRecoveryRetentionLease(
                     request.targetNode().getId(),
-                    new ThreadedActionListener<>(logger, shard.getThreadPool(), ThreadPool.Names.GENERIC, cloneRetentionLeaseStep, false)
+                    new ThreadedActionListener<>(shard.getThreadPool(), ThreadPool.Names.GENERIC, cloneRetentionLeaseStep, false)
                 );
                 logger.trace("cloned primary's retention lease as [{}]", clonedLease);
                 cloneRetentionLeaseStep.addListener(listener.map(rr -> clonedLease));
@@ -995,7 +994,7 @@ public class RecoverySourceHandler {
                 final RetentionLease newLease = shard.addPeerRecoveryRetentionLease(
                     request.targetNode().getId(),
                     estimatedGlobalCheckpoint,
-                    new ThreadedActionListener<>(logger, shard.getThreadPool(), ThreadPool.Names.GENERIC, addRetentionLeaseStep, false)
+                    new ThreadedActionListener<>(shard.getThreadPool(), ThreadPool.Names.GENERIC, addRetentionLeaseStep, false)
                 );
                 addRetentionLeaseStep.addListener(listener.map(rr -> newLease));
                 logger.trace("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);

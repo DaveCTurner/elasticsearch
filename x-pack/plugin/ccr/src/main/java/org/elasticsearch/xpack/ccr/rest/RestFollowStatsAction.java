@@ -43,13 +43,7 @@ public class RestFollowStatsAction extends BaseRestHandler {
         return channel -> client.execute(
             FollowStatsAction.INSTANCE,
             request,
-            new ThreadedActionListener<>(
-                logger,
-                client.threadPool(),
-                Ccr.CCR_THREAD_POOL_NAME,
-                new RestChunkedToXContentListener<>(channel),
-                false
-            )
+            new ThreadedActionListener<>(client.threadPool(), Ccr.CCR_THREAD_POOL_NAME, new RestChunkedToXContentListener<>(channel), false)
         );
     }
 

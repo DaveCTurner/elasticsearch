@@ -200,7 +200,6 @@ public class InternalClusterInfoService implements ClusterInfoService, ClusterSt
                 .stats(
                     indicesStatsRequest,
                     new ThreadedActionListener<>(
-                        logger,
                         threadPool,
                         ThreadPool.Names.MANAGEMENT,
                         ActionListener.releaseAfter(new ActionListener<>() {

@@ -209,7 +209,12 @@ public class TransportDeleteExpiredDataAction extends HandledTransportAction<
             // thread is a disaster.
             remover.remove(
                 requestsPerSecond,
-                new ThreadedActionListener<>(logger, threadPool, executor, nextListener, false),
+                new ThreadedActionListener<>(
+                    threadPool.executor(executor),
+                    ThreadedActionListener.TODO_SHOULD_THIS_CAPTURE_CONTEXT,
+                    nextListener,
+                    false
+                ),
                 isTimedOutSupplier
             );
         } else {

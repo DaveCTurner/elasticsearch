@@ -100,7 +100,12 @@ public class ExpiredForecastsRemover implements MlDataRemover {
         client.execute(
             SearchAction.INSTANCE,
             searchRequest,
-            new ThreadedActionListener<>(LOGGER, threadPool, MachineLearning.UTILITY_THREAD_POOL_NAME, forecastStatsHandler, false)
+            new ThreadedActionListener<>(
+                threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+                ThreadedActionListener.TODO_SHOULD_THIS_CAPTURE_CONTEXT,
+                forecastStatsHandler,
+                false
+            )
         );
     }
 
