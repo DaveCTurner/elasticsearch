@@ -41,6 +41,7 @@ import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.plugins.spi.NamedXContentProvider;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
@@ -721,6 +722,7 @@ public class RestHighLevelClient implements Closeable {
         }
     }
 
+    @SuppressForbidden(reason = "using CompletableFuture but this code is deprecated so no point in refactoring it")
     private Cancellable performClientRequestAsync(Request request, ResponseListener listener) {
         // Add compatibility request headers if compatibility mode has been enabled
         if (this.useAPICompatibility) {

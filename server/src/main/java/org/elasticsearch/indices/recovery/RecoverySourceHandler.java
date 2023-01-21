@@ -41,6 +41,7 @@ import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.engine.Engine;
@@ -406,6 +407,7 @@ public class RecoverySourceHandler {
         return shard.countChanges("peer-recovery", startingSeqNo, Long.MAX_VALUE);
     }
 
+    @SuppressForbidden(reason = "using CompletableFuture, needs refactoring")
     static void runUnderPrimaryPermit(
         CancellableThreads.Interruptible runnable,
         String reason,

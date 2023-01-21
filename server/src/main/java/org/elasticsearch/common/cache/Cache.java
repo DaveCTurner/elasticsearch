@@ -9,6 +9,7 @@
 package org.elasticsearch.common.cache;
 
 import org.elasticsearch.common.util.concurrent.ReleasableLock;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.Tuple;
 
 import java.lang.reflect.Array;
@@ -56,6 +57,7 @@ import java.util.function.ToLongBiFunction;
  * @param <K> The type of the keys
  * @param <V> The type of the values
  */
+@SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
 public class Cache<K, V> {
 
     private final LongAdder hits = new LongAdder();
