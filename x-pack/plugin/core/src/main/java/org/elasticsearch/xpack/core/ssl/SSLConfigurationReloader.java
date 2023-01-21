@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.ssl.SslConfiguration;
+import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.watcher.FileChangesListener;
 import org.elasticsearch.watcher.FileWatcher;
@@ -36,6 +37,7 @@ import javax.net.ssl.SSLContext;
  * Ensures that the files backing an {@link SslConfiguration} are monitored for changes and the underlying key/trust material is reloaded
  * and the {@link SSLContext} has existing sessions invalidated to force the use of the new key/trust material
  */
+@SuppressForbidden(reason="historical use of CompletableFuture, should be removed")
 public final class SSLConfigurationReloader {
 
     private static final Logger logger = LogManager.getLogger(SSLConfigurationReloader.class);
