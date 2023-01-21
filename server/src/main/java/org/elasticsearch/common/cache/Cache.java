@@ -57,7 +57,6 @@ import java.util.function.ToLongBiFunction;
  * @param <K> The type of the keys
  * @param <V> The type of the values
  */
-@SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
 public class Cache<K, V> {
 
     private final LongAdder hits = new LongAdder();
@@ -178,6 +177,7 @@ public class Cache<K, V> {
      * <p>
      * A CacheSegment is backed by a HashMap and is protected by a read/write lock.
      */
+    @SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
     private final class CacheSegment {
         // read/write lock protecting mutations to the segment
         ReadWriteLock segmentLock = new ReentrantReadWriteLock();
@@ -372,6 +372,7 @@ public class Cache<K, V> {
      * @return the current (existing or computed) non-null value associated with the specified key
      * @throws ExecutionException thrown if loader throws an exception or returns a null value
      */
+    @SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
     public V computeIfAbsent(K key, CacheLoader<K, V> loader) throws ExecutionException {
         long now = now();
         // we have to eagerly evict expired entries or our putIfAbsent call below will fail
@@ -478,6 +479,7 @@ public class Cache<K, V> {
         }
     }
 
+    @SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
     private void notifyWithInvalidated(CompletableFuture<Entry<K, V>> f) {
         try {
             Entry<K, V> entry = f.get();
@@ -647,6 +649,7 @@ public class Cache<K, V> {
      *
      * @param consumer the {@link Consumer}
      */
+    @SuppressForbidden(reason = "using CompletableFuture, with extreme caution")
     public void forEach(BiConsumer<K, V> consumer) {
         for (CacheSegment segment : segments) {
             try (ReleasableLock ignored = segment.readLock.acquire()) {

@@ -22,6 +22,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
+import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
@@ -41,7 +42,6 @@ import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
-import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.engine.Engine;
@@ -79,7 +79,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -407,7 +406,6 @@ public class RecoverySourceHandler {
         return shard.countChanges("peer-recovery", startingSeqNo, Long.MAX_VALUE);
     }
 
-    @SuppressForbidden(reason = "using CompletableFuture, needs refactoring")
     static void runUnderPrimaryPermit(
         CancellableThreads.Interruptible runnable,
         String reason,
@@ -416,22 +414,27 @@ public class RecoverySourceHandler {
         Logger logger
     ) {
         cancellableThreads.execute(() -> {
-            CompletableFuture<Releasable> permit = new CompletableFuture<>();
-            final ActionListener<Releasable> onAcquired = new ActionListener<Releasable>() {
+            var permitListener = new ListenableActionFuture<Releasable>();
+            var listenerComplete = new AtomicBoolean();
+            primary.acquirePrimaryOperationPermit(new ActionListener<>() {
                 @Override
                 public void onResponse(Releasable releasable) {
-                    if (permit.complete(releasable) == false) {
+                    if (listenerComplete.compareAndSet(false, true)) {
+                        permitListener.onResponse(releasable);
+                    } else {
                         releasable.close();
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    permit.completeExceptionally(e);
+                    if (listenerComplete.compareAndSet(false, true)) {
+                        permitListener.onFailure(e);
+                    }
+
                 }
-            };
-            primary.acquirePrimaryOperationPermit(onAcquired, ThreadPool.Names.SAME, reason);
-            try (Releasable ignored = FutureUtils.get(permit)) {
+            }, ThreadPool.Names.SAME, reason);
+            try (Releasable ignored = FutureUtils.get(permitListener)) {
                 // check that the IndexShard still has the primary authority. This needs to be checked under operation permit to prevent
                 // races, as IndexShard will switch its authority only when it holds all operation permits, see IndexShard.relocated()
                 if (primary.isRelocatedPrimary()) {
@@ -440,11 +443,14 @@ public class RecoverySourceHandler {
                 runnable.run();
             } finally {
                 // just in case we got an exception (likely interrupted) while waiting for the get
-                permit.whenComplete((r, e) -> {
-                    if (r != null) {
-                        r.close();
+                permitListener.addListener(new ActionListener<>() {
+                    @Override
+                    public void onResponse(Releasable releasable) {
+                        releasable.close();
                     }
-                    if (e != null) {
+
+                    @Override
+                    public void onFailure(Exception e) {
                         logger.trace("suppressing exception on completion (it was already bubbled up or the operation was aborted)", e);
                     }
                 });
