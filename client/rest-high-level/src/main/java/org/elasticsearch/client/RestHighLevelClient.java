@@ -733,7 +733,9 @@ public class RestHighLevelClient implements Closeable {
 
         // Create a future that tracks cancellation of this method's result and forwards cancellation to the actual LLRC request.
         CompletableFuture<Void> cancellationForwarder = new CompletableFuture<Void>();
-        Cancellable result = new Cancellable() {
+
+        @SuppressForbidden(reason = "using CompletableFuture but this code is deprecated so no point in refactoring it")
+        class ResultCancellable extends Cancellable {
             @Override
             public void cancel() {
                 // Raise the flag by completing the future
@@ -747,11 +749,11 @@ public class RestHighLevelClient implements Closeable {
                 }
                 runnable.run();
             }
-        };
+        }
+        Cancellable result = new ResultCancellable();
 
-        // Send the request after we have done the version compatibility check. Note that if it has already happened, the listener will
-        // be called immediately on the same thread with no asynchronous scheduling overhead.
-        versionCheck.addListener(new ActionListener<Optional<String>>() {
+        @SuppressForbidden(reason = "using CompletableFuture but this code is deprecated so no point in refactoring it")
+        class VersionCheckListener implements ActionListener<Optional<String>> {
             @Override
             public void onResponse(Optional<String> validation) {
                 if (validation.isPresent() == false) {
@@ -773,7 +775,11 @@ public class RestHighLevelClient implements Closeable {
                 // future if the request fails, leading to retries at the next HLRC request (see comments below).
                 listener.onFailure(e);
             }
-        });
+        }
+
+        // Send the request after we have done the version compatibility check. Note that if it has already happened, the listener will
+        // be called immediately on the same thread with no asynchronous scheduling overhead.
+        versionCheck.addListener(new VersionCheckListener());
 
         return result;
     };
