@@ -10,6 +10,7 @@ package org.elasticsearch.common.util.concurrent;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.ReachabilityChecker;
@@ -19,6 +20,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.is;
@@ -45,7 +47,7 @@ public class ListenableFutureTests extends ESTestCase {
 
         future.onResponse("");
         assertEquals(numberOfListeners, notifications.get());
-        assertTrue(future.isDone());
+        assertEquals("", PlainActionFuture.<String, RuntimeException>get(future::addListener, 0, TimeUnit.MILLISECONDS));
     }
 
     public void testListenableFutureNotifiesListenersOnException() {
@@ -62,7 +64,7 @@ public class ListenableFutureTests extends ESTestCase {
 
         future.onFailure(exception);
         assertEquals(numberOfListeners, notifications.get());
-        assertTrue(future.isDone());
+        assertEquals("", PlainActionFuture.<String, RuntimeException>get(future::addListener, 0, TimeUnit.MILLISECONDS));
     }
 
     public void testConcurrentListenerRegistrationAndCompletion() throws BrokenBarrierException, InterruptedException {

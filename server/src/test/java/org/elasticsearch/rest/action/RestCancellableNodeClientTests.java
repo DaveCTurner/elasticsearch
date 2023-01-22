@@ -17,7 +17,7 @@ import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksReque
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.http.HttpChannel;
@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -67,20 +66,20 @@ public class RestCancellableNodeClientTests extends ESTestCase {
         try (TestClient testClient = new TestClient(Settings.EMPTY, threadPool, false)) {
             int initialHttpChannels = RestCancellableNodeClient.getNumChannels();
             int totalSearches = 0;
-            List<Future<?>> futures = new ArrayList<>();
+            List<PlainActionFuture<?>> futures = new ArrayList<>();
             int numChannels = randomIntBetween(1, 30);
             for (int i = 0; i < numChannels; i++) {
                 int numTasks = randomIntBetween(1, 30);
                 TestHttpChannel channel = new TestHttpChannel();
                 totalSearches += numTasks;
                 for (int j = 0; j < numTasks; j++) {
-                    ListenableActionFuture<SearchResponse> actionFuture = new ListenableActionFuture<>();
+                    PlainActionFuture<SearchResponse> actionFuture = new PlainActionFuture<>();
                     RestCancellableNodeClient client = new RestCancellableNodeClient(testClient, channel);
                     threadPool.generic().submit(() -> client.execute(SearchAction.INSTANCE, new SearchRequest(), actionFuture));
                     futures.add(actionFuture);
                 }
             }
-            for (Future<?> future : futures) {
+            for (PlainActionFuture<?> future : futures) {
                 future.get();
             }
             // no channels get closed in this test, hence we expect as many channels as we created in the map

@@ -13,6 +13,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.Assertions;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.StepListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.blobcache.BlobCacheUtils;
 import org.elasticsearch.blobcache.common.ByteRange;
 import org.elasticsearch.blobcache.common.CacheKey;
@@ -881,7 +882,13 @@ public class SharedBlobCacheService implements Releasable {
                 }
 
             }
-            return stepListener.asFuture().get();
+            if (stepListener == null) {
+                return 0;
+            } else {
+                var future = new PlainActionFuture<Integer>();
+                stepListener.addListener(future);
+                return future.get();
+            }
         }
 
         @Override

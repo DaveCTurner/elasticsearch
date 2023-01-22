@@ -12,7 +12,6 @@ import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.core.CheckedConsumer;
 
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -89,13 +88,6 @@ public final class StepListener<Response> implements ActionListener<Response> {
         final StepListener<OuterResponse> combined = new StepListener<>();
         whenComplete(r1 -> other.whenComplete(r2 -> combined.onResponse(fn.apply(r1, r2)), combined::onFailure), combined::onFailure);
         return combined;
-    }
-
-    /**
-     * Returns the future associated with the given step listener
-     */
-    public Future<Response> asFuture() {
-        return delegate;
     }
 
     /**

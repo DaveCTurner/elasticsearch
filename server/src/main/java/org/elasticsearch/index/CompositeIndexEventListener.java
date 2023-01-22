@@ -11,6 +11,7 @@ package org.elasticsearch.index;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
@@ -251,9 +252,11 @@ final class CompositeIndexEventListener implements IndexEventListener {
     ) {
         while (iterator.hasNext()) {
             final var nextListener = iterator.next();
-            final var future = new ListenableFuture<Void>();
+            final var listeners = new ListenableFuture<Void>();
+            final var future = new PlainActionFuture<Void>();
+            listeners.addListener(future);
             try {
-                nextListener.beforeIndexShardRecovery(indexShard, indexSettings, future);
+                nextListener.beforeIndexShardRecovery(indexShard, indexSettings, listeners);
                 if (future.isDone()) {
                     // common case, not actually async, so just check for an exception and continue on the same thread
                     future.get();
@@ -265,7 +268,7 @@ final class CompositeIndexEventListener implements IndexEventListener {
             }
 
             // future was not completed straight away, but might be done by now, so continue on a fresh thread to avoid stack overflow
-            future.addListener(
+            listeners.addListener(
                 outerListener.delegateFailure(
                     (delegate, v) -> indexShard.getThreadPool()
                         .executor(ThreadPool.Names.GENERIC)

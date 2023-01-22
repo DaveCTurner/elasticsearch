@@ -621,10 +621,14 @@ public class NodeConnectionsServiceTests extends ESTestCase {
                 threadPool.generic().execute(() -> {
                     runConnectionBlock(connectionBlock);
                     listener.onResponse(new Connection() {
+                        private volatile boolean isClosed;
                         private final ListenableActionFuture<Void> closeListener = new ListenableActionFuture<>();
                         private final ListenableActionFuture<Void> removedListener = new ListenableActionFuture<>();
 
-                        private final RefCounted refCounted = AbstractRefCounted.of(() -> closeListener.onResponse(null));
+                        private final RefCounted refCounted = AbstractRefCounted.of(() -> {
+                            isClosed = true;
+                            closeListener.onResponse(null);
+                        });
 
                         @Override
                         public DiscoveryNode getNode() {
@@ -647,7 +651,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
                         @Override
                         public boolean isClosed() {
-                            return closeListener.isDone();
+                            return isClosed;
                         }
 
                         @Override

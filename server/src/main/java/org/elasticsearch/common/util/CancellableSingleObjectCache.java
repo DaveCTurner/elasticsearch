@@ -8,9 +8,11 @@
 
 package org.elasticsearch.common.util;
 
+import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.Nullable;
@@ -186,13 +188,17 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
     private final class CachedItem extends AbstractRefCounted {
 
         private final Key key;
-        private final ListenableActionFuture<Value> future = new ListenableActionFuture<>();
+        private final ListenableActionFuture<Value> listeners = new ListenableActionFuture<>();
+        private final ActionFuture<Value> future;
         private final CancellationChecks cancellationChecks = new CancellationChecks();
 
         CachedItem(Key key) {
             this.key = key;
             incRef(); // start with a refcount of 2 so we're not closed while adding the first listener
-            this.future.addListener(new ActionListener<>() {
+            final var future = new PlainActionFuture<Value>();
+            this.future = future;
+            this.listeners.addListener(future);
+            this.listeners.addListener(new ActionListener<>() {
                 @Override
                 public void onResponse(Value value) {
                     cancellationChecks.clear();
@@ -216,7 +222,7 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
             return key;
         }
 
-        ListenableActionFuture<Value> getFuture() {
+        ActionFuture<Value> getFuture() {
             return future;
         }
 
@@ -228,7 +234,7 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
                     ActionListener.completeWith(listener, () -> future.actionGet(0L));
                 } else {
                     // Refresh is still pending; it's not cancelled because there are still references.
-                    future.addListener(ContextPreservingActionListener.wrapPreservingContext(listener, threadContext));
+                    listeners.addListener(ContextPreservingActionListener.wrapPreservingContext(listener, threadContext));
                     final AtomicBoolean released = new AtomicBoolean();
                     cancellationChecks.add(() -> {
                         if (released.get() == false && isCancelled.getAsBoolean() && released.compareAndSet(false, true)) {
@@ -252,7 +258,7 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
         @Override
         protected void closeInternal() {
             // Complete the future (and hence all its listeners) with an exception if it hasn't already been completed.
-            future.onFailure(new TaskCancelledException("task cancelled"));
+            listeners.onFailure(new TaskCancelledException("task cancelled"));
         }
 
         private boolean supersedeIfStale() {
@@ -270,7 +276,7 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
             cancellationChecks.runAll();
             if (tryIncRef()) {
                 try {
-                    return currentCachedItem.addListener(future, () -> {
+                    return currentCachedItem.addListener(listeners, () -> {
                         cancellationChecks.runAll();
                         return hasReferences() == false;
                     });
@@ -285,9 +291,9 @@ public abstract class CancellableSingleObjectCache<Input, Key, Value> {
 
         void startRefresh(Input input) {
             try {
-                refresh(input, this::ensureNotCancelled, this::supersedeIfStale, future);
+                refresh(input, this::ensureNotCancelled, this::supersedeIfStale, listeners);
             } catch (Exception e) {
-                future.onFailure(e);
+                listeners.onFailure(e);
             }
         }
     }

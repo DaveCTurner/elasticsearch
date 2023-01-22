@@ -31,6 +31,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -919,9 +920,15 @@ public class ApiKeyService {
         }
     }
 
-    // pkg private for testing
+    // pkg private for testing, only used in tests
     CachedApiKeyHashResult getFromCache(String id) {
-        return apiKeyAuthCache == null ? null : FutureUtils.get(apiKeyAuthCache.get(id), 0L, TimeUnit.MILLISECONDS);
+        if (apiKeyAuthCache == null) {
+            return null;
+        }
+
+        var future = new PlainActionFuture<CachedApiKeyHashResult>();
+        apiKeyAuthCache.get(id).addListener(future);
+        return FutureUtils.get(future, 0L, TimeUnit.MILLISECONDS);
     }
 
     // pkg private for testing
