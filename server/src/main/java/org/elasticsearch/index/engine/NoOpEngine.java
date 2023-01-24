@@ -45,7 +45,7 @@ public final class NoOpEngine extends ReadOnlyEngine {
     private final DocsStats docsStats;
 
     public NoOpEngine(EngineConfig config) {
-        this(config, null);
+        this(config, config.isPromotableToPrimary() ? null : new TranslogStats(0,0,0,0,0));
     }
 
     public NoOpEngine(EngineConfig config, @Nullable TranslogStats translogStats) {

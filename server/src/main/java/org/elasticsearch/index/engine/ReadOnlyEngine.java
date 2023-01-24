@@ -189,7 +189,10 @@ public class ReadOnlyEngine extends Engine {
     }
 
     protected boolean assertMaxSeqNoEqualsToGlobalCheckpoint(final long maxSeqNo, final long globalCheckpoint) {
-        assert maxSeqNo == globalCheckpoint : "max seq. no. [" + maxSeqNo + "] does not match [" + globalCheckpoint + "]";
+        if (maxSeqNo != globalCheckpoint)
+        {
+            throw new AssertionError("max seq. no. [" + maxSeqNo + "] does not match [" + globalCheckpoint + "]");
+        }
         return true;
     }
 

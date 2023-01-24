@@ -300,7 +300,8 @@ public class ShardRoutingRoleIT extends ESIntegTestCase {
                 for (IndexShard indexShard : indexService) {
                     final var engine = indexShard.getEngineOrNull();
                     assertNotNull(engine);
-                    if (indexShard.routingEntry().isPromotableToPrimary()) {
+                    if (indexShard.routingEntry().isPromotableToPrimary()
+                            && indexShard.indexSettings().getIndexMetadata().getState() == IndexMetadata.State.OPEN) {
                         assertThat(engine, instanceOf(InternalEngine.class));
                     } else {
                         assertThat(engine, instanceOf(NoOpEngine.class));
@@ -453,4 +454,27 @@ public class ShardRoutingRoleIT extends ESIntegTestCase {
         }
     }
 
+    public void testClosedIndex() {
+        var routingTableWatcher = new RoutingTableWatcher();
+
+        var numDataNodes = routingTableWatcher.numReplicas + 2;
+        internalCluster().ensureAtLeastNumDataNodes(numDataNodes);
+        getMasterNodePlugin().numIndexingCopies = routingTableWatcher.numIndexingCopies;
+
+        final var masterClusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
+        try {
+            // verify the correct number of shard copies of each role as the routing table evolves
+            masterClusterService.addListener(routingTableWatcher);
+
+            createIndex(INDEX_NAME, routingTableWatcher.getIndexSettings());
+            ensureGreen(INDEX_NAME);
+            assertEngineTypes();
+
+            assertAcked(client().admin().indices().prepareClose(INDEX_NAME));
+            ensureGreen(INDEX_NAME);
+            assertEngineTypes();
+        } finally {
+            masterClusterService.removeListener(routingTableWatcher);
+        }
+    }
 }
