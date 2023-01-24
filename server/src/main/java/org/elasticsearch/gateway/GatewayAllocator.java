@@ -11,6 +11,7 @@ package org.elasticsearch.gateway;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -261,7 +262,9 @@ public class GatewayAllocator implements ExistingShardsAllocator {
                         client.executeLocally(
                             TransportNodesListGatewayStartedShards.TYPE,
                             new TransportNodesListGatewayStartedShards.Request(shardId, customDataPath, nodes),
-                            ActionListener.wrap(listener)
+                            ActionListeners.builder(listener)
+                                .feedbackFailure().<TransportNodesListGatewayStartedShards.NodesGatewayStartedShards>cast()
+                                .build()
                         );
                     }
                 }

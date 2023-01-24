@@ -10,7 +10,7 @@ package org.elasticsearch.cluster;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.cluster.coordination.FollowersChecker;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -282,41 +282,35 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
             // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something else
             // has opened a fresh connection to the node. Therefore we always call connectToNode() and update connectionRef.
-            transportService.connectToNode(discoveryNode, ActionListener.runAfter(new ActionListener<>() {
-                @Override
-                public void onResponse(Releasable connectionReleasable) {
-                    if (alreadyConnected) {
-                        logger.trace("refreshed connection to {}", discoveryNode);
-                    } else {
-                        logger.debug("connected to {}", discoveryNode);
-                    }
-                    consecutiveFailureCount.set(0);
-                    setConnectionRef(connectionReleasable);
-
-                    final boolean isActive;
-                    synchronized (mutex) {
-                        isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
-                    }
-                    if (isActive == false) {
-                        logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
-                        setConnectionRef(null);
-                    }
-                    Releasables.closeExpectNoException(refs);
+            transportService.connectToNode(discoveryNode, ActionListeners.builder((Releasable connectionReleasable) -> {
+                if (alreadyConnected) {
+                    logger.trace("refreshed connection to {}", discoveryNode);
+                } else {
+                    logger.debug("connected to {}", discoveryNode);
                 }
+                consecutiveFailureCount.set(0);
+                setConnectionRef(connectionReleasable);
 
-                @Override
-                public void onFailure(Exception e) {
-                    final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
-                    // only warn every 6th failure
-                    final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
-                    logger.log(level, () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount), e);
+                final boolean isActive;
+                synchronized (mutex) {
+                    isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
+                }
+                if (isActive == false) {
+                    logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
                     setConnectionRef(null);
-                    Releasables.closeExpectNoException(refs);
                 }
-            }, () -> {
+                Releasables.closeExpectNoException(refs);
+            }, e -> {
+                final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
+                // only warn every 6th failure
+                final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
+                logger.log(level, () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount), e);
+                setConnectionRef(null);
+                Releasables.closeExpectNoException(refs);
+            }).runAfter(() -> {
                 releaseListener();
                 transportService.getThreadPool().generic().execute(this::doConnect);
-            }));
+            }).build());
         }
 
         void disconnect() {

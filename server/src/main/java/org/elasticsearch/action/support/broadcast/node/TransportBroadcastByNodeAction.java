@@ -11,6 +11,7 @@ package org.elasticsearch.action.support.broadcast.node;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.ActionFilters;
@@ -464,24 +465,17 @@ public abstract class TransportBroadcastByNodeAction<
             for (final ShardRouting shardRouting : shards) {
                 shardIndex++;
                 final int finalShardIndex = shardIndex;
-                onShardOperation(request, shardRouting, task, ActionListener.notifyOnce(new ActionListener<ShardOperationResult>() {
-
-                    @Override
-                    public void onResponse(ShardOperationResult shardOperationResult) {
-                        shardResultOrExceptions.setOnce(finalShardIndex, shardOperationResult);
-                        if (counter.decrementAndGet() == 0) {
-                            finishHim(request, channel, task, shardResultOrExceptions);
-                        }
+                onShardOperation(request, shardRouting, task, ActionListeners.builder((ShardOperationResult shardOperationResult) -> {
+                    shardResultOrExceptions.setOnce(finalShardIndex, shardOperationResult);
+                    if (counter.decrementAndGet() == 0) {
+                        finishHim(request, channel, task, shardResultOrExceptions);
                     }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        shardResultOrExceptions.setOnce(finalShardIndex, e);
-                        if (counter.decrementAndGet() == 0) {
-                            finishHim(request, channel, task, shardResultOrExceptions);
-                        }
+                }, e -> {
+                    shardResultOrExceptions.setOnce(finalShardIndex, e);
+                    if (counter.decrementAndGet() == 0) {
+                        finishHim(request, channel, task, shardResultOrExceptions);
                     }
-                }));
+                }).once().build());
             }
         }
 

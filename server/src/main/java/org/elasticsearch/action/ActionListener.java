@@ -532,7 +532,7 @@ public interface ActionListener<Response> {
         };
     }
 
-    private static <Response> ActionListener<Response> assertOnce(ActionListener<Response> delegate) {
+    static <Response> ActionListener<Response> assertOnce(ActionListener<Response> delegate) {
         if (Assertions.ENABLED) {
             return new ActionListener<>() {
                 private final AtomicBoolean alreadyRan = new AtomicBoolean();

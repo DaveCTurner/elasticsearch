@@ -10,10 +10,10 @@ package org.elasticsearch.action.support.master;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -39,7 +39,6 @@ import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ConnectTransportException;
 import org.elasticsearch.transport.RemoteTransportException;
-import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.Optional;
@@ -232,7 +231,9 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
                             }
                         });
                         threadPool.executor(executor)
-                            .execute(ActionRunnable.wrap(delegate, l -> executeMasterOperation(task, request, clusterState, l)));
+                            .execute(
+                                ActionListeners.builder(delegate).executing(l -> executeMasterOperation(task, request, clusterState, l))
+                            );
                     }
                 } else {
                     if (nodes.getMasterNode() == null) {
@@ -245,30 +246,33 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
                             masterNode,
                             actionName,
                             request,
-                            new ActionListenerResponseHandler<>(listener, responseReader, executor) {
-                                @Override
-                                public void handleException(final TransportException exp) {
-                                    Throwable cause = exp.unwrapCause();
-                                    if (cause instanceof ConnectTransportException
-                                        || (exp instanceof RemoteTransportException && cause instanceof NodeClosedException)) {
-                                        // we want to retry here a bit to see if a new master is elected
-                                        logger.debug(
-                                            "connection exception while trying to forward request with action name [{}] to "
-                                                + "master node [{}], scheduling a retry. Error: [{}]",
-                                            actionName,
-                                            nodes.getMasterNode(),
-                                            exp.getDetailedMessage()
-                                        );
-                                        retryOnNextState(currentStateVersion, cause);
-                                    } else {
-                                        logger.trace(
-                                            () -> format("failure when forwarding request [%s] to master [%s]", actionName, masterNode),
-                                            exp
-                                        );
-                                        listener.onFailure(exp);
+                            ActionListeners.responseHandler(
+                                executor,
+                                responseReader,
+                                ActionListeners.builder(listener).onFailure((l, e) -> {
+                                    if (e instanceof ElasticsearchException exp) {
+                                        Throwable cause = exp.unwrapCause();
+                                        if (cause instanceof ConnectTransportException
+                                            || (exp instanceof RemoteTransportException && cause instanceof NodeClosedException)) {
+                                            // we want to retry here a bit to see if a new master is elected
+                                            logger.debug(
+                                                "connection exception while trying to forward request with action name [{}] to "
+                                                    + "master node [{}], scheduling a retry. Error: [{}]",
+                                                actionName,
+                                                nodes.getMasterNode(),
+                                                exp.getDetailedMessage()
+                                            );
+                                            retryOnNextState(currentStateVersion, cause);
+                                            return;
+                                        }
                                     }
-                                }
-                            }
+                                    logger.trace(
+                                        () -> format("failure when forwarding request [%s] to master [%s]", actionName, masterNode),
+                                        e
+                                    );
+                                    l.onFailure(e);
+                                })
+                            )
                         );
                     }
                 }

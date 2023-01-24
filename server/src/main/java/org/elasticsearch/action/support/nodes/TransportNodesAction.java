@@ -11,7 +11,7 @@ package org.elasticsearch.action.support.nodes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -162,31 +162,20 @@ public abstract class TransportNodesAction<
             resultListenerCompleter.run();
         })) {
             for (final var node : request.concreteNodes()) {
-                final ActionListener<NodeResponse> nodeResponseListener = ActionListener.notifyOnce(new ActionListener<>() {
-                    @Override
-                    public void onResponse(NodeResponse nodeResponse) {
-                        synchronized (responses) {
-                            responses.add(nodeResponse);
-                        }
+                final var nodeResponseListener = ActionListeners.builder((NodeResponse nodeResponse) -> {
+                    synchronized (responses) {
+                        responses.add(nodeResponse);
+                    }
+                }, e -> {
+                    if (task instanceof CancellableTask cancellableTask && cancellableTask.isCancelled()) {
+                        return;
                     }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        if (task instanceof CancellableTask cancellableTask && cancellableTask.isCancelled()) {
-                            return;
-                        }
-
-                        logger.debug(() -> format("failed to execute [%s] on node [%s]", actionName, node), e);
-                        synchronized (exceptions) {
-                            exceptions.add(new FailedNodeException(node.getId(), "Failed node [" + node.getId() + "]", e));
-                        }
+                    logger.debug(() -> format("failed to execute [%s] on node [%s]", actionName, node), e);
+                    synchronized (exceptions) {
+                        exceptions.add(new FailedNodeException(node.getId(), "Failed node [" + node.getId() + "]", e));
                     }
-
-                    @Override
-                    public String toString() {
-                        return "[" + actionName + "][" + node.descriptionWithoutAttributes() + "]";
-                    }
-                });
+                }).named(() -> "[" + actionName + "][" + node.descriptionWithoutAttributes() + "]").build();
 
                 if (task instanceof CancellableTask) {
                     nodeCancellationListener.addListener(nodeResponseListener);
@@ -202,9 +191,10 @@ public abstract class TransportNodesAction<
                     transportNodeAction,
                     nodeRequest,
                     transportRequestOptions,
-                    new ActionListenerResponseHandler<>(
-                        ActionListener.releaseAfter(nodeResponseListener, refs.acquire()),
-                        in -> newNodeResponse(in, node)
+                    ActionListeners.responseHandler(
+                        ThreadPool.Names.SAME,
+                        in -> newNodeResponse(in, node),
+                        ActionListeners.builder(nodeResponseListener).releaseAfter(refs.acquire())
                     )
                 );
             }

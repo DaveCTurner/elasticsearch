@@ -24,6 +24,7 @@ import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListeners;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.SingleResultDeduplicator;
 import org.elasticsearch.action.StepListener;
@@ -32,7 +33,6 @@ import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
-import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.RepositoryCleanupInProgress;
@@ -1982,7 +1982,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             clusterService,
                             metadata.name(),
                             loaded,
-                            new ThreadedActionListener<>(logger, threadPool, ThreadPool.Names.GENERIC, listener.map(v -> loaded), false)
+                            ActionListeners.builder(listener)
+                                .map((Void v) -> loaded)
+                                .dispatching(threadPool, ThreadPool.Names.GENERIC)
+                                .build()
                         );
                     }
                 }
@@ -2014,7 +2017,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     markRepoCorrupted(
                         genToLoad,
                         e,
-                        ActionListener.wrap(v -> listener.onFailure(corruptedStateException(e, finalLastInfo)), listener::onFailure)
+                        ActionListeners.builder(listener)
+                            .<Void>onResponse((l, v) -> l.onFailure(corruptedStateException(e, finalLastInfo)))
+                            .feedbackFailure()
+                            .build()
                     );
                 } else {
                     listener.onFailure(e);
