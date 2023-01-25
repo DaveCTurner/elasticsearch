@@ -19,7 +19,7 @@ import org.elasticsearch.tracing.Tracer;
 
 import java.io.IOException;
 
-public class RequestHandlerRegistry<Request extends TransportRequest> {
+public class RequestHandlerRegistry<Request extends TransportRequest> implements ResponseStatsConsumer {
 
     private final String action;
     private final TransportRequestHandler<Request> handler;
@@ -29,6 +29,7 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
     private final TaskManager taskManager;
     private final Tracer tracer;
     private final Writeable.Reader<Request> requestReader;
+    private final TransportActionStatsTracker statsTracker = new TransportActionStatsTracker();
 
     public RequestHandlerRegistry(
         String action,
@@ -110,5 +111,18 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
             registry.canTripCircuitBreaker,
             registry.tracer
         );
+    }
+
+    public void addRequestStats(int messageSize) {
+        statsTracker.addRequestStats(messageSize);
+    }
+
+    @Override
+    public void addResponseStats(int messageSize) {
+        statsTracker.addResponseStats(messageSize);
+    }
+
+    public TransportActionStats getStats() {
+        return statsTracker.getStats(action);
     }
 }
