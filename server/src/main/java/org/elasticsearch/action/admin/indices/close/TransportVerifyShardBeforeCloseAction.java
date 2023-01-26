@@ -21,6 +21,7 @@ import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.block.ClusterBlock;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -135,7 +136,11 @@ public class TransportVerifyShardBeforeCloseAction extends TransportReplicationA
             // is equal to the global checkpoint.
             indexShard.sync();
         } else {
-            indexShard.verifyShardBeforeIndexClosing();
+            try {
+                indexShard.verifyShardBeforeIndexClosing();
+            } catch (Exception e) {
+                logger.error(Strings.format("verifyShardBeforeIndexClosing: %s", request), e);
+            }
             indexShard.flush(new FlushRequest().force(true).waitIfOngoing(true));
             logger.trace("{} shard is ready for closing", shardId);
         }
