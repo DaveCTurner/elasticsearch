@@ -140,6 +140,7 @@ public class TransportVerifyShardBeforeCloseAction extends TransportReplicationA
                 indexShard.verifyShardBeforeIndexClosing();
             } catch (Exception e) {
                 logger.error(Strings.format("verifyShardBeforeIndexClosing: %s", request), e);
+                throw e;
             }
             indexShard.flush(new FlushRequest().force(true).waitIfOngoing(true));
             logger.trace("{} shard is ready for closing", shardId);
