@@ -25,7 +25,10 @@ import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse.AddBlockResult;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse.AddBlockShardResult;
 import org.elasticsearch.action.admin.indices.readonly.TransportVerifyShardIndexBlockAction;
+import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.support.ActiveShardsObserver;
+import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.ShardsAcknowledgedResponse;
@@ -616,11 +619,9 @@ public class MetadataIndexStateService {
             }
 
             final AtomicArray<ShardResult> results = new AtomicArray<>(indexRoutingTable.size());
-            try (
-                var refs = new RefCountingRunnable(
-                    () -> onResponse.accept(new IndexResult(index, results.toArray(new ShardResult[results.length()])))
-                )
-            ) {
+            final ListenableActionFuture<Void> shardsVerifiedFuture = new ListenableActionFuture<>();
+            boolean hasUnpromotableShards = false;
+            try (var refs = new RefCountingRunnable(() -> shardsVerifiedFuture.onResponse(null))) {
                 for (int i = 0; i < indexRoutingTable.size(); i++) {
                     IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(i);
                     final int shardId = shardRoutingTable.shardId().id();
@@ -643,7 +644,32 @@ public class MetadataIndexStateService {
                             }
                         }, refs.acquire()))
                     );
+
+                    if (hasUnpromotableShards == false) {
+                        for (int copy = 0; copy < shardRoutingTable.size(); copy++) {
+                            if (shardRoutingTable.shard(copy).isPromotableToPrimary() == false) {
+                                hasUnpromotableShards = true;
+                            }
+                        }
+                    }
                 }
+            }
+
+            final ActionListener<Void> refreshCompleteListener = ActionListener.wrap(
+                () -> onResponse.accept(new IndexResult(index, results.toArray(new ShardResult[results.length()])))
+            );
+            if (hasUnpromotableShards) {
+                shardsVerifiedFuture.addListener(
+                    ActionListener.wrap(
+                        () -> client.executeLocally(
+                            RefreshAction.INSTANCE,
+                            new RefreshRequest(indexRoutingTable.getIndex().getName()),
+                            refreshCompleteListener.map(ignored -> null)
+                        )
+                    )
+                );
+            } else {
+                shardsVerifiedFuture.addListener(refreshCompleteListener);
             }
         }
 
