@@ -26,6 +26,7 @@ import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse.Add
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse.AddBlockShardResult;
 import org.elasticsearch.action.admin.indices.readonly.TransportVerifyShardIndexBlockAction;
 import org.elasticsearch.action.support.ActiveShardsObserver;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.ShardsAcknowledgedResponse;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -615,34 +616,34 @@ public class MetadataIndexStateService {
             }
 
             final AtomicArray<ShardResult> results = new AtomicArray<>(indexRoutingTable.size());
-            final CountDown countDown = new CountDown(indexRoutingTable.size());
+            try (
+                var refs = new RefCountingRunnable(
+                    () -> onResponse.accept(new IndexResult(index, results.toArray(new ShardResult[results.length()])))
+                )
+            ) {
+                for (int i = 0; i < indexRoutingTable.size(); i++) {
+                    IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(i);
+                    final int shardId = shardRoutingTable.shardId().id();
+                    sendVerifyShardBeforeCloseRequest(
+                        shardRoutingTable,
+                        closingBlock,
+                        ActionListener.notifyOnce(ActionListener.releaseAfter(new ActionListener<>() {
+                            @Override
+                            public void onResponse(ReplicationResponse replicationResponse) {
+                                ShardResult.Failure[] failures = Arrays.stream(replicationResponse.getShardInfo().getFailures())
+                                    .map(f -> new ShardResult.Failure(f.index(), f.shardId(), f.getCause(), f.nodeId()))
+                                    .toArray(ShardResult.Failure[]::new);
+                                results.setOnce(shardId, new ShardResult(shardId, failures));
+                            }
 
-            for (int i = 0; i < indexRoutingTable.size(); i++) {
-                IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(i);
-                final int shardId = shardRoutingTable.shardId().id();
-                sendVerifyShardBeforeCloseRequest(shardRoutingTable, closingBlock, ActionListener.notifyOnce(new ActionListener<>() {
-                    @Override
-                    public void onResponse(ReplicationResponse replicationResponse) {
-                        ShardResult.Failure[] failures = Arrays.stream(replicationResponse.getShardInfo().getFailures())
-                            .map(f -> new ShardResult.Failure(f.index(), f.shardId(), f.getCause(), f.nodeId()))
-                            .toArray(ShardResult.Failure[]::new);
-                        results.setOnce(shardId, new ShardResult(shardId, failures));
-                        processIfFinished();
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        ShardResult.Failure failure = new ShardResult.Failure(index.getName(), shardId, e);
-                        results.setOnce(shardId, new ShardResult(shardId, new ShardResult.Failure[] { failure }));
-                        processIfFinished();
-                    }
-
-                    private void processIfFinished() {
-                        if (countDown.countDown()) {
-                            onResponse.accept(new IndexResult(index, results.toArray(new ShardResult[results.length()])));
-                        }
-                    }
-                }));
+                            @Override
+                            public void onFailure(Exception e) {
+                                ShardResult.Failure failure = new ShardResult.Failure(index.getName(), shardId, e);
+                                results.setOnce(shardId, new ShardResult(shardId, new ShardResult.Failure[] { failure }));
+                            }
+                        }, refs.acquire()))
+                    );
+                }
             }
         }
 

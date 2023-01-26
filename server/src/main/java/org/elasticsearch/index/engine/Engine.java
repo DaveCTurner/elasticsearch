@@ -203,6 +203,13 @@ public abstract class Engine implements Closeable {
     public void verifyEngineBeforeIndexClosing() throws IllegalStateException {
         final long globalCheckpoint = engineConfig.getGlobalCheckpointSupplier().getAsLong();
         final long maxSeqNo = getSeqNoStats(globalCheckpoint).getMaxSeqNo();
+        logger.info(
+            "verifyEngineBeforeIndexClosing: shard [{}] promotable [{}] gcp [{}] msn [{}]",
+            shardId,
+            config().isPromotableToPrimary(),
+            globalCheckpoint,
+            maxSeqNo
+        );
         if (globalCheckpoint != maxSeqNo) {
             throw new IllegalStateException(
                 "Global checkpoint ["
