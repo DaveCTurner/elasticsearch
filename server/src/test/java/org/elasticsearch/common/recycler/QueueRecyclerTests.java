@@ -15,4 +15,19 @@ public class QueueRecyclerTests extends AbstractRecyclerTestCase {
         return Recyclers.concurrentDeque(RECYCLER_C, limit);
     }
 
+    public void testGc() {
+        Recycler<byte[]> r = newRecycler(limit);
+        System.gc();
+        obtainAndAssertFresh(r);
+        System.gc();
+        obtainAndAssertFresh(r);
+    }
+
+    private void obtainAndAssertFresh(Recycler<byte[]> r) {
+        try (Recycler.V<byte[]> o = r.obtain()) {
+            assertFalse(o.isRecycled());
+            assertFresh(o.v());
+        }
+    }
+
 }
