@@ -9,17 +9,17 @@ server/src/internalClusterTest/java/org/elasticsearch/indices/flush/FlushIT.java
 server/src/internalClusterTest/java/org/elasticsearch/indices/stats/IndexStatsIT.java: } catch (final BrokenBarrierException | InterruptedException e) {	 failed.set(true);	 executionFailures.get().add(e);
 server/src/internalClusterTest/java/org/elasticsearch/indices/stats/IndexStatsIT.java: } catch (final BrokenBarrierException | InterruptedException e) {	 failed.set(true);	 executionFailures.get().add(e);
 server/src/internalClusterTest/java/org/elasticsearch/indices/stats/IndexStatsIT.java: } catch (final ExecutionException | InterruptedException e) {	 failed.set(true);	 executionFailures.get().add(e);
+server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 onFailure(e);	 return;
 server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
-server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception ex) {	 try {	 listener.onFailure(ex);
-server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception ex) {	 super.onFailure(ex);	 return;
 server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 try {	 listener.onFailure(e);
-server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception ex) {	 super.onFailure(ex);	 return;
+server/src/main/java/org/elasticsearch/action/ActionListener.java: } catch (Exception ex) {	 try {	 listener.onFailure(ex);
 server/src/main/java/org/elasticsearch/action/SingleResultDeduplicator.java: } catch (Exception e) {	 wrappedListener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/admin/cluster/desirednodes/TransportUpdateDesiredNodesAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/action/admin/cluster/desirednodes/TransportUpdateDesiredNodesAction.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/admin/cluster/desirednodes/TransportUpdateDesiredNodesAction.java: } catch (Exception e) {	 taskContext.onFailure(e);	 continue;
+server/src/main/java/org/elasticsearch/action/admin/cluster/desirednodes/TransportUpdateDesiredNodesAction.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/admin/cluster/node/shutdown/TransportPrevalidateNodeRemovalAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/admin/cluster/node/tasks/list/TransportListTasksAction.java: } catch (Exception e) {	 allMatchedTasksRemovedListener.onFailure(e);	 return;
 server/src/main/java/org/elasticsearch/action/admin/cluster/snapshots/get/TransportGetSnapshotsAction.java: } catch (RepositoryMissingException e) {	 listener.onFailure(e);	 return;
@@ -36,32 +36,32 @@ server/src/main/java/org/elasticsearch/action/get/TransportGetAction.java: } cat
 server/src/main/java/org/elasticsearch/action/get/TransportShardMultiGetAction.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
 server/src/main/java/org/elasticsearch/action/ingest/SimulatePipelineTransportAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/search/SearchScrollAsyncAction.java: } catch (Exception e) {	 // we need to fail the entire request here - the entire phase just blew up	 // don't call onShardFailure or onFailure here since otherwise we'd countDown the counter
-server/src/main/java/org/elasticsearch/action/search/SearchScrollAsyncAction.java: } catch (Exception e) {	 listener.onFailure(new ReduceSearchPhaseException("fetch", "inner finish failed", e, buildShardFailures()));	 }
 server/src/main/java/org/elasticsearch/action/search/SearchScrollAsyncAction.java: } catch (Exception e) {	 e.addSuppressed(failure);	 listener.onFailure(
+server/src/main/java/org/elasticsearch/action/search/SearchScrollAsyncAction.java: } catch (Exception e) {	 listener.onFailure(new ReduceSearchPhaseException("fetch", "inner finish failed", e, buildShardFailures()));	 }
 server/src/main/java/org/elasticsearch/action/search/TransportSearchAction.java: } catch (Exception e) {	 originalListener.onFailure(e);	 return;
 server/src/main/java/org/elasticsearch/action/search/TransportSearchScrollAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/ChannelActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/ListenableActionFuture.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/ThreadedActionListener.java: } catch (Exception e3) {	 e.addSuppressed(e3);	 onFailure(e);
-server/src/main/java/org/elasticsearch/action/support/TransportAction.java: } catch (Exception e) {	 logger.trace("Error during transport action execution.", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/TransportAction.java: } catch (Exception e) {	 delegate.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/support/TransportAction.java: } catch (Exception e) {	 logger.trace("Error during transport action execution.", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/TransportAction.java: } catch (Exception inner) {	 inner.addSuppressed(e);	 delegate.onFailure(inner);
 server/src/main/java/org/elasticsearch/action/support/broadcast/TransportBroadcastAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/broadcast/TransportBroadcastAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/broadcast/node/TransportBroadcastByNodeAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/action/support/broadcast/node/TransportBroadcastByNodeAction.java: } catch (Exception e) {	 logger.debug("failed to combine responses from nodes", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/broadcast/node/TransportBroadcastByNodeAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/support/broadcast/node/TransportBroadcastByNodeAction.java: } catch (Exception e) {	 logger.debug("failed to combine responses from nodes", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/master/TransportMasterNodeAction.java: } catch (Exception e) {	 // accept state as block will be rechecked by doStart() and listener.onFailure() then called	 logger.debug("exception occurred during cluster block checking, accepting state", e);
 server/src/main/java/org/elasticsearch/action/support/master/TransportMasterNodeAction.java: } catch (Exception e) {	 logger.trace("top-level failure", e);	 listener.onFailure(e);
-server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (Exception e) {	 Releasables.closeWhileHandlingException(releasable); // release shard operation lock before responding to caller	 AsyncReplicaAction.this.onFailure(e);
+server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/support/replication/TransportReplicationAction.java: } catch (RuntimeException e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/support/single/instance/TransportInstanceSingleOperationAction.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
-server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 taskListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 logger.debug("failed to combine responses from nodes", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 logger.debug("failed to generate empty response", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 onFailure(idx, nodeId, e);	 }
-server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 logger.debug("failed to combine responses from nodes", e);	 listener.onFailure(e);
+server/src/main/java/org/elasticsearch/action/support/tasks/TransportTasksAction.java: } catch (Exception e) {	 taskListener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/action/termvectors/TransportTermVectorsAction.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
 server/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java: } catch (Exception inner) {	 inner.addSuppressed(e);	 listener.onFailure(inner);
 server/src/main/java/org/elasticsearch/action/update/TransportUpdateAction.java: } catch (IOException e) {	 listener.onFailure(e);	 }
@@ -69,13 +69,13 @@ server/src/main/java/org/elasticsearch/client/internal/support/AbstractClient.ja
 server/src/main/java/org/elasticsearch/cluster/SimpleBatchedAckListenerTaskExecutor.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/cluster/SimpleBatchedExecutor.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/cluster/action/index/MappingUpdatedAction.java: } catch (InterruptedException e) {	 Thread.currentThread().interrupt();	 listener.onFailure(e);
-server/src/main/java/org/elasticsearch/cluster/coordination/Coordinator.java: } catch (Exception e) {	 joinListener.onFailure(e);	 } finally {
 server/src/main/java/org/elasticsearch/cluster/coordination/Coordinator.java: } catch (Exception e) {	 joinListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/cluster/coordination/Coordinator.java: } catch (Exception e) {	 joinListener.onFailure(e);	 } finally {
 server/src/main/java/org/elasticsearch/cluster/coordination/Coordinator.java: } catch (Exception e) {	 logger.debug(() -> "[" + clusterStatePublicationEvent.getSummary() + "] publishing failed", e);	 publishListener.onFailure(new FailedToCommitClusterStateException("publishing failed", e));
 server/src/main/java/org/elasticsearch/cluster/coordination/NodeJoinExecutor.java: } catch (IllegalArgumentException | IllegalStateException e) {	 onTaskSuccess.add(() -> nodeJoinTask.listener().onFailure(e));	 continue;
 server/src/main/java/org/elasticsearch/cluster/coordination/PublicationTransportHandler.java: } catch (Exception e) {	 logger.warn(() -> format("failed to serialize cluster state before publishing it to node %s", destination), e);	 listener.onFailure(e);
-server/src/main/java/org/elasticsearch/cluster/metadata/MetadataIndexStateService.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/cluster/metadata/MetadataIndexStateService.java: } catch (Exception e) {	 for (final var taskContext : batchExecutionContext.taskContexts()) {	 taskContext.onFailure(e);
+server/src/main/java/org/elasticsearch/cluster/metadata/MetadataIndexStateService.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/cluster/metadata/MetadataIndexTemplateService.java: } catch (Exception e) {	 if (validationFailure == null) {	 validationFailure = new IllegalArgumentException(
 server/src/main/java/org/elasticsearch/cluster/metadata/MetadataIndexTemplateService.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 server/src/main/java/org/elasticsearch/cluster/metadata/MetadataMappingService.java: } catch (Exception e) {	 taskContext.onFailure(e);	 }
@@ -90,25 +90,25 @@ server/src/main/java/org/elasticsearch/discovery/HandshakingTransportAddressConn
 server/src/main/java/org/elasticsearch/health/node/action/TransportHealthNodeAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/health/node/action/TransportHealthNodeAction.java: } catch (Exception e) {	 logger.trace(() -> format("Failed to route/execute health node action %s", actionName), e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/index/CompositeIndexEventListener.java: } catch (Exception e) {	 outerListener.onFailure(e);	 return;
-server/src/main/java/org/elasticsearch/index/engine/InternalEngine.java: } catch (IOException | TranslogCorruptedException e) {	 throw new EngineCreationFailureException(shardId, "failed to create engine", e);	
 server/src/main/java/org/elasticsearch/index/engine/InternalEngine.java: } catch (IOException e) {	 throw new EngineCreationFailureException(	 config().getShardId(),
+server/src/main/java/org/elasticsearch/index/engine/InternalEngine.java: } catch (IOException | TranslogCorruptedException e) {	 throw new EngineCreationFailureException(shardId, "failed to create engine", e);	
 server/src/main/java/org/elasticsearch/index/query/AbstractGeometryQueryBuilder.java: } catch (Exception e) {	 l.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/query/Rewriteable.java: } catch (IOException | IllegalArgumentException | ParsingException ex) {	 rewriteResponse.onFailure(ex);	 }
 server/src/main/java/org/elasticsearch/index/reindex/RejectAwareActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/seqno/ReplicationTracker.java: } catch (Exception e) {	 groupedActionListener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 onFailure(e);	 }
-server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (final Exception e) {	 wrappedListener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 listener.onFailure(e);	 } finally {
 server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 listener.onFailure(e);	 } finally {
+server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (Exception e) {	 releasable.close();	 delegatedListener.onFailure(e);
+server/src/main/java/org/elasticsearch/index/shard/IndexShard.java: } catch (final Exception e) {	 wrappedListener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/shard/IndexShardOperationPermits.java: } catch (final InterruptedException e) {	 onAcquired.onFailure(e);	 return;
-server/src/main/java/org/elasticsearch/index/shard/PrimaryReplicaSyncer.java: } catch (final Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/shard/PrimaryReplicaSyncer.java: } catch (Exception e) {	 wrappedListener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 recoveryListener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (IOException e) {	 recoveryListener.onFailure(new IndexShardRecoveryException(indexShard.shardId(), "failed to recover from local shards", e));	
-server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 recoveryListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/index/shard/PrimaryReplicaSyncer.java: } catch (final Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 recoveryListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 recoveryListener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (Exception e) {	 restoreListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/index/shard/StoreRecovery.java: } catch (IOException e) {	 recoveryListener.onFailure(new IndexShardRecoveryException(indexShard.shardId(), "failed to recover from local shards", e));	
 server/src/main/java/org/elasticsearch/indices/recovery/MultiChunkTransfer.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 server/src/main/java/org/elasticsearch/indices/recovery/PeerRecoveryTargetService.java: } catch (Exception e) {	 failureHandler.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/indices/recovery/PeerRecoveryTargetService.java: } catch (Exception e) {	 toSendListener.onFailure(e);	 }
@@ -120,20 +120,20 @@ server/src/main/java/org/elasticsearch/persistent/PersistentTasksService.java: }
 server/src/main/java/org/elasticsearch/persistent/PersistentTasksService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/repositories/GetSnapshotInfoContext.java: } catch (Exception e) {	 assert false : e;	 onFailure(e);
 server/src/main/java/org/elasticsearch/repositories/RepositoriesService.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
-server/src/main/java/org/elasticsearch/repositories/RepositoriesService.java: } catch (Exception e) {	 logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", e);	 delegatedListener.onFailure(e);
 server/src/main/java/org/elasticsearch/repositories/RepositoriesService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/repositories/RepositoriesService.java: } catch (Exception e) {	 logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", e);	 delegatedListener.onFailure(e);
 server/src/main/java/org/elasticsearch/repositories/VerifyNodeRepositoryAction.java: } catch (Exception e) {	 logger.warn(() -> "[" + repository + "] failed to verify repository", e);	 errors.add(new VerificationFailure(node.getId(), e));
-server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(	 new RepositoryException(metadata.name(), "Could not determine repository generation from root blobs", e)
-server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(new RepositoryException(metadata.name(), "Unexpected exception when loading repository data", e));	 return;
-server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 context.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 allFilesListener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 context.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(	 new RepositoryException(metadata.name(), "Could not determine repository generation from root blobs", e)
+server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+server/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreRepository.java: } catch (Exception e) {	 listener.onFailure(new RepositoryException(metadata.name(), "Unexpected exception when loading repository data", e));	 return;
 server/src/main/java/org/elasticsearch/repositories/blobstore/FileRestoreContext.java: } catch (Exception e) {	 listener.onFailure(e);	 } finally {
 server/src/main/java/org/elasticsearch/reservedstate/service/FileSettingsService.java: } catch (Exception e) {	 completion.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/rest/action/RestActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
 server/src/main/java/org/elasticsearch/rest/action/cat/RestIndicesAction.java: } catch (Exception e) {	 onFailure(e);	 }
-server/src/main/java/org/elasticsearch/search/SearchService.java: } catch (Exception exc) {	 l.onFailure(exc);	 return;
 server/src/main/java/org/elasticsearch/search/SearchService.java: } catch (Exception exc) {	 Releasables.closeWhileHandlingException(searcherSupplier, readerContext);	 listener.onFailure(exc);
+server/src/main/java/org/elasticsearch/search/SearchService.java: } catch (Exception exc) {	 l.onFailure(exc);	 return;
 server/src/main/java/org/elasticsearch/search/SearchService.java: } catch (IOException e) {	 listener.onFailure(e);	 }
 server/src/main/java/org/elasticsearch/snapshots/RestoreService.java: } catch (Exception e) {	 logger.warn(() -> "[" + request.repository() + ":" + request.snapshot() + "] failed to restore snapshot", e);	 listener.onFailure(e);
 server/src/main/java/org/elasticsearch/snapshots/SnapshotShardsService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
@@ -151,22 +151,22 @@ server/src/test/java/org/elasticsearch/action/bulk/TransportBulkActionIndicesTha
 server/src/test/java/org/elasticsearch/action/support/replication/TransportReplicationAllPermitsAcquisitionTests.java: } catch (InterruptedException | BrokenBarrierException e) {	 onFailure(e);	 }
 server/src/test/java/org/elasticsearch/cluster/coordination/JoinValidationServiceTests.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/test/java/org/elasticsearch/cluster/coordination/NodeJoinTests.java: } catch (Exception e) {	 logger.error(() -> format("unexpected error for %s", future), e);	 future.onFailure(e);
-server/src/test/java/org/elasticsearch/index/engine/InternalEngineTests.java: } catch (EngineCreationFailureException | IOException ex) {	 assertEquals(store.refCount(), refCount);	 continue;
 server/src/test/java/org/elasticsearch/index/engine/InternalEngineTests.java: } catch (EngineCreationFailureException ex) {	 // all is fine	 assertEquals(store.refCount(), refCount);
+server/src/test/java/org/elasticsearch/index/engine/InternalEngineTests.java: } catch (EngineCreationFailureException | IOException ex) {	 assertEquals(store.refCount(), refCount);	 continue;
 server/src/test/java/org/elasticsearch/index/seqno/RetentionLeaseActionsTests.java: } catch (final InterruptedException e) {	 onFailure(e);	 }
 server/src/test/java/org/elasticsearch/index/shard/IndexShardOperationPermitsTests.java: } catch (final Exception e) {	 onFailure(e);	 }
 server/src/test/java/org/elasticsearch/index/shard/IndexShardTests.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 server/src/test/java/org/elasticsearch/transport/OutboundHandlerTests.java: } catch (InterruptedException e) {	 listener.onFailure(e);	 }
 server/src/test/java/org/elasticsearch/transport/RemoteClusterServiceTests.java: } catch (Exception e) {	 clusterAdded.onFailure(e);	 }
 test/framework/src/main/java/org/elasticsearch/index/replication/ESIndexLevelReplicationTestCase.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-test/framework/src/main/java/org/elasticsearch/index/replication/ESIndexLevelReplicationTestCase.java: } catch (final Exception e) {	 Releasables.closeWhileHandlingException(releasable);	 delegatedListener.onFailure(e);
 test/framework/src/main/java/org/elasticsearch/index/replication/ESIndexLevelReplicationTestCase.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+test/framework/src/main/java/org/elasticsearch/index/replication/ESIndexLevelReplicationTestCase.java: } catch (final Exception e) {	 Releasables.closeWhileHandlingException(releasable);	 delegatedListener.onFailure(e);
 test/framework/src/main/java/org/elasticsearch/repositories/blobstore/BlobStoreTestUtil.java: } catch (Exception e) {	 onFailure(e);	 return;
 test/framework/src/main/java/org/elasticsearch/test/transport/MockTransportService.java: } catch (InterruptedException e) {	 listener.onFailure(new ConnectTransportException(discoveryNode, "UNRESPONSIVE: simulated"));	 }
 x-pack/plugin/async-search/src/main/java/org/elasticsearch/xpack/search/AsyncSearchTask.java: } catch (Exception exc) {	 listener.onFailure(exc);	 return;
 x-pack/plugin/blob-cache/src/main/java/org/elasticsearch/blobcache/common/ProgressListenableActionFuture.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/ShardChangesAction.java: } catch (final IOException caught) {	 listener.onFailure(caught);	 }
 x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/ShardChangesAction.java: } catch (final Exception caught) {	 caught.addSuppressed(e);	 listener.onFailure(caught);
+x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/ShardChangesAction.java: } catch (final IOException caught) {	 listener.onFailure(caught);	 }
 x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/TransportForgetFollowerAction.java: } catch (Exception e) {	 releasable.close();	 onFailure(e);
 x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/TransportResumeFollowAction.java: } catch (final IOException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ccr/src/main/java/org/elasticsearch/xpack/ccr/action/bulk/TransportBulkShardOperationsAction.java: } catch (Exception e) {	 releasingListener.onFailure(e);	 }
@@ -179,10 +179,10 @@ x-pack/plugin/core/src/main/java/org/elasticsearch/license/RemoteClusterLicenseC
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/action/AbstractTransportGetResourcesAction.java: } catch (IOException e) {	 l.onFailure(e);	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncResultsService.java: } catch (Exception exc) {	 listener.onFailure(exc);	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncResultsService.java: } catch (Exception exc) {	 listener.onFailure(exc);	 }
-x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/AsyncTaskIndexService.java: } catch (Exception exc) {	 outerListener.onFailure(exc);	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/async/DeleteAsyncResultsService.java: } catch (Exception exc) {	 listener.onFailure(new ResourceNotFoundException(request.getId()));	 }
 x-pack/plugin/core/src/main/java/org/elasticsearch/xpack/core/common/IteratingActionListener.java: } catch (Exception e) {	 onFailure(e);	 }
@@ -202,14 +202,14 @@ x-pack/plugin/eql/src/main/java/org/elasticsearch/xpack/eql/plugin/RestEqlSearch
 x-pack/plugin/eql/src/main/java/org/elasticsearch/xpack/eql/session/EqlSession.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
 x-pack/plugin/fleet/src/main/java/org/elasticsearch/xpack/fleet/action/GetGlobalCheckpointsAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/fleet/src/main/java/org/elasticsearch/xpack/fleet/action/GetGlobalCheckpointsAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/fleet/src/main/java/org/elasticsearch/xpack/fleet/action/GetGlobalCheckpointsShardAction.java: } catch (final IOException caught) {	 listener.onFailure(caught);	 }
 x-pack/plugin/fleet/src/main/java/org/elasticsearch/xpack/fleet/action/GetGlobalCheckpointsShardAction.java: } catch (RuntimeException e2) {	 listener.onFailure(e2);	 }
+x-pack/plugin/fleet/src/main/java/org/elasticsearch/xpack/fleet/action/GetGlobalCheckpointsShardAction.java: } catch (final IOException caught) {	 listener.onFailure(caught);	 }
 x-pack/plugin/graph/src/main/java/org/elasticsearch/xpack/graph/action/TransportGraphExploreAction.java: } catch (Exception e) {	 logger.error("unable to execute the graph query", e);	 listener.onFailure(e);
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/action/TransportSamlInitiateSingleSignOnAction.java: } catch (ElasticsearchException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/action/TransportSamlValidateAuthnRequestAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/authn/SamlAuthnRequestValidator.java: } catch (ElasticsearchSecurityException e) {	 logger.debug("Failed to parse query string for SAML AuthnRequest", e);	 listener.onFailure(e);
-x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/authn/SamlAuthnRequestValidator.java: } catch (ElasticsearchSecurityException e) {	 logger.debug("Could not validate AuthnRequest", e);	 listener.onFailure(e);
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/authn/SamlAuthnRequestValidator.java: } catch (ElasticsearchSecurityException e) {	 logger.debug("Could not process AuthnRequest", e);	 listener.onFailure(e);
+x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/authn/SamlAuthnRequestValidator.java: } catch (ElasticsearchSecurityException e) {	 logger.debug("Could not validate AuthnRequest", e);	 listener.onFailure(e);
+x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/authn/SamlAuthnRequestValidator.java: } catch (ElasticsearchSecurityException e) {	 logger.debug("Failed to parse query string for SAML AuthnRequest", e);	 listener.onFailure(e);
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/idp/SamlIdentityProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/idp/SamlMetadataGenerator.java: } catch (Exception e) {	 logger.debug("Error generating IDP metadata to share with [" + spEntityId + "]", e);	 listener.onFailure(e);
 x-pack/plugin/identity-provider/src/main/java/org/elasticsearch/xpack/idp/saml/sp/SamlServiceProviderIndex.java: } catch (IOException e) {	 listener.onFailure(e);	 }
@@ -225,8 +225,8 @@ x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportGetOve
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportKillProcessAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportPostDataAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportPreviewDatafeedAction.java: } catch (Exception e) {	 listener.onFailure(e);	 } finally {
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportPutTrainedModelAction.java: } catch (IOException ex) {	 listener.onFailure(ExceptionsHelper.badRequestException("Failed to parse definition for [{}]", ex, config.getModelId()));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportPutTrainedModelAction.java: } catch (ElasticsearchException ex) {	 listener.onFailure(	 ExceptionsHelper.badRequestException("Definition for [{}] has validation failures.", ex, config.getModelId())
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportPutTrainedModelAction.java: } catch (IOException ex) {	 listener.onFailure(ExceptionsHelper.badRequestException("Failed to parse definition for [{}]", ex, config.getModelId()));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportSetUpgradeModeAction.java: } catch (ElasticsearchException ex) {	 logger.info("Caught node failures waiting for tasks to be unassigned", ex);	 wrappedListener.onFailure(ex);
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportStartDatafeedAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportStartDatafeedAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
@@ -234,58 +234,58 @@ x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportUpdate
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/action/TransportUpdateProcessAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/DatafeedJobBuilder.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/DatafeedJobBuilder.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to serialise datafeed config with id [" + datafeedId + "]", e));	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 delegate.onFailure(new ElasticsearchParseException("Failed to parse datafeed config [" + datafeedId + "]", e));	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (Exception e) {	 delegate.onFailure(e);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 listener.onFailure(	 new ElasticsearchParseException("Failed to serialise datafeed config with id [" + updatedConfig.getId() + "]", e)
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (Exception e) {	 datafeedConfigListener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/persistence/DataFrameAnalyticsConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to parse data frame analytics configuration [" + id + "]", e));	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/persistence/DataFrameAnalyticsConfigProvider.java: } catch (IOException e) {	 listener.onFailure(	 new ElasticsearchParseException("Failed to serialise data frame analytics with id [" + config.getId() + "]")
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (Exception e) {	 delegate.onFailure(e);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 delegate.onFailure(new ElasticsearchParseException("Failed to parse datafeed config [" + datafeedId + "]", e));	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 listener.onFailure(	 new ElasticsearchParseException("Failed to serialise datafeed config with id [" + updatedConfig.getId() + "]", e)
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/datafeed/persistence/DatafeedConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to serialise datafeed config with id [" + datafeedId + "]", e));	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/persistence/DataFrameAnalyticsConfigProvider.java: } catch (IOException e) {	 delegate.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/persistence/DataFrameAnalyticsConfigProvider.java: } catch (IOException e) {	 listener.onFailure(	 new ElasticsearchParseException("Failed to serialise data frame analytics with id [" + config.getId() + "]")
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/persistence/DataFrameAnalyticsConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to parse data frame analytics configuration [" + id + "]", e));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/process/MemoryUsageEstimationProcessManager.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/dataframe/steps/FinalStep.java: } catch (IOException e) {	 listener.onFailure(ExceptionsHelper.serverError("[{}] Error persisting final data counts", e, config.getId()));	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/assignment/TrainedModelAssignmentClusterService.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/assignment/TrainedModelAssignmentClusterService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/assignment/TrainedModelAssignmentNodeService.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/AbstractControlMessagePyTorchAction.java: } catch (IOException e) {	 logger.error(() -> "[" + getModelId() + "] error writing control message to the inference process", e);	 onFailure(ExceptionsHelper.serverError("Error writing control message to the inference process", e));
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/AbstractControlMessagePyTorchAction.java: } catch (Exception e) {	 onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/AbstractControlMessagePyTorchAction.java: } catch (IOException e) {	 logger.error(() -> "[" + getModelId() + "] error writing control message to the inference process", e);	 onFailure(ExceptionsHelper.serverError("Error writing control message to the inference process", e));
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/DeploymentManager.java: } catch (EsRejectedExecutionException e) {	 processContext.getRejectedExecutionCount().incrementAndGet();	 action.onFailure(e);
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/DeploymentManager.java: } catch (Exception e) {	 action.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/DeploymentManager.java: } catch (Exception e) {	 loadedListener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/InferencePyTorchAction.java: } catch (IOException e) {	 logger.error(() -> "[" + getModelId() + "] error writing to inference process", e);	 onFailure(ExceptionsHelper.serverError("Error writing to inference process", e));
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/InferencePyTorchAction.java: } catch (Exception e) {	 onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/deployment/InferencePyTorchAction.java: } catch (IOException e) {	 logger.error(() -> "[" + getModelId() + "] error writing to inference process", e);	 onFailure(ExceptionsHelper.serverError("Error writing to inference process", e));
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/loadingservice/LocalModel.java: } catch (Exception e) {	 statsAccumulator.incFailure();	 listener.onFailure(e);
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/loadingservice/ModelLoadingService.java: } catch (CircuitBreakingException e) {	 modelActionListener.onFailure(e);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/loadingservice/ModelLoadingService.java: } catch (CircuitBreakingException e) {	 modelActionListener.onFailure(e);	 return true;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/loadingservice/ModelLoadingService.java: } catch (CircuitBreakingException e) {	 modelActionListener.onFailure(e);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/loadingservice/ModelLoadingService.java: } catch (CircuitBreakingException ex) {	 modelActionListener.onFailure(ex);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 listener.onFailure(	 ExceptionsHelper.serverError(
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 listener.onFailure(	 ExceptionsHelper.serverError(
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException | IOException ex) {	 listener.onFailure(ex);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException ex) {	 finalListener.onFailure(ex);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ResourceNotFoundException ex) {	 getTrainedModelListener.onFailure(	 new ResourceNotFoundException(Messages.getMessage(Messages.INFERENCE_NOT_FOUND, modelId))
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception ex) {	 getTrainedModelListener.onFailure(ex);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException elasticsearchException) {	 getTrainedModelListener.onFailure(elasticsearchException);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ResourceNotFoundException ex) {	 getTrainedModelListener.onFailure(	 new ResourceNotFoundException(Messages.getMessage(Messages.MODEL_DEFINITION_NOT_FOUND, modelId))
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception ex) {	 getTrainedModelListener.onFailure(ex);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException ex) {	 finalListener.onFailure(ex);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 getTrainedModelListener.onFailure(ExceptionsHelper.serverError(INFERENCE_FAILED_TO_DESERIALIZE, ex, searchHit.getId()));	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException ex) {	 finalListener.onFailure(ex);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ElasticsearchException | IOException ex) {	 listener.onFailure(ex);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception ex) {	 getTrainedModelListener.onFailure(ex);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (Exception ex) {	 getTrainedModelListener.onFailure(ex);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 getTrainedModelListener.onFailure(ExceptionsHelper.serverError(INFERENCE_FAILED_TO_DESERIALIZE, ex, searchHit.getId()));	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 listener.onFailure(	 ExceptionsHelper.serverError(
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (IOException ex) {	 listener.onFailure(	 ExceptionsHelper.serverError(
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ResourceNotFoundException ex) {	 getTrainedModelListener.onFailure(	 new ResourceNotFoundException(Messages.getMessage(Messages.INFERENCE_NOT_FOUND, modelId))
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/inference/persistence/TrainedModelProvider.java: } catch (ResourceNotFoundException ex) {	 getTrainedModelListener.onFailure(	 new ResourceNotFoundException(Messages.getMessage(Messages.MODEL_DEFINITION_NOT_FOUND, modelId))
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/JobManager.java: } catch (Exception e) {	 actionListener.onFailure(e);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to serialise job with id [" + job.getId() + "]", e));	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 delegate.onFailure(new ElasticsearchParseException("Failed to parse job configuration [" + jobId + "]", e));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 delegate.onFailure(e);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(new ElasticsearchParseException("Failed to parse job configuration [" + jobId + "]", e));	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 updatedJobListener.onFailure(	 new ElasticsearchParseException("Failed to serialise job with id [" + updatedJob.getId() + "]", e)
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 jobListener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (IOException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (Exception e) {	 listener.onFailure(new ElasticsearchParseException("Failed to parse job configuration [" + jobId + "]", e));	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 delegate.onFailure(new ElasticsearchParseException("Failed to parse job configuration [" + jobId + "]", e));	 return;
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("Failed to serialise job with id [" + job.getId() + "]", e));	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobConfigProvider.java: } catch (IOException e) {	 updatedJobListener.onFailure(	 new ElasticsearchParseException("Failed to serialise job with id [" + updatedJob.getId() + "]", e)
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (Exception e) {	 handler.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (IOException e) {	 listener.onFailure(new IllegalStateException("Failed to serialise calendar with id [" + newCalendar.getId() + "]", e));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (Exception e) {	 this.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (IOException e) {	 listener.onFailure(e);	 }
+x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/persistence/JobResultsProvider.java: } catch (IOException e) {	 listener.onFailure(new IllegalStateException("Failed to serialise calendar with id [" + newCalendar.getId() + "]", e));	 return;
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/retention/EmptyStateIndexRemover.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/retention/ExpiredAnnotationsRemover.java: } catch (Exception e) {	 onFailure(e);	 }
 x-pack/plugin/ml/src/main/java/org/elasticsearch/xpack/ml/job/retention/ExpiredForecastsRemover.java: } catch (Exception e) {	 onFailure(e);	 }
@@ -303,14 +303,14 @@ x-pack/plugin/monitoring/src/main/java/org/elasticsearch/xpack/monitoring/export
 x-pack/plugin/monitoring/src/test/java/org/elasticsearch/xpack/monitoring/MonitoringServiceTests.java: } catch (InterruptedException e) {	 listener.onFailure(new ExportException("BlockingExporter failed", e));	 }
 x-pack/plugin/monitoring/src/test/java/org/elasticsearch/xpack/monitoring/MonitoringTemplateRegistryTests.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/monitoring/src/test/java/org/elasticsearch/xpack/monitoring/exporter/http/HttpResourceTests.java: } catch (InterruptedException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/async/AsyncTaskManagementService.java: } catch (Exception exc) {	 taskManager.unregister(searchTask);	 searchTask.onFailure(exc);
 x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/async/AsyncTaskManagementService.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
+x-pack/plugin/ql/src/main/java/org/elasticsearch/xpack/ql/async/AsyncTaskManagementService.java: } catch (Exception exc) {	 taskManager.unregister(searchTask);	 searchTask.onFailure(exc);
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/downsample/TransportRollupAction.java: } catch (IOException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/downsample/TransportRollupIndexerAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/action/TransportPutRollupJobAction.java: } catch (IOException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/action/TransportRollupSearchAction.java: } catch (Exception e) {	 onFailure(e);	 }
-x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/action/TransportStopRollupAction.java: } catch (InterruptedException e) {	 listener.onFailure(e);	 listener.onFailure(e);
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/action/TransportStopRollupAction.java: } catch (Exception e) {	 listener.onFailure(	 new ElasticsearchTimeoutException(
+x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/action/TransportStopRollupAction.java: } catch (InterruptedException e) {	 listener.onFailure(e);	 listener.onFailure(e);
 x-pack/plugin/rollup/src/main/java/org/elasticsearch/xpack/rollup/job/RollupIndexer.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/rollup/src/test/java/org/elasticsearch/xpack/rollup/job/RollupIndexerIndexingTests.java: } catch (IOException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/rollup/src/test/java/org/elasticsearch/xpack/rollup/job/RollupIndexerStateTests.java: } catch (Exception e) {	 nextPhase.onFailure(e);	 }
@@ -318,10 +318,10 @@ x-pack/plugin/searchable-snapshots/src/internalClusterTest/java/org/elasticsearc
 x-pack/plugin/searchable-snapshots/src/main/java/org/elasticsearch/xpack/searchablesnapshots/cache/blob/BlobStoreCacheService.java: } catch (Exception e) {	 logger.warn(() -> "cache fill failure: [" + id + "]", e);	 listener.onFailure(e);
 x-pack/plugin/security/src/internalClusterTest/java/org/elasticsearch/xpack/security/profile/ProfileCancellationIntegTests.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/TransportGrantAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportKibanaEnrollmentAction.java: } catch (Exception e) {	 listener.onFailure(	 new ElasticsearchException(
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportKibanaEnrollmentAction.java: } catch (CertificateEncodingException cee) {	 listener.onFailure(	 new ElasticsearchException(
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportNodeEnrollmentAction.java: } catch (Exception e) {	 listener.onFailure(	 new ElasticsearchException(
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportKibanaEnrollmentAction.java: } catch (Exception e) {	 listener.onFailure(	 new ElasticsearchException(
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportNodeEnrollmentAction.java: } catch (CertificateEncodingException e) {	 listener.onFailure(new ElasticsearchException("Unable to enroll node", e));	 }
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/enrollment/TransportNodeEnrollmentAction.java: } catch (Exception e) {	 listener.onFailure(	 new ElasticsearchException(
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/filter/SecurityActionFilter.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/filter/SecurityActionFilter.java: } catch (IllegalArgumentException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/oidc/TransportOpenIdConnectPrepareAuthenticationAction.java: } catch (ElasticsearchException e) {	 listener.onFailure(e);	 }
@@ -331,14 +331,14 @@ x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/sam
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/saml/TransportSamlLogoutAction.java: } catch (ElasticsearchException e) {	 logger.debug("Internal exception during SAML logout", e);	 listener.onFailure(e);
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/saml/TransportSamlPrepareAuthenticationAction.java: } catch (ElasticsearchException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/action/saml/TransportSamlSpMetadataAction.java: } catch (Exception e) {	 logger.error(() -> "Error during SAML SP metadata generation for realm [" + realm.name() + "]", e);	 listener.onFailure(e);
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ApiKeyService.java: } catch (IOException e) {	 listener.onFailure(e);	 } finally {
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ApiKeyService.java: } catch (ExecutionException e) {	 listener.onFailure(e);	 return;
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/AuthenticatorChain.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ApiKeyService.java: } catch (IOException e) {	 listener.onFailure(e);	 } finally {
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/AuthenticatorChain.java: } catch (Exception e) {	 if (e instanceof ElasticsearchSecurityException) {	 listener.onFailure(e);
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/AuthenticatorChain.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/TokenService.java: } catch (DateTimeException | IllegalStateException e) {	 onFailure.accept(new ElasticsearchSecurityException("invalid token document", e));	 return;
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/TokenService.java: } catch (GeneralSecurityException e) {	 logger.warn("Could not get stored superseding token values", e);	 listener.onFailure(invalidGrantException("could not refresh the requested token"));
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/TokenService.java: } catch (GeneralSecurityException e) {	 logger.warn("could not encrypt access token and refresh token string", e);	 onFailure.accept(invalidGrantException("could not refresh the requested token"));
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/TokenService.java: } catch (GeneralSecurityException | IOException e) {	 logger.warn("Could not format stored superseding token values", e);	 onFailure.accept(invalidGrantException("could not refresh the requested token"));
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/TokenService.java: } catch (GeneralSecurityException e) {	 logger.warn("Could not get stored superseding token values", e);	 listener.onFailure(invalidGrantException("could not refresh the requested token"));
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/jwt/JwtAuthenticator.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/jwt/JwtAuthenticator.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/jwt/JwtSignatureValidator.java: } catch (Exception e) {	 listener.onFailure(e);	 }
@@ -348,23 +348,23 @@ x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/kerb
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 } finally {
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/ActiveDirectorySessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 } finally {
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapUserSearchSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapUserSearchSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapUserSearchSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapUserSearchSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/LdapUserSearchSessionFactory.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/SearchGroupsResolver.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/support/LdapUtils.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/ldap/support/LdapUtils.java: } catch (LDAPException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (ElasticsearchSecurityException e) {	 // Don't wrap in a new ElasticsearchSecurityException	 listener.onFailure(e);
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 listener.onFailure(new ElasticsearchSecurityException("Failed to consume the OpenID connect response. ", e));	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (com.nimbusds.oauth2.sdk.ParseException | ParseException | JOSEException e) {	 LOGGER.debug("ID Token: [{}], Nonce: [{}]", idToken.getParsedString(), expectedNonce);	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to parse or validate the ID Token", e));
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to get user information from the UserInfo endpoint.", e));	 }
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to get user information from the UserInfo endpoint.", e));	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (AuthenticationException | JOSEException e) {	 tokensListener.onFailure(	 new ElasticsearchSecurityException("Failed to exchange code for Id Token using the Token Endpoint.", e)
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 tokensListener.onFailure(	 new ElasticsearchSecurityException(
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (ElasticsearchSecurityException e) {	 // Don't wrap in a new ElasticsearchSecurityException	 listener.onFailure(e);
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to get user information from the UserInfo endpoint.", e));	 }
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to get user information from the UserInfo endpoint.", e));	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 future.onFailure(e);	 reloadFutureRef.set(null);
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 listener.onFailure(new ElasticsearchSecurityException("Failed to consume the OpenID connect response. ", e));	 }
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (Exception e) {	 tokensListener.onFailure(	 new ElasticsearchSecurityException(
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/oidc/OpenIdConnectAuthenticator.java: } catch (com.nimbusds.oauth2.sdk.ParseException | ParseException | JOSEException e) {	 LOGGER.debug("ID Token: [{}], Nonce: [{}]", idToken.getParsedString(), expectedNonce);	 claimsListener.onFailure(new ElasticsearchSecurityException("Failed to parse or validate the ID Token", e));
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/service/CachingServiceAccountTokenStore.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/service/CachingServiceAccountTokenStore.java: } catch (final ExecutionException e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/service/CompositeServiceAccountTokenStore.java: } catch (Exception e) {	 logger.debug(() -> "authentication of service token [" + token.getQualifiedName() + "] failed", e);	 listener.onFailure(e);
@@ -377,12 +377,12 @@ x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/supp
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/support/RealmUserLookup.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/support/mapper/NativeRoleMappingStore.java: } catch (Exception e) {	 logger.error(() -> "failed to modify role-mapping [" + name + "]", e);	 listener.onFailure(e);
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authc/support/mapper/NativeRoleMappingStore.java: } catch (IOException e) {	 listener.onFailure(e);	 return;
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/AuthorizationService.java: } catch (ElasticsearchSecurityException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/AuthorizationService.java: } catch (ElasticsearchException e) {	 listener.onFailure(e);	 return;
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/AuthorizationService.java: } catch (ElasticsearchSecurityException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/RBACEngine.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/RBACEngine.java: } catch (Exception e) {	 logger.error("Failed to cache check result for [{}]", privilegesToCheck);	 delegateListener.onFailure(e);
-x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/RBACEngine.java: } catch (UnsupportedOperationException e) {	 listener.onFailure(	 new IllegalArgumentException(
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/RBACEngine.java: } catch (UnsupportedOperationException e) {	 // TODO we will need to implement this to support API keys with assigned role descriptors	 listener.onFailure(
+x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/RBACEngine.java: } catch (UnsupportedOperationException e) {	 listener.onFailure(	 new IllegalArgumentException(
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/store/NativePrivilegeStore.java: } catch (Exception e) {	 logger.warn("Failed to put privilege {} - {}", Strings.toString(privilege), e.toString());	 listener.onFailure(e);
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/authz/store/NativeRolesStore.java: } catch (IOException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/profile/ProfileService.java: } catch (IOException e) {	 listener.onFailure(e);	 return;
@@ -393,27 +393,27 @@ x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/transport/
 x-pack/plugin/security/src/main/java/org/elasticsearch/xpack/security/transport/ServerTransportFilter.java: } catch (IllegalArgumentException e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/shutdown/src/main/java/org/elasticsearch/xpack/shutdown/TransportDeleteShutdownNodeAction.java: } catch (Exception e) {	 taskContext.onFailure(e);	 continue;
 x-pack/plugin/shutdown/src/main/java/org/elasticsearch/xpack/shutdown/TransportPutShutdownNodeAction.java: } catch (Exception e) {	 taskContext.onFailure(e);	 continue;
-x-pack/plugin/snapshot-repo-test-kit/src/main/java/org/elasticsearch/repositories/blobstore/testkit/GetBlobChecksumAction.java: } catch (IOException e) {	 logger.warn("failed to read blob for [{}]", request);	 listener.onFailure(e);
 x-pack/plugin/snapshot-repo-test-kit/src/main/java/org/elasticsearch/repositories/blobstore/testkit/GetBlobChecksumAction.java: } catch (IOException e) {	 logger.warn("exception while read blob for [{}]", request);	 listener.onFailure(e);
+x-pack/plugin/snapshot-repo-test-kit/src/main/java/org/elasticsearch/repositories/blobstore/testkit/GetBlobChecksumAction.java: } catch (IOException e) {	 logger.warn("failed to read blob for [{}]", request);	 listener.onFailure(e);
 x-pack/plugin/sql/src/main/java/org/elasticsearch/xpack/sql/session/SqlSession.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
 x-pack/plugin/sql/src/main/java/org/elasticsearch/xpack/sql/session/SqlSession.java: } catch (Exception ex) {	 listener.onFailure(ex);	 }
 x-pack/plugin/stack/src/test/java/org/elasticsearch/xpack/stack/StackTemplateRegistryTests.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/text-structure/src/main/java/org/elasticsearch/xpack/textstructure/transport/TransportFindStructureAction.java: } catch (Exception e) {	 listener.onFailure(e);	 }
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/action/TransportStopTransformAction.java: } catch (ElasticsearchException ex) {	 listener.onFailure(ex);	 }
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/checkpoint/DefaultCheckpointProvider.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(e);
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 foundConfigsListener.onFailure(new ElasticsearchParseException("failed to parse search hit for ids", e));	 return;
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("failed to parse transform stats from search hit", e));	 return;
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (Exception e) {	 logger.error(TransformMessages.getMessage(TransformMessages.FAILED_TO_PARSE_TRANSFORM_CONFIGURATION, transformId), e);	 transformListener.onFailure(e);
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (Exception e) {	 logger.error(TransformMessages.getMessage(TransformMessages.FAILED_TO_PARSE_TRANSFORM_CHECKPOINTS, transformId), e);	 transformListener.onFailure(e);
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (Exception e) {	 logger.error(TransformMessages.getMessage(TransformMessages.FAILED_TO_PARSE_TRANSFORM_CONFIGURATION, transformId), e);	 transformListener.onFailure(e);
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 // not expected to happen but for the sake of completeness	 listener.onFailure(e);
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 foundConfigsListener.onFailure(new ElasticsearchParseException("failed to parse search hit for ids", e));	 return;
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/IndexBasedTransformConfigManager.java: } catch (IOException e) {	 listener.onFailure(new ElasticsearchParseException("failed to parse transform stats from search hit", e));	 return;
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/persistence/TransformInternalIndex.java: } catch (IOException e) {	 listener.onFailure(e);	 }
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception e) {	 failureHandlingListener.onFailure(e);	 }
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception e) {	 listener.onFailure(e);	 return;
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception e) {	 listener.onFailure(e);	 }
-x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception onFailureException) {	 String msg = LoggerMessageFormat.format("[{}] failed notifying saveState listeners, ignoring.", getJobId());	 logger.warn(msg, onFailureException);
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception e) {	 logger.error(() -> "[" + getJobId() + "] failed to persist transform state.", e);	 shouldStopAtCheckpointListener.onFailure(e);
+x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/TransformIndexer.java: } catch (Exception onFailureException) {	 String msg = LoggerMessageFormat.format("[{}] failed notifying saveState listeners, ignoring.", getJobId());	 logger.warn(msg, onFailureException);
 x-pack/plugin/transform/src/main/java/org/elasticsearch/xpack/transform/transforms/common/AbstractCompositeAggFunction.java: } catch (AggregationResultUtils.AggregationExtractionException extractionException) {	 listener.onFailure(new ElasticsearchStatusException(extractionException.getMessage(), RestStatus.BAD_REQUEST));	 }
 x-pack/plugin/transform/src/test/java/org/elasticsearch/xpack/transform/transforms/TransformIndexerFailureHandlingTests.java: } catch (Exception e) {	 nextPhase.onFailure(e);	 }
 x-pack/plugin/transform/src/test/java/org/elasticsearch/xpack/transform/transforms/TransformIndexerFailureHandlingTests.java: } catch (Exception e) {	 nextPhase.onFailure(e);	 }
