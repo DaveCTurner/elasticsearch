@@ -100,12 +100,12 @@ public class ShardSnapshotTaskRunner {
 
         @Override
         public void doRun() {
-            ActionRunnable.run(fileSnapshotListener, () -> {
+            ActionListener.run(fileSnapshotListener, l -> {
                 FileInfo fileInfo = fileInfos.get();
                 if (fileInfo != null) {
                     fileSnapshotter.accept(context, fileInfo);
                 }
-            }).run();
+            });
         }
 
         @Override

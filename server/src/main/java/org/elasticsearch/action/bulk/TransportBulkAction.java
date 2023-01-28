@@ -255,23 +255,21 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
             // this method (doExecute) will be called again, but with the bulk requests updated from the ingest node processing but
             // also with IngestService.NOOP_PIPELINE_NAME on each request. This ensures that this on the second time through this method,
             // this path is never taken.
-            try {
-                if (Assertions.ENABLED) {
-                    final boolean arePipelinesResolved = bulkRequest.requests()
-                        .stream()
-                        .map(TransportBulkAction::getIndexWriteRequest)
-                        .filter(Objects::nonNull)
-                        .allMatch(IndexRequest::isPipelineResolved);
-                    assert arePipelinesResolved : bulkRequest;
-                }
-                if (clusterService.localNode().isIngestNode()) {
-                    processBulkIndexIngestRequest(task, bulkRequest, executorName, listener);
-                } else {
-                    ingestForwarder.forwardIngestRequest(BulkAction.INSTANCE, bulkRequest, listener);
-                }
-            } catch (Exception e) {
-                listener.onFailure(e);
-            }
+             ActionListener.run(listener, l -> {
+                 if (Assertions.ENABLED) {
+                     final boolean arePipelinesResolved = bulkRequest.requests()
+                         .stream()
+                         .map(TransportBulkAction::getIndexWriteRequest)
+                         .filter(Objects::nonNull)
+                         .allMatch(IndexRequest::isPipelineResolved);
+                     assert arePipelinesResolved : bulkRequest;
+                 }
+                 if (clusterService.localNode().isIngestNode()) {
+                     processBulkIndexIngestRequest(task, bulkRequest, executorName, l);
+                 } else {
+                     ingestForwarder.forwardIngestRequest(BulkAction.INSTANCE, bulkRequest, l);
+                 }
+             });
             return;
         }
 

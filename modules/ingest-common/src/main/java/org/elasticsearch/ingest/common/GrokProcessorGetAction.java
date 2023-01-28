@@ -144,8 +144,7 @@ public class GrokProcessorGetAction extends ActionType<GrokProcessorGetAction.Re
 
         @Override
         protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-            try {
-                listener.onResponse(
+            ActionListener.completeWith(listener, () ->
                     new Response(
                         request.getEcsCompatibility().equals(Grok.ECS_COMPATIBILITY_MODES[0])
                             ? request.sorted() ? sortedLegacyGrokPatterns : legacyGrokPatterns
@@ -153,9 +152,6 @@ public class GrokProcessorGetAction extends ActionType<GrokProcessorGetAction.Re
                             : ecsV1GrokPatterns
                     )
                 );
-            } catch (Exception e) {
-                listener.onFailure(e);
-            }
         }
     }
 
