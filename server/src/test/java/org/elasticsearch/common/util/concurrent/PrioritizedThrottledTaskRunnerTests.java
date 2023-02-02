@@ -249,9 +249,9 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
         final var barrier = new CyclicBarrier(maxThreads + 1);
         for (int i = 0; i < maxThreads; i++) {
             executor.execute(() -> {
-                logger.info("--> await until barrier is released");
+                logger.info("--> [{}] await until barrier is released", Thread.currentThread().getName());
                 awaitBarrier(barrier);
-                logger.info("--> the barrier is released");
+                logger.info("--> [{}] the barrier is released", Thread.currentThread().getName());
             });
         }
         try {
