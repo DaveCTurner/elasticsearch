@@ -254,16 +254,19 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
                 logger.info("--> [{}] the barrier is released", Thread.currentThread().getName());
             });
         }
-        try {
-            barrier.await(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
+
+        new Thread(() -> {
             try {
+                Thread.sleep(5000);
                 logger.info("{}", new HotThreads().busiestThreads(1000).ignoreIdleThreads(false).detect());
-            } catch (Exception ex) {
-                e.addSuppressed(ex);
+            } catch (Exception e) {
+                throw new AssertionError("unexpected", e);
             }
-            throw new AssertionError("unexpected", e);
-        }
+        });
+
+        logger.info("--> [{}] await until barrier is released", Thread.currentThread().getName());
+        awaitBarrier(barrier);
+        logger.info("--> [{}] the barrier is released", Thread.currentThread().getName());
         assertThat(taskRunner.runningTasks(), equalTo(0));
     }
 
