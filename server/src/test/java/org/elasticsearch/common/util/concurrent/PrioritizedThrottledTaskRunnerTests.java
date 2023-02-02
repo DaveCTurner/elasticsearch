@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -33,7 +34,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
     private static final ThreadFactory threadFactory = EsExecutors.daemonThreadFactory("test");
     private static final ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
 
-    private ExecutorService executor;
+    private EsThreadPoolExecutor executor;
     private int maxThreads;
 
     @Override
@@ -259,6 +260,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
             try {
                 Thread.sleep(5000);
                 logger.info("{}", new HotThreads().busiestThreads(1000).ignoreIdleThreads(false).detect());
+                logger.info("queue:\n{}", executor.getQueue().stream().map(Object::toString).collect(Collectors.joining("\n")));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
