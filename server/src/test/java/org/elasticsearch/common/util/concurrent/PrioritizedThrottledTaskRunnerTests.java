@@ -255,19 +255,31 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
             });
         }
 
-        new Thread(() -> {
+        final var hotThreads = new Thread(() -> {
             try {
                 Thread.sleep(5000);
                 logger.info("{}", new HotThreads().busiestThreads(1000).ignoreIdleThreads(false).detect());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } catch (Exception e) {
                 throw new AssertionError("unexpected", e);
             }
-        }).start();
-
-        logger.info("--> [{}] await until barrier is released", Thread.currentThread().getName());
-        awaitBarrier(barrier);
-        logger.info("--> [{}] the barrier is released", Thread.currentThread().getName());
-        assertThat(taskRunner.runningTasks(), equalTo(0));
+        }, Thread.currentThread().getName() + "-hot-threads");
+        hotThreads.start();
+        try {
+            logger.info("--> [{}] await until barrier is released", Thread.currentThread().getName());
+            awaitBarrier(barrier);
+            logger.info("--> [{}] the barrier is released", Thread.currentThread().getName());
+            assertThat(taskRunner.runningTasks(), equalTo(0));
+        } finally {
+            try {
+                hotThreads.interrupt();
+                hotThreads.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("unexpected", e);
+            }
+        }
     }
 
     private static void awaitBarrier(CyclicBarrier barrier) {
