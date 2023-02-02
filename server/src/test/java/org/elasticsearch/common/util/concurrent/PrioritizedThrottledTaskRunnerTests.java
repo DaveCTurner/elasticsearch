@@ -11,6 +11,7 @@ package org.elasticsearch.common.util.concurrent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
+import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.TestThreadPool;
 
@@ -253,13 +254,22 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
                 logger.info("--> the barrier is released");
             });
         }
-        awaitBarrier(barrier);
+        try {
+            barrier.await(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            try {
+                logger.info("{}", new HotThreads().busiestThreads(1000).ignoreIdleThreads(false).detect());
+            } catch (Exception ex) {
+                e.addSuppressed(ex);
+            }
+            throw new AssertionError("unexpected", e);
+        }
         assertThat(taskRunner.runningTasks(), equalTo(0));
     }
 
     private static void awaitBarrier(CyclicBarrier barrier) {
         try {
-            barrier.await(10, TimeUnit.SECONDS);
+            barrier.await(15, TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new AssertionError("unexpected", e);
         }
