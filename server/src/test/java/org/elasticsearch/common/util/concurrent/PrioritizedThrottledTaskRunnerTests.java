@@ -272,7 +272,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
 
     private static void awaitBarrier(CyclicBarrier barrier) {
         try {
-            barrier.await(15, TimeUnit.SECONDS);
+            barrier.await(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new AssertionError("unexpected", e);
         }
