@@ -41,7 +41,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
     public void setUp() throws Exception {
         super.setUp();
         maxThreads = between(1, 10);
-        executor = EsExecutors.newScaling("test", 1, maxThreads, 0, TimeUnit.MILLISECONDS, false, threadFactory, threadContext);
+        executor = EsExecutors.newScaling("test", 1, maxThreads, 60, TimeUnit.SECONDS, false, threadFactory, threadContext);
     }
 
     @Override
@@ -260,7 +260,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
             try {
                 Thread.sleep(5000);
                 logger.info("{}", new HotThreads().busiestThreads(1000).ignoreIdleThreads(false).detect());
-                logger.info("queue:\n{}", executor.getQueue().stream().map(Object::toString).collect(Collectors.joining("\n")));
+                logger.info("queue:\n{}", executor.getTasks().map(Object::toString).collect(Collectors.joining("\n")));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
