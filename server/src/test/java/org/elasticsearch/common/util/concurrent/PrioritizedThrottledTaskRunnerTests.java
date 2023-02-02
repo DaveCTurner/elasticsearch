@@ -262,7 +262,7 @@ public class PrioritizedThrottledTaskRunnerTests extends ESTestCase {
             } catch (Exception e) {
                 throw new AssertionError("unexpected", e);
             }
-        });
+        }).start();
 
         logger.info("--> [{}] await until barrier is released", Thread.currentThread().getName());
         awaitBarrier(barrier);
