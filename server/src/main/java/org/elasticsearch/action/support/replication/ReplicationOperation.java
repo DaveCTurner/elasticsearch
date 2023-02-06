@@ -24,6 +24,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.ReplicationGroup;
@@ -48,6 +49,7 @@ public class ReplicationOperation<
     Request extends ReplicationRequest<Request>,
     ReplicaRequest extends ReplicationRequest<ReplicaRequest>,
     PrimaryResultT extends ReplicationOperation.PrimaryResult<ReplicaRequest>> {
+    private final TransportReplicationAction.OnPrimaryOperationComplete<Request> onPrimaryOperationComplete;
     private final Logger logger;
     private final ThreadPool threadPool;
     private final Request request;
@@ -84,6 +86,7 @@ public class ReplicationOperation<
         Primary<Request, ReplicaRequest, PrimaryResultT> primary,
         ActionListener<PrimaryResultT> listener,
         Replicas<ReplicaRequest> replicas,
+        TransportReplicationAction.OnPrimaryOperationComplete<Request> onPrimaryOperationComplete,
         Logger logger,
         ThreadPool threadPool,
         String opType,
@@ -94,6 +97,7 @@ public class ReplicationOperation<
         this.replicasProxy = replicas;
         this.primary = primary;
         this.resultListener = listener;
+        this.onPrimaryOperationComplete = onPrimaryOperationComplete;
         this.logger = logger;
         this.threadPool = threadPool;
         this.request = request;
@@ -196,6 +200,13 @@ public class ReplicationOperation<
         // for total stats, add number of unassigned shards and
         // number of initializing shards that are not ready yet to receive operations (recovery has not opened engine yet on the target)
         totalShards.addAndGet(replicationGroup.getSkippedShards().size());
+
+        pendingActions.incrementAndGet();
+        onPrimaryOperationComplete.onPrimaryOperationComplete(
+            request,
+            replicationGroup.getRoutingTable(),
+            Releasables.releaseOnce(this::decPendingAndFinishIfNeeded)
+        );
 
         final ShardRouting primaryRouting = primary.routingEntry();
 

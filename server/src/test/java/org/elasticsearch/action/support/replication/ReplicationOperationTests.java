@@ -898,7 +898,19 @@ public class ReplicationOperationTests extends ESTestCase {
             TimeValue initialRetryBackoffBound,
             TimeValue retryTimeout
         ) {
-            super(request, primary, listener, replicas, logger, threadPool, opType, primaryTerm, initialRetryBackoffBound, retryTimeout);
+            super(
+                request,
+                primary,
+                listener,
+                replicas,
+                (req, routingTable, l) -> l.close(),
+                logger,
+                threadPool,
+                opType,
+                primaryTerm,
+                initialRetryBackoffBound,
+                retryTimeout
+            );
         }
     }
 

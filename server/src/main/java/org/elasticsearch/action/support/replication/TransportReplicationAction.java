@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.AllocationId;
+import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -499,6 +500,7 @@ public abstract class TransportReplicationAction<
                         primaryShardReference,
                         responseListener.map(result -> result.replicationResponse),
                         newReplicasProxy(),
+                        TransportReplicationAction.this::onPrimaryOperationComplete,
                         logger,
                         threadPool,
                         actionName,
@@ -523,6 +525,14 @@ public abstract class TransportReplicationAction<
             onCompletionListener.onFailure(e);
         }
 
+    }
+
+    public interface OnPrimaryOperationComplete<Request> {
+        void onPrimaryOperationComplete(Request request, IndexShardRoutingTable routingTable, Releasable releasable);
+    }
+
+    protected void onPrimaryOperationComplete(Request request, IndexShardRoutingTable routingTable, Releasable releasable) {
+        Releasables.closeExpectNoException(releasable);
     }
 
     // allows subclasses to adapt the response

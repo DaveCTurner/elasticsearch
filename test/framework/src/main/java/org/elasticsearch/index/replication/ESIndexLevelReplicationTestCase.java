@@ -678,6 +678,7 @@ public abstract class ESIndexLevelReplicationTestCase extends IndexShardTestCase
                     return result.finalResponse;
                 }),
                     new ReplicasRef(),
+                    (req, routingTable, l) -> l.close(),
                     logger,
                     threadPool,
                     opType,

@@ -261,6 +261,7 @@ public class TransportVerifyShardBeforeCloseActionTests extends ESTestCase {
                 createPrimary(primaryRouting, replicationGroup),
                 listener,
                 proxy,
+                (req, routingTable, l) -> l.close(),
                 logger,
                 threadPool,
                 "test",
