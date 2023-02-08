@@ -12,6 +12,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
+import org.elasticsearch.cluster.SnapshotActivityStats;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.network.NetworkModule;
@@ -59,8 +60,10 @@ public class ClusterStatsNodes implements ToXContentFragment {
     private final PackagingTypes packagingTypes;
     private final IngestStats ingestStats;
     private final IndexPressureStats indexPressureStats;
+    private final SnapshotActivityStats snapshotActivityStats;
 
-    ClusterStatsNodes(List<ClusterStatsNodeResponse> nodeResponses) {
+    ClusterStatsNodes(List<ClusterStatsNodeResponse> nodeResponses, SnapshotActivityStats snapshotActivityStats) {
+        this.snapshotActivityStats = snapshotActivityStats;
         this.versions = new HashSet<>();
         this.fs = new FsInfo.Path();
         this.plugins = new HashSet<>();
@@ -123,6 +126,10 @@ public class ClusterStatsNodes implements ToXContentFragment {
         return plugins;
     }
 
+    public SnapshotActivityStats getSnapshotActivityStats() {
+        return snapshotActivityStats;
+    }
+
     static final class Fields {
         static final String COUNT = "count";
         static final String VERSIONS = "versions";
@@ -132,6 +139,7 @@ public class ClusterStatsNodes implements ToXContentFragment {
         static final String FS = "fs";
         static final String PLUGINS = "plugins";
         static final String NETWORK_TYPES = "network_types";
+        static final String SNAPSHOT_ACTIVITY = "snapshot_activity";
     }
 
     @Override
@@ -178,6 +186,9 @@ public class ClusterStatsNodes implements ToXContentFragment {
         ingestStats.toXContent(builder, params);
 
         indexPressureStats.toXContent(builder, params);
+
+        builder.field(Fields.SNAPSHOT_ACTIVITY);
+        snapshotActivityStats.toXContent(builder, params);
 
         return builder;
     }

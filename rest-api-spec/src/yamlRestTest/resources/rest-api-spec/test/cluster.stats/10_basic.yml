@@ -184,3 +184,41 @@
   - gt: { indices.mappings.total_field_count: 0 }
   - gt: { indices.mappings.total_deduplicated_field_count: 0 }
   - gt: { indices.mappings.total_deduplicated_mapping_size_in_bytes: 0 }
+
+
+---
+"snapshot stats reported in get cluster stats":
+  - skip:
+      version: " - 8.7.99"
+      reason:  "snapshot stats reported from 8.8 onwards"
+
+  - do:
+      snapshot.create_repository:
+        repository: test_repo_for_stats
+        body:
+          type: fs
+          settings:
+            location: "test_repo_for_stats_loc"
+
+  - do:  { cluster.stats: {} }
+
+  - gte: { nodes.snapshot_activity.in_progress_counts.snapshots: 0 }
+  - gte: { nodes.snapshot_activity.in_progress_counts.snapshot_deletions: 0 }
+  - gte: { nodes.snapshot_activity.in_progress_counts.concurrent_operations: 0 }
+  - gte: { nodes.snapshot_activity.in_progress_counts.cleanups: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.snapshots: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.clones: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.finalizations: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.deletions: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.snapshot_deletions: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.totals.active_deletions: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.total: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.complete: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.incomplete: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.INIT: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.SUCCESS: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.FAILED: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.ABORTED: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.MISSING: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.WAITING: 0 }
+  - gte: { nodes.snapshot_activity.repositories.test_repo_for_stats.shards.states.QUEUED: 0 }

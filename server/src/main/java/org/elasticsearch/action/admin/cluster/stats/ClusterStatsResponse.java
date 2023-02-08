@@ -12,6 +12,7 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.SnapshotActivityStats;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -46,8 +47,15 @@ public class ClusterStatsResponse extends BaseNodesResponse<ClusterStatsNodeResp
         }
         this.clusterUUID = clusterUUID;
 
+        final SnapshotActivityStats snapshotActivityStats;
+        if (in.getTransportVersion().onOrAfter(TransportVersion.V_8_8_0)) {
+            snapshotActivityStats = SnapshotActivityStats.readFrom(in);
+        } else {
+            snapshotActivityStats = SnapshotActivityStats.EMPTY;
+        }
+
         // built from nodes rather than from the stream directly
-        nodesStats = new ClusterStatsNodes(getNodes());
+        nodesStats = new ClusterStatsNodes(getNodes(), snapshotActivityStats);
         indicesStats = new ClusterStatsIndices(getNodes(), mappingStats, analysisStats, versionStats);
     }
 
@@ -59,12 +67,13 @@ public class ClusterStatsResponse extends BaseNodesResponse<ClusterStatsNodeResp
         List<FailedNodeException> failures,
         MappingStats mappingStats,
         AnalysisStats analysisStats,
-        VersionStats versionStats
+        VersionStats versionStats,
+        SnapshotActivityStats snapshotActivityStats
     ) {
         super(clusterName, nodes, failures);
         this.clusterUUID = clusterUUID;
         this.timestamp = timestamp;
-        nodesStats = new ClusterStatsNodes(nodes);
+        nodesStats = new ClusterStatsNodes(nodes, snapshotActivityStats);
         indicesStats = new ClusterStatsIndices(nodes, mappingStats, analysisStats, versionStats);
         ClusterHealthStatus status = null;
         for (ClusterStatsNodeResponse response : nodes) {
@@ -107,6 +116,9 @@ public class ClusterStatsResponse extends BaseNodesResponse<ClusterStatsNodeResp
         out.writeOptionalWriteable(indicesStats.getAnalysis());
         if (out.getTransportVersion().onOrAfter(TransportVersion.V_7_11_0)) {
             out.writeOptionalWriteable(indicesStats.getVersions());
+        }
+        if (out.getTransportVersion().onOrAfter(TransportVersion.V_8_8_0)) {
+            nodesStats.getSnapshotActivityStats().writeTo(out);
         }
     }
 

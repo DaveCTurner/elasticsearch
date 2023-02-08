@@ -1305,6 +1305,116 @@ File type, such as `tar` or `zip`, used for the distribution package.
 (integer)
 Number of selected nodes using the distribution flavor and file type.
 =====
+
+
+`snapshot_activity`::
+(object)
+Contains statistics about the current <<snapshot-restore,snapshot>> activity in the cluster.
++
+.Properties of `snapshot_activity`
+[%collapsible%open]
+=====
+
+`in_progress_counts`:::
+(object)
+Contains statistics which report the number of various ongoing snapshot activities in the cluster.
++
+.Properties of `in_progress_counts`
+[%collapsible%open]
+======
+`snapshots`:::
+(integer)
+The total number of snapshots and clones currently being created by the cluster.
+
+`snapshot_deletions`:::
+(integer)
+The total number of snapshot deletion operations that the cluster is currently running.
+
+`concurrent_operations`:::
+(integer)
+The total number of snapshot operations that the cluster is currently running concurrently. This is the total of the `snapshots` and `snapshot_deletions` entries, and
+is limited by <<snapshot-max-concurrent-ops,the `snapshot.max_concurrent_operations` setting>>.
+
+`cleanups`:::
+(integer)
+The total number of repository cleanup operations that the cluster is currently running. These operations do not count towards the total
+number of concurrent operations.
+======
+
+
+`repositories`:::
+(object)
+Contains statistics which report the progress of snapshot activities broken down by repository. This object contains one entry for each repository registered with the cluster.
++
+.Properties of `repositories`
+[%collapsible%open]
+======
+
+`totals`:::
+(object)
+Contains statistics which report the overall progress of snapshot activities for a repository.
++
+.Properties of `totals`
+[%collapsible%open]
+=======
+`snapshots`:::
+(integer)
+The total number of snapshots currently running in this repository.
+
+`clones`:::
+(integer)
+The total number of snapshot clones currently running in this repository.
+
+`finalizations`:::
+(integer)
+The total number of snapshots and clone operations which are mostly complete except for the last "finalization" step.
+
+`deletions`:::
+(integer)
+The total number of snapshot deletion operations currently in this repository.
+
+`snapshot_deletions`:::
+(integer)
+The total number of snapshots that are currently being deleted from this repository.
+
+`active_deletions`:::
+(integer)
+The total number of snapshot deletion operations currently active in this repository.
+
+=======
+
+
+`shards`:::
+(object)
+Contains statistics which report the shard-level progress of snapshot activities for a repository.
++
+.Properties of `shards`
+[%collapsible%open]
+=======
+
+`total`:::
+(integer)
+The total number of shard snapshots currently tracked by this repository.
+
+`complete`:::
+(integer)
+The total number of tracked shard snapshots which have completed in this repository.
+
+`incomplete`:::
+(integer)
+The total number of tracked shard snapshots which have not completed in this repository. This is the difference between the
+`total` and `complete` values.
+
+`states`:::
+(object)
+The total number of shard snapshots in each of the named states in this repository.
+
+=======
+
+======
+
+=====
+
 ====
 
 [[cluster-stats-api-example]]
@@ -1586,7 +1696,10 @@ The API returns the following response:
         {
           ...
         }
-      ]
+      ],
+      "snapshot_activity": {
+        ...
+      },
    }
 }
 --------------------------------------------------
@@ -1596,6 +1709,7 @@ The API returns the following response:
 // TESTRESPONSE[s/"processor_stats": \{[^\}]*\}/"processor_stats": $body.$_path/]
 // TESTRESPONSE[s/"count": \{[^\}]*\}/"count": $body.$_path/]
 // TESTRESPONSE[s/"packaging_types": \[[^\]]*\]/"packaging_types": $body.$_path/]
+// TESTRESPONSE[s/"snapshot_activity": \{[^\}]*\}/"snapshot_activity": $body.$_path/]
 // TESTRESPONSE[s/"field_types": \[[^\]]*\]/"field_types": $body.$_path/]
 // TESTRESPONSE[s/"runtime_field_types": \[[^\]]*\]/"runtime_field_types": $body.$_path/]
 // TESTRESPONSE[s/"search": \{[^\}]*\}/"search": $body.$_path/]
@@ -1606,8 +1720,8 @@ The API returns the following response:
 // 1. Ignore the contents of the `plugins` object because we don't know all of
 //    the plugins that will be in it. And because we figure folks don't need to
 //    see an exhaustive list anyway.
-// 2. Similarly, ignore the contents of `network_types`, `discovery_types`, and
-//    `packaging_types`.
+// 2. Similarly, ignore the contents of `network_types`, `discovery_types`,
+//    `packaging_types` and `snapshot_activity`.
 // 3. Ignore the contents of the (nodes) count object, as what's shown here
 //    depends on the license. Voting-only nodes are e.g. only shown when this
 //    test runs with a basic license.
