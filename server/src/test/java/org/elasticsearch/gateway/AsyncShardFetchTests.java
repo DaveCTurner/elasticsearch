@@ -450,9 +450,10 @@ public class AsyncShardFetchTests extends ESTestCase {
         }
 
         public void fireSimulationAndWait(String nodeId) throws InterruptedException {
-            simulations.get(nodeId).executeLatch.countDown();
-            assertTrue(simulations.get(nodeId).waitLatch.await(10, TimeUnit.SECONDS));
-            simulations.remove(nodeId);
+            final var entry = simulations.get(nodeId);
+            entry.executeLatch.countDown();
+            assertTrue(entry.waitLatch.await(10, TimeUnit.SECONDS));
+            assertSame(entry, simulations.remove(nodeId));
         }
 
         @Override
