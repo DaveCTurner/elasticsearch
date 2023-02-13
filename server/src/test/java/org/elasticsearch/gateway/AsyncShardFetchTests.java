@@ -465,7 +465,7 @@ public class AsyncShardFetchTests extends ESTestCase {
             for (final DiscoveryNode node : nodes) {
                 final String nodeId = node.getId();
                 final Entry entry = simulations.get(nodeId);
-                assertNotNull(entry);
+                assertNotNull(node.descriptionWithoutAttributes(), entry);
                 threadPool.generic().execute(() -> {
                     try {
                         assertTrue(entry.executeLatch.await(10, TimeUnit.SECONDS));
