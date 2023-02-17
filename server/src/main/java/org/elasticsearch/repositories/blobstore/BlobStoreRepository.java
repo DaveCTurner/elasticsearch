@@ -3273,10 +3273,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 }
                 final var rootBlobName = testBlobPrefix(seed) + ".dat";
                 if (rootBlobs.contains(rootBlobName) == false) {
-                    throw new RepositoryVerificationException(
-                        repositoryName,
-                        Strings.format("Listing of repository root did not contain expected blob [%s]", rootBlobName)
-                    );
+                    throw new RepositoryVerificationException(repositoryName, Strings.format("""
+                        The object [%s] created by the elected master in the root of the repository [%s] was not found by the node [%s]. \
+                        This might indicate that the store [%s] is not shared between nodes or that permissions on the store don't allow \
+                        listing files written by the elected master node""", rootBlobName, repositoryName, localNode, blobStore()));
                 }
             }
 
@@ -3290,7 +3290,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             if (containerContents.contains(VERIFY_REPO_MASTER_BLOB_NAME) == false) {
                 throw new RepositoryVerificationException(
                     repositoryName,
-                    Strings.format("Listing of verification container did not contain expected blob [%s]", VERIFY_REPO_MASTER_BLOB_NAME)
+                    Strings.format(
+                        """
+                            The object [%s] created by the elected master in the container [%s] of the repository [%s] was not found by \
+                            the node [%s]. This might indicate that the store [%s] is not shared between nodes or that permissions on the \
+                            store don't allow listing files written by the elected master node""",
+                        VERIFY_REPO_MASTER_BLOB_NAME,
+                        testBlobPrefix(seed),
+                        repositoryName,
+                        localNode,
+                        blobStore()
+                    )
                 );
             }
 
@@ -3304,7 +3314,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 }
             } catch (NoSuchFileException e) {
                 throw new RepositoryVerificationException(repositoryName, Strings.format("""
-                    A file written by the elected master to the store [%s] cannot be accessed on the node [%s]. This might indicate \
+                    An object created by the elected master in the store [%s] cannot be accessed on the node [%s]. This might indicate \
                     that the store [%s] is not shared between this node and the master node or that permissions on the store don't \
                     allow reading files written by the master node""", blobStore(), localNode, blobStore()), e);
             } catch (Exception e) {

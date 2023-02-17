@@ -229,17 +229,14 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         Path location = randomRepoPath();
 
         logger.info("-->  creating repository");
-        try {
+        assertThat(ExceptionsHelper.stackTrace(expectThrows(RepositoryVerificationException.class, () -> {
             client.admin()
                 .cluster()
                 .preparePutRepository("test-repo-1")
                 .setType("mock")
                 .setSettings(Settings.builder().put("location", location).put("localize_location", true))
                 .get();
-            fail("RepositoryVerificationException wasn't generated");
-        } catch (RepositoryVerificationException ex) {
-            assertThat(ExceptionsHelper.stackTrace(ex), containsString("is not shared"));
-        }
+        })), containsString("is not shared"));
     }
 
     public void testRepositoryConflict() throws Exception {
