@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.StepListener;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
+import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -480,34 +481,20 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
             protected void doRun() {
                 final String verificationToken = repository.startVerification();
                 if (verificationToken != null) {
-                    try {
-                        verifyAction.verify(
-                            repositoryName,
-                            verificationToken,
-                            listener.delegateFailure(
-                                (delegatedListener, verifyResponse) -> threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(() -> {
-                                    try {
-                                        repository.endVerification(verificationToken);
-                                    } catch (Exception e) {
-                                        logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", e);
-                                        delegatedListener.onFailure(e);
-                                        return;
-                                    }
-                                    delegatedListener.onResponse(verifyResponse);
-                                })
-                            )
-                        );
-                    } catch (Exception e) {
-                        threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(() -> {
-                            try {
-                                repository.endVerification(verificationToken);
-                            } catch (Exception inner) {
-                                inner.addSuppressed(e);
-                                logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", inner);
-                            }
-                            listener.onFailure(e);
-                        });
-                    }
+                    ActionListener.run(
+                        new ThreadedActionListener<>(
+                            threadPool.executor(ThreadPool.Names.SNAPSHOT),
+                            ActionListener.runBefore(listener, () -> {
+                                try {
+                                    repository.endVerification(verificationToken);
+                                } catch (Exception e) {
+                                    logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", e);
+                                    throw e;
+                                }
+                            })
+                        ),
+                        l -> verifyAction.verify(repositoryName, verificationToken, l)
+                    );
                 } else {
                     listener.onResponse(Collections.emptyList());
                 }

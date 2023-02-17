@@ -379,9 +379,7 @@ public class RepositoriesServiceTests extends ESTestCase {
         }
 
         @Override
-        public void verify(String verificationToken, DiscoveryNode localNode) {
-
-        }
+        public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {}
 
         @Override
         public boolean isReadOnly() {

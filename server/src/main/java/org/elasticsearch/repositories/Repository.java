@@ -189,10 +189,13 @@ public interface Repository extends LifecycleComponent {
 
     /**
      * Verifies repository settings on data node.
-     * @param verificationToken value returned by {@link org.elasticsearch.repositories.Repository#startVerification()}
+     *
+     * @param verificationToken value returned by {@link Repository#startVerification()}
+     * @param verifyRootBlob    whether to verify that the expected blob appears in the listing of the repository root (only since {@link
+     *                          Version#V_8_8_0})
      * @param localNode         the local node information, for inclusion in verification errors
      */
-    void verify(String verificationToken, DiscoveryNode localNode);
+    void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode);
 
     /**
      * Returns true if the repository supports only read operations

@@ -111,7 +111,7 @@ public class InvalidRepository extends AbstractLifecycleComponent implements Rep
     }
 
     @Override
-    public void verify(String verificationToken, DiscoveryNode localNode) {
+    public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
         throw createCreationException();
     }
 

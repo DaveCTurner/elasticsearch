@@ -104,8 +104,8 @@ public class FilterRepository implements Repository {
     }
 
     @Override
-    public void verify(String verificationToken, DiscoveryNode localNode) {
-        in.verify(verificationToken, localNode);
+    public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
+        in.verify(verificationToken, verifyRootBlob, localNode);
     }
 
     @Override

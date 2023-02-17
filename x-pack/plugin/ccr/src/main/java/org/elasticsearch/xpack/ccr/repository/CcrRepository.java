@@ -336,7 +336,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
     }
 
     @Override
-    public void verify(String verificationToken, DiscoveryNode localNode) {}
+    public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {}
 
     @Override
     public boolean isReadOnly() {

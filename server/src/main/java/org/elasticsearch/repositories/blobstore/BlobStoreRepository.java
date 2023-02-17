@@ -21,6 +21,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.RateLimiter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Assertions;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -55,8 +56,10 @@ import org.elasticsearch.common.blobstore.BlobStore;
 import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.fs.FsBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
+import org.elasticsearch.common.blobstore.support.FilterBlobContainer;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
@@ -192,6 +195,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     private static final String SNAPSHOT_INDEX_NAME_FORMAT = SNAPSHOT_INDEX_PREFIX + "%s";
 
     public static final String UPLOADED_DATA_BLOB_PREFIX = "__";
+
+    private static final String VERIFY_REPO_MASTER_BLOB_NAME = "master.dat";
 
     // Expose a copy of URLRepository#TYPE here too, for a better error message until https://github.com/elastic/elasticsearch/issues/68918
     // is resolved.
@@ -747,6 +752,20 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 blobContainer = this.blobContainer.get();
                 if (blobContainer == null) {
                     blobContainer = blobStore().blobContainer(basePath());
+                    if (Assertions.ENABLED) {
+                        blobContainer = new FilterBlobContainer(blobContainer) {
+                            @Override
+                            protected BlobContainer wrapChild(BlobContainer child) {
+                                return child;
+                            }
+
+                            @Override
+                            public Map<String, BlobContainer> children() throws IOException {
+                                assert false : "retrieving children of root container doesn't always work; see #46869 for details";
+                                return super.children();
+                            }
+                        };
+                    }
                     this.blobContainer.set(blobContainer);
                 }
             }
@@ -1729,37 +1748,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     protected void assertSnapshotOrGenericThread() {
         assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT, ThreadPool.Names.SNAPSHOT_META, ThreadPool.Names.GENERIC);
-    }
-
-    @Override
-    public String startVerification() {
-        try {
-            if (isReadOnly()) {
-                // It's readonly - so there is not much we can do here to verify it apart from reading the blob store metadata
-                latestIndexBlobId();
-                return "read-only";
-            } else {
-                String seed = UUIDs.randomBase64UUID();
-                byte[] testBytes = Strings.toUTF8Bytes(seed);
-                BlobContainer testContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(seed)));
-                testContainer.writeBlobAtomic("master.dat", new BytesArray(testBytes), true);
-                return seed;
-            }
-        } catch (Exception exp) {
-            throw new RepositoryVerificationException(metadata.name(), "path " + basePath() + " is not accessible on master node", exp);
-        }
-    }
-
-    @Override
-    public void endVerification(String seed) {
-        if (isReadOnly() == false) {
-            try {
-                final String testPrefix = testBlobPrefix(seed);
-                blobStore().blobContainer(basePath().add(testPrefix)).delete();
-            } catch (Exception exp) {
-                throw new RepositoryVerificationException(metadata.name(), "cannot delete test data at " + basePath(), exp);
-            }
-        }
     }
 
     // Tracks the latest known repository generation in a best-effort way to detect inconsistent listing of root level index-N blobs
@@ -3228,54 +3216,111 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void verify(String seed, DiscoveryNode localNode) {
-        assertSnapshotOrGenericThread();
+    public String startVerification() {
+        ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+        try {
+            if (isReadOnly()) {
+                // It's readonly - so there is not much we can do here to verify it apart from reading the blob store metadata
+                latestIndexBlobId();
+                return "read-only";
+            } else {
+                final String seed = UUIDs.randomBase64UUID();
+                final BytesArray blobContents = new BytesArray(Strings.toUTF8Bytes(seed));
+                blobContainer().writeBlobAtomic(testBlobPrefix(seed) + ".dat", blobContents, true);
+                blobStore().blobContainer(basePath().add(testBlobPrefix(seed)))
+                    .writeBlobAtomic(VERIFY_REPO_MASTER_BLOB_NAME, blobContents, true);
+                return seed;
+            }
+        } catch (Exception exp) {
+            throw new RepositoryVerificationException(metadata.name(), "path " + basePath() + " is not accessible on master node", exp);
+        }
+    }
+
+    @Override
+    public void endVerification(String seed) {
+        ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+        if (isReadOnly() == false) {
+            try {
+                blobContainer().deleteBlobsIgnoringIfNotExists(Iterators.single(testBlobPrefix(seed) + ".dat"));
+                blobStore().blobContainer(basePath().add(testBlobPrefix(seed))).delete();
+            } catch (Exception exp) {
+                throw new RepositoryVerificationException(metadata.name(), "cannot delete test data at " + basePath(), exp);
+            }
+        }
+    }
+
+    @Override
+    public void verify(String seed, boolean verifyRootBlob, DiscoveryNode localNode) {
+        ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+        final String repositoryName = metadata.name();
         if (isReadOnly()) {
             try {
                 latestIndexBlobId();
             } catch (Exception e) {
                 throw new RepositoryVerificationException(
-                    metadata.name(),
+                    repositoryName,
                     "path " + basePath() + " is not accessible on node " + localNode,
                     e
                 );
             }
         } else {
-            BlobContainer testBlobContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(seed)));
+            if (verifyRootBlob) {
+                final Set<String> rootBlobs;
+                try {
+                    rootBlobs = blobContainer().listBlobs().keySet();
+                } catch (Exception e) {
+                    throw new RepositoryVerificationException(repositoryName, "Failed to list repository root", e);
+                }
+                final var rootBlobName = testBlobPrefix(seed) + ".dat";
+                if (rootBlobs.contains(rootBlobName) == false) {
+                    throw new RepositoryVerificationException(
+                        repositoryName,
+                        Strings.format("Listing of repository root did not contain expected blob [%s]", rootBlobName)
+                    );
+                }
+            }
+
+            final BlobContainer testBlobContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(seed)));
+            final Set<String> containerContents;
             try {
-                testBlobContainer.writeBlob("data-" + localNode.getId() + ".dat", new BytesArray(seed), true);
-            } catch (Exception exp) {
+                containerContents = testBlobContainer.listBlobs().keySet();
+            } catch (Exception e) {
+                throw new RepositoryVerificationException(repositoryName, "Failed to list verification container contents", e);
+            }
+            if (containerContents.contains(VERIFY_REPO_MASTER_BLOB_NAME) == false) {
                 throw new RepositoryVerificationException(
-                    metadata.name(),
-                    "store location [" + blobStore() + "] is not accessible on the node [" + localNode + "]",
-                    exp
+                    repositoryName,
+                    Strings.format("Listing of verification container did not contain expected blob [%s]", VERIFY_REPO_MASTER_BLOB_NAME)
                 );
             }
-            try (InputStream masterDat = testBlobContainer.readBlob("master.dat")) {
+
+            try (InputStream masterDat = testBlobContainer.readBlob(VERIFY_REPO_MASTER_BLOB_NAME)) {
                 final String seedRead = Streams.readFully(masterDat).utf8ToString();
                 if (seedRead.equals(seed) == false) {
                     throw new RepositoryVerificationException(
-                        metadata.name(),
-                        "Seed read from master.dat was [" + seedRead + "] but expected seed [" + seed + "]"
+                        repositoryName,
+                        Strings.format("Seed read from [%s] was [%s] but expected seed [%s]", VERIFY_REPO_MASTER_BLOB_NAME, seedRead, seed)
                     );
                 }
             } catch (NoSuchFileException e) {
+                throw new RepositoryVerificationException(repositoryName, Strings.format("""
+                    A file written by the elected master to the store [%s] cannot be accessed on the node [%s]. This might indicate \
+                    that the store [%s] is not shared between this node and the master node or that permissions on the store don't \
+                    allow reading files written by the master node""", blobStore(), localNode, blobStore()), e);
+            } catch (Exception e) {
+                throw new RepositoryVerificationException(repositoryName, "Failed to verify repository", e);
+            }
+
+            try {
+                testBlobContainer.writeBlob("data-" + localNode.getId() + ".dat", new BytesArray(seed), true);
+            } catch (Exception e) {
                 throw new RepositoryVerificationException(
-                    metadata.name(),
-                    "a file written by master to the store ["
-                        + blobStore()
-                        + "] cannot be accessed on the node ["
-                        + localNode
-                        + "]. "
-                        + "This might indicate that the store ["
-                        + blobStore()
-                        + "] is not shared between this node and the master node or "
-                        + "that permissions on the store don't allow reading files written by the master node",
+                    repositoryName,
+                    Strings.format("store location [%s] is not accessible on the node [%s]", blobStore(), localNode),
                     e
                 );
-            } catch (Exception e) {
-                throw new RepositoryVerificationException(metadata.name(), "Failed to verify repository", e);
             }
+
         }
     }
 
