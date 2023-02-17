@@ -125,7 +125,10 @@ public final class BlobStoreTestUtil {
                         if (assertionError == null) {
                             try {
                                 try {
-                                    assertShardIndexGenerations(blobContainer, repositoryData.shardGenerations());
+                                    assertShardIndexGenerations(
+                                        repository.blobStore().blobContainer(BlobPath.EMPTY.add("indices")),
+                                        repositoryData.shardGenerations()
+                                    );
                                 } catch (AssertionError e) {
                                     listener.onResponse(e);
                                     return;
@@ -164,8 +167,7 @@ public final class BlobStoreTestUtil {
         assertTrue(indexGenerations.length <= 2);
     }
 
-    private static void assertShardIndexGenerations(BlobContainer repoRoot, ShardGenerations shardGenerations) throws IOException {
-        final BlobContainer indicesContainer = repoRoot.children().get("indices");
+    private static void assertShardIndexGenerations(BlobContainer indicesContainer, ShardGenerations shardGenerations) throws IOException {
         for (IndexId index : shardGenerations.indices()) {
             final List<ShardGeneration> gens = shardGenerations.getGens(index);
             if (gens.isEmpty() == false) {
@@ -193,7 +195,7 @@ public final class BlobStoreTestUtil {
             .stream()
             .map(IndexId::getId)
             .collect(Collectors.toList());
-        final BlobContainer indicesContainer = repository.blobContainer().children().get("indices");
+        final BlobContainer indicesContainer = repository.blobStore().blobContainer(BlobPath.EMPTY.add("indices"));
         final List<String> foundIndexUUIDs;
         if (indicesContainer == null) {
             foundIndexUUIDs = Collections.emptyList();
@@ -243,7 +245,7 @@ public final class BlobStoreTestUtil {
             assertThat(foundSnapshotUUIDs, containsInAnyOrder(expectedSnapshotUUIDs.toArray(Strings.EMPTY_ARRAY)));
         }
 
-        final BlobContainer indicesContainer = repository.getBlobContainer().children().get("indices");
+        final BlobContainer indicesContainer = repository.blobStore().blobContainer(BlobPath.EMPTY.add("indices"));
         final Map<String, BlobContainer> indices;
         if (indicesContainer == null) {
             indices = Collections.emptyMap();
