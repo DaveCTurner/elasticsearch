@@ -2159,10 +2159,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
     }
 
-    private static String testBlobPrefix(String seed) {
-        return TESTS_FILE + seed;
-    }
-
     @Override
     public boolean isReadOnly() {
         return readOnly;
@@ -3215,6 +3211,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         ); // Not adding a real generation here as it doesn't matter to callers
     }
 
+    private static String testBlobPrefix(String verificationToken) {
+        return TESTS_FILE + verificationToken;
+    }
+
     @Override
     public String startVerification() {
         ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
@@ -3224,12 +3224,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 latestIndexBlobId();
                 return "read-only";
             } else {
-                final String seed = UUIDs.randomBase64UUID();
-                final BytesArray blobContents = new BytesArray(Strings.toUTF8Bytes(seed));
-                blobContainer().writeBlobAtomic(testBlobPrefix(seed) + ".dat", blobContents, true);
-                blobStore().blobContainer(basePath().add(testBlobPrefix(seed)))
+                final String verificationToken = UUIDs.randomBase64UUID();
+                final BytesArray blobContents = new BytesArray(Strings.toUTF8Bytes(verificationToken));
+                blobContainer().writeBlobAtomic(testBlobPrefix(verificationToken) + ".dat", blobContents, true);
+                blobStore().blobContainer(basePath().add(testBlobPrefix(verificationToken)))
                     .writeBlobAtomic(VERIFY_REPO_MASTER_BLOB_NAME, blobContents, true);
-                return seed;
+                return verificationToken;
             }
         } catch (Exception exp) {
             throw new RepositoryVerificationException(metadata.name(), "path " + basePath() + " is not accessible on master node", exp);
@@ -3237,12 +3237,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void endVerification(String seed) {
+    public void endVerification(String verificationToken) {
         ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
         if (isReadOnly() == false) {
             try {
-                blobContainer().deleteBlobsIgnoringIfNotExists(Iterators.single(testBlobPrefix(seed) + ".dat"));
-                blobStore().blobContainer(basePath().add(testBlobPrefix(seed))).delete();
+                blobContainer().deleteBlobsIgnoringIfNotExists(Iterators.single(testBlobPrefix(verificationToken) + ".dat"));
+                blobStore().blobContainer(basePath().add(testBlobPrefix(verificationToken))).delete();
             } catch (Exception exp) {
                 throw new RepositoryVerificationException(metadata.name(), "cannot delete test data at " + basePath(), exp);
             }
@@ -3250,7 +3250,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public void verify(String seed, boolean verifyRootBlob, DiscoveryNode localNode) {
+    public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
         ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
         final String repositoryName = metadata.name();
         if (isReadOnly()) {
@@ -3271,7 +3271,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 } catch (Exception e) {
                     throw new RepositoryVerificationException(repositoryName, "Failed to list repository root", e);
                 }
-                final var rootBlobName = testBlobPrefix(seed) + ".dat";
+                final var rootBlobName = testBlobPrefix(verificationToken) + ".dat";
                 if (rootBlobs.contains(rootBlobName) == false) {
                     throw new RepositoryVerificationException(repositoryName, Strings.format("""
                         The object [%s] created by the elected master in the root of the repository [%s] was not found by the node [%s]. \
@@ -3280,7 +3280,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 }
             }
 
-            final BlobContainer testBlobContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(seed)));
+            final BlobContainer testBlobContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(verificationToken)));
             final Set<String> containerContents;
             try {
                 containerContents = testBlobContainer.listBlobs().keySet();
@@ -3296,7 +3296,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             the node [%s]. This might indicate that the store [%s] is not shared between nodes or that permissions on the \
                             store don't allow listing files written by the elected master node""",
                         VERIFY_REPO_MASTER_BLOB_NAME,
-                        testBlobPrefix(seed),
+                        testBlobPrefix(verificationToken),
                         repositoryName,
                         localNode,
                         blobStore()
@@ -3305,11 +3305,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
             try (InputStream masterDat = testBlobContainer.readBlob(VERIFY_REPO_MASTER_BLOB_NAME)) {
-                final String seedRead = Streams.readFully(masterDat).utf8ToString();
-                if (seedRead.equals(seed) == false) {
+                final String valueRead = Streams.readFully(masterDat).utf8ToString();
+                if (valueRead.equals(verificationToken) == false) {
                     throw new RepositoryVerificationException(
                         repositoryName,
-                        Strings.format("Seed read from [%s] was [%s] but expected seed [%s]", VERIFY_REPO_MASTER_BLOB_NAME, seedRead, seed)
+                        Strings.format(
+                            "Value read from [%s] was [%s] but expected [%s]",
+                            VERIFY_REPO_MASTER_BLOB_NAME,
+                            valueRead,
+                            verificationToken
+                        )
                     );
                 }
             } catch (NoSuchFileException e) {
@@ -3322,7 +3327,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
             try {
-                testBlobContainer.writeBlob("data-" + localNode.getId() + ".dat", new BytesArray(seed), true);
+                testBlobContainer.writeBlob("data-" + localNode.getId() + ".dat", new BytesArray(verificationToken), true);
             } catch (Exception e) {
                 throw new RepositoryVerificationException(
                     repositoryName,
@@ -3332,6 +3337,44 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
         }
+    }
+
+    @Override
+    public List<DiscoveryNode> verifyNodes(String verificationToken, List<DiscoveryNode> nodes) {
+        ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+        final String repositoryName = metadata.name();
+        if (isReadOnly() == false) {
+            final BlobContainer testBlobContainer = blobStore().blobContainer(basePath().add(testBlobPrefix(verificationToken)));
+            final Set<String> containerContents;
+            try {
+                containerContents = testBlobContainer.listBlobs().keySet();
+            } catch (Exception e) {
+                throw new RepositoryVerificationException(repositoryName, "Failed to list verification container contents", e);
+            }
+            final Set<String> missingBlobs = new HashSet<>();
+            for (DiscoveryNode node : nodes) {
+                final var expectedBlob = "data-" + node.getId() + ".dat";
+                if (containerContents.contains(expectedBlob) == false) {
+                    missingBlobs.add(expectedBlob);
+                }
+            }
+            if (missingBlobs.isEmpty() == false) {
+                throw new RepositoryVerificationException(
+                    repositoryName,
+                    Strings.format(
+                        """
+                            The object(s) [%s] in the container [%s] of the repository [%s] were not found by the elected master node. \
+                            This might indicate that the store [%s] is not shared between nodes or that permissions on the store don't \
+                            allow listing files written by other nodes.""",
+                        missingBlobs,
+                        testBlobPrefix(verificationToken),
+                        repositoryName,
+                        blobStore()
+                    )
+                );
+            }
+        }
+        return nodes;
     }
 
     @Override

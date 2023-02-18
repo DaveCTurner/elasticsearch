@@ -26,6 +26,7 @@ import org.elasticsearch.snapshots.SnapshotId;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -110,6 +111,11 @@ public class UnknownTypeRepository extends AbstractLifecycleComponent implements
 
     @Override
     public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
+        throw createUnknownTypeException();
+    }
+
+    @Override
+    public List<DiscoveryNode> verifyNodes(String verificationToken, List<DiscoveryNode> nodes) {
         throw createUnknownTypeException();
     }
 

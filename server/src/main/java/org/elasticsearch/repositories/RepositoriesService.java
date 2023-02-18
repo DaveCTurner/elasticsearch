@@ -482,7 +482,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
                 final String verificationToken = repository.startVerification();
                 if (verificationToken != null) {
                     ActionListener.run(
-                        new ThreadedActionListener<>(
+                        new ThreadedActionListener<List<DiscoveryNode>>(
                             threadPool.executor(ThreadPool.Names.SNAPSHOT),
                             ActionListener.runBefore(listener, () -> {
                                 try {
@@ -491,7 +491,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
                                     logger.warn(() -> "[" + repositoryName + "] failed to finish repository verification", e);
                                     throw e;
                                 }
-                            })
+                            }).map(nodes -> repository.verifyNodes(verificationToken, nodes))
                         ),
                         l -> verifyAction.verify(repositoryName, verificationToken, l)
                     );

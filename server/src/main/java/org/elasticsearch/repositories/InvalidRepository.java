@@ -26,6 +26,7 @@ import org.elasticsearch.snapshots.SnapshotId;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -112,6 +113,11 @@ public class InvalidRepository extends AbstractLifecycleComponent implements Rep
 
     @Override
     public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
+        throw createCreationException();
+    }
+
+    @Override
+    public List<DiscoveryNode> verifyNodes(String verificationToken, List<DiscoveryNode> nodes) {
         throw createCreationException();
     }
 

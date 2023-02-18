@@ -27,6 +27,7 @@ import org.elasticsearch.snapshots.SnapshotId;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -106,6 +107,11 @@ public class FilterRepository implements Repository {
     @Override
     public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {
         in.verify(verificationToken, verifyRootBlob, localNode);
+    }
+
+    @Override
+    public List<DiscoveryNode> verifyNodes(String verificationToken, List<DiscoveryNode> nodes) {
+        return in.verifyNodes(verificationToken, nodes);
     }
 
     @Override
