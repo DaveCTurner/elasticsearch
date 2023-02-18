@@ -33,6 +33,7 @@ import org.elasticsearch.snapshots.SnapshotId;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -120,14 +121,6 @@ public abstract class RestoreOnlyRepository extends AbstractLifecycleComponent i
     }
 
     @Override
-    public String startVerification() {
-        return null;
-    }
-
-    @Override
-    public void endVerification(String verificationToken) {}
-
-    @Override
     public boolean isReadOnly() {
         return false;
     }
@@ -141,7 +134,20 @@ public abstract class RestoreOnlyRepository extends AbstractLifecycleComponent i
     }
 
     @Override
+    public String startVerification() {
+        return null;
+    }
+
+    @Override
+    public void endVerification(String verificationToken) {}
+
+    @Override
     public void verify(String verificationToken, boolean verifyRootBlob, DiscoveryNode localNode) {}
+
+    @Override
+    public List<DiscoveryNode> verifyNodes(String verificationToken, List<DiscoveryNode> nodes) {
+        return nodes;
+    }
 
     @Override
     public void updateState(final ClusterState state) {}
