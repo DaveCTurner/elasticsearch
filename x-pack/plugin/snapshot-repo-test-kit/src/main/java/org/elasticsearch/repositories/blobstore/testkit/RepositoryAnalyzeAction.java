@@ -18,6 +18,9 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction;
+import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest;
+import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.RefCountingRunnable;
@@ -114,24 +117,36 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
 
             final DiscoveryNode localNode = transportService.getLocalNode();
             if (isSnapshotNode(localNode)) {
-                final Repository repository = repositoriesService.repository(request.getRepositoryName());
-                if (repository instanceof BlobStoreRepository == false) {
-                    throw new IllegalArgumentException("repository [" + request.getRepositoryName() + "] is not a blob-store repository");
-                }
-                if (repository.isReadOnly()) {
-                    throw new IllegalArgumentException("repository [" + request.getRepositoryName() + "] is read-only");
-                }
+                transportService.sendChildRequest(
+                    transportService.getLocalNode(),
+                    VerifyRepositoryAction.NAME,
+                    new VerifyRepositoryRequest(request.getRepositoryName()),
+                    task,
+                    TransportRequestOptions.EMPTY,
+                    new ActionListenerResponseHandler<>(ActionListener.wrap(listener.delegateFailure((delegate, verifyResponse) -> {
+                        final Repository repository = repositoriesService.repository(request.getRepositoryName());
+                        if (repository instanceof BlobStoreRepository == false) {
+                            throw new IllegalArgumentException(
+                                "repository [" + request.getRepositoryName() + "] is not a blob-store repository"
+                            );
+                        }
+                        if (repository.isReadOnly()) {
+                            throw new IllegalArgumentException("repository [" + request.getRepositoryName() + "] is read-only");
+                        }
 
-                assert task instanceof CancellableTask;
-                new AsyncAction(
-                    transportService,
-                    (BlobStoreRepository) repository,
-                    (CancellableTask) task,
-                    request,
-                    state.nodes(),
-                    threadPool::relativeTimeInMillis,
-                    listener
-                ).run();
+                        assert task instanceof CancellableTask;
+                        new AsyncAction(
+                            transportService,
+                            (BlobStoreRepository) repository,
+                            (CancellableTask) task,
+                            request,
+                            getSnapshotNodes(clusterService.state().nodes()),
+                            threadPool::relativeTimeInMillis,
+                            delegate
+                        ).run();
+                    })), VerifyRepositoryResponse::new, ThreadPool.Names.SAME)
+                );
+
                 return;
             }
 
@@ -349,7 +364,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
         private final BlobStoreRepository repository;
         private final CancellableTask task;
         private final Request request;
-        private final DiscoveryNodes discoveryNodes;
+        private final List<DiscoveryNode> nodes;
         private final LongSupplier currentTimeMillisSupplier;
         private final ActionListener<Response> listener;
         private final long timeoutTimeMillis;
@@ -370,7 +385,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
             BlobStoreRepository repository,
             CancellableTask task,
             Request request,
-            DiscoveryNodes discoveryNodes,
+            List<DiscoveryNode> nodes,
             LongSupplier currentTimeMillisSupplier,
             ActionListener<Response> listener
         ) {
@@ -378,7 +393,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
             this.repository = repository;
             this.task = task;
             this.request = request;
-            this.discoveryNodes = discoveryNodes;
+            this.nodes = nodes;
             this.currentTimeMillisSupplier = currentTimeMillisSupplier;
             this.timeoutTimeMillis = currentTimeMillisSupplier.getAsLong() + request.getTimeout().millis();
             this.listener = listener;
@@ -439,7 +454,6 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
 
             final Random random = new Random(request.getSeed());
 
-            final List<DiscoveryNode> nodes = getSnapshotNodes(discoveryNodes);
             final List<Long> blobSizes = getBlobSizes(request);
             Collections.shuffle(blobSizes, random);
 
