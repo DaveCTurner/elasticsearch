@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -584,8 +585,10 @@ public class RepositoryAnalysisFailureIT extends AbstractSnapshotIntegTestCase {
         }
 
         @Override
-        public long compareAndExchangeRegister(String key, long expected, long updated) {
-            return disruption.onCompareAndExchange(registers.computeIfAbsent(key, ignored -> new AtomicLong()), expected, updated);
+        public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) {
+            return OptionalLong.of(
+                disruption.onCompareAndExchange(registers.computeIfAbsent(key, ignored -> new AtomicLong()), expected, updated)
+            );
         }
     }
 

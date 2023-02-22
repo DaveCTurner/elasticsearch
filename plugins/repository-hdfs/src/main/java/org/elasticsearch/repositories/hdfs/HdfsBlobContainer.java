@@ -39,6 +39,7 @@ import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.OptionalLong;
 
 final class HdfsBlobContainer extends AbstractBlobContainer {
     private final HdfsBlobStore store;
@@ -318,7 +319,7 @@ final class HdfsBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long compareAndExchangeRegister(String key, long expected, long updated) {
+    public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) {
         throw new UnsupportedOperationException("HDFS repositories do not support this operation");
     }
 }

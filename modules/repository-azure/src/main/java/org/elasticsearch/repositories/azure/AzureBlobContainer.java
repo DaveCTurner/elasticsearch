@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.nio.file.NoSuchFileException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.OptionalLong;
 
 public class AzureBlobContainer extends AbstractBlobContainer {
 
@@ -156,7 +157,7 @@ public class AzureBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long compareAndExchangeRegister(String key, long expected, long updated) {
+    public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) {
         throw new UnsupportedOperationException(); // TODO
     }
 
@@ -166,7 +167,7 @@ public class AzureBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long getRegister(String key) throws IOException {
+    public OptionalLong getRegister(String key) throws IOException {
         throw new UnsupportedOperationException(); // TODO
     }
 }

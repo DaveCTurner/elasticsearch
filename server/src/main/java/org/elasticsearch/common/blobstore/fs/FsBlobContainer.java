@@ -14,7 +14,6 @@ import org.apache.lucene.util.Constants;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
-import org.elasticsearch.common.blobstore.ConcurrentRegisterOperationException;
 import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
@@ -52,6 +51,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.Collections.unmodifiableMap;
@@ -380,8 +380,7 @@ public class FsBlobContainer extends AbstractBlobContainer {
 
     @Override
     @SuppressForbidden(reason = "write to channel that we have open for locking purposes already directly")
-    public long compareAndExchangeRegister(String key, long expected, long updated) throws IOException,
-        ConcurrentRegisterOperationException {
+    public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) throws IOException {
 
         try (LockedFileChannel lockedFileChannel = LockedFileChannel.open(path.resolve(key))) {
             final FileChannel fileChannel = lockedFileChannel.fileChannel();
@@ -410,9 +409,9 @@ public class FsBlobContainer extends AbstractBlobContainer {
                 }
                 fileChannel.force(true);
             }
-            return found;
+            return OptionalLong.of(found);
         } catch (OverlappingFileLockException e) {
-            throw new ConcurrentRegisterOperationException(e);
+            return OptionalLong.empty();
         }
     }
 

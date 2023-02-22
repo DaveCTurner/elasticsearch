@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.OptionalLong;
 
 class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
 
@@ -119,7 +120,7 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long compareAndExchangeRegister(String key, long expected, long updated) {
+    public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) {
         throw new UnsupportedOperationException(); // TODO
     }
 
@@ -129,7 +130,7 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long getRegister(String key) throws IOException {
+    public OptionalLong getRegister(String key) throws IOException {
         throw new UnsupportedOperationException(); // TODO
     }
 }

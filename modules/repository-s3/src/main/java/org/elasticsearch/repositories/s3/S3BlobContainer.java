@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -609,7 +610,7 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long compareAndExchangeRegister(String key, long expected, long updated) {
+    public OptionalLong compareAndExchangeRegister(String key, long expected, long updated) {
         throw new UnsupportedOperationException(); // TODO
     }
 
@@ -619,7 +620,7 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public long getRegister(String key) throws IOException {
+    public OptionalLong getRegister(String key) throws IOException {
         throw new UnsupportedOperationException(); // TODO
     }
 }

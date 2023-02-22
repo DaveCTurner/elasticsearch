@@ -64,6 +64,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
@@ -592,8 +593,8 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
                     .executor(ThreadPool.Names.SNAPSHOT)
                     .execute(ActionRunnable.supply(ActionListener.releaseAfter(new ActionListener<>() {
                         @Override
-                        public void onResponse(Long actualFinalRegisterValue) {
-                            if (actualFinalRegisterValue != expectedFinalRegisterValue) {
+                        public void onResponse(OptionalLong actualFinalRegisterValue) {
+                            if (actualFinalRegisterValue.isEmpty() || actualFinalRegisterValue.getAsLong() != expectedFinalRegisterValue) {
                                 fail(
                                     new RepositoryVerificationException(
                                         request.getRepositoryName(),
