@@ -594,14 +594,15 @@ class GoogleCloudStorageBlobStore implements BlobStore {
     }
 
     OptionalLong getRegister(String blobName, String container, String key) throws IOException {
-        try (var readChannel = SocketAccess.doPrivilegedIOException(() -> client().reader(BlobId.of(bucketName, blobName)));
+        final var blobId = BlobId.of(bucketName, blobName);
+        try (var readChannel = SocketAccess.doPrivilegedIOException(() -> client().reader(blobId));
              var stream = Channels.newInputStream(readChannel)) {
             return BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key);
         }
     }
 
     OptionalLong compareAndExchangeRegister(String blobName, long expected, long updated) throws IOException {
-        // final var blobId = BlobId.of(bucketName, blobName);
+        final var blobId = BlobId.of(bucketName, blobName);
         // client().get(blobId).getEtag();
         throw new UnsupportedOperationException("TODO");
     }
