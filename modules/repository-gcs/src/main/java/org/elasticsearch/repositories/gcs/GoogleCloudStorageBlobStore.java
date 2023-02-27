@@ -11,7 +11,6 @@ package org.elasticsearch.repositories.gcs;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.BaseServiceException;
 import com.google.cloud.BatchResult;
-import com.google.cloud.RetryHelper;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -647,7 +646,7 @@ class GoogleCloudStorageBlobStore implements BlobStore {
         final var blob = SocketAccess.doPrivilegedIOException(() -> client().get(blobId));
         final long generation;
 
-        if (blob == null) {
+        if (blob == null || blob.getGeneration() == null) {
             if (expected != 0L) {
                 return OptionalLong.of(0L);
             }
