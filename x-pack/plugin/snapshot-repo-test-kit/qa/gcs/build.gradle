@@ -103,6 +103,7 @@ testClusters.matching { it.name == "javaRestTest" }.configureEach {
     println "Using an external service to test " + project.name
   }
   setting 'xpack.security.enabled', 'false'
+  setting 'org.apache.http', 'DEBUG'
 }
 
 tasks.register("gcsThirdPartyTest")  {
