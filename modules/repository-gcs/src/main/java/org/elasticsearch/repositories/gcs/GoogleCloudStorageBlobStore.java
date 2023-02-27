@@ -708,15 +708,19 @@ class GoogleCloudStorageBlobStore implements BlobStore {
     }
 
     private static BaseServiceException unwrapServiceException(Throwable t) {
+        logger.info("unwrapServiceException", t);
         for (int i = 0; i < 10; i++) {
             if (t == null) {
                 break;
             }
             if (t instanceof BaseServiceException storageException) {
+                logger.info("unwrapServiceException complete", storageException);
                 return storageException;
             }
             t = t.getCause();
+            logger.info("unwrapServiceException descending", t);
         }
+        logger.info("unwrapServiceException gave up");
         return null;
     }
 
