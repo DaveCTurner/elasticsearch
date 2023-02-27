@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -213,7 +214,13 @@ class GoogleCloudStorageBlobStore implements BlobStore {
      * Reads a blob directly, in full, without any retries. Must only be used for tiny blobs.
      */
     InputStream readTinyBlobWithoutRetries(String blobName) throws IOException {
-        return new ByteArrayInputStream(client().readAllBytes(BlobId.of(bucketName, blobName)));
+        return new ByteArrayInputStream(SocketAccess.doPrivilegedIOException(() -> client().readAllBytes(BlobId.of(bucketName, blobName))));
+    }
+
+    OptionalLong compareAndExchange(String blobName, long expected, long updated) throws IOException {
+        // final var blobId = BlobId.of(bucketName, blobName);
+        // client().get(blobId).getEtag();
+        throw new UnsupportedOperationException("TODO");
     }
 
     /**

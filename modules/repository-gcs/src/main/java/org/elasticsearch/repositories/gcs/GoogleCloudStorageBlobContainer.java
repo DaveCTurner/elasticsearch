@@ -123,7 +123,7 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
-        listener.onFailure(new UnsupportedOperationException()); // TODO
+        ActionListener.completeWith(listener, () -> blobStore.compareAndExchange(buildKey(key), expected, updated));
     }
 
     @Override
