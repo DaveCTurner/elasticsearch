@@ -630,7 +630,7 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             var stream = new PrivilegedReadChannelStream(readChannel)
         ) {
             return OptionalLong.of(BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key));
-        } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+        } catch (Exception e) {
             final var serviceException = unwrapServiceException(e);
             if (serviceException != null) {
                 final var statusCode = serviceException.getCode();
@@ -665,7 +665,7 @@ class GoogleCloudStorageBlobStore implements BlobStore {
                 if (witness != expected) {
                     return OptionalLong.of(witness);
                 }
-            } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+            } catch (Exception e) {
                 final var serviceException = unwrapServiceException(e);
                 if (serviceException != null) {
                     final var statusCode = serviceException.getCode();
@@ -693,7 +693,7 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             while ((bytesRef = iterator.next()) != null) {
                 stream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             }
-        } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+        } catch (Exception e) {
             final var serviceException = unwrapServiceException(e);
             if (serviceException != null) {
                 final var statusCode = serviceException.getCode();
