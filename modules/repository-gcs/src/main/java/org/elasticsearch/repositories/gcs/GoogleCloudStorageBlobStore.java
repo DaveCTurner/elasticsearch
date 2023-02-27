@@ -26,6 +26,7 @@ import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.BlobStore;
 import org.elasticsearch.common.blobstore.DeleteResult;
+import org.elasticsearch.common.blobstore.support.BlobContainerUtils;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.hash.MessageDigests;
@@ -208,19 +209,6 @@ class GoogleCloudStorageBlobStore implements BlobStore {
      */
     InputStream readBlob(String blobName) throws IOException {
         return new GoogleCloudStorageRetryingInputStream(client(), BlobId.of(bucketName, blobName));
-    }
-
-    /**
-     * Reads a blob directly, in full, without any retries. Must only be used for tiny blobs.
-     */
-    InputStream readTinyBlobWithoutRetries(String blobName) throws IOException {
-        return new ByteArrayInputStream(SocketAccess.doPrivilegedIOException(() -> client().readAllBytes(BlobId.of(bucketName, blobName))));
-    }
-
-    OptionalLong compareAndExchange(String blobName, long expected, long updated) throws IOException {
-        // final var blobId = BlobId.of(bucketName, blobName);
-        // client().get(blobId).getEtag();
-        throw new UnsupportedOperationException("TODO");
     }
 
     /**
@@ -603,6 +591,19 @@ class GoogleCloudStorageBlobStore implements BlobStore {
     @Override
     public Map<String, Long> stats() {
         return stats.toMap();
+    }
+
+    OptionalLong getRegister(String blobName, String container, String key) throws IOException {
+        try (var readChannel = SocketAccess.doPrivilegedIOException(() -> client().reader(BlobId.of(bucketName, blobName)));
+             var stream = Channels.newInputStream(readChannel)) {
+            return BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key);
+        }
+    }
+
+    OptionalLong compareAndExchangeRegister(String blobName, long expected, long updated) throws IOException {
+        // final var blobId = BlobId.of(bucketName, blobName);
+        // client().get(blobId).getEtag();
+        throw new UnsupportedOperationException("TODO");
     }
 
     private static final class WritableBlobChannel implements WritableByteChannel {
