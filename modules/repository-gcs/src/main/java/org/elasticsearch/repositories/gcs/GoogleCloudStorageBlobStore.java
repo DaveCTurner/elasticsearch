@@ -9,7 +9,9 @@
 package org.elasticsearch.repositories.gcs;
 
 import com.google.api.gax.paging.Page;
+import com.google.cloud.BaseServiceException;
 import com.google.cloud.BatchResult;
+import com.google.cloud.RetryHelper;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -628,12 +630,15 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             var stream = new PrivilegedReadChannelStream(readChannel)
         ) {
             return OptionalLong.of(BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key));
-        } catch (StorageException e) {
-            if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
-                return OptionalLong.of(0L);
-            } else {
-                throw e;
+        } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+            final var serviceException = unwrapServiceException(e);
+            if (serviceException != null) {
+                final var statusCode = serviceException.getCode();
+                if (statusCode == RestStatus.NOT_FOUND.getStatus()) {
+                    return OptionalLong.of(0L);
+                }
             }
+            throw e;
         }
     }
 
@@ -660,14 +665,17 @@ class GoogleCloudStorageBlobStore implements BlobStore {
                 if (witness != expected) {
                     return OptionalLong.of(witness);
                 }
-            } catch (StorageException e) {
-                if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
-                    return expected == 0L ? OptionalLong.empty() : OptionalLong.of(0L);
-                } else if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
-                    return OptionalLong.empty();
-                } else {
-                    throw e;
+            } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+                final var serviceException = unwrapServiceException(e);
+                if (serviceException != null) {
+                    final var statusCode = serviceException.getCode();
+                    if (statusCode == RestStatus.NOT_FOUND.getStatus()) {
+                        return expected == 0L ? OptionalLong.empty() : OptionalLong.of(0L);
+                    } else if (statusCode == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                        return OptionalLong.empty();
+                    }
                 }
+                throw e;
             }
         }
 
@@ -685,15 +693,31 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             while ((bytesRef = iterator.next()) != null) {
                 stream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             }
-        } catch (StorageException e) {
-            if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
-                return OptionalLong.empty();
-            } else {
-                throw e;
+        } catch (RetryHelper.RetryHelperException | BaseServiceException e) {
+            final var serviceException = unwrapServiceException(e);
+            if (serviceException != null) {
+                final var statusCode = serviceException.getCode();
+                if (statusCode == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                    return OptionalLong.empty();
+                }
             }
+            throw e;
         }
 
         return OptionalLong.of(expected);
+    }
+
+    private static BaseServiceException unwrapServiceException(Throwable t) {
+        for (int i = 0; i < 10; i++) {
+            if (t == null) {
+                break;
+            }
+            if (t instanceof BaseServiceException storageException) {
+                return storageException;
+            }
+            t = t.getCause();
+        }
+        return null;
     }
 
     private static final class PrivilegedReadChannelStream extends InputStream {
