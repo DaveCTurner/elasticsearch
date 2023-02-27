@@ -41,13 +41,13 @@ import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.ByteArrayInputStream;
-import java.io.Closeable;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
@@ -596,82 +596,6 @@ class GoogleCloudStorageBlobStore implements BlobStore {
         return stats.toMap();
     }
 
-    OptionalLong getRegister(String blobName, String container, String key) throws IOException {
-        final var blobId = BlobId.of(bucketName, blobName);
-        try (
-            var readChannel = SocketAccess.doPrivilegedIOException(() -> client().reader(blobId));
-            var stream = Channels.newInputStream(readChannel)
-        ) {
-            return OptionalLong.of(BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key));
-        } catch (StorageException e) {
-            if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
-                return OptionalLong.of(0L);
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    OptionalLong compareAndExchangeRegister(String blobName, String container, String key, long expected, long updated) throws IOException {
-        final var blobId = BlobId.of(bucketName, blobName);
-        final var blob = SocketAccess.doPrivilegedIOException(() -> client().get(blobId));
-        final long generation;
-
-        if (blob == null) {
-            if (expected != 0L) {
-                return OptionalLong.of(0L);
-            }
-            generation = 0L;
-        } else {
-            generation = blob.getGeneration();
-            try (
-                var readChannel = SocketAccess.doPrivilegedIOException(
-                    () -> client().reader(blobId, Storage.BlobSourceOption.generationMatch(generation))
-                );
-                var stream = Channels.newInputStream(readChannel)
-            ) {
-                final var witness = BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key);
-                if (witness != expected) {
-                    return OptionalLong.of(witness);
-                }
-            } catch (StorageException e) {
-                if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
-                    return expected == 0L ? OptionalLong.empty() : OptionalLong.of(0L);
-                } else if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
-                    return OptionalLong.empty();
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-        final var newBlobContents = BlobContainerUtils.getRegisterBlobContents(updated);
-        final var blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, blobName, generation))
-            .setMd5(Base64.getEncoder().encodeToString(MessageDigests.digest(newBlobContents, MessageDigests.md5())))
-            .build();
-        try {
-            final var writeChannel = SocketAccess.doPrivilegedIOException(
-                () -> client().writer(blobInfo, Storage.BlobWriteOption.generationMatch())
-            );
-            try (Closeable closeWriteChannel = () -> SocketAccess.doPrivilegedVoidIOException(writeChannel::close)) {
-                final var stream = Channels.newOutputStream(writeChannel);
-                final var iterator = newBlobContents.iterator();
-                BytesRef bytesRef;
-                while ((bytesRef = iterator.next()) != null) {
-                    stream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
-                }
-            }
-        } catch (StorageException e) {
-            if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
-                return OptionalLong.empty();
-            } else {
-                throw e;
-            }
-        }
-
-        return OptionalLong.of(expected);
-    }
-
     private static final class WritableBlobChannel implements WritableByteChannel {
 
         private final WriteChannel channel;
@@ -696,4 +620,143 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             // we manually close the channel later to have control over whether or not we want to finalize a blob
         }
     }
+
+    OptionalLong getRegister(String blobName, String container, String key) throws IOException {
+        final var blobId = BlobId.of(bucketName, blobName);
+        try (
+            var readChannel = SocketAccess.doPrivilegedIOException(() -> client().reader(blobId));
+            var stream = new PrivilegedReadChannelStream(readChannel)
+        ) {
+            return OptionalLong.of(BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key));
+        } catch (StorageException e) {
+            if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
+                return OptionalLong.of(0L);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    OptionalLong compareAndExchangeRegister(String blobName, String container, String key, long expected, long updated) throws IOException {
+        final var blobId = BlobId.of(bucketName, blobName);
+        final var blob = SocketAccess.doPrivilegedIOException(() -> client().get(blobId));
+        final long generation;
+
+        if (blob == null) {
+            if (expected != 0L) {
+                return OptionalLong.of(0L);
+            }
+            generation = 0L;
+        } else {
+            generation = blob.getGeneration();
+            try (
+                var stream = new PrivilegedReadChannelStream(
+                    SocketAccess.doPrivilegedIOException(
+                        () -> client().reader(blobId, Storage.BlobSourceOption.generationMatch(generation))
+                    )
+                )
+            ) {
+                final var witness = BlobContainerUtils.getRegisterUsingConsistentRead(stream, container, key);
+                if (witness != expected) {
+                    return OptionalLong.of(witness);
+                }
+            } catch (StorageException e) {
+                if (e.getCode() == RestStatus.NOT_FOUND.getStatus()) {
+                    return expected == 0L ? OptionalLong.empty() : OptionalLong.of(0L);
+                } else if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                    return OptionalLong.empty();
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        final var newBlobContents = BlobContainerUtils.getRegisterBlobContents(updated);
+        final var blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, blobName, generation))
+            .setMd5(Base64.getEncoder().encodeToString(MessageDigests.digest(newBlobContents, MessageDigests.md5())))
+            .build();
+        try (
+            var stream = new PrivilegedWriteChannelStream(
+                SocketAccess.doPrivilegedIOException(() -> client().writer(blobInfo, Storage.BlobWriteOption.generationMatch()))
+            )
+        ) {
+            final var iterator = newBlobContents.iterator();
+            BytesRef bytesRef;
+            while ((bytesRef = iterator.next()) != null) {
+                stream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
+            }
+        } catch (StorageException e) {
+            if (e.getCode() == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                return OptionalLong.empty();
+            } else {
+                throw e;
+            }
+        }
+
+        return OptionalLong.of(expected);
+    }
+
+    private static final class PrivilegedReadChannelStream extends InputStream {
+
+        private final InputStream stream;
+
+        PrivilegedReadChannelStream(ReadableByteChannel channel) {
+            stream = Channels.newInputStream(channel);
+        }
+
+        @Override
+        public int read(byte[] b) throws IOException {
+            return SocketAccess.doPrivilegedIOException(() -> stream.read(b));
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            return SocketAccess.doPrivilegedIOException(() -> stream.read(b, off, len));
+        }
+
+        @Override
+        public void close() throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(stream::close);
+        }
+
+        @Override
+        public int read() throws IOException {
+            return SocketAccess.doPrivilegedIOException(stream::read);
+        }
+    }
+
+    private static final class PrivilegedWriteChannelStream extends OutputStream {
+
+        private final OutputStream stream;
+
+        PrivilegedWriteChannelStream(WritableByteChannel channel) {
+            stream = Channels.newOutputStream(channel);
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(() -> stream.write(b));
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(() -> stream.write(b));
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(() -> stream.write(b, off, len));
+        }
+
+        @Override
+        public void flush() throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(stream::flush);
+        }
+
+        @Override
+        public void close() throws IOException {
+            SocketAccess.doPrivilegedVoidIOException(stream::close);
+        }
+    }
+
 }
