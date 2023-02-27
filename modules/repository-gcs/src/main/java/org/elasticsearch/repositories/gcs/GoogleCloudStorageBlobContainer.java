@@ -132,6 +132,6 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void getRegister(String key, ActionListener<OptionalLong> listener) {
-        listener.onFailure(new UnsupportedOperationException()); // TODO
+        listener.onResponse(OptionalLong.empty());
     }
 }
