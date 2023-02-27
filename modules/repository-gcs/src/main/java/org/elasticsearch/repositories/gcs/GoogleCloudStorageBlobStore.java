@@ -210,6 +210,13 @@ class GoogleCloudStorageBlobStore implements BlobStore {
     }
 
     /**
+     * Reads a blob directly, in full, without any retries. Must only be used for tiny blobs.
+     */
+    InputStream readTinyBlobWithoutRetries(String blobName) throws IOException {
+        return new ByteArrayInputStream(client().readAllBytes(BlobId.of(bucketName, blobName)));
+    }
+
+    /**
      * Returns an {@link java.io.InputStream} for the given blob's position and length
      *
      * @param blobName name of the blob

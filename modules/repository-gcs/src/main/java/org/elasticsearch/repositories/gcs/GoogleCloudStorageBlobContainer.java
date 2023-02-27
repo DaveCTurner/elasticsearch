@@ -14,6 +14,7 @@ import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.BlobStoreException;
 import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
+import org.elasticsearch.common.blobstore.support.BlobContainerUtils;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.CheckedConsumer;
@@ -126,12 +127,11 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public void compareAndSetRegister(String key, long expected, long updated, ActionListener<Boolean> listener) {
-        listener.onFailure(new UnsupportedOperationException()); // TODO
-    }
-
-    @Override
     public void getRegister(String key, ActionListener<OptionalLong> listener) {
-        listener.onResponse(OptionalLong.empty());
+        ActionListener.completeWith(listener, () -> {
+            try (var stream = blobStore.readTinyBlobWithoutRetries(buildKey(key))) {
+                return BlobContainerUtils.getRegisterUsingConsistentRead(stream, path, key);
+            }
+        });
     }
 }
