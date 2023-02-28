@@ -18,6 +18,7 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
 import org.elasticsearch.common.io.Streams;
+import org.elasticsearch.common.logging.ESLogMessage;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.Tuple;
@@ -77,6 +78,11 @@ public class GoogleCloudStorageHttpHandler implements HttpHandler {
         try {
             // Request body is closed in the finally block
             final BytesReference requestBody = Streams.readFully(Streams.noCloseStream(exchange.getRequestBody()));
+            logger.info(new ESLogMessage("handle")
+                .with("method", exchange.getRequestMethod())
+                .with("uri", exchange.getRequestURI().toString())
+                .with("request_headers", exchange.getResponseHeaders().entrySet().toString())
+            );
             if (request.equals("GET /") && "Google".equals(exchange.getRequestHeaders().getFirst("Metadata-Flavor"))) {
                 // the SDK checks this endpoint to determine if it's running within Google Compute Engine
                 exchange.getResponseHeaders().add("Metadata-Flavor", "Google");
