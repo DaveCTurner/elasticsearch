@@ -27,9 +27,10 @@ public abstract class AbstractSnapshotRepoTestKitRestTestCase extends ESRestTest
         registerRepository(repository, repositoryType, true, repositorySettings);
 
         final Request request = new Request(HttpPost.METHOD_NAME, "/_snapshot/" + repository + "/_analyze");
-        request.addParameter("blob_count", "10");
-        request.addParameter("concurrency", "15"); // TOOD NOCOMMIT reset this
-        request.addParameter("max_blob_size", "1mb");
+        request.addParameter("blob_count", "1");
+        request.addParameter("concurrency", "2"); // TOOD NOCOMMIT reset this
+        request.addParameter("max_blob_size", "1b");
+        request.addParameter("max_total_data_size", "1b");
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
         request.addParameter("error_trace", "true");
