@@ -712,8 +712,8 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             if (t == null) {
                 break;
             }
-            if (t instanceof BaseServiceException storageException) {
-                return storageException;
+            if (t instanceof BaseServiceException baseServiceException) {
+                return baseServiceException;
             }
             t = t.getCause();
         }
