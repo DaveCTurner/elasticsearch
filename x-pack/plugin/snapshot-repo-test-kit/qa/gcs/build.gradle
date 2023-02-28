@@ -104,6 +104,7 @@ testClusters.matching { it.name == "javaRestTest" }.configureEach {
   }
   setting 'xpack.security.enabled', 'false'
   setting 'logger.com.google.api.client.http', 'TRACE'
+  setting 'logger.org.apache.http', 'DEBUG'
 }
 
 tasks.register("gcsThirdPartyTest")  {

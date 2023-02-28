@@ -47,6 +47,7 @@ dependencies {
   api "com.google.oauth-client:google-oauth-client:${versions.google_oauth_client}"
   api 'com.google.api-client:google-api-client:2.1.1'
   api 'com.google.http-client:google-http-client:1.42.3'
+  api 'com.google.http-client:google-http-client-apache-v2:1.42.3'
   api 'com.google.http-client:google-http-client-gson:1.42.3'
   api 'com.google.http-client:google-http-client-appengine:1.42.3'
   api 'com.google.http-client:google-http-client-jackson2:1.42.3'

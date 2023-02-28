@@ -9,8 +9,10 @@
 package org.elasticsearch.repositories.gcs;
 
 import com.google.api.client.googleapis.GoogleUtils;
+import com.google.api.client.googleapis.apache.v2.GoogleApacheHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.apache.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.util.SecurityUtils;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -130,22 +132,25 @@ public class GoogleCloudStorageService {
     private Storage createClient(GoogleCloudStorageClientSettings gcsClientSettings, GoogleCloudStorageOperationsStats stats)
         throws IOException {
         final HttpTransport httpTransport = SocketAccess.doPrivilegedIOException(() -> {
-            final NetHttpTransport.Builder builder = new NetHttpTransport.Builder();
-            // requires java.lang.RuntimePermission "setFactory"
-            // Pin the TLS trust certificates.
-            // We manually load the key store from jks instead of using GoogleUtils.getCertificateTrustStore() because that uses a .p12
-            // store format not compatible with FIPS mode.
-            final KeyStore certTrustStore = SecurityUtils.getJavaKeyStore();
-            try (InputStream keyStoreStream = GoogleUtils.class.getResourceAsStream("google.jks")) {
-                SecurityUtils.loadKeyStore(certTrustStore, keyStoreStream, "notasecret");
-            }
-            builder.trustCertificates(certTrustStore);
-            Proxy proxy = gcsClientSettings.getProxy();
-            if (proxy != null) {
-                builder.setProxy(proxy);
-                notifyProxyIsSet(proxy);
-            }
-            return builder.build();
+            return GoogleApacheHttpTransport.newTrustedTransport();
+//            return new ApacheHttpTransport();
+//
+//            final NetHttpTransport.Builder builder = new NetHttpTransport.Builder();
+//            // requires java.lang.RuntimePermission "setFactory"
+//            // Pin the TLS trust certificates.
+//            // We manually load the key store from jks instead of using GoogleUtils.getCertificateTrustStore() because that uses a .p12
+//            // store format not compatible with FIPS mode.
+//            final KeyStore certTrustStore = SecurityUtils.getJavaKeyStore();
+//            try (InputStream keyStoreStream = GoogleUtils.class.getResourceAsStream("google.jks")) {
+//                SecurityUtils.loadKeyStore(certTrustStore, keyStoreStream, "notasecret");
+//            }
+//            builder.trustCertificates(certTrustStore);
+//            Proxy proxy = gcsClientSettings.getProxy();
+//            if (proxy != null) {
+//                builder.setProxy(proxy);
+//                notifyProxyIsSet(proxy);
+//            }
+//            return builder.build();
         });
 
         final GoogleCloudStorageHttpStatsCollector httpStatsCollector = new GoogleCloudStorageHttpStatsCollector(stats);
