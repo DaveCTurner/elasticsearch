@@ -696,7 +696,8 @@ class GoogleCloudStorageBlobStore implements BlobStore {
             final var serviceException = unwrapServiceException(e);
             if (serviceException != null) {
                 final var statusCode = serviceException.getCode();
-                if (statusCode == RestStatus.PRECONDITION_FAILED.getStatus()) {
+                if (statusCode == RestStatus.PRECONDITION_FAILED.getStatus()
+                    || statusCode == RestStatus.TOO_MANY_REQUESTS.getStatus()) {
                     return OptionalLong.empty();
                 }
             }

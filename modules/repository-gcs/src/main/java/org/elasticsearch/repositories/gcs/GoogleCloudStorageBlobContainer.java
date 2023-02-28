@@ -147,7 +147,7 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
                 if (result.isPresent()) {
                     esLogMessage.with("result", result.getAsLong());
                 } else {
-                    esLogMessage.with("result", null);
+                    esLogMessage.with("result", "aborted");
                 }
                 logger.info(esLogMessage);
                 return result;
