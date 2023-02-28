@@ -8,6 +8,8 @@
 
 package org.elasticsearch.repositories.gcs;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
@@ -16,6 +18,7 @@ import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.logging.ESLogMessage;
 import org.elasticsearch.core.CheckedConsumer;
 
 import java.io.IOException;
@@ -24,8 +27,11 @@ import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.concurrent.atomic.AtomicLong;
 
 class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
+
+    private static final Logger logger = LogManager.getLogger(GoogleCloudStorageBlobContainer.class);
 
     private final GoogleCloudStorageBlobStore blobStore;
     private final String path;
@@ -120,9 +126,42 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
         return path + blobName;
     }
 
+    private static final AtomicLong idGenerator = new AtomicLong();
+
     @Override
     public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
-        ActionListener.completeWith(listener, () -> blobStore.compareAndExchangeRegister(buildKey(key), path, key, expected, updated));
+        final var id = idGenerator.incrementAndGet();
+        ActionListener.completeWith(listener, () -> {
+            try {
+                logger.info(
+                    new ESLogMessage("--> compareAndExchangeRegister starting").with("id", id)
+                        .with("key", key)
+                        .with("expected", expected)
+                        .with("updated", updated)
+                );
+                final var result = blobStore.compareAndExchangeRegister(buildKey(key), path, key, expected, updated);
+                final var esLogMessage = new ESLogMessage("--> compareAndExchangeRegister completed").with("id", id)
+                    .with("key", key)
+                    .with("expected", expected)
+                    .with("updated", updated);
+                if (result.isPresent()) {
+                    esLogMessage.with("result", result.getAsLong());
+                } else {
+                    esLogMessage.with("result", null);
+                }
+                logger.info(esLogMessage);
+                return result;
+            } catch (Exception e) {
+                logger.info(
+                    new ESLogMessage("--> compareAndExchangeRegister failed").with("id", id)
+                        .with("key", key)
+                        .with("expected", expected)
+                        .with("updated", updated),
+                    e
+                );
+                throw e;
+            }
+        });
     }
 
     @Override
