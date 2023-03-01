@@ -134,13 +134,15 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
         ActionListener.completeWith(listener, () -> {
             try {
                 logger.info(
-                    new ESLogMessage("--> compareAndExchangeRegister").with("state","starting").with("id", id)
+                    new ESLogMessage("--> compareAndExchangeRegister").with("state", "starting")
+                        .with("id", id)
                         .with("key", key)
                         .with("expected", expected)
                         .with("updated", updated)
                 );
                 final var result = blobStore.compareAndExchangeRegister(buildKey(key), path, key, expected, updated);
-                final var esLogMessage = new ESLogMessage("--> compareAndExchangeRegister").with("state","complete").with("id", id)
+                final var esLogMessage = new ESLogMessage("--> compareAndExchangeRegister").with("state", "complete")
+                    .with("id", id)
                     .with("key", key)
                     .with("expected", expected)
                     .with("updated", updated);
@@ -153,7 +155,8 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
                 return result;
             } catch (Exception e) {
                 logger.info(
-                    new ESLogMessage("--> compareAndExchangeRegister").with("state","_failed_").with("id", id)
+                    new ESLogMessage("--> compareAndExchangeRegister").with("state", "_failed_")
+                        .with("id", id)
                         .with("key", key)
                         .with("expected", expected)
                         .with("updated", updated)
