@@ -104,6 +104,7 @@ testClusters.matching { it.name == "javaRestTest" }.configureEach {
   }
   setting 'xpack.security.enabled', 'false'
   setting 'logger.org.apache.http.wire', 'DEBUG'
+  setting 'thread_pool.snapshot.max', '1'
 }
 
 tasks.register("gcsThirdPartyTest")  {
