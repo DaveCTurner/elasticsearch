@@ -130,6 +130,11 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
+        if ("true".equals(System.getProperty("test.repository_test_kit.skip_cas"))) {
+            listener.onFailure(new UnsupportedOperationException());
+            return;
+        }
+
         final var id = idGenerator.incrementAndGet();
         ActionListener.completeWith(listener, () -> {
             try {
@@ -170,6 +175,11 @@ class GoogleCloudStorageBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void getRegister(String key, ActionListener<OptionalLong> listener) {
+        if ("true".equals(System.getProperty("test.repository_test_kit.skip_cas"))) {
+            listener.onFailure(new UnsupportedOperationException());
+            return;
+        }
+
         ActionListener.completeWith(listener, () -> blobStore.getRegister(buildKey(key), path, key));
     }
 }
