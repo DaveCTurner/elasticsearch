@@ -34,7 +34,9 @@ public abstract class AbstractSnapshotRepoTestKitRestTestCase extends ESRestTest
         request.addParameter("timeout", "120s");
         request.addParameter("seed", Long.toString(randomLong()));
         request.addParameter("error_trace", "true");
-        request.addParameter("skip_cas", System.getProperty("test.repository_test_kit.skip_cas", "false"));
+        if ("true".equals(System.getProperty("test.repository_test_kit.skip_cas"))) {
+            request.addParameter("skip_cas", "true");
+        }
         assertOK(client().performRequest(request));
     }
 
