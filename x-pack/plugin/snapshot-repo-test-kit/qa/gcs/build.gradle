@@ -87,6 +87,7 @@ tasks.named("javaRestTest").configure {
   nonInputProperties.systemProperty 'test.gcs.base_path', gcsBasePath + "_repository_test_kit_tests" + BuildParams.testSeed
 
   if (useFixture) {
+    systemProperty 'test.repository_test_kit.skip_cas', 'true'
     dependsOn "createServiceAccountFile"
   }
 }
