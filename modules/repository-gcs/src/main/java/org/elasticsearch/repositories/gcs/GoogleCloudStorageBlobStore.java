@@ -22,7 +22,6 @@ import com.google.cloud.storage.StorageException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
@@ -682,16 +681,17 @@ class GoogleCloudStorageBlobStore implements BlobStore {
         final var blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, blobName, generation))
             .setMd5(Base64.getEncoder().encodeToString(MessageDigests.digest(newBlobContents, MessageDigests.md5())))
             .build();
-        try (
-            var stream = new PrivilegedWriteChannelStream(
-                SocketAccess.doPrivilegedIOException(() -> client().writer(blobInfo, Storage.BlobWriteOption.generationMatch()))
-            )
-        ) {
-            final var iterator = newBlobContents.iterator();
-            BytesRef bytesRef;
-            while ((bytesRef = iterator.next()) != null) {
-                stream.write(bytesRef.bytes, bytesRef.offset, bytesRef.length);
-            }
+        final var bytesRef = newBlobContents.toBytesRef();
+        try {
+            SocketAccess.doPrivilegedVoidIOException(
+                () -> client().create(
+                    blobInfo,
+                    bytesRef.bytes,
+                    bytesRef.offset,
+                    bytesRef.length,
+                    Storage.BlobTargetOption.generationMatch()
+                )
+            );
         } catch (Exception e) {
             final var serviceException = unwrapServiceException(e);
             if (serviceException != null) {
