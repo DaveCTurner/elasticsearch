@@ -654,7 +654,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
                 final long listingStartTimeNanos = System.nanoTime();
                 ensureConsistentListing();
                 final long deleteStartTimeNanos = System.nanoTime();
-                // deleteContainer();
+                deleteContainer();
                 sendResponse(listingStartTimeNanos, deleteStartTimeNanos);
             }));
         }
