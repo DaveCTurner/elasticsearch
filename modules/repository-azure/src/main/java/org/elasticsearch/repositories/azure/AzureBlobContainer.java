@@ -18,6 +18,7 @@ import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
+import org.elasticsearch.common.blobstore.support.BlobContainerUtils;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.CheckedConsumer;
@@ -62,7 +63,7 @@ public class AzureBlobContainer extends AbstractBlobContainer {
             throw new NoSuchFileException("Blob [" + blobKey + "] not found");
         }
         try {
-            return blobStore.getInputStream(blobKey, position, length);
+            return blobStore.getInputStream(blobKey, position, length, true);
         } catch (Exception e) {
             Throwable rootCause = Throwables.getRootCause(e);
             if (rootCause instanceof BlobStorageException blobStorageException) {
@@ -159,7 +160,12 @@ public class AzureBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
-        listener.onFailure(new UnsupportedOperationException()); // TODO
+        if (skipCas(listener)) return;
+        ActionListener.completeWith(listener, () -> {
+            return OptionalLong.of(
+                BlobContainerUtils.getRegisterUsingConsistentRead(blobStore.getInputStream(buildKey(key), 0, null, false), keyPath, key)
+            );
+        });
     }
 
     @Override
@@ -169,6 +175,7 @@ public class AzureBlobContainer extends AbstractBlobContainer {
 
     @Override
     public void getRegister(String key, ActionListener<OptionalLong> listener) {
-        listener.onFailure(new UnsupportedOperationException()); // TODO
+        if (skipCas(listener)) return;
+        ActionListener.completeWith(listener, () -> blobStore.getRegister(buildKey(key), keyPath, key));
     }
 }

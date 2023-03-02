@@ -71,6 +71,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -285,7 +286,7 @@ public class AzureBlobStore implements BlobStore {
             .onErrorMap(throwable -> new IOException("Error deleting blob " + blobName, throwable));
     }
 
-    public InputStream getInputStream(String blob, long position, final @Nullable Long length) throws IOException {
+    InputStream getInputStream(String blob, long position, final @Nullable Long length, boolean retryPermitted) throws IOException {
         logger.trace(() -> format("reading container [%s], blob [%s]", container, blob));
         final AzureBlobServiceClient azureBlobServiceClient = getAzureBlobServiceClientClient();
         final BlobServiceClient syncClient = azureBlobServiceClient.getSyncClient();
@@ -301,7 +302,7 @@ public class AzureBlobStore implements BlobStore {
                 totalSize = position + length;
             }
             BlobAsyncClient blobAsyncClient = asyncClient.getBlobContainerAsyncClient(container).getBlobAsyncClient(blob);
-            int maxReadRetries = service.getMaxReadRetries(clientName);
+            int maxReadRetries = retryPermitted ? service.getMaxReadRetries(clientName) : 0;
             return new AzureInputStream(
                 blobAsyncClient,
                 position,
@@ -666,7 +667,7 @@ public class AzureBlobStore implements BlobStore {
         private boolean closed;
         private final ByteBufAllocator allocator;
 
-        private AzureInputStream(
+        AzureInputStream(
             final BlobAsyncClient client,
             long rangeOffset,
             long rangeLength,
@@ -795,4 +796,14 @@ public class AzureBlobStore implements BlobStore {
             onHttpRequest.run();
         }
     }
+
+    OptionalLong getRegister(String blobName, String container, String key) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    OptionalLong compareAndExchangeRegister(String blobName, String container, String key, long expected, long updated) throws IOException {
+
+        return OptionalLong.empty();
+    }
+
 }
