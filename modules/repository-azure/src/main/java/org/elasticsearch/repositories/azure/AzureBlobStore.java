@@ -802,28 +802,33 @@ public class AzureBlobStore implements BlobStore {
         }
     }
 
-    OptionalLong getRegister(String blobPath, String containerPath, String blobKey) throws IOException {
+    OptionalLong getRegister(String blobPath, String containerPath, String blobKey) {
         try {
-            return OptionalLong.of(
-                BlobContainerUtils.getRegisterUsingConsistentRead(getInputStream(blobPath, 0, null, false), containerPath, blobKey)
-            );
+            return SocketAccess.doPrivilegedException(() -> {
+                final var blobClient = getAzureBlobServiceClientClient().getSyncClient()
+                    .getBlobContainerClient(container)
+                    .getBlobClient(blobPath);
+                return OptionalLong.of(
+                    BlobContainerUtils.getRegisterUsingConsistentRead(blobClient.downloadContent().toStream(), containerPath, blobKey)
+                );
+            });
         } catch (Exception e) {
             if (Throwables.getRootCause(e)instanceof BlobStorageException blobStorageException
                 && blobStorageException.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
-                return OptionalLong.of(0L);
+                return OptionalLong.empty();
             }
             throw e;
         }
     }
 
     OptionalLong compareAndExchangeRegister(String blobPath, String containerPath, String blobKey, long expected, long updated) {
-        return SocketAccess.doPrivilegedException(() -> {
+        try {
+            return SocketAccess.doPrivilegedException(() -> {
 
-            final var blobClient = getAzureBlobServiceClientClient().getSyncClient()
-                .getBlobContainerClient(container)
-                .getBlobClient(blobPath);
+                final var blobClient = getAzureBlobServiceClientClient().getSyncClient()
+                    .getBlobContainerClient(container)
+                    .getBlobClient(blobPath);
 
-            try {
                 if (blobClient.exists()) {
                     final var leaseClient = new BlobLeaseClientBuilder().blobClient(blobClient).buildClient();
                     final var leaseId = leaseClient.acquireLease(60);
@@ -852,16 +857,16 @@ public class AzureBlobStore implements BlobStore {
                     }
                     return OptionalLong.of(0L);
                 }
-            } catch (Exception e) {
-                if (Throwables.getRootCause(e)instanceof BlobStorageException blobStorageException) {
-                    if (blobStorageException.getStatusCode() == RestStatus.PRECONDITION_FAILED.getStatus()
-                        || blobStorageException.getStatusCode() == RestStatus.CONFLICT.getStatus()) {
-                        return OptionalLong.empty();
-                    }
+            });
+        } catch (Exception e) {
+            if (Throwables.getRootCause(e)instanceof BlobStorageException blobStorageException) {
+                if (blobStorageException.getStatusCode() == RestStatus.PRECONDITION_FAILED.getStatus()
+                    || blobStorageException.getStatusCode() == RestStatus.CONFLICT.getStatus()) {
+                    return OptionalLong.empty();
                 }
-                throw e;
             }
-        });
+            throw e;
+        }
     }
 
 }
