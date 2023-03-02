@@ -291,7 +291,7 @@ public class AzureBlobStore implements BlobStore {
             .onErrorMap(throwable -> new IOException("Error deleting blob " + blobName, throwable));
     }
 
-    InputStream getInputStream(String blob, long position, final @Nullable Long length, boolean retryPermitted) throws IOException {
+    public InputStream getInputStream(String blob, long position, final @Nullable Long length) throws IOException {
         logger.trace(() -> format("reading container [%s], blob [%s]", container, blob));
         final AzureBlobServiceClient azureBlobServiceClient = getAzureBlobServiceClientClient();
         final BlobServiceClient syncClient = azureBlobServiceClient.getSyncClient();
@@ -307,7 +307,7 @@ public class AzureBlobStore implements BlobStore {
                 totalSize = position + length;
             }
             BlobAsyncClient blobAsyncClient = asyncClient.getBlobContainerAsyncClient(container).getBlobAsyncClient(blob);
-            int maxReadRetries = retryPermitted ? service.getMaxReadRetries(clientName) : 0;
+            int maxReadRetries = service.getMaxReadRetries(clientName);
             return new AzureInputStream(
                 blobAsyncClient,
                 position,
@@ -672,7 +672,7 @@ public class AzureBlobStore implements BlobStore {
         private boolean closed;
         private final ByteBufAllocator allocator;
 
-        AzureInputStream(
+        private AzureInputStream(
             final BlobAsyncClient client,
             long rangeOffset,
             long rangeLength,

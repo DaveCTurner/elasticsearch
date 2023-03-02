@@ -63,7 +63,7 @@ public class AzureBlobContainer extends AbstractBlobContainer {
             throw new NoSuchFileException("Blob [" + blobKey + "] not found");
         }
         try {
-            return blobStore.getInputStream(blobKey, position, length, true);
+            return blobStore.getInputStream(blobKey, position, length);
         } catch (Exception e) {
             Throwable rootCause = Throwables.getRootCause(e);
             if (rootCause instanceof BlobStorageException blobStorageException) {
