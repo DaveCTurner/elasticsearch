@@ -797,13 +797,8 @@ public class AzureBlobStore implements BlobStore {
         }
     }
 
-    OptionalLong getRegister(String blobName, String container, String key) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
     OptionalLong compareAndExchangeRegister(String blobName, String container, String key, long expected, long updated) throws IOException {
-
-        return OptionalLong.empty();
+        throw new UnsupportedOperationException();
     }
 
 }
