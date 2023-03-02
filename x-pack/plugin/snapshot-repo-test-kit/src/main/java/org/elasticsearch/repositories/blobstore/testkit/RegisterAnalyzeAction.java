@@ -85,6 +85,8 @@ public class RegisterAnalyzeAction extends ActionType<ActionResponse.Empty> {
             assert task instanceof CancellableTask;
 
             final String registerName = request.getRegisterName();
+            // TODO sometimes read the value with a CAS
+            // - either a no-op (expected==updated) or a guaranteed failure (expected>=request.getRequestCount)
             blobContainer.getRegister(registerName, new ActionListener<>() {
                 @Override
                 public void onResponse(OptionalLong initialValueOrNull) {

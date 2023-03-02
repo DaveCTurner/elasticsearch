@@ -19,12 +19,10 @@ import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.DeleteResult;
 import org.elasticsearch.common.blobstore.support.AbstractBlobContainer;
-import org.elasticsearch.common.blobstore.support.BlobContainerUtils;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
-import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -160,6 +158,10 @@ public class AzureBlobContainer extends AbstractBlobContainer {
         return keyPath + (blobName == null ? "" : blobName);
     }
 
+    private boolean skipRegisterOperation(ActionListener<?> listener) {
+        return skipCas(listener) || skipIfNotPrimaryOnlyLocationMode(listener);
+    }
+
     private boolean skipIfNotPrimaryOnlyLocationMode(ActionListener<?> listener) {
         if (blobStore.getLocationMode() == LocationMode.PRIMARY_ONLY) {
             return false;
@@ -173,28 +175,15 @@ public class AzureBlobContainer extends AbstractBlobContainer {
     }
 
     @Override
-    public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
-        if (skipCas(listener)) return;
-        if (skipIfNotPrimaryOnlyLocationMode(listener)) return;
-        ActionListener.completeWith(listener, () -> blobStore.compareAndExchangeRegister(buildKey(key), keyPath, key, expected, updated));
+    public void getRegister(String key, ActionListener<OptionalLong> listener) {
+        if (skipRegisterOperation(listener)) return;
+        ActionListener.completeWith(listener, () -> blobStore.getRegister(buildKey(key), keyPath, key));
     }
 
     @Override
-    public void getRegister(String key, ActionListener<OptionalLong> listener) {
-        if (skipCas(listener)) return;
-        if (skipIfNotPrimaryOnlyLocationMode(listener)) return;
-        ActionListener.completeWith(listener, () -> {
-            try {
-                return OptionalLong.of(
-                    BlobContainerUtils.getRegisterUsingConsistentRead(blobStore.getInputStream(buildKey(key), 0, null, false), keyPath, key)
-                );
-            } catch (Exception e) {
-                if (Throwables.getRootCause(e)instanceof BlobStorageException blobStorageException
-                    && blobStorageException.getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
-                    return OptionalLong.of(0L);
-                }
-                throw e;
-            }
-        });
+    public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
+        if (skipRegisterOperation(listener)) return;
+        ActionListener.completeWith(listener, () -> blobStore.compareAndExchangeRegister(buildKey(key), keyPath, key, expected, updated));
     }
+
 }
