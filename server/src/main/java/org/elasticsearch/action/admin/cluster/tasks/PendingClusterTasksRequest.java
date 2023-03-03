@@ -8,6 +8,7 @@
 
 package org.elasticsearch.action.admin.cluster.tasks;
 
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -16,10 +17,20 @@ import java.io.IOException;
 
 public class PendingClusterTasksRequest extends MasterNodeReadRequest<PendingClusterTasksRequest> {
 
-    public PendingClusterTasksRequest() {}
+    private final boolean detailed;
+
+    public PendingClusterTasksRequest(boolean detailed) {
+        this.detailed = detailed;
+    }
 
     public PendingClusterTasksRequest(StreamInput in) throws IOException {
         super(in);
+        if (in.getTransportVersion().onOrAfter(TransportVersion.V_8_8_0)) {
+            detailed = in.readBoolean();
+        } else {
+            // earlier versions don't support detailed mode
+            detailed = false;
+        }
     }
 
     @Override
@@ -27,4 +38,7 @@ public class PendingClusterTasksRequest extends MasterNodeReadRequest<PendingClu
         return null;
     }
 
+    public boolean detailed() {
+        return detailed;
+    }
 }
