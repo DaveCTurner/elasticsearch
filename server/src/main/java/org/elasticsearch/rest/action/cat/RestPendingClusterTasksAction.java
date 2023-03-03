@@ -43,16 +43,15 @@ public class RestPendingClusterTasksAction extends AbstractCatAction {
 
     @Override
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
-        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest(false);
+        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest(true);
         pendingClusterTasksRequest.masterNodeTimeout(request.paramAsTime("master_timeout", pendingClusterTasksRequest.masterNodeTimeout()));
         pendingClusterTasksRequest.local(request.paramAsBoolean("local", pendingClusterTasksRequest.local()));
         return channel -> client.admin()
             .cluster()
-            .pendingClusterTasks(pendingClusterTasksRequest, new RestResponseListener<PendingClusterTasksResponse>(channel) {
+            .pendingClusterTasks(pendingClusterTasksRequest, new RestResponseListener<>(channel) {
                 @Override
                 public RestResponse buildResponse(PendingClusterTasksResponse pendingClusterTasks) throws Exception {
-                    Table tab = buildTable(request, pendingClusterTasks);
-                    return RestTable.buildResponse(tab, channel);
+                    return RestTable.buildResponse(buildTable(request, pendingClusterTasks), channel);
                 }
             });
     }
@@ -64,7 +63,9 @@ public class RestPendingClusterTasksAction extends AbstractCatAction {
         t.addCell("insertOrder", "alias:o;text-align:right;desc:task insertion order");
         t.addCell("timeInQueue", "alias:t;text-align:right;desc:how long task has been in queue");
         t.addCell("priority", "alias:p;desc:task priority");
+        t.addCell("queue", "alias:q;desc:task queue;default:false");
         t.addCell("source", "alias:s;desc:task source");
+        t.addCell("task", "default:false;desc:description of task");
         t.endHeaders();
         return t;
     }
@@ -77,7 +78,9 @@ public class RestPendingClusterTasksAction extends AbstractCatAction {
             t.addCell(task.getInsertOrder());
             t.addCell(task.getTimeInQueue());
             t.addCell(task.getPriority());
+            t.addCell(task.queueName());
             t.addCell(task.getSource());
+            t.addCell(task.taskDescription());
             t.endRow();
         }
 
