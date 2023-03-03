@@ -158,7 +158,7 @@ public class DesiredBalanceShardsAllocator implements ShardsAllocator {
 
     @Override
     public void allocate(RoutingAllocation allocation, ActionListener<Void> listener) {
-        assert MasterService.assertMasterUpdateOrTestThread() : Thread.currentThread().getName();
+        assert ThreadPool.assertCurrentThreadPool(MasterService.MASTER_UPDATE_THREAD_NAME);
         assert allocation.ignoreDisable() == false;
 
         computationsSubmitted.inc();
