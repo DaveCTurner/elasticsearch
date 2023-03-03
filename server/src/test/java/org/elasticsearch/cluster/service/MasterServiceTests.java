@@ -33,6 +33,7 @@ import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -170,7 +171,21 @@ public class MasterServiceTests extends ESTestCase {
         masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
             clusterStateRef.set(clusterStatePublicationEvent.getNewState());
             ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
-            publishListener.onResponse(null);
+            threadPool.executor(randomFrom(ThreadPool.Names.SAME, ThreadPool.Names.GENERIC)).execute(() -> {
+                final var threadName = Thread.currentThread().getName();
+                try {
+                    Thread.currentThread()
+                        .setName(
+                            Strings.format(
+                                "[%s]",
+                                randomFrom(MasterService.MASTER_UPDATE_THREAD_NAME, ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME)
+                            )
+                        );
+                    publishListener.onResponse(null);
+                } finally {
+                    Thread.currentThread().setName(threadName);
+                }
+            });
         });
         masterService.setClusterStateSupplier(clusterStateRef::get);
         masterService.start();
@@ -1119,7 +1134,7 @@ public class MasterServiceTests extends ESTestCase {
                 return ClusterState.builder(batchExecutionContext.initialState()).build();
             }).submitTask("testBlockingCallInClusterStateTaskListenerFails", new ExpectSuccessTask(), null);
 
-            latch.await();
+            assertTrue(latch.await(10, TimeUnit.SECONDS));
             assertNotNull(assertionRef.get());
             assertThat(assertionRef.get().getMessage(), containsString("Reason: [Blocking operation]"));
         }

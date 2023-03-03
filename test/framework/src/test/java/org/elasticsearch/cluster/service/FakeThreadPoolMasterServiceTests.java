@@ -97,7 +97,7 @@ public class FakeThreadPoolMasterServiceTests extends ESTestCase {
         assertFalse(firstTaskCompleted.get());
 
         final Runnable scheduleTask = runnableTasks.remove(0);
-        assertThat(scheduleTask, hasToString("master service scheduling next task"));
+        assertThat(scheduleTask, hasToString("master service queue processor"));
         scheduleTask.run();
 
         // run tasks for computing routing nodes and indices lookup
