@@ -14,6 +14,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.List;
 
@@ -75,6 +76,9 @@ public class DelayedAllocationIT extends ESIntegTestCase {
      * With a very small delay timeout, verify that it expires and we get to green even
      * though the node hosting the shard is not coming back.
      */
+    @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
+                                          "org.elasticsearch.cluster.routing.DelayedAllocationService:TRACE," +
+                                          "org.elasticsearch.cluster.routing.allocation:DEBUG")
     public void testDelayedAllocationTimesOut() throws Exception {
         internalCluster().startNodes(3);
         prepareCreate("test").setSettings(
