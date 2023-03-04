@@ -78,7 +78,7 @@ public class DelayedAllocationIT extends ESIntegTestCase {
      */
     @TestLogging(reason="nocommit", value="org.elasticsearch.cluster.service.MasterService:TRACE," +
                                           "org.elasticsearch.cluster.routing.DelayedAllocationService:TRACE," +
-                                          "org.elasticsearch.cluster.routing.allocation:DEBUG")
+                                          "org.elasticsearch.cluster.routing.allocation:TRACE")
     public void testDelayedAllocationTimesOut() throws Exception {
         internalCluster().startNodes(3);
         prepareCreate("test").setSettings(
