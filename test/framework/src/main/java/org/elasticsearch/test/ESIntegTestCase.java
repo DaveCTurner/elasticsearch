@@ -964,10 +964,11 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 .map(NodeHotThreads::getHotThreads)
                 .collect(Collectors.joining("\n"));
             logger.info(
-                "{} timed out, cluster state:\n{}\npending tasks:\n{}\nhot threads:\n{}\n",
+                "{} timed out, cluster state:\n{}\npending tasks:\n{}\nallocation explain:\n{}\nhot threads:\n{}\n",
                 method,
                 client().admin().cluster().prepareState().get().getState(),
                 client().admin().cluster().preparePendingClusterTasks().get(),
+                Strings.toString(client().admin().cluster().prepareAllocationExplain().get().getExplanation(), true, true),
                 hotThreads
             );
             fail("timed out waiting for " + color + " state");
