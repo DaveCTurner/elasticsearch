@@ -367,6 +367,11 @@ public class AllocationService {
                         shardRouting.recoverySource(),
                         allocation.changes()
                     );
+                } else {
+                    logger.trace("shardRouting [{}] unassigned at [{}ns], current time [{}ns]",
+                        shardRouting,
+                        shardRouting.unassignedInfo().getUnassignedTimeInNanos(),
+                        allocation.getCurrentNanoTime());
                 }
             }
         }
