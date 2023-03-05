@@ -155,6 +155,7 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
     ) {
         if (isResponsibleFor(unassignedShard) == false) {
             // this allocator is not responsible for deciding on this shard
+            logger.trace("{}: not responsible", unassignedShard);
             return AllocateUnassignedDecision.NOT_TAKEN;
         }
 
@@ -189,6 +190,7 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
             assert explain
                 : "primary should only be null here if we are in explain mode, so we didn't "
                     + "exit early when canBeAllocatedToAtLeastOneNode didn't return a YES decision";
+            logger.trace("{}: ignoring allocation, primary is inactive", unassignedShard);
             return AllocateUnassignedDecision.no(
                 UnassignedInfo.AllocationStatus.fromDecision(allocateDecision.type()),
                 new ArrayList<>(result.v2().values())
@@ -219,6 +221,7 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
 
         List<NodeAllocationResult> nodeDecisions = augmentExplanationsWithStoreInfo(result.v2(), matchingNodes.nodeDecisions);
         if (allocateDecision.type() != Decision.Type.YES) {
+            logger.trace("{}: non-YES decision: {}", unassignedShard, allocateDecision);
             return AllocateUnassignedDecision.no(UnassignedInfo.AllocationStatus.fromDecision(allocateDecision.type()), nodeDecisions);
         } else if (matchingNodes.getNodeWithHighestMatch() != null) {
             RoutingNode nodeWithHighestMatch = allocation.routingNodes().node(matchingNodes.getNodeWithHighestMatch().getId());
@@ -250,9 +253,11 @@ public abstract class ReplicaShardAllocator extends BaseGatewayShardAllocator {
             // if we didn't manage to find *any* data (regardless of matching sizes), and the replica is
             // unassigned due to a node leaving, so we delay allocation of this replica to see if the
             // node with the shard copy will rejoin so we can re-use the copy it has
+            logger.trace("{}: delayed", unassignedShard);
             return delayedDecision(unassignedShard, allocation, logger, nodeDecisions);
         }
 
+        logger.trace("{}: fall through", unassignedShard);
         return AllocateUnassignedDecision.NOT_TAKEN;
     }
 

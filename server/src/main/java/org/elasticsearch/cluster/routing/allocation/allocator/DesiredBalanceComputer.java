@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toUnmodifiableSet;
@@ -78,6 +79,14 @@ public class DesiredBalanceComputer {
     ) {
 
         logger.debug("Recomputing desired balance for [{}]", desiredBalanceInput.index());
+        if (logger.isTraceEnabled()) {
+            for (ShardRouting shardRouting : desiredBalanceInput.ignoredShards()) {
+                logger.trace(
+                    "Desired balance for [{}]: ignoring shard {}",
+                    desiredBalanceInput.index(),
+                    shardRouting);
+            }
+        }
 
         final var routingAllocation = desiredBalanceInput.routingAllocation().mutableCloneForSimulation();
         final var routingNodes = routingAllocation.routingNodes();
