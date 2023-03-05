@@ -90,15 +90,20 @@ public class DelayedAllocationIT extends ESIntegTestCase {
         ).get();
         ensureGreen("test");
         indexRandomData();
+        logger.info("--> [1] stopping node");
         internalCluster().stopNode(findNodeWithShard());
+        logger.info("--> [1] awaiting green state");
         ensureGreen("test");
+        logger.info("--> [1] starting node");
         internalCluster().startNode();
         // do a second round with longer delay to make sure it happens
         updateIndexSettings(
             Settings.builder().put(UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), TimeValue.timeValueMillis(100)),
             "test"
         );
+        logger.info("--> [2] stopping node");
         internalCluster().stopNode(findNodeWithShard());
+        logger.info("--> [2] awaiting green state");
         ensureGreen("test");
     }
 
