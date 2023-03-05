@@ -350,6 +350,7 @@ public class AllocationService {
                     metadata.nodeShutdowns()
                 );
                 if (newComputedLeftDelayNanos == 0) {
+                    logger.debug("removing delay marker from [{}]", shardRouting);
                     unassignedIterator.updateUnassigned(
                         new UnassignedInfo(
                             unassignedInfo.getReason(),
