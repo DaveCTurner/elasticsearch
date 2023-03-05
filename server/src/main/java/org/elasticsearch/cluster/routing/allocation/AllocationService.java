@@ -10,6 +10,7 @@ package org.elasticsearch.cluster.routing.allocation;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterInfoService;
 import org.elasticsearch.cluster.ClusterState;
@@ -350,7 +351,8 @@ public class AllocationService {
                     metadata.nodeShutdowns()
                 );
                 if (newComputedLeftDelayNanos == 0) {
-                    logger.debug("removing delay marker from [{}]", shardRouting);
+                    logger.debug(() -> Strings.format("removing delay marker from [%s]", shardRouting),
+                        new ElasticsearchException("stack trace"));
                     unassignedIterator.updateUnassigned(
                         new UnassignedInfo(
                             unassignedInfo.getReason(),
