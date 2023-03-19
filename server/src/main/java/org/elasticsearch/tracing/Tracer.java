@@ -190,5 +190,6 @@ public interface Tracer {
         String PARENT_TASK_ID = "es.task.parent.id";
         String CLUSTER_NAME = "es.cluster.name";
         String NODE_NAME = "es.node.name";
+        String TRANSPORT_REQUEST_BYTES = "es.transport.request_bytes";
     }
 }

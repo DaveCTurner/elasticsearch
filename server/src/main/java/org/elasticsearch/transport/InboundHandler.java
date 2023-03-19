@@ -222,7 +222,9 @@ public class InboundHandler {
         } else {
             final TransportChannel transportChannel;
             final RequestHandlerRegistry<T> reg;
+            final int requestSizeInBytes;
             try {
+                requestSizeInBytes = header.getNetworkMessageSize() + TcpHeader.BYTES_REQUIRED_FOR_MESSAGE_SIZE;
                 reg = requestHandlers.getHandler(action);
                 assert message.isShortCircuit() || reg != null : action;
                 transportChannel = new TcpTransportChannel(
@@ -297,7 +299,7 @@ public class InboundHandler {
                         if (ThreadPool.Names.SAME.equals(executor)) {
                             try (var ignored = threadPool.getThreadContext().newTraceContext()) {
                                 try {
-                                    reg.processMessageReceived(request, transportChannel);
+                                    reg.processMessageReceived(request, transportChannel, requestSizeInBytes);
                                 } catch (Exception e) {
                                     sendErrorResponse(reg.getAction(), transportChannel, e);
                                 }
@@ -310,7 +312,7 @@ public class InboundHandler {
                                     .execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
                                         @Override
                                         protected void doRun() throws Exception {
-                                            reg.processMessageReceived(request, transportChannel);
+                                            reg.processMessageReceived(request, transportChannel, requestSizeInBytes);
                                         }
 
                                         @Override

@@ -61,8 +61,9 @@ public class RequestHandlerRegistry<Request extends TransportRequest> implements
         return requestReader.read(in);
     }
 
-    public void processMessageReceived(Request request, TransportChannel channel) throws Exception {
+    public void processMessageReceived(Request request, TransportChannel channel, int requestSizeInBytes) throws Exception {
         final Task task = taskManager.register(channel.getChannelType(), action, request);
+        taskManager.traceRequestSize(task, requestSizeInBytes);
         Releasable unregisterTask = () -> taskManager.unregister(task);
         try {
             if (channel instanceof TcpTransportChannel tcpTransportChannel && task instanceof CancellableTask cancellableTask) {

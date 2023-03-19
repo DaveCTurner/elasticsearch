@@ -976,7 +976,7 @@ public class TransportService extends AbstractLifecycleComponent
             if (ThreadPool.Names.SAME.equals(executor)) {
                 try (var ignored = threadPool.getThreadContext().newTraceContext()) {
                     try {
-                        reg.processMessageReceived(request, channel);
+                        reg.processMessageReceived(request, channel, 0);
                     } catch (Exception e) {
                         handleSendToLocalException(channel, e, action);
                     }
@@ -988,7 +988,7 @@ public class TransportService extends AbstractLifecycleComponent
                     threadPool.executor(executor).execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
                         @Override
                         protected void doRun() throws Exception {
-                            reg.processMessageReceived(request, channel);
+                            reg.processMessageReceived(request, channel, 0);
                         }
 
                         @Override

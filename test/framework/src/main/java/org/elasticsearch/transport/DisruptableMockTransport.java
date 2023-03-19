@@ -14,6 +14,8 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.coordination.CleanableResponseHandler;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
@@ -34,7 +36,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static org.elasticsearch.core.Strings.format;
-import static org.elasticsearch.test.ESTestCase.copyWriteable;
 
 public abstract class DisruptableMockTransport extends MockTransport {
     private final DiscoveryNode localNode;
@@ -326,14 +327,23 @@ public abstract class DisruptableMockTransport extends MockTransport {
         };
 
         final TransportRequest copiedRequest;
+        final int requestSize;
         try {
-            copiedRequest = copyWriteable(request, writeableRegistry(), requestHandler::newRequest);
+            try (var output = new BytesStreamOutput()) {
+                output.setTransportVersion(TransportVersion.CURRENT);
+                request.writeTo(output);
+                requestSize = output.size(); // NB does not include header, but that's good enough for now
+                try (var in = new NamedWriteableAwareStreamInput(output.bytes().streamInput(), writeableRegistry())) {
+                    in.setTransportVersion(TransportVersion.CURRENT);
+                    copiedRequest = requestHandler.newRequest(in);
+                }
+            }
         } catch (IOException e) {
             throw new AssertionError("exception de/serializing request", e);
         }
 
         try {
-            requestHandler.processMessageReceived(copiedRequest, transportChannel);
+            requestHandler.processMessageReceived(copiedRequest, transportChannel, requestSize);
         } catch (Exception e) {
             try {
                 transportChannel.sendResponse(e);

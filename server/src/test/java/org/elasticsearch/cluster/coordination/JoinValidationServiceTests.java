@@ -299,7 +299,8 @@ public class JoinValidationServiceTests extends ESTestCase {
                     final var handler = joiningNodeTransport.getRequestHandlers().getHandler(action);
                     handler.processMessageReceived(
                         handler.newRequest(new NamedWriteableAwareStreamInput(out.bytes().streamInput(), writeableRegistry())),
-                        new TestTransportChannel(listener)
+                        new TestTransportChannel(listener),
+                        out.size()
                     );
                 } catch (Exception e) {
                     listener.onFailure(e);

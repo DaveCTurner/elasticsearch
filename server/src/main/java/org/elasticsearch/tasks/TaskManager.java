@@ -492,6 +492,10 @@ public class TaskManager implements ClusterStateApplier {
         return cancellableTasks.assertConsistent();
     }
 
+    public void traceRequestSize(Task task, int requestSizeInBytes) {
+        tracer.setAttribute(getSpanId(task), Tracer.AttributeKeys.TRANSPORT_REQUEST_BYTES, requestSizeInBytes);
+    }
+
     private class Ban {
         final String reason;
         final Set<ChannelPendingTaskTracker> channels;

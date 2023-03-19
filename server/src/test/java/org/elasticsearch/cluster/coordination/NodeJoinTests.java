@@ -283,7 +283,7 @@ public class NodeJoinTests extends ESTestCase {
                 }
             };
 
-            joinHandler.processMessageReceived(joinRequest, new TestTransportChannel(listener));
+            joinHandler.processMessageReceived(joinRequest, new TestTransportChannel(listener), 0);
         } catch (Exception e) {
             logger.error(() -> format("unexpected error for %s", future), e);
             future.onFailure(e);
@@ -534,7 +534,7 @@ public class NodeJoinTests extends ESTestCase {
             public void onFailure(Exception e) {
                 fail();
             }
-        }));
+        }), 0);
         deterministicTaskQueue.runAllRunnableTasks();
         assertFalse(isLocalNodeElectedMaster());
         assertThat(coordinator.getMode(), equalTo(Coordinator.Mode.CANDIDATE));
@@ -554,7 +554,7 @@ public class NodeJoinTests extends ESTestCase {
                 fail();
             }
         });
-        followerCheckHandler.processMessageReceived(new FollowersChecker.FollowerCheckRequest(term, node), channel);
+        followerCheckHandler.processMessageReceived(new FollowersChecker.FollowerCheckRequest(term, node), channel, 0);
         // Will throw exception if failed
         deterministicTaskQueue.runAllRunnableTasks();
         assertFalse(isLocalNodeElectedMaster());
