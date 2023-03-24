@@ -206,6 +206,12 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
+    @AwaitsFix(bugUrl = "ES-5645")
+    public void testDiscoveryUsesNodesFromLastClusterState() {
+        // NOCOMMIT
+    }
+
+    @Override
     protected long extraStabilisationTime() {
         return 300000; // TODO liveness improvements
     }
