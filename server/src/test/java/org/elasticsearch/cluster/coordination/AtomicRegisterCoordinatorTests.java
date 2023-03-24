@@ -41,7 +41,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     @TestLogging(reason="nocommit", value="org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE," +
                                           "org.elasticsearch.cluster.coordination:TRACE")
     public void testSimpleCase() {
-        try (Cluster cluster = new Cluster(2)) {
+        try (Cluster cluster = new Cluster(3)) {
             cluster.runRandomly();
             cluster.stabilise();
         }
