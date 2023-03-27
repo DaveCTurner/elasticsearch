@@ -250,7 +250,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             this.heartbeatTask = threadPool.scheduleWithFixedDelay(new Runnable() {
                 @Override
                 public void run() {
-                    StoreHeartbeatService.this.sendHeartBeatToStore();
+                    sendHeartBeatToStore();
                 }
 
                 @Override
