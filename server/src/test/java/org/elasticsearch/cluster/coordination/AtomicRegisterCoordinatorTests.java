@@ -247,11 +247,17 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             this.currentTerm = term;
 
             sendHeartBeatToStore();
-            this.heartbeatTask = threadPool.scheduleWithFixedDelay(
-                this::sendHeartBeatToStore,
-                heartbeatFrequency,
-                ThreadPool.Names.GENERIC
-            );
+            this.heartbeatTask = threadPool.scheduleWithFixedDelay(new Runnable() {
+                @Override
+                public void run() {
+                    StoreHeartbeatService.this.sendHeartBeatToStore();
+                }
+
+                @Override
+                public String toString() {
+                    return Strings.format("write heartbeat for leader [%s] in term [%d]", currentLeader, currentTerm);
+                }
+            }, heartbeatFrequency, ThreadPool.Names.GENERIC);
         }
 
         private void sendHeartBeatToStore() {
