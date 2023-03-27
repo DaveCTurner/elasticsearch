@@ -28,6 +28,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -99,7 +100,9 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
         final List<Runnable> runnables = new ArrayList<>(discoveryNodes.getSize());
         try (var refs = new RefCountingRunnable(onCompletion)) {
             synchronized (mutex) {
-                for (final DiscoveryNode discoveryNode : discoveryNodes) {
+                for (final DiscoveryNode discoveryNode : discoveryNodes.stream()
+                    .sorted(Comparator.comparing(DiscoveryNode::getEphemeralId))
+                    .toList()) {
                     ConnectionTarget connectionTarget = targetsByNode.get(discoveryNode);
                     final boolean isNewNode = connectionTarget == null;
                     if (isNewNode) {

@@ -22,6 +22,7 @@ import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportResponse;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +50,11 @@ public abstract class Publication {
         startTime = currentTimeSupplier.getAsLong();
         applyCommitRequest = Optional.empty();
         publicationTargets = new ArrayList<>(publishRequest.getAcceptedState().getNodes().getNodes().size());
-        publishRequest.getAcceptedState().getNodes().mastersFirstStream().forEach(n -> publicationTargets.add(new PublicationTarget(n)));
+        publishRequest.getAcceptedState()
+            .getNodes()
+            .mastersFirstStream()
+            .sorted(Comparator.comparing(DiscoveryNode::getEphemeralId))
+            .forEach(n -> publicationTargets.add(new PublicationTarget(n)));
     }
 
     public void start(Set<DiscoveryNode> faultyNodes) {

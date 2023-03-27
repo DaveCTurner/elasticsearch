@@ -41,13 +41,16 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
 
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.elasticsearch.core.Strings.format;
@@ -218,9 +221,13 @@ public class FollowersChecker {
      * @return nodes in the current cluster state which have failed their follower checks.
      */
     public Set<DiscoveryNode> getFaultyNodes() {
+        final Set<DiscoveryNode> faultyNodes;
         synchronized (mutex) {
-            return new HashSet<>(this.faultyNodes);
+            faultyNodes = this.faultyNodes;
         }
+        return faultyNodes.stream()
+            .sorted(Comparator.comparing(DiscoveryNode::getEphemeralId))
+            .collect(Collector.of(LinkedHashSet::new, LinkedHashSet::add, (a, b) -> a));
     }
 
     @Override
