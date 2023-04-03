@@ -53,6 +53,10 @@ public abstract class AbstractLifecycleComponent implements LifecycleComponent {
     @Override
     public void stop() {
         synchronized (lifecycle) {
+            if (lifecycle.initialized()) {
+                // no-op, presumed to be closing; TODO tighten up the tracking of which sub-components have started and remove this
+                return;
+            }
             if (lifecycle.canMoveToStopped() == false) {
                 return;
             }
