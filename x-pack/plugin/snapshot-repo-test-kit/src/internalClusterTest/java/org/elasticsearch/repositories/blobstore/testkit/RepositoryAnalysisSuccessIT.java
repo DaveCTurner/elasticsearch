@@ -437,7 +437,7 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
 
         @Override
         public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
-            firstRegisterRead.set(true);
+            firstRegisterRead.set(false);
             if (updated != -1 && randomBoolean() && randomBoolean()) {
                 // updated != -1 so we don't fail the final check because we know there can be no concurrent operations at that point
                 logger.trace("compareAndExchangeRegister[{}][{}][{}] failing", key, expected, updated);
