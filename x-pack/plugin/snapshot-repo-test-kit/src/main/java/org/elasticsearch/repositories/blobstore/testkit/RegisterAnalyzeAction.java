@@ -19,6 +19,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.inject.Inject;
@@ -80,15 +81,17 @@ public class RegisterAnalyzeAction extends ActionType<ActionResponse.Empty> {
             final BlobPath path = blobStoreRepository.basePath().add(request.getContainerPath());
             final BlobContainer blobContainer = blobStoreRepository.blobStore().blobContainer(path);
 
-            logger.trace("handling [{}]", request);
+            final String correlationId = UUIDs.randomBase64UUID();
+            logger.trace("[{}] handling [{}]", correlationId, request);
 
             assert task instanceof CancellableTask;
 
             final String registerName = request.getRegisterName();
             final ActionListener<OptionalLong> initialValueListener = new ActionListener<>() {
                 @Override
-                public void onResponse(OptionalLong initialValueOrNull) {
-                    final long initialValue = initialValueOrNull.orElse(0L);
+                public void onResponse(OptionalLong maybeInitialValue) {
+                    logger.trace("[{}] initial value [{}]", correlationId, maybeInitialValue);
+                    final long initialValue = maybeInitialValue.orElse(0L);
 
                     ActionListener.run(outerListener.<Void>map(ignored -> ActionResponse.Empty.INSTANCE), l -> {
                         if (initialValue < 0 || initialValue >= request.getRequestCount()) {
@@ -110,6 +113,7 @@ public class RegisterAnalyzeAction extends ActionType<ActionResponse.Empty> {
                             @Override
                             protected void doRun() {
                                 if (((CancellableTask) task).notifyIfCancelled(listener) == false) {
+                                    logger.trace("[{}] attempting increment from [{}]", correlationId, currentValue);
                                     blobContainer.compareAndExchangeRegister(registerName, currentValue, currentValue + 1, witnessListener);
                                 }
                             }
@@ -118,16 +122,20 @@ public class RegisterAnalyzeAction extends ActionType<ActionResponse.Empty> {
                                 if (witnessOrEmpty.isEmpty()) {
                                     // Concurrent activity prevented us from updating the value, or even reading the concurrently-updated
                                     // result, so we must just try again.
+                                    logger.trace("[{}] blocked by concurrent activity, retrying", correlationId);
                                     executor.execute(Execution.this);
                                     return;
                                 }
 
                                 final long witness = witnessOrEmpty.getAsLong();
                                 if (witness == currentValue) {
+                                    logger.trace("[{}] succeeded", correlationId);
                                     delegate.onResponse(null);
                                 } else if (witness < currentValue || witness >= request.getRequestCount()) {
+                                    logger.trace("[{}] saw unexpected value [{}], giving up", correlationId, witness);
                                     delegate.onFailure(new IllegalStateException("register holds unexpected value [" + witness + "]"));
                                 } else {
+                                    logger.trace("[{}] lost race, current value now [{}], retrying", correlationId, witness);
                                     currentValue = witness;
                                     executor.execute(Execution.this);
                                 }

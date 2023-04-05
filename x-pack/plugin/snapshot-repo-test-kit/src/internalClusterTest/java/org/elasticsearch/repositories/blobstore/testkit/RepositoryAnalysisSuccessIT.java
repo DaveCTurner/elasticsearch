@@ -7,6 +7,8 @@
 
 package org.elasticsearch.repositories.blobstore.testkit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -34,6 +36,7 @@ import org.elasticsearch.repositories.RepositoryMissingException;
 import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestIssueLogging;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xpack.core.LocalStateCompositeXPackPlugin;
 import org.junit.Before;
@@ -64,6 +67,8 @@ import static org.hamcrest.Matchers.startsWith;
 
 public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
 
+    private static final Logger logger = LogManager.getLogger(RepositoryAnalysisSuccessIT.class);
+
     private static final String BASE_PATH_SETTING_KEY = "base_path";
 
     @Before
@@ -76,6 +81,10 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
         return List.of(TestPlugin.class, LocalStateCompositeXPackPlugin.class, SnapshotRepositoryTestKit.class);
     }
 
+    @TestIssueLogging(
+        issueUrl = "https://github.com/elastic/elasticsearch/issues/94664",
+        value = "org.elasticsearch.repositories.blobstore.testkit:TRACE"
+    )
     public void testRepositoryAnalysis() {
 
         final Settings.Builder settings = Settings.builder();
@@ -414,10 +423,14 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
         public void getRegister(String key, ActionListener<OptionalLong> listener) {
             if (firstRegisterRead.compareAndSet(true, false) && randomBoolean() && randomBoolean()) {
                 // only fail the first read, we must not fail the final check
+                logger.trace("getRegister[{}] returning failure", key);
                 listener.onResponse(OptionalLong.empty());
             } else if (randomBoolean()) {
-                listener.onResponse(OptionalLong.of(registers.computeIfAbsent(key, ignored -> new AtomicLong()).get()));
+                final var value = registers.computeIfAbsent(key, ignored -> new AtomicLong()).get();
+                logger.trace("getRegister[{}] returning [{}]", key, value);
+                listener.onResponse(OptionalLong.of(value));
             } else {
+                logger.trace("getRegister[{}] deferring to compareAndExchangeRegister", key);
                 compareAndExchangeRegister(key, -1, -1, listener);
             }
         }
@@ -426,11 +439,12 @@ public class RepositoryAnalysisSuccessIT extends AbstractSnapshotIntegTestCase {
         public void compareAndExchangeRegister(String key, long expected, long updated, ActionListener<OptionalLong> listener) {
             if (updated != -1 && randomBoolean() && randomBoolean()) {
                 // updated != -1 so we don't fail the final check because we know there can be no concurrent operations at that point
+                logger.trace("compareAndExchangeRegister[{}][{}][{}] failing", key, expected, updated);
                 listener.onResponse(OptionalLong.empty());
             } else {
-                listener.onResponse(
-                    OptionalLong.of(registers.computeIfAbsent(key, ignored -> new AtomicLong()).compareAndExchange(expected, updated))
-                );
+                final var result = registers.computeIfAbsent(key, ignored -> new AtomicLong()).compareAndExchange(expected, updated);
+                logger.trace("compareAndExchangeRegister[{}][{}][{}] returning [{}]", key, expected, updated, result);
+                listener.onResponse(OptionalLong.of(result));
             }
         }
     }

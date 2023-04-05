@@ -595,6 +595,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
             return () -> {
                 if (isRunning()) {
                     final var expectedFinalRegisterValue = expectedRegisterValue.get();
+                    logger.trace("verifying final register value is [{}]", expectedFinalRegisterValue);
                     transportService.getThreadPool()
                         .executor(ThreadPool.Names.SNAPSHOT)
                         .execute(ActionRunnable.wrap(ActionListener.releaseAfter(new ActionListener<OptionalLong>() {
