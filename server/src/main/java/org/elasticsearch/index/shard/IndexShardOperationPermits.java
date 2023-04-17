@@ -103,6 +103,10 @@ final class IndexShardOperationPermits implements Closeable {
 
             @Override
             public void onFailure(final Exception e) {
+                logger.info("--> waitUntilBlocked failed", e);
+                for (String activeOperation : getActiveOperations()) {
+                    logger.info("--> active operation: {}", activeOperation);
+                }
                 try {
                     released.close(); // resume delayed operations as soon as possible
                 } finally {
