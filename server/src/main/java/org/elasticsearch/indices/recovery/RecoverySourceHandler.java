@@ -982,6 +982,8 @@ public class RecoverySourceHandler {
         }
     }
 
+    static AtomicLong idGenerator = new AtomicLong();
+
     void createRetentionLease(final long startingSeqNo, ActionListener<RetentionLease> outerListener) {
         runUnderPrimaryPermit(listener -> {
             // Clone the peer recovery retention lease belonging to the source shard. We are retaining history between the the local
@@ -1016,7 +1018,12 @@ public class RecoverySourceHandler {
                 addRetentionLeaseStep.addListener(listener.map(rr -> newLease));
                 logger.info("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);
             }
-        }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]", shard, cancellableThreads, outerListener);
+        },
+            shardId + " [id=" + idGenerator.incrementAndGet() + "] establishing retention lease for [" + request.targetAllocationId() + "]",
+            shard,
+            cancellableThreads,
+            outerListener
+        );
     }
 
     boolean hasSameLegacySyncId(Store.MetadataSnapshot source, Store.MetadataSnapshot target) {
