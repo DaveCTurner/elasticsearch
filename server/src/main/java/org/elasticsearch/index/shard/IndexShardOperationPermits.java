@@ -103,10 +103,6 @@ final class IndexShardOperationPermits implements Closeable {
 
             @Override
             public void onFailure(final Exception e) {
-                logger.info("--> waitUntilBlocked failed", e);
-                for (String activeOperation : getActiveOperations()) {
-                    logger.info("--> active operation: {}", activeOperation);
-                }
                 try {
                     released.close(); // resume delayed operations as soon as possible
                 } finally {
@@ -252,9 +248,7 @@ final class IndexShardOperationPermits implements Closeable {
 
                                 @Override
                                 protected void doRun() {
-                                    logger.info("--> about to return delayed permit for " + debugInfo);
                                     listener.onResponse(r);
-                                    logger.info("--> returned delayed permit for " + debugInfo);
                                 }
 
                                 @Override
@@ -267,7 +261,6 @@ final class IndexShardOperationPermits implements Closeable {
                     } else {
                         wrappedListener = new ContextPreservingActionListener<>(contextSupplier, onAcquired);
                     }
-                    logger.info("--> delaying permit acquisition for " + debugInfo);
                     delayedOperations.add(new DelayedOperation(wrappedListener, debugInfo, stackTrace));
                     return;
                 } else {
@@ -275,12 +268,10 @@ final class IndexShardOperationPermits implements Closeable {
                 }
             }
         } catch (final InterruptedException e) {
-            logger.info("--> interrupted while acquiring " + debugInfo, e);
             onAcquired.onFailure(e);
             return;
         }
         // execute this outside the synchronized block!
-        logger.info("--> acquired permit for " + debugInfo);
         onAcquired.onResponse(releasable);
     }
 

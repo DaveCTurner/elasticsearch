@@ -8,7 +8,6 @@
 
 package org.elasticsearch.indices.recovery;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexCommit;
@@ -418,8 +417,6 @@ public class RecoverySourceHandler {
         });
     }
 
-    private static final Logger classLogger = LogManager.getLogger(RecoverySourceHandler.class);
-
     /**
      * Run {@code action} while holding a primary permit, checking for cancellation both before and after. Completing the listener passed to
      * {@code action} releases the permit before passing the result through to {@code outerListener}.
@@ -431,45 +428,30 @@ public class RecoverySourceHandler {
         CancellableThreads cancellableThreads,
         ActionListener<T> listener
     ) {
-        primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> {
-            classLogger.info("--> got permit for [{}]", reason);
-            ActionListener.run(new ActionListener<T>() {
-                @Override
-                public void onResponse(T result) {
-                    ActionListener.completeWith(l1, () -> {
-                        try (permit) {
-                            cancellableThreads.checkForCancel();
-                            classLogger.info("--> about to release permit for [{}]", reason);
-                        }
-                        classLogger.info("--> released permit for [{}]", reason);
-                        return result;
-                    });
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    try {
-                        classLogger.info("--> about to release permit for [{}]", reason);
-                        Releasables.closeExpectNoException(permit);
-                        classLogger.info("--> released permit for [{}]", reason);
-                    } finally {
-                        l1.onFailure(e);
+        primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> ActionListener.run(new ActionListener<T>() {
+            @Override
+            public void onResponse(T result) {
+                ActionListener.completeWith(l1, () -> {
+                    try (permit) {
+                        cancellableThreads.checkForCancel();
                     }
-                }
+                    return result;
+                });
+            }
 
-                @Override
-                public String toString() {
-                    return "listener for [" + reason + "]";
+            @Override
+            public void onFailure(Exception e) {
+                try {
+                    Releasables.closeExpectNoException(permit);
+                } finally {
+                    l1.onFailure(e);
                 }
-            }, l2 -> {
-                classLogger.info("--> got permit-releasing listener for [{}]", reason);
-                cancellableThreads.checkForCancel();
-                ensureNotRelocatedPrimary(primary);
-                classLogger.info("--> about to accept permit-releasing listener for [{}]", reason);
-                action.accept(l2);
-                classLogger.info("--> accepted permit-releasing listener for [{}]", reason);
-            });
-        }), ThreadPool.Names.GENERIC, reason);
+            }
+        }, l2 -> {
+            cancellableThreads.checkForCancel();
+            ensureNotRelocatedPrimary(primary);
+            action.accept(l2);
+        })), ThreadPool.Names.GENERIC, reason);
     }
 
     private static void ensureNotRelocatedPrimary(IndexShard indexShard) {
@@ -596,7 +578,7 @@ public class RecoverySourceHandler {
                 createRetentionLease(startingSeqNo, createRetentionLeaseStep);
                 createRetentionLeaseStep.whenComplete(retentionLease -> {
                     final TimeValue took = stopWatch.totalTime();
-                    logger.info("recovery [phase1]: took [{}]", took);
+                    logger.trace("recovery [phase1]: took [{}]", took);
                     listener.onResponse(
                         new SendFileResult(
                             Collections.emptyList(),
@@ -987,15 +969,7 @@ public class RecoverySourceHandler {
         }
     }
 
-    static AtomicLong idGenerator = new AtomicLong();
-
     void createRetentionLease(final long startingSeqNo, ActionListener<RetentionLease> outerListener) {
-        final var description = shardId
-            + " [id="
-            + idGenerator.incrementAndGet()
-            + "] establishing retention lease for ["
-            + request.targetAllocationId()
-            + "]";
         runUnderPrimaryPermit(listener -> {
             // Clone the peer recovery retention lease belonging to the source shard. We are retaining history between the the local
             // checkpoint of the safe commit we're creating and this lease's retained seqno with the retention lock, and by cloning an
@@ -1004,20 +978,14 @@ public class RecoverySourceHandler {
             // not enough, and fall back to a file-based recovery.
             //
             // (approximately) because we do not guarantee to be able to satisfy every lease on every peer.
-            logger.info("cloning primary's retention lease: {}", description);
+            logger.trace("cloning primary's retention lease");
             try {
                 final StepListener<ReplicationResponse> cloneRetentionLeaseStep = new StepListener<>();
                 final RetentionLease clonedLease = shard.cloneLocalPeerRecoveryRetentionLease(
                     request.targetNode().getId(),
-                    ActionListener.runBefore(
-                        new ThreadedActionListener<>(
-                            shard.getThreadPool().generic(),
-                            ActionListener.runBefore(cloneRetentionLeaseStep, () -> logger.info("--> forked for {}", description))
-                        ),
-                        () -> logger.info("--> about to fork for {}", description)
-                    )
+                    new ThreadedActionListener<>(shard.getThreadPool().generic(), cloneRetentionLeaseStep)
                 );
-                logger.info("cloned primary's retention lease as [{}]: {}", clonedLease, description);
+                logger.trace("cloned primary's retention lease as [{}]", clonedLease);
                 cloneRetentionLeaseStep.addListener(listener.map(rr -> clonedLease));
             } catch (RetentionLeaseNotFoundException e) {
                 // it's possible that the primary has no retention lease yet if we are doing a rolling upgrade from a version before
@@ -1033,9 +1001,9 @@ public class RecoverySourceHandler {
                     new ThreadedActionListener<>(shard.getThreadPool().generic(), addRetentionLeaseStep)
                 );
                 addRetentionLeaseStep.addListener(listener.map(rr -> newLease));
-                logger.info("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);
+                logger.trace("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);
             }
-        }, description, shard, cancellableThreads, outerListener);
+        }, shardId + " establishing retention lease for [" + request.targetAllocationId() + "]", shard, cancellableThreads, outerListener);
     }
 
     boolean hasSameLegacySyncId(Store.MetadataSnapshot source, Store.MetadataSnapshot target) {
