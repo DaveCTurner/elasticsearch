@@ -456,6 +456,11 @@ public class RecoverySourceHandler {
                         l1.onFailure(e);
                     }
                 }
+
+                @Override
+                public String toString() {
+                    return "listener for [" + reason + "]";
+                }
             }, l2 -> {
                 classLogger.info("--> got permit-releasing listener for [{}]", reason);
                 cancellableThreads.checkForCancel();

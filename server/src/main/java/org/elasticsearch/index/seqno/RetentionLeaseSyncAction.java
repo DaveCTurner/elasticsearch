@@ -99,6 +99,8 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
         assert false : "use RetentionLeaseSyncAction#sync";
     }
 
+    private static final Logger logger = LogManager.getLogger(RetentionLeaseSyncAction.class);
+
     final void sync(
         ShardId shardId,
         String primaryAllocationId,
@@ -106,6 +108,7 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
         RetentionLeases retentionLeases,
         ActionListener<ReplicationResponse> listener
     ) {
+        logger.info("--> sync start: {}", listener);
         final ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
             // we have to execute under the system context so that if security is enabled the sync is authorized
@@ -129,6 +132,7 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
                         public void handleResponse(ReplicationResponse response) {
                             task.setPhase("finished");
                             taskManager.unregister(task);
+                            logger.info("--> sync completed: {}", listener);
                             listener.onResponse(response);
                         }
 
@@ -144,12 +148,14 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
                             }
                             task.setPhase("finished");
                             taskManager.unregister(task);
+                            logger.info("--> sync failed: {}", listener);
                             listener.onFailure(e);
                         }
                     }
                 );
             }
         }
+        logger.info("--> sync spawned: {}", listener);
     }
 
     @Override
