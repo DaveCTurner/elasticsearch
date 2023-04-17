@@ -15,6 +15,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.Assertions;
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -48,6 +50,157 @@ final class IndexShardOperationPermits implements Closeable {
 
     private final ShardId shardId;
     private final ThreadPool threadPool;
+
+    private final AtomicLong state = new AtomicLong();
+
+    private long toDrainForPendingBlock;
+    private SubscribableListener<Void> blockActivationListener;
+    private SubscribableListener<Void> blockReleaseListener;
+
+    public void close2() {
+        state.getAndSet(Long.MIN_VALUE);
+        // TODO wait for pending ops?
+    }
+
+    private static long acquirePermitStateUpdate(long currentValue) {
+        if (currentValue == Long.MAX_VALUE) {
+            // overflow
+            throw new IllegalStateException("no permits available");
+        } else if (currentValue >= 0) {
+            // no pending/active blocks, so acquire a permit
+            return currentValue + 1;
+        } else {
+            // closed, or there are pending/active blocks, so delay acquisition
+            return currentValue;
+        }
+    }
+
+    private void retryAcquirePermit(ActionListener<Releasable> listener, Void ignored) {
+        acquirePermit(listener);
+    }
+
+    public void acquirePermit(ActionListener<Releasable> listener) {
+        final var previousState = state.getAndUpdate(IndexShardOperationPermits::acquirePermitStateUpdate);
+        if (previousState == Long.MIN_VALUE) {
+            listener.onFailure(new IndexShardClosedException(shardId));
+            return;
+        } else if (previousState < 0) {
+            // pending or active block exists
+            synchronized (this) {
+                // must re-check under mutex since block may have just been released
+                final var previousState2 = state.getAndUpdate(IndexShardOperationPermits::acquirePermitStateUpdate);
+                if (previousState2 < 0) {
+                    assert blockReleaseListener != null;
+                    assert blockReleaseListener.isDone() == false;
+                    blockReleaseListener.addListener(listener.delegateFailure(this::retryAcquirePermit));
+                    return;
+                }
+            }
+        }
+        listener.onResponse(Releasables.releaseOnce(this::releasePermit));
+    }
+
+    private static long releasePermitStateUpdate(long currentValue) {
+        assert currentValue != 0;
+        if (currentValue > 0) {
+            return currentValue - 1;
+        } else {
+            // closed, or there are pending/active blocks, so we are draining: leave state alone and let caller update drain info
+            return currentValue;
+        }
+    }
+
+    private void releasePermit() {
+        final var previousState = state.getAndUpdate(IndexShardOperationPermits::releasePermitStateUpdate);
+        if (previousState < 0 && previousState != Long.MIN_VALUE) {
+            // pending or active block exists, but this permit was for an in-flight operation so the block must not be active yet
+            final SubscribableListener<Void> localBlockActivationListener;
+            synchronized (this) {
+                assert toDrainForPendingBlock > 0;
+                toDrainForPendingBlock -= 1;
+                if (0 < toDrainForPendingBlock) {
+                    return;
+                }
+                assert blockActivationListener != null;
+                localBlockActivationListener = blockActivationListener;
+            }
+            localBlockActivationListener.onResponse(null);
+        }
+    }
+
+    private static long blockPermitsStateUpdate(long currentValue) {
+        if (currentValue == Long.MIN_VALUE) {
+            // closed, leave state alone
+            return Long.MIN_VALUE;
+        } else if (currentValue >= 0) {
+            // not currently blocked
+            return -1;
+        } else {
+            // there is already at least one pending/active block
+            return currentValue - 1;
+        }
+    }
+
+    public void blockPermits(ActionListener<Releasable> listener) {
+        final SubscribableListener<Void> localBlockActivationListener;
+        synchronized (this) {
+            final var previousState = state.getAndUpdate(IndexShardOperationPermits::blockPermitsStateUpdate);
+            if (0 <= previousState) {
+                // first block, so set up the listeners
+                assert blockActivationListener == null;
+                blockActivationListener = localBlockActivationListener = new SubscribableListener<>();
+
+                assert blockReleaseListener == null;
+                blockReleaseListener = new SubscribableListener<>();
+
+                assert 0 == toDrainForPendingBlock;
+
+                if (0 == previousState) {
+                    // there are no in-flight operations so we can activate the block straight away
+                    blockActivationListener.onResponse(null);
+                } else {
+                    // first block, with some in-flight operations
+                    toDrainForPendingBlock = previousState;
+                    assert blockActivationListener.isDone() == false;
+                }
+            } else if (previousState == Long.MIN_VALUE) {
+                // closed
+                localBlockActivationListener = null;
+            } else {
+                assert blockActivationListener != null;
+                localBlockActivationListener = blockActivationListener;
+            }
+        }
+        if (localBlockActivationListener == null) {
+            listener.onFailure(new IndexShardClosedException(shardId));
+        } else {
+            localBlockActivationListener.addListener(listener.map(ignored -> Releasables.releaseOnce(this::releaseBlock)));
+        }
+    }
+
+    private static long releaseBlockStateUpdate(long currentValue) {
+        assert currentValue < 0;
+        if (currentValue == Long.MIN_VALUE) {
+            return currentValue;
+        } else {
+            return currentValue + 1;
+        }
+    }
+
+    private void releaseBlock() {
+        final SubscribableListener<Void> localBlockReleaseListener;
+        synchronized (this) {
+            final var previousState = state.getAndUpdate(IndexShardOperationPermits::releaseBlockStateUpdate);
+            assert previousState < 0;
+            if (previousState != -1) {
+                // closed, or this isn't the last block
+                return;
+            }
+            assert blockReleaseListener != null;
+            localBlockReleaseListener = blockReleaseListener;
+        }
+        localBlockReleaseListener.onResponse(null);
+    }
 
     static final int TOTAL_PERMITS = Integer.MAX_VALUE;
     final Semaphore semaphore = new Semaphore(TOTAL_PERMITS, true); // fair to ensure a blocking thread is not starved
