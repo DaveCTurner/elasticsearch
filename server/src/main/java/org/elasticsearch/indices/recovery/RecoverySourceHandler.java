@@ -985,6 +985,12 @@ public class RecoverySourceHandler {
     static AtomicLong idGenerator = new AtomicLong();
 
     void createRetentionLease(final long startingSeqNo, ActionListener<RetentionLease> outerListener) {
+        final var description = shardId
+            + " [id="
+            + idGenerator.incrementAndGet()
+            + "] establishing retention lease for ["
+            + request.targetAllocationId()
+            + "]";
         runUnderPrimaryPermit(listener -> {
             // Clone the peer recovery retention lease belonging to the source shard. We are retaining history between the the local
             // checkpoint of the safe commit we're creating and this lease's retained seqno with the retention lock, and by cloning an
@@ -993,14 +999,20 @@ public class RecoverySourceHandler {
             // not enough, and fall back to a file-based recovery.
             //
             // (approximately) because we do not guarantee to be able to satisfy every lease on every peer.
-            logger.info("cloning primary's retention lease");
+            logger.info("cloning primary's retention lease: {}", description);
             try {
                 final StepListener<ReplicationResponse> cloneRetentionLeaseStep = new StepListener<>();
                 final RetentionLease clonedLease = shard.cloneLocalPeerRecoveryRetentionLease(
                     request.targetNode().getId(),
-                    new ThreadedActionListener<>(shard.getThreadPool().generic(), cloneRetentionLeaseStep)
+                    ActionListener.runBefore(
+                        new ThreadedActionListener<>(
+                            shard.getThreadPool().generic(),
+                            ActionListener.runBefore(cloneRetentionLeaseStep, () -> logger.info("--> forked for {}", description))
+                        ),
+                        () -> logger.info("--> about to fork for {}", description)
+                    )
                 );
-                logger.info("cloned primary's retention lease as [{}]", clonedLease);
+                logger.info("cloned primary's retention lease as [{}]: {}", clonedLease, description);
                 cloneRetentionLeaseStep.addListener(listener.map(rr -> clonedLease));
             } catch (RetentionLeaseNotFoundException e) {
                 // it's possible that the primary has no retention lease yet if we are doing a rolling upgrade from a version before
@@ -1018,12 +1030,7 @@ public class RecoverySourceHandler {
                 addRetentionLeaseStep.addListener(listener.map(rr -> newLease));
                 logger.info("created retention lease with estimated checkpoint of [{}]", estimatedGlobalCheckpoint);
             }
-        },
-            shardId + " [id=" + idGenerator.incrementAndGet() + "] establishing retention lease for [" + request.targetAllocationId() + "]",
-            shard,
-            cancellableThreads,
-            outerListener
-        );
+        }, description, shard, cancellableThreads, outerListener);
     }
 
     boolean hasSameLegacySyncId(Store.MetadataSnapshot source, Store.MetadataSnapshot target) {
