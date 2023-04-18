@@ -427,36 +427,46 @@ public class RecoverySourceHandler {
      * {@code action} releases the permit before passing the result through to {@code outerListener}.
      */
     static <T> void runUnderPrimaryPermit(
+        Logger logger,
         Consumer<ActionListener<T>> action,
         String reason,
         IndexShard primary,
         CancellableThreads cancellableThreads,
         ActionListener<T> listener
     ) {
-        primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> ActionListener.run(new ActionListener<T>() {
-            @Override
-            public void onResponse(T result) {
-                ActionListener.completeWith(l1, () -> {
-                    try (permit) {
-                        cancellableThreads.checkForCancel();
-                    }
-                    return result;
-                });
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                try {
-                    Releasables.closeExpectNoException(permit);
-                } finally {
-                    l1.onFailure(e);
+        logger.info("in runUnderPrimaryPermit [{}]", reason);
+        primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> {
+            logger.info("runUnderPrimaryPermit: acquired primary permit [{}]", reason);
+            ActionListener.run(new ActionListener<T>() {
+                @Override
+                public void onResponse(T result) {
+                    logger.info("runUnderPrimaryPermit: success [{}]", reason);
+                    ActionListener.completeWith(l1, () -> {
+                        try (permit) {
+                            cancellableThreads.checkForCancel();
+                        }
+                        return result;
+                    });
                 }
-            }
-        }, l2 -> {
-            cancellableThreads.checkForCancel();
-            ensureNotRelocatedPrimary(primary);
-            action.accept(l2);
-        })), ThreadPool.Names.GENERIC, reason);
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.info("runUnderPrimaryPermit: failed [" + reason + "]", e);
+                    try {
+                        Releasables.closeExpectNoException(permit);
+                    } finally {
+                        l1.onFailure(e);
+                    }
+                }
+            }, l2 -> {
+                logger.info("runUnderPrimaryPermit: checkForCancel [{}]", reason);
+                cancellableThreads.checkForCancel();
+                logger.info("runUnderPrimaryPermit: ensureNotRelocatedPrimary [{}]", reason);
+                ensureNotRelocatedPrimary(primary);
+                logger.info("runUnderPrimaryPermit: run action [{}]", reason);
+                action.accept(l2);
+            });
+        }), ThreadPool.Names.GENERIC, reason);
     }
 
     private static void ensureNotRelocatedPrimary(IndexShard indexShard) {
@@ -738,11 +748,15 @@ public class RecoverySourceHandler {
                 filesToRecoverFromSource = concatLists(recoveryPlan.getSourceFilesToRecover(), filesFailedToRecoverFromSnapshot);
             }
 
+            logger.info("calling sendFiles");
             sendFiles(
                 store,
                 filesToRecoverFromSource.toArray(new StoreFileMetadata[0]),
                 recoveryPlan::getTranslogOps,
-                sendFilesStep.map(unused -> recoveryPlan)
+                sendFilesStep.map(unused -> {
+                    logger.info("sendFiles complete");
+                    return recoveryPlan;
+                })
             );
         }, listener::onFailure);
 
@@ -975,6 +989,7 @@ public class RecoverySourceHandler {
     }
 
     void createRetentionLease(final long startingSeqNo, ActionListener<RetentionLease> outerListener) {
+        logger.info("in createRetentionLease");
         // NB we release the operation permit as soon as we have created the lease, but delay the outer listener until it is synced
         final var leaseListener = new SubscribableListener<RetentionLease>();
         final var delayedListener = new ThreadedActionListener<>(
@@ -982,7 +997,7 @@ public class RecoverySourceHandler {
             outerListener.<ReplicationResponse>delegateFailure((l, ignored) -> leaseListener.addListener(l))
         );
 
-        runUnderPrimaryPermit(permitListener -> ActionListener.completeWith(permitListener, () -> {
+        runUnderPrimaryPermit(logger, permitListener -> ActionListener.completeWith(permitListener, () -> {
             // Clone the peer recovery retention lease belonging to the source shard. We are retaining history between the the local
             // checkpoint of the safe commit we're creating and this lease's retained seqno with the retention lock, and by cloning an
             // existing lease we (approximately) know that all our peers are also retaining history as requested by the cloned lease. If

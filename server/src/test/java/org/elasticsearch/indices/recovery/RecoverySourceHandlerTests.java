@@ -796,6 +796,7 @@ public class RecoverySourceHandlerTests extends MapperServiceTestCase {
         runPrimaryPermitsLeakTest((shard, cancellableThreads) -> {
             PlainActionFuture.<Void, RuntimeException>get(
                 future -> RecoverySourceHandler.runUnderPrimaryPermit(
+                    logger,
                     listener -> listener.onResponse(null),
                     "test",
                     shard,
