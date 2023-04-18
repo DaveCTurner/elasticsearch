@@ -250,8 +250,9 @@ final class IndexShardOperationPermits implements Closeable {
                     final Supplier<StoredContext> contextSupplier = threadPool.getThreadContext().newRestorableContext(false);
                     final ActionListener<Releasable> wrappedListener;
                     if (executorOnDelay != null) {
-                        wrappedListener = new ContextPreservingActionListener<>(contextSupplier, onAcquired).delegateFailure(
-                            (l, r) -> threadPool.executor(executorOnDelay).execute(new ActionRunnable<>(l) {
+                        wrappedListener = new ContextPreservingActionListener<>(contextSupplier, onAcquired).delegateFailure((l, r) -> {
+                            logger.info("--> [{}] delayed success in acquire: [{}]", shardId, debugInfo);
+                            threadPool.executor(executorOnDelay).execute(new ActionRunnable<>(l) {
                                 @Override
                                 public boolean isForceExecution() {
                                     return forceExecution;
@@ -259,16 +260,18 @@ final class IndexShardOperationPermits implements Closeable {
 
                                 @Override
                                 protected void doRun() {
+                                    logger.info("--> [{}] forked delayed success in acquire: [{}]", shardId, debugInfo);
                                     listener.onResponse(r);
                                 }
 
                                 @Override
                                 public void onRejection(Exception e) {
+                                    logger.info("--> [{}] rejected delayed success in acquire: [{}]", shardId, debugInfo);
                                     IOUtils.closeWhileHandlingException(r);
                                     super.onRejection(e);
                                 }
-                            })
-                        );
+                            });
+                        });
                     } else {
                         wrappedListener = new ContextPreservingActionListener<>(contextSupplier, onAcquired);
                     }
@@ -285,7 +288,7 @@ final class IndexShardOperationPermits implements Closeable {
             return;
         }
         // execute this outside the synchronized block!
-        logger.info("--> [{}] succeded in acquire: [{}]", shardId, debugInfo);
+        logger.info("--> [{}] succeeded in acquire: [{}]", shardId, debugInfo);
         onAcquired.onResponse(releasable);
     }
 
