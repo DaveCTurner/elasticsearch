@@ -30,6 +30,7 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.StopWatch;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
@@ -437,38 +438,43 @@ public class RecoverySourceHandler {
         ActionListener<T> listener
     ) {
         logger.info("in runUnderPrimaryPermit [{}]", reason);
-        primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> {
-            logger.info("runUnderPrimaryPermit: acquired primary permit [{}]", reason);
-            ActionListener.run(new ActionListener<T>() {
-                @Override
-                public void onResponse(T result) {
-                    logger.info("runUnderPrimaryPermit: success [{}]", reason);
-                    ActionListener.completeWith(l1, () -> {
-                        try (permit) {
-                            cancellableThreads.checkForCancel();
-                        }
-                        return result;
-                    });
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    logger.info("runUnderPrimaryPermit: failed [" + reason + "]", e);
-                    try {
-                        Releasables.closeExpectNoException(permit);
-                    } finally {
-                        l1.onFailure(e);
+        try {
+            primary.acquirePrimaryOperationPermit(listener.delegateFailure((l1, permit) -> {
+                logger.info("runUnderPrimaryPermit: acquired primary permit [{}]", reason);
+                ActionListener.run(new ActionListener<T>() {
+                    @Override
+                    public void onResponse(T result) {
+                        logger.info("runUnderPrimaryPermit: success [{}]", reason);
+                        ActionListener.completeWith(l1, () -> {
+                            try (permit) {
+                                cancellableThreads.checkForCancel();
+                            }
+                            return result;
+                        });
                     }
-                }
-            }, l2 -> {
-                logger.info("runUnderPrimaryPermit: checkForCancel [{}]", reason);
-                cancellableThreads.checkForCancel();
-                logger.info("runUnderPrimaryPermit: ensureNotRelocatedPrimary [{}]", reason);
-                ensureNotRelocatedPrimary(primary);
-                logger.info("runUnderPrimaryPermit: run action [{}]", reason);
-                action.accept(l2);
-            });
-        }), ThreadPool.Names.GENERIC, reason);
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        logger.info("runUnderPrimaryPermit: failed [" + reason + "]", e);
+                        try {
+                            Releasables.closeExpectNoException(permit);
+                        } finally {
+                            l1.onFailure(e);
+                        }
+                    }
+                }, l2 -> {
+                    logger.info("runUnderPrimaryPermit: checkForCancel [{}]", reason);
+                    cancellableThreads.checkForCancel();
+                    logger.info("runUnderPrimaryPermit: ensureNotRelocatedPrimary [{}]", reason);
+                    ensureNotRelocatedPrimary(primary);
+                    logger.info("runUnderPrimaryPermit: run action [{}]", reason);
+                    action.accept(l2);
+                });
+            }), ThreadPool.Names.GENERIC, reason);
+        } catch (Exception e) {
+            logger.error(Strings.format("exception in runUnderPrimaryPermit [%s]", reason), e);
+            throw e;
+        }
     }
 
     private static void ensureNotRelocatedPrimary(IndexShard indexShard) {

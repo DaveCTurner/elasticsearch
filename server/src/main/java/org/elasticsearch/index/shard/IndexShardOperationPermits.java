@@ -236,7 +236,9 @@ final class IndexShardOperationPermits implements Closeable {
         final Object debugInfo,
         final StackTraceElement[] stackTrace
     ) {
+        logger.info("--> [{}] in acquire: [{}]", shardId, debugInfo);
         if (closed) {
+            logger.info("--> [{}] closed in acquire: [{}]", shardId, debugInfo);
             onAcquired.onFailure(new IndexShardClosedException(shardId));
             return;
         }
@@ -244,6 +246,7 @@ final class IndexShardOperationPermits implements Closeable {
         try {
             synchronized (this) {
                 if (queuedBlockOperations > 0) {
+                    logger.info("--> [{}] delayed in acquire: [{}]", shardId, debugInfo);
                     final Supplier<StoredContext> contextSupplier = threadPool.getThreadContext().newRestorableContext(false);
                     final ActionListener<Releasable> wrappedListener;
                     if (executorOnDelay != null) {
@@ -272,14 +275,17 @@ final class IndexShardOperationPermits implements Closeable {
                     delayedOperations.add(new DelayedOperation(wrappedListener, debugInfo, stackTrace));
                     return;
                 } else {
+                    logger.info("--> [{}] not delayed in acquire: [{}]", shardId, debugInfo);
                     releasable = acquire(debugInfo, stackTrace);
                 }
             }
         } catch (final InterruptedException e) {
+            logger.info("--> [{}] interrupted in acquire: [{}]", shardId, debugInfo);
             onAcquired.onFailure(e);
             return;
         }
         // execute this outside the synchronized block!
+        logger.info("--> [{}] succeded in acquire: [{}]", shardId, debugInfo);
         onAcquired.onResponse(releasable);
     }
 
