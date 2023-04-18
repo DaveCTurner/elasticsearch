@@ -1039,7 +1039,7 @@ public class RecoverySourceHandler {
                 + "]",
             shard,
             cancellableThreads,
-            leaseListener
+            leaseListener.delegateResponse((l, e) -> outerListener.onFailure(e))
         );
     }
 
