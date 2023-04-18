@@ -171,6 +171,7 @@ public class RecoverySourceHandler {
         final Closeable releaseResources = () -> IOUtils.close(resources);
         try {
             cancellableThreads.setOnCancel((reason, beforeCancelEx) -> {
+                logger.error("cancelled: {}", reason);
                 final RuntimeException e;
                 if (shard.state() == IndexShardState.CLOSED) { // check if the shard got closed on us
                     e = new IndexShardClosedException(shard.shardId(), "shard is closed and recovery was canceled reason [" + reason + "]");

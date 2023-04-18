@@ -78,6 +78,14 @@ final class IndexShardOperationPermits implements Closeable {
     @Override
     public void close() {
         closed = true;
+        synchronized (this) {
+            logger.info(
+                "--> [{}] closed with [queuedBlockOperations={}] and [{}] delayed ops",
+                shardId,
+                queuedBlockOperations,
+                delayedOperations
+            );
+        }
     }
 
     /**
