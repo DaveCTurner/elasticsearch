@@ -143,7 +143,11 @@ public class RecoverySourceHandler {
         this.recoveryPlannerService = recoveryPlannerService;
         this.request = request;
         this.shardId = this.request.shardId().id();
-        this.logger = Loggers.getLogger(getClass(), request.shardId(), "recover to " + request.targetNode().getName());
+        this.logger = Loggers.getLogger(
+            getClass(),
+            request.shardId(),
+            "recovery [" + request.recoveryId() + "] to " + request.targetNode().getName()
+        );
         this.chunkSizeInBytes = fileChunkSizeInBytes;
         this.maxConcurrentFileChunks = maxConcurrentFileChunks;
         this.maxConcurrentOperations = maxConcurrentOperations;

@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The source recovery accepts recovery requests from other peer shards and start the recovery process from this
@@ -280,7 +281,11 @@ public class PeerRecoverySourceService extends AbstractLifecycleComponent implem
                 }
                 emptyListeners.add(future);
             }
-            FutureUtils.get(future);
+            try {
+                FutureUtils.get(future, 60, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
         }
 
         private final class ShardRecoveryContext {

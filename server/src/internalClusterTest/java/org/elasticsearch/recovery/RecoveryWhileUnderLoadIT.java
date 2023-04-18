@@ -33,6 +33,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.BackgroundIndexer;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -305,6 +306,7 @@ public class RecoveryWhileUnderLoadIT extends ESIntegTestCase {
         }
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.indices.recovery:TRACE,org.elasticsearch.index.shard:TRACE")
     public void testRecoverWhileRelocating() throws Exception {
         final int numShards = between(2, 5);
         final int numReplicas = 0;
