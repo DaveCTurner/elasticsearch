@@ -9,6 +9,7 @@
 package org.elasticsearch.indices.recovery;
 
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.seqno.SequenceNumbers;
@@ -121,6 +122,18 @@ public class StartRecoveryRequest extends TransportRequest {
 
     public boolean canDownloadSnapshotFiles() {
         return canDownloadSnapshotFiles;
+    }
+
+    @Override
+    public String getDescription() {
+        return Strings.format(
+            "recovery [%d] of [%s] from [%s] to [%s] (isPrimaryRelocation=[%s])",
+            recoveryId,
+            shardId,
+            sourceNode.descriptionWithoutAttributes(),
+            targetNode.descriptionWithoutAttributes(),
+            primaryRelocation
+        );
     }
 
     @Override
