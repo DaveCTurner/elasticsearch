@@ -30,6 +30,7 @@ import org.elasticsearch.gateway.ClusterStateUpdaters;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.DisruptableMockTransport;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 import static org.elasticsearch.cluster.coordination.CoordinationStateTests.clusterState;
 import static org.elasticsearch.cluster.coordination.stateless.StoreHeartbeatService.HEARTBEAT_FREQUENCY;
@@ -74,9 +76,12 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    @AwaitsFix(bugUrl = "ES-5645")
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
-        // The leader still has access to the register, therefore it acknowledges the state update
+        super.testAckListenerReceivesNacksIfLeaderStandsDown();
     }
 
     @Override
@@ -195,14 +200,14 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            BooleanSupplier isDisruptedSupplier
+            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
         ) {
             final TimeValue heartbeatFrequency = HEARTBEAT_FREQUENCY.get(settings);
-            final var atomicRegister = new AtomicRegister(currentTermRef, isDisruptedSupplier);
+            final var atomicRegister = new AtomicRegister(currentTermRef, registerConnectionStatusSupplier);
             final var atomicHeartbeat = new StoreHeartbeatService(new DisruptibleHeartbeatStore(new SharedHeartbeatStore(heartBeatRef)) {
                 @Override
-                protected boolean isDisrupted() {
-                    return isDisruptedSupplier.getAsBoolean();
+                protected DisruptableMockTransport.ConnectionStatus getConnectionStatus() {
+                    return registerConnectionStatusSupplier.get();
                 }
             },
                 threadPool,
@@ -422,15 +427,15 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
 
     private static class AtomicRegister {
         private final AtomicLong currentTermRef;
-        private final BooleanSupplier isDisruptedSupplier;
+        private final Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier;
 
-        AtomicRegister(AtomicLong currentTermRef, BooleanSupplier isDisruptedSupplier) {
+        AtomicRegister(AtomicLong currentTermRef, Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier) {
             this.currentTermRef = currentTermRef;
-            this.isDisruptedSupplier = isDisruptedSupplier;
+            this.registerConnectionStatusSupplier = registerConnectionStatusSupplier;
         }
 
         private boolean isDisrupted() {
-            return isDisruptedSupplier.getAsBoolean();
+            return registerConnectionStatusSupplier.get() != DisruptableMockTransport.ConnectionStatus.CONNECTED;
         }
 
         long readCurrentTerm() throws IOException {

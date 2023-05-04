@@ -1091,10 +1091,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     settings,
                     clusterSettings,
                     persistedState,
-                    () -> disconnectedNodes.contains(localNode.getId())
-                        || blackholedNodes.contains(localNode.getId())
-                        || nodeHealthService.getHealth().getStatus() != HEALTHY
-                        || (disruptStorage && rarely())
+                    this::getRegisterConnectionStatus
+
                 );
                 coordinator = new Coordinator(
                     "test_node",
@@ -1163,6 +1161,18 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 clusterService.start();
                 coordinationDiagnosticsService.start();
                 coordinator.startInitialJoin();
+            }
+
+            private ConnectionStatus getRegisterConnectionStatus() {
+                if (disconnectedNodes.contains(localNode.getId())
+                    || nodeHealthService.getHealth().getStatus() != HEALTHY
+                    || (disruptStorage && rarely())) {
+                    return ConnectionStatus.DISCONNECTED;
+                } else if (blackholedNodes.contains(localNode.getId())) {
+                    return ConnectionStatus.BLACK_HOLE;
+                } else {
+                    return ConnectionStatus.CONNECTED;
+                }
             }
 
             void close() {
@@ -1489,7 +1499,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            BooleanSupplier isDisruptedSupplier
+            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
         );
 
         CoordinationState.PersistedState createFreshPersistedState(
@@ -1539,7 +1549,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            BooleanSupplier isDisruptedSupplier
+            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
         ) {
             return new CoordinationServices() {
                 @Override

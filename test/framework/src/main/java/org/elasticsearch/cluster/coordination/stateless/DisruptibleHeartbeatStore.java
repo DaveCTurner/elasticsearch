@@ -9,6 +9,7 @@
 package org.elasticsearch.cluster.coordination.stateless;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.transport.DisruptableMockTransport;
 
 import java.io.IOException;
 
@@ -19,23 +20,27 @@ public abstract class DisruptibleHeartbeatStore implements HeartbeatStore {
         this.delegate = delegate;
     }
 
-    protected abstract boolean isDisrupted();
+    protected abstract DisruptableMockTransport.ConnectionStatus getConnectionStatus();
 
     @Override
     public final void writeHeartbeat(Heartbeat newHeartbeat, ActionListener<Void> listener) {
-        if (isDisrupted()) {
-            listener.onFailure(new IOException("simulating disrupted access to shared store"));
-        } else {
-            delegate.writeHeartbeat(newHeartbeat, listener);
+        switch (getConnectionStatus()) {
+            case CONNECTED -> delegate.writeHeartbeat(newHeartbeat, listener);
+            case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
+            case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> {
+                // just drop request
+            }
         }
     }
 
     @Override
     public final void readLatestHeartbeat(ActionListener<Heartbeat> listener) {
-        if (isDisrupted()) {
-            listener.onFailure(new IOException("simulating disrupted access to shared store"));
-        } else {
-            delegate.readLatestHeartbeat(listener);
+        switch (getConnectionStatus()) {
+            case CONNECTED -> delegate.readLatestHeartbeat(listener);
+            case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
+            case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> {
+                // just drop request
+            }
         }
     }
 }
