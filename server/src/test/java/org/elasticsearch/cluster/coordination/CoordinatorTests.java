@@ -290,11 +290,6 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
-
     public void testUnresponsiveLeaderDetectedEventually() {
         try (Cluster cluster = new Cluster(randomIntBetween(3, 5))) {
             cluster.runRandomly();

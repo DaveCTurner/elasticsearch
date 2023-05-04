@@ -56,7 +56,6 @@ public class DeterministicTaskQueue {
     private long nextDeferredTaskExecutionTimeMillis = Long.MAX_VALUE;
     private long executionDelayVariabilityMillis;
     private long latestDeferredExecutionTime;
-    private long actionCount;
 
     public DeterministicTaskQueue(Random random) {
         this.random = random;
@@ -136,18 +135,10 @@ public class DeterministicTaskQueue {
         task.run();
     }
 
-    private void incrementActionCount() {
-        actionCount++;
-        if (actionCount > 20000) {
-            // throw new AssertionError("too many actions");
-        }
-    }
-
     /**
      * Schedule a task for immediate execution.
      */
     public void scheduleNow(final Runnable task) {
-        incrementActionCount();
         if (executionDelayVariabilityMillis > 0 && random.nextBoolean()) {
             final long executionDelay = RandomNumbers.randomLongBetween(random, 1, executionDelayVariabilityMillis);
             final DeferredTask deferredTask = new DeferredTask(currentTimeMillis + executionDelay, task);
@@ -163,7 +154,6 @@ public class DeterministicTaskQueue {
      * Schedule a task for future execution.
      */
     public void scheduleAt(final long executionTimeMillis, final Runnable task) {
-        incrementActionCount();
         final long extraDelayMillis = RandomNumbers.randomLongBetween(random, 0, executionDelayVariabilityMillis);
         final long actualExecutionTimeMillis = executionTimeMillis + extraDelayMillis;
         if (actualExecutionTimeMillis <= currentTimeMillis) {

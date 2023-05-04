@@ -395,8 +395,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             long finishTime = -1;
 
             while (finishTime == -1 || deterministicTaskQueue.getCurrentTimeMillis() <= finishTime) {
-                // assertThat(deterministicTaskQueue.getCurrentTimeMillis(), lessThan(TimeValue.timeValueMinutes(90).millis()));
-
                 step++;
                 final int thisStep = step; // for lambdas
 
@@ -578,7 +576,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 runFor(DEFAULT_DELAY_VARIABILITY, "re-stabilising");
             }
 
-            logger.info("--> stabilize: leaders: {}", clusterNodes.stream().filter(ClusterNode::isLeader).toList());
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
 
@@ -1220,18 +1217,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                 clusterService.start();
                 coordinationDiagnosticsService.start();
                 coordinator.startInitialJoin();
-            }
-
-            private ConnectionStatus getRegisterConnectionStatus() {
-                if (disconnectedNodes.contains(localNode.getId())
-                    || nodeHealthService.getHealth().getStatus() != HEALTHY
-                    || (disruptStorage && rarely())) {
-                    return ConnectionStatus.DISCONNECTED;
-                } else if (blackholedNodes.contains(localNode.getId())) {
-                    return ConnectionStatus.BLACK_HOLE;
-                } else {
-                    return ConnectionStatus.CONNECTED;
-                }
             }
 
             void close() {

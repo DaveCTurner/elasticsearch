@@ -76,10 +76,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
         // must allow a little extra time for the heartbeat to expire before the election can happen
         testAckListenerReceivesNacksIfLeaderStandsDown(
@@ -333,7 +329,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
 
         @Override
         public void onNewElection(DiscoveryNode localNode, long proposedTerm, ActionListener<StartJoinRequest> listener) {
-
             if (disruptElectionsSupplier.getAsBoolean()) {
                 listener.onFailure(new IOException("simulating failure to acquire term during election"));
                 return;
@@ -438,8 +433,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     private static class AtomicRegister {
-        private static final Logger logger = LogManager.getLogger(AtomicRegister.class);
-
         private final AtomicLong currentTermRef;
         private final DisruptibleRegisterConnection disruptibleRegisterConnection;
 
