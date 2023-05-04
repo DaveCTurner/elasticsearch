@@ -1099,56 +1099,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     settings,
                     clusterSettings,
                     persistedState,
-                    new DisruptibleRegisterConnection() {
-                        @Override
-                        public <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
-                            if (isDisconnected()) {
-                                listener.onFailure(new IOException("simulated disrupted connection to register"));
-                            } else if (isBlackholed()) {
-                                final var exception = new IOException("simulated eventual failure to blackholed register");
-                                logger.trace(() -> Strings.format("delaying failure of register request for [%s]", listener), exception);
-                                blackholedRegisterOperations.add(onNode(new DisruptableMockTransport.RebootSensitiveRunnable() {
-                                    @Override
-                                    public void ifRebooted() {
-                                        run();
-                                    }
-
-                                    @Override
-                                    public void run() {
-                                        listener.onFailure(exception);
-                                    }
-
-                                    @Override
-                                    public String toString() {
-                                        return "simulated eventual failure to blackholed register: " + listener;
-                                    }
-                                }));
-                            } else {
-                                consumer.accept(listener);
-                            }
-                        }
-
-                        @Override
-                        public <R> void runDisruptedOrDrop(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
-                            if (isDisconnected()) {
-                                listener.onFailure(new IOException("simulated disrupted connection to register"));
-                            } else if (isBlackholed()) {
-                                logger.trace(() -> Strings.format("dropping register request for [%s]", listener));
-                            } else {
-                                consumer.accept(listener);
-                            }
-                        }
-
-                        private boolean isDisconnected() {
-                            return disconnectedNodes.contains(localNode.getId())
-                                || nodeHealthService.getHealth().getStatus() != HEALTHY
-                                || (disruptStorage && rarely());
-                        }
-
-                        private boolean isBlackholed() {
-                            return blackholedNodes.contains(localNode.getId());
-                        }
-                    }
+                    new NodeDisruptibleRegisterConnection()
                 );
                 coordinator = new Coordinator(
                     "test_node",
@@ -1535,6 +1486,57 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             int getPendingTaskCount() {
                 return masterService.numberOfPendingTasks();
+            }
+
+            private class NodeDisruptibleRegisterConnection implements DisruptibleRegisterConnection {
+                @Override
+                public <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
+                    if (isDisconnected()) {
+                        listener.onFailure(new IOException("simulated disrupted connection to register"));
+                    } else if (isBlackholed()) {
+                        final var exception = new IOException("simulated eventual failure to blackholed register");
+                        logger.trace(() -> Strings.format("delaying failure of register request for [%s]", listener), exception);
+                        blackholedRegisterOperations.add(onNode(new DisruptableMockTransport.RebootSensitiveRunnable() {
+                            @Override
+                            public void ifRebooted() {
+                                run();
+                            }
+
+                            @Override
+                            public void run() {
+                                listener.onFailure(exception);
+                            }
+
+                            @Override
+                            public String toString() {
+                                return "simulated eventual failure to blackholed register: " + listener;
+                            }
+                        }));
+                    } else {
+                        consumer.accept(listener);
+                    }
+                }
+
+                @Override
+                public <R> void runDisruptedOrDrop(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
+                    if (isDisconnected()) {
+                        listener.onFailure(new IOException("simulated disrupted connection to register"));
+                    } else if (isBlackholed()) {
+                        logger.trace(() -> Strings.format("dropping register request for [%s]", listener));
+                    } else {
+                        consumer.accept(listener);
+                    }
+                }
+
+                private boolean isDisconnected() {
+                    return disconnectedNodes.contains(localNode.getId())
+                        || nodeHealthService.getHealth().getStatus() != HEALTHY
+                        || (disruptStorage && rarely());
+                }
+
+                private boolean isBlackholed() {
+                    return blackholedNodes.contains(localNode.getId());
+                }
             }
         }
 
