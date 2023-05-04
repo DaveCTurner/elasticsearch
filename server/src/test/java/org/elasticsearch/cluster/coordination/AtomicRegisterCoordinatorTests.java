@@ -78,6 +78,10 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
         // must allow a little extra time for the heartbeat to expire before the election can happen
         testAckListenerReceivesNacksIfLeaderStandsDown(
@@ -111,6 +115,10 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
     public void testUnhealthyNodesGetsRemoved() {
         // the test still applies with an atomic register, except for the assertions about the voting configuration
         testUnhealthyNodesGetsRemoved(false);
