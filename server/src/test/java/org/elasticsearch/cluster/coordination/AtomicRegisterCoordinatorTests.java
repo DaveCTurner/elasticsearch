@@ -113,10 +113,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
     public void testUnhealthyNodesGetsRemoved() {
         // the test still applies with an atomic register, except for the assertions about the voting configuration
         testUnhealthyNodesGetsRemoved(false);
