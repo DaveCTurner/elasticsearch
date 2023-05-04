@@ -139,7 +139,7 @@ public class DeterministicTaskQueue {
     private void incrementActionCount() {
         actionCount++;
         if (actionCount > 20000) {
-//            throw new AssertionError("too many actions");
+            // throw new AssertionError("too many actions");
         }
     }
 

@@ -151,7 +151,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -396,7 +395,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             long finishTime = -1;
 
             while (finishTime == -1 || deterministicTaskQueue.getCurrentTimeMillis() <= finishTime) {
-//                assertThat(deterministicTaskQueue.getCurrentTimeMillis(), lessThan(TimeValue.timeValueMinutes(90).millis()));
+                // assertThat(deterministicTaskQueue.getCurrentTimeMillis(), lessThan(TimeValue.timeValueMinutes(90).millis()));
 
                 step++;
                 final int thisStep = step; // for lambdas
@@ -1139,8 +1138,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
                         private boolean isDisconnected() {
                             return disconnectedNodes.contains(localNode.getId())
-                                   || nodeHealthService.getHealth().getStatus() != HEALTHY
-                                   || (disruptStorage && rarely());
+                                || nodeHealthService.getHealth().getStatus() != HEALTHY
+                                || (disruptStorage && rarely());
                         }
 
                         private boolean isBlackholed() {

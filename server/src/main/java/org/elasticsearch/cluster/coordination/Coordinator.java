@@ -2012,6 +2012,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                         );
                     }
                 });
+                // If register is unresponsive, we may never complete 'future'.
+                // future.addTimeout(publishTimeout, transportService.getThreadPool(), Names.CLUSTER_COORDINATION);
                 return future;
             });
         }
