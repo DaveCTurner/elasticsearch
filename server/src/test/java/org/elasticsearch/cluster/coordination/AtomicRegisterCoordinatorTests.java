@@ -334,7 +334,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
         @Override
         public void onNewElection(DiscoveryNode localNode, long proposedTerm, ActionListener<StartJoinRequest> listener) {
 
-            if (disruptPublicationsSupplier.getAsBoolean()) {
+            if (disruptElectionsSupplier.getAsBoolean()) {
                 listener.onFailure(new IOException("simulating failure to acquire term during election"));
                 return;
             }
