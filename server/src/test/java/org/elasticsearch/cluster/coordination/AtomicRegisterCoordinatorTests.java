@@ -78,10 +78,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
         // must allow a little extra time for the heartbeat to expire before the election can happen
         testAckListenerReceivesNacksIfLeaderStandsDown(
