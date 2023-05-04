@@ -949,6 +949,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             private final NodeHealthService nodeHealthService;
             List<BiConsumer<DiscoveryNode, ClusterState>> extraJoinValidators = new ArrayList<>();
             private ClearableRecycler clearableRecycler;
+            private List<Runnable> blackholedRegisterOperations = new ArrayList<>();
 
             ClusterNode(int nodeIndex, boolean masterEligible, Settings nodeSettings, NodeHealthService nodeHealthService) {
                 this(
@@ -1091,8 +1092,31 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     settings,
                     clusterSettings,
                     persistedState,
-                    this::getRegisterConnectionStatus
+                    new DisruptibleRegisterConnection() {
+                        @Override
+                        public <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
+                            if (disconnectedNodes.contains(localNode.getId())
+                                || nodeHealthService.getHealth().getStatus() != HEALTHY
+                                || (disruptStorage && rarely())) {
+                                listener.onFailure(new IOException("simulated disrupted connection to register"));
+                            } else if (blackholedNodes.contains(localNode.getId())) {
+                                logger.trace("dropping register request for [{}]", listener);
+                                blackholedRegisterOperations.add(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        listener.onFailure(new IOException("simulated eventual failure to blackholed register"));
+                                    }
 
+                                    @Override
+                                    public String toString() {
+                                        return "simulated eventual failure to blackholed register: " + listener;
+                                    }
+                                });
+                            } else {
+                                consumer.accept(listener);
+                            }
+                        }
+                    }
                 );
                 coordinator = new Coordinator(
                     "test_node",
@@ -1474,7 +1498,16 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             }
 
             boolean deliverBlackholedRequests() {
-                return mockTransport.deliverBlackholedRequests();
+                final boolean deliveredBlackholedRequests = mockTransport.deliverBlackholedRequests();
+                final boolean deliveredBlackholedRegisterRequests;
+                if (blackholedRegisterOperations.isEmpty()) {
+                    deliveredBlackholedRegisterRequests = false;
+                } else {
+                    deliveredBlackholedRegisterRequests = true;
+                    blackholedRegisterOperations.forEach(deterministicTaskQueue::scheduleNow);
+                    blackholedRegisterOperations.clear();
+                }
+                return deliveredBlackholedRequests || deliveredBlackholedRegisterRequests;
             }
 
             int getPendingTaskCount() {
@@ -1493,13 +1526,17 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
         return NOOP_TRANSPORT_INTERCEPTOR;
     }
 
+    public interface DisruptibleRegisterConnection {
+        <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer);
+    }
+
     protected interface CoordinatorStrategy extends Closeable {
         CoordinationServices getCoordinationServices(
             ThreadPool threadPool,
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
+            DisruptibleRegisterConnection disruptibleRegisterConnection
         );
 
         CoordinationState.PersistedState createFreshPersistedState(
@@ -1549,7 +1586,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
+            DisruptibleRegisterConnection disruptibleRegisterConnection
         ) {
             return new CoordinationServices() {
                 @Override

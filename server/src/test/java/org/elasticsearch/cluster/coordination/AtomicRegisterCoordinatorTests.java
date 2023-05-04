@@ -32,7 +32,6 @@ import org.elasticsearch.gateway.ClusterStateUpdaters;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.DisruptableMockTransport;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -44,7 +43,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 
 import static org.elasticsearch.cluster.coordination.CoordinationStateTests.clusterState;
 import static org.elasticsearch.cluster.coordination.stateless.StoreHeartbeatService.HEARTBEAT_FREQUENCY;
@@ -214,16 +212,12 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             Settings settings,
             ClusterSettings clusterSettings,
             CoordinationState.PersistedState persistedState,
-            Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier
+            DisruptibleRegisterConnection disruptibleRegisterConnection
         ) {
             final TimeValue heartbeatFrequency = HEARTBEAT_FREQUENCY.get(settings);
-            final var atomicRegister = new AtomicRegister(currentTermRef, registerConnectionStatusSupplier);
-            final var atomicHeartbeat = new StoreHeartbeatService(new DisruptibleHeartbeatStore(new SharedHeartbeatStore(heartBeatRef)) {
-                @Override
-                protected DisruptableMockTransport.ConnectionStatus getConnectionStatus() {
-                    return registerConnectionStatusSupplier.get();
-                }
-            },
+            final var atomicRegister = new AtomicRegister(currentTermRef, disruptibleRegisterConnection);
+            final var atomicHeartbeat = new StoreHeartbeatService(
+                new DisruptibleHeartbeatStore(new SharedHeartbeatStore(heartBeatRef), disruptibleRegisterConnection),
                 threadPool,
                 heartbeatFrequency,
                 TimeValue.timeValueMillis(heartbeatFrequency.millis() * MAX_MISSED_HEARTBEATS.get(settings)),
@@ -451,35 +445,19 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
         private static final Logger logger = LogManager.getLogger(AtomicRegister.class);
 
         private final AtomicLong currentTermRef;
-        private final Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier;
+        private final DisruptibleRegisterConnection disruptibleRegisterConnection;
 
-        AtomicRegister(AtomicLong currentTermRef, Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier) {
+        AtomicRegister(AtomicLong currentTermRef, DisruptibleRegisterConnection disruptibleRegisterConnection) {
             this.currentTermRef = currentTermRef;
-            this.registerConnectionStatusSupplier = registerConnectionStatusSupplier;
-        }
-
-        private boolean isDisrupted() {
-            return registerConnectionStatusSupplier.get() != DisruptableMockTransport.ConnectionStatus.CONNECTED;
+            this.disruptibleRegisterConnection = disruptibleRegisterConnection;
         }
 
         void readCurrentTerm(ActionListener<Long> listener) {
-            switch (registerConnectionStatusSupplier.get()) {
-                case CONNECTED -> listener.onResponse(currentTermRef.get());
-                case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
-                case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> logger.trace("dropping request to read current term");
-            }
+            disruptibleRegisterConnection.runDisrupted(listener, l -> l.onResponse(currentTermRef.get()));
         }
 
         void compareAndExchange(long expected, long updated, ActionListener<Long> listener) {
-            switch (registerConnectionStatusSupplier.get()) {
-                case CONNECTED -> listener.onResponse(currentTermRef.compareAndExchange(expected, updated));
-                case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
-                case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> logger.trace(
-                    "dropping request to exchange current term [{}->{}]",
-                    expected,
-                    updated
-                );
-            }
+            disruptibleRegisterConnection.runDisrupted(listener, l -> l.onResponse(currentTermRef.compareAndExchange(expected, updated)));
         }
     }
 
