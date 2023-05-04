@@ -83,7 +83,15 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
         value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
     )
     public void testAckListenerReceivesNacksIfLeaderStandsDown() {
-        super.testAckListenerReceivesNacksIfLeaderStandsDown();
+        // must allow a little extra time for the heartbeat to expire before the election can happen
+        testAckListenerReceivesNacksIfLeaderStandsDown(
+            Settings.builder()
+                .put(MAX_MISSED_HEARTBEATS.getKey(), 1)
+                .put(HEARTBEAT_FREQUENCY.getKey(), TimeValue.timeValueSeconds(1))
+                .put(FollowersChecker.FOLLOWER_CHECK_RETRY_COUNT_SETTING.getKey(), 1000)
+                .build(),
+            TimeValue.timeValueSeconds(1)
+        );
     }
 
     @Override
