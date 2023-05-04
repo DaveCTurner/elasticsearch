@@ -572,6 +572,12 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             runFor(stabilisationDurationMillis, "stabilising");
 
+            // noinspection ReplaceInefficientStreamCount using .count() to run the filter on every node
+            while (clusterNodes.stream().filter(ClusterNode::deliverBlackholedRegisterRequests).count() != 0L) {
+                logger.debug("--> delivering blackholed register requests");
+                runFor(DEFAULT_DELAY_VARIABILITY, "re-stabilising");
+            }
+
             logger.info("--> stabilize: leaders: {}", clusterNodes.stream().filter(ClusterNode::isLeader).toList());
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
@@ -1528,15 +1534,18 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             boolean deliverBlackholedRequests() {
                 final boolean deliveredBlackholedRequests = mockTransport.deliverBlackholedRequests();
-                final boolean deliveredBlackholedRegisterRequests;
+                final boolean deliveredBlackholedRegisterRequests = deliverBlackholedRegisterRequests();
+                return deliveredBlackholedRequests || deliveredBlackholedRegisterRequests;
+            }
+
+            boolean deliverBlackholedRegisterRequests() {
                 if (blackholedRegisterOperations.isEmpty()) {
-                    deliveredBlackholedRegisterRequests = false;
+                    return false;
                 } else {
-                    deliveredBlackholedRegisterRequests = true;
                     blackholedRegisterOperations.forEach(deterministicTaskQueue::scheduleNow);
                     blackholedRegisterOperations.clear();
+                    return true;
                 }
-                return deliveredBlackholedRequests || deliveredBlackholedRegisterRequests;
             }
 
             int getPendingTaskCount() {
