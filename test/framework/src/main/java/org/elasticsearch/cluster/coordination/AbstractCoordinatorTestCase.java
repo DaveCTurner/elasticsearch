@@ -573,6 +573,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
 
             runFor(stabilisationDurationMillis, "stabilising");
 
+            logger.info("--> stabilize: leaders: {}", clusterNodes.stream().filter(ClusterNode::isLeader).toList());
             final ClusterNode leader = getAnyLeader();
             final long leaderTerm = leader.coordinator.getCurrentTerm();
 
@@ -1103,7 +1104,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                                 listener.onFailure(new IOException("simulated disrupted connection to register"));
                             } else if (isBlackholed()) {
                                 final var exception = new IOException("simulated eventual failure to blackholed register");
-                                logger.trace(() -> Strings.format("dropping register request for [%s]", listener), exception);
+                                logger.trace(() -> Strings.format("delaying failure of register request for [%s]", listener), exception);
                                 blackholedRegisterOperations.add(onNode(new DisruptableMockTransport.RebootSensitiveRunnable() {
                                     @Override
                                     public void ifRebooted() {
@@ -1129,7 +1130,9 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         public <R> void runDisruptedOrDrop(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
                             if (isDisconnected()) {
                                 listener.onFailure(new IOException("simulated disrupted connection to register"));
-                            } else if (isBlackholed() == false) {
+                            } else if (isBlackholed()) {
+                                logger.trace(() -> Strings.format("dropping register request for [%s]", listener));
+                            } else {
                                 consumer.accept(listener);
                             }
                         }
