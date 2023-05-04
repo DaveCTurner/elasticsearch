@@ -43,6 +43,7 @@ import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.FakeThreadPoolMasterService;
 import org.elasticsearch.common.Randomness;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
@@ -150,6 +151,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -394,6 +396,8 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
             long finishTime = -1;
 
             while (finishTime == -1 || deterministicTaskQueue.getCurrentTimeMillis() <= finishTime) {
+//                assertThat(deterministicTaskQueue.getCurrentTimeMillis(), lessThan(TimeValue.timeValueMinutes(90).millis()));
+
                 step++;
                 final int thisStep = step; // for lambdas
 
@@ -1095,26 +1099,49 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     new DisruptibleRegisterConnection() {
                         @Override
                         public <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
-                            if (disconnectedNodes.contains(localNode.getId())
-                                || nodeHealthService.getHealth().getStatus() != HEALTHY
-                                || (disruptStorage && rarely())) {
+                            if (isDisconnected()) {
                                 listener.onFailure(new IOException("simulated disrupted connection to register"));
-                            } else if (blackholedNodes.contains(localNode.getId())) {
-                                logger.trace("dropping register request for [{}]", listener);
-                                blackholedRegisterOperations.add(new Runnable() {
+                            } else if (isBlackholed()) {
+                                final var exception = new IOException("simulated eventual failure to blackholed register");
+                                logger.trace(() -> Strings.format("dropping register request for [%s]", listener), exception);
+                                blackholedRegisterOperations.add(onNode(new DisruptableMockTransport.RebootSensitiveRunnable() {
+                                    @Override
+                                    public void ifRebooted() {
+                                        run();
+                                    }
+
                                     @Override
                                     public void run() {
-                                        listener.onFailure(new IOException("simulated eventual failure to blackholed register"));
+                                        listener.onFailure(exception);
                                     }
 
                                     @Override
                                     public String toString() {
                                         return "simulated eventual failure to blackholed register: " + listener;
                                     }
-                                });
+                                }));
                             } else {
                                 consumer.accept(listener);
                             }
+                        }
+
+                        @Override
+                        public <R> void runDisruptedOrDrop(ActionListener<R> listener, Consumer<ActionListener<R>> consumer) {
+                            if (isDisconnected()) {
+                                listener.onFailure(new IOException("simulated disrupted connection to register"));
+                            } else if (isBlackholed() == false) {
+                                consumer.accept(listener);
+                            }
+                        }
+
+                        private boolean isDisconnected() {
+                            return disconnectedNodes.contains(localNode.getId())
+                                   || nodeHealthService.getHealth().getStatus() != HEALTHY
+                                   || (disruptStorage && rarely());
+                        }
+
+                        private boolean isBlackholed() {
+                            return blackholedNodes.contains(localNode.getId());
                         }
                     }
                 );
@@ -1527,7 +1554,17 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
     }
 
     public interface DisruptibleRegisterConnection {
+
+        /**
+         * If disconnected, fail the listener; if blackholed then retain the listener for future failure; otherwise pass the listener to the
+         * consumer.
+         */
         <R> void runDisrupted(ActionListener<R> listener, Consumer<ActionListener<R>> consumer);
+
+        /**
+         * If disconnected, fail the listener; if blackholed then do nothing; otherwise pass the listener to the consumer.
+         */
+        <R> void runDisruptedOrDrop(ActionListener<R> listener, Consumer<ActionListener<R>> consumer);
     }
 
     protected interface CoordinatorStrategy extends Closeable {

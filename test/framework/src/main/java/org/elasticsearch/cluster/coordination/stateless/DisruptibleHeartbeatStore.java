@@ -35,6 +35,7 @@ public class DisruptibleHeartbeatStore implements HeartbeatStore {
 
     @Override
     public final void readLatestHeartbeat(ActionListener<Heartbeat> listener) {
-        disruptibleRegisterConnection.runDisrupted(listener, delegate::readLatestHeartbeat);
+        // only used when triggering a new election, so can just drop requests if disrupted
+        disruptibleRegisterConnection.runDisruptedOrDrop(listener, delegate::readLatestHeartbeat);
     }
 }
