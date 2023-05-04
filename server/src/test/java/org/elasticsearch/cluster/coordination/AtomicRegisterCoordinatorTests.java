@@ -9,6 +9,8 @@
 package org.elasticsearch.cluster.coordination;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -213,7 +215,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
                 threadPool,
                 heartbeatFrequency,
                 TimeValue.timeValueMillis(heartbeatFrequency.millis() * MAX_MISSED_HEARTBEATS.get(settings)),
-                listener -> ActionListener.completeWith(listener, () -> OptionalLong.of(atomicRegister.readCurrentTerm()))
+                listener -> atomicRegister.readCurrentTerm(listener.map(OptionalLong::of))
             );
             var reconfigurator = new SingleNodeReconfigurator(settings, clusterSettings);
             var electionStrategy = new AtomicRegisterElectionStrategy(atomicRegister, () -> disruptElections, () -> disruptPublications);
@@ -329,19 +331,26 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
 
         @Override
         public void onNewElection(DiscoveryNode localNode, long proposedTerm, ActionListener<StartJoinRequest> listener) {
-            ActionListener.completeWith(listener, () -> {
-                if (disruptElectionsSupplier.getAsBoolean()) {
-                    throw new IOException("simulating failure to acquire term during election");
-                }
 
-                final var currentTerm = register.readCurrentTerm();
+            if (disruptPublicationsSupplier.getAsBoolean()) {
+                listener.onFailure(new IOException("simulating failure to acquire term during election"));
+                return;
+            }
+
+            register.readCurrentTerm(listener.delegateFailure((l1, currentTerm) -> {
                 final var electionTerm = Math.max(proposedTerm, currentTerm + 1);
-                final var witness = register.compareAndExchange(currentTerm, electionTerm);
-                if (witness != currentTerm) {
-                    throw new CoordinationStateRejectedException("could not claim " + electionTerm + ", current term is " + witness);
-                }
-                return new StartJoinRequest(localNode, electionTerm);
-            });
+                register.compareAndExchange(
+                    currentTerm,
+                    electionTerm,
+                    l1.delegateFailure((l2, witness) -> ActionListener.completeWith(l2, () -> {
+                        if (witness.equals(currentTerm)) {
+                            return new StartJoinRequest(localNode, electionTerm);
+                        } else {
+                            throw new CoordinationStateRejectedException("couldn't claim " + electionTerm + ", current term is " + witness);
+                        }
+                    }))
+                );
+            }));
         }
 
         @Override
@@ -357,12 +366,13 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
         @Override
         public void beforeCommit(long term, long version, ActionListener<Void> listener) {
             // TODO: add a test to ensure that this gets called
-            ActionListener.completeWith(listener, () -> {
-                if (disruptPublicationsSupplier.getAsBoolean()) {
-                    throw new IOException("simulating failure to verify term during publication");
-                }
 
-                final var currentTerm = register.readCurrentTerm();
+            if (disruptPublicationsSupplier.getAsBoolean()) {
+                listener.onFailure(new IOException("simulating failure to verify term during publication"));
+                return;
+            }
+
+            register.readCurrentTerm(listener.delegateFailure((l, currentTerm) -> ActionListener.completeWith(l, () -> {
                 if (currentTerm == term) {
                     return null;
                 } else {
@@ -376,7 +386,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
                         )
                     );
                 }
-            });
+            })));
         }
     }
 
@@ -426,6 +436,8 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     private static class AtomicRegister {
+        private static final Logger logger = LogManager.getLogger(AtomicRegister.class);
+
         private final AtomicLong currentTermRef;
         private final Supplier<DisruptableMockTransport.ConnectionStatus> registerConnectionStatusSupplier;
 
@@ -438,18 +450,24 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             return registerConnectionStatusSupplier.get() != DisruptableMockTransport.ConnectionStatus.CONNECTED;
         }
 
-        long readCurrentTerm() throws IOException {
-            if (isDisrupted()) {
-                throw new IOException("simulating disrupted access to shared store");
+        void readCurrentTerm(ActionListener<Long> listener) {
+            switch (registerConnectionStatusSupplier.get()) {
+                case CONNECTED -> listener.onResponse(currentTermRef.get());
+                case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
+                case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> logger.trace("dropping request to read current term");
             }
-            return currentTermRef.get();
         }
 
-        long compareAndExchange(long expected, long updated) throws IOException {
-            if (isDisrupted()) {
-                throw new IOException("simulating disrupted access to shared store");
+        void compareAndExchange(long expected, long updated, ActionListener<Long> listener) {
+            switch (registerConnectionStatusSupplier.get()) {
+                case CONNECTED -> listener.onResponse(currentTermRef.compareAndExchange(expected, updated));
+                case DISCONNECTED -> listener.onFailure(new IOException("simulating disrupted access to shared store"));
+                case BLACK_HOLE, BLACK_HOLE_REQUESTS_ONLY -> logger.trace(
+                    "dropping request to exchange current term [{}->{}]",
+                    expected,
+                    updated
+                );
             }
-            return currentTermRef.compareAndExchange(expected, updated);
         }
     }
 
