@@ -1221,23 +1221,23 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
 
         @Override
         public void writeByte(byte b) throws IOException {
-            final long writtenBytes = this.writtenBytes++;
-            if (writtenBytes >= checksumPosition) { // we are writing parts of the checksum....
+            if (checksumPosition <= writtenBytes && writtenBytes < checksumPosition + footerChecksum.length) {
+                // we are writing the checksum
                 if (writtenBytes == checksumPosition) {
                     readAndCompareChecksum();
                 }
-                final int index = Math.toIntExact(writtenBytes - checksumPosition);
-                if (index < footerChecksum.length) {
-                    footerChecksum[index] = b;
-                    if (index == footerChecksum.length - 1) {
-                        verify(); // we have recorded the entire checksum
-                    }
-                } else {
-                    verify(); // fail if we write more than expected
-                    throw new AssertionError("write past EOF expected length: " + metadata.length() + " writtenBytes: " + writtenBytes);
-                }
+
+                final var checksumIndex = Math.toIntExact(writtenBytes - checksumPosition);
+                assert 0 <= checksumIndex && checksumIndex < footerChecksum.length;
+                footerChecksum[checksumIndex] = b;
             }
+
             out.writeByte(b);
+            writtenBytes += 1;
+            if (checksumPosition + footerChecksum.length <= writtenBytes) {
+                // <= in order to fail when writing past the end of the footer
+                verify();
+            }
         }
 
         private void readAndCompareChecksum() throws IOException {
@@ -1258,13 +1258,44 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
 
         @Override
         public void writeBytes(byte[] b, int offset, int length) throws IOException {
-            if (writtenBytes + length > checksumPosition) {
-                for (int i = 0; i < length; i++) { // don't optimize writing the last block of bytes
-                    writeByte(b[offset + i]);
+
+            if (writtenBytes < checksumPosition) {
+                // we are writing the body (before the checksum)
+                final var lengthToCopy = Math.toIntExact(Math.min(length, checksumPosition - writtenBytes));
+                out.writeBytes(b, offset, lengthToCopy);
+                writtenBytes += lengthToCopy;
+                offset += lengthToCopy;
+                length -= lengthToCopy;
+            }
+
+            if (0 < length) {
+                // we are writing the checksum
+                if (writtenBytes == checksumPosition) {
+                    readAndCompareChecksum();
                 }
-            } else {
+
+                final var checksumIndex = Math.toIntExact(writtenBytes - checksumPosition);
+                assert 0 <= checksumIndex;
+                if (checksumIndex < footerChecksum.length) {
+                    final var lengthToCopy = Math.toIntExact(Math.min(footerChecksum.length - checksumIndex, length));
+                    assert 0 < lengthToCopy;
+                    System.arraycopy(b, offset, footerChecksum, checksumIndex, lengthToCopy);
+                    out.writeBytes(b, offset, lengthToCopy);
+                    writtenBytes += lengthToCopy;
+                    offset += lengthToCopy;
+                    length -= lengthToCopy;
+
+                    if (writtenBytes == checksumPosition + footerChecksum.length) {
+                        verify();
+                    }
+                }
+            }
+
+            if (0 < length) {
+                // we are erroneously writing something after the checksum
                 out.writeBytes(b, offset, length);
                 writtenBytes += length;
+                verify();
             }
         }
     }

@@ -163,7 +163,7 @@ public class StoreTests extends ESTestCase {
         IndexInput indexInput = dir.openInput("foo.bar", IOContext.DEFAULT);
         String checksum = Store.digestToString(CodecUtil.retrieveChecksum(indexInput));
         indexInput.seek(0);
-        BytesRef ref = new BytesRef(scaledRandomIntBetween(1, 1024));
+        final byte[] buffer = new byte[1024];
         long length = indexInput.length();
         IndexOutput verifyingOutput = new Store.LuceneVerifyingIndexOutput(
             new StoreFileMetadata("foo1.bar", length, checksum, MIN_SUPPORTED_LUCENE_VERSION.toString()),
@@ -174,10 +174,11 @@ public class StoreTests extends ESTestCase {
                 verifyingOutput.writeByte(indexInput.readByte());
                 length--;
             } else {
-                int min = (int) Math.min(length, ref.bytes.length);
-                indexInput.readBytes(ref.bytes, ref.offset, min);
-                verifyingOutput.writeBytes(ref.bytes, ref.offset, min);
-                length -= min;
+                int offset = between(0, buffer.length - 1);
+                int len = between(1, (int) Math.min(length, buffer.length - offset));
+                indexInput.readBytes(buffer, offset, len);
+                verifyingOutput.writeBytes(buffer, offset, len);
+                length -= len;
             }
         }
         Store.verify(verifyingOutput);
@@ -228,7 +229,7 @@ public class StoreTests extends ESTestCase {
 
         IndexInput indexInput = dir.openInput("foo.bar", IOContext.DEFAULT);
         indexInput.seek(0);
-        BytesRef ref = new BytesRef(scaledRandomIntBetween(1, 1024));
+        final byte[] buffer = new byte[1024];
         long length = indexInput.length();
         IndexOutput verifyingOutput = new Store.LuceneVerifyingIndexOutput(
             new StoreFileMetadata("foo1.bar", length, checksum, MIN_SUPPORTED_LUCENE_VERSION.toString()),
@@ -240,10 +241,11 @@ public class StoreTests extends ESTestCase {
                 verifyingOutput.writeByte(indexInput.readByte());
                 length--;
             } else {
-                int min = (int) Math.min(length, ref.bytes.length);
-                indexInput.readBytes(ref.bytes, ref.offset, min);
-                verifyingOutput.writeBytes(ref.bytes, ref.offset, min);
-                length -= min;
+                int offset = between(0, buffer.length - 1);
+                int len = between(1, (int) Math.min(length, buffer.length - offset));
+                indexInput.readBytes(buffer, offset, len);
+                verifyingOutput.writeBytes(buffer, offset, len);
+                length -= len;
             }
         }
 
