@@ -18,6 +18,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class StatelessPrimaryRelocationAction {
 
@@ -76,6 +77,22 @@ public class StatelessPrimaryRelocationAction {
 
         public String targetAllocationId() {
             return targetAllocationId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Request request = (Request) o;
+            return recoveryId == request.recoveryId
+                && shardId.equals(request.shardId)
+                && targetNode.equals(request.targetNode)
+                && targetAllocationId.equals(request.targetAllocationId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(recoveryId, shardId, targetNode, targetAllocationId);
         }
     }
 }
