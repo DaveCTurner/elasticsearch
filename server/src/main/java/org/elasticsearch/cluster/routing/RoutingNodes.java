@@ -459,16 +459,6 @@ public class RoutingNodes implements Iterable<RoutingNode> {
         return Tuple.tuple(source, target);
     }
 
-    public void relocateOrReinitializeShard(
-        ShardRouting startedShard,
-        String nodeId,
-        long expectedShardSize,
-        RoutingChangesObserver changes
-    ) {
-        // TODO inline this
-        relocateShard(startedShard, nodeId, expectedShardSize, changes);
-    }
-
     /**
      * Applies the relevant logic to start an initializing shard.
      *
@@ -519,12 +509,7 @@ public class RoutingNodes implements Iterable<RoutingNode> {
                                 routing,
                                 new UnassignedInfo(UnassignedInfo.Reason.REINITIALIZED, "primary changed")
                             );
-                            relocateOrReinitializeShard(
-                                startedReplica,
-                                sourceShard.relocatingNodeId(),
-                                sourceShard.getExpectedShardSize(),
-                                routingChangesObserver
-                            );
+                            relocateShard(startedReplica, sourceShard.relocatingNodeId(), sourceShard.getExpectedShardSize(), routingChangesObserver);
                         } else {
                             ShardRouting reinitializedReplica = reinitReplica(routing);
                             routingChangesObserver.initializedReplicaReinitialized(routing, reinitializedReplica);
