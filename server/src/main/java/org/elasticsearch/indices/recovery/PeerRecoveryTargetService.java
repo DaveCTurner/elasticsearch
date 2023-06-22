@@ -311,7 +311,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
         if (indexShard.routingEntry().isSearchable() == false && recoveryState.getPrimary()) {
             assert preExistingRequest == null;
             assert indexShard.indexSettings().getIndexMetadata().isSearchableSnapshot() == false;
-            ActionListener.run(cleanupOnly.map(ignored -> {
+            try (onCompletion) {
                 client.execute(
                     StatelessPrimaryRelocationAction.INSTANCE,
                     new StatelessPrimaryRelocationAction.Request(
@@ -333,9 +333,8 @@ public class PeerRecoveryTargetService implements IndexEventListener {
                         }
                     }
                 );
-                return null;
-            }), indexShard::preRecovery);
-            return;
+                return;
+            }
         }
 
         record StartRecoveryRequestToSend(StartRecoveryRequest startRecoveryRequest, String actionName, TransportRequest requestToSend) {}
