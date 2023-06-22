@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Constants;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobContainer;
@@ -216,6 +217,9 @@ public class FsBlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String name) throws IOException {
+        logger.info("--> readBlob[" +
+                    name +
+                    "]", new ElasticsearchException("stack trace"));
         final Path resolvedPath = path.resolve(name);
         try {
             return Files.newInputStream(resolvedPath);
@@ -226,6 +230,9 @@ public class FsBlobContainer extends AbstractBlobContainer {
 
     @Override
     public InputStream readBlob(String blobName, long position, long length) throws IOException {
+        logger.info("--> readBlob[" +
+                    blobName +
+                    "][" + position + "][" + length + "]", new ElasticsearchException("stack trace"));
         final SeekableByteChannel channel = Files.newByteChannel(path.resolve(blobName));
         if (position > 0L) {
             channel.position(position);

@@ -33,6 +33,7 @@ import org.elasticsearch.index.IndexingPressure;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardClosedException;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.shard.ShardNotInPrimaryModeException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.SystemIndices;
 import org.elasticsearch.tasks.Task;
@@ -138,7 +139,8 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
                                 e,
                                 IndexNotFoundException.class,
                                 AlreadyClosedException.class,
-                                IndexShardClosedException.class
+                                IndexShardClosedException.class,
+                                ShardNotInPrimaryModeException.class
                             ) == null) {
                                 getLogger().warn(() -> format("%s retention lease sync failed", shardId), e);
                             }
