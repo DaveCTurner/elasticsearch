@@ -378,7 +378,12 @@ public class DesiredBalanceReconciler {
                 final var moveTarget = findRelocationTarget(shardRouting, assignment.nodeIds());
                 if (moveTarget != null) {
                     logger.debug("Moving shard {} from {} to {}", shardRouting.shardId(), shardRouting.currentNodeId(), moveTarget.getId());
-                    routingNodes.relocateShard(shardRouting, moveTarget.getId(), allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE), allocation.changes());
+                    routingNodes.relocateShard(
+                        shardRouting,
+                        moveTarget.getId(),
+                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                        allocation.changes()
+                    );
                     iterator.dePrioritizeNode(shardRouting.currentNodeId());
                     moveOrdering.recordAllocation(shardRouting.currentNodeId());
                 }
@@ -438,7 +443,12 @@ public class DesiredBalanceReconciler {
                         rebalanceTarget.getId()
                     );
 
-                    routingNodes.relocateShard(shardRouting, rebalanceTarget.getId(), allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE), allocation.changes());
+                    routingNodes.relocateShard(
+                        shardRouting,
+                        rebalanceTarget.getId(),
+                        allocation.clusterInfo().getShardSize(shardRouting, ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE),
+                        allocation.changes()
+                    );
                     iterator.dePrioritizeNode(shardRouting.currentNodeId());
                     moveOrdering.recordAllocation(shardRouting.currentNodeId());
                 }

@@ -509,7 +509,12 @@ public class RoutingNodes implements Iterable<RoutingNode> {
                                 routing,
                                 new UnassignedInfo(UnassignedInfo.Reason.REINITIALIZED, "primary changed")
                             );
-                            relocateShard(startedReplica, sourceShard.relocatingNodeId(), sourceShard.getExpectedShardSize(), routingChangesObserver);
+                            relocateShard(
+                                startedReplica,
+                                sourceShard.relocatingNodeId(),
+                                sourceShard.getExpectedShardSize(),
+                                routingChangesObserver
+                            );
                         } else {
                             ShardRouting reinitializedReplica = reinitReplica(routing);
                             routingChangesObserver.initializedReplicaReinitialized(routing, reinitializedReplica);

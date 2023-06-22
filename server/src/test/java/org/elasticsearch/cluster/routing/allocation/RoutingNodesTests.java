@@ -445,7 +445,7 @@ public class RoutingNodesTests extends ESAllocationTestCase {
         var routingNodes = clusterState.getRoutingNodes().mutableCopy();
 
         routingNodes.relocateShard(routingNodes.node("node-1").getByShardId(shardId), "node-3", 0L, new RoutingChangesObserver() {
-            });
+        });
 
         assertThat(routingNodes.node("node-1").getByShardId(shardId).state(), equalTo(RELOCATING));
         assertThat(routingNodes.node("node-2").getByShardId(shardId).state(), equalTo(STARTED));
@@ -480,7 +480,7 @@ public class RoutingNodesTests extends ESAllocationTestCase {
         var routingNodes = clusterState.getRoutingNodes().mutableCopy();
 
         routingNodes.relocateShard(routingNodes.node("node-1").getByShardId(shardId), "node-3", 0L, new RoutingChangesObserver() {
-            });
+        });
 
         assertThat(routingNodes.node("node-1").getByShardId(shardId), nullValue());
         assertThat(routingNodes.node("node-2").getByShardId(shardId), nullValue());
