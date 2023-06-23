@@ -139,8 +139,7 @@ public class RetentionLeaseSyncAction extends TransportWriteAction<
                                 e,
                                 IndexNotFoundException.class,
                                 AlreadyClosedException.class,
-                                IndexShardClosedException.class,
-                                ShardNotInPrimaryModeException.class
+                                IndexShardClosedException.class
                             ) == null) {
                                 getLogger().warn(() -> format("%s retention lease sync failed", shardId), e);
                             }
