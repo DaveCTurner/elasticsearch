@@ -3619,10 +3619,15 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * the transaction log the caller thread will be hijacked to run the fsync for all pending fsync operations.
      * This method allows indexing threads to continue indexing without blocking on fsync calls. We ensure that there is only
      * one thread blocking on the sync an all others can continue indexing.
+     * <p>
+     * Should only be used to sync the translog as part of an indexing operation: in particular an operation permit must be held to call
+     * this method.
+     * <p>
      * NOTE: if the syncListener throws an exception when it's processed the exception will only be logged. Users should make sure that the
      * listener handles all exception cases internally.
      */
     public final void sync(Translog.Location location, Consumer<Exception> syncListener) {
+        assert indexShardOperationPermits.getActiveOperationsCount() != 0;
         verifyNotClosed();
         getEngine().asyncEnsureTranslogSynced(location, syncListener);
     }
