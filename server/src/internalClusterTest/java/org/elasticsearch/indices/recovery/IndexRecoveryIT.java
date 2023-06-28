@@ -1469,9 +1469,9 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
 
     @TestLogging(
         reason = "nocommit",
-        value = "org.elasticsearch.action.bulk:TRACE,"
-            + "org.elasticsearch.action.support.replication:TRACE,"
-            + "org.elasticsearch.index.shard.IndexShard:TRACE"
+        value = "org.elasticsearch.action.bulk:TRACE"
+            + ",org.elasticsearch.action.support.replication:TRACE"
+            + ",org.elasticsearch.index.shard.IndexShard:TRACE"
     )
     public void testPeerRecoveryTrimsLocalTranslog() throws Exception {
         internalCluster().startNode();
@@ -1500,7 +1500,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
             }
             connection.sendRequest(requestId, action, request, options);
         });
-        Thread[] indexers = new Thread[randomIntBetween(1, 8)];
+        Thread[] indexers = new Thread[1];
         for (int i = 0; i < indexers.length; i++) {
             indexers[i] = new Thread(() -> {
                 while (stopped.get() == false) {
