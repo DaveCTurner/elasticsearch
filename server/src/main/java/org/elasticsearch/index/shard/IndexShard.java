@@ -3627,7 +3627,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * listener handles all exception cases internally.
      */
     public final void syncAfterWrite(Translog.Location location, Consumer<Exception> syncListener) {
-        assert indexShardOperationPermits.getActiveOperationsCount() != 0 : "no permits held";
+        Thread.yield();
+        logger.info("--> syncAfterWrite at location [{}]", location);
+        assert indexShardOperationPermits.getActiveOperationsCount() != 0 : "no permits held when syncing after write to " + location;
         verifyNotClosed();
         getEngine().asyncEnsureTranslogSynced(location, syncListener);
     }

@@ -11,6 +11,7 @@ package org.elasticsearch.action.bulk;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
@@ -270,12 +271,14 @@ public class TransportShardBulkAction extends TransportWriteAction<BulkShardRequ
             }
 
             private void finishRequest() {
+                final var locationToSync = context.getLocationToSync();
+                logger.info("--> finishRequest: location to sync [{}]", locationToSync, new ElasticsearchException("stack trace"));
                 ActionListener.completeWith(
                     listener,
                     () -> new WritePrimaryResult<>(
                         context.getBulkShardRequest(),
                         context.buildShardResponse(),
-                        context.getLocationToSync(),
+                        locationToSync,
                         context.getPrimary(),
                         logger,
                         postWriteRefresh,

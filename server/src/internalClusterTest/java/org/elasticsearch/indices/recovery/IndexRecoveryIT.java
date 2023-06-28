@@ -1467,7 +1467,12 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         }
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.action.bulk:TRACE,org.elasticsearch.action.support.replication:TRACE")
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.action.bulk:TRACE,"
+            + "org.elasticsearch.action.support.replication:TRACE,"
+            + "org.elasticsearch.index.shard.IndexShard:TRACE"
+    )
     public void testPeerRecoveryTrimsLocalTranslog() throws Exception {
         internalCluster().startNode();
         List<String> dataNodes = internalCluster().startDataOnlyNodes(2);
