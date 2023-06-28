@@ -1594,6 +1594,8 @@ public class Node implements Closeable {
         injector.getInstance(SearchService.class).stop();
         injector.getInstance(TransportService.class).stop();
 
+        Thread.yield();
+
         pluginLifecycleComponents.forEach(LifecycleComponent::stop);
         // we should stop this last since it waits for resources to get released
         // if we had scroll searchers etc or recovery going on we wait for to finish.
