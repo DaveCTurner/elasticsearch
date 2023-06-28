@@ -10,6 +10,7 @@ package org.elasticsearch.index.shard;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -239,10 +241,17 @@ final class IndexShardOperationPermits implements Closeable {
         onAcquired.onResponse(releasable);
     }
 
+    private static final AtomicLong permitIdGenerator = new AtomicLong();
+
     private Releasable acquire() throws InterruptedException {
         assert Thread.holdsLock(this);
         if (semaphore.tryAcquire(1, 0, TimeUnit.SECONDS)) { // the un-timed tryAcquire methods do not honor the fairness setting
-            return Releasables.releaseOnce(semaphore::release);
+            final var permitId = permitIdGenerator.incrementAndGet();
+            logger.info("--> acquired permit [{}]", permitId, new ElasticsearchException("stack trace"));
+            return Releasables.releaseOnce(() -> {
+                logger.info("--> releasing permit permit [{}]", permitId, new ElasticsearchException("stack trace"));
+                semaphore.release();
+            });
         } else {
             // this should never happen, if it does something is deeply wrong
             throw new IllegalStateException("failed to obtain permit but operations are not delayed");
