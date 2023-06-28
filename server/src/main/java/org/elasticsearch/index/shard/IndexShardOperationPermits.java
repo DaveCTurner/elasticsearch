@@ -249,7 +249,7 @@ final class IndexShardOperationPermits implements Closeable {
             final var permitId = permitIdGenerator.incrementAndGet();
             logger.info("--> acquired permit [{}]", permitId, new ElasticsearchException("stack trace"));
             return Releasables.releaseOnce(() -> {
-                logger.info("--> releasing permit permit [{}]", permitId, new ElasticsearchException("stack trace"));
+                logger.info("--> releasing permit [{}]", permitId, new ElasticsearchException("stack trace"));
                 semaphore.release();
             });
         } else {
