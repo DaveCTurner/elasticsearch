@@ -35,6 +35,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
 import org.elasticsearch.transport.NodeNotConnectedException;
 import org.elasticsearch.transport.Transport;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -44,7 +45,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -153,26 +153,38 @@ public class JoinValidationService {
                 listener.onFailure(new NodeClosedException(transportService.getLocalNode()));
             }
         } else {
-            transportService.sendRequest(
-                discoveryNode,
-                JOIN_VALIDATE_ACTION_NAME,
-                new ValidateJoinRequest(clusterStateSupplier.get()),
-                REQUEST_OPTIONS,
-                new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
-                    logger.warn(() -> "failed to validate incoming join request from node [" + discoveryNode + "]", e);
-                    listener.onFailure(
-                        new IllegalStateException(
-                            String.format(
-                                Locale.ROOT,
-                                "failure when sending a join validation request from [%s] to [%s]",
-                                transportService.getLocalNode().descriptionWithoutAttributes(),
-                                discoveryNode.descriptionWithoutAttributes()
-                            ),
-                            e
-                        )
-                    );
-                }), i -> TransportResponse.Empty.INSTANCE, ThreadPool.Names.CLUSTER_COORDINATION)
-            );
+            final var responseHandler = new ActionListenerResponseHandler<>(listener.delegateResponse((l, e) -> {
+                logger.warn(() -> "failed to validate incoming join request from node [" + discoveryNode + "]", e);
+                listener.onFailure(
+                    new IllegalStateException(
+                        String.format(
+                            Locale.ROOT,
+                            "failure when sending a join validation request from [%s] to [%s]",
+                            transportService.getLocalNode().descriptionWithoutAttributes(),
+                            discoveryNode.descriptionWithoutAttributes()
+                        ),
+                        e
+                    )
+                );
+            }), i -> TransportResponse.Empty.INSTANCE, ThreadPool.Names.CLUSTER_COORDINATION);
+            final var clusterState = clusterStateSupplier.get();
+            if (clusterState.nodes().isLocalNodeElectedMaster()) {
+                transportService.sendRequest(
+                    discoveryNode,
+                    JOIN_VALIDATE_ACTION_NAME,
+                    new ValidateJoinRequest(clusterState),
+                    REQUEST_OPTIONS,
+                    responseHandler
+                );
+            } else {
+                transportService.sendRequest(
+                    discoveryNode,
+                    JoinHelper.JOIN_PING_ACTION_NAME,
+                    TransportRequest.Empty.INSTANCE,
+                    REQUEST_OPTIONS,
+                    responseHandler
+                );
+            }
         }
     }
 
@@ -313,7 +325,21 @@ public class JoinValidationService {
             }
             var version = connection.getTransportVersion();
             var cachedBytes = statesByVersion.get(version);
-            var bytes = Objects.requireNonNullElseGet(cachedBytes, () -> serializeClusterState(discoveryNode, version));
+            var bytes = maybeSerializeClusterState(cachedBytes, discoveryNode, version);
+            if (bytes == null) {
+                transportService.sendRequest(
+                    connection,
+                    JoinHelper.JOIN_PING_ACTION_NAME,
+                    TransportRequest.Empty.INSTANCE,
+                    REQUEST_OPTIONS,
+                    new ActionListenerResponseHandler<>(
+                        listener,
+                        in -> TransportResponse.Empty.INSTANCE,
+                        ThreadPool.Names.CLUSTER_COORDINATION
+                    )
+                );
+                return;
+            }
             assert bytes.hasReferences() : "already closed";
             bytes.incRef();
             transportService.sendRequest(
@@ -349,11 +375,23 @@ public class JoinValidationService {
         }
     }
 
-    private ReleasableBytesReference serializeClusterState(DiscoveryNode discoveryNode, TransportVersion version) {
+    private ReleasableBytesReference maybeSerializeClusterState(
+        ReleasableBytesReference cachedBytes,
+        DiscoveryNode discoveryNode,
+        TransportVersion version
+    ) {
+        if (cachedBytes != null) {
+            return cachedBytes;
+        }
+
+        final var clusterState = clusterStateSupplier.get();
+        if (clusterState.nodes().isLocalNodeElectedMaster() == false) {
+            return null;
+        }
+
         final var bytesStream = transportService.newNetworkBytesStream();
         var success = false;
         try {
-            final var clusterState = clusterStateSupplier.get();
             try (
                 var stream = new OutputStreamStreamOutput(
                     CompressorFactory.COMPRESSOR.threadLocalOutputStream(Streams.flushOnCloseStream(bytesStream))
