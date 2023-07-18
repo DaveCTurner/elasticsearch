@@ -189,7 +189,7 @@ public class ListTasksResponseTests extends AbstractXContentTestCase<ListTasksRe
         AbstractChunkedSerializingTestCase.assertChunkCount(response.groupedByNone(), o -> response.getTasks().size() + 2);
         AbstractChunkedSerializingTestCase.assertChunkCount(response.groupedByParent(), o -> response.getTaskGroups().size() + 2);
         AbstractChunkedSerializingTestCase.assertChunkCount(
-            response.groupedByNode(() -> DiscoveryNodes.EMPTY_NODES),
+            response.groupedByNode(DiscoveryNodes.EMPTY_NODES),
             o -> 2 + response.getPerNodeTasks().values().stream().mapToInt(entry -> 2 + entry.size()).sum()
         );
     }

@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
@@ -157,57 +156,54 @@ public class ListTasksResponse extends BaseTasksResponse {
     /**
      * Convert this task response to XContent grouping by executing nodes.
      */
-    public ChunkedToXContentObject groupedByNode(Supplier<DiscoveryNodes> nodesInCluster) {
-        return ignored -> {
-            final var discoveryNodes = nodesInCluster.get();
+    public ChunkedToXContentObject groupedByNode(DiscoveryNodes discoveryNodes) {
+        return ignored -> Iterators.concat(Iterators.single((builder, params) -> {
+            builder.startObject();
+            toXContentCommon(builder, params);
+            builder.startObject("nodes");
+            return builder;
+        }), Iterators.flatMap(getPerNodeTasks().entrySet().iterator(), entry -> {
+            DiscoveryNode node = discoveryNodes.get(entry.getKey());
             return Iterators.concat(Iterators.single((builder, params) -> {
-                builder.startObject();
-                toXContentCommon(builder, params);
-                builder.startObject("nodes");
-                return builder;
-            }), Iterators.flatMap(getPerNodeTasks().entrySet().iterator(), entry -> {
-                DiscoveryNode node = discoveryNodes.get(entry.getKey());
-                return Iterators.concat(Iterators.single((builder, params) -> {
-                    builder.startObject(entry.getKey());
-                    if (node != null) {
-                        // If the node is no longer part of the cluster, oh well, we'll just skip its useful information.
-                        builder.field("name", node.getName());
-                        builder.field("transport_address", node.getAddress().toString());
-                        builder.field("host", node.getHostName());
-                        builder.field("ip", node.getAddress());
+                builder.startObject(entry.getKey());
+                if (node != null) {
+                    // If the node is no longer part of the cluster, oh well, we'll just skip its useful information.
+                    builder.field("name", node.getName());
+                    builder.field("transport_address", node.getAddress().toString());
+                    builder.field("host", node.getHostName());
+                    builder.field("ip", node.getAddress());
 
-                        builder.startArray("roles");
-                        for (DiscoveryNodeRole role : node.getRoles()) {
-                            builder.value(role.roleName());
-                        }
-                        builder.endArray();
-
-                        if (node.getAttributes().isEmpty() == false) {
-                            builder.startObject("attributes");
-                            for (Map.Entry<String, String> attrEntry : node.getAttributes().entrySet()) {
-                                builder.field(attrEntry.getKey(), attrEntry.getValue());
-                            }
-                            builder.endObject();
-                        }
+                    builder.startArray("roles");
+                    for (DiscoveryNodeRole role : node.getRoles()) {
+                        builder.value(role.roleName());
                     }
-                    builder.startObject(TASKS);
-                    return builder;
-                }), Iterators.flatMap(entry.getValue().iterator(), task -> Iterators.<ToXContent>single((builder, params) -> {
-                    builder.startObject(task.taskId().toString());
-                    task.toXContent(builder, params);
-                    builder.endObject();
-                    return builder;
-                })), Iterators.<ToXContent>single((builder, params) -> {
-                    builder.endObject();
-                    builder.endObject();
-                    return builder;
-                }));
-            }), Iterators.<ToXContent>single((builder, params) -> {
+                    builder.endArray();
+
+                    if (node.getAttributes().isEmpty() == false) {
+                        builder.startObject("attributes");
+                        for (Map.Entry<String, String> attrEntry : node.getAttributes().entrySet()) {
+                            builder.field(attrEntry.getKey(), attrEntry.getValue());
+                        }
+                        builder.endObject();
+                    }
+                }
+                builder.startObject(TASKS);
+                return builder;
+            }), Iterators.flatMap(entry.getValue().iterator(), task -> Iterators.<ToXContent>single((builder, params) -> {
+                builder.startObject(task.taskId().toString());
+                task.toXContent(builder, params);
+                builder.endObject();
+                return builder;
+            })), Iterators.<ToXContent>single((builder, params) -> {
                 builder.endObject();
                 builder.endObject();
                 return builder;
             }));
-        };
+        }), Iterators.<ToXContent>single((builder, params) -> {
+            builder.endObject();
+            builder.endObject();
+            return builder;
+        }));
     }
 
     /**

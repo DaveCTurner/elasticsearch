@@ -11,7 +11,10 @@ package org.elasticsearch.rest.action.cat;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.TaskGroup;
+import org.elasticsearch.action.admin.cluster.state.InternalClusterStateNodesAction;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Strings;
@@ -32,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import static org.elasticsearch.common.util.set.Sets.addToCopy;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -42,12 +44,6 @@ import static org.elasticsearch.rest.action.admin.cluster.RestListTasksAction.ge
 public class RestTasksAction extends AbstractCatAction {
 
     private static final Set<String> RESPONSE_PARAMS = addToCopy(AbstractCatAction.RESPONSE_PARAMS, "detailed");
-
-    private final Supplier<DiscoveryNodes> nodesInCluster;
-
-    public RestTasksAction(Supplier<DiscoveryNodes> nodesInCluster) {
-        this.nodesInCluster = nodesInCluster;
-    }
 
     @Override
     public List<Route> routes() {
@@ -67,12 +63,28 @@ public class RestTasksAction extends AbstractCatAction {
     @Override
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
         final ListTasksRequest listTasksRequest = generateListTasksRequest(request);
-        return channel -> client.admin().cluster().listTasks(listTasksRequest, new RestResponseListener<>(channel) {
-            @Override
-            public RestResponse buildResponse(ListTasksResponse listTasksResponse) throws Exception {
-                return RestTable.buildResponse(buildTable(request, listTasksResponse), channel);
-            }
-        });
+        return channel -> {
+            final var tableListener = new RestResponseListener<Table>(channel) {
+                @Override
+                public RestResponse buildResponse(Table table) throws Exception {
+                    return RestTable.buildResponse(table, channel);
+                }
+            };
+
+            final var discoveryNodesStep = new SubscribableListener<DiscoveryNodes>();
+            InternalClusterStateNodesAction.getClusterStateNodes(client, discoveryNodesStep.map(ClusterState::nodes));
+
+            client.admin()
+                .cluster()
+                .listTasks(
+                    listTasksRequest,
+                    tableListener.delegateFailure(
+                        (delegate, listTasksResponse) -> discoveryNodesStep.addListener(
+                            delegate.map(discoveryNodes -> buildTable(request, discoveryNodes, listTasksResponse))
+                        )
+                    )
+                );
+        };
     }
 
     @Override
@@ -148,21 +160,20 @@ public class RestTasksAction extends AbstractCatAction {
         table.endRow();
     }
 
-    private void buildGroups(Table table, boolean fullId, boolean detailed, List<TaskGroup> taskGroups) {
-        DiscoveryNodes discoveryNodes = nodesInCluster.get();
+    private void buildGroups(Table table, boolean fullId, boolean detailed, DiscoveryNodes discoveryNodes, List<TaskGroup> taskGroups) {
         List<TaskGroup> sortedGroups = new ArrayList<>(taskGroups);
         sortedGroups.sort(Comparator.comparingLong(o -> o.taskInfo().startTime()));
         for (TaskGroup taskGroup : sortedGroups) {
             buildRow(table, fullId, detailed, discoveryNodes, taskGroup.taskInfo());
-            buildGroups(table, fullId, detailed, taskGroup.childTasks());
+            buildGroups(table, fullId, detailed, discoveryNodes, taskGroup.childTasks());
         }
     }
 
-    private Table buildTable(RestRequest request, ListTasksResponse listTasksResponse) {
+    private Table buildTable(RestRequest request, DiscoveryNodes discoveryNodes, ListTasksResponse listTasksResponse) {
         boolean fullId = request.paramAsBoolean("full_id", false);
         boolean detailed = request.paramAsBoolean("detailed", false);
         Table table = getTableWithHeader(request);
-        buildGroups(table, fullId, detailed, listTasksResponse.getTaskGroups());
+        buildGroups(table, fullId, detailed, discoveryNodes, listTasksResponse.getTaskGroups());
         return table;
     }
 }

@@ -83,7 +83,7 @@ public class ReindexPlugin extends Plugin implements ActionPlugin {
             new RestReindexAction(),
             new RestUpdateByQueryAction(),
             new RestDeleteByQueryAction(),
-            new RestRethrottleAction(nodesInCluster)
+            new RestRethrottleAction()
         );
     }
 

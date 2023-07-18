@@ -95,6 +95,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAc
 import org.elasticsearch.action.admin.cluster.snapshots.status.TransportNodesSnapshotsStatus;
 import org.elasticsearch.action.admin.cluster.snapshots.status.TransportSnapshotsStatusAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
+import org.elasticsearch.action.admin.cluster.state.InternalClusterStateNodesAction;
 import org.elasticsearch.action.admin.cluster.state.TransportClusterStateAction;
 import org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction;
 import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
@@ -655,6 +656,7 @@ public class ActionModule extends AbstractModule {
         actions.register(DeleteDesiredBalanceAction.INSTANCE, TransportDeleteDesiredBalanceAction.class);
         actions.register(ClusterStatsAction.INSTANCE, TransportClusterStatsAction.class);
         actions.register(ClusterStateAction.INSTANCE, TransportClusterStateAction.class);
+        actions.register(InternalClusterStateNodesAction.INSTANCE, InternalClusterStateNodesAction.TransportAction.class);
         actions.register(ClusterHealthAction.INSTANCE, TransportClusterHealthAction.class);
         actions.register(ClusterUpdateSettingsAction.INSTANCE, TransportClusterUpdateSettingsAction.class);
         actions.register(ClusterGetSettingsAction.INSTANCE, TransportClusterGetSettingsAction.class);
@@ -954,9 +956,9 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestFieldCapabilitiesAction());
 
         // Tasks API
-        registerHandler.accept(new RestListTasksAction(nodesInCluster));
+        registerHandler.accept(new RestListTasksAction());
         registerHandler.accept(new RestGetTaskAction());
-        registerHandler.accept(new RestCancelTasksAction(nodesInCluster));
+        registerHandler.accept(new RestCancelTasksAction());
 
         // Ingest API
         registerHandler.accept(new RestPutPipelineAction());
@@ -975,7 +977,7 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestMasterAction());
         registerHandler.accept(new RestNodesAction());
         registerHandler.accept(new RestClusterInfoAction());
-        registerHandler.accept(new RestTasksAction(nodesInCluster));
+        registerHandler.accept(new RestTasksAction());
         registerHandler.accept(new RestIndicesAction());
         registerHandler.accept(new RestSegmentsAction());
         // Fully qualified to prevent interference with rest.action.count.RestCountAction

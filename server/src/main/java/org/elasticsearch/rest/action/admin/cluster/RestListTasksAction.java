@@ -11,7 +11,10 @@ package org.elasticsearch.rest.action.admin.cluster;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
+import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.core.TimeValue;
@@ -25,19 +28,13 @@ import org.elasticsearch.tasks.TaskId;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.function.Supplier;
 
+import static org.elasticsearch.action.admin.cluster.state.InternalClusterStateNodesAction.getClusterStateNodes;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.Scope.INTERNAL;
 
 @ServerlessScope(INTERNAL)
 public class RestListTasksAction extends BaseRestHandler {
-
-    private final Supplier<DiscoveryNodes> nodesInCluster;
-
-    public RestListTasksAction(Supplier<DiscoveryNodes> nodesInCluster) {
-        this.nodesInCluster = nodesInCluster;
-    }
 
     @Override
     public List<Route> routes() {
@@ -53,9 +50,10 @@ public class RestListTasksAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final ListTasksRequest listTasksRequest = generateListTasksRequest(request);
         final String groupBy = request.param("group_by", "nodes");
-        return channel -> new RestCancellableNodeClient(client, request.getHttpChannel()).admin()
-            .cluster()
-            .listTasks(listTasksRequest, listTasksResponseListener(nodesInCluster, groupBy, channel));
+        return channel -> {
+            final var cancellableClient = new RestCancellableNodeClient(client, request.getHttpChannel());
+            cancellableClient.admin().cluster().listTasks(listTasksRequest, listTasksResponseListener(cancellableClient, groupBy, channel));
+        };
     }
 
     public static ListTasksRequest generateListTasksRequest(RestRequest request) {
@@ -80,13 +78,19 @@ public class RestListTasksAction extends BaseRestHandler {
      * Standard listener for extensions of {@link ListTasksResponse} that supports {@code group_by=nodes}.
      */
     public static <T extends ListTasksResponse> ActionListener<T> listTasksResponseListener(
-        Supplier<DiscoveryNodes> nodesInCluster,
+        Client client,
         String groupBy,
         RestChannel channel
     ) {
         final var listener = new RestChunkedToXContentListener<>(channel);
         return switch (groupBy) {
-            case "nodes" -> listener.map(response -> response.groupedByNode(nodesInCluster));
+            case "nodes" -> {
+                final var discoveryNodesStep = new SubscribableListener<DiscoveryNodes>();
+                getClusterStateNodes(client, discoveryNodesStep.map(ClusterState::nodes));
+                yield listener.delegateFailure(
+                    (delegate, response) -> discoveryNodesStep.addListener(delegate.map(response::groupedByNode))
+                );
+            }
             case "parents" -> listener.map(response -> response.groupedByParent());
             case "none" -> listener.map(response -> response.groupedByNone());
             default -> throw new IllegalArgumentException(

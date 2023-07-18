@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
-import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.client.NoOpNodeClient;
 import org.elasticsearch.test.rest.FakeRestChannel;
@@ -28,7 +27,7 @@ import static org.hamcrest.Matchers.is;
 public class RestTasksActionTests extends ESTestCase {
 
     public void testConsumesParameters() throws Exception {
-        RestTasksAction action = new RestTasksAction(() -> DiscoveryNodes.EMPTY_NODES);
+        RestTasksAction action = new RestTasksAction();
         FakeRestRequest fakeRestRequest = new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY).withParams(
             Map.of("parent_task_id", "the node:3", "nodes", "node1,node2", "actions", "*")
         ).build();
