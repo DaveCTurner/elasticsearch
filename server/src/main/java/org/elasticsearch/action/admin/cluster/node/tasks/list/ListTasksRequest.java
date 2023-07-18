@@ -8,7 +8,6 @@
 
 package org.elasticsearch.action.admin.cluster.node.tasks.list;
 
-import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.common.Strings;
@@ -41,21 +40,18 @@ public class ListTasksRequest extends BaseTasksRequest<ListTasksRequest> {
 
     public ListTasksRequest(StreamInput in) throws IOException {
         super(in);
-        detailed = in.readBoolean();
-        waitForCompletion = in.readBoolean();
-        if (in.getTransportVersion().onOrAfter(TransportVersion.V_7_13_0)) {
-            descriptions = in.readStringArray();
-        }
+        unsupportedSerialization();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeBoolean(detailed);
-        out.writeBoolean(waitForCompletion);
-        if (out.getTransportVersion().onOrAfter(TransportVersion.V_7_13_0)) {
-            out.writeStringArray(descriptions);
-        }
+        unsupportedSerialization();
+    }
+
+    private static void unsupportedSerialization() {
+        final var message = "ListTasksRequest never goes over the wire";
+        assert false : message;
+        throw new UnsupportedOperationException(message);
     }
 
     @Override

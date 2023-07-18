@@ -34,9 +34,18 @@ public class GetTaskRequest extends ActionRequest {
 
     public GetTaskRequest(StreamInput in) throws IOException {
         super(in);
-        taskId = TaskId.readFromStream(in);
-        timeout = in.readOptionalTimeValue();
-        waitForCompletion = in.readBoolean();
+        unsupportedSerialization();
+    }
+
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        unsupportedSerialization();
+    }
+
+    private static void unsupportedSerialization() {
+        final var message = "GetTaskRequest never goes over the wire";
+        assert false : message;
+        throw new UnsupportedOperationException(message);
     }
 
     public TaskId getTaskId() {
@@ -97,13 +106,5 @@ public class GetTaskRequest extends ActionRequest {
             validationException = addValidationError("task id is required", validationException);
         }
         return validationException;
-    }
-
-    @Override
-    public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
-        taskId.writeTo(out);
-        out.writeOptionalTimeValue(timeout);
-        out.writeBoolean(waitForCompletion);
     }
 }

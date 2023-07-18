@@ -33,12 +33,19 @@ public class GetTaskResponse extends ActionResponse implements ToXContentObject 
 
     public GetTaskResponse(StreamInput in) throws IOException {
         super(in);
-        task = in.readOptionalWriteable(TaskResult::new);
+        task = null;
+        unsupportedSerialization();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeOptionalWriteable(task);
+        unsupportedSerialization();
+    }
+
+    private static void unsupportedSerialization() {
+        final var message = "GetTaskResponse never goes over the wire";
+        assert false : message;
+        throw new UnsupportedOperationException(message);
     }
 
     /**

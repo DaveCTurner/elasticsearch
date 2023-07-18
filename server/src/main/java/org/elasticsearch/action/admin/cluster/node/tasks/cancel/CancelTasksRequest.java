@@ -32,15 +32,18 @@ public class CancelTasksRequest extends BaseTasksRequest<CancelTasksRequest> {
 
     public CancelTasksRequest(StreamInput in) throws IOException {
         super(in);
-        this.reason = in.readString();
-        waitForCompletion = in.readBoolean();
+        unsupportedSerialization();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeString(reason);
-        out.writeBoolean(waitForCompletion);
+        unsupportedSerialization();
+    }
+
+    private static void unsupportedSerialization() {
+        final var message = "CancelTasksRequest never goes over the wire";
+        assert false : message;
+        throw new UnsupportedOperationException(message);
     }
 
     @Override
