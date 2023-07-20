@@ -54,6 +54,7 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
         value = "org.elasticsearch.cluster.coordination:TRACE"
             + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
             + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.cluster.service:INFO"
     )
     public void testCanUpdateClusterStateAfterStabilisation() {
         super.testCanUpdateClusterStateAfterStabilisation();
