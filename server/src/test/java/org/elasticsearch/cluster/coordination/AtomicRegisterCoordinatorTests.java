@@ -49,6 +49,15 @@ import static org.elasticsearch.cluster.coordination.stateless.StoreHeartbeatSer
 public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
 
     @Override
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
+    public void testCanUpdateClusterStateAfterStabilisation() {
+        super.testCanUpdateClusterStateAfterStabilisation();
+    }
+
+    @Override
     public void testLeaderDisconnectionWithDisconnectEventDetectedQuickly() {
         // must allow a little extra time for the heartbeat to expire before the election can happen
         testLeaderDisconnectionWithDisconnectEventDetectedQuickly(
