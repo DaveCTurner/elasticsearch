@@ -995,6 +995,11 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     allocationService.cleanCaches();
                 }
             }
+
+            @Override
+            public String toString() {
+                return "cleanMasterService";
+            }
         }.submit(masterService, "clean-up after stepping down as master");
     }
 

@@ -1568,6 +1568,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 if (task != null && timeoutCancellable != null) {
                     timeoutCancellable.cancel();
                 }
+                logger.info("--> acquireForExecution: [{}]", task);
                 return task;
             }
 
@@ -1626,6 +1627,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 ActionListener.run(ActionListener.runBefore(listener, () -> {
                     assert executing.size() == finalTaskCount;
                     executing.clear();
+                    logger.info("--> end of batch");
                 }), l -> batchConsumer.runBatch(executor, tasks, new BatchSummary(() -> buildTasksDescription(tasks)), l));
             }
 
