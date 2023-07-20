@@ -213,7 +213,7 @@ public class MasterService extends AbstractLifecycleComponent {
             return;
         }
 
-        logger.debug("executing cluster state update for [{}]", summary);
+        logger.info("executing cluster state update for [{}]", summary);
         final ClusterState previousClusterState = state();
 
         if (previousClusterState.nodes().isLocalNodeElectedMaster() == false && executor.runOnlyOnMaster()) {
@@ -319,7 +319,7 @@ public class MasterService extends AbstractLifecycleComponent {
         if (logger.isTraceEnabled()) {
             logger.trace("cluster state updated, source [{}]\n{}", summary, newClusterState);
         } else {
-            logger.debug("cluster state updated, version [{}], source [{}]", newClusterState.version(), summary);
+            logger.info("cluster state updated, version [{}], source [{}]", newClusterState.version(), summary);
         }
 
         final ClusterStatePublicationEvent clusterStatePublicationEvent = new ClusterStatePublicationEvent(
@@ -369,6 +369,7 @@ public class MasterService extends AbstractLifecycleComponent {
             ActionListener.runAfter(new ActionListener<>() {
                 @Override
                 public void onResponse(Void unused) {
+                    logger.info("--> publish complete");
                     final long notificationStartTime = threadPool.rawRelativeTimeInMillis();
                     for (final var executionResult : executionResults) {
                         executionResult.onPublishSuccess(newClusterState);
@@ -401,6 +402,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
                 @Override
                 public void onFailure(Exception exception) {
+                    logger.info("--> publish failed", exception);
                     if (exception instanceof FailedToCommitClusterStateException failedToCommitClusterStateException) {
                         final long notificationStartTime = threadPool.rawRelativeTimeInMillis();
                         final long version = newClusterState.version();
@@ -1619,6 +1621,7 @@ public class MasterService extends AbstractLifecycleComponent {
                         );
                     }
                 }
+                logger.info("--> start of batch of [{}] tasks", taskCount);
                 if (taskCount == 0) {
                     listener.onResponse(null);
                     return;
