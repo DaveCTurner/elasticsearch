@@ -9,6 +9,7 @@ package org.elasticsearch.cluster.coordination;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
@@ -277,7 +278,8 @@ public class CoordinationState {
             join.getSourceNode(),
             electionWon,
             lastAcceptedTerm,
-            getLastAcceptedVersion()
+            getLastAcceptedVersion(),
+            new ElasticsearchException("stack trace")
         );
 
         if (electionWon && prevElectionWon == false) {
