@@ -51,7 +51,9 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     @Override
     @TestLogging(
         reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE,org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+        value = "org.elasticsearch.cluster.coordination:TRACE"
+            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+            + ",org.elasticsearch.discovery:TRACE"
     )
     public void testCanUpdateClusterStateAfterStabilisation() {
         super.testCanUpdateClusterStateAfterStabilisation();
