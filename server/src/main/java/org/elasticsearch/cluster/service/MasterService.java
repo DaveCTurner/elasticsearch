@@ -1252,6 +1252,7 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         private void onCompletion() {
+            logger.info("--> onCompletion, completing [{}]", currentlyExecutingBatch);
             currentlyExecutingBatch = null;
             if (totalQueueSize.decrementAndGet() > 0) {
                 starvationWatcher.onNonemptyQueue();
@@ -1345,8 +1346,15 @@ public class MasterService extends AbstractLifecycleComponent {
         void execute(Batch runner) {
             queue.add(runner);
             if (totalQueueSize.getAndIncrement() == 0) {
+                logger.info("--> total queue became nonempty with [{}]", runner);
                 starvationWatcher.onEmptyQueue();
                 forkQueueProcessor();
+            } else {
+                logger.info(
+                    "--> total queue already nonempty before adding [{}], currently executing [{}]",
+                    runner,
+                    currentlyExecutingBatch
+                );
             }
         }
 
