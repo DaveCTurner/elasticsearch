@@ -407,6 +407,7 @@ public class JoinHelper {
                 currentTermSupplier.getAsLong()
             );
             joinTaskQueue.submitTask("node-join", task, null);
+            logger.info("--> LeaderJoinAccumulator: submitted join task for {}", sender);
         }
 
         @Override

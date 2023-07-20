@@ -1543,7 +1543,10 @@ public class MasterService extends AbstractLifecycleComponent {
             );
 
             if (queueSize.getAndIncrement() == 0) {
+                logger.info("--> queue became nonempty with [{}]", task);
                 perPriorityQueue.execute(processor);
+            } else {
+                logger.info("--> queue already nonempty before adding [{}]", task);
             }
         }
 
