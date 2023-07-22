@@ -58,9 +58,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -116,6 +119,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
     private final ClusterStateUpdateStatsTracker clusterStateUpdateStatsTracker = new ClusterStateUpdateStatsTracker();
     private final StarvationWatcher starvationWatcher = new StarvationWatcher();
+    private final RateLimiters rateLimiters = new RateLimiters();
 
     public MasterService(Settings settings, ClusterSettings clusterSettings, ThreadPool threadPool, TaskManager taskManager) {
         this.nodeName = Objects.requireNonNull(Node.NODE_NAME_SETTING.get(settings));
@@ -205,6 +209,7 @@ public class MasterService extends AbstractLifecycleComponent {
         final ClusterStateTaskExecutor<T> executor,
         final List<ExecutionResult<T>> executionResults,
         final BatchSummary summary,
+        final RateLimiters.RateLimiter rateLimiter,
         final ActionListener<Void> listener
     ) {
         if (lifecycle.started() == false) {
@@ -220,6 +225,17 @@ public class MasterService extends AbstractLifecycleComponent {
             logger.debug("failing [{}]: local node is no longer master", summary);
             for (ExecutionResult<T> executionResult : executionResults) {
                 executionResult.onBatchFailure(new NotMasterException("no longer master"));
+                executionResult.notifyFailure();
+            }
+            listener.onResponse(null);
+            return;
+        }
+
+        final var rateLimiterException = rateLimiter.checkRateLimit();
+        if (rateLimiterException != null) {
+            logger.debug("failing [{}]: rate limit exceeded: {}", summary, rateLimiterException.getMessage());
+            for (ExecutionResult<T> executionResult : executionResults) {
+                executionResult.onBatchFailure(rateLimiterException);
                 executionResult.notifyFailure();
             }
             listener.onResponse(null);
@@ -1256,6 +1272,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 forkQueueProcessor();
             } else {
                 starvationWatcher.onEmptyQueue();
+                rateLimiters.reset();
             }
         }
 
@@ -1411,7 +1428,8 @@ public class MasterService extends AbstractLifecycleComponent {
             insertionIndexSupplier,
             queuesByPriority.get(priority),
             executor,
-            threadPool
+            threadPool,
+            rateLimiters. new RateLimiter()
         );
     }
 
@@ -1421,6 +1439,7 @@ public class MasterService extends AbstractLifecycleComponent {
             ClusterStateTaskExecutor<T> executor,
             List<ExecutionResult<T>> tasks,
             BatchSummary summary,
+            RateLimiters.RateLimiter rateLimiter,
             ActionListener<Void> listener
         );
     }
@@ -1499,6 +1518,7 @@ public class MasterService extends AbstractLifecycleComponent {
         private final PerPriorityQueue perPriorityQueue;
         private final ClusterStateTaskExecutor<T> executor;
         private final ThreadPool threadPool;
+        private final RateLimiters.RateLimiter rateLimiter;
         private final Batch processor = new Processor();
 
         BatchingTaskQueue(
@@ -1507,7 +1527,8 @@ public class MasterService extends AbstractLifecycleComponent {
             LongSupplier insertionIndexSupplier,
             PerPriorityQueue perPriorityQueue,
             ClusterStateTaskExecutor<T> executor,
-            ThreadPool threadPool
+            ThreadPool threadPool,
+            RateLimiters.RateLimiter rateLimiter
         ) {
             this.name = name;
             this.batchConsumer = batchConsumer;
@@ -1515,10 +1536,18 @@ public class MasterService extends AbstractLifecycleComponent {
             this.perPriorityQueue = perPriorityQueue;
             this.executor = executor;
             this.threadPool = threadPool;
+            this.rateLimiter = rateLimiter;
         }
 
         @Override
         public void submitTask(String source, T task, @Nullable TimeValue timeout) {
+
+            final var preflightException = rateLimiter.preflightException();
+            if (preflightException != null) {
+                task.onFailure(preflightException);
+                return;
+            }
+
             final var taskHolder = new AtomicReference<>(task);
             final Scheduler.Cancellable timeoutCancellable;
             if (timeout != null && timeout.millis() > 0) {
@@ -1623,7 +1652,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 ActionListener.run(ActionListener.runBefore(listener, () -> {
                     assert executing.size() == finalTaskCount;
                     executing.clear();
-                }), l -> batchConsumer.runBatch(executor, tasks, new BatchSummary(() -> buildTasksDescription(tasks)), l));
+                }), l -> batchConsumer.runBatch(executor, tasks, new BatchSummary(() -> buildTasksDescription(tasks)), rateLimiter, l));
             }
 
             private String buildTasksDescription(List<ExecutionResult<T>> tasks) {
@@ -1689,4 +1718,44 @@ public class MasterService extends AbstractLifecycleComponent {
     }
 
     static final int MAX_TASK_DESCRIPTION_CHARS = 8 * 1024;
+
+    private static class RateLimiters {
+
+        private long batchCount;
+        private final Set<RateLimiter> activeRateLimiters = new HashSet<>();
+
+        void reset() {
+            activeRateLimiters.clear();
+        }
+
+        class RateLimiter {
+            private final long burst = 500;
+            private final long threshold = 100;
+            private final double maxRate = 0.1;
+            private long lastBatchCount;
+            private double level;
+
+            @Nullable
+            public Exception checkRateLimit() {
+                batchCount += 1;
+
+                if (activeRateLimiters.add(RateLimiter.this)) {
+                    level = 1.0;
+                    lastBatchCount = batchCount;
+                    return null;
+                }
+
+                return null;
+            }
+
+            @Nullable
+            public Exception preflightException() {
+                // ugh concurrency, this won't be on the master thread!
+                if (activeRateLimiters.contains(RateLimiter.this)) {
+                    // compute new level but don't update
+                }
+            }
+        }
+    }
+
 }
