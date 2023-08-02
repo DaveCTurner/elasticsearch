@@ -57,11 +57,11 @@ public class AsyncSearchTaskTests extends ESTestCase {
     public void beforeTest() {
         threadPool = new TestThreadPool(getTestName()) {
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 if (throwOnSchedule) {
                     throw new RuntimeException();
                 }
-                return super.schedule(command, delay, executorName, executor);
+                return super.schedule(command, delay, executor);
             }
         };
     }

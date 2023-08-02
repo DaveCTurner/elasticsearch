@@ -398,9 +398,9 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
+        public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
             delays.add(delay);
-            return super.schedule(command, TimeValue.ZERO, executorName, executor);
+            return super.schedule(command, TimeValue.ZERO, executor);
         }
 
         public void assertCountersAndDelay(Collection<TimeValue> expectedDelays) {

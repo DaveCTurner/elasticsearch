@@ -191,7 +191,7 @@ public class TransportKeepAliveTests extends ESTestCase {
         }
 
         @Override
-        public ScheduledCancellable schedule(Runnable task, TimeValue delay, String executorName, Executor executor) {
+        public ScheduledCancellable schedule(Runnable task, TimeValue delay, Executor executor) {
             scheduledTasks.add(new Tuple<>(delay, task));
             return null;
         }

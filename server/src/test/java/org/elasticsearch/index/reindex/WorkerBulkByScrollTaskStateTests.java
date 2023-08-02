@@ -135,9 +135,9 @@ public class WorkerBulkByScrollTaskStateTests extends ESTestCase {
         int batchSizeForMaxDelay = (int) (maxDelay.seconds() * originalRequestsPerSecond);
         ThreadPool threadPool = new TestThreadPool(getTestName()) {
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String name, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 assertThat(delay.nanos(), both(greaterThanOrEqualTo(0L)).and(lessThanOrEqualTo(maxDelay.nanos())));
-                return super.schedule(command, delay, name);
+                return super.schedule(command, delay, executor);
             }
         };
         try {
@@ -186,7 +186,7 @@ public class WorkerBulkByScrollTaskStateTests extends ESTestCase {
     public void testDelayNeverNegative() throws IOException {
         // Thread pool that returns a ScheduledFuture that claims to have a negative delay
         ThreadPool threadPool = new TestThreadPool("test") {
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String name, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 return new ScheduledCancellable() {
                     @Override
                     public long getDelay(TimeUnit unit) {

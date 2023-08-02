@@ -252,7 +252,7 @@ public class ScheduleWithFixedDelayTests extends ESTestCase {
         terminate(threadPool);
         threadPool = new ThreadPool(Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "fixed delay tests").build()) {
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 if (command instanceof ReschedulingRunnable) {
                     ((ReschedulingRunnable) command).onRejection(new EsRejectedExecutionException());
                 } else {

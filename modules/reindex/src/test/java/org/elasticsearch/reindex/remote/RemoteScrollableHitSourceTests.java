@@ -104,7 +104,7 @@ public class RemoteScrollableHitSourceTests extends ESTestCase {
             }
 
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String name, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 command.run();
                 return null;
             }

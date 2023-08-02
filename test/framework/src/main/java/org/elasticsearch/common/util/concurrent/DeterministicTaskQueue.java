@@ -355,7 +355,7 @@ public class DeterministicTaskQueue {
             }
 
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, Executor executor) {
                 final int NOT_STARTED = 0;
                 final int STARTED = 1;
                 final int CANCELLED = 2;
