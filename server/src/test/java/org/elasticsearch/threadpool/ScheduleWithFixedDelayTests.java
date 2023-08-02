@@ -22,6 +22,7 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -251,7 +252,7 @@ public class ScheduleWithFixedDelayTests extends ESTestCase {
         terminate(threadPool);
         threadPool = new ThreadPool(Settings.builder().put(Node.NODE_NAME_SETTING.getKey(), "fixed delay tests").build()) {
             @Override
-            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executor) {
+            public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
                 if (command instanceof ReschedulingRunnable) {
                     ((ReschedulingRunnable) command).onRejection(new EsRejectedExecutionException());
                 } else {

@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -397,10 +398,9 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executor) {
+        public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
             delays.add(delay);
-
-            return super.schedule(command, TimeValue.ZERO, executor);
+            return super.schedule(command, TimeValue.ZERO, executorName, executor);
         }
 
         public void assertCountersAndDelay(Collection<TimeValue> expectedDelays) {

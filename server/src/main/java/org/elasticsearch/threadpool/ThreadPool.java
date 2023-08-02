@@ -461,20 +461,34 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
      *
      * @param command the command to run
      * @param delay delay before the task executes
-     * @param executor the name of the thread pool on which to execute this task. SAME means "execute on the scheduler thread" which changes
-     *        the meaning of the ScheduledFuture returned by this method. In that case the ScheduledFuture will complete only when the
-     *        command completes.
+     * @param executorName the name of the thread pool on which to execute this task.
+     * @return a ScheduledFuture who's get will return when the task is has been added to its target thread pool and throw an exception if
+     *         the task is canceled before it was added to its target thread pool. Once the task has been added to its target thread pool
+     *         the ScheduledFuture will cannot interact with it.
+     * @throws EsRejectedExecutionException if the task cannot be scheduled for execution
+     */
+    @Override
+    public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName) {
+        return schedule(command, delay, executorName, executor(executorName));
+    }
+
+    /**
+     * Schedules a one-shot command to run after a given delay. The command is run in the context of the calling thread.
+     *
+     * @param command the command to run
+     * @param delay delay before the task executes
+     * @param executorName the name of the thread pool on which to execute this task.
+     * @param executor the executor to use to execute the task
      * @return a ScheduledFuture who's get will return when the task is has been added to its target thread pool and throw an exception if
      *         the task is canceled before it was added to its target thread pool. Once the task has been added to its target thread pool
      *         the ScheduledFuture will cannot interact with it.
      * @throws org.elasticsearch.common.util.concurrent.EsRejectedExecutionException if the task cannot be scheduled for execution
      */
-    @Override
-    public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executor) {
+    public ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName, Executor executor) {
         final Runnable contextPreservingRunnable = threadContext.preserveContext(command);
         final Runnable toSchedule;
-        if (Names.SAME.equals(executor) == false) {
-            toSchedule = new ThreadedRunnable(contextPreservingRunnable, executor(executor));
+        if (executor != EsExecutors.DIRECT_EXECUTOR_SERVICE) {
+            toSchedule = new ThreadedRunnable(contextPreservingRunnable, executor);
         } else if (slowSchedulerWarnThresholdNanos > 0) {
             toSchedule = new Runnable() {
                 @Override

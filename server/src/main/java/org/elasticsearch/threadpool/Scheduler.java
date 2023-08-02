@@ -85,14 +85,13 @@ public interface Scheduler {
      *
      * @param command the command to run
      * @param delay delay before the task executes
-     * @param executor the name of the executor that has to execute this task. Ignored in the default implementation but can be used
-     *                 by subclasses that support multiple executors.
+     * @param executorName the name of the executor that has to execute this task.
      * @return a ScheduledFuture who's get will return when the task has been added to its target thread pool and throws an exception if
      *         the task is canceled before it was added to its target thread pool. Once the task has been added to its target thread pool
      *         the ScheduledFuture cannot interact with it.
      * @throws EsRejectedExecutionException if the task cannot be scheduled for execution
      */
-    ScheduledCancellable schedule(Runnable command, TimeValue delay, String executor);
+    ScheduledCancellable schedule(Runnable command, TimeValue delay, String executorName);
 
     /**
      * Schedules a periodic action that runs on scheduler thread. Do not run blocking calls on the scheduler thread. Subclasses may allow
