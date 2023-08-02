@@ -51,7 +51,10 @@ public class HealthNodeTaskParams implements PersistentTaskParams {
     }
 
     @Override
-    public void writeTo(StreamOutput out) {}
+    public void writeTo(StreamOutput out) {
+        // TODO added in v8.5.0 - this one needs care
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_8_5_0) : out.getTransportVersion();
+    }
 
     public static HealthNodeTaskParams fromXContent(XContentParser parser) {
         return PARSER.apply(parser, null);

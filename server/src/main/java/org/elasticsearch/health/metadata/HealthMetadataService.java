@@ -11,6 +11,7 @@ package org.elasticsearch.health.metadata;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -137,7 +138,7 @@ public class HealthMetadataService {
 
     private boolean canPostClusterStateUpdates(ClusterState state) {
         // Wait until every node in the cluster is upgraded to 8.5.0 or later
-        return isMaster && state.nodesIfRecovered().getMinNodeVersion().onOrAfter(Version.V_8_5_0);
+        return isMaster && state.getMinTransportVersion().onOrAfter(TransportVersion.V_8_5_0);
     }
 
     private void updateOnClusterStateChange(ClusterChangedEvent event) {

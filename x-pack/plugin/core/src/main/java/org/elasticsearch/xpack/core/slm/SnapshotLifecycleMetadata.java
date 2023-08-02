@@ -136,6 +136,7 @@ public class SnapshotLifecycleMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_4_0) : out.getTransportVersion();
         out.writeMap(this.snapshotConfigurations, StreamOutput::writeString, (out1, value) -> value.writeTo(out1));
         out.writeEnum(this.operationMode);
         this.slmStats.writeTo(out);

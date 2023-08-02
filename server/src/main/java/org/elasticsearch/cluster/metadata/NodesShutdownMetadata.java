@@ -79,6 +79,7 @@ public class NodesShutdownMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(NODE_SHUTDOWN_VERSION) : out.getTransportVersion();
         out.writeMap(nodes, StreamOutput::writeString, (outStream, v) -> v.writeTo(outStream));
     }
 

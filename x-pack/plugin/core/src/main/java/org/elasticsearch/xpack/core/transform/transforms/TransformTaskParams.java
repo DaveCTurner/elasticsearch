@@ -97,6 +97,7 @@ public class TransformTaskParams implements SimpleDiffable<TransformTaskParams>,
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_17_0) : out.getTransportVersion();
         out.writeString(transformId);
         Version.writeVersion(version, out);
         if (out.getTransportVersion().onOrAfter(TransportVersion.V_8_7_0)) {

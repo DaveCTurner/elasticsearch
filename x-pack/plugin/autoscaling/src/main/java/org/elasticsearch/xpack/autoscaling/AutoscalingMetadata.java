@@ -86,6 +86,7 @@ public class AutoscalingMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_8_0) : out.getTransportVersion();
         out.writeCollection(policies.values());
     }
 
@@ -163,6 +164,7 @@ public class AutoscalingMetadata implements Metadata.Custom {
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
+            assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_8_0) : out.getTransportVersion();
             policies.writeTo(out);
         }
 

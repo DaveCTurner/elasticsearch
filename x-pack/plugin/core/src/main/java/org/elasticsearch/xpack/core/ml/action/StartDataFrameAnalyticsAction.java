@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static org.elasticsearch.upgrades.FeatureMigrationResults.MIGRATION_ADDED_VERSION;
+
 public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedResponse> {
 
     public static final StartDataFrameAnalyticsAction INSTANCE = new StartDataFrameAnalyticsAction();
@@ -208,6 +210,7 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
+            assert out.getTransportVersion().onOrAfter(TRANSPORT_VERSION_INTRODUCED) : out.getTransportVersion();
             out.writeString(id);
             Version.writeVersion(version, out);
             out.writeBoolean(allowLazyStart);

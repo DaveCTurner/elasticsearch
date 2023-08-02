@@ -100,6 +100,8 @@ public class LifecycleOperationMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        // TODO added in v8.7.0 - this one needs care
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_8_7_0) : out.getTransportVersion();
         out.writeEnum(ilmOperationMode);
         out.writeEnum(slmOperationMode);
     }

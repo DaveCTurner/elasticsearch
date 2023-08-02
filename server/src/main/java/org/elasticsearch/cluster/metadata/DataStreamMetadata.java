@@ -221,6 +221,7 @@ public class DataStreamMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
         out.writeMap(this.dataStreams, StreamOutput::writeString, (stream, val) -> val.writeTo(stream));
         out.writeMap(this.dataStreamAliases, StreamOutput::writeString, (stream, val) -> val.writeTo(stream));
     }
@@ -302,6 +303,7 @@ public class DataStreamMetadata implements Metadata.Custom {
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
+            assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
             dataStreamDiff.writeTo(out);
             dataStreamAliasDiff.writeTo(out);
         }

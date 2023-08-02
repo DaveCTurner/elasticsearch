@@ -160,6 +160,7 @@ public class TrainedModelAssignmentMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_8_0_0) : out.getTransportVersion();
         out.writeMap(deploymentRoutingEntries, StreamOutput::writeString, (o, w) -> w.writeTo(o));
     }
 

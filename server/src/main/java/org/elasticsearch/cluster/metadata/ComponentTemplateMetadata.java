@@ -92,6 +92,7 @@ public class ComponentTemplateMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
         out.writeMap(this.componentTemplates, StreamOutput::writeString, (stream, val) -> val.writeTo(stream));
     }
 
@@ -154,6 +155,7 @@ public class ComponentTemplateMetadata implements Metadata.Custom {
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
+            assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
             componentTemplateDiff.writeTo(out);
         }
 

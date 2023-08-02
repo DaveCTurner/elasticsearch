@@ -53,6 +53,8 @@ public class SystemIndexMigrationTaskParams implements PersistentTaskParams {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         // This space intentionally left blank
+        // TODO added in v8.0.0 - this one needs care
+        assert out.getTransportVersion().onOrAfter(MIGRATION_ADDED_VERSION) : out.getTransportVersion();
     }
 
     @Override

@@ -97,6 +97,7 @@ public class ComposableIndexTemplateMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
         out.writeMap(this.indexTemplates, StreamOutput::writeString, (outstream, val) -> val.writeTo(outstream));
     }
 
@@ -155,6 +156,7 @@ public class ComposableIndexTemplateMetadata implements Metadata.Custom {
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
+            assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_7_0) : out.getTransportVersion();
             indexTemplateDiff.writeTo(out);
         }
 

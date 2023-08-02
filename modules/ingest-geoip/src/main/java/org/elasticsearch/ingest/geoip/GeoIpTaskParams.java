@@ -46,7 +46,9 @@ class GeoIpTaskParams implements PersistentTaskParams {
     }
 
     @Override
-    public void writeTo(StreamOutput out) {}
+    public void writeTo(StreamOutput out) {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_13_0) : out.getTransportVersion();
+    }
 
     public static GeoIpTaskParams fromXContent(XContentParser parser) {
         return PARSER.apply(parser, null);

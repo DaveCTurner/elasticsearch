@@ -73,6 +73,7 @@ public class SnapshotUpgradeTaskParams implements PersistentTaskParams, MlTaskPa
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_11_0) : out.getTransportVersion();
         out.writeString(jobId);
         out.writeString(snapshotId);
     }

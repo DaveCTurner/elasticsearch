@@ -57,6 +57,8 @@ public class DesiredNodesMetadata extends AbstractNamedDiffable<Metadata.Custom>
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        // TODO added in v8.1.0 - this one needs care
+        assert out.getTransportVersion().onOrAfter(MIN_SUPPORTED_VERSION) : out.getTransportVersion();
         latestDesiredNodes.writeTo(out);
     }
 

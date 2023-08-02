@@ -117,6 +117,7 @@ public class ModelAliasMetadata implements Metadata.Custom {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_7_13_0) : out.getTransportVersion();
         out.writeMap(this.modelAliases, StreamOutput::writeString, (stream, val) -> val.writeTo(stream));
     }
 

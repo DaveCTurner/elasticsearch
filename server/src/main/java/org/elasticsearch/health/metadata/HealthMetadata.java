@@ -67,6 +67,8 @@ public final class HealthMetadata extends AbstractNamedDiffable<ClusterState.Cus
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        // TODO added in v8.5.0 - this one needs care
+        assert out.getTransportVersion().onOrAfter(TransportVersion.V_8_5_0) : out.getTransportVersion();
         diskMetadata.writeTo(out);
         if (out.getTransportVersion().onOrAfter(ShardLimits.VERSION_SUPPORTING_SHARD_LIMIT_FIELDS)) {
             out.writeOptionalWriteable(shardLimitsMetadata);
