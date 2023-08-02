@@ -80,7 +80,8 @@ public class ScheduleWithFixedDelayTests extends ESTestCase {
             (e) -> {}
         );
         // not scheduled yet
-        verify(threadPool, never()).schedule(any(), any(), any());
+        verify(threadPool, never()).schedule(any(), any(), any(String.class));
+        verify(threadPool, never()).schedule(any(), any(), any(Executor.class));
 
         reschedulingRunnable.start();
         // this call was made by start
