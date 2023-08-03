@@ -2214,6 +2214,9 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 abdicateTo(abdicationTarget.get());
                 // hmm if abdication fails we will remain CANDIDATE for a while, then the shutdown state times out and we will try
                 // another election, and then immediately abdicate again - TODO avoid an abdication loop like this
+
+                // also if abdication fails then our heartbeat blob will block other elections for a while - should we remove it?
+                // fairly safe to remove heartbeat blob anyway since leaderchecker blocks other elections from starting for a bit?
             } else {
                 logger.warn(
                     "shutting down, but no suitable abdication targets found: shutdown node IDs {}, master nodes [{}]",
