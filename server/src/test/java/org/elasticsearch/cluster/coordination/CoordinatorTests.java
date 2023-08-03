@@ -19,6 +19,8 @@ import org.elasticsearch.cluster.coordination.AbstractCoordinatorTestCase.Cluste
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
 import org.elasticsearch.cluster.coordination.Coordinator.Mode;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
+import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
@@ -38,6 +40,7 @@ import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
+import org.elasticsearch.plugins.ShutdownAwarePlugin;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.transport.TransportService;
@@ -1945,6 +1948,25 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         Metadata newMetadata = Metadata.builder(currentState.metadata()).coordinationMetadata(coordMetadataBuilder.build()).build();
 
         return ClusterState.builder(currentState).nodes(newNodes).metadata(newMetadata).build();
+    }
+
+    public void testShutdownAwareness() {
+        try (Cluster cluster = new Cluster(3, true, Settings.EMPTY)) {
+            cluster.runRandomly();
+            cluster.stabilise();
+            ClusterNode leader = cluster.getAnyLeader();
+
+            logger.info("--> adding shutdown marker");
+
+            final var leaderShutdownAwarePlugin = leader.coordinator.getShutdownAwarePlugin();
+            leaderShutdownAwarePlugin.signalShutdown(List.of(leader.getId()));
+            cluster.stabilise(DEFAULT_ELECTION_DELAY);
+
+            logger.info("--> completed stabilisation");
+
+            assertNotEquals(leader, cluster.getAnyLeader());
+            assertTrue(leaderShutdownAwarePlugin.safeToShutdown(leader.getId(), SingleNodeShutdownMetadata.Type.SIGTERM));
+        }
     }
 
 }
