@@ -2168,15 +2168,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     private class CoordinatorShutdownAware implements ShutdownAwarePlugin {
         @Override
         public boolean safeToShutdown(String nodeId, SingleNodeShutdownMetadata.Type shutdownType) {
-            if (nodeId.equals(getLocalNode().getId())) {
-                synchronized (mutex) {
-                    if (mode == Mode.LEADER) {
-                        return false;
-                    }
-                    // TODO should really wait to become FOLLOWER (or time out)
-                }
-            }
-            return true;
+            // called from a TransportMasterNodeAction which means we are the master, so it's not safe to shut us down
+            return nodeId.equals(getLocalNode().getId()) == false;
         }
 
         @Override
@@ -2185,21 +2178,28 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 // TODO acquire mutex on cluster coordination thread not here
                 synchronized (mutex) {
                     if (mode == Mode.LEADER) {
-                        final var abdicationTarget = getApplierState().nodes()
-                            .getMasterNodes()
-                            .values()
-                            .stream()
+                        final var discoveryNodes = getApplierState().nodes();
+                        final var abdicationTarget = discoveryNodes.mastersFirstStream()
+                            .filter(DiscoveryNode::isMasterNode)
                             .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
                             .findFirst();
                         if (abdicationTarget.isPresent()) {
-                            logger.info("abdicating to [{}] on shutdown", abdicationTarget.get().descriptionWithoutAttributes());
+                            logger.info("shutting down and abdicating to [{}]", abdicationTarget.get().descriptionWithoutAttributes());
+                            // TODO must first prevent ourselves from becoming leader again
                             abdicateTo(abdicationTarget.get());
                         } else {
-                            logger.warn("shutting down but no suitable abdication targets found");
+                            logger.warn(
+                                "shutting down but no suitable abdication targets found: shutdown node IDs {}, master nodes [{}]",
+                                shutdownNodeIds,
+                                discoveryNodes.mastersFirstStream()
+                                    .filter(DiscoveryNode::isMasterNode)
+                                    .map(DiscoveryNode::descriptionWithoutAttributes)
+                                    .collect(Collectors.joining(","))
+                            );
+                            // signalShutdown() is called on every cluster state update: if there are no suitable targets now, and one
+                            // joins later, then we will retry
                         }
                     }
-
-                    // TODO must also prevent ourselves from becoming leader again
                 }
             }
         }
