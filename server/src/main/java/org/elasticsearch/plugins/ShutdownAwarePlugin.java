@@ -22,13 +22,13 @@ public interface ShutdownAwarePlugin {
 
     /**
      * Whether the plugin is considered safe to shut down. This method is called when the status of
-     * a shutdown is retrieved via the API, and it is only called on the master node.
+     * a shutdown is retrieved via the API, and it is only called on the master node. Should not throw any exception.
      */
     boolean safeToShutdown(String nodeId, SingleNodeShutdownMetadata.Type shutdownType);
 
     /**
      * A trigger to notify the plugin that a shutdown for the nodes has been triggered. This method
-     * will be called on every node for each cluster state, so it should return quickly.
+     * will be called on every node for each cluster state, so it should return quickly. Should not throw any exception.
      */
     void signalShutdown(Collection<String> shutdownNodeIds);
 }

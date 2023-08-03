@@ -73,7 +73,8 @@ public class PluginShutdownService implements ClusterStateListener {
                     return false;
                 }
             } catch (Exception e) {
-                logger.warn("uncaught exception when retrieving whether plugin is ready for node shutdown", e);
+                logger.error("uncaught exception when retrieving whether plugin is ready for node shutdown", e);
+                assert false : e;
             }
         }
         return true;
@@ -88,7 +89,8 @@ public class PluginShutdownService implements ClusterStateListener {
             try {
                 plugin.signalShutdown(shutdownNodes);
             } catch (Exception e) {
-                logger.warn(() -> "uncaught exception when notifying plugins of nodes " + shutdownNodes + " shutdown", e);
+                logger.error(() -> "uncaught exception when notifying plugins of nodes " + shutdownNodes + " shutdown", e);
+                assert false : e;
             }
         }
     }

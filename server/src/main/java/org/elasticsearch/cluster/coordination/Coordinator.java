@@ -2182,6 +2182,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         @Override
         public void signalShutdown(Collection<String> shutdownNodeIds) {
             if (shutdownNodeIds.contains(getLocalNode().getId())) {
+                // TODO acquire mutex on cluster coordination thread not here
                 synchronized (mutex) {
                     if (mode == Mode.LEADER) {
                         final var abdicationTarget = getApplierState().nodes()
