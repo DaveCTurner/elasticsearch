@@ -249,6 +249,7 @@ public class ClusterFormationFailureHelper {
 
             final StringBuilder foundPeersDescription = new StringBuilder();
             DiscoveryNodes.addCommaSeparatedNodesWithoutAttributes(foundPeers.iterator(), foundPeersDescription);
+            // TODO also include recent masters (according to peers) which we cannot discover
 
             final String discoveryStateIgnoringQuorum = String.format(
                 Locale.ROOT,
