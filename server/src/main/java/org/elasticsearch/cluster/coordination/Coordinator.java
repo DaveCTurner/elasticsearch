@@ -2212,7 +2212,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             if (abdicationTarget.isPresent()) {
                 logger.info("shutting down and abdicating to [{}]", abdicationTarget.get().descriptionWithoutAttributes());
                 abdicateTo(abdicationTarget.get());
-                // TODO hmm if abdication fails
+                // hmm if abdication fails we will remain CANDIDATE for a while, then the shutdown state times out and we will try
+                // another election, and then immediately abdicate again - TODO avoid an abdication loop like this
             } else {
                 logger.warn(
                     "shutting down, but no suitable abdication targets found: shutdown node IDs {}, master nodes [{}]",
