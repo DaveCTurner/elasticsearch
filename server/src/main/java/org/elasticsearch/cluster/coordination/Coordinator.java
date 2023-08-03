@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.coordination.CoordinationState.VoteCollection;
 import org.elasticsearch.cluster.coordination.FollowersChecker.FollowerCheckRequest;
 import org.elasticsearch.cluster.coordination.JoinHelper.InitialJoinAccumulator;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
 import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -49,7 +50,9 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.Nullable;
@@ -1768,6 +1771,13 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                             return;
                         }
 
+                        final var shutdownState = currentShutdownState;
+                        if (shutdownState.isShuttingDown()) {
+                            // TODO if shutdown state is too old, start participating in elections again
+                            logger.debug("skip prevoting as local node is shutting down: [{}]", shutdownState);
+                            return;
+                        }
+
                         if (prevotingRound != null) {
                             prevotingRound.close();
                         }
@@ -2165,6 +2175,59 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         void onFoundPeersUpdated();
     }
 
+    /**
+     * @param shutdownNodeIds        IDs of shutting-down nodes, if we are shutting down, otherwise empty
+     * @param shutdownCreationMillis Timestamp of creation of shutdown metadata record
+     */
+    private record ShutdownState(Set<String> shutdownNodeIds, long shutdownCreationMillis) {
+        static final ShutdownState EMPTY = new ShutdownState(Set.of(), 0L);
+
+        boolean isShuttingDown() {
+            return shutdownNodeIds.isEmpty() == false;
+        }
+    }
+
+    private volatile ShutdownState currentShutdownState = ShutdownState.EMPTY;
+
+    private void handleShutdown() {
+        final var shutdownState = currentShutdownState; // single volatile read
+
+        if (shutdownState.isShuttingDown() == false) {
+            // not shutting down any more
+            return;
+        }
+        final var shutdownNodeIds = shutdownState.shutdownNodeIds;
+        assert shutdownNodeIds.contains(getLocalNode().getId()) : getLocalNode() + " not in " + shutdownState;
+
+        synchronized (mutex) {
+            if (mode != Mode.LEADER) {
+                return;
+            }
+
+            final var discoveryNodes = getApplierState().nodes();
+            final var abdicationTarget = discoveryNodes.mastersFirstStream()
+                .filter(DiscoveryNode::isMasterNode)
+                .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
+                .findFirst();
+            if (abdicationTarget.isPresent()) {
+                logger.info("shutting down and abdicating to [{}]", abdicationTarget.get().descriptionWithoutAttributes());
+                abdicateTo(abdicationTarget.get());
+                // TODO hmm if abdication fails
+            } else {
+                logger.warn(
+                    "shutting down, but no suitable abdication targets found: shutdown node IDs {}, master nodes [{}]",
+                    shutdownNodeIds,
+                    discoveryNodes.mastersFirstStream()
+                        .filter(DiscoveryNode::isMasterNode)
+                        .map(DiscoveryNode::descriptionWithoutAttributes)
+                        .collect(Collectors.joining(","))
+                );
+                // signalShutdown() is called on every cluster state update: if there are no suitable targets now, and one
+                // joins later, then we will retry
+            }
+        }
+    }
+
     private class CoordinatorShutdownAware implements ShutdownAwarePlugin {
         @Override
         public boolean safeToShutdown(String nodeId, SingleNodeShutdownMetadata.Type shutdownType) {
@@ -2175,33 +2238,38 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         @Override
         public void signalShutdown(Collection<String> shutdownNodeIds) {
             if (shutdownNodeIds.contains(getLocalNode().getId())) {
-                // TODO acquire mutex on cluster coordination thread not here
-                synchronized (mutex) {
-                    if (mode == Mode.LEADER) {
-                        final var discoveryNodes = getApplierState().nodes();
-                        final var abdicationTarget = discoveryNodes.mastersFirstStream()
-                            .filter(DiscoveryNode::isMasterNode)
-                            .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
-                            .findFirst();
-                        if (abdicationTarget.isPresent()) {
-                            logger.info("shutting down and abdicating to [{}]", abdicationTarget.get().descriptionWithoutAttributes());
-                            // TODO must first prevent ourselves from becoming leader again
-                            abdicateTo(abdicationTarget.get());
-                        } else {
-                            logger.warn(
-                                "shutting down but no suitable abdication targets found: shutdown node IDs {}, master nodes [{}]",
-                                shutdownNodeIds,
-                                discoveryNodes.mastersFirstStream()
-                                    .filter(DiscoveryNode::isMasterNode)
-                                    .map(DiscoveryNode::descriptionWithoutAttributes)
-                                    .collect(Collectors.joining(","))
-                            );
-                            // signalShutdown() is called on every cluster state update: if there are no suitable targets now, and one
-                            // joins later, then we will retry
-                        }
-                    }
+                final var localNodeShutdownMetadata = getLastAcceptedState().metadata()
+                    .custom(NodesShutdownMetadata.TYPE, NodesShutdownMetadata.EMPTY)
+                    .get(getLocalNode().getId());
+                if (localNodeShutdownMetadata == null) {
+                    logger.error("no local node shutdown metadata found");
+                    assert false : "no local node shutdown metadata found";
+                } else {
+                    currentShutdownState = new ShutdownState(Set.copyOf(shutdownNodeIds), localNodeShutdownMetadata.getStartedAtMillis());
                 }
+            } else if (currentShutdownState.isShuttingDown()) {
+                currentShutdownState = ShutdownState.EMPTY;
+            } else {
+                return;
             }
+
+            clusterCoordinationExecutor.execute(new AbstractRunnable() {
+                @Override
+                public void onRejection(Exception e) {
+                    assert e instanceof EsRejectedExecutionException esre && esre.isExecutorShutdown() : e;
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.error("failure handling shutdown signal", e);
+                    assert false : e;
+                }
+
+                @Override
+                protected void doRun() {
+                    handleShutdown();
+                }
+            });
         }
     }
 }

@@ -47,7 +47,8 @@ public class TransportPutShutdownNodeAction extends AcknowledgedTransportMasterN
     private static boolean putShutdownNodeState(
         Map<String, SingleNodeShutdownMetadata> shutdownMetadata,
         Predicate<String> nodeExists,
-        Request request
+        Request request,
+        long currentTimeMillis
     ) {
         if (isNoop(shutdownMetadata, request)) {
             return false;
@@ -58,7 +59,7 @@ public class TransportPutShutdownNodeAction extends AcknowledgedTransportMasterN
             .setNodeId(request.getNodeId())
             .setType(request.getType())
             .setReason(request.getReason())
-            .setStartedAtMillis(System.currentTimeMillis())
+            .setStartedAtMillis(currentTimeMillis)
             .setNodeSeen(nodeSeen)
             .setAllocationDelay(request.getAllocationDelay())
             .setTargetNodeName(request.getTargetNodeName())
@@ -118,6 +119,7 @@ public class TransportPutShutdownNodeAction extends AcknowledgedTransportMasterN
     class PutShutdownNodeExecutor implements ClusterStateTaskExecutor<PutShutdownNodeTask> {
         @Override
         public ClusterState execute(BatchExecutionContext<PutShutdownNodeTask> batchExecutionContext) throws Exception {
+            final var currentTimeMillis = transportService.getThreadPool().absoluteTimeInMillis();
             final var initialState = batchExecutionContext.initialState();
             var shutdownMetadata = new HashMap<>(initialState.metadata().nodeShutdowns().getAll());
             Predicate<String> nodeExistsPredicate = batchExecutionContext.initialState().getNodes()::nodeExists;
@@ -125,7 +127,7 @@ public class TransportPutShutdownNodeAction extends AcknowledgedTransportMasterN
             for (final var taskContext : batchExecutionContext.taskContexts()) {
                 var request = taskContext.getTask().request();
                 try (var ignored = taskContext.captureResponseHeaders()) {
-                    changed |= putShutdownNodeState(shutdownMetadata, nodeExistsPredicate, request);
+                    changed |= putShutdownNodeState(shutdownMetadata, nodeExistsPredicate, request, currentTimeMillis);
                 } catch (Exception e) {
                     taskContext.onFailure(e);
                     continue;
