@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.coordination.CoordinationState.VoteCollection;
 import org.elasticsearch.cluster.coordination.FollowersChecker.FollowerCheckRequest;
 import org.elasticsearch.cluster.coordination.JoinHelper.InitialJoinAccumulator;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RerouteService;
@@ -67,6 +68,7 @@ import org.elasticsearch.discovery.TransportAddressConnector;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
+import org.elasticsearch.plugins.ShutdownAwarePlugin;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
@@ -2157,5 +2159,36 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
 
     public interface PeerFinderListener {
         void onFoundPeersUpdated();
+    }
+
+    private class CoordinatorShutdownAware implements ShutdownAwarePlugin {
+        @Override
+        public boolean safeToShutdown(String nodeId, SingleNodeShutdownMetadata.Type shutdownType) {
+            if (nodeId.equals(getLocalNode().getId())) {
+                synchronized (mutex) {
+                    if (mode == Mode.LEADER) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public void signalShutdown(Collection<String> shutdownNodeIds) {
+            if (shutdownNodeIds.contains(getLocalNode().getId())) {
+                synchronized (mutex) {
+                    if (mode == Mode.LEADER) {
+                        getApplierState().nodes()
+                            .getMasterNodes()
+                            .values()
+                            .stream()
+                            .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
+                            .findFirst()
+                            .ifPresent(Coordinator.this::abdicateTo);
+                    }
+                }
+            }
+        }
     }
 }
