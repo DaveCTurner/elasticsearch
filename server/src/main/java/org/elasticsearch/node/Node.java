@@ -1017,7 +1017,10 @@ public class Node implements Closeable {
             );
             resourcesToClose.add(persistentTasksClusterService);
 
-            final List<ShutdownAwarePlugin> shutdownAwarePlugins = pluginsService.filterPlugins(ShutdownAwarePlugin.class);
+            final List<ShutdownAwarePlugin> shutdownAwarePlugins = CollectionUtils.appendToCopy(
+                pluginsService.filterPlugins(ShutdownAwarePlugin.class),
+                discoveryModule.getCoordinator().getShutdownAwarePlugin()
+            );
             final PluginShutdownService pluginShutdownService = new PluginShutdownService(shutdownAwarePlugins);
             clusterService.addListener(pluginShutdownService);
 

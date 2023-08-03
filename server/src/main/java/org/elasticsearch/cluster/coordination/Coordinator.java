@@ -2173,6 +2173,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     if (mode == Mode.LEADER) {
                         return false;
                     }
+                    // TODO should really wait to become FOLLOWER (or time out)
                 }
             }
             return true;
@@ -2183,14 +2184,21 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             if (shutdownNodeIds.contains(getLocalNode().getId())) {
                 synchronized (mutex) {
                     if (mode == Mode.LEADER) {
-                        getApplierState().nodes()
+                        final var abdicationTarget = getApplierState().nodes()
                             .getMasterNodes()
                             .values()
                             .stream()
                             .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
-                            .findFirst()
-                            .ifPresent(Coordinator.this::abdicateTo);
+                            .findFirst();
+                        if (abdicationTarget.isPresent()) {
+                            logger.info("abdicating to [{}] on shutdown", abdicationTarget.get().descriptionWithoutAttributes());
+                            abdicateTo(abdicationTarget.get());
+                        } else {
+                            logger.warn("shutting down but no suitable abdication targets found");
+                        }
                     }
+
+                    // TODO must also prevent ourselves from becoming leader again
                 }
             }
         }
