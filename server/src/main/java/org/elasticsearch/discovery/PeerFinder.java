@@ -333,6 +333,7 @@ public abstract class PeerFinder {
         private final TransportAddress transportAddress;
         private final SetOnce<ProbeConnectionResult> probeConnectionResult = new SetOnce<>();
         private volatile boolean peersRequestInFlight;
+        private Optional<DiscoveryNode> lastKnownMasterNode = Optional.empty();
 
         Peer(TransportAddress transportAddress) {
             this.transportAddress = transportAddress;
@@ -376,11 +377,8 @@ public abstract class PeerFinder {
             assert getDiscoveryNode() == null : "unexpectedly connected to " + getDiscoveryNode();
             assert isActive();
 
-            final boolean verboseFailureLogging = transportService.getThreadPool().relativeTimeInMillis()
-                - activatedAtMillis > verbosityIncreaseTimeout.millis();
-
             logger.trace("{} attempting connection", this);
-            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<ProbeConnectionResult>() {
+            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<>() {
                 @Override
                 public void onResponse(ProbeConnectionResult connectResult) {
                     assert holdsLock() == false : "PeerFinder mutex is held in error";
@@ -413,10 +411,21 @@ public abstract class PeerFinder {
 
                 @Override
                 public void onFailure(Exception e) {
-                    if (verboseFailureLogging) {
+                    if (verboseFailureLogging()) {
+
+                        final String believedMasterBy;
+                        synchronized (mutex) {
+                            believedMasterBy = peersByAddress.values()
+                                .stream()
+                                .filter(p -> p.lastKnownMasterNode.map(DiscoveryNode::getAddress).equals(Optional.of(transportAddress)))
+                                .findFirst()
+                                .map(p -> " [current master according to " + p.getDiscoveryNode().descriptionWithoutAttributes() + "]")
+                                .orElse("");
+                        }
+
                         if (logger.isDebugEnabled()) {
                             // log message at level WARN, but since DEBUG logging is enabled we include the full stack trace
-                            logger.warn(() -> format("%s discovery result", Peer.this), e);
+                            logger.warn(() -> format("%s%s discovery result", Peer.this, believedMasterBy), e);
                         } else {
                             final StringBuilder messageBuilder = new StringBuilder();
                             Throwable cause = e;
@@ -427,7 +436,7 @@ public abstract class PeerFinder {
                             final String message = messageBuilder.length() < 1024
                                 ? messageBuilder.toString()
                                 : (messageBuilder.substring(0, 1023) + "...");
-                            logger.warn("{} discovery result{}", Peer.this, message);
+                            logger.warn("{}{} discovery result{}", Peer.this, believedMasterBy, message);
                         }
                     } else {
                         logger.debug(() -> format("%s discovery result", Peer.this), e);
@@ -477,6 +486,7 @@ public abstract class PeerFinder {
                         }
 
                         peersRequestInFlight = false;
+                        lastKnownMasterNode = response.getMasterNode();
 
                         response.getMasterNode().ifPresent(node -> startProbe(node.getAddress()));
                         for (DiscoveryNode node : response.getKnownPeers()) {
@@ -519,7 +529,17 @@ public abstract class PeerFinder {
 
         @Override
         public String toString() {
-            return "address [" + transportAddress + "], node [" + getDiscoveryNode() + "], requesting [" + peersRequestInFlight + "]";
+            return "address ["
+                + transportAddress
+                + "], node ["
+                + Optional.ofNullable(probeConnectionResult.get())
+                    .map(result -> result.getDiscoveryNode().descriptionWithoutAttributes())
+                    .orElse("unknown")
+                + (peersRequestInFlight ? " [request in flight]" : "");
         }
+    }
+
+    private boolean verboseFailureLogging() {
+        return transportService.getThreadPool().relativeTimeInMillis() - activatedAtMillis > verbosityIncreaseTimeout.millis();
     }
 }
