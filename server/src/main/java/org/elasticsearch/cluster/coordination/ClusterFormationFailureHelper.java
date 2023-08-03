@@ -233,6 +233,8 @@ public class ClusterFormationFailureHelper {
                 return String.format(Locale.ROOT, "this node is unhealthy: %s", statusInfo.getInfo());
             }
 
+            // TODO if a node is shutting down then we must report that fact here
+
             final StringBuilder clusterStateNodes = new StringBuilder();
             DiscoveryNodes.addCommaSeparatedNodesWithoutAttributes(masterEligibleNodes.values().iterator(), clusterStateNodes);
 

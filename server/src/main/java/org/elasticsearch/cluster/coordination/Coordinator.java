@@ -2209,6 +2209,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 .filter(DiscoveryNode::isMasterNode)
                 .filter(n -> shutdownNodeIds.contains(n.getId()) == false)
                 .findFirst();
+            // TODO if a mix of versions, choose the newest
             if (abdicationTarget.isPresent()) {
                 logger.info("shutting down and abdicating to [{}]", abdicationTarget.get().descriptionWithoutAttributes());
                 abdicateTo(abdicationTarget.get());
