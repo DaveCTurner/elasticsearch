@@ -1679,6 +1679,10 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         this.peerFinderListeners.add(peerFinderListener);
     }
 
+    public ShutdownAwarePlugin getShutdownAwarePlugin() {
+        return new CoordinatorShutdownAware();
+    }
+
     public enum Mode {
         CANDIDATE,
         LEADER,
