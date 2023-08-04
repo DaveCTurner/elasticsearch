@@ -173,11 +173,6 @@ public class HealthMetadataService {
                 e
             );
         }
-
-        @Override
-        public String toString() {
-            return "";
-        }
     }
 
     class Executor extends SimpleBatchedExecutor<UpsertHealthMetadataTask, Void> {
@@ -195,6 +190,11 @@ public class HealthMetadataService {
 
         @Override
         public void taskSucceeded(UpsertHealthMetadataTask task, Void unused) {}
+
+        @Override
+        public String describeTasks(List<UpsertHealthMetadataTask> tasks) {
+            return ""; // tasks are equivalent and idempotent, no need to list them out
+        }
     }
 
     private void updateOnDiskSettingsUpdated(String settingName, String value) {
