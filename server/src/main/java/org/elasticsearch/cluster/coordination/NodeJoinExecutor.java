@@ -121,6 +121,10 @@ public class NodeJoinExecutor implements ClusterStateTaskExecutor<JoinTask> {
 
         DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder(newState.nodes());
         Map<String, TransportVersion> transportVersions = new HashMap<>(newState.transportVersions());
+        if (transportVersions.containsKey(initialState.nodes().getLocalNodeId()) == false) {
+            assert isBecomingMaster;
+            transportVersions.put(initialState.nodes().getLocalNodeId(), TransportVersion.current());
+        }
 
         assert nodesBuilder.isLocalNodeElectedMaster();
 
