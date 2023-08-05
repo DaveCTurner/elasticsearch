@@ -383,8 +383,11 @@ public abstract class PeerFinder {
             assert getDiscoveryNode() == null : "unexpectedly connected to " + getDiscoveryNode();
             assert isActive();
 
+            final boolean verboseFailureLogging = transportService.getThreadPool().relativeTimeInMillis()
+                - activatedAtMillis > verbosityIncreaseTimeout.millis();
+
             logger.trace("{} attempting connection", this);
-            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<>() {
+            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<ProbeConnectionResult>() {
                 @Override
                 public void onResponse(ProbeConnectionResult connectResult) {
                     assert holdsLock() == false : "PeerFinder mutex is held in error";
@@ -417,7 +420,7 @@ public abstract class PeerFinder {
 
                 @Override
                 public void onFailure(Exception e) {
-                    if (verboseFailureLogging()) {
+                    if (verboseFailureLogging) {
 
                         final String believedMasterBy;
                         synchronized (mutex) {
@@ -543,9 +546,5 @@ public abstract class PeerFinder {
                     .orElse("unknown")
                 + (peersRequestInFlight ? " [request in flight]" : "");
         }
-    }
-
-    private boolean verboseFailureLogging() {
-        return transportService.getThreadPool().relativeTimeInMillis() - activatedAtMillis > verbosityIncreaseTimeout.millis();
     }
 }
