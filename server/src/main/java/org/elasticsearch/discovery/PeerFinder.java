@@ -329,6 +329,12 @@ public abstract class PeerFinder {
         }
     }
 
+    public List<DiscoveryNode> getMastersOfPeers() {
+        synchronized (mutex) {
+            return peersByAddress.values().stream().flatMap(p -> p.lastKnownMasterNode.stream()).distinct().toList();
+        }
+    }
+
     private class Peer {
         private final TransportAddress transportAddress;
         private final SetOnce<ProbeConnectionResult> probeConnectionResult = new SetOnce<>();
