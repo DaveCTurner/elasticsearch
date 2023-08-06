@@ -138,7 +138,7 @@ public class TransportAddVotingConfigExclusionsAction extends TransportMasterNod
                     threadPool.getThreadContext()
                 );
 
-                final Set<String> excludedNodeIds = resolvedExclusions.stream()
+                final Set<String> excludedNodeIds = newState.getVotingConfigExclusions().stream()
                     .map(VotingConfigExclusion::getNodeId)
                     .collect(Collectors.toSet());
 
