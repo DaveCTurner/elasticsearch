@@ -12,6 +12,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata.VotingConfiguration;
 import org.elasticsearch.cluster.coordination.CoordinationState.VoteCollection;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.plugins.ShutdownAwarePlugin;
 
 /**
  * Allows plugging in a custom election strategy, restricting the notion of an election quorum.
@@ -104,4 +105,13 @@ public abstract class ElectionStrategy {
     public void beforeCommit(long term, long version, ActionListener<Void> listener) {
         listener.onResponse(null);
     }
+
+    public boolean nodeMayWinElection(ClusterState lastAcceptedState, DiscoveryNode node) {
+        final String nodeId = node.getId();
+        return lastAcceptedState.getLastCommittedConfiguration().getNodeIds().contains(nodeId)
+            || lastAcceptedState.getLastAcceptedConfiguration().getNodeIds().contains(nodeId)
+            || lastAcceptedState.getVotingConfigExclusions().stream().noneMatch(vce -> vce.getNodeId().equals(nodeId));
+    }
+
+    public void setShutdownHandler(ShutdownAwarePlugin shutdownHandler) {}
 }
