@@ -1927,6 +1927,33 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE"
+            + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
+    public void testElectionWithSlowPublication() {
+        final var delayedActions = new HashSet<>();
+        try (Cluster cluster = new Cluster(5, true, Settings.EMPTY) {
+            @Override
+            protected long transportDelayMillis(String actionName) {
+                return between(0, delayedActions.contains(actionName) ? 3000 : 0);
+            }
+        }) {
+            cluster.runRandomly();
+            cluster.stabilise();
+            final var leader = cluster.getAnyLeader();
+
+            logger.info("--> marking leader [{}] as blackholed and adding join request delays", leader);
+            delayedActions.add(JoinHelper.START_JOIN_ACTION_NAME);
+            delayedActions.add(JoinHelper.JOIN_ACTION_NAME);
+            leader.blackhole();
+            cluster.stabilise();
+            delayedActions.clear();
+        }
+    }
+
     private ClusterState buildNewClusterStateWithVotingConfigExclusion(
         ClusterState currentState,
         Set<CoordinationMetadata.VotingConfigExclusion> newVotingConfigExclusion
