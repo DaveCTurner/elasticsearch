@@ -390,6 +390,9 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
             }
 
             FutureUtils.get(future); // NB subtly different exception semantics
+            if (timeExceeded) {
+                throwTimeExceededException();
+            }
             return collectorManager.reduce(collectors.asList());
         }
     }
