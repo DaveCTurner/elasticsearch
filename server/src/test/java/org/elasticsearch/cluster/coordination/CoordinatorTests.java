@@ -1938,7 +1938,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         try (Cluster cluster = new Cluster(5, true, Settings.EMPTY) {
             @Override
             protected long transportDelayMillis(String actionName) {
-                return between(0, delayedActions.contains(actionName) ? 3000 : 0);
+                return between(0, delayedActions.contains(actionName) ? 5000 : 0);
             }
         }) {
             cluster.runRandomly();
