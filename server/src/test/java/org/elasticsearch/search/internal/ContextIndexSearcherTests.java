@@ -86,6 +86,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -626,8 +627,9 @@ public class ContextIndexSearcherTests extends ESTestCase {
                             return null;
                         }
                     };
-                    RuntimeException executionException = expectThrows(
+                    ExecutionException executionException = expectThrows(
                         RuntimeException.class,
+                        ExecutionException.class,
                         () -> contextIndexSearcher.search(query, collectorManager)
                     );
                     assertBusy(() -> {

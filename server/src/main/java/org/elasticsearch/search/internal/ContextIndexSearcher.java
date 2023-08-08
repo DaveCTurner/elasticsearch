@@ -36,7 +36,10 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.SparseFixedBitSet;
-import org.apache.lucene.util.ThreadInterruptedException;
+import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.lucene.util.CombinedBitSet;
@@ -57,13 +60,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Context-aware extension of {@link IndexSearcher}.
@@ -349,101 +346,51 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
             assert leafContexts.isEmpty();
             return collectorManager.reduce(Collections.singletonList(firstCollector));
         } else {
-            final List<C> collectors = new ArrayList<>(leafSlices.length);
-            collectors.add(firstCollector);
-            final ScoreMode scoreMode = firstCollector.scoreMode();
-            for (int i = 1; i < leafSlices.length; ++i) {
-                final C collector = collectorManager.newCollector();
-                collectors.add(collector);
-                if (scoreMode != collector.scoreMode()) {
-                    throw new IllegalStateException("CollectorManager does not always produce collectors with the same score mode");
-                }
-            }
-            final List<RunnableFuture<C>> listTasks = new ArrayList<>();
-            for (int i = 0; i < leafSlices.length; ++i) {
-                final LeafReaderContext[] leaves = leafSlices[i].leaves;
-                final C collector = collectors.get(i);
-                AtomicInteger state = new AtomicInteger(0);
-                RunnableFuture<C> task = new FutureTask<>(() -> {
-                    if (state.compareAndSet(0, 1)) {
-                        // A slice throws exception or times out: cancel all the tasks, to prevent slices that haven't started yet from
-                        // starting and performing needless computation.
-                        // TODO we will also want to cancel tasks that have already started, reusing the timeout mechanism
-                        try {
-                            search(Arrays.asList(leaves), weight, collector);
-                            if (timeExceeded) {
-                                for (Future<?> future : listTasks) {
-                                    FutureUtils.cancel(future);
-                                }
-                            }
-                        } catch (Exception e) {
-                            for (Future<?> future : listTasks) {
-                                FutureUtils.cancel(future);
-                            }
-                            throw e;
+            final var future = new PlainActionFuture<Void>();
+            final var collectors = new AtomicArray<C>(leafSlices.length);
+            try (var listeners = new RefCountingListener(1, future)) {
+                final var scoreMode = firstCollector.scoreMode();
+                final var executor = getExecutor();
+                for (int i = 0; i < leafSlices.length; i++) {
+                    final var sliceIndex = i;
+
+                    final C collector;
+                    if (sliceIndex == 0) {
+                        collector = firstCollector;
+                    } else {
+                        collector = collectorManager.newCollector();
+                        if (scoreMode != collector.scoreMode()) {
+                            listeners.acquire()
+                                .onFailure(
+                                    new IllegalStateException(
+                                        "CollectorManager does not always produce collectors with the same score mode"
+                                    )
+                                );
+                            break;
+                            // NB subtle difference, we may have forked some stuff already
                         }
-                        return collector;
-                    }
-                    throw new CancellationException();
-                }) {
-                    @Override
-                    public boolean cancel(boolean mayInterruptIfRunning) {
-                        /*
-                        Future#get (called down below after submitting all tasks) throws CancellationException for a cancelled task while
-                        it is still running. It's important to make sure that search does not leave any tasks behind when it returns.
-                        Overriding cancel ensures that tasks that are already started are left alone once cancelled, so Future#get will
-                        wait for them to finish instead of throwing CancellationException.
-                        Tasks that are cancelled before they are started won't start (same behaviour as the original implementation).
-                         */
-                        return state.compareAndSet(0, -1);
                     }
 
-                    @Override
-                    public boolean isCancelled() {
-                        return state.get() == -1;
-                    }
-                };
-                listTasks.add(task);
-            }
-            logger.trace("Collecting using " + listTasks.size() + " tasks.");
-
-            for (Runnable task : listTasks) {
-                getExecutor().execute(task);
-            }
-            RuntimeException exception = null;
-            final List<C> collectedCollectors = new ArrayList<>();
-            boolean cancellation = false;
-            for (Future<C> future : listTasks) {
-                try {
-                    collectedCollectors.add(future.get());
-                } catch (InterruptedException e) {
-                    if (exception == null) {
-                        exception = new ThreadInterruptedException(e);
-                    } else {
-                        // we ignore further exceptions
-                    }
-                } catch (ExecutionException e) {
-                    if (exception == null) {
-                        if (e.getCause() instanceof CancellationException) {
-                            // thrown by the manual cancellation implemented above - we cancel on exception and we will throw the root cause
-                            cancellation = true;
-                        } else {
-                            if (e.getCause() instanceof RuntimeException runtimeException) {
-                                exception = runtimeException;
-                            } else {
-                                exception = new RuntimeException(e.getCause());
-                            }
+                    executor.execute(ActionRunnable.run(listeners.acquire(), () -> {
+                        if (listeners.isFailing()) {
+                            return;
                         }
-                    } else {
-                        // we ignore further exceptions
-                    }
+
+                        search(Arrays.asList(leafSlices[sliceIndex].leaves), weight, collector);
+
+                        if (timeExceeded) {
+                            throwTimeExceededException();
+                        }
+
+                        synchronized (collectors) {
+                            collectors.set(sliceIndex, collector);
+                        }
+                    }));
                 }
             }
-            assert cancellation == false || exception != null || timeExceeded : "cancellation without an exception or timeout?";
-            if (exception != null) {
-                throw exception;
-            }
-            return collectorManager.reduce(collectedCollectors);
+
+            FutureUtils.get(future); // NB subtly different exception semantics
+            return collectorManager.reduce(collectors.asList());
         }
     }
 
