@@ -36,9 +36,11 @@ import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.SparseFixedBitSet;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.core.Releasable;
@@ -348,6 +350,7 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
         } else {
             final var future = new PlainActionFuture<Void>();
             final var collectors = new AtomicArray<C>(leafSlices.length);
+            final var cancellableThreads = new CancellableThreads();
             try (var listeners = new RefCountingListener(1, future)) {
                 final var scoreMode = firstCollector.scoreMode();
                 final var executor = getExecutor();
@@ -360,22 +363,18 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
                     } else {
                         collector = collectorManager.newCollector();
                         if (scoreMode != collector.scoreMode()) {
-                            listeners.acquire()
-                                .onFailure(
-                                    new IllegalStateException(
-                                        "CollectorManager does not always produce collectors with the same score mode"
-                                    )
-                                );
+                            final var message = "CollectorManager does not always produce collectors with the same score mode";
+                            cancellableThreads.cancel(message);
+                            listeners.acquire().onFailure(new IllegalStateException(message));
                             break;
                             // NB subtle difference, we may have forked some stuff already
                         }
                     }
 
-                    executor.execute(ActionRunnable.run(listeners.acquire(), () -> {
-                        if (listeners.isFailing()) {
-                            return;
-                        }
-
+                    executor.execute(ActionRunnable.wrap(listeners.acquire().delegateResponse((l, e) -> {
+                        cancellableThreads.cancel(e.getMessage());
+                        l.onFailure(e);
+                    }), l -> cancellableThreads.execute(() -> ActionListener.completeWith(l, () -> {
                         search(Arrays.asList(leafSlices[sliceIndex].leaves), weight, collector);
 
                         if (timeExceeded) {
@@ -385,7 +384,9 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
                         synchronized (collectors) {
                             collectors.set(sliceIndex, collector);
                         }
-                    }));
+
+                        return null;
+                    }))));
                 }
             }
 
