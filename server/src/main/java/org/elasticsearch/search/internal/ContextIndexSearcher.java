@@ -350,8 +350,8 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
         } else {
             final var future = new PlainActionFuture<Void>();
             final var collectors = new AtomicArray<C>(leafSlices.length);
-            final var cancellableThreads = new CancellableThreads();
             try (var listeners = new RefCountingListener(1, future)) {
+                final var cancellableThreads = new CancellableThreads();
                 final var scoreMode = firstCollector.scoreMode();
                 final var executor = getExecutor();
                 for (int i = 0; i < leafSlices.length; i++) {
@@ -381,10 +381,7 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
                             throwTimeExceededException();
                         }
 
-                        synchronized (collectors) {
-                            collectors.set(sliceIndex, collector);
-                        }
-
+                        collectors.set(sliceIndex, collector);
                         return null;
                     }))));
                 }
