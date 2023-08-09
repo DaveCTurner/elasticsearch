@@ -11,6 +11,10 @@ package org.elasticsearch.discovery;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingRunnable;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
@@ -18,22 +22,19 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -87,60 +88,62 @@ public class SeedHostsResolver extends AbstractLifecycleComponent implements Con
         if (resolveTimeout.nanos() < 0) {
             throw new IllegalArgumentException("resolve timeout must be non-negative but was [" + resolveTimeout + "]");
         }
-        // create tasks to submit to the executor service; we will wait up to resolveTimeout for these tasks to complete
-        final List<Callable<TransportAddress[]>> callables = hosts.stream()
-            .map(hn -> (Callable<TransportAddress[]>) () -> transportService.addressesFromString(hn))
-            .toList();
-        final SetOnce<List<Future<TransportAddress[]>>> futures = new SetOnce<>();
+
         final long startTimeNanos = transportService.getThreadPool().relativeTimeInNanos();
-        try {
-            cancellableThreads.execute(
-                () -> futures.set(executorService.get().invokeAll(callables, resolveTimeout.nanos(), TimeUnit.NANOSECONDS))
-            );
-        } catch (CancellableThreads.ExecutionCancelledException e) {
-            return Collections.emptyList();
-        }
-        final TimeValue duration = TimeValue.timeValueNanos(transportService.getThreadPool().relativeTimeInNanos() - startTimeNanos);
-        final List<TransportAddress> transportAddresses = new ArrayList<>();
-        final Set<TransportAddress> localAddresses = new HashSet<>();
-        localAddresses.add(transportService.boundAddress().publishAddress());
-        localAddresses.addAll(Arrays.asList(transportService.boundAddress().boundAddresses()));
-        // ExecutorService#invokeAll guarantees that the futures are returned in the iteration order of the tasks so we can associate the
-        // hostname with the corresponding task by iterating together
-        final Iterator<String> it = hosts.iterator();
-        for (final Future<TransportAddress[]> future : futures.get()) {
-            assert future.isDone();
-            assert it.hasNext();
-            final String hostname = it.next();
-            if (future.isCancelled() == false) {
-                try {
-                    final TransportAddress[] addresses = future.get();
-                    logger.trace("resolved host [{}] to {}", hostname, addresses);
-                    for (final TransportAddress address : addresses) {
-                        // no point in pinging ourselves
-                        if (localAddresses.contains(address) == false) {
-                            transportAddresses.add(address);
+        final List<TransportAddress> transportAddresses = new ArrayList<>(hosts.size());
+        final CancellableThreads localCancellableThreads = new CancellableThreads();
+        final PlainActionFuture<Void> future = new PlainActionFuture<>();
+        try (var refs = new RefCountingRunnable(() -> future.onResponse(null))) {
+            for (final var host : hosts) {
+                executorService.get().execute(ActionRunnable.run(refs.acquireListener(), () -> localCancellableThreads.execute(() -> {
+                    final List<TransportAddress> hostAddresses;
+                    try {
+                        hostAddresses = Arrays.asList(transportService.addressesFromString(host));
+                    } catch (UnknownHostException e) {
+                        logger.warn("failed to resolve host [" + host + "]", e.getCause());
+                        return;
+                    }
+                    if (localCancellableThreads.isCancelled()) {
+                        var duration = TimeValue.timeValueNanos(transportService.getThreadPool().relativeTimeInNanos() - startTimeNanos);
+                        logger.warn(
+                            "timed out after [{}/{}ms] ([{}]=[{}]) resolving host [{}]",
+                            duration,
+                            duration.getMillis(),
+                            DISCOVERY_SEED_RESOLVER_TIMEOUT_SETTING.getKey(),
+                            resolveTimeout,
+                            host
+                        );
+                    } else if (hostAddresses.size() > 0) {
+                        synchronized (transportAddresses) {
+                            transportAddresses.addAll(hostAddresses);
                         }
                     }
-                } catch (final ExecutionException e) {
-                    assert e.getCause() != null;
-                    final String message = "failed to resolve host [" + hostname + "]";
-                    logger.warn(message, e.getCause());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    // ignore
-                }
-            } else {
-                logger.warn(
-                    "timed out after [{}/{}ms] ([{}]=[{}]) resolving host [{}]",
-                    duration,
-                    duration.getMillis(),
-                    DISCOVERY_SEED_RESOLVER_TIMEOUT_SETTING.getKey(),
-                    resolveTimeout,
-                    hostname
-                );
+                })));
             }
         }
+
+        final var timeout = transportService.getThreadPool()
+            .schedule(
+                () -> localCancellableThreads.cancel(Strings.format("timed out after [%s/%dms]", resolveTimeout, resolveTimeout.millis())),
+                resolveTimeout,
+                ThreadPool.Names.SAME
+            );
+
+        try {
+            cancellableThreads.execute(() -> {
+                try {
+                    localCancellableThreads.getUninterruptibly(future);
+                } catch (ExecutionException e) {
+                    assert false : e;
+                    throw new UncategorizedExecutionException("unexpected failure", e);
+                }
+            });
+        } catch (CancellableThreads.ExecutionCancelledException e) {
+            return List.of();
+        } finally {
+            timeout.cancel();
+        }
+
         return Collections.unmodifiableList(transportAddresses);
     }
 
@@ -150,7 +153,7 @@ public class SeedHostsResolver extends AbstractLifecycleComponent implements Con
         final ThreadFactory threadFactory = EsExecutors.daemonThreadFactory(settings, "[unicast_configured_hosts_resolver]");
         executorService.set(
             EsExecutors.newScaling(
-                nodeName + "/" + "unicast_configured_hosts_resolver",
+                nodeName + "/unicast_configured_hosts_resolver",
                 0,
                 concurrentConnects,
                 60,
