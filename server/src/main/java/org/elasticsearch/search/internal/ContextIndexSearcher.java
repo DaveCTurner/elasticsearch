@@ -41,7 +41,8 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.common.util.CancellableThreads;
-import org.elasticsearch.common.util.concurrent.FutureUtils;
+import org.elasticsearch.common.util.concurrent.AtomicArray;
+import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.lucene.util.CombinedBitSet;
 import org.elasticsearch.search.dfs.AggregatedDfs;
@@ -61,6 +62,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -348,8 +350,10 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
             return collectorManager.reduce(Collections.singletonList(firstCollector));
         } else {
             final var future = new PlainActionFuture<Void>();
-            final var collectors = new ArrayList<C>(leafSlices.length);
+            final var cancellableThreads = new CancellableThreads();
+            final var completeCollectors = new AtomicArray<C>(leafSlices.length);
             try (var listeners = new RefCountingListener(1, future)) {
+                final var collectors = new ArrayList<C>(leafSlices.length);
                 final var scoreMode = firstCollector.scoreMode();
                 collectors.add(firstCollector);
                 for (int i = 1; i < leafSlices.length; i++) {
@@ -360,28 +364,44 @@ public class ContextIndexSearcher extends IndexSearcher implements Releasable {
                     collectors.add(collector);
                 }
 
-                final var cancellableThreads = new CancellableThreads();
-                for (int sliceIndex = 0; sliceIndex < leafSlices.length; sliceIndex++) {
+                for (int i = 0; i < leafSlices.length; i++) {
+                    final var sliceIndex = i;
                     final var leaves = leafSlices[sliceIndex].leaves;
                     final var collector = collectors.get(sliceIndex);
                     getExecutor().execute(ActionRunnable.wrap(listeners.acquire().delegateResponse((l, e) -> {
-                        cancellableThreads.cancel(e.getMessage());
-                        l.onFailure(e);
+                        if (e instanceof CancellableThreads.ExecutionCancelledException) {
+                            assert cancellableThreads.isCancelled();
+                            l.onResponse(null);
+                        } else {
+                            cancellableThreads.cancel(e.getMessage());
+                            l.onFailure(e);
+                        }
                     }), l -> cancellableThreads.execute(() -> ActionListener.completeWith(l, () -> {
                         search(Arrays.asList(leaves), weight, collector);
+                        completeCollectors.set(sliceIndex, collector);
                         if (timeExceeded) {
-                            throwTimeExceededException();
+                            cancellableThreads.cancel("time exceeded");
                         }
                         return null;
                     }))));
                 }
             }
 
-            FutureUtils.get(future); // NB subtly different exception semantics
-            if (timeExceeded) {
-                throwTimeExceededException();
+            try {
+                cancellableThreads.getUninterruptibly(future);
+            } catch (ExecutionException e) {
+                final var cause = e.getCause();
+                if (cause instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                } else if (cause instanceof IOException ioException) {
+                    throw ioException;
+                } else {
+                    assert false : e;
+                    throw new UncategorizedExecutionException("unexpected exception", e);
+                }
             }
-            return collectorManager.reduce(collectors);
+
+            return collectorManager.reduce(completeCollectors.asList());
         }
     }
 

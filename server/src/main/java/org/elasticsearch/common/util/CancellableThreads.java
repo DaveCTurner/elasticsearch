@@ -16,6 +16,8 @@ import org.elasticsearch.core.Nullable;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * A utility class for multi threaded operation that needs to be cancellable via interrupts. Every cancellable operation should be
@@ -129,6 +131,39 @@ public class CancellableThreads {
             thread.interrupt();
         }
         threads.clear();
+    }
+
+    /**
+     * Wait on the completion of the future, propagating interruptions to the threads tracked by this {@link CancellableThreads}.
+     * <p>
+     * If the calling thread is interrupted before the future completes then:
+     * <ul>
+     * <li>This {@link CancellableThreads} is cancelled.
+     * <li>This method continues to block until the future is completed.
+     * <li>The interrupt status of the calling thread is set on completion.
+     * </ul>
+     * This is useful if this {@link CancellableThreads} is being used to track a collection of subsidiary tasks which will complete the
+     * given {@code future} when they have all finished: interrupting the wait on the future will interrupt all the subsidiary tasks, but
+     * will still wait for the tasks to finish (each reacting to the interruption as appropriate) before proceeding.
+     */
+    public <T> T getUninterruptibly(Future<T> future) throws ExecutionException {
+        var interrupted = false;
+        try {
+            while (true) {
+                try {
+                    return future.get();
+                } catch (InterruptedException e) {
+                    cancel("interrupted during getUninterruptibly");
+                    interrupted = true;
+                    // continue waiting: we must not proceed until the future is complete
+                }
+            }
+        } finally {
+            if (interrupted) {
+                // restore the interrupt status
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     public interface Interruptible {

@@ -7,14 +7,21 @@
  */
 package org.elasticsearch.common.util;
 
+import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.common.util.CancellableThreads.Interruptible;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.elasticsearch.common.util.CancellableThreads.ExecutionCancelledException;
 import static org.hamcrest.Matchers.equalTo;
@@ -171,4 +178,71 @@ public class CancellableThreadsTests extends ESTestCase {
         );
     }
 
+    public void testGetUninterruptibly() throws Exception {
+        final var future = new PlainActionFuture<Integer>();
+        final var counter = new AtomicInteger();
+        final var cancellableThreads = new CancellableThreads();
+        final var workers = new Thread[between(1, 5)];
+        final var completionBlock = new CountDownLatch(1);
+
+        try (var refs = new RefCountingRunnable(() -> future.onResponse(counter.get()))) {
+            for (int i = 0; i < workers.length; i++) {
+                final var barrier = new CyclicBarrier(2);
+                final var ref = refs.acquire();
+                workers[i] = new Thread(
+                    () -> assertEquals(
+                        "operation was cancelled reason [interrupted during getUninterruptibly]",
+                        expectThrows(ExecutionCancelledException.class, () -> {
+                            try (ref) {
+                                cancellableThreads.execute(() -> {
+                                    safeAwait(barrier);
+                                    try {
+                                        if (randomBoolean()) {
+                                            Thread.sleep(Long.MAX_VALUE); // throws InterruptedException
+                                        } else {
+                                            LockSupport.parkNanos(Long.MAX_VALUE); // just continues on interrupt
+                                        }
+                                    } finally {
+                                        counter.incrementAndGet();
+                                        safeAwait(completionBlock);
+                                    }
+                                });
+                            }
+                        }).getMessage()
+                    )
+                );
+                workers[i].start();
+                safeAwait(barrier);
+            }
+        }
+
+        final var waitFinished = new AtomicBoolean();
+        final var waiter = new Thread(() -> {
+            try {
+                assertEquals(workers.length, cancellableThreads.getUninterruptibly(future).intValue());
+                assertTrue(Thread.currentThread().isInterrupted());
+                waitFinished.set(true);
+            } catch (ExecutionException e) {
+                throw new AssertionError("unexpected", e);
+            }
+        });
+        waiter.start();
+
+        for (int i = between(1, 3); i > 0; i--) {
+            LockSupport.parkNanos(TimeValue.timeValueMillis(50).nanos());
+            waiter.interrupt();
+        }
+
+        assertFalse(future.isDone());
+        assertFalse(waitFinished.get());
+
+        completionBlock.countDown();
+        waiter.join();
+        assertTrue(future.isDone());
+        assertTrue(waitFinished.get());
+
+        for (final var worker : workers) {
+            worker.join();
+        }
+    }
 }
