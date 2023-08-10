@@ -125,7 +125,6 @@ public class ElectionSchedulerFactory {
      * @param scheduledRunnable The action to run each time an election should be attempted.
      */
     public Releasable startElectionScheduler(TimeValue gracePeriod, Runnable scheduledRunnable) {
-        logger.trace("startElectionScheduler");
         final ElectionScheduler scheduler = new ElectionScheduler();
         scheduler.scheduleNextElection(gracePeriod, scheduledRunnable);
         return scheduler;
