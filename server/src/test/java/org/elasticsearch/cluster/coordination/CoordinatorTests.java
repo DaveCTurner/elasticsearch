@@ -1927,32 +1927,31 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE"
-            + ",org.elasticsearch.discovery:TRACE"
-            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
+    // @TestLogging(
+    // reason = "nocommit",
+    // value = "org.elasticsearch.cluster.coordination:TRACE"
+    // + ",org.elasticsearch.discovery:TRACE"
+    // + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    // )
     public void testElectionWithSlowPublication() {
         final var delayedActions = new HashSet<>();
-        try (Cluster cluster = new Cluster(3, true, Settings.EMPTY) {
+        try (Cluster cluster = new Cluster(7, true, Settings.EMPTY) {
             @Override
             protected long transportDelayMillis(String actionName) {
-                return between(0, delayedActions.contains(actionName) ? 5000 : 0);
+                return delayedActions.contains(actionName) ? between(1000, 2000) : 0;
             }
         }) {
             cluster.runRandomly();
             cluster.stabilise();
             final var leader = cluster.getAnyLeader();
 
-            logger.info("--> marking leader [{}] as blackholed and adding join request delays", leader);
-            delayedActions.add(JoinHelper.START_JOIN_ACTION_NAME);
-            delayedActions.add(JoinHelper.JOIN_ACTION_NAME);
+            logger.info("--> marking leader [{}] as blackholed and adding action delays", leader);
+            delayedActions.add(PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME);
+            delayedActions.add(FollowersChecker.FOLLOWER_CHECK_ACTION_NAME);
             leader.blackhole();
             cluster.stabilise();
             delayedActions.clear();
         }
-        fail("did not fail");
     }
 
     private ClusterState buildNewClusterStateWithVotingConfigExclusion(

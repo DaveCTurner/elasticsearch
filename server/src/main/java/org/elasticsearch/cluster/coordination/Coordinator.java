@@ -165,7 +165,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     private final ClusterApplier clusterApplier;
     private final Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators;
     @Nullable
-    private Releasable electionScheduler;
+    private volatile Releasable electionScheduler; // volatile so we can check if it's there from other threads
     @Nullable
     private Releasable prevotingRound;
     private long maxTermSeen;
@@ -281,7 +281,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             transportService,
             this::onFollowerCheckRequest,
             this::removeNode,
-            nodeHealthService
+            nodeHealthService,
+            this::closeElectionScheduler
         );
         this.nodeLeftQueue = masterService.createTaskQueue("node-left", Priority.IMMEDIATE, new NodeLeftExecutor(allocationService));
         this.clusterApplier = clusterApplier;
@@ -401,6 +402,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             } else {
                 clusterApplier.onNewClusterState(applyCommitRequest.toString(), () -> applierState, applyListener.map(r -> {
                     onClusterStateApplied();
+                    closeElectionScheduler(applyCommitRequest.getTerm());
                     return r;
                 }));
             }
@@ -484,16 +486,17 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         return Optional.empty();
     }
 
-    private void closePrevotingAndElectionScheduler() {
+    private void closePrevotingRound() {
         if (prevotingRound != null) {
             prevotingRound.close();
             prevotingRound = null;
         }
 
-        if (electionScheduler != null) {
-            electionScheduler.close();
-            electionScheduler = null;
-        }
+        // TODO NOCOMMIT
+        // if (electionScheduler != null) {
+        // electionScheduler.close();
+        // electionScheduler = null;
+        // }
     }
 
     private void updateMaxTermSeen(final long term) {
@@ -896,7 +899,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         lastKnownLeader = Optional.of(getLocalNode());
         peerFinder.deactivate(getLocalNode());
         clusterFormationFailureHelper.stop();
-        closePrevotingAndElectionScheduler();
+        closePrevotingRound();
         preVoteCollector.update(getPreVoteResponse(), getLocalNode());
         leaderHeartbeatService.start(
             getLocalNode(),
@@ -964,7 +967,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         lastKnownLeader = Optional.of(leaderNode);
         peerFinder.deactivate(leaderNode);
         clusterFormationFailureHelper.stop();
-        closePrevotingAndElectionScheduler();
+        closePrevotingRound();
         cancelActivePublication("become follower: " + method);
         preVoteCollector.update(getPreVoteResponse(), leaderNode);
 
@@ -1135,7 +1138,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 assert lastKnownLeader.isPresent() && lastKnownLeader.get().equals(getLocalNode());
                 assert joinAccumulator instanceof JoinHelper.LeaderJoinAccumulator;
                 assert peerFinderLeader.equals(lastKnownLeader) : peerFinderLeader;
-                assert electionScheduler == null : electionScheduler;
+                // assert electionScheduler == null : electionScheduler;
                 assert prevotingRound == null : prevotingRound;
                 assert becomingMaster || lastAcceptedClusterState.nodes().getMasterNodeId() != null : lastAcceptedClusterState;
                 assert leaderChecker.leader() == null : leaderChecker.leader();
@@ -1177,7 +1180,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 assert lastKnownLeader.isPresent() && (lastKnownLeader.get().equals(getLocalNode()) == false);
                 assert joinAccumulator instanceof JoinHelper.FollowerJoinAccumulator;
                 assert peerFinderLeader.equals(lastKnownLeader) : peerFinderLeader;
-                assert electionScheduler == null : electionScheduler;
+                // assert electionScheduler == null : electionScheduler;
                 assert prevotingRound == null : prevotingRound;
                 assert lastAcceptedClusterState.nodes().getMasterNodeId() == null : lastAcceptedClusterState;
                 assert leaderChecker.currentNodeIsMaster() == false;
@@ -1721,7 +1724,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                             startElectionScheduler();
                         }
                     } else {
-                        closePrevotingAndElectionScheduler();
+                        closePrevotingRound();
                     }
                 }
             }
@@ -1730,6 +1733,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     }
 
     private void startElectionScheduler() {
+        assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
         assert electionScheduler == null : electionScheduler;
 
         if (getLocalNode().isMasterNode() == false) {
@@ -1768,6 +1772,27 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 return "scheduling of new prevoting round";
             }
         });
+    }
+
+    private void closeElectionScheduler(long term) {
+        if (electionScheduler != null) {
+            clusterCoordinationExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (mutex) {
+                        if (electionScheduler != null && getCurrentTerm() == term) {
+                            electionScheduler.close();
+                            electionScheduler = null;
+                        }
+                    }
+                }
+
+                @Override
+                public String toString() {
+                    return "closeElectionScheduler in term [" + term + ']';
+                }
+            });
+        }
     }
 
     public Iterable<DiscoveryNode> getFoundPeers() {
