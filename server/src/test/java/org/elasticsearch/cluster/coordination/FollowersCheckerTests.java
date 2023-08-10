@@ -117,8 +117,7 @@ public class FollowersCheckerTests extends ESTestCase {
             (node, reason) -> {
                 assert false : node;
             },
-            () -> new StatusInfo(StatusInfo.Status.HEALTHY, "healthy-info"),
-            term -> {}
+            () -> new StatusInfo(StatusInfo.Status.HEALTHY, "healthy-info")
         );
 
         followersChecker.setCurrentNodes(discoveryNodesHolder[0]);
@@ -353,8 +352,7 @@ public class FollowersCheckerTests extends ESTestCase {
                 assertTrue(nodeFailed.compareAndSet(false, true));
                 assertThat(reason, equalTo("disconnected"));
             },
-            () -> new StatusInfo(HEALTHY, "healthy-info"),
-            term -> {}
+            () -> new StatusInfo(HEALTHY, "healthy-info")
         );
 
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).add(otherNode).localNodeId(localNode.getId()).build();
@@ -440,8 +438,7 @@ public class FollowersCheckerTests extends ESTestCase {
                 assertTrue(nodeFailed.compareAndSet(false, true));
                 assertThat(reason, equalTo(failureReason));
             },
-            nodeHealthService,
-            term -> {}
+            nodeHealthService
         );
 
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).add(otherNode).localNodeId(localNode.getId()).build();
@@ -538,7 +535,7 @@ public class FollowersCheckerTests extends ESTestCase {
             if (exception != null) {
                 throw exception;
             }
-        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(UNHEALTHY, "unhealthy-info"), term -> {});
+        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(UNHEALTHY, "unhealthy-info"));
 
         final long leaderTerm = randomLongBetween(2, Long.MAX_VALUE);
         final long followerTerm = randomLongBetween(1, leaderTerm - 1);
@@ -609,7 +606,7 @@ public class FollowersCheckerTests extends ESTestCase {
             if (exception != null) {
                 throw exception;
             }
-        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(HEALTHY, "healthy-info"), term -> {});
+        }, (node, reason) -> { assert false : node; }, () -> new StatusInfo(HEALTHY, "healthy-info"));
 
         transportService.start();
         transportService.acceptIncomingRequests();
@@ -787,86 +784,13 @@ public class FollowersCheckerTests extends ESTestCase {
             (node, reason) -> {
                 assert false : node;
             },
-            () -> new StatusInfo(HEALTHY, "healthy-info"),
-            term -> {}
+            () -> new StatusInfo(HEALTHY, "healthy-info")
         );
         followersChecker.setCurrentNodes(discoveryNodes);
         List<DiscoveryNode> followerTargets = Stream.of(capturingTransport.getCapturedRequestsAndClear()).map(cr -> cr.node()).toList();
         List<DiscoveryNode> sortedFollowerTargets = new ArrayList<>(followerTargets);
         Collections.sort(sortedFollowerTargets, Comparator.comparing(n -> n.isMasterNode() == false));
         assertEquals(sortedFollowerTargets, followerTargets);
-    }
-
-    public void testNotifiesOnCompleteSuccess() {
-        final DiscoveryNode localNode = DiscoveryNodeUtils.create("local-node");
-        final DiscoveryNode otherNode1 = DiscoveryNodeUtils.create("other-node1");
-        final DiscoveryNode otherNode2 = DiscoveryNodeUtils.create("other-node2");
-        final DeterministicTaskQueue deterministicTaskQueue = new DeterministicTaskQueue();
-
-        final AtomicInteger requestCount = new AtomicInteger();
-        final Set<DiscoveryNode> successNodes = new HashSet<>();
-        final MockTransport mockTransport = new MockTransport() {
-            @Override
-            protected void onSendRequest(long requestId, String action, TransportRequest request, DiscoveryNode node) {
-                assertNotEquals(node, localNode);
-                deterministicTaskQueue.scheduleNow(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (node.equals(otherNode1) || requestCount.getAndIncrement() >= 2) {
-                            successNodes.add(node);
-                            handleResponse(requestId, Empty.INSTANCE);
-                        }
-                    }
-
-                    @Override
-                    public String toString() {
-                        return "sending response to [" + action + "][" + requestId + "] from " + node;
-                    }
-                });
-            }
-        };
-
-        final TransportService transportService = mockTransport.createTransportService(
-            Settings.EMPTY,
-            deterministicTaskQueue.getThreadPool(),
-            TransportService.NOOP_TRANSPORT_INTERCEPTOR,
-            boundTransportAddress -> localNode,
-            null,
-            emptySet()
-        );
-        transportService.start();
-        transportService.acceptIncomingRequests();
-
-        final long expectedTerm = randomNonNegativeLong();
-
-        final AtomicBoolean successNotified = new AtomicBoolean();
-        final FollowersChecker followersChecker = new FollowersChecker(
-            Settings.EMPTY,
-            transportService,
-            fcr -> { assert false : fcr; },
-            (node, reason) -> {
-                assert false;
-            },
-            () -> new StatusInfo(HEALTHY, "healthy-info"),
-            term -> {
-                assertEquals(expectedTerm, term);
-                assertEquals(3, requestCount.get());
-                assertEquals(Set.of(otherNode1, otherNode2), successNodes);
-                successNotified.set(true);
-            }
-        );
-
-        followersChecker.setCurrentNodes(
-            DiscoveryNodes.builder().add(localNode).add(otherNode1).add(otherNode2).localNodeId(localNode.getId()).build()
-        );
-        followersChecker.updateFastResponseState(expectedTerm, Mode.CANDIDATE);
-
-        while (successNotified.get() == false) {
-            if (deterministicTaskQueue.hasRunnableTasks() == false) {
-                deterministicTaskQueue.advanceTime();
-            }
-            deterministicTaskQueue.runAllRunnableTasks();
-        }
     }
 
     private static List<DiscoveryNode> randomNodes(final int numNodes) {

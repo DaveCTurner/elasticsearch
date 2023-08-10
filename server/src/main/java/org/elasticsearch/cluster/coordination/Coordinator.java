@@ -281,8 +281,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             transportService,
             this::onFollowerCheckRequest,
             this::removeNode,
-            nodeHealthService,
-            this::closeElectionScheduler
+            nodeHealthService
         );
         this.nodeLeftQueue = masterService.createTaskQueue("node-left", Priority.IMMEDIATE, new NodeLeftExecutor(allocationService));
         this.clusterApplier = clusterApplier;
@@ -402,7 +401,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             } else {
                 clusterApplier.onNewClusterState(applyCommitRequest.toString(), () -> applierState, applyListener.map(r -> {
                     onClusterStateApplied();
-                    closeElectionScheduler(applyCommitRequest.getTerm());
                     return r;
                 }));
             }
@@ -413,6 +411,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
         if (getMode() != Mode.CANDIDATE) {
             joinHelper.onClusterStateApplied();
+            closeElectionScheduler();
         }
         if (getLocalNode().isMasterNode()) {
             joinReasonService.onClusterStateApplied(applierState.nodes());
@@ -1766,13 +1765,15 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         });
     }
 
-    private void closeElectionScheduler(long term) {
+    private void closeElectionScheduler() {
+        assert ThreadPool.assertCurrentThreadPool(ClusterApplierService.CLUSTER_UPDATE_THREAD_NAME);
+        final long term = applierState.term();
         if (electionScheduler != null) {
             clusterCoordinationExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
                     synchronized (mutex) {
-                        if (electionScheduler != null && getCurrentTerm() == term) {
+                        if (electionScheduler != null && mode != Mode.CANDIDATE && getCurrentTerm() == term) {
                             electionScheduler.close();
                             electionScheduler = null;
                         }

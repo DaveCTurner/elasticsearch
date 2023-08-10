@@ -47,10 +47,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.LongConsumer;
 import java.util.function.Predicate;
 
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
@@ -98,14 +96,12 @@ public class FollowersChecker {
     private final int followerCheckRetryCount;
     private final BiConsumer<DiscoveryNode, String> onNodeFailure;
     private final Consumer<FollowerCheckRequest> handleRequestAndUpdateState;
-    private final LongConsumer onCompleteSuccess;
 
     private final Object mutex = new Object(); // protects writes to this state; read access does not need sync
     private final Map<DiscoveryNode, FollowerChecker> followerCheckers = newConcurrentMap();
     private final Set<DiscoveryNode> faultyNodes = new HashSet<>();
 
     private final TransportService transportService;
-    private final Executor clusterCoordinationExecutor;
     private final NodeHealthService nodeHealthService;
     private volatile FastResponseState fastResponseState;
 
@@ -114,15 +110,12 @@ public class FollowersChecker {
         TransportService transportService,
         Consumer<FollowerCheckRequest> handleRequestAndUpdateState,
         BiConsumer<DiscoveryNode, String> onNodeFailure,
-        NodeHealthService nodeHealthService,
-        LongConsumer onCompleteSuccess
+        NodeHealthService nodeHealthService
     ) {
         this.transportService = transportService;
-        this.clusterCoordinationExecutor = transportService.getThreadPool().executor(Names.CLUSTER_COORDINATION);
         this.handleRequestAndUpdateState = handleRequestAndUpdateState;
         this.onNodeFailure = onNodeFailure;
         this.nodeHealthService = nodeHealthService;
-        this.onCompleteSuccess = onCompleteSuccess;
 
         followerCheckInterval = FOLLOWER_CHECK_INTERVAL_SETTING.get(settings);
         followerCheckTimeout = FOLLOWER_CHECK_TIMEOUT_SETTING.get(settings);
@@ -206,19 +199,21 @@ public class FollowersChecker {
             throw new CoordinationStateRejectedException("rejecting " + request + " since local state is " + this);
         }
 
-        clusterCoordinationExecutor.execute(ActionRunnable.supply(listener, new CheckedSupplier<>() {
-            @Override
-            public Empty get() {
-                logger.trace("responding to {} on slow path", request);
-                handleRequestAndUpdateState.accept(request);
-                return Empty.INSTANCE;
-            }
+        transportService.getThreadPool()
+            .executor(Names.CLUSTER_COORDINATION)
+            .execute(ActionRunnable.supply(listener, new CheckedSupplier<>() {
+                @Override
+                public Empty get() {
+                    logger.trace("responding to {} on slow path", request);
+                    handleRequestAndUpdateState.accept(request);
+                    return Empty.INSTANCE;
+                }
 
-            @Override
-            public String toString() {
-                return "responding to [" + request + "] on slow path";
-            }
-        }));
+                @Override
+                public String toString() {
+                    return "responding to [" + request + "] on slow path";
+                }
+            }));
     }
 
     /**
@@ -271,32 +266,16 @@ public class FollowersChecker {
 
     record FastResponseState(long term, Mode mode) {}
 
-    private boolean isCompleteSuccess() {
-        synchronized (mutex) {
-            return followerCheckers.values().stream().noneMatch(FollowerChecker::isMasterEligibleWithFirstSuccessPending);
-        }
-    }
-
-    private void checkCompleteSuccess() {
-        final long currentTerm = fastResponseState.term();
-        if (isCompleteSuccess()) {
-            onCompleteSuccess.accept(currentTerm);
-        }
-    }
-
     /**
      * A checker for an individual follower.
      */
     private class FollowerChecker {
         private final DiscoveryNode discoveryNode;
-        private final AtomicBoolean masterEligibleAndFirstSuccessPending;
-
         private int failureCountSinceLastSuccess;
         private int timeoutCountSinceLastSuccess;
 
         FollowerChecker(DiscoveryNode discoveryNode) {
             this.discoveryNode = discoveryNode;
-            this.masterEligibleAndFirstSuccessPending = new AtomicBoolean(discoveryNode.isMasterNode());
         }
 
         private boolean running() {
@@ -334,10 +313,6 @@ public class FollowersChecker {
                         if (running() == false) {
                             logger.trace("{} no longer running", FollowerChecker.this);
                             return;
-                        }
-
-                        if (masterEligibleAndFirstSuccessPending.compareAndSet(true, false)) {
-                            checkCompleteSuccess();
                         }
 
                         failureCountSinceLastSuccess = 0;
@@ -385,12 +360,8 @@ public class FollowersChecker {
             );
         }
 
-        boolean isMasterEligibleWithFirstSuccessPending() {
-            return masterEligibleAndFirstSuccessPending.get();
-        }
-
         void failNode(String reason) {
-            clusterCoordinationExecutor.execute(new AbstractRunnable() {
+            transportService.getThreadPool().executor(Names.CLUSTER_COORDINATION).execute(new AbstractRunnable() {
 
                 @Override
                 public void onRejection(Exception e) {
