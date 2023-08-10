@@ -1935,7 +1935,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
     )
     public void testElectionWithSlowPublication() {
         final var delayedActions = new HashSet<>();
-        try (Cluster cluster = new Cluster(5, true, Settings.EMPTY) {
+        try (Cluster cluster = new Cluster(3, true, Settings.EMPTY) {
             @Override
             protected long transportDelayMillis(String actionName) {
                 return between(0, delayedActions.contains(actionName) ? 5000 : 0);
@@ -1952,6 +1952,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             cluster.stabilise();
             delayedActions.clear();
         }
+        fail("did not fail");
     }
 
     private ClusterState buildNewClusterStateWithVotingConfigExclusion(
