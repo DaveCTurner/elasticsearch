@@ -491,12 +491,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             prevotingRound.close();
             prevotingRound = null;
         }
-
-        // TODO NOCOMMIT
-        // if (electionScheduler != null) {
-        // electionScheduler.close();
-        // electionScheduler = null;
-        // }
     }
 
     private void updateMaxTermSeen(final long term) {
@@ -1138,7 +1132,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 assert lastKnownLeader.isPresent() && lastKnownLeader.get().equals(getLocalNode());
                 assert joinAccumulator instanceof JoinHelper.LeaderJoinAccumulator;
                 assert peerFinderLeader.equals(lastKnownLeader) : peerFinderLeader;
-                // assert electionScheduler == null : electionScheduler;
                 assert prevotingRound == null : prevotingRound;
                 assert becomingMaster || lastAcceptedClusterState.nodes().getMasterNodeId() != null : lastAcceptedClusterState;
                 assert leaderChecker.leader() == null : leaderChecker.leader();
@@ -1180,7 +1173,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 assert lastKnownLeader.isPresent() && (lastKnownLeader.get().equals(getLocalNode()) == false);
                 assert joinAccumulator instanceof JoinHelper.FollowerJoinAccumulator;
                 assert peerFinderLeader.equals(lastKnownLeader) : peerFinderLeader;
-                // assert electionScheduler == null : electionScheduler;
                 assert prevotingRound == null : prevotingRound;
                 assert lastAcceptedClusterState.nodes().getMasterNodeId() == null : lastAcceptedClusterState;
                 assert leaderChecker.currentNodeIsMaster() == false;
