@@ -114,16 +114,6 @@ public class FollowersChecker {
         TransportService transportService,
         Consumer<FollowerCheckRequest> handleRequestAndUpdateState,
         BiConsumer<DiscoveryNode, String> onNodeFailure,
-        NodeHealthService nodeHealthService
-    ) {
-        this(settings, transportService, handleRequestAndUpdateState, onNodeFailure, nodeHealthService, term -> {});
-    }
-
-    public FollowersChecker(
-        Settings settings,
-        TransportService transportService,
-        Consumer<FollowerCheckRequest> handleRequestAndUpdateState,
-        BiConsumer<DiscoveryNode, String> onNodeFailure,
         NodeHealthService nodeHealthService,
         LongConsumer onCompleteSuccess
     ) {
