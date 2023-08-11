@@ -471,12 +471,12 @@ public abstract class PeerFinder {
                 @Override
                 public void handleResponse(PeersResponse response) {
                     logger.trace("{} received {}", Peer.this, response);
+                    peersRequestInFlight = false;
+
                     synchronized (mutex) {
                         if (isActive() == false) {
                             return;
                         }
-
-                        peersRequestInFlight = false;
 
                         response.getMasterNode().ifPresent(node -> startProbe(node.getAddress()));
                         for (DiscoveryNode node : response.getKnownPeers()) {
