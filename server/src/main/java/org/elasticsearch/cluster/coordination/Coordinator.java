@@ -412,6 +412,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
         if (getMode() != Mode.CANDIDATE) {
             joinHelper.onClusterStateApplied();
             closeElectionScheduler();
+            peerFinder.closeInactivePeers();
         }
         if (getLocalNode().isMasterNode()) {
             joinReasonService.onClusterStateApplied(applierState.nodes());
