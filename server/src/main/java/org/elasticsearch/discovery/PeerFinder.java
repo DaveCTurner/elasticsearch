@@ -127,6 +127,7 @@ public abstract class PeerFinder {
             inactivePeers
         );
 
+        final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
         synchronized (mutex) {
             assert assertInactiveWithNoKnownPeers();
             active = true;
@@ -134,11 +135,15 @@ public abstract class PeerFinder {
             this.lastAcceptedNodes = lastAcceptedNodes;
             leader = Optional.empty();
             for (Peer peer : inactivePeers) {
-                peersByAddress.put(peer.transportAddress, peer);
+                final var previousPeer = peersByAddress.put(peer.transportAddress, peer);
+                if (previousPeer != null) {
+                    connectionReferences.add(previousPeer.getConnectionReference());
+                }
             }
             inactivePeers.clear();
             handleWakeUp(); // return value discarded: there are no known peers, so none can be disconnected NOCOMMIT NOT TRUE!
         }
+        Releasables.close(connectionReferences);
 
         onFoundPeersUpdated(); // trigger a check for a quorum already
     }
@@ -148,8 +153,6 @@ public abstract class PeerFinder {
         final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
-            assert active;
-            assert inactivePeers.isEmpty() : inactivePeers;
             active = false;
             for (Peer peer : peersByAddress.values()) {
                 if (peer.getDiscoveryNode() == null) {
