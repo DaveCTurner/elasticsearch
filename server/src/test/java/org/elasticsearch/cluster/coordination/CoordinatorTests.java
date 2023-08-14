@@ -1922,7 +1922,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             nodeWithListener.coordinator.addPeerFinderListener(() -> listenerCalled.set(true));
             assertFalse(listenerCalled.get());
             leader.disconnect();
-            cluster.runFor(DEFAULT_STABILISATION_TIME, "Letting disconnect take effect");
+            cluster.runFor(DEFAULT_STABILISATION_TIME, "Letting disconnect of [" + leader + "] take effect");
             cluster.stabilise();
             assertTrue(cluster.clusterNodes.contains(nodeWithListener));
             assertBusy(() -> assertTrue(listenerCalled.get()));

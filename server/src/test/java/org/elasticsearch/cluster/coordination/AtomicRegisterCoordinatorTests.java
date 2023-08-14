@@ -184,6 +184,17 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE"
+            + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
+    public void testPeerFinderListener() throws Exception {
+        super.testPeerFinderListener();
+    }
+
+    @Override
     protected CoordinatorStrategy createCoordinatorStrategy() {
         return new AtomicRegisterCoordinatorStrategy();
     }
