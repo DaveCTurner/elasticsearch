@@ -250,7 +250,6 @@ public class PeerFinderTests extends ESTestCase {
     @After
     public void deactivateAndRunRemainingTasks() {
         peerFinder.deactivate(localNode);
-        peerFinder.closePeers();
         deterministicTaskQueue.runAllRunnableTasks();
         assertThat(connectedNodes, empty());
     }
