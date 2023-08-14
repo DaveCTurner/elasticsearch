@@ -92,7 +92,6 @@ public abstract class PeerFinder {
     private long activatedAtMillis;
     private DiscoveryNodes lastAcceptedNodes;
     private final Map<TransportAddress, Peer> peersByAddress = new LinkedHashMap<>();
-    private final List<Peer> inactivePeers = new ArrayList<>();
     private Optional<DiscoveryNode> leader = Optional.empty();
     private volatile List<TransportAddress> lastResolvedAddresses = emptyList();
 
@@ -122,49 +121,41 @@ public abstract class PeerFinder {
 
     public void activate(final DiscoveryNodes lastAcceptedNodes) {
         logger.trace(
-            "activating with lastAcceptedNodes={} and inactivePeers={}",
-            lastAcceptedNodes.stream().map(DiscoveryNode::descriptionWithoutAttributes).collect(Collectors.joining(",", "[", "]")),
-            inactivePeers
+            "activating with lastAcceptedNodes={}",
+            lastAcceptedNodes.stream().map(DiscoveryNode::descriptionWithoutAttributes).collect(Collectors.joining(",", "[", "]"))
         );
 
-        final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
         synchronized (mutex) {
-            assert assertInactiveWithNoKnownPeers();
+            assert active == false;
             active = true;
             activatedAtMillis = transportService.getThreadPool().relativeTimeInMillis();
             this.lastAcceptedNodes = lastAcceptedNodes;
             leader = Optional.empty();
-            for (Peer peer : inactivePeers) {
-                final var previousPeer = peersByAddress.put(peer.transportAddress, peer);
-                if (previousPeer != null) {
-                    assert false : "duplicate connection to " + previousPeer + " and " + peer;
-                    connectionReferences.add(previousPeer.getConnectionReference());
-                }
-            }
-            inactivePeers.clear();
             handleWakeUp(); // return value discarded: there are no known peers, so none can be disconnected NOCOMMIT NOT TRUE!
         }
-        Releasables.close(connectionReferences);
 
         onFoundPeersUpdated(); // trigger a check for a quorum already
     }
 
     public void deactivate(DiscoveryNode leader) {
         final boolean peersRemoved;
-        final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
+        final Collection<Releasable> connectionReferences = new ArrayList<>(peersByAddress.size());
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
             active = false;
-            for (Peer peer : peersByAddress.values()) {
+            boolean incompletePeersRemoved = false;
+            final var iterator = peersByAddress.values().iterator();
+            while (iterator.hasNext()) {
+                final var peer = iterator.next();
                 if (peer.getDiscoveryNode() == null) {
                     connectionReferences.add(peer.getConnectionReference());
-                } else {
-                    inactivePeers.add(peer);
+                    iterator.remove();
+                    incompletePeersRemoved = true;
                 }
             }
-            peersRemoved = handleWakeUp();
+            peersRemoved = handleWakeUp() || incompletePeersRemoved;
             this.leader = Optional.of(leader);
-            assert assertInactiveWithNoKnownPeers();
+            assert active == false;
         }
         Releasables.close(connectionReferences);
         if (peersRemoved) {
@@ -173,12 +164,14 @@ public abstract class PeerFinder {
     }
 
     public void closeInactivePeers() {
-        final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
+        final Collection<Releasable> connectionReferences = new ArrayList<>(peersByAddress.size());
         synchronized (mutex) {
-            for (Peer peer : inactivePeers) {
+            assert active == false;
+            for (final var peer : peersByAddress.values()) {
                 connectionReferences.add(peer.getConnectionReference());
             }
-            inactivePeers.clear();
+            peersByAddress.clear();
+            logger.trace("closeInactivePeers: closing {}", connectionReferences);
         }
         Releasables.close(connectionReferences);
     }
@@ -186,13 +179,6 @@ public abstract class PeerFinder {
     // exposed to subclasses for testing
     protected final boolean holdsLock() {
         return Thread.holdsLock(mutex);
-    }
-
-    private boolean assertInactiveWithNoKnownPeers() {
-        assert holdsLock() : "PeerFinder mutex not held";
-        assert active == false;
-        assert peersByAddress.isEmpty() : peersByAddress.keySet();
-        return true;
     }
 
     PeersResponse handlePeersRequest(PeersRequest peersRequest) {
@@ -267,6 +253,9 @@ public abstract class PeerFinder {
 
     private Collection<DiscoveryNode> getFoundPeersUnderLock() {
         assert holdsLock() : "PeerFinder mutex not held";
+        if (active == false) {
+            return Set.of();
+        }
         Set<DiscoveryNode> peers = Sets.newHashSetWithExpectedSize(peersByAddress.size());
         for (Peer peer : peersByAddress.values()) {
             DiscoveryNode discoveryNode = peer.getDiscoveryNode();
@@ -374,7 +363,7 @@ public abstract class PeerFinder {
 
             if (isActive() == false) {
                 logger.trace("Peer#handleWakeUp inactive: {}", Peer.this);
-                return true;
+                return false;
             }
 
             final DiscoveryNode discoveryNode = getDiscoveryNode();
@@ -413,14 +402,14 @@ public abstract class PeerFinder {
                     boolean retainConnection = false;
                     try {
                         synchronized (mutex) {
-                            assert probeConnectionResult.get() == null
-                                : "connection result unexpectedly already set to " + probeConnectionResult.get();
-                            probeConnectionResult.set(connectResult);
-
                             if (isActive() == false) {
                                 logger.trace("Peer#establishConnection inactive: {}", Peer.this);
                                 return;
                             }
+
+                            assert probeConnectionResult.get() == null
+                                : "connection result unexpectedly already set to " + probeConnectionResult.get();
+                            probeConnectionResult.set(connectResult);
 
                             requestPeers();
                         }
