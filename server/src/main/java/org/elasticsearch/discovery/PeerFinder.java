@@ -137,6 +137,7 @@ public abstract class PeerFinder {
             for (Peer peer : inactivePeers) {
                 final var previousPeer = peersByAddress.put(peer.transportAddress, peer);
                 if (previousPeer != null) {
+                    assert false : "duplicate connection to " + previousPeer + " and " + peer;
                     connectionReferences.add(previousPeer.getConnectionReference());
                 }
             }
