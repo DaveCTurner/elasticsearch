@@ -688,12 +688,6 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE"
-            + ",org.elasticsearch.discovery:TRACE"
-            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
     public void testAckListenerReceivesNacksFromFollowerInHigherTerm() {
         try (Cluster cluster = new Cluster(3)) {
             cluster.runRandomly();
@@ -2042,12 +2036,6 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
-    @TestLogging(
-        reason = "nocommit",
-        value = "org.elasticsearch.cluster.coordination:TRACE"
-            + ",org.elasticsearch.discovery:TRACE"
-            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-    )
     public void testElectionWithSlowPublication() {
         final var delayedActions = new HashSet<>();
         try (Cluster cluster = new Cluster(7, true, Settings.EMPTY) {
