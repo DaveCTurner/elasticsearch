@@ -765,7 +765,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 updateMaxTermSeen(joinRequest.getTerm());
 
                 final CoordinationState coordState = coordinationState.get();
-                final boolean prevElectionWon = coordState.electionWon();
+                final boolean prevElectionWon = coordState.electionWon()
+                    && optionalJoin.stream().allMatch(j -> j.getTerm() <= getCurrentTerm());
 
                 optionalJoin.ifPresent(this::handleJoin);
                 joinAccumulator.handleJoinRequest(joinRequest.getSourceNode(), joinRequest.getTransportVersion(), joinListener);
@@ -1659,6 +1660,11 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
     // for tests
     boolean hasIdleJoinValidationService() {
         return joinValidationService.isIdle();
+    }
+
+    // for tests, not synchronized
+    boolean electionSchedulerActive() {
+        return electionScheduler != null;
     }
 
     public void addPeerFinderListener(PeerFinderListener peerFinderListener) {
