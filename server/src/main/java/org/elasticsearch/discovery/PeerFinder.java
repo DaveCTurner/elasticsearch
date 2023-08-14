@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static org.elasticsearch.core.Strings.format;
@@ -120,7 +121,11 @@ public abstract class PeerFinder {
     }
 
     public void activate(final DiscoveryNodes lastAcceptedNodes) {
-        logger.trace("activating with {}", lastAcceptedNodes);
+        logger.trace(
+            "activating with lastAcceptedNodes={} and inactivePeers={}",
+            lastAcceptedNodes.stream().map(DiscoveryNode::descriptionWithoutAttributes).collect(Collectors.joining(",", "[", "]")),
+            inactivePeers
+        );
 
         synchronized (mutex) {
             assert assertInactiveWithNoKnownPeers();
@@ -345,6 +350,7 @@ public abstract class PeerFinder {
             assert holdsLock() : "PeerFinder mutex not held";
 
             if (isActive() == false) {
+                logger.trace("Peer#handleWakeUp inactive: {}", Peer.this);
                 return true;
             }
 
