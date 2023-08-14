@@ -184,10 +184,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
     }
 
     @Override
-    @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98423")
-    public void testElectionSchedulingAfterDiscoveryOutage() {}
-
-    @Override
     protected CoordinatorStrategy createCoordinatorStrategy() {
         return new AtomicRegisterCoordinatorStrategy();
     }
@@ -268,12 +264,6 @@ public class AtomicRegisterCoordinatorTests extends CoordinatorTests {
             ThreadPool threadPool
         ) {
             return new AtomicRegisterPersistedState(newLocalNode, sharedStore);
-        }
-
-        @Override
-        public boolean verifyElectionSchedulerState() {
-            // TODO fix up election scheduling here (or refine the assertions) - see https://github.com/elastic/elasticsearch/issues/98423
-            return false;
         }
     }
 

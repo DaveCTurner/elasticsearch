@@ -706,10 +706,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                         // However today we do the health service checks within the election, so we keep trying if the node health state is
                         // UNHEALTHY too. See https://github.com/elastic/elasticsearch/issues/98419.
                         || clusterNode.nodeHealthService.getHealth().getStatus() == UNHEALTHY
-                        // Moreover this property does not hold (yet) when using an atomic-register-based coordinator.
-                        // See https://github.com/elastic/elasticsearch/issues/98423
-                        || coordinatorStrategy.verifyElectionSchedulerState() == false
-
                 );
 
                 if (expectIdleJoinValidationService) {
@@ -1605,11 +1601,6 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
         );
 
         default void close() {}
-
-        default boolean verifyElectionSchedulerState() {
-            // TODO remove once https://github.com/elastic/elasticsearch/issues/98423 fixed
-            return true;
-        }
     }
 
     protected interface CoordinationServices {
