@@ -127,7 +127,7 @@ public abstract class PeerFinder {
             activatedAtMillis = transportService.getThreadPool().relativeTimeInMillis();
             this.lastAcceptedNodes = lastAcceptedNodes;
             leader = Optional.empty();
-            handleWakeUp(); // return value discarded: there are no known peers, so none can be disconnected NOCOMMIT NOT TRUE!
+            handleWakeUp();
         }
 
         onFoundPeersUpdated(); // trigger a check for a quorum already
@@ -140,24 +140,24 @@ public abstract class PeerFinder {
             logger.trace("deactivating and setting leader to {}", leader);
             active = false;
             connectionReferences = new ArrayList<>(peersByAddress.size());
-            boolean incompletePeersRemoved = false;
+            peersRemoved = peersByAddress.isEmpty() == false;
             final var iterator = peersByAddress.values().iterator();
             while (iterator.hasNext()) {
                 final var peer = iterator.next();
                 if (peer.getDiscoveryNode() == null) {
                     connectionReferences.add(peer.getConnectionReference());
                     iterator.remove();
-                    incompletePeersRemoved = true;
                 }
             }
-            peersRemoved = handleWakeUp() || incompletePeersRemoved;
+            handleWakeUp();
             this.leader = Optional.of(leader);
             assert assertInactiveWithNoUndiscoveredPeers();
         }
-        Releasables.close(connectionReferences);
         if (peersRemoved) {
             onFoundPeersUpdated();
         }
+
+        Releasables.close(connectionReferences);
     }
 
     public void closeInactivePeers() {
