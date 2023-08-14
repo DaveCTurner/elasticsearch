@@ -134,13 +134,13 @@ public abstract class PeerFinder {
     }
 
     public void deactivate(DiscoveryNode leader) {
-        final boolean peersRemoved;
+        final boolean hasInactivePeers;
         final Collection<Releasable> connectionReferences;
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
             active = false;
             connectionReferences = new ArrayList<>(peersByAddress.size());
-            peersRemoved = peersByAddress.isEmpty() == false;
+            hasInactivePeers = peersByAddress.isEmpty() == false;
             final var iterator = peersByAddress.values().iterator();
             while (iterator.hasNext()) {
                 final var peer = iterator.next();
@@ -153,7 +153,7 @@ public abstract class PeerFinder {
             this.leader = Optional.of(leader);
             assert assertInactiveWithNoUndiscoveredPeers();
         }
-        if (peersRemoved) {
+        if (hasInactivePeers) {
             onFoundPeersUpdated();
         }
 
@@ -161,6 +161,23 @@ public abstract class PeerFinder {
     }
 
     public void closeInactivePeers() {
+
+        // Discovery is over, we're joining a cluster, so we can release all the connections that were being used for discovery. We haven't
+        // finished joining/forming the cluster yet, but if we're joining an existing master then the join will hold open the connection
+        // it's using and if we're becoming the master then join validation will hold open the connections to the joining peers; this set of
+        // peers is a quorum so that's good enough.
+        //
+        // Note however that this might still close connections to other master-eligible nodes that we discovered but which aren't currently
+        // involved in joining: either they're not the master we're joining or else we're becoming the master but they didn't try and join
+        // us yet. It's a pretty safe bet that we'll want to have connections to these nodes in the near future: either they're already in
+        // the cluster or else they will discover we're the master and join us straight away. In theory we could keep these discovery
+        // connections open for a while rather than closing them here and then reopening them again, but in practice it's so much simpler to
+        // forget about them for now.
+        //
+        // Note also that the NodeConnectionsService is still maintaining connections to the nodes in the last-applied cluster state, so
+        // this will only close connections to nodes that we didn't know about beforehand. In most cases that's because we only just started
+        // and haven't applied any cluster states at all yet. This won't cause any connection disruption during a typical master failover.
+
         final Collection<Releasable> connectionReferences = new ArrayList<>(peersByAddress.size());
         synchronized (mutex) {
             assert active == false;
