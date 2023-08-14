@@ -688,6 +688,12 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
         }
     }
 
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE"
+            + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
     public void testAckListenerReceivesNacksFromFollowerInHigherTerm() {
         try (Cluster cluster = new Cluster(3)) {
             cluster.runRandomly();
@@ -696,10 +702,18 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
             final ClusterNode follower0 = cluster.getAnyNodeExcept(leader);
             final ClusterNode follower1 = cluster.getAnyNodeExcept(leader, follower0);
 
+            logger.info("--> leader    = {}", leader);
+            logger.info("--> follower0 = {}", follower0);
+            logger.info("--> follower1 = {}", follower1);
+
             final long originalTerm = leader.coordinator.getCurrentTerm();
-            follower0.coordinator.onFollowerCheckRequest(
-                new FollowersChecker.FollowerCheckRequest(originalTerm + 1, leader.coordinator.getLocalNode())
+            logger.info("--> bumping term to {} on {}", originalTerm + 1, follower0);
+            follower0.onNode(
+                () -> follower0.coordinator.onFollowerCheckRequest(
+                    new FollowersChecker.FollowerCheckRequest(originalTerm + 1, leader.coordinator.getLocalNode())
+                )
             );
+            logger.info("--> finished bumping term to {} on {}", originalTerm + 1, follower0);
 
             AckCollector ackCollector = leader.submitValue(randomLong());
             cluster.runFor(DEFAULT_CLUSTER_STATE_UPDATE_DELAY, "cluster state update");
