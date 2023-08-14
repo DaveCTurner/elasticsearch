@@ -712,7 +712,7 @@ public class CoordinatorTests extends AbstractCoordinatorTestCase {
                 () -> follower0.coordinator.onFollowerCheckRequest(
                     new FollowersChecker.FollowerCheckRequest(originalTerm + 1, leader.coordinator.getLocalNode())
                 )
-            );
+            ).run();
             logger.info("--> finished bumping term to {} on {}", originalTerm + 1, follower0);
 
             AckCollector ackCollector = leader.submitValue(randomLong());

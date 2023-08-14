@@ -390,13 +390,14 @@ public abstract class PeerFinder {
                     boolean retainConnection = false;
                     try {
                         synchronized (mutex) {
-                            if (isActive() == false) {
-                                return;
-                            }
-
                             assert probeConnectionResult.get() == null
                                 : "connection result unexpectedly already set to " + probeConnectionResult.get();
                             probeConnectionResult.set(connectResult);
+
+                            if (isActive() == false) {
+                                logger.trace("Peer#establishConnection inactive: {}", Peer.this);
+                                return;
+                            }
 
                             requestPeers();
                         }
