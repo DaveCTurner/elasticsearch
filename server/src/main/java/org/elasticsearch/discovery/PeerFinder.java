@@ -328,7 +328,9 @@ public abstract class PeerFinder {
             return;
         }
 
-        if (peersByAddress.containsKey(transportAddress) == false) {
+        if (peersByAddress.containsKey(transportAddress)) {
+            logger.trace("startProbe({}) already probing", transportAddress);
+        } else {
             final Peer peer = new Peer(transportAddress);
             peersByAddress.put(transportAddress, peer);
             peer.establishConnection();
