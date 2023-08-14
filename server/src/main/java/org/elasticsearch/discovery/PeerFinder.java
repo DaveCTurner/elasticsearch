@@ -148,6 +148,8 @@ public abstract class PeerFinder {
         final Collection<Releasable> connectionReferences = new ArrayList<>(inactivePeers.size());
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
+            assert active;
+            assert inactivePeers.isEmpty() : inactivePeers;
             active = false;
             for (Peer peer : peersByAddress.values()) {
                 if (peer.getDiscoveryNode() == null) {
