@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static org.elasticsearch.core.Strings.format;
@@ -120,13 +119,10 @@ public abstract class PeerFinder {
     }
 
     public void activate(final DiscoveryNodes lastAcceptedNodes) {
-        logger.trace(
-            "activating with lastAcceptedNodes={}",
-            lastAcceptedNodes.stream().map(DiscoveryNode::descriptionWithoutAttributes).collect(Collectors.joining(",", "[", "]"))
-        );
+        logger.trace("activating with {}", lastAcceptedNodes);
 
         synchronized (mutex) {
-            assert active == false;
+            assert assertInactiveWithNoUndiscoveredPeers();
             active = true;
             activatedAtMillis = transportService.getThreadPool().relativeTimeInMillis();
             this.lastAcceptedNodes = lastAcceptedNodes;
@@ -139,10 +135,11 @@ public abstract class PeerFinder {
 
     public void deactivate(DiscoveryNode leader) {
         final boolean peersRemoved;
-        final Collection<Releasable> connectionReferences = new ArrayList<>(peersByAddress.size());
+        final Collection<Releasable> connectionReferences;
         synchronized (mutex) {
             logger.trace("deactivating and setting leader to {}", leader);
             active = false;
+            connectionReferences = new ArrayList<>(peersByAddress.size());
             boolean incompletePeersRemoved = false;
             final var iterator = peersByAddress.values().iterator();
             while (iterator.hasNext()) {
@@ -155,7 +152,7 @@ public abstract class PeerFinder {
             }
             peersRemoved = handleWakeUp() || incompletePeersRemoved;
             this.leader = Optional.of(leader);
-            assert active == false;
+            assert assertInactiveWithNoUndiscoveredPeers();
         }
         Releasables.close(connectionReferences);
         if (peersRemoved) {
@@ -179,6 +176,13 @@ public abstract class PeerFinder {
     // exposed to subclasses for testing
     protected final boolean holdsLock() {
         return Thread.holdsLock(mutex);
+    }
+
+    private boolean assertInactiveWithNoUndiscoveredPeers() {
+        assert holdsLock() : "PeerFinder mutex not held";
+        assert active == false;
+        assert peersByAddress.values().stream().allMatch(p -> p.getDiscoveryNode() != null);
+        return true;
     }
 
     PeersResponse handlePeersRequest(PeersRequest peersRequest) {
@@ -279,14 +283,7 @@ public abstract class PeerFinder {
             return peersRemoved;
         }
 
-        logger.trace(
-            "probing master nodes from cluster state: {}",
-            lastAcceptedNodes.getMasterNodes()
-                .values()
-                .stream()
-                .map(DiscoveryNode::descriptionWithoutAttributes)
-                .collect(Collectors.joining(",", "[", "]"))
-        );
+        logger.trace("probing master nodes from cluster state: {}", lastAcceptedNodes);
         for (DiscoveryNode discoveryNode : lastAcceptedNodes.getMasterNodes().values()) {
             startProbe(discoveryNode.getAddress());
         }
@@ -331,9 +328,7 @@ public abstract class PeerFinder {
             return;
         }
 
-        if (peersByAddress.containsKey(transportAddress)) {
-            logger.trace("startProbe({}) already probing", transportAddress);
-        } else {
+        if (peersByAddress.containsKey(transportAddress) == false) {
             final Peer peer = new Peer(transportAddress);
             peersByAddress.put(transportAddress, peer);
             peer.establishConnection();
@@ -484,9 +479,9 @@ public abstract class PeerFinder {
                 @Override
                 public void handleResponse(PeersResponse response) {
                     logger.trace("{} received {}", Peer.this, response);
-                    peersRequestInFlight = false;
-
                     synchronized (mutex) {
+                        peersRequestInFlight = false;
+
                         if (isActive() == false) {
                             logger.trace("Peer#requestPeers inactive: {}", Peer.this);
                             return;
