@@ -276,7 +276,14 @@ public abstract class PeerFinder {
             return peersRemoved;
         }
 
-        logger.trace("probing master nodes from cluster state: {}", lastAcceptedNodes);
+        logger.trace(
+            "probing master nodes from cluster state: {}",
+            lastAcceptedNodes.getMasterNodes()
+                .values()
+                .stream()
+                .map(DiscoveryNode::descriptionWithoutAttributes)
+                .collect(Collectors.joining(",", "[", "]"))
+        );
         for (DiscoveryNode discoveryNode : lastAcceptedNodes.getMasterNodes().values()) {
             startProbe(discoveryNode.getAddress());
         }
