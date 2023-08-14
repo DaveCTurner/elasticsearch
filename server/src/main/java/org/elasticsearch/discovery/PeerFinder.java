@@ -485,6 +485,7 @@ public abstract class PeerFinder {
 
                     synchronized (mutex) {
                         if (isActive() == false) {
+                            logger.trace("Peer#requestPeers inactive: {}", Peer.this);
                             return;
                         }
 
