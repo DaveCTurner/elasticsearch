@@ -93,6 +93,12 @@ import static org.hamcrest.Matchers.startsWith;
 @TestLogging(reason = "these tests do a lot of log-worthy things but we usually don't care", value = "org.elasticsearch:FATAL")
 public class CoordinatorTests extends AbstractCoordinatorTestCase {
 
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.cluster.coordination:TRACE"
+            + ",org.elasticsearch.discovery:TRACE"
+            + ",org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+    )
     public void testCanUpdateClusterStateAfterStabilisation() {
         try (Cluster cluster = new Cluster(randomIntBetween(1, 5))) {
             cluster.runRandomly();

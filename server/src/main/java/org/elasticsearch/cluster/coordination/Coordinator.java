@@ -260,6 +260,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             leaderHeartbeatService
         );
         configuredHostsResolver = new SeedHostsResolver(nodeName, settings, transportService, seedHostsProvider);
+        this.nodeHealthService = nodeHealthService;
         this.peerFinder = new CoordinatorPeerFinder(
             settings,
             transportService,
@@ -310,7 +311,6 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             transportService.getThreadPool(),
             joinHelper::logLastFailedJoinAttempt
         );
-        this.nodeHealthService = nodeHealthService;
         this.peerFinderListeners = new CopyOnWriteArrayList<>();
         this.peerFinderListeners.add(clusterBootstrapService);
         this.leaderHeartbeatService = leaderHeartbeatService;
