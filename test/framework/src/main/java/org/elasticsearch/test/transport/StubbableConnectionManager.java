@@ -27,6 +27,7 @@ public class StubbableConnectionManager implements ConnectionManager {
     private final ConcurrentMap<TransportAddress, GetConnectionBehavior> getConnectionBehaviors;
     private volatile GetConnectionBehavior defaultGetConnectionBehavior = ConnectionManager::getConnection;
     private volatile NodeConnectedBehavior defaultNodeConnectedBehavior = ConnectionManager::nodeConnected;
+    private volatile DisconnectFromNodeBehavior disconnectFromNodeBehaviour = ConnectionManager::disconnectFromNode;
 
     public StubbableConnectionManager(ConnectionManager delegate) {
         this.delegate = delegate;
@@ -49,9 +50,14 @@ public class StubbableConnectionManager implements ConnectionManager {
         return prior == null;
     }
 
+    public void setDisconnectFromNodeBehaviour(DisconnectFromNodeBehavior disconnectFromNodeBehaviour) {
+        this.disconnectFromNodeBehaviour = disconnectFromNodeBehaviour;
+    }
+
     public void clearBehaviors() {
         defaultGetConnectionBehavior = ConnectionManager::getConnection;
         getConnectionBehaviors.clear();
+        disconnectFromNodeBehaviour = ConnectionManager::disconnectFromNode;
     }
 
     public void clearBehavior(TransportAddress transportAddress) {
@@ -97,7 +103,7 @@ public class StubbableConnectionManager implements ConnectionManager {
 
     @Override
     public void disconnectFromNode(DiscoveryNode node) {
-        delegate.disconnectFromNode(node);
+        disconnectFromNodeBehaviour.disconnectFromNode(delegate, node);
     }
 
     @Override
@@ -133,5 +139,10 @@ public class StubbableConnectionManager implements ConnectionManager {
     @FunctionalInterface
     public interface NodeConnectedBehavior {
         boolean connectedNodes(ConnectionManager connectionManager, DiscoveryNode node);
+    }
+
+    @FunctionalInterface
+    public interface DisconnectFromNodeBehavior {
+        void disconnectFromNode(ConnectionManager connectionManager, DiscoveryNode discoveryNode);
     }
 }

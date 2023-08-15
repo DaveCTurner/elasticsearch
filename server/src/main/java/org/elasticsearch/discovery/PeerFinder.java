@@ -24,6 +24,8 @@ import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.monitor.NodeHealthService;
+import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.transport.TransportException;
@@ -85,6 +87,7 @@ public abstract class PeerFinder {
     private final Executor clusterCoordinationExecutor;
     private final TransportAddressConnector transportAddressConnector;
     private final ConfiguredHostsResolver configuredHostsResolver;
+    private final NodeHealthService nodeHealthService;
 
     private volatile long currentTerm;
     private boolean active;
@@ -98,7 +101,8 @@ public abstract class PeerFinder {
         Settings settings,
         TransportService transportService,
         TransportAddressConnector transportAddressConnector,
-        ConfiguredHostsResolver configuredHostsResolver
+        ConfiguredHostsResolver configuredHostsResolver,
+        NodeHealthService nodeHealthService
     ) {
         findPeersInterval = DISCOVERY_FIND_PEERS_INTERVAL_SETTING.get(settings);
         requestPeersTimeout = DISCOVERY_REQUEST_PEERS_TIMEOUT_SETTING.get(settings);
@@ -107,6 +111,7 @@ public abstract class PeerFinder {
         this.clusterCoordinationExecutor = transportService.getThreadPool().executor(Names.CLUSTER_COORDINATION);
         this.transportAddressConnector = transportAddressConnector;
         this.configuredHostsResolver = configuredHostsResolver;
+        this.nodeHealthService = nodeHealthService;
 
         transportService.registerRequestHandler(
             REQUEST_PEERS_ACTION_NAME,
@@ -296,7 +301,8 @@ public abstract class PeerFinder {
 
         if (active == false) {
             logger.trace("not active");
-            return peersRemoved;
+            assert peersRemoved == false;
+            return false;
         }
 
         logger.trace("probing master nodes from cluster state: {}", lastAcceptedNodes);
@@ -344,11 +350,20 @@ public abstract class PeerFinder {
             return;
         }
 
+        if (isUnhealthy()) {
+            logger.debug("startProbe({}) unhealthy", transportAddress);
+            return;
+        }
+
         if (peersByAddress.containsKey(transportAddress) == false) {
             final Peer peer = new Peer(transportAddress);
             peersByAddress.put(transportAddress, peer);
             peer.establishConnection();
         }
+    }
+
+    private boolean isUnhealthy() {
+        return nodeHealthService.getHealth().status() == StatusInfo.Status.UNHEALTHY;
     }
 
     private class Peer {
@@ -381,6 +396,11 @@ public abstract class PeerFinder {
             // may be null if connection not yet established
 
             if (discoveryNode != null) {
+                if (isUnhealthy()) {
+                    logger.debug("disconnecting as unhealthy: {}", Peer.this);
+                    transportService.disconnectFromNode(discoveryNode);
+                }
+
                 if (transportService.nodeConnected(discoveryNode)) {
                     if (peersRequestInFlight == false) {
                         requestPeers();

@@ -143,7 +143,6 @@ import static org.elasticsearch.core.Strings.format;
 import static org.elasticsearch.discovery.PeerFinder.DISCOVERY_FIND_PEERS_INTERVAL_SETTING;
 import static org.elasticsearch.gateway.GatewayService.STATE_NOT_RECOVERED_BLOCK;
 import static org.elasticsearch.monitor.StatusInfo.Status.HEALTHY;
-import static org.elasticsearch.monitor.StatusInfo.Status.UNHEALTHY;
 import static org.elasticsearch.transport.TransportService.NOOP_TRANSPORT_INTERCEPTOR;
 import static org.elasticsearch.transport.TransportSettings.CONNECT_TIMEOUT;
 import static org.hamcrest.Matchers.empty;
@@ -703,10 +702,7 @@ public class AbstractCoordinatorTestCase extends ESTestCase {
                     nodeId + " is not scheduling elections",
                     // In the stable state all election schedulers should be inactive, rather than retrying in vain and backing off.
                     clusterNode.coordinator.electionSchedulerActive() == false
-                        // However today we do the health service checks within the election, so we keep trying if the node health state is
-                        // UNHEALTHY too. See https://github.com/elastic/elasticsearch/issues/98419.
-                        || clusterNode.nodeHealthService.getHealth().getStatus() == UNHEALTHY
-                        // Moreover this property does not hold (yet) when using an atomic-register-based coordinator.
+                        // This property does not hold (yet) when using an atomic-register-based coordinator.
                         // See https://github.com/elastic/elasticsearch/issues/98423
                         || coordinatorStrategy.verifyElectionSchedulerState() == false
 

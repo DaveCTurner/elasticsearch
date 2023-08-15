@@ -21,6 +21,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
@@ -77,6 +78,7 @@ public class PeerFinderTests extends ESTestCase {
     private DeterministicTaskQueue deterministicTaskQueue;
     private DiscoveryNode localNode;
     private MockTransportAddressConnector transportAddressConnector;
+    private StatusInfo statusInfo = new StatusInfo(StatusInfo.Status.HEALTHY, "");
     private TestPeerFinder peerFinder;
     private List<TransportAddress> providedAddresses;
     private long addressResolveDelay; // -1 means address resolution fails
@@ -155,7 +157,7 @@ public class PeerFinderTests extends ESTestCase {
         OptionalLong discoveredMasterTerm = OptionalLong.empty();
 
         TestPeerFinder(Settings settings, TransportService transportService, TransportAddressConnector transportAddressConnector) {
-            super(settings, transportService, transportAddressConnector, PeerFinderTests.this::resolveConfiguredHosts);
+            super(settings, transportService, transportAddressConnector, PeerFinderTests.this::resolveConfiguredHosts, () -> statusInfo);
         }
 
         @Override
@@ -226,6 +228,11 @@ public class PeerFinderTests extends ESTestCase {
             return isConnected;
         });
         connectionManager.setDefaultGetConnectionBehavior((cm, discoveryNode) -> capturingTransport.createConnection(discoveryNode));
+        connectionManager.setDisconnectFromNodeBehaviour((cm, discoveryNode) -> {
+            if (connectedNodes.remove(discoveryNode)) {
+                disconnectedNodes.add(discoveryNode);
+            }
+        });
         transportService = new TransportService(
             settings,
             capturingTransport,
@@ -249,6 +256,7 @@ public class PeerFinderTests extends ESTestCase {
 
     @After
     public void deactivateAndRunRemainingTasks() {
+        logger.trace("--> deactivateAndRunRemainingTasks");
         peerFinder.deactivate(localNode);
         peerFinder.closePeers();
         deterministicTaskQueue.runAllRunnableTasks();
@@ -904,6 +912,38 @@ public class PeerFinderTests extends ESTestCase {
         runAllRunnableTasks();
 
         assertFoundPeers(rebootedOtherNode);
+    }
+
+    public void testDisconnectsWhenUnhealthy() {
+        final DiscoveryNode otherNode1 = newDiscoveryNode("other-node-1");
+        final DiscoveryNode otherNode2 = newDiscoveryNode("other-node-2");
+
+        providedAddresses.add(otherNode1.getAddress());
+
+        transportAddressConnector.addReachableNode(otherNode1);
+        transportAddressConnector.addReachableNode(otherNode2);
+
+        peerFinder.activate(lastAcceptedNodes);
+        runAllRunnableTasks();
+        assertFoundPeers(otherNode1);
+        assertEquals(Set.of(otherNode1), connectedNodes);
+
+        logger.info("--> becoming unhealthy");
+        statusInfo = new StatusInfo(StatusInfo.Status.UNHEALTHY, "");
+        providedAddresses.add(otherNode2.getAddress());
+
+        deterministicTaskQueue.advanceTime();
+        runAllRunnableTasks();
+        assertFoundPeers();
+        assertEquals(Set.of(), connectedNodes);
+
+        logger.info("--> becoming healthy");
+        statusInfo = new StatusInfo(StatusInfo.Status.HEALTHY, "");
+
+        deterministicTaskQueue.advanceTime();
+        runAllRunnableTasks();
+        assertFoundPeers(otherNode1, otherNode2);
+        assertEquals(Set.of(otherNode1, otherNode2), connectedNodes);
     }
 
     private void respondToRequests(Function<DiscoveryNode, PeersResponse> responseFactory) {

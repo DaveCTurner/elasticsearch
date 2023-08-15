@@ -1689,7 +1689,8 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 settings,
                 transportService,
                 transportAddressConnector,
-                singleNodeDiscovery ? hostsResolver -> {} : configuredHostsResolver
+                singleNodeDiscovery ? hostsResolver -> {} : configuredHostsResolver,
+                nodeHealthService
             );
         }
 
