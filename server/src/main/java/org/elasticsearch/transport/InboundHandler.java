@@ -106,14 +106,13 @@ public class InboundHandler {
         assert header.needsToReadVariableHeader() == false;
 
         TransportResponseHandler<?> responseHandler = null;
-        final boolean isRequest = message.getHeader().isRequest();
 
         ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext existing = threadContext.stashContext()) {
             // Place the context with the headers from the message
             threadContext.setHeaders(header.getHeaders());
             threadContext.putTransient("_remote_address", remoteAddress);
-            if (isRequest) {
+            if (header.isRequest()) {
                 handleRequest(channel, header, message);
             } else {
                 // Responses do not support short circuiting currently
@@ -153,7 +152,7 @@ public class InboundHandler {
             handlingTimeTracker.addHandlingTime(took);
             final long logThreshold = slowLogThresholdMs;
             if (logThreshold > 0 && took > logThreshold) {
-                if (isRequest) {
+                if (header.isRequest()) {
                     logger.warn(
                         "handling request [{}] took [{}ms] which is above the warn threshold of [{}ms]",
                         message,
