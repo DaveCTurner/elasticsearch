@@ -120,7 +120,7 @@ public class InboundHandler {
                 responseHandler = findResponseHandler(header);
                 // ignore if its null, the service logs it
                 if (responseHandler != null) {
-                    resolveResponseHandler(message, remoteAddress, responseHandler);
+                    resolveResponseHandler(message, responseHandler, remoteAddress);
                 }
             }
         } finally {
@@ -150,8 +150,8 @@ public class InboundHandler {
 
     private void resolveResponseHandler(
         InboundMessage message,
-        InetSocketAddress remoteAddress,
-        TransportResponseHandler<?> responseHandler
+        TransportResponseHandler<?> responseHandler,
+        InetSocketAddress remoteAddress
     ) throws IOException {
         final var header = message.getHeader();
         if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
