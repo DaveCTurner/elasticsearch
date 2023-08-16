@@ -230,59 +230,60 @@ public class InboundHandler {
         final TransportVersion version = header.getVersion();
         if (header.isHandshake()) {
             handleHandshakeRequest(channel, message);
-        } else {
-            final RequestHandlerRegistry<T> reg = requestHandlers.getHandler(action);
-            assert message.isShortCircuit() || reg != null : action;
-            final TransportChannel transportChannel = new TcpTransportChannel(
-                outboundHandler,
-                channel,
-                action,
-                requestId,
-                version,
-                header.getCompressionScheme(),
-                reg == null ? ResponseStatsConsumer.NONE : reg,
-                header.isHandshake(),
-                message.takeBreakerReleaseControl()
-            );
+            return;
+        }
 
-            try {
-                messageListener.onRequestReceived(requestId, action);
-                if (reg != null) {
-                    reg.addRequestStats(header.getNetworkMessageSize() + TcpHeader.BYTES_REQUIRED_FOR_MESSAGE_SIZE);
-                }
+        final RequestHandlerRegistry<T> reg = requestHandlers.getHandler(action);
+        assert message.isShortCircuit() || reg != null : action;
+        final TransportChannel transportChannel = new TcpTransportChannel(
+            outboundHandler,
+            channel,
+            action,
+            requestId,
+            version,
+            header.getCompressionScheme(),
+            reg == null ? ResponseStatsConsumer.NONE : reg,
+            header.isHandshake(),
+            message.takeBreakerReleaseControl()
+        );
 
-                if (message.isShortCircuit()) {
-                    sendErrorResponse(action, transportChannel, message.getException());
-                } else {
-                    assert reg != null;
-                    final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
-                    assertRemoteVersion(stream, header.getVersion());
-                    final T request;
-                    try {
-                        request = reg.newRequest(stream);
-                    } catch (Exception e) {
-                        assert ignoreDeserializationErrors : e;
-                        throw e;
-                    }
-                    try {
-                        request.remoteAddress(channel.getRemoteAddress());
-                        assert requestId > 0;
-                        request.setRequestId(requestId);
-                        verifyRequestReadFully(stream, requestId, action);
-                        if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
-                            try (var ignored = threadPool.getThreadContext().newTraceContext()) {
-                                doHandleRequest(reg, request, transportChannel);
-                            }
-                        } else {
-                            handleRequestForking(request, reg, transportChannel);
-                        }
-                    } finally {
-                        request.decRef();
-                    }
-                }
-            } catch (Exception e) {
-                sendErrorResponse(action, transportChannel, e);
+        try {
+            messageListener.onRequestReceived(requestId, action);
+            if (reg != null) {
+                reg.addRequestStats(header.getNetworkMessageSize() + TcpHeader.BYTES_REQUIRED_FOR_MESSAGE_SIZE);
             }
+
+            if (message.isShortCircuit()) {
+                sendErrorResponse(action, transportChannel, message.getException());
+            } else {
+                assert reg != null;
+                final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
+                assertRemoteVersion(stream, header.getVersion());
+                final T request;
+                try {
+                    request = reg.newRequest(stream);
+                } catch (Exception e) {
+                    assert ignoreDeserializationErrors : e;
+                    throw e;
+                }
+                try {
+                    request.remoteAddress(channel.getRemoteAddress());
+                    assert requestId > 0;
+                    request.setRequestId(requestId);
+                    verifyRequestReadFully(stream, requestId, action);
+                    if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
+                        try (var ignored = threadPool.getThreadContext().newTraceContext()) {
+                            doHandleRequest(reg, request, transportChannel);
+                        }
+                    } else {
+                        handleRequestForking(request, reg, transportChannel);
+                    }
+                } finally {
+                    request.decRef();
+                }
+            }
+        } catch (Exception e) {
+            sendErrorResponse(action, transportChannel, e);
         }
     }
 
