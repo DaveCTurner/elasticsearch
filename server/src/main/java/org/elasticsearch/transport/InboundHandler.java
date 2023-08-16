@@ -185,6 +185,24 @@ public class InboundHandler {
         }
     }
 
+    private void verifyRequestReadFully(StreamInput stream, long requestId, String action) throws IOException {
+        final int nextByte = stream.read();
+        // calling read() is useful to make sure the message is fully read, even if there some kind of EOS marker
+        if (nextByte != -1) {
+            final IllegalStateException exception = new IllegalStateException(
+                "Message not fully read (request) for requestId ["
+                    + requestId
+                    + "], action ["
+                    + action
+                    + "], available ["
+                    + stream.available()
+                    + "]; resetting"
+            );
+            assert ignoreDeserializationErrors : exception;
+            throw exception;
+        }
+    }
+
     private void verifyResponseReadFully(Header header, TransportResponseHandler<?> responseHandler, StreamInput streamInput)
         throws IOException {
         // Check the entire message has been read
@@ -271,22 +289,7 @@ public class InboundHandler {
                         request.remoteAddress(channel.getRemoteAddress());
                         assert requestId > 0;
                         request.setRequestId(requestId);
-                        // in case we throw an exception, i.e. when the limit is hit, we don't want to verify
-                        final int nextByte = stream.read();
-                        // calling read() is useful to make sure the message is fully read, even if there some kind of EOS marker
-                        if (nextByte != -1) {
-                            final IllegalStateException exception = new IllegalStateException(
-                                "Message not fully read (request) for requestId ["
-                                    + requestId
-                                    + "], action ["
-                                    + action
-                                    + "], available ["
-                                    + stream.available()
-                                    + "]; resetting"
-                            );
-                            assert ignoreDeserializationErrors : exception;
-                            throw exception;
-                        }
+                        verifyRequestReadFully(stream, requestId, action);
                         final String executor = reg.getExecutor();
                         if (ThreadPool.Names.SAME.equals(executor)) {
                             try (var ignored = threadPool.getThreadContext().newTraceContext()) {
