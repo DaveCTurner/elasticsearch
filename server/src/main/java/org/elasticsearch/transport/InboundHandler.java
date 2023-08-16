@@ -225,14 +225,14 @@ public class InboundHandler {
 
     private <T extends TransportRequest> void handleRequest(TcpChannel channel, InboundMessage message) throws IOException {
         final Header header = message.getHeader();
-        final String action = header.getActionName();
-        final long requestId = header.getRequestId();
         final TransportVersion version = header.getVersion();
         if (header.isHandshake()) {
             handleHandshakeRequest(channel, message);
             return;
         }
 
+        final String action = header.getActionName();
+        final long requestId = header.getRequestId();
         final RequestHandlerRegistry<T> reg = requestHandlers.getHandler(action);
         assert message.isShortCircuit() || reg != null : action;
         final TransportChannel transportChannel = new TcpTransportChannel(
@@ -243,7 +243,7 @@ public class InboundHandler {
             version,
             header.getCompressionScheme(),
             reg == null ? ResponseStatsConsumer.NONE : reg,
-            header.isHandshake(),
+            false,
             message.takeBreakerReleaseControl()
         );
 
@@ -260,7 +260,7 @@ public class InboundHandler {
 
             assert reg != null;
             final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
-            assertRemoteVersion(stream, header.getVersion());
+            assert assertRemoteVersion(stream, header.getVersion());
             final T request;
             try {
                 request = reg.newRequest(stream);
