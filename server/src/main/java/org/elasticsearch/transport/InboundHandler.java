@@ -255,32 +255,33 @@ public class InboundHandler {
 
             if (message.isShortCircuit()) {
                 sendErrorResponse(action, transportChannel, message.getException());
-            } else {
-                assert reg != null;
-                final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
-                assertRemoteVersion(stream, header.getVersion());
-                final T request;
-                try {
-                    request = reg.newRequest(stream);
-                } catch (Exception e) {
-                    assert ignoreDeserializationErrors : e;
-                    throw e;
-                }
-                try {
-                    request.remoteAddress(channel.getRemoteAddress());
-                    assert requestId > 0;
-                    request.setRequestId(requestId);
-                    verifyRequestReadFully(stream, requestId, action);
-                    if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
-                        try (var ignored = threadPool.getThreadContext().newTraceContext()) {
-                            doHandleRequest(reg, request, transportChannel);
-                        }
-                    } else {
-                        handleRequestForking(request, reg, transportChannel);
+                return;
+            }
+
+            assert reg != null;
+            final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
+            assertRemoteVersion(stream, header.getVersion());
+            final T request;
+            try {
+                request = reg.newRequest(stream);
+            } catch (Exception e) {
+                assert ignoreDeserializationErrors : e;
+                throw e;
+            }
+            try {
+                request.remoteAddress(channel.getRemoteAddress());
+                assert requestId > 0;
+                request.setRequestId(requestId);
+                verifyRequestReadFully(stream, requestId, action);
+                if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
+                    try (var ignored = threadPool.getThreadContext().newTraceContext()) {
+                        doHandleRequest(reg, request, transportChannel);
                     }
-                } finally {
-                    request.decRef();
+                } else {
+                    handleRequestForking(request, reg, transportChannel);
                 }
+            } finally {
+                request.decRef();
             }
         } catch (Exception e) {
             sendErrorResponse(action, transportChannel, e);
