@@ -148,7 +148,11 @@ public class InboundHandler {
         }
     }
 
-    private void resolveResponseHandler(InboundMessage message, InetSocketAddress remoteAddress, TransportResponseHandler<?> responseHandler) throws IOException {
+    private void resolveResponseHandler(
+        InboundMessage message,
+        InetSocketAddress remoteAddress,
+        TransportResponseHandler<?> responseHandler
+    ) throws IOException {
         final var header = message.getHeader();
         if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
             final StreamInput streamInput = namedWriteableStream(message.openOrGetStreamInput());
