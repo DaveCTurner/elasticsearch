@@ -325,8 +325,8 @@ public class InboundHandler {
         try {
             threadPool.executor(reg.getExecutor()).execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
                 @Override
-                protected void doRun() throws Exception {
-                    reg.processMessageReceived(request, channel);
+                protected void doRun() {
+                    doHandleRequest(reg, request, channel);
                 }
 
                 @Override
@@ -335,7 +335,12 @@ public class InboundHandler {
                 }
 
                 @Override
+                public void onRejection(Exception e) {
+                    sendErrorResponse(reg.getAction(), channel, e);
+                }
+                @Override
                 public void onFailure(Exception e) {
+                    assert false : e; // shouldn't get here ever, no failures other than rejection by the thread-pool expected
                     sendErrorResponse(reg.getAction(), channel, e);
                 }
 
