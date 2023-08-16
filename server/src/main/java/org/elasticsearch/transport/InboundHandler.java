@@ -117,7 +117,7 @@ public class InboundHandler {
             } else {
                 // Responses do not support short circuiting currently
                 assert message.isShortCircuit() == false;
-                responseHandler = findResponseHandler(header, responseHandler);
+                responseHandler = findResponseHandler(header);
                 // ignore if its null, the service logs it
                 if (responseHandler != null) {
                     if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
@@ -159,20 +159,20 @@ public class InboundHandler {
         }
     }
 
-    private TransportResponseHandler<?> findResponseHandler(Header header, TransportResponseHandler<?> responseHandler) {
-        long requestId = header.getRequestId();
+    private TransportResponseHandler<?> findResponseHandler(Header header) {
         if (header.isHandshake()) {
-            responseHandler = handshaker.removeHandlerForHandshake(requestId);
+            return handshaker.removeHandlerForHandshake(header.getRequestId());
+        }
+
+        final TransportResponseHandler<? extends TransportResponse> theHandler = responseHandlers.onResponseReceived(
+            header.getRequestId(),
+            messageListener
+        );
+        final TransportResponseHandler<?> responseHandler;
+        if (theHandler == null && header.isError()) {
+            responseHandler = handshaker.removeHandlerForHandshake(header.getRequestId());
         } else {
-            final TransportResponseHandler<? extends TransportResponse> theHandler = responseHandlers.onResponseReceived(
-                requestId,
-                messageListener
-            );
-            if (theHandler == null && header.isError()) {
-                responseHandler = handshaker.removeHandlerForHandshake(requestId);
-            } else {
-                responseHandler = theHandler;
-            }
+            responseHandler = theHandler;
         }
         return responseHandler;
     }
