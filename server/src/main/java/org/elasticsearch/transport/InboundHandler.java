@@ -292,11 +292,7 @@ public class InboundHandler {
                         verifyRequestReadFully(stream, requestId, action);
                         if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
                             try (var ignored = threadPool.getThreadContext().newTraceContext()) {
-                                try {
-                                    reg.processMessageReceived(request, transportChannel);
-                                } catch (Exception e) {
-                                    sendErrorResponse(reg.getAction(), transportChannel, e);
-                                }
+                                doHandleRequest(reg, request, transportChannel);
                             }
                         } else {
                             handleRequestForking(request, reg, transportChannel);
@@ -308,6 +304,18 @@ public class InboundHandler {
             } catch (Exception e) {
                 sendErrorResponse(action, transportChannel, e);
             }
+        }
+    }
+
+    private static <T extends TransportRequest> void doHandleRequest(
+        RequestHandlerRegistry<T> reg,
+        T request,
+        TransportChannel transportChannel
+    ) {
+        try {
+            reg.processMessageReceived(request, transportChannel);
+        } catch (Exception e) {
+            sendErrorResponse(reg.getAction(), transportChannel, e);
         }
     }
 
