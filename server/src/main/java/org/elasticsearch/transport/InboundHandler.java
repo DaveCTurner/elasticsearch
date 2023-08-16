@@ -448,8 +448,9 @@ public class InboundHandler {
         return new NamedWriteableAwareStreamInput(delegate, namedWriteableRegistry);
     }
 
-    static void assertRemoteVersion(StreamInput in, TransportVersion version) {
+    static boolean assertRemoteVersion(StreamInput in, TransportVersion version) {
         assert version.equals(in.getTransportVersion())
             : "Stream version [" + in.getTransportVersion() + "] does not match version [" + version + "]";
+        return true;
     }
 }
