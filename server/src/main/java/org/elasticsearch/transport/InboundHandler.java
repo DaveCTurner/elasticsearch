@@ -106,7 +106,6 @@ public class InboundHandler {
         assert header.needsToReadVariableHeader() == false;
 
         TransportResponseHandler<?> responseHandler = null;
-
         ThreadContext threadContext = threadPool.getThreadContext();
         try (ThreadContext.StoredContext existing = threadContext.stashContext()) {
             // Place the context with the headers from the message
@@ -157,7 +156,6 @@ public class InboundHandler {
         if (header.isHandshake()) {
             return handshaker.removeHandlerForHandshake(header.getRequestId());
         }
-
         final TransportResponseHandler<? extends TransportResponse> theHandler = responseHandlers.onResponseReceived(
             header.getRequestId(),
             messageListener
