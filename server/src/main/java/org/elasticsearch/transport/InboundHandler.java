@@ -117,20 +117,7 @@ public class InboundHandler {
             } else {
                 // Responses do not support short circuiting currently
                 assert message.isShortCircuit() == false;
-                long requestId = header.getRequestId();
-                if (header.isHandshake()) {
-                    responseHandler = handshaker.removeHandlerForHandshake(requestId);
-                } else {
-                    final TransportResponseHandler<? extends TransportResponse> theHandler = responseHandlers.onResponseReceived(
-                        requestId,
-                        messageListener
-                    );
-                    if (theHandler == null && header.isError()) {
-                        responseHandler = handshaker.removeHandlerForHandshake(requestId);
-                    } else {
-                        responseHandler = theHandler;
-                    }
-                }
+                responseHandler = findResponseHandler(header, responseHandler);
                 // ignore if its null, the service logs it
                 if (responseHandler != null) {
                     if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
@@ -170,6 +157,24 @@ public class InboundHandler {
                 }
             }
         }
+    }
+
+    private TransportResponseHandler<?> findResponseHandler(Header header, TransportResponseHandler<?> responseHandler) {
+        long requestId = header.getRequestId();
+        if (header.isHandshake()) {
+            responseHandler = handshaker.removeHandlerForHandshake(requestId);
+        } else {
+            final TransportResponseHandler<? extends TransportResponse> theHandler = responseHandlers.onResponseReceived(
+                requestId,
+                messageListener
+            );
+            if (theHandler == null && header.isError()) {
+                responseHandler = handshaker.removeHandlerForHandshake(requestId);
+            } else {
+                responseHandler = theHandler;
+            }
+        }
+        return responseHandler;
     }
 
     private void verifyResponseReadFully(Header header, TransportResponseHandler<?> responseHandler, StreamInput streamInput)
