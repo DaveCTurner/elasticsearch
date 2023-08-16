@@ -225,7 +225,6 @@ public class InboundHandler {
 
     private <T extends TransportRequest> void handleRequest(TcpChannel channel, InboundMessage message) throws IOException {
         final Header header = message.getHeader();
-        final TransportVersion version = header.getVersion();
         if (header.isHandshake()) {
             handleHandshakeRequest(channel, message);
             return;
@@ -240,7 +239,7 @@ public class InboundHandler {
             channel,
             action,
             requestId,
-            version,
+            header.getVersion(),
             header.getCompressionScheme(),
             reg == null ? ResponseStatsConsumer.NONE : reg,
             false,
