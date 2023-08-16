@@ -290,8 +290,7 @@ public class InboundHandler {
                         assert requestId > 0;
                         request.setRequestId(requestId);
                         verifyRequestReadFully(stream, requestId, action);
-                        final String executor = reg.getExecutor();
-                        if (ThreadPool.Names.SAME.equals(executor)) {
+                        if (ThreadPool.Names.SAME.equals(reg.getExecutor())) {
                             try (var ignored = threadPool.getThreadContext().newTraceContext()) {
                                 try {
                                     reg.processMessageReceived(request, transportChannel);
@@ -303,7 +302,7 @@ public class InboundHandler {
                             boolean success = false;
                             request.incRef();
                             try {
-                                threadPool.executor(executor)
+                                threadPool.executor(reg.getExecutor())
                                     .execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
                                         @Override
                                         protected void doRun() throws Exception {
