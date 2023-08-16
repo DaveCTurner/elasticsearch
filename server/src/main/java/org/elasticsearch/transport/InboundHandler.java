@@ -120,18 +120,7 @@ public class InboundHandler {
                 responseHandler = findResponseHandler(header);
                 // ignore if its null, the service logs it
                 if (responseHandler != null) {
-                    if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
-                        final StreamInput streamInput = namedWriteableStream(message.openOrGetStreamInput());
-                        assert assertRemoteVersion(streamInput, header.getVersion());
-                        if (header.isError()) {
-                            handlerResponseError(streamInput, message, responseHandler);
-                        } else {
-                            handleResponse(remoteAddress, streamInput, responseHandler, message);
-                        }
-                    } else {
-                        assert header.isError() == false;
-                        handleResponse(remoteAddress, EMPTY_STREAM_INPUT, responseHandler, message);
-                    }
+                    resolveResponseHandler(message, remoteAddress, responseHandler);
                 }
             }
         } finally {
@@ -156,6 +145,22 @@ public class InboundHandler {
                     );
                 }
             }
+        }
+    }
+
+    private void resolveResponseHandler(InboundMessage message, InetSocketAddress remoteAddress, TransportResponseHandler<?> responseHandler) throws IOException {
+        final var header = message.getHeader();
+        if (message.getContentLength() > 0 || header.getVersion().equals(TransportVersion.current()) == false) {
+            final StreamInput streamInput = namedWriteableStream(message.openOrGetStreamInput());
+            assert assertRemoteVersion(streamInput, header.getVersion());
+            if (header.isError()) {
+                handlerResponseError(streamInput, message, responseHandler);
+            } else {
+                handleResponse(remoteAddress, streamInput, responseHandler, message);
+            }
+        } else {
+            assert header.isError() == false;
+            handleResponse(remoteAddress, EMPTY_STREAM_INPUT, responseHandler, message);
         }
     }
 
