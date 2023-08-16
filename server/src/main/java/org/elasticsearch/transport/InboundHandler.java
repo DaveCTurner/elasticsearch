@@ -229,28 +229,7 @@ public class InboundHandler {
         final long requestId = header.getRequestId();
         final TransportVersion version = header.getVersion();
         if (header.isHandshake()) {
-            messageListener.onRequestReceived(requestId, action);
-            // Cannot short circuit handshakes
-            assert message.isShortCircuit() == false;
-            final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
-            assertRemoteVersion(stream, header.getVersion());
-            final TransportChannel transportChannel = new TcpTransportChannel(
-                outboundHandler,
-                channel,
-                action,
-                requestId,
-                version,
-                header.getCompressionScheme(),
-                ResponseStatsConsumer.NONE,
-                header.isHandshake(),
-                message.takeBreakerReleaseControl()
-            );
-            try {
-                handshaker.handleHandshake(transportChannel, requestId, stream);
-            } catch (Exception e) {
-                logger.warn(() -> "error processing handshake version [" + version + "] received on [" + channel + "], closing channel", e);
-                channel.close();
-            }
+            handleHandshakeRequest(channel, message);
         } else {
             final RequestHandlerRegistry<T> reg = requestHandlers.getHandler(action);
             assert message.isShortCircuit() || reg != null : action;
@@ -338,6 +317,7 @@ public class InboundHandler {
                 public void onRejection(Exception e) {
                     sendErrorResponse(reg.getAction(), channel, e);
                 }
+
                 @Override
                 public void onFailure(Exception e) {
                     assert false : e; // shouldn't get here ever, no failures other than rejection by the thread-pool expected
@@ -354,6 +334,37 @@ public class InboundHandler {
             if (success == false) {
                 request.decRef();
             }
+        }
+    }
+
+    private void handleHandshakeRequest(TcpChannel channel, InboundMessage message) throws IOException {
+        var header = message.getHeader();
+        assert header.actionName.equals(TransportHandshaker.HANDSHAKE_ACTION_NAME);
+        final long requestId = header.getRequestId();
+        messageListener.onRequestReceived(requestId, TransportHandshaker.HANDSHAKE_ACTION_NAME);
+        // Cannot short circuit handshakes
+        assert message.isShortCircuit() == false;
+        final StreamInput stream = namedWriteableStream(message.openOrGetStreamInput());
+        assert assertRemoteVersion(stream, header.getVersion());
+        final TransportChannel transportChannel = new TcpTransportChannel(
+            outboundHandler,
+            channel,
+            TransportHandshaker.HANDSHAKE_ACTION_NAME,
+            requestId,
+            header.getVersion(),
+            header.getCompressionScheme(),
+            ResponseStatsConsumer.NONE,
+            true,
+            message.takeBreakerReleaseControl()
+        );
+        try {
+            handshaker.handleHandshake(transportChannel, requestId, stream);
+        } catch (Exception e) {
+            logger.warn(
+                () -> "error processing handshake version [" + header.getVersion() + "] received on [" + channel + "], closing channel",
+                e
+            );
+            channel.close();
         }
     }
 
