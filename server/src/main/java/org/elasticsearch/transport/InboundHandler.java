@@ -128,22 +128,7 @@ public class InboundHandler {
             handlingTimeTracker.addHandlingTime(took);
             final long logThreshold = slowLogThresholdMs;
             if (logThreshold > 0 && took > logThreshold) {
-                if (header.isRequest()) {
-                    logger.warn(
-                        "handling request [{}] took [{}ms] which is above the warn threshold of [{}ms]",
-                        message,
-                        took,
-                        logThreshold
-                    );
-                } else {
-                    logger.warn(
-                        "handling response [{}] on handler [{}] took [{}ms] which is above the warn threshold of [{}ms]",
-                        message,
-                        responseHandler,
-                        took,
-                        logThreshold
-                    );
-                }
+                logSlowMessage(message, took, logThreshold, responseHandler);
             }
         }
     }
@@ -184,6 +169,20 @@ public class InboundHandler {
             responseHandler = theHandler;
         }
         return responseHandler;
+    }
+
+    private static void logSlowMessage(InboundMessage message, long took, long logThreshold, TransportResponseHandler<?> responseHandler) {
+        if (message.getHeader().isRequest()) {
+            logger.warn("handling request [{}] took [{}ms] which is above the warn threshold of [{}ms]", message, took, logThreshold);
+        } else {
+            logger.warn(
+                "handling response [{}] on handler [{}] took [{}ms] which is above the warn threshold of [{}ms]",
+                message,
+                responseHandler,
+                took,
+                logThreshold
+            );
+        }
     }
 
     private void verifyResponseReadFully(Header header, TransportResponseHandler<?> responseHandler, StreamInput streamInput)
