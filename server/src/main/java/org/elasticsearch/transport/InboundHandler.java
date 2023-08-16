@@ -113,7 +113,7 @@ public class InboundHandler {
             threadContext.setHeaders(header.getHeaders());
             threadContext.putTransient("_remote_address", remoteAddress);
             if (header.isRequest()) {
-                handleRequest(channel, header, message);
+                handleRequest(channel, message);
             } else {
                 // Responses do not support short circuiting currently
                 assert message.isShortCircuit() == false;
@@ -192,7 +192,8 @@ public class InboundHandler {
         }
     }
 
-    private <T extends TransportRequest> void handleRequest(TcpChannel channel, Header header, InboundMessage message) throws IOException {
+    private <T extends TransportRequest> void handleRequest(TcpChannel channel, InboundMessage message) throws IOException {
+        final Header header = message.getHeader();
         final String action = header.getActionName();
         final long requestId = header.getRequestId();
         final TransportVersion version = header.getVersion();
