@@ -299,37 +299,7 @@ public class InboundHandler {
                                 }
                             }
                         } else {
-                            boolean success = false;
-                            request.incRef();
-                            try {
-                                threadPool.executor(reg.getExecutor())
-                                    .execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
-                                        @Override
-                                        protected void doRun() throws Exception {
-                                            reg.processMessageReceived(request, transportChannel);
-                                        }
-
-                                        @Override
-                                        public boolean isForceExecution() {
-                                            return reg.isForceExecution();
-                                        }
-
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            sendErrorResponse(reg.getAction(), transportChannel, e);
-                                        }
-
-                                        @Override
-                                        public void onAfter() {
-                                            request.decRef();
-                                        }
-                                    }));
-                                success = true;
-                            } finally {
-                                if (success == false) {
-                                    request.decRef();
-                                }
-                            }
+                            handleRequestForking(request, reg, transportChannel);
                         }
                     } finally {
                         request.decRef();
@@ -337,6 +307,39 @@ public class InboundHandler {
                 }
             } catch (Exception e) {
                 sendErrorResponse(action, transportChannel, e);
+            }
+        }
+    }
+
+    private <T extends TransportRequest> void handleRequestForking(T request, RequestHandlerRegistry<T> reg, TransportChannel channel) {
+        boolean success = false;
+        request.incRef();
+        try {
+            threadPool.executor(reg.getExecutor()).execute(threadPool.getThreadContext().preserveContextWithTracing(new AbstractRunnable() {
+                @Override
+                protected void doRun() throws Exception {
+                    reg.processMessageReceived(request, channel);
+                }
+
+                @Override
+                public boolean isForceExecution() {
+                    return reg.isForceExecution();
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    sendErrorResponse(reg.getAction(), channel, e);
+                }
+
+                @Override
+                public void onAfter() {
+                    request.decRef();
+                }
+            }));
+            success = true;
+        } finally {
+            if (success == false) {
+                request.decRef();
             }
         }
     }
