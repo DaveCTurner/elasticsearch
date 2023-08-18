@@ -46,6 +46,7 @@ public enum ReferenceDocs {
     CONCURRENT_REPOSITORY_WRITERS,
     ARCHIVE_INDICES,
     HTTP_TRACER,
+    CONTACT_SUPPORT,
     // this comment keeps the ';' on the next line so every entry above has a trailing ',' which makes the diff for adding new links cleaner
     ;
 
