@@ -19,6 +19,7 @@ import org.elasticsearch.xpack.esql.action.ColumnInfo;
 import org.elasticsearch.xpack.esql.action.EsqlQueryResponse;
 import org.elasticsearch.xpack.ql.util.StringUtils;
 
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -175,7 +176,7 @@ public class TextFormatTests extends ESTestCase {
     }
 
     public void testPlainTextEmptyCursorWithoutColumns() {
-        assertEquals(StringUtils.EMPTY, PLAIN_TEXT.format(req(), new EsqlQueryResponse(emptyList(), emptyList(), false)));
+        assertEquals(StringUtils.EMPTY, format(PLAIN_TEXT, req(), new EsqlQueryResponse(emptyList(), emptyList(), false)));
     }
 
     private static EsqlQueryResponse emptyData() {
@@ -226,7 +227,16 @@ public class TextFormatTests extends ESTestCase {
         return new FakeRestRequest.Builder(NamedXContentRegistry.EMPTY).withParams(singletonMap(paramName, paramVal)).build();
     }
 
-    private String format(TextFormat format, RestRequest request, EsqlQueryResponse response) {
-        return format.format(request, response);
+    private static String format(TextFormat format, RestRequest request, EsqlQueryResponse response) {
+        final var writer = new StringWriter();
+        final var iterator = format.format(request, response);
+        try {
+            while (iterator.hasNext()) {
+                iterator.next().accept(writer);
+            }
+        } catch (Exception e) {
+            throw new AssertionError("unexpected", e);
+        }
+        return writer.toString();
     }
 }

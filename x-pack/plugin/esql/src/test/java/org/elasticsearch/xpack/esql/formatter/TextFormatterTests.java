@@ -17,6 +17,7 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xpack.esql.action.ColumnInfo;
 import org.elasticsearch.xpack.esql.action.EsqlQueryResponse;
 
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -69,7 +70,7 @@ public class TextFormatterTests extends ESTestCase {
      * column size.
      */
     public void testFormatWithHeader() {
-        String[] result = formatter.format(true).split("\n");
+        String[] result = format(formatter, true).split("\n");
         assertThat(result, arrayWithSize(4));
         assertEquals(
             "      foo      |      bar      |15charwidename!|  null_field1  |superduperwidename!!!|      baz      |"
@@ -120,7 +121,7 @@ public class TextFormatterTests extends ESTestCase {
             randomBoolean()
         );
 
-        String[] result = new TextFormatter(response).format(false).split("\n");
+        String[] result = format(new TextFormatter(response), false).split("\n");
         assertThat(result, arrayWithSize(2));
         assertEquals(
             "doggie         |4              |1.0            |null           |77.0                 |wombat         |"
@@ -134,10 +135,16 @@ public class TextFormatterTests extends ESTestCase {
         );
     }
 
-    /**
-     * Ensure that our estimates are perfect in at least some cases.
-     */
-    public void testEstimateSize() {
-        assertEquals(formatter.format(true).length(), formatter.estimateSize(esqlResponse.values().size() + 2));
+    private static String format(TextFormatter format, boolean includeHeader) {
+        final var writer = new StringWriter();
+        final var iterator = format.format(includeHeader);
+        try {
+            while (iterator.hasNext()) {
+                iterator.next().accept(writer);
+            }
+        } catch (Exception e) {
+            throw new AssertionError("unexpected", e);
+        }
+        return writer.toString();
     }
 }
