@@ -9,6 +9,7 @@ package org.elasticsearch.compute.operator.exchange;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.compute.data.Page;
 
 import java.util.Queue;
@@ -79,7 +80,7 @@ public final class ExchangeSinkHandler {
         }
 
         @Override
-        public ListenableActionFuture<Void> waitForWriting() {
+        public SubscribableListener<Void> waitForWriting() {
             return buffer.waitForWriting();
         }
     }

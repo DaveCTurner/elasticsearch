@@ -10,6 +10,7 @@ package org.elasticsearch.compute.operator.exchange;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.core.AbstractRefCounted;
@@ -68,7 +69,7 @@ public final class ExchangeSourceHandler extends AbstractRefCounted {
         }
 
         @Override
-        public ListenableActionFuture<Void> waitForReading() {
+        public SubscribableListener<Void> waitForReading() {
             return buffer.waitForReading();
         }
 
@@ -164,7 +165,7 @@ public final class ExchangeSourceHandler extends AbstractRefCounted {
                     if (resp.finished()) {
                         onSinkComplete();
                     } else {
-                        ListenableActionFuture<Void> future = buffer.waitForWriting();
+                        SubscribableListener<Void> future = buffer.waitForWriting();
                         if (future.isDone()) {
                             if (loopControl.tryResume() == false) {
                                 fetchPage();

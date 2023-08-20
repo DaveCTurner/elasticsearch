@@ -10,6 +10,7 @@ package org.elasticsearch.compute.operator;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ListenableActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.compute.data.Page;
 import org.elasticsearch.index.seqno.LocalCheckpointTracker;
@@ -153,7 +154,7 @@ public abstract class AsyncOperator implements Operator {
     }
 
     @Override
-    public ListenableActionFuture<Void> isBlocked() {
+    public SubscribableListener<Void> isBlocked() {
         if (finished) {
             return Operator.NOT_BLOCKED;
         }

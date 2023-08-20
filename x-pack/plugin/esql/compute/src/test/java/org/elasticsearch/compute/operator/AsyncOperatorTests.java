@@ -12,6 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.compute.data.Block;
@@ -145,7 +146,7 @@ public class AsyncOperatorTests extends ESTestCase {
         Page page1 = new Page(Block.constantNullBlock(1));
         operator.addInput(page1);
         assertFalse(operator.isBlocked().isDone());
-        ListenableActionFuture<Void> blocked1 = operator.isBlocked();
+        SubscribableListener<Void> blocked1 = operator.isBlocked();
         assertTrue(operator.needsInput());
 
         Page page2 = new Page(Block.constantNullBlock(2));
