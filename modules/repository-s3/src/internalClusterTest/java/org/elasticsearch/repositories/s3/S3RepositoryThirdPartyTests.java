@@ -110,7 +110,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
                 logger.info("--> check object exists at {}:{}", bucketName, registerBlobPath);
 
                 // check we're looking at the right blob
-                assertEquals(
+                assertArrayEquals(
                     new byte[]{(byte)1},
                     client.getObject(new GetObjectRequest(bucketName, registerBlobPath)).getObjectContent().readAllBytes());
 
