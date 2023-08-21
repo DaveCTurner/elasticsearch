@@ -145,9 +145,9 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
 
                 var testHarness = new TestHarness();
 
-                final var bytes1 = bytes((byte) 1);
-                final var bytes2 = bytes((byte) 2);
-                assertTrue(testHarness.tryCompareAndSet(bytes(), bytes1));
+                final var bytes1 = new BytesArray(new byte[] { (byte) 1 });
+                final var bytes2 = new BytesArray(new byte[] { (byte) 2 });
+                assertTrue(testHarness.tryCompareAndSet(BytesArray.EMPTY, bytes1));
 
                 // show we're looking at the right blob
                 assertEquals(bytes1, testHarness.readRegister());
@@ -177,7 +177,4 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         }
     }
 
-    private static BytesReference bytes(byte... bytes) {
-        return new BytesArray(bytes);
-    }
 }
