@@ -15,6 +15,7 @@ import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.blobstore.BlobPath;
+import org.elasticsearch.common.blobstore.OptionalBytesReference;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.MockSecureSettings;
@@ -90,9 +91,16 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         final var blobContainer = (S3BlobContainer) blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
         try {
             logger.info("--> initial CAS");
+
             assertEquals(Boolean.TRUE, PlainActionFuture.<Boolean, RuntimeException>get(future ->
                 blobContainer.compareAndSetRegister("key", bytes(), bytes((byte)1), future), 10, TimeUnit.SECONDS));
-            logger.info("--> initial CAS done");
+
+            logger.info("--> initial CAS done, reading object back");
+
+            assertEquals(OptionalBytesReference.of(bytes((byte)1)), PlainActionFuture.<OptionalBytesReference, RuntimeException>get(future ->
+                blobContainer.getRegister("key", future), 10, TimeUnit.SECONDS));
+
+            logger.info("--> successfully read object back");
 
             try (var clientReference = blobStore.clientReference()) {
                 final var client = clientReference.client();
