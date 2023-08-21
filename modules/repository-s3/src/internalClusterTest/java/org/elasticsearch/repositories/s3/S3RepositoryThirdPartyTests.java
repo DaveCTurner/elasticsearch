@@ -7,7 +7,10 @@
  */
 package org.elasticsearch.repositories.s3;
 
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.common.blobstore.BlobPath;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.SecureSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -17,6 +20,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.equalTo;
@@ -71,8 +75,16 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
     }
 
     public void testCompareAndExchangeCleanup() {
-        final var repository = node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
-        logger.info("--> repo {}", repository);
+        final var repository = (S3Repository) node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
+
+        final var blobStore = (S3BlobStore) repository.getBlobStore();
+        final var blobContainer = blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
+
+        assertEquals(Boolean.TRUE, PlainActionFuture.<Boolean, RuntimeException>get(future ->
+            blobContainer.compareAndSetRegister("key",
+            BytesArray.EMPTY, new BytesArray(new byte[]{(byte)1}), future), 10, TimeUnit.SECONDS));
+
+        logger.info("--> done");
         fail("boom");
     }
 }
