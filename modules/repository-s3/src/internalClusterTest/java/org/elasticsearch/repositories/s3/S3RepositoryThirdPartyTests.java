@@ -88,7 +88,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         final var repository = (S3Repository) node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
 
         final var blobStore = (S3BlobStore) repository.getBlobStore();
-        final var blobContainer = (S3BlobContainer) blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
+        final var blobContainer = (S3BlobContainer) blobStore.blobContainer(repository.basePath().add(getTestName()));
         try {
             logger.info("--> initial CAS");
 
@@ -105,7 +105,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
             try (var clientReference = blobStore.clientReference()) {
                 final var client = clientReference.client();
                 final var bucketName = S3Repository.BUCKET_SETTING.get(repository.getMetadata().settings());
-                final var registerBlobPath = S3Repository.BASE_PATH_SETTING.getKey() + "/" + getTestName() + "/key";
+                final var registerBlobPath = repository.basePath().add(getTestName()).add("key").buildAsString();
 
                 logger.info("--> check object exists at {}:{}", bucketName, registerBlobPath);
 
