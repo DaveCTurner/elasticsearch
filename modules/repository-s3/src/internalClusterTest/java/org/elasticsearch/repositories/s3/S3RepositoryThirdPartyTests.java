@@ -89,19 +89,24 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         final var blobStore = (S3BlobStore) repository.getBlobStore();
         final var blobContainer = (S3BlobContainer) blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
         try {
+            logger.info("--> initial CAS");
             assertEquals(Boolean.TRUE, PlainActionFuture.<Boolean, RuntimeException>get(future ->
                 blobContainer.compareAndSetRegister("key", bytes(), bytes((byte)1), future), 10, TimeUnit.SECONDS));
+            logger.info("--> initial CAS done");
 
             try (var clientReference = blobStore.clientReference()) {
                 final var client = clientReference.client();
                 final var bucketName = S3Repository.BUCKET_SETTING.get(repository.getMetadata().settings());
                 final var registerBlobPath = S3Repository.BASE_PATH_SETTING.getKey() + "/" + getTestName() + "/key";
 
+                logger.info("--> check object exists at {}:{}", bucketName, registerBlobPath);
+
                 // check we're looking at the right blob
                 assertEquals(
                     new byte[]{(byte)1},
                     client.getObject(new GetObjectRequest(bucketName, registerBlobPath)).getObjectContent().readAllBytes());
 
+                logger.info("--> object exists; starting new upload");
                 final var uploadId = client.initiateMultipartUpload(new InitiateMultipartUploadRequest(
                     bucketName,
                     registerBlobPath)).getUploadId();
