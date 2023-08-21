@@ -38,9 +38,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 
 public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTestCase {
@@ -161,10 +164,19 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
                 assertThat(testHarness.listMultipartUploads(), hasSize(1));
 
                 assertFalse(testHarness.tryCompareAndSet(bytes1, bytes2));
-                assertThat(testHarness.listMultipartUploads(), hasSize(1));
+                final var multipartUploads = testHarness.listMultipartUploads();
+                assertThat(multipartUploads, hasSize(1));
 
-                // but if the upload exceeds the TTL then CAS attempts will abort it
-                timeOffsetMillis.addAndGet(TimeValue.timeValueSeconds(30).millis());
+                // repo clock may not be exactly aligned with ours, but it should be close
+                final var age = blobStore.getThreadPool().absoluteTimeInMillis() - multipartUploads.get(0)
+                    .getInitiated()
+                    .toInstant()
+                    .toEpochMilli();
+                final var ageRangeMillis = TimeValue.timeValueMinutes(1).millis();
+                assertThat(age, allOf(greaterThanOrEqualTo(-ageRangeMillis), lessThanOrEqualTo(ageRangeMillis)));
+
+                // if the upload exceeds the TTL then CAS attempts will abort it
+                timeOffsetMillis.addAndGet(blobStore.getCompareAndExchangeTimeToLive().millis() - Math.min(0, age));
                 assertTrue(testHarness.tryCompareAndSet(bytes1, bytes2));
                 assertThat(testHarness.listMultipartUploads(), hasSize(0));
 
