@@ -97,8 +97,8 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
 
             logger.info("--> initial CAS done, reading object back");
 
-            assertEquals(OptionalBytesReference.of(bytes((byte)1)), PlainActionFuture.<OptionalBytesReference, RuntimeException>get(future ->
-                blobContainer.getRegister("key", future), 10, TimeUnit.SECONDS));
+            assertEquals(bytes((byte)1), PlainActionFuture.<BytesReference, RuntimeException>get(future ->
+                blobContainer.getRegister("key", future.map(OptionalBytesReference::bytesReference)), 10, TimeUnit.SECONDS));
 
             logger.info("--> successfully read object back");
 
