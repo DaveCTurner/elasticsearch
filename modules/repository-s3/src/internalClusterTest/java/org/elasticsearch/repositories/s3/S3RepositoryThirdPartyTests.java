@@ -7,11 +7,10 @@
  */
 package org.elasticsearch.repositories.s3;
 
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-
 import com.amazonaws.services.s3.model.ListMultipartUploadsRequest;
+import com.amazonaws.services.s3.model.MultipartUpload;
 
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -36,6 +35,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -118,88 +118,59 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
             final var blobContainer = (S3BlobContainer) blobStore.blobContainer(repository.basePath().add(getTestName()));
 
             try (var clientReference = blobStore.clientReference()) {
-
-                logger.info("--> initial CAS");
-
-                assertEquals(
-                    Boolean.TRUE,
-                    PlainActionFuture.<Boolean, RuntimeException>get(
-                        future -> blobContainer.compareAndSetRegister("key", bytes(), bytes((byte) 1), future),
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                );
-
-                logger.info("--> initial CAS done, reading object back");
-
-                assertEquals(
-                    bytes((byte) 1),
-                    PlainActionFuture.<BytesReference, RuntimeException>get(
-                        future -> blobContainer.getRegister("key", future.map(OptionalBytesReference::bytesReference)),
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                );
-
-                logger.info("--> successfully read object back");
-
                 final var client = clientReference.client();
                 final var bucketName = S3Repository.BUCKET_SETTING.get(repository.getMetadata().settings());
                 final var registerBlobPath = blobContainer.buildKey("key");
 
-                logger.info("--> check object exists at {}:{}", bucketName, registerBlobPath);
+                class TestHarness {
+                    boolean tryCompareAndSet(BytesReference expected, BytesReference updated) {
+                        return PlainActionFuture.<Boolean, RuntimeException>get(
+                            future -> blobContainer.compareAndSetRegister("key", expected, updated, future),
+                            10,
+                            TimeUnit.SECONDS
+                        );
+                    }
 
-                // check we're looking at the right blob
+                    BytesReference readRegister() {
+                        return PlainActionFuture.get(
+                            future -> blobContainer.getRegister("key", future.map(OptionalBytesReference::bytesReference)),
+                            10,
+                            TimeUnit.SECONDS
+                        );
+                    }
+
+                    List<MultipartUpload> listMultipartUploads() {
+                        return client.listMultipartUploads(new ListMultipartUploadsRequest(bucketName).withPrefix(registerBlobPath))
+                            .getMultipartUploads();
+                    }
+                }
+
+                var testHarness = new TestHarness();
+
+                final var bytes1 = bytes((byte) 1);
+                final var bytes2 = bytes((byte) 2);
+                assertTrue(testHarness.tryCompareAndSet(bytes(), bytes1));
+
+                // show we're looking at the right blob
+                assertEquals(bytes1, testHarness.readRegister());
                 assertArrayEquals(
-                    new byte[] { (byte) 1 },
+                    bytes1.array(),
                     client.getObject(new GetObjectRequest(bucketName, registerBlobPath)).getObjectContent().readAllBytes()
                 );
 
-                logger.info("--> object exists; starting new upload");
-                final var uploadId = client.initiateMultipartUpload(new InitiateMultipartUploadRequest(bucketName, registerBlobPath))
-                    .getUploadId();
+                // a fresh ongoing upload blocks other CAS attempts
+                client.initiateMultipartUpload(new InitiateMultipartUploadRequest(bucketName, registerBlobPath));
+                assertThat(testHarness.listMultipartUploads(), hasSize(1));
 
-                assertEquals(
-                    Boolean.FALSE,
-                    PlainActionFuture.<Boolean, RuntimeException>get(
-                        future -> blobContainer.compareAndSetRegister("key", bytes((byte) 1), bytes((byte) 2), future),
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                );
+                assertFalse(testHarness.tryCompareAndSet(bytes1, bytes2));
+                assertThat(testHarness.listMultipartUploads(), hasSize(1));
 
-                assertThat(
-                    client.listMultipartUploads(
-                        new ListMultipartUploadsRequest(bucketName).withPrefix(registerBlobPath)).getMultipartUploads(),
-                    hasSize(1));
-
+                // but if the upload exceeds the TTL then CAS attempts will abort it
                 timeOffsetMillis.addAndGet(TimeValue.timeValueSeconds(30).millis());
+                assertTrue(testHarness.tryCompareAndSet(bytes1, bytes2));
+                assertThat(testHarness.listMultipartUploads(), hasSize(0));
 
-                assertEquals(
-                    Boolean.TRUE,
-                    PlainActionFuture.<Boolean, RuntimeException>get(
-                        future -> blobContainer.compareAndSetRegister("key", bytes((byte) 1), bytes((byte) 2), future),
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                );
-
-                assertThat(
-                client.listMultipartUploads(
-                    new ListMultipartUploadsRequest(bucketName).withPrefix(registerBlobPath)).getMultipartUploads(),
-                    hasSize(0));
-
-                assertEquals(
-                    bytes((byte) 2),
-                    PlainActionFuture.<BytesReference, RuntimeException>get(
-                        future -> blobContainer.getRegister("key", future.map(OptionalBytesReference::bytesReference)),
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                );
-
-                logger.info("--> done");
-                fail("boom");
+                assertEquals(bytes2, testHarness.readRegister());
             } finally {
                 blobContainer.delete();
             }
