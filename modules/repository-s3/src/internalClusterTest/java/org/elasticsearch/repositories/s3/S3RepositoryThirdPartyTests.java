@@ -11,6 +11,8 @@ import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 
+import com.amazonaws.services.s3.model.ListMultipartUploadsRequest;
+
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -21,19 +23,25 @@ import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.SecureSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.repositories.AbstractThirdPartyRepositoryTestCase;
 import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
+import org.elasticsearch.threadpool.TestThreadPool;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 
 public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTestCase {
@@ -86,14 +94,20 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
 
     @TestLogging(reason = "nocommit", value = "org.apache.http.wire:TRACE,com.amazonaws.request:TRACE")
     public void testCompareAndExchangeCleanup() throws IOException {
-
+        final var timeOffsetMillis = new AtomicLong();
+        final var threadpool = new TestThreadPool(getTestName()) {
+            @Override
+            public long absoluteTimeInMillis() {
+                return super.absoluteTimeInMillis() + timeOffsetMillis.get();
+            }
+        };
         // construct our own repo instance so we can inject a threadpool that allows to control the passage of time
         try (
             var repository = new S3Repository(
                 node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME).getMetadata(),
                 xContentRegistry(),
                 node().injector().getInstance(PluginsService.class).filterPlugins(S3RepositoryPlugin.class).get(0).getService(),
-                node().injector().getInstance(ClusterService.class),
+                ClusterServiceUtils.createClusterService(threadpool),
                 BigArrays.NON_RECYCLING_INSTANCE,
                 new RecoverySettings(node().settings(), node().injector().getInstance(ClusterService.class).getClusterSettings())
             )
@@ -154,7 +168,12 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
                     )
                 );
 
-                client.abortMultipartUpload(new AbortMultipartUploadRequest(bucketName, registerBlobPath, uploadId));
+                assertThat(
+                    client.listMultipartUploads(
+                        new ListMultipartUploadsRequest(bucketName).withPrefix(registerBlobPath)).getMultipartUploads(),
+                    hasSize(1));
+
+                timeOffsetMillis.addAndGet(TimeValue.timeValueSeconds(30).millis());
 
                 assertEquals(
                     Boolean.TRUE,
@@ -165,11 +184,27 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
                     )
                 );
 
+                assertThat(
+                client.listMultipartUploads(
+                    new ListMultipartUploadsRequest(bucketName).withPrefix(registerBlobPath)).getMultipartUploads(),
+                    hasSize(0));
+
+                assertEquals(
+                    bytes((byte) 2),
+                    PlainActionFuture.<BytesReference, RuntimeException>get(
+                        future -> blobContainer.getRegister("key", future.map(OptionalBytesReference::bytesReference)),
+                        10,
+                        TimeUnit.SECONDS
+                    )
+                );
+
                 logger.info("--> done");
                 fail("boom");
             } finally {
                 blobContainer.delete();
             }
+        } finally {
+            ThreadPool.terminate(threadpool, 10, TimeUnit.SECONDS);
         }
     }
 
