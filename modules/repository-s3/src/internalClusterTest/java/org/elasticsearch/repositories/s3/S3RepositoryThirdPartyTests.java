@@ -24,6 +24,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.AbstractThirdPartyRepositoryTestCase;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -81,6 +82,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
     }
 
+    @TestLogging(reason="nocommit", value="org.apache.http.wire:TRACE,com.amazonaws.request:TRACE")
     public void testCompareAndExchangeCleanup() throws IOException {
         final var repository = (S3Repository) node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
 
