@@ -13,6 +13,8 @@ import org.elasticsearch.common.settings.SecureSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.repositories.AbstractThirdPartyRepositoryTestCase;
+import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.repositories.Repository;
 
 import java.util.Collection;
 
@@ -66,5 +68,11 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
             .setSettings(settings)
             .get();
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
+    }
+
+    public void testCompareAndExchangeCleanup() {
+        final var repository = node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
+        logger.info("--> repo {}", repository);
+        fail("boom");
     }
 }
