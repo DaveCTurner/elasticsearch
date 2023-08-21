@@ -478,7 +478,8 @@ class S3BlobContainer extends AbstractBlobContainer {
             .withRequestMetricCollector(blobStore.listMetricCollector);
     }
 
-    private String buildKey(String blobName) {
+    // exposed for tests
+    String buildKey(String blobName) {
         return keyPath + blobName;
     }
 

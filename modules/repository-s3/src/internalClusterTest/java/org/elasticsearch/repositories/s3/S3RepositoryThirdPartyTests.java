@@ -105,7 +105,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
             try (var clientReference = blobStore.clientReference()) {
                 final var client = clientReference.client();
                 final var bucketName = S3Repository.BUCKET_SETTING.get(repository.getMetadata().settings());
-                final var registerBlobPath = repository.basePath().add(getTestName()).add("key").buildAsString();
+                final var registerBlobPath = blobContainer.buildKey("key");
 
                 logger.info("--> check object exists at {}:{}", bucketName, registerBlobPath);
 
