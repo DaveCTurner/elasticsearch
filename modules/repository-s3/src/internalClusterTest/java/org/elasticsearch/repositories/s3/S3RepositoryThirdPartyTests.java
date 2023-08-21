@@ -29,7 +29,6 @@ import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.repositories.AbstractThirdPartyRepositoryTestCase;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.test.ClusterServiceUtils;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -92,7 +91,6 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
     }
 
-    @TestLogging(reason = "nocommit", value = "org.apache.http.wire:TRACE,com.amazonaws.request:TRACE")
     public void testCompareAndExchangeCleanup() throws IOException {
         final var timeOffsetMillis = new AtomicLong();
         final var threadpool = new TestThreadPool(getTestName()) {
