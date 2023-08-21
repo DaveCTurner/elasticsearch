@@ -179,7 +179,6 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
                 timeOffsetMillis.addAndGet(blobStore.getCompareAndExchangeTimeToLive().millis() - Math.min(0, age));
                 assertTrue(testHarness.tryCompareAndSet(bytes1, bytes2));
                 assertThat(testHarness.listMultipartUploads(), hasSize(0));
-
                 assertEquals(bytes2, testHarness.readRegister());
             } finally {
                 blobContainer.delete();
