@@ -100,7 +100,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         ) {
             repository.start();
 
-            final var blobStore = (S3BlobStore) repository.getBlobStore();
+            final var blobStore = (S3BlobStore) repository.blobStore();
             final var blobContainer = (S3BlobContainer) blobStore.blobContainer(repository.basePath().add(getTestName()));
 
             try (var clientReference = blobStore.clientReference()) {
