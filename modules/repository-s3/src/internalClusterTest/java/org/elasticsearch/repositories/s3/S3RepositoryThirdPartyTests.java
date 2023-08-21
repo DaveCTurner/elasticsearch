@@ -19,6 +19,7 @@ import org.elasticsearch.repositories.AbstractThirdPartyRepositoryTestCase;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -74,17 +75,20 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
     }
 
-    public void testCompareAndExchangeCleanup() {
+    public void testCompareAndExchangeCleanup() throws IOException {
         final var repository = (S3Repository) node().injector().getInstance(RepositoriesService.class).repository(TEST_REPO_NAME);
 
         final var blobStore = (S3BlobStore) repository.getBlobStore();
-        final var blobContainer = blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
+        final var blobContainer = (S3BlobContainer) blobStore.blobContainer(BlobPath.EMPTY.add(getTestName()));
+        try {
+            assertEquals(Boolean.TRUE, PlainActionFuture.<Boolean, RuntimeException>get(future ->
+                blobContainer.compareAndSetRegister("key",
+                    BytesArray.EMPTY, new BytesArray(new byte[]{(byte) 1}), future), 10, TimeUnit.SECONDS));
 
-        assertEquals(Boolean.TRUE, PlainActionFuture.<Boolean, RuntimeException>get(future ->
-            blobContainer.compareAndSetRegister("key",
-            BytesArray.EMPTY, new BytesArray(new byte[]{(byte)1}), future), 10, TimeUnit.SECONDS));
-
-        logger.info("--> done");
-        fail("boom");
+            logger.info("--> done");
+            fail("boom");
+        } finally {
+            blobContainer.delete();
+        }
     }
 }

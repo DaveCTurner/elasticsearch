@@ -708,11 +708,6 @@ class S3BlobContainer extends AbstractBlobContainer {
         }
 
         void run(BytesReference expected, BytesReference updated, ActionListener<OptionalBytesReference> listener) throws Exception {
-
-            if (0 < 1) {
-                throw new AssertionError("boom");
-            }
-
             BlobContainerUtils.ensureValidRegisterContent(updated);
 
             if (checkPreexistingUploads()) {
