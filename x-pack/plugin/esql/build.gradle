@@ -32,6 +32,7 @@ dependencies {
   testImplementation project(path: ':modules:analysis-common')
 
   internalClusterTestImplementation project(":client:rest-high-level")
+  internalClusterTestImplementation project("qa:testFixtures")
 }
 
 /*
