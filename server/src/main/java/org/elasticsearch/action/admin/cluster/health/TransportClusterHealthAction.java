@@ -102,7 +102,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
                 threadPool.relativeTimeInMillis() + request.timeout().millis()
             );
         } else {
-            executeHealth(
+            executeHealthOnCurrentThread(
                 cancellableTask,
                 request,
                 clusterService.state(),
@@ -133,7 +133,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
                     final long timeoutInMillis = Math.max(0, endTimeRelativeMillis - threadPool.relativeTimeInMillis());
                     final TimeValue newTimeout = TimeValue.timeValueMillis(timeoutInMillis);
                     request.timeout(newTimeout);
-                    executeHealth(
+                    forkAndExecuteHealth(
                         task,
                         request,
                         clusterService.state(),
@@ -167,7 +167,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
                     // applier service has a different view of the cluster state from the one supplied here
                     final ClusterState appliedState = clusterService.state();
                     assert newState.stateUUID().equals(appliedState.stateUUID()) : newState.stateUUID() + " vs " + appliedState.stateUUID();
-                    executeHealth(
+                    forkAndExecuteHealth(
                         task,
                         request,
                         appliedState,
@@ -205,7 +205,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
         clusterService.submitUnbatchedStateUpdateTask(source, task);
     }
 
-    private void executeHealth(
+    private void forkAndExecuteHealth(
         final CancellableTask task,
         final ClusterHealthRequest request,
         final ClusterState currentState,
@@ -213,6 +213,10 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
         final int waitCount,
         final Consumer<ClusterState> onNewClusterStateAfterDelay
     ) {
+        executor.execute(() -> executeHealthOnCurrentThread(task, request, currentState, listener, waitCount, onNewClusterStateAfterDelay));
+    }
+
+    private void executeHealthOnCurrentThread(CancellableTask task, ClusterHealthRequest request, ClusterState currentState, ActionListener<ClusterHealthResponse> listener, int waitCount, Consumer<ClusterState> onNewClusterStateAfterDelay) {
         if (task.notifyIfCancelled(listener)) {
             return;
         }
@@ -246,7 +250,7 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
 
                 @Override
                 public void onTimeout(TimeValue timeout) {
-                    sendResponse(task, request, observer.setAndGetObservedState(), waitCount, TimeoutState.TIMED_OUT, listener);
+                    executor.execute(() -> sendResponse(task, request, observer.setAndGetObservedState(), waitCount, TimeoutState.TIMED_OUT, listener));
                 }
             };
             observer.waitForNextChange(stateListener, validationPredicate, request.timeout());
@@ -301,6 +305,8 @@ public class TransportClusterHealthAction extends TransportMasterNodeReadAction<
         final TimeoutState timeoutState,
         final ActionListener<ClusterHealthResponse> listener
     ) {
+        assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.MANAGEMENT);
+
         ActionListener.completeWith(listener, () -> {
             task.ensureNotCancelled();
             ClusterHealthResponse response = clusterHealth(
