@@ -62,7 +62,7 @@ public abstract class TransportBroadcastUnpromotableAction<Request extends Broad
 
         transportService.registerRequestHandler(
             transportUnpromotableAction,
-            transportService.getThreadPool().executor(executor),
+            this.executor,
             requestReader,
             new UnpromotableTransportHandler()
         );

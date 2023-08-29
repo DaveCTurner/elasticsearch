@@ -97,25 +97,17 @@ public class ShardStateAction {
         this.threadPool = threadPool;
         this.remoteShardStateUpdateDeduplicator = new ResultDeduplicator<>(threadPool.getThreadContext());
 
-        TransportRequestHandler<StartedShardEntry> handler1 = new ShardStartedTransportHandler(
-            clusterService,
-            new ShardStartedClusterStateTaskExecutor(allocationService, rerouteService)
-        );
         transportService.registerRequestHandler(
             SHARD_STARTED_ACTION_NAME,
             EsExecutors.DIRECT_EXECUTOR_SERVICE,
             StartedShardEntry::new,
-            handler1
-        );
-        TransportRequestHandler<FailedShardEntry> handler = new ShardFailedTransportHandler(
-            clusterService,
-            new ShardFailedClusterStateTaskExecutor(allocationService, rerouteService)
+            new ShardStartedTransportHandler(clusterService, new ShardStartedClusterStateTaskExecutor(allocationService, rerouteService))
         );
         transportService.registerRequestHandler(
             SHARD_FAILED_ACTION_NAME,
             EsExecutors.DIRECT_EXECUTOR_SERVICE,
             FailedShardEntry::new,
-            handler
+            new ShardFailedTransportHandler(clusterService, new ShardFailedClusterStateTaskExecutor(allocationService, rerouteService))
         );
     }
 

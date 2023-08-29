@@ -19,7 +19,6 @@ import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.netty4.internal.HttpValidator;
 import org.elasticsearch.test.ESTestCase;
@@ -67,7 +66,7 @@ public class Netty4HttpHeaderThreadContextTests extends ESTestCase {
         channel.pipeline()
             .addLast(
                 new Netty4HttpHeaderValidator(
-                    getValidator(EsExecutors.DIRECT_EXECUTOR_SERVICE, isValidationSuccessful, null),
+                    getValidator(threadPool.executor(ThreadPool.Names.SAME), isValidationSuccessful, null),
                     threadPool.getThreadContext()
                 )
             );
@@ -87,7 +86,7 @@ public class Netty4HttpHeaderThreadContextTests extends ESTestCase {
         channel.pipeline()
             .addLast(
                 new Netty4HttpHeaderValidator(
-                    getValidator(EsExecutors.DIRECT_EXECUTOR_SERVICE, isValidationSuccessful, null),
+                    getValidator(threadPool.executor(ThreadPool.Names.SAME), isValidationSuccessful, null),
                     threadPool.getThreadContext()
                 )
             );

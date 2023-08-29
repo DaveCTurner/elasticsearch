@@ -197,17 +197,17 @@ public abstract class TransportReplicationAction<
 
         transportService.registerRequestHandler(
             transportPrimaryAction,
-            transportService.getThreadPool().executor(executor),
+            threadPool.executor(executor),
             forceExecutionOnPrimary,
             true,
-            in1 -> new ConcreteShardRequest<>(requestReader, in1),
+            in -> new ConcreteShardRequest<>(requestReader, in),
             this::handlePrimaryRequest
         );
 
         // we must never reject on because of thread pool capacity on replicas
         transportService.registerRequestHandler(
             transportReplicaAction,
-            transportService.getThreadPool().executor(executor),
+            threadPool.executor(executor),
             true,
             true,
             in -> new ConcreteReplicaRequest<>(replicaRequestReader, in),
