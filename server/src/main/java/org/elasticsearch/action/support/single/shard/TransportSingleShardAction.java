@@ -79,9 +79,19 @@ public abstract class TransportSingleShardAction<Request extends SingleShardRequ
         this.executor = executor;
 
         if (isSubAction() == false) {
-            transportService.registerRequestHandler(actionName, ThreadPool.Names.SAME, request, new TransportHandler());
+            transportService.registerRequestHandler(
+                actionName,
+                transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+                request,
+                new TransportHandler()
+            );
         }
-        transportService.registerRequestHandler(transportShardAction, ThreadPool.Names.SAME, request, new ShardTransportHandler());
+        transportService.registerRequestHandler(
+            transportShardAction,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+            request,
+            new ShardTransportHandler()
+        );
     }
 
     /**

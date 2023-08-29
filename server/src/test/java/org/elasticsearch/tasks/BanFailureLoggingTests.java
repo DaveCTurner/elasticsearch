@@ -25,12 +25,7 @@ import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.test.transport.StubbableTransport;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.AbstractSimpleTransportTestCase;
-import org.elasticsearch.transport.NodeDisconnectedException;
-import org.elasticsearch.transport.TransportException;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestOptions;
-import org.elasticsearch.transport.TransportResponseHandler;
+import org.elasticsearch.transport.*;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -130,16 +125,17 @@ public class BanFailureLoggingTests extends TaskManagerTestCase {
             );
             resources.add(childTransportService);
             childTransportService.getTaskManager().setTaskCancellationService(new TaskCancellationService(childTransportService));
+            // busy-wait for cancellation but not on a transport thread
             childTransportService.registerRequestHandler(
                 "internal:testAction[c]",
-                ThreadPool.Names.MANAGEMENT, // busy-wait for cancellation but not on a transport thread
+                childTransportService.getThreadPool().executor(ThreadPool.Names.MANAGEMENT),
                 (StreamInput in) -> new TransportRequest.Empty(in) {
                     @Override
                     public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
                         return new CancellableTask(id, type, action, "", parentTaskId, headers);
                     }
                 },
-                (request, channel, task) -> {
+                (TransportRequestHandler<TransportRequest.Empty>) (request, channel, task) -> {
                     final CancellableTask cancellableTask = (CancellableTask) task;
                     if (childTaskLock.tryLock()) {
                         try {

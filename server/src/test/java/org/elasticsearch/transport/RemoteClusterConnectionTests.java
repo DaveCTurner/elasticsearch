@@ -125,65 +125,74 @@ public class RemoteClusterConnectionTests extends ESTestCase {
         try {
             newService.registerRequestHandler(
                 SearchShardsAction.NAME,
-                ThreadPool.Names.SAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
                 SearchShardsRequest::new,
-                (request, channel, task) -> {
-                    if ("index_not_found".equals(request.preference())) {
-                        channel.sendResponse(new IndexNotFoundException("index"));
+                (request3, channel3, task3) -> {
+                    if ("index_not_found".equals(request3.preference())) {
+                        channel3.sendResponse(new IndexNotFoundException("index"));
                     } else {
-                        channel.sendResponse(new SearchShardsResponse(List.of(), knownNodes, Collections.emptyMap()));
+                        channel3.sendResponse(new SearchShardsResponse(List.of(), knownNodes, Collections.emptyMap()));
                     }
                 }
             );
-            newService.registerRequestHandler(SearchAction.NAME, ThreadPool.Names.SAME, SearchRequest::new, (request, channel, task) -> {
-                if ("index_not_found".equals(request.preference())) {
-                    channel.sendResponse(new IndexNotFoundException("index"));
-                    return;
+            newService.registerRequestHandler(
+                SearchAction.NAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                SearchRequest::new,
+                (request2, channel2, task2) -> {
+                    if ("index_not_found".equals(request2.preference())) {
+                        channel2.sendResponse(new IndexNotFoundException("index"));
+                        return;
+                    }
+                    SearchHits searchHits;
+                    if ("null_target".equals(request2.preference())) {
+                        searchHits = new SearchHits(
+                            new SearchHit[] { new SearchHit(0) },
+                            new TotalHits(1, TotalHits.Relation.EQUAL_TO),
+                            1F
+                        );
+                    } else {
+                        searchHits = new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN);
+                    }
+                    InternalSearchResponse response = new InternalSearchResponse(
+                        searchHits,
+                        InternalAggregations.EMPTY,
+                        null,
+                        null,
+                        false,
+                        null,
+                        1
+                    );
+                    SearchResponse searchResponse = new SearchResponse(
+                        response,
+                        null,
+                        1,
+                        1,
+                        0,
+                        100,
+                        ShardSearchFailure.EMPTY_ARRAY,
+                        SearchResponse.Clusters.EMPTY
+                    );
+                    channel2.sendResponse(searchResponse);
                 }
-                SearchHits searchHits;
-                if ("null_target".equals(request.preference())) {
-                    searchHits = new SearchHits(new SearchHit[] { new SearchHit(0) }, new TotalHits(1, TotalHits.Relation.EQUAL_TO), 1F);
-                } else {
-                    searchHits = new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN);
-                }
-                InternalSearchResponse response = new InternalSearchResponse(
-                    searchHits,
-                    InternalAggregations.EMPTY,
-                    null,
-                    null,
-                    false,
-                    null,
-                    1
-                );
-                SearchResponse searchResponse = new SearchResponse(
-                    response,
-                    null,
-                    1,
-                    1,
-                    0,
-                    100,
-                    ShardSearchFailure.EMPTY_ARRAY,
-                    SearchResponse.Clusters.EMPTY
-                );
-                channel.sendResponse(searchResponse);
-            });
+            );
             newService.registerRequestHandler(
                 ClusterStateAction.NAME,
-                ThreadPool.Names.SAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
                 ClusterStateRequest::new,
-                (request, channel, task) -> {
+                (request1, channel1, task1) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
                     for (DiscoveryNode node : knownNodes) {
                         builder.add(node);
                     }
                     ClusterState build = ClusterState.builder(clusterName).nodes(builder.build()).build();
-                    channel.sendResponse(new ClusterStateResponse(clusterName, build, false));
+                    channel1.sendResponse(new ClusterStateResponse(clusterName, build, false));
                 }
             );
             if (RemoteClusterPortSettings.REMOTE_CLUSTER_SERVER_ENABLED.get(s)) {
                 newService.registerRequestHandler(
                     RemoteClusterNodesAction.NAME,
-                    ThreadPool.Names.SAME,
+                    newService.getThreadPool().executor(ThreadPool.Names.SAME),
                     RemoteClusterNodesAction.Request::new,
                     (request, channel, task) -> channel.sendResponse(new RemoteClusterNodesAction.Response(knownNodes))
                 );

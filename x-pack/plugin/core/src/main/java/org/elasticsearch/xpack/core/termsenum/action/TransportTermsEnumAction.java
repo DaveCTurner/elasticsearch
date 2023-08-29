@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;
@@ -133,11 +134,11 @@ public class TransportTermsEnumAction extends HandledTransportAction<TermsEnumRe
         this.remoteClusterService = searchTransportService.getRemoteClusterService();
         this.ccsCheckCompatibility = SearchService.CCS_VERSION_CHECK_SETTING.get(clusterService.getSettings());
 
-        transportService.registerRequestHandler(
+        registerRequestHandler(
             transportShardAction,
-            ThreadPool.Names.SAME,
-            NodeTermsEnumRequest::new,
-            new NodeTransportHandler()
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+            (Writeable.Reader<NodeTermsEnumRequest>) NodeTermsEnumRequest::new,
+            (TransportRequestHandler<NodeTermsEnumRequest>) new NodeTransportHandler()
         );
 
     }

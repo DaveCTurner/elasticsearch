@@ -67,7 +67,7 @@ public class PostWriteRefreshTests extends IndexShardTestCase {
         transportService.acceptIncomingRequests();
         transportService.registerRequestHandler(
             TransportUnpromotableShardRefreshAction.NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             UnpromotableShardRefreshRequest::new,
             (request, channel, task) -> {
                 unpromotableRefreshRequestReceived.set(true);

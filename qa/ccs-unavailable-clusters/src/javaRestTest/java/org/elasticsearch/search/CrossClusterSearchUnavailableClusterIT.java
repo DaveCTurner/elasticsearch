@@ -103,37 +103,42 @@ public class CrossClusterSearchUnavailableClusterIT extends ESRestTestCase {
         try {
             newService.registerRequestHandler(
                 SearchShardsAction.NAME,
-                ThreadPool.Names.SAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
                 SearchShardsRequest::new,
-                (request, channel, task) -> {
-                    channel.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
+                (request2, channel2, task2) -> {
+                    channel2.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
                 }
             );
-            newService.registerRequestHandler(SearchAction.NAME, ThreadPool.Names.SAME, SearchRequest::new, (request, channel, task) -> {
-                InternalSearchResponse response = new InternalSearchResponse(
-                    new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN),
-                    InternalAggregations.EMPTY,
-                    null,
-                    null,
-                    false,
-                    null,
-                    1
-                );
-                SearchResponse searchResponse = new SearchResponse(
-                    response,
-                    null,
-                    1,
-                    1,
-                    0,
-                    100,
-                    ShardSearchFailure.EMPTY_ARRAY,
-                    SearchResponse.Clusters.EMPTY
-                );
-                channel.sendResponse(searchResponse);
-            });
+            newService.registerRequestHandler(
+                SearchAction.NAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                SearchRequest::new,
+                (request1, channel1, task1) -> {
+                    InternalSearchResponse response = new InternalSearchResponse(
+                        new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN),
+                        InternalAggregations.EMPTY,
+                        null,
+                        null,
+                        false,
+                        null,
+                        1
+                    );
+                    SearchResponse searchResponse = new SearchResponse(
+                        response,
+                        null,
+                        1,
+                        1,
+                        0,
+                        100,
+                        ShardSearchFailure.EMPTY_ARRAY,
+                        SearchResponse.Clusters.EMPTY
+                    );
+                    channel1.sendResponse(searchResponse);
+                }
+            );
             newService.registerRequestHandler(
                 ClusterStateAction.NAME,
-                ThreadPool.Names.SAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
                 ClusterStateRequest::new,
                 (request, channel, task) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();

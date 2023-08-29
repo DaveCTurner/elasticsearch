@@ -102,7 +102,7 @@ public class IndicesStore implements ClusterStateListener, Closeable {
         this.threadPool = threadPool;
         transportService.registerRequestHandler(
             ACTION_SHARD_EXISTS,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             ShardActiveRequest::new,
             new ShardActiveRequestHandler()
         );

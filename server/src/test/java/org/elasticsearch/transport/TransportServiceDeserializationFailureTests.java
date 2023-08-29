@@ -68,7 +68,7 @@ public class TransportServiceDeserializationFailureTests extends ESTestCase {
 
         transportService.registerRequestHandler(
             testActionName,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             TransportRequest.Empty::new,
             (request, channel, task) -> channel.sendResponse(TransportResponse.Empty.INSTANCE)
         );

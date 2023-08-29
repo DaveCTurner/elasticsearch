@@ -22,6 +22,7 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.compute.data.Block;
 import org.elasticsearch.compute.data.ElementType;
@@ -103,11 +104,11 @@ public class EnrichLookupService {
         this.searchService = searchService;
         this.transportService = transportService;
         this.executor = transportService.getThreadPool().executor(EsqlPlugin.ESQL_THREAD_POOL_NAME);
-        transportService.registerRequestHandler(
+        registerRequestHandler(
             LOOKUP_ACTION_NAME,
-            EsqlPlugin.ESQL_THREAD_POOL_NAME,
-            LookupRequest::new,
-            new TransportHandler()
+            transportService.getThreadPool().executor(EsqlPlugin.ESQL_THREAD_POOL_NAME),
+            (Writeable.Reader<LookupRequest>) LookupRequest::new,
+            (TransportRequestHandler<LookupRequest>) new TransportHandler()
         );
     }
 

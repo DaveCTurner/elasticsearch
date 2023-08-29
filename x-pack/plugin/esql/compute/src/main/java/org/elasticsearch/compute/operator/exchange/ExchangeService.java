@@ -19,6 +19,7 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractAsyncTask;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -76,17 +77,17 @@ public final class ExchangeService extends AbstractLifecycleComponent {
     }
 
     public void registerTransportHandler(TransportService transportService) {
-        transportService.registerRequestHandler(
+        registerRequestHandler(
             EXCHANGE_ACTION_NAME,
-            requestExecutorName,
-            ExchangeRequest::new,
-            new ExchangeTransportAction()
+            transportService.getThreadPool().executor(requestExecutorName),
+            (Writeable.Reader<ExchangeRequest>) ExchangeRequest::new,
+            (TransportRequestHandler<ExchangeRequest>) new ExchangeTransportAction()
         );
-        transportService.registerRequestHandler(
+        registerRequestHandler(
             OPEN_EXCHANGE_ACTION_NAME,
-            requestExecutorName,
-            OpenExchangeRequest::new,
-            new OpenExchangeRequestHandler()
+            transportService.getThreadPool().executor(requestExecutorName),
+            (Writeable.Reader<OpenExchangeRequest>) OpenExchangeRequest::new,
+            (TransportRequestHandler<OpenExchangeRequest>) new OpenExchangeRequestHandler()
         );
     }
 

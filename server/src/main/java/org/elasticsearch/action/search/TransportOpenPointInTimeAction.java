@@ -68,7 +68,7 @@ public class TransportOpenPointInTimeAction extends HandledTransportAction<OpenP
         this.searchTransportService = searchTransportService;
         transportService.registerRequestHandler(
             OPEN_SHARD_READER_CONTEXT_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             ShardOpenReaderRequest::new,
             new ShardOpenReaderRequestHandler()
         );

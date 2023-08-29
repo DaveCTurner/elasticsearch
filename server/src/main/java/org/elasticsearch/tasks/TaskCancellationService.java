@@ -59,13 +59,13 @@ public class TaskCancellationService {
         this.deduplicator = new ResultDeduplicator<>(transportService.getThreadPool().getThreadContext());
         transportService.registerRequestHandler(
             BAN_PARENT_ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             BanParentTaskRequest::new,
             new BanParentRequestHandler()
         );
         transportService.registerRequestHandler(
             CANCEL_CHILD_ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             CancelChildRequest::new,
             new CancelChildRequestHandler()
         );

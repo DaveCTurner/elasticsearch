@@ -1127,24 +1127,6 @@ public class TransportService extends AbstractLifecycleComponent
      *
      * @param action
      * @param executor
-     * @param requestReader
-     * @param handler
-     * @param <Request>
-     */
-    public <Request extends TransportRequest> void registerRequestHandler(
-        String action,
-        String executor,
-        Writeable.Reader<Request> requestReader,
-        TransportRequestHandler<Request> handler
-    ) {
-        registerRequestHandler(action, threadPool.executor(executor), requestReader, handler);
-    }
-
-    /**
-     * Temporary passthrough function that continues to take a String rather than Executor type.
-     *
-     * @param action
-     * @param executor
      * @param forceExecution
      * @param canTripCircuitBreaker
      * @param requestReader

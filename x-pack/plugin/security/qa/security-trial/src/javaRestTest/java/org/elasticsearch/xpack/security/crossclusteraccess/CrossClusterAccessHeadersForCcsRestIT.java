@@ -1108,64 +1108,69 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
         try {
             service.registerRequestHandler(
                 ClusterStateAction.NAME,
-                ThreadPool.Names.SAME,
+                service.getThreadPool().executor(ThreadPool.Names.SAME),
                 ClusterStateRequest::new,
-                (request, channel, task) -> {
+                (request3, channel3, task3) -> {
                     capturedHeaders.add(
-                        new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                        new CapturedActionWithHeaders(task3.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel.sendResponse(
+                    channel3.sendResponse(
                         new ClusterStateResponse(ClusterName.DEFAULT, ClusterState.builder(ClusterName.DEFAULT).build(), false)
                     );
                 }
             );
             service.registerRequestHandler(
                 RemoteClusterNodesAction.NAME,
-                ThreadPool.Names.SAME,
+                service.getThreadPool().executor(ThreadPool.Names.SAME),
                 RemoteClusterNodesAction.Request::new,
-                (request, channel, task) -> {
+                (request2, channel2, task2) -> {
                     capturedHeaders.add(
-                        new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                        new CapturedActionWithHeaders(task2.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel.sendResponse(new RemoteClusterNodesAction.Response(List.of()));
+                    channel2.sendResponse(new RemoteClusterNodesAction.Response(List.of()));
                 }
             );
             service.registerRequestHandler(
                 SearchShardsAction.NAME,
-                ThreadPool.Names.SAME,
+                service.getThreadPool().executor(ThreadPool.Names.SAME),
                 SearchShardsRequest::new,
+                (request1, channel1, task1) -> {
+                    capturedHeaders.add(
+                        new CapturedActionWithHeaders(task1.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                    );
+                    channel1.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
+                }
+            );
+            service.registerRequestHandler(
+                SearchAction.NAME,
+                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                SearchRequest::new,
                 (request, channel, task) -> {
                     capturedHeaders.add(
                         new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
+                    channel.sendResponse(
+                        new SearchResponse(
+                            new InternalSearchResponse(
+                                new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN),
+                                InternalAggregations.EMPTY,
+                                null,
+                                null,
+                                false,
+                                null,
+                                1
+                            ),
+                            null,
+                            1,
+                            1,
+                            0,
+                            100,
+                            ShardSearchFailure.EMPTY_ARRAY,
+                            SearchResponse.Clusters.EMPTY
+                        )
+                    );
                 }
             );
-            service.registerRequestHandler(SearchAction.NAME, ThreadPool.Names.SAME, SearchRequest::new, (request, channel, task) -> {
-                capturedHeaders.add(
-                    new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
-                );
-                channel.sendResponse(
-                    new SearchResponse(
-                        new InternalSearchResponse(
-                            new SearchHits(new SearchHit[0], new TotalHits(0, TotalHits.Relation.EQUAL_TO), Float.NaN),
-                            InternalAggregations.EMPTY,
-                            null,
-                            null,
-                            false,
-                            null,
-                            1
-                        ),
-                        null,
-                        1,
-                        1,
-                        0,
-                        100,
-                        ShardSearchFailure.EMPTY_ARRAY,
-                        SearchResponse.Clusters.EMPTY
-                    )
-                );
-            });
             service.start();
             service.acceptIncomingRequests();
             success = true;

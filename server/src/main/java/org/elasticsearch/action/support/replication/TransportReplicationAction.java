@@ -187,7 +187,12 @@ public abstract class TransportReplicationAction<
         this.retryTimeout = REPLICATION_RETRY_TIMEOUT.get(settings);
         this.forceExecutionOnPrimary = forceExecutionOnPrimary;
 
-        transportService.registerRequestHandler(actionName, ThreadPool.Names.SAME, requestReader, this::handleOperationRequest);
+        transportService.registerRequestHandler(
+            actionName,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+            requestReader,
+            this::handleOperationRequest
+        );
 
         transportService.registerRequestHandler(
             transportPrimaryAction,

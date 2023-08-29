@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.ChannelActionListener;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -38,7 +39,13 @@ public class DriverTaskRunner {
 
     public DriverTaskRunner(TransportService transportService, String executorName) {
         this.transportService = transportService;
-        transportService.registerRequestHandler(ACTION_NAME, executorName, DriverRequest::new, new DriverRequestHandler());
+        TransportRequestHandler<DriverRequest> handler = new DriverRequestHandler();
+        registerRequestHandler(
+            ACTION_NAME,
+            transportService.getThreadPool().executor(executorName),
+            (Writeable.Reader<DriverRequest>) DriverRequest::new,
+            handler
+        );
     }
 
     public void executeDrivers(Task parentTask, List<Driver> drivers, Executor executor, ActionListener<Void> listener) {

@@ -72,7 +72,12 @@ public abstract class TransportInstanceSingleOperationAction<
         this.transportService = transportService;
         this.indexNameExpressionResolver = indexNameExpressionResolver;
         this.shardActionName = actionName + "[s]";
-        transportService.registerRequestHandler(shardActionName, Names.SAME, request, new ShardTransportHandler());
+        transportService.registerRequestHandler(
+            shardActionName,
+            transportService.getThreadPool().executor(Names.SAME),
+            request,
+            new ShardTransportHandler()
+        );
     }
 
     @Override

@@ -34,18 +34,7 @@ import org.elasticsearch.test.NodeRoles;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.BytesRefRecycler;
-import org.elasticsearch.transport.Compression;
-import org.elasticsearch.transport.ProxyConnectionStrategy;
-import org.elasticsearch.transport.RemoteClusterPortSettings;
-import org.elasticsearch.transport.RemoteClusterService;
-import org.elasticsearch.transport.RemoteConnectionStrategy;
-import org.elasticsearch.transport.RemoteTransportException;
-import org.elasticsearch.transport.SniffConnectionStrategy;
-import org.elasticsearch.transport.TestOutboundRequestMessage;
-import org.elasticsearch.transport.TransportInterceptor;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.*;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xpack.core.XPackSettings;
 import org.elasticsearch.xpack.core.ssl.SSLService;
@@ -159,7 +148,7 @@ public class SecurityNetty4ServerTransportAuthenticationTests extends ESTestCase
         DiscoveryNode remoteNode = remoteTransportService.getLocalDiscoNode();
         remoteTransportService.registerRequestHandler(
             RemoteClusterNodesAction.NAME,
-            ThreadPool.Names.SAME,
+            remoteTransportService.getThreadPool().executor(ThreadPool.Names.SAME),
             RemoteClusterNodesAction.Request::new,
             (request, channel, task) -> channel.sendResponse(new RemoteClusterNodesAction.Response(List.of(remoteNode)))
         );

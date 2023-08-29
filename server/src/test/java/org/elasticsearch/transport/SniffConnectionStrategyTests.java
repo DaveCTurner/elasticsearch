@@ -119,21 +119,21 @@ public class SniffConnectionStrategyTests extends ESTestCase {
         try {
             newService.registerRequestHandler(
                 ClusterStateAction.NAME,
-                ThreadPool.Names.SAME,
+                newService.getThreadPool().executor(ThreadPool.Names.SAME),
                 ClusterStateRequest::new,
-                (request, channel, task) -> {
+                (request1, channel1, task1) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
                     for (DiscoveryNode node : knownNodes) {
                         builder.add(node);
                     }
                     ClusterState build = ClusterState.builder(clusterName).nodes(builder.build()).build();
-                    channel.sendResponse(new ClusterStateResponse(clusterName, build, false));
+                    channel1.sendResponse(new ClusterStateResponse(clusterName, build, false));
                 }
             );
             if (hasClusterCredentials) {
                 newService.registerRequestHandler(
                     RemoteClusterNodesAction.NAME,
-                    ThreadPool.Names.SAME,
+                    newService.getThreadPool().executor(ThreadPool.Names.SAME),
                     RemoteClusterNodesAction.Request::new,
                     (request, channel, task) -> channel.sendResponse(new RemoteClusterNodesAction.Response(knownNodes))
                 );

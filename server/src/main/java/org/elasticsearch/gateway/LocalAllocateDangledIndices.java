@@ -73,7 +73,7 @@ public class LocalAllocateDangledIndices {
         this.indexMetadataVerifier = indexMetadataVerifier;
         transportService.registerRequestHandler(
             ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             AllocateDangledRequest::new,
             new AllocateDangledRequestHandler()
         );

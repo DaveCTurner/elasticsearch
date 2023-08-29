@@ -82,7 +82,12 @@ public abstract class TransportNodesAction<
         this.transportService = Objects.requireNonNull(transportService);
         this.finalExecutor = threadPool.executor(executor);
         this.transportNodeAction = actionName + "[n]";
-        transportService.registerRequestHandler(transportNodeAction, executor, nodeRequest, new NodeTransportHandler());
+        transportService.registerRequestHandler(
+            transportNodeAction,
+            transportService.getThreadPool().executor(executor),
+            nodeRequest,
+            new NodeTransportHandler()
+        );
     }
 
     @Override
