@@ -38,6 +38,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Assertions;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
@@ -189,7 +190,7 @@ public abstract class TransportReplicationAction<
 
         transportService.registerRequestHandler(
             actionName,
-            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             requestReader,
             this::handleOperationRequest
         );

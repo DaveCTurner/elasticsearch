@@ -17,6 +17,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.RefCounted;
@@ -110,7 +111,7 @@ public class TransportActionProxyTests extends ESTestCase {
     public void testSendMessage() throws InterruptedException {
         registerRequestHandler(
             "internal:test",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request3, channel3, task3) -> {
                 assertEquals(request3.sourceNode, "TS_A");
@@ -125,7 +126,7 @@ public class TransportActionProxyTests extends ESTestCase {
 
         registerRequestHandler(
             "internal:test",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request2, channel2, task2) -> {
                 assertThat(task2 instanceof CancellableTask, equalTo(cancellable));
@@ -139,7 +140,7 @@ public class TransportActionProxyTests extends ESTestCase {
         AbstractSimpleTransportTestCase.connectToNode(serviceB, nodeC);
         registerRequestHandler(
             "internal:test",
-            serviceC.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request1, channel1, task1) -> {
                 assertThat(task1 instanceof CancellableTask, equalTo(cancellable));
@@ -326,7 +327,7 @@ public class TransportActionProxyTests extends ESTestCase {
         boolean cancellable = randomBoolean();
         registerRequestHandler(
             "internal:test",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request2, channel2, task2) -> {
                 assertEquals(request2.sourceNode, "TS_A");
@@ -339,7 +340,7 @@ public class TransportActionProxyTests extends ESTestCase {
 
         registerRequestHandler(
             "internal:test",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request1, channel1, task1) -> {
                 assertEquals(request1.sourceNode, "TS_A");
@@ -351,7 +352,7 @@ public class TransportActionProxyTests extends ESTestCase {
         AbstractSimpleTransportTestCase.connectToNode(serviceB, nodeC);
         registerRequestHandler(
             "internal:test",
-            serviceC.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<SimpleTestRequest>) SimpleTestRequest::new,
             (TransportRequestHandler<SimpleTestRequest>) (request, channel, task) -> {
                 throw new ElasticsearchException("greetings from TS_C");

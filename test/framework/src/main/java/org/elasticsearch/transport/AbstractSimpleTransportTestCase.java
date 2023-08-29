@@ -935,7 +935,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         };
         registerRequestHandler(
             "internal:test",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             ignoringRequestHandler
         );
@@ -1031,7 +1031,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
                 MockTransportService newService = buildService("TS_B_" + i, version1, transportVersion1, Settings.EMPTY);
                 registerRequestHandler(
                     "internal:test",
-                    newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE,
                     (Writeable.Reader<TestRequest>) TestRequest::new,
                     ignoringRequestHandler
                 );
@@ -1282,39 +1282,19 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             public void handleException(TransportException exp) {}
         };
 
-        serviceA.registerRequestHandler(
-            "internal:test",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
-            StringMessageRequest::new,
-            handler
-        );
-        serviceA.registerRequestHandler(
-            "internal:testNotSeen",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
-            StringMessageRequest::new,
-            handler
-        );
+        serviceA.registerRequestHandler("internal:test", EsExecutors.DIRECT_EXECUTOR_SERVICE, StringMessageRequest::new, handler);
+        serviceA.registerRequestHandler("internal:testNotSeen", EsExecutors.DIRECT_EXECUTOR_SERVICE, StringMessageRequest::new, handler);
         registerRequestHandler(
             "internal:testError",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<StringMessageRequest>) StringMessageRequest::new,
             handlerWithError
         );
-        serviceB.registerRequestHandler(
-            "internal:test",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
-            StringMessageRequest::new,
-            handler
-        );
-        serviceB.registerRequestHandler(
-            "internal:testNotSeen",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
-            StringMessageRequest::new,
-            handler
-        );
+        serviceB.registerRequestHandler("internal:test", EsExecutors.DIRECT_EXECUTOR_SERVICE, StringMessageRequest::new, handler);
+        serviceB.registerRequestHandler("internal:testNotSeen", EsExecutors.DIRECT_EXECUTOR_SERVICE, StringMessageRequest::new, handler);
         registerRequestHandler(
             "internal:testError",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<StringMessageRequest>) StringMessageRequest::new,
             handlerWithError
         );
@@ -1635,7 +1615,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // not set, coming from service A
         registerRequestHandler(
             "internal:version",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<Version1Request>) Version1Request::new,
             (TransportRequestHandler<Version1Request>) (request, channel, task) -> {
                 assertThat(request.value1, equalTo(1));
@@ -1683,7 +1663,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
     public void testVersionFrom1to0() throws Exception {
         registerRequestHandler(
             "internal:version",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<Version0Request>) Version0Request::new,
             (TransportRequestHandler<Version0Request>) (request, channel, task) -> {
                 assertThat(request.value1, equalTo(1));
@@ -1734,7 +1714,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // channel versions don't make sense on DirectResponseChannel
         registerRequestHandler(
             "internal:version",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<Version1Request>) Version1Request::new,
             (TransportRequestHandler<Version1Request>) (request, channel, task) -> {
                 assertThat(request.value1, equalTo(1));
@@ -1788,7 +1768,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // channel versions don't make sense on DirectResponseChannel
         registerRequestHandler(
             "internal:version",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<Version0Request>) Version0Request::new,
             (TransportRequestHandler<Version0Request>) (request, channel, task) -> {
                 assertThat(request.value1, equalTo(1));
@@ -1947,7 +1927,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         final AtomicReference<InetSocketAddress> addressB = new AtomicReference<>();
         registerRequestHandler(
             "internal:action1",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                 addressA.set(request.remoteAddress());
@@ -1994,7 +1974,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             AtomicBoolean requestProcessed = new AtomicBoolean(false);
             registerRequestHandler(
                 "internal:action",
-                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 (Writeable.Reader<TestRequest>) TestRequest::new,
                 (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                     requestProcessed.set(true);
@@ -2551,7 +2531,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         CollectionUtil.timSort(executors); // makes sure it's reproducible
         registerRequestHandler(
             "internal:action",
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
 
@@ -2620,7 +2600,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // do nothing
         registerRequestHandler(
             "internal:action",
-            serviceC.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                 // do nothing
@@ -2690,7 +2670,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // don't block on a network thread here
         registerRequestHandler(
             "internal:action",
-            serviceC.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                 // don't block on a network thread here
@@ -2763,7 +2743,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // don't block on a network thread here
         registerRequestHandler(
             "internal:action",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                 // don't block on a network thread here
@@ -2881,7 +2861,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         // don't block on a network thread here
         registerRequestHandler(
             "internal:action",
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             (Writeable.Reader<TestRequest>) TestRequest::new,
             (TransportRequestHandler<TestRequest>) (request, channel, task) -> {
                 // don't block on a network thread here
@@ -3251,7 +3231,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         final String ACTION = "internal:action";
         serviceA.registerRequestHandler(
             ACTION,
-            serviceA.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             TransportRequest.Empty::new,
             (request1, channel1, task1) -> {
                 assertThat(
@@ -3268,7 +3248,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         );
         serviceB.registerRequestHandler(
             ACTION,
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             TransportRequest.Empty::new,
             (request, channel, task) -> {
                 assertThat(
@@ -3372,15 +3352,10 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         final var requestSize = between(0, ByteSizeUnit.MB.toIntBytes(1));
         final var responseSize = between(0, ByteSizeUnit.MB.toIntBytes(1));
 
-        serviceB.registerRequestHandler(
-            ACTION,
-            serviceB.getThreadPool().executor(ThreadPool.Names.SAME),
-            Request::new,
-            (request, channel, task) -> {
-                assertEquals(requestSize, request.refSize);
-                channel.sendResponse(new Response(responseSize));
-            }
-        );
+        serviceB.registerRequestHandler(ACTION, EsExecutors.DIRECT_EXECUTOR_SERVICE, Request::new, (request, channel, task) -> {
+            assertEquals(requestSize, request.refSize);
+            channel.sendResponse(new Response(responseSize));
+        });
 
         var actualRequestSize = -1L;
         var actualResponseSize = -1L;

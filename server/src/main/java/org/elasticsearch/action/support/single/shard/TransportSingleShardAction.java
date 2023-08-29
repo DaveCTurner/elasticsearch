@@ -28,6 +28,7 @@ import org.elasticsearch.cluster.routing.ShardsIterator;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.logging.LoggerMessageFormat;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.tasks.Task;
@@ -79,16 +80,11 @@ public abstract class TransportSingleShardAction<Request extends SingleShardRequ
         this.executor = executor;
 
         if (isSubAction() == false) {
-            transportService.registerRequestHandler(
-                actionName,
-                transportService.getThreadPool().executor(ThreadPool.Names.SAME),
-                request,
-                new TransportHandler()
-            );
+            transportService.registerRequestHandler(actionName, EsExecutors.DIRECT_EXECUTOR_SERVICE, request, new TransportHandler());
         }
         transportService.registerRequestHandler(
             transportShardAction,
-            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
+            EsExecutors.DIRECT_EXECUTOR_SERVICE,
             request,
             new ShardTransportHandler()
         );

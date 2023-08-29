@@ -35,6 +35,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.SuppressForbidden;
@@ -125,19 +126,19 @@ public class RemoteClusterConnectionTests extends ESTestCase {
         try {
             newService.registerRequestHandler(
                 SearchShardsAction.NAME,
-                newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchShardsRequest::new,
                 (request3, channel3, task3) -> {
                     if ("index_not_found".equals(request3.preference())) {
                         channel3.sendResponse(new IndexNotFoundException("index"));
                     } else {
-                        channel3.sendResponse(new SearchShardsResponse(List.of(), knownNodes, Collections.emptyMap()));
+                        channel3.sendResponse(new SearchShardsResponse(List.of(), knownNodes, emptyMap()));
                     }
                 }
             );
             newService.registerRequestHandler(
                 SearchAction.NAME,
-                newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchRequest::new,
                 (request2, channel2, task2) -> {
                     if ("index_not_found".equals(request2.preference())) {
@@ -178,7 +179,7 @@ public class RemoteClusterConnectionTests extends ESTestCase {
             );
             newService.registerRequestHandler(
                 ClusterStateAction.NAME,
-                newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 ClusterStateRequest::new,
                 (request1, channel1, task1) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
@@ -192,7 +193,7 @@ public class RemoteClusterConnectionTests extends ESTestCase {
             if (RemoteClusterPortSettings.REMOTE_CLUSTER_SERVER_ENABLED.get(s)) {
                 newService.registerRequestHandler(
                     RemoteClusterNodesAction.NAME,
-                    newService.getThreadPool().executor(ThreadPool.Names.SAME),
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE,
                     RemoteClusterNodesAction.Request::new,
                     (request, channel, task) -> channel.sendResponse(new RemoteClusterNodesAction.Response(knownNodes))
                 );

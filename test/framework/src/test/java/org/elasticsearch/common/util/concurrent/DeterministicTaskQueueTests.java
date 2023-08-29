@@ -399,7 +399,7 @@ public class DeterministicTaskQueueTests extends ESTestCase {
         final AtomicBoolean executed = new AtomicBoolean(false);
         final AtomicBoolean executedNested = new AtomicBoolean(false);
         threadPool.generic().execute(() -> {
-            threadPool.executor(ThreadPool.Names.SAME).execute(() -> executedNested.set(true));
+            EsExecutors.DIRECT_EXECUTOR_SERVICE.execute(() -> executedNested.set(true));
             assertThat(executedNested.get(), is(true));
             executed.set(true);
         });

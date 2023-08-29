@@ -33,6 +33,7 @@ import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -1108,7 +1109,7 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
         try {
             service.registerRequestHandler(
                 ClusterStateAction.NAME,
-                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 ClusterStateRequest::new,
                 (request3, channel3, task3) -> {
                     capturedHeaders.add(
@@ -1121,7 +1122,7 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
             );
             service.registerRequestHandler(
                 RemoteClusterNodesAction.NAME,
-                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 RemoteClusterNodesAction.Request::new,
                 (request2, channel2, task2) -> {
                     capturedHeaders.add(
@@ -1132,7 +1133,7 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
             );
             service.registerRequestHandler(
                 SearchShardsAction.NAME,
-                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchShardsRequest::new,
                 (request1, channel1, task1) -> {
                     capturedHeaders.add(
@@ -1143,7 +1144,7 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
             );
             service.registerRequestHandler(
                 SearchAction.NAME,
-                service.getThreadPool().executor(ThreadPool.Names.SAME),
+                EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchRequest::new,
                 (request, channel, task) -> {
                     capturedHeaders.add(
