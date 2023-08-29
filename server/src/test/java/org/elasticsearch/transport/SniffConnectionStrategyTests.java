@@ -122,13 +122,13 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                 ClusterStateAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 ClusterStateRequest::new,
-                (request1, channel1, task1) -> {
+                (request, channel, task) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
                     for (DiscoveryNode node : knownNodes) {
                         builder.add(node);
                     }
                     ClusterState build = ClusterState.builder(clusterName).nodes(builder.build()).build();
-                    channel1.sendResponse(new ClusterStateResponse(clusterName, build, false));
+                    channel.sendResponse(new ClusterStateResponse(clusterName, build, false));
                 }
             );
             if (hasClusterCredentials) {

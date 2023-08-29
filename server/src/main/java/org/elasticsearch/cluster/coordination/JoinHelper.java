@@ -38,8 +38,13 @@ import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
-import org.elasticsearch.transport.*;
+import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.TransportException;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse.Empty;
+import org.elasticsearch.transport.TransportResponseHandler;
+import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -111,9 +116,9 @@ public class JoinHelper {
             false,
             false,
             JoinRequest::new,
-            (request2, channel2, task2) -> joinHandler.accept(
-                request2,
-                new ChannelActionListener<Empty>(channel2).map(ignored -> Empty.INSTANCE)
+            (request, channel, task) -> joinHandler.accept(
+                request,
+                new ChannelActionListener<Empty>(channel).map(ignored -> Empty.INSTANCE)
             )
         );
 
@@ -123,10 +128,10 @@ public class JoinHelper {
             false,
             false,
             StartJoinRequest::new,
-            (request1, channel1, task1) -> {
-                final DiscoveryNode destination = request1.getSourceNode();
-                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request1)));
-                channel1.sendResponse(Empty.INSTANCE);
+            (request, channel, task) -> {
+                final DiscoveryNode destination = request.getSourceNode();
+                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
+                channel.sendResponse(Empty.INSTANCE);
             }
         );
 

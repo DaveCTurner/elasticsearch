@@ -195,7 +195,7 @@ public final class TransportActionProxy {
             in -> cancellable
                 ? new CancellableProxyRequest<>(in, requestHandler::newRequest)
                 : new ProxyRequest<>(in, requestHandler::newRequest),
-            new ProxyRequestHandler<ProxyRequest<TransportRequest>>(service, action, responseFunction)
+            new ProxyRequestHandler<>(service, action, responseFunction)
         );
     }
 

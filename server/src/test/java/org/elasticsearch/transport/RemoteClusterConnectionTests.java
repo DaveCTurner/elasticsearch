@@ -128,11 +128,11 @@ public class RemoteClusterConnectionTests extends ESTestCase {
                 SearchShardsAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchShardsRequest::new,
-                (request3, channel3, task3) -> {
-                    if ("index_not_found".equals(request3.preference())) {
-                        channel3.sendResponse(new IndexNotFoundException("index"));
+                (request, channel, task) -> {
+                    if ("index_not_found".equals(request.preference())) {
+                        channel.sendResponse(new IndexNotFoundException("index"));
                     } else {
-                        channel3.sendResponse(new SearchShardsResponse(List.of(), knownNodes, emptyMap()));
+                        channel.sendResponse(new SearchShardsResponse(List.of(), knownNodes, Collections.emptyMap()));
                     }
                 }
             );
@@ -140,13 +140,13 @@ public class RemoteClusterConnectionTests extends ESTestCase {
                 SearchAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchRequest::new,
-                (request2, channel2, task2) -> {
-                    if ("index_not_found".equals(request2.preference())) {
-                        channel2.sendResponse(new IndexNotFoundException("index"));
+                (request, channel, task) -> {
+                    if ("index_not_found".equals(request.preference())) {
+                        channel.sendResponse(new IndexNotFoundException("index"));
                         return;
                     }
                     SearchHits searchHits;
-                    if ("null_target".equals(request2.preference())) {
+                    if ("null_target".equals(request.preference())) {
                         searchHits = new SearchHits(
                             new SearchHit[] { new SearchHit(0) },
                             new TotalHits(1, TotalHits.Relation.EQUAL_TO),
@@ -174,20 +174,20 @@ public class RemoteClusterConnectionTests extends ESTestCase {
                         ShardSearchFailure.EMPTY_ARRAY,
                         SearchResponse.Clusters.EMPTY
                     );
-                    channel2.sendResponse(searchResponse);
+                    channel.sendResponse(searchResponse);
                 }
             );
             newService.registerRequestHandler(
                 ClusterStateAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 ClusterStateRequest::new,
-                (request1, channel1, task1) -> {
+                (request, channel, task) -> {
                     DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
                     for (DiscoveryNode node : knownNodes) {
                         builder.add(node);
                     }
                     ClusterState build = ClusterState.builder(clusterName).nodes(builder.build()).build();
-                    channel1.sendResponse(new ClusterStateResponse(clusterName, build, false));
+                    channel.sendResponse(new ClusterStateResponse(clusterName, build, false));
                 }
             );
             if (RemoteClusterPortSettings.REMOTE_CLUSTER_SERVER_ENABLED.get(s)) {

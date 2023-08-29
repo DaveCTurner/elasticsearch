@@ -22,7 +22,6 @@ import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.CountDown;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -104,14 +103,9 @@ public class ComputeService {
         this.searchService = searchService;
         this.transportService = transportService;
         this.bigArrays = bigArrays.withCircuitBreaking();
-        registerRequestHandler(
-            DATA_ACTION_NAME,
-            transportService.getThreadPool().executor(ESQL_THREAD_POOL_NAME),
-            (Writeable.Reader<DataNodeRequest>) DataNodeRequest::new,
-            (TransportRequestHandler<DataNodeRequest>) new DataNodeRequestHandler()
-        );
         this.esqlExecutor = threadPool.executor(ESQL_THREAD_POOL_NAME);
-        this.driverRunner = new DriverTaskRunner(transportService, ESQL_THREAD_POOL_NAME);
+        transportService.registerRequestHandler(DATA_ACTION_NAME, this.esqlExecutor, DataNodeRequest::new, new DataNodeRequestHandler());
+        this.driverRunner = new DriverTaskRunner(transportService, this.esqlExecutor);
         this.exchangeService = exchangeService;
         this.enrichLookupService = enrichLookupService;
     }

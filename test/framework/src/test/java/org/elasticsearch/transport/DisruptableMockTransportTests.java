@@ -16,7 +16,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
@@ -323,10 +322,10 @@ public class DisruptableMockTransportTests extends ESTestCase {
     }
 
     private void registerRequestHandler(TransportService transportService, TransportRequestHandler<TestRequest> handler) {
-        registerRequestHandler(
+        transportService.registerRequestHandler(
             TEST_ACTION,
             transportService.getThreadPool().executor(ThreadPool.Names.GENERIC),
-            (Writeable.Reader<TestRequest>) TestRequest::new,
+            TestRequest::new,
             handler
         );
     }
