@@ -46,7 +46,7 @@ public class MlDailyMaintenanceServiceIT extends MlNativeAutodetectIntegTestCase
     public void setUpMocks() {
         jobConfigProvider = new JobConfigProvider(client(), xContentRegistry());
         threadPool = mock(ThreadPool.class);
-        when(EsExecutors.DIRECT_EXECUTOR_SERVICE).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        when(threadPool.executor(ThreadPool.Names.SAME)).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
     }
 
     public void testTriggerDeleteJobsInStateDeletingWithoutDeletionTask() throws InterruptedException {

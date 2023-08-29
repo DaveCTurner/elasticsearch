@@ -45,7 +45,7 @@ public class MlInitializationServiceIT extends MlNativeAutodetectIntegTestCase {
     @Before
     public void setUpMocks() {
         threadPool = mock(ThreadPool.class);
-        when(EsExecutors.DIRECT_EXECUTOR_SERVICE).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        when(threadPool.executor(ThreadPool.Names.SAME)).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
         when(threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME)).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
         MlDailyMaintenanceService mlDailyMaintenanceService = mock(MlDailyMaintenanceService.class);
         ClusterService clusterService = mock(ClusterService.class);

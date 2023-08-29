@@ -1111,11 +1111,11 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
                 ClusterStateAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 ClusterStateRequest::new,
-                (request3, channel3, task3) -> {
+                (request, channel, task) -> {
                     capturedHeaders.add(
-                        new CapturedActionWithHeaders(task3.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                        new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel3.sendResponse(
+                    channel.sendResponse(
                         new ClusterStateResponse(ClusterName.DEFAULT, ClusterState.builder(ClusterName.DEFAULT).build(), false)
                     );
                 }
@@ -1124,22 +1124,22 @@ public class CrossClusterAccessHeadersForCcsRestIT extends SecurityOnTrialLicens
                 RemoteClusterNodesAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 RemoteClusterNodesAction.Request::new,
-                (request2, channel2, task2) -> {
+                (request, channel, task) -> {
                     capturedHeaders.add(
-                        new CapturedActionWithHeaders(task2.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                        new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel2.sendResponse(new RemoteClusterNodesAction.Response(List.of()));
+                    channel.sendResponse(new RemoteClusterNodesAction.Response(List.of()));
                 }
             );
             service.registerRequestHandler(
                 SearchShardsAction.NAME,
                 EsExecutors.DIRECT_EXECUTOR_SERVICE,
                 SearchShardsRequest::new,
-                (request1, channel1, task1) -> {
+                (request, channel, task) -> {
                     capturedHeaders.add(
-                        new CapturedActionWithHeaders(task1.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
+                        new CapturedActionWithHeaders(task.getAction(), Map.copyOf(threadPool.getThreadContext().getHeaders()))
                     );
-                    channel1.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
+                    channel.sendResponse(new SearchShardsResponse(List.of(), List.of(), Collections.emptyMap()));
                 }
             );
             service.registerRequestHandler(

@@ -19,7 +19,6 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.core.Releasable;
@@ -290,7 +289,7 @@ public class MlDailyMaintenanceService implements Releasable {
                 return;
             }
             TypedChainTaskExecutor<Tuple<DeleteJobAction.Request, AcknowledgedResponse>> chainTaskExecutor = new TypedChainTaskExecutor<>(
-                EsExecutors.DIRECT_EXECUTOR_SERVICE,
+                threadPool.executor(ThreadPool.Names.SAME),
                 unused -> true,
                 unused -> true
             );

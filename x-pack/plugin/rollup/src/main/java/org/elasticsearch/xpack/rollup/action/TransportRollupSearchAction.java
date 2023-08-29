@@ -109,7 +109,7 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
             false,
             true,
             SearchRequest::new,
-            new TransportHandler()
+            new TransportRollupSearchAction.TransportHandler()
         );
     }
 
