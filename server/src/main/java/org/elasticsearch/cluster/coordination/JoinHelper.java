@@ -37,13 +37,8 @@ import org.elasticsearch.monitor.NodeHealthService;
 import org.elasticsearch.monitor.StatusInfo;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
-import org.elasticsearch.transport.ConnectTransportException;
-import org.elasticsearch.transport.TransportException;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.*;
 import org.elasticsearch.transport.TransportResponse.Empty;
-import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -111,32 +106,32 @@ public class JoinHelper {
 
         transportService.registerRequestHandler(
             JOIN_ACTION_NAME,
-            Names.CLUSTER_COORDINATION,
+            transportService.getThreadPool().executor(Names.CLUSTER_COORDINATION),
             false,
             false,
             JoinRequest::new,
-            (request, channel, task) -> joinHandler.accept(
-                request,
-                new ChannelActionListener<Empty>(channel).map(ignored -> Empty.INSTANCE)
+            (request2, channel2, task2) -> joinHandler.accept(
+                request2,
+                new ChannelActionListener<Empty>(channel2).map(ignored -> Empty.INSTANCE)
             )
         );
 
         transportService.registerRequestHandler(
             START_JOIN_ACTION_NAME,
-            Names.CLUSTER_COORDINATION,
+            transportService.getThreadPool().executor(Names.CLUSTER_COORDINATION),
             false,
             false,
             StartJoinRequest::new,
-            (request, channel, task) -> {
-                final DiscoveryNode destination = request.getSourceNode();
-                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request)));
-                channel.sendResponse(Empty.INSTANCE);
+            (request1, channel1, task1) -> {
+                final DiscoveryNode destination = request1.getSourceNode();
+                sendJoinRequest(destination, currentTermSupplier.getAsLong(), Optional.of(joinLeaderInTerm.apply(request1)));
+                channel1.sendResponse(Empty.INSTANCE);
             }
         );
 
         transportService.registerRequestHandler(
             JOIN_PING_ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(Names.SAME),
             false,
             false,
             TransportRequest.Empty::new,

@@ -528,7 +528,7 @@ public final class RemoteClusterService extends RemoteClusterAware implements Cl
     static void registerRemoteClusterHandshakeRequestHandler(TransportService transportService) {
         transportService.registerRequestHandler(
             REMOTE_CLUSTER_HANDSHAKE_ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             false,
             false,
             TransportService.HandshakeRequest::new,

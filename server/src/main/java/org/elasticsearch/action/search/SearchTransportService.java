@@ -548,12 +548,12 @@ public class SearchTransportService {
 
         transportService.registerRequestHandler(
             FETCH_ID_ACTION_NAME,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             true,
             true,
             ShardFetchSearchRequest::new,
-            (request, channel, task) -> {
-                searchService.executeFetchPhase(request, (SearchShardTask) task, new ChannelActionListener<>(channel));
+            (request2, channel2, task2) -> {
+                searchService.executeFetchPhase(request2, (SearchShardTask) task2, new ChannelActionListener<>(channel2));
             }
         );
         TransportActionProxy.registerProxyAction(transportService, FETCH_ID_ACTION_NAME, true, FetchSearchResult::new);

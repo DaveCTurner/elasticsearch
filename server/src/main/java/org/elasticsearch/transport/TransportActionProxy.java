@@ -188,13 +188,13 @@ public final class TransportActionProxy {
         RequestHandlerRegistry<? extends TransportRequest> requestHandler = service.getRequestHandler(action);
         service.registerRequestHandler(
             getProxyAction(action),
-            ThreadPool.Names.SAME,
+            service.getThreadPool().executor(ThreadPool.Names.SAME),
             true,
             false,
             in -> cancellable
                 ? new CancellableProxyRequest<>(in, requestHandler::newRequest)
                 : new ProxyRequest<>(in, requestHandler::newRequest),
-            new ProxyRequestHandler<>(service, action, responseFunction)
+            new ProxyRequestHandler<ProxyRequest<TransportRequest>>(service, action, responseFunction)
         );
     }
 

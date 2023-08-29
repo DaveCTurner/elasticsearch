@@ -105,11 +105,11 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
 
         transportService.registerRequestHandler(
             actionName,
-            ThreadPool.Names.SAME,
+            transportService.getThreadPool().executor(ThreadPool.Names.SAME),
             false,
             true,
             SearchRequest::new,
-            new TransportRollupSearchAction.TransportHandler()
+            new TransportHandler()
         );
     }
 
