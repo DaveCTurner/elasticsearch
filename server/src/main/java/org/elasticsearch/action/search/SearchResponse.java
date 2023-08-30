@@ -533,7 +533,7 @@ public class SearchResponse extends ActionResponse implements ChunkedToXContentO
             this.successful = in.readVInt();
             this.skipped = in.readVInt();
             if (in.getTransportVersion().onOrAfter(TransportVersion.V_8_500_053)) {
-                List<Cluster> clusterList = in.readList(Cluster::new);
+                List<Cluster> clusterList = in.readCollectionAsList(Cluster::new);
                 if (clusterList.isEmpty()) {
                     this.clusterInfo = Collections.emptyMap();
                 } else {
@@ -855,7 +855,7 @@ public class SearchResponse extends ActionResponse implements ChunkedToXContentO
                 this.took = new TimeValue(took);
             }
             this.timedOut = in.readBoolean();
-            this.failures = Collections.unmodifiableList(in.readList(ShardSearchFailure::readShardSearchFailure));
+            this.failures = Collections.unmodifiableList(in.readCollectionAsList(ShardSearchFailure::readShardSearchFailure));
         }
 
         @Override

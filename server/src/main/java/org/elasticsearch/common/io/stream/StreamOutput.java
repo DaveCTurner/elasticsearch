@@ -1032,7 +1032,7 @@ public abstract class StreamOutput extends OutputStream {
 
     /**
      * Writes a collection to this stream. The corresponding collection can be read from a stream input using
-     * {@link StreamInput#readList(Writeable.Reader)}.
+     * {@link StreamInput#readCollectionAsList(Writeable.Reader)}.
      *
      * @param collection the collection to write to this stream
      * @throws IOException if an I/O exception occurs writing the collection
@@ -1056,7 +1056,7 @@ public abstract class StreamOutput extends OutputStream {
 
     /**
      * Writes a collection of a strings. The corresponding collection can be read from a stream input using
-     * {@link StreamInput#readList(Writeable.Reader)}.
+     * {@link StreamInput#readCollectionAsList(Writeable.Reader)}.
      *
      * @param collection the collection of strings
      * @throws IOException if an I/O exception occurs writing the collection
@@ -1067,7 +1067,7 @@ public abstract class StreamOutput extends OutputStream {
 
     /**
      * Writes an optional collection. The corresponding collection can be read from a stream input using
-     * {@link StreamInput#readOptionalList(Writeable.Reader)}.
+     * {@link StreamInput#readOptionalCollectionAsList(Writeable.Reader)}.
      */
     public <T extends Writeable> void writeOptionalCollection(final Collection<T> collection) throws IOException {
         writeOptionalCollection(collection, (o, v) -> v.writeTo(o));
@@ -1075,7 +1075,7 @@ public abstract class StreamOutput extends OutputStream {
 
     /**
      * Writes an optional collection via {@link Writer}. The corresponding collection can be read from a stream input using
-     * {@link StreamInput#readOptionalList(Writeable.Reader)}.
+     * {@link StreamInput#readOptionalCollectionAsList(Writeable.Reader)}.
      */
     public <T> void writeOptionalCollection(final Collection<T> collection, final Writer<T> writer) throws IOException {
         if (collection != null) {
@@ -1088,7 +1088,7 @@ public abstract class StreamOutput extends OutputStream {
 
     /**
      * Writes an optional collection of a strings. The corresponding collection can be read from a stream input using
-     * {@link StreamInput#readList(Writeable.Reader)}.
+     * {@link StreamInput#readCollectionAsList(Writeable.Reader)}.
      *
      * @param collection the collection of strings
      * @throws IOException if an I/O exception occurs writing the collection
@@ -1098,13 +1098,10 @@ public abstract class StreamOutput extends OutputStream {
     }
 
     /**
-     * Writes a list of {@link NamedWriteable} objects.
+     * Writes a collection of {@link NamedWriteable} objects.
      */
-    public void writeNamedWriteableList(List<? extends NamedWriteable> list) throws IOException {
-        writeVInt(list.size());
-        for (NamedWriteable obj : list) {
-            writeNamedWriteable(obj);
-        }
+    public void writeNamedWriteableCollection(Collection<? extends NamedWriteable> list) throws IOException {
+        writeCollection(list, StreamOutput::writeNamedWriteable);
     }
 
     /**

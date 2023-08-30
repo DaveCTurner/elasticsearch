@@ -164,7 +164,7 @@ public class DesiredBalanceResponse extends ActionResponse implements ChunkedToX
     public record DesiredShards(List<ShardView> current, ShardAssignmentView desired) implements Writeable, ChunkedToXContentObject {
 
         public static DesiredShards from(StreamInput in) throws IOException {
-            return new DesiredShards(in.readList(ShardView::from), ShardAssignmentView.from(in));
+            return new DesiredShards(in.readCollectionAsList(ShardView::from), ShardAssignmentView.from(in));
         }
 
         @Override
@@ -231,7 +231,9 @@ public class DesiredBalanceResponse extends ActionResponse implements ChunkedToX
             if (in.getTransportVersion().onOrAfter(ADD_FORECASTS_VERSION) == false) {
                 in.readOptionalWriteable(AllocationId::new);
             }
-            List<String> tierPreference = in.getTransportVersion().onOrAfter(ADD_TIER_PREFERENCE) ? in.readStringList() : List.of();
+            List<String> tierPreference = in.getTransportVersion().onOrAfter(ADD_TIER_PREFERENCE)
+                ? in.readStringCollectionAsList()
+                : List.of();
             return new ShardView(
                 state,
                 primary,
@@ -295,7 +297,7 @@ public class DesiredBalanceResponse extends ActionResponse implements ChunkedToX
         public static final ShardAssignmentView EMPTY = new ShardAssignmentView(Set.of(), 0, 0, 0);
 
         public static ShardAssignmentView from(StreamInput in) throws IOException {
-            final var nodeIds = in.readSet(StreamInput::readString);
+            final var nodeIds = in.readCollectionAsSet(StreamInput::readString);
             final var total = in.readVInt();
             final var unassigned = in.readVInt();
             final var ignored = in.readVInt();
