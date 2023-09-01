@@ -500,7 +500,10 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         nodeConnectionsService.disconnectFromNodesExcept(newClusterState.nodes());
 
         logger.debug("set locally applied cluster state to version {}", newClusterState.version());
+        logger.info("updating cluster state, term={}, version={}, node-left generation={}", newClusterState.term(), newClusterState.version(), newClusterState.nodes().getNodeLeftGeneration() );
         state.set(newClusterState);
+        logger.info("updated state, term={}, version={}, node-left generation={}", newClusterState.term(), newClusterState.version(), newClusterState.nodes().getNodeLeftGeneration() );
+
 
         callClusterStateListeners(clusterChangedEvent, stopWatch);
     }
