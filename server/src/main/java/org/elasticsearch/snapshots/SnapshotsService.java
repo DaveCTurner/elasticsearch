@@ -17,6 +17,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.DelegatingActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.clone.CloneSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
@@ -70,6 +71,7 @@ import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.SuppressForbidden;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexVersion;
@@ -119,7 +121,6 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.unmodifiableList;
 import static org.elasticsearch.cluster.SnapshotsInProgress.completed;
-import static org.elasticsearch.common.Strings.arrayToCommaDelimitedString;
 import static org.elasticsearch.core.Strings.format;
 
 /**
@@ -1881,12 +1882,35 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
     public void deleteSnapshots(final DeleteSnapshotRequest request, final ActionListener<Void> listener) {
         final String repositoryName = request.repository();
         final String[] snapshotNames = request.snapshots();
-        logger.info(
-            () -> format("deleting snapshots [%s] from repository [%s]", arrayToCommaDelimitedString(snapshotNames), repositoryName)
-        );
 
+        logger.info(() -> format("deleting snapshots %s from repository [%s]", Arrays.toString(snapshotNames), repositoryName));
+
+        ActionListener.run(new DelegatingActionListener<Void, Void>(listener) {
+            @Override
+            public void onResponse(Void unused) {
+                logger.info(() -> format("snapshots %s deleted from repository [%s]", Arrays.toString(snapshotNames), repositoryName));
+                delegate.onResponse(null);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                logger.warn(
+                    () -> format("failed to delete snapshots %s from repository [%s]", Arrays.toString(snapshotNames), repositoryName),
+                    e
+                );
+                delegate.onFailure(e);
+            }
+        }, l -> doDeleteSnapshot(repositoryName, snapshotNames, request.masterNodeTimeout(), l));
+    }
+
+    private void doDeleteSnapshot(
+        String repositoryName,
+        String[] snapshotNames,
+        TimeValue masterNodeTimeout,
+        ActionListener<Void> listener
+    ) {
         final Repository repository = repositoriesService.repository(repositoryName);
-        executeConsistentStateUpdate(repository, repositoryData -> new ClusterStateUpdateTask(request.masterNodeTimeout()) {
+        executeConsistentStateUpdate(repository, repositoryData -> new ClusterStateUpdateTask(masterNodeTimeout) {
 
             private SnapshotDeletionsInProgress.Entry newDelete = null;
 
@@ -2086,7 +2110,7 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
                     }
                 }
             }
-        }, "delete snapshot [" + repository + "]" + Arrays.toString(snapshotNames), listener::onFailure);
+        }, "delete snapshot [" + repositoryName + "]" + Arrays.toString(snapshotNames), listener::onFailure);
     }
 
     /**
@@ -2322,7 +2346,6 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
 
                         @Override
                         public void onDone() {
-                            logger.info("snapshots {} deleted", snapshotIds);
                             doneFuture.onResponse(null);
                         }
 
