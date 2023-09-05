@@ -299,20 +299,20 @@ public class DesiredBalanceReconciler {
 
                     logger.debug("No eligible node found to assign shard [{}]", shard);
 
-                    final UnassignedInfo.AllocationStatus allocationStatus;
+                    final UnassignedInfo.AllocationStatus unallocatedStatus;
                     if (ignored) {
-                        allocationStatus = UnassignedInfo.AllocationStatus.NO_ATTEMPT;
+                        unallocatedStatus = UnassignedInfo.AllocationStatus.NO_ATTEMPT;
                     } else if (isThrottled.get()) {
-                        allocationStatus = UnassignedInfo.AllocationStatus.DECIDERS_THROTTLED;
+                        unallocatedStatus = UnassignedInfo.AllocationStatus.DECIDERS_THROTTLED;
                     } else {
-                        allocationStatus = UnassignedInfo.AllocationStatus.DECIDERS_NO;
+                        unallocatedStatus = UnassignedInfo.AllocationStatus.DECIDERS_NO;
                     }
 
-                    unassigned.ignoreShard(shard, allocationStatus, allocation.changes());
+                    unassigned.ignoreShard(shard, unallocatedStatus, allocation.changes());
                     if (shard.primary() == false) {
                         // we could not allocate it and we are a replica - check if we can ignore the other replicas
                         while (i < primaryLength - 1 && comparator.compare(primary[i], primary[i + 1]) == 0) {
-                            unassigned.ignoreShard(primary[++i], allocationStatus, allocation.changes());
+                            unassigned.ignoreShard(primary[++i], unallocatedStatus, allocation.changes());
                         }
                     }
                 }
