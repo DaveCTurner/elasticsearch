@@ -18,6 +18,7 @@ import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
+import org.elasticsearch.cluster.routing.UnassignedInfo.AllocationStatus;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.DiskThresholdDecider;
@@ -179,7 +180,7 @@ public class DesiredBalanceReconciler {
             while (unassignedIterator.hasNext()) {
                 final ShardRouting shardRouting = unassignedIterator.next();
                 final UnassignedInfo unassignedInfo = shardRouting.unassignedInfo();
-                if (shardRouting.primary() && unassignedInfo.getLastAllocationStatus() == UnassignedInfo.AllocationStatus.NO_ATTEMPT) {
+                if (shardRouting.primary() && unassignedInfo.getLastAllocationStatus() == AllocationStatus.NO_ATTEMPT) {
                     unassignedIterator.updateUnassigned(
                         new UnassignedInfo(
                             unassignedInfo.getReason(),
@@ -189,7 +190,7 @@ public class DesiredBalanceReconciler {
                             unassignedInfo.getUnassignedTimeInNanos(),
                             unassignedInfo.getUnassignedTimeInMillis(),
                             unassignedInfo.isDelayed(),
-                            UnassignedInfo.AllocationStatus.DECIDERS_NO,
+                            AllocationStatus.DECIDERS_NO,
                             unassignedInfo.getFailedNodeIds(),
                             unassignedInfo.getLastAllocatedNodeId()
                         ),
