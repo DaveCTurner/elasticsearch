@@ -1022,32 +1022,25 @@ public class DesiredBalanceReconcilerTests extends ESAllocationTestCase {
         final var shardId = new ShardId(index, 0);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(
-                DiscoveryNodes.builder()
-                    // data-node-1 left the cluster
-                    .localNodeId("data-node-2")
-                    .masterNodeId("data-node-2")
-                    .add(newNode("data-node-2"))
-            )
+            .nodes(discoveryNodes(1))// node-1 left the cluster
             .metadata(Metadata.builder().put(indexMetadata, true))
             .routingTable(
-                RoutingTable.builder()
-                    .add(IndexRoutingTable.builder(index).addShard(newShardRouting(shardId, "data-node-2", true, STARTED)))
+                RoutingTable.builder().add(IndexRoutingTable.builder(index).addShard(newShardRouting(shardId, "node-0", true, STARTED)))
             )
             .build();
 
         final var allocation = createRoutingAllocationFrom(clusterState);
         final var balance = new DesiredBalance(
             1,
-            Map.of(shardId, new ShardAssignment(Set.of("data-node-1"), 1, 0, 0)) // shard is assigned to the node that has left
+            Map.of(shardId, new ShardAssignment(Set.of("node-1"), 1, 0, 0)) // shard is assigned to the node that has left
         );
 
         reconcile(allocation, balance);
 
-        assertThat(allocation.routingNodes().node("data-node-1"), nullValue());
-        assertThat(allocation.routingNodes().node("data-node-2"), notNullValue());
+        assertThat(allocation.routingNodes().node("node-0"), notNullValue());
+        assertThat(allocation.routingNodes().node("node-1"), nullValue());
         // shard is kept wherever until balance is recalculated
-        assertThat(allocation.routingNodes().node("data-node-2").getByShardId(shardId), notNullValue());
+        assertThat(allocation.routingNodes().node("node-0").getByShardId(shardId), notNullValue());
     }
 
     public void testDoNotAllocateIgnoredShards() {
@@ -1057,7 +1050,7 @@ public class DesiredBalanceReconcilerTests extends ESAllocationTestCase {
         final var shardId = new ShardId(index, 0);
 
         final var clusterState = ClusterState.builder(ClusterName.DEFAULT)
-            .nodes(DiscoveryNodes.builder().localNodeId("node-1").masterNodeId("node-1").add(newNode("node-1")))
+            .nodes(discoveryNodes(1))
             .metadata(Metadata.builder().put(indexMetadata, true))
             .routingTable(RoutingTable.builder(TestShardRoutingRoleStrategies.DEFAULT_ROLE_ONLY).addAsNew(indexMetadata))
             .build();
@@ -1070,7 +1063,7 @@ public class DesiredBalanceReconcilerTests extends ESAllocationTestCase {
 
         reconcile(allocation, balance);
 
-        assertThat(allocation.routingNodes().node("node-1").size(), equalTo(0));
+        assertThat(allocation.routingNodes().node("node-0").size(), equalTo(0));
         assertThat(allocation.routingNodes().unassigned().ignored(), hasSize(1));
     }
 
