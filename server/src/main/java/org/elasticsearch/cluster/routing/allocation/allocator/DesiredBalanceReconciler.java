@@ -250,6 +250,7 @@ public class DesiredBalanceReconciler {
                     final var shard = primary[i];
                     final var assignment = desiredBalance.getAssignment(shard.shardId());
                     final boolean ignored = assignment == null || isIgnored(routingNodes, shard, assignment);
+                    final AllocationStatus unallocatedStatus;
                     final var isThrottled = new AtomicBoolean(false);
                     if (ignored == false) {
                         for (final var nodeIdIterator : List.of(
@@ -299,7 +300,6 @@ public class DesiredBalanceReconciler {
 
                     logger.debug("No eligible node found to assign shard [{}]", shard);
 
-                    final UnassignedInfo.AllocationStatus unallocatedStatus;
                     if (ignored) {
                         unallocatedStatus = UnassignedInfo.AllocationStatus.NO_ATTEMPT;
                     } else if (isThrottled.get()) {
