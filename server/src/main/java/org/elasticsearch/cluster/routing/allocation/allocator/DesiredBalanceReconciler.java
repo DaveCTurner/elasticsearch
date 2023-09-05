@@ -257,8 +257,8 @@ public class DesiredBalanceReconciler {
                             getDesiredNodesIds(shard, assignment),
                             getFallbackNodeIds(shard, isThrottled)
                         )) {
-                            for (final var desiredNodeId : nodeIdIterator) {
-                                final var routingNode = routingNodes.node(desiredNodeId);
+                            for (final var nodeId : nodeIdIterator) {
+                                final var routingNode = routingNodes.node(nodeId);
                                 if (routingNode == null) {
                                     // desired node no longer exists
                                     continue;
@@ -266,7 +266,7 @@ public class DesiredBalanceReconciler {
                                 final var decision = allocation.deciders().canAllocate(shard, routingNode, allocation);
                                 switch (decision.type()) {
                                     case YES -> {
-                                        logger.debug("Assigning shard [{}] to [{}]", shard, desiredNodeId);
+                                        logger.debug("Assigning shard [{}] to [{}]", shard, nodeId);
                                         final long shardSize = DiskThresholdDecider.getExpectedShardSize(
                                             shard,
                                             ShardRouting.UNAVAILABLE_EXPECTED_SHARD_SIZE,
@@ -275,8 +275,8 @@ public class DesiredBalanceReconciler {
                                             allocation.metadata(),
                                             allocation.routingTable()
                                         );
-                                        routingNodes.initializeShard(shard, desiredNodeId, null, shardSize, allocation.changes());
-                                        allocationOrdering.recordAllocation(desiredNodeId);
+                                        routingNodes.initializeShard(shard, nodeId, null, shardSize, allocation.changes());
+                                        allocationOrdering.recordAllocation(nodeId);
                                         if (shard.primary() == false) {
                                             // copy over the same replica shards to the secondary array so they will get allocated
                                             // in a subsequent iteration, allowing replicas of other shards to be allocated first
@@ -288,10 +288,10 @@ public class DesiredBalanceReconciler {
                                     }
                                     case THROTTLE -> {
                                         isThrottled.set(true);
-                                        logger.trace("Couldn't assign shard [{}] to [{}]: {}", shard.shardId(), desiredNodeId, decision);
+                                        logger.trace("Couldn't assign shard [{}] to [{}]: {}", shard.shardId(), nodeId, decision);
                                     }
                                     case NO -> {
-                                        logger.trace("Couldn't assign shard [{}] to [{}]: {}", shard.shardId(), desiredNodeId, decision);
+                                        logger.trace("Couldn't assign shard [{}] to [{}]: {}", shard.shardId(), nodeId, decision);
                                     }
                                 }
                             }
