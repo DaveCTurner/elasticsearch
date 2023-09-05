@@ -297,7 +297,7 @@ public class DesiredBalanceReconciler {
                         }
                     }
 
-                    logger.debug("No eligible node found to assign shard [{}] amongst [{}]", shard, assignment);
+                    logger.debug("No eligible node found to assign shard [{}]", shard);
 
                     final UnassignedInfo.AllocationStatus allocationStatus;
                     if (ignored) {
