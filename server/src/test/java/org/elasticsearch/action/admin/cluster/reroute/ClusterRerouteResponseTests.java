@@ -87,7 +87,7 @@ public class ClusterRerouteResponseTests extends ESTestCase {
         assertXContent(
             createClusterRerouteResponse(clusterState),
             ToXContent.EMPTY_PARAMS,
-            35,
+            32,
             Strings.format(
                 """
                     {
