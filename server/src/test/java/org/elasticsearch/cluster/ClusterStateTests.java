@@ -136,7 +136,7 @@ public class ClusterStateTests extends ESTestCase {
             clusterState,
             builder,
             new ToXContent.MapParams(singletonMap(Metadata.CONTEXT_MODE_PARAM, Metadata.CONTEXT_MODE_API)),
-            38
+            41
         );
         builder.endObject();
 
