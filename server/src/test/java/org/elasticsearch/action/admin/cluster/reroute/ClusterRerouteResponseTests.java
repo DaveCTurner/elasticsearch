@@ -87,7 +87,7 @@ public class ClusterRerouteResponseTests extends ESTestCase {
         assertXContent(
             createClusterRerouteResponse(clusterState),
             ToXContent.EMPTY_PARAMS,
-            32,
+            35,
             Strings.format(
                 """
                     {
@@ -126,6 +126,12 @@ public class ClusterRerouteResponseTests extends ESTestCase {
                             "max_index_version": %s
                           }
                         },
+                        "nodes_versions": [
+                          {
+                            "node_id": "node0",
+                            "transport_version": "8000099"
+                          }
+                        ],
                         "metadata": {
                           "cluster_uuid": "_na_",
                           "cluster_uuid_committed": false,
