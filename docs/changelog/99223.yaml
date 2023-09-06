@@ -5,8 +5,7 @@ type: breaking
 issues: []
 breaking:
   title: Remove `transport_versions` from cluster state API
-  area: Infra/Core
-  details: Please describe the details of this change for the release notes. You can
-    use asciidoc.
-  impact: Please describe the impact of this change to users
+  area: REST API
+  details: The `transport_versions` subobject of the response to `GET _cluster/state` has been replaced by the `nodes_versions` subobject.
+  impact: If needed, retrieve the per-node transport versions from the `nodes_versions` subobject.
   notable: false
