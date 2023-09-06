@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.everyItem;
 
 public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCase {
 
+    @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/pull/99114") // needs to read transport versions from new structure
     public void testReadsInferredTransportVersions() throws IOException {
         assumeTrue("TransportVersion introduced in 8.8.0", UPGRADE_FROM_VERSION.before(Version.V_8_8_0));
         assumeTrue("This only has visible effects when upgrading beyond 8.8.0", TransportVersion.current().after(TransportVersion.V_8_8_0));

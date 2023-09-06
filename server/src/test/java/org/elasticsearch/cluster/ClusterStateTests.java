@@ -136,7 +136,7 @@ public class ClusterStateTests extends ESTestCase {
             clusterState,
             builder,
             new ToXContent.MapParams(singletonMap(Metadata.CONTEXT_MODE_PARAM, Metadata.CONTEXT_MODE_API)),
-            41
+            38
         );
         builder.endObject();
 
@@ -206,12 +206,6 @@ public class ClusterStateTests extends ESTestCase {
                               "max_index_version":%s
                             }
                           },
-                          "transport_versions" : [
-                            {
-                              "node_id" : "nodeId1",
-                              "transport_version" : "%s"
-                            }
-                          ],
                           "metadata": {
                             "cluster_uuid": "clusterUUID",
                             "cluster_uuid_committed": false,
@@ -364,7 +358,6 @@ public class ClusterStateTests extends ESTestCase {
                     Version.CURRENT,
                     IndexVersion.MINIMUM_COMPATIBLE,
                     IndexVersion.current(),
-                    TransportVersion.current(),
                     IndexVersion.current(),
                     IndexVersion.current(),
                     allocationId,
@@ -393,7 +386,7 @@ public class ClusterStateTests extends ESTestCase {
 
         XContentBuilder builder = JsonXContent.contentBuilder().prettyPrint();
         builder.startObject();
-        writeChunks(clusterState, builder, new ToXContent.MapParams(mapParams), 41);
+        writeChunks(clusterState, builder, new ToXContent.MapParams(mapParams), 38);
         builder.endObject();
 
         assertEquals(
@@ -461,12 +454,6 @@ public class ClusterStateTests extends ESTestCase {
                           "max_index_version" : %s
                         }
                       },
-                      "transport_versions" : [
-                        {
-                          "node_id" : "nodeId1",
-                          "transport_version" : "%s"
-                        }
-                      ],
                       "metadata" : {
                         "cluster_uuid" : "clusterUUID",
                         "cluster_uuid_committed" : false,
@@ -615,7 +602,6 @@ public class ClusterStateTests extends ESTestCase {
                 Version.CURRENT,
                 IndexVersion.MINIMUM_COMPATIBLE,
                 IndexVersion.current(),
-                TransportVersion.current(),
                 IndexVersion.current(),
                 IndexVersion.current(),
                 allocationId,
@@ -644,7 +630,7 @@ public class ClusterStateTests extends ESTestCase {
 
         XContentBuilder builder = JsonXContent.contentBuilder().prettyPrint();
         builder.startObject();
-        writeChunks(clusterState, builder, new ToXContent.MapParams(mapParams), 41);
+        writeChunks(clusterState, builder, new ToXContent.MapParams(mapParams), 38);
         builder.endObject();
 
         assertEquals(
@@ -712,12 +698,6 @@ public class ClusterStateTests extends ESTestCase {
                           "max_index_version" : %s
                         }
                       },
-                      "transport_versions" : [
-                        {
-                          "node_id" : "nodeId1",
-                          "transport_version" : "%s"
-                        }
-                      ],
                       "metadata" : {
                         "cluster_uuid" : "clusterUUID",
                         "cluster_uuid_committed" : false,
@@ -872,7 +852,6 @@ public class ClusterStateTests extends ESTestCase {
                 Version.CURRENT,
                 IndexVersion.MINIMUM_COMPATIBLE,
                 IndexVersion.current(),
-                TransportVersion.current(),
                 IndexVersion.current(),
                 IndexVersion.current(),
                 allocationId,
@@ -919,7 +898,7 @@ public class ClusterStateTests extends ESTestCase {
 
         XContentBuilder builder = JsonXContent.contentBuilder().prettyPrint();
         builder.startObject();
-        writeChunks(clusterState, builder, ToXContent.EMPTY_PARAMS, 27);
+        writeChunks(clusterState, builder, ToXContent.EMPTY_PARAMS, 25);
         builder.endObject();
 
         assertEquals(Strings.format("""
@@ -930,7 +909,6 @@ public class ClusterStateTests extends ESTestCase {
               "master_node" : null,
               "blocks" : { },
               "nodes" : { },
-              "transport_versions" : [ ],
               "metadata" : {
                 "cluster_uuid" : "clusterUUID",
                 "cluster_uuid_committed" : false,

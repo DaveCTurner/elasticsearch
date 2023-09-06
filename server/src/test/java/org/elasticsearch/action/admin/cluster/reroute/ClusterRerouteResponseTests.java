@@ -126,12 +126,6 @@ public class ClusterRerouteResponseTests extends ESTestCase {
                             "max_index_version": %s
                           }
                         },
-                        "transport_versions": [
-                          {
-                            "node_id": "node0",
-                            "transport_version": "8000099"
-                          }
-                        ],
                         "metadata": {
                           "cluster_uuid": "_na_",
                           "cluster_uuid_committed": false,
