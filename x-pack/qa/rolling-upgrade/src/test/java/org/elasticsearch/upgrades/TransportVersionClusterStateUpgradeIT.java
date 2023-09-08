@@ -9,6 +9,7 @@ package org.elasticsearch.upgrades;
 
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.TransportVersion;
+import org.elasticsearch.TransportVersions;
 import org.elasticsearch.Version;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.common.util.Maps;
@@ -26,7 +27,10 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
 
     public void testReadsInferredTransportVersions() throws IOException {
         assumeTrue("TransportVersion introduced in 8.8.0", UPGRADE_FROM_VERSION.before(Version.V_8_8_0));
-        assumeTrue("This only has visible effects when upgrading beyond 8.8.0", TransportVersion.current().after(TransportVersion.V_8_8_0));
+        assumeTrue(
+            "This only has visible effects when upgrading beyond 8.8.0",
+            TransportVersion.current().after(TransportVersions.V_8_8_0)
+        );
         assumeTrue("Only runs on the mixed cluster", CLUSTER_TYPE == ClusterType.MIXED);
         // if the master is not upgraded, and the secondary node is, then the cluster info from the secondary
         // should have inferred transport versions in it
@@ -53,7 +57,7 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
                 assertThat(
                     "Node " + ver.getKey() + " should have an inferred transport version",
                     tvs.get(ver.getKey()),
-                    equalTo(TransportVersion.V_8_8_0)
+                    equalTo(TransportVersions.V_8_8_0)
                 );
             }
         }
@@ -61,7 +65,10 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
 
     public void testCompletesRealTransportVersions() throws IOException {
         assumeTrue("TransportVersion introduced in 8.8.0", UPGRADE_FROM_VERSION.before(Version.V_8_8_0));
-        assumeTrue("This only has visible effects when upgrading beyond 8.8.0", TransportVersion.current().after(TransportVersion.V_8_8_0));
+        assumeTrue(
+            "This only has visible effects when upgrading beyond 8.8.0",
+            TransportVersion.current().after(TransportVersions.V_8_8_0)
+        );
         assumeTrue("Only runs on the upgraded cluster", CLUSTER_TYPE == ClusterType.UPGRADED);
         // once everything is upgraded, the master should fill in the real transport versions
 
