@@ -151,6 +151,32 @@ class ActionListenerImplementations {
         }
     }
 
+    static final class WrappedMappedActionListener<Response, MappedResponse> extends DelegatingActionListener<Response, MappedResponse> {
+
+        private final CheckedFunction<Response, MappedResponse, Exception> fn;
+
+        WrappedMappedActionListener(CheckedFunction<Response, MappedResponse, Exception> fn, ActionListener<MappedResponse> delegate) {
+            super(delegate);
+            this.fn = fn;
+        }
+
+        @Override
+        public void onResponse(Response response) {
+            try {
+                delegate.onResponse(fn.apply(response));
+            } catch (Exception e) {
+                delegate.onFailure(e);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return super.toString() + "/" + fn;
+        }
+
+        // TODO overrides for map/safeMap/wrapMap/delegateFailure/...
+    }
+
     private static void expectNoException(RuntimeException e) {
         assert false : e;
         throw e;

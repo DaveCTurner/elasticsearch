@@ -179,25 +179,17 @@ public class ElasticsearchMappings {
                     putMappingRequest.source(mapping, XContentType.JSON);
                     putMappingRequest.origin(ML_ORIGIN);
                     putMappingRequest.masterNodeTimeout(masterNodeTimeout);
-                    executeAsyncWithOrigin(
-                        client,
-                        ML_ORIGIN,
-                        PutMappingAction.INSTANCE,
-                        putMappingRequest,
-                        ActionListener.wrap(response -> {
-                            if (response.isAcknowledged()) {
-                                listener.onResponse(true);
-                            } else {
-                                listener.onFailure(
-                                    new ElasticsearchException(
-                                        "Attempt to put missing mapping in indices "
-                                            + Arrays.toString(indicesThatRequireAnUpdate)
-                                            + " was not acknowledged"
-                                    )
-                                );
-                            }
-                        }, listener::onFailure)
-                    );
+                    executeAsyncWithOrigin(client, ML_ORIGIN, PutMappingAction.INSTANCE, putMappingRequest, listener.wrapMap(response -> {
+                        if (response.isAcknowledged()) {
+                            return true;
+                        } else {
+                            throw new ElasticsearchException(
+                                "Attempt to put missing mapping in indices "
+                                    + Arrays.toString(indicesThatRequireAnUpdate)
+                                    + " was not acknowledged"
+                            );
+                        }
+                    }));
                 } else {
                     logger.trace("Mappings are up to date.");
                     listener.onResponse(true);

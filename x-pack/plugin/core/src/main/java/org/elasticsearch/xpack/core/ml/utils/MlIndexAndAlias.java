@@ -206,10 +206,7 @@ public final class MlIndexAndAlias {
             client.threadPool().getThreadContext(),
             ML_ORIGIN,
             createIndexRequest,
-            ActionListener.<CreateIndexResponse>wrap(
-                r -> indexCreatedListener.onResponse(r.isAcknowledged()),
-                indexCreatedListener::onFailure
-            ),
+            indexCreatedListener.<CreateIndexResponse>wrapMap(AcknowledgedResponse::isAcknowledged),
             client.admin().indices()::create
         );
     }
@@ -223,10 +220,7 @@ public final class MlIndexAndAlias {
             client.threadPool().getThreadContext(),
             ML_ORIGIN,
             healthRequest,
-            ActionListener.<ClusterHealthResponse>wrap(
-                response -> listener.onResponse(response.isTimedOut() == false),
-                listener::onFailure
-            ),
+            listener.<ClusterHealthResponse>wrapMap(r -> r.isTimedOut() == false),
             client.admin().cluster()::health
         );
     }
@@ -290,7 +284,7 @@ public final class MlIndexAndAlias {
             client.threadPool().getThreadContext(),
             ML_ORIGIN,
             request,
-            ActionListener.<AcknowledgedResponse>wrap(resp -> listener.onResponse(resp.isAcknowledged()), listener::onFailure),
+            listener.wrapMap(AcknowledgedResponse::isAcknowledged),
             client.admin().indices()::aliases
         );
     }
@@ -359,14 +353,12 @@ public final class MlIndexAndAlias {
             return;
         }
 
-        ActionListener<AcknowledgedResponse> innerListener = ActionListener.wrap(response -> {
+        executeAsyncWithOrigin(client, ML_ORIGIN, PutComposableIndexTemplateAction.INSTANCE, templateRequest, listener.wrapMap(response -> {
             if (response.isAcknowledged() == false) {
                 logger.warn("error adding template [{}], request was not acknowledged", templateRequest.name());
             }
-            listener.onResponse(response.isAcknowledged());
-        }, listener::onFailure);
-
-        executeAsyncWithOrigin(client, ML_ORIGIN, PutComposableIndexTemplateAction.INSTANCE, templateRequest, innerListener);
+            return response.isAcknowledged();
+        }));
     }
 
     public static boolean hasIndexTemplate(ClusterState state, String templateName) {

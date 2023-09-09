@@ -45,9 +45,7 @@ public class UpdateSettingsStep extends AsyncActionStep {
         UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(indexMetadata.getIndex().getName()).masterNodeTimeout(
             TimeValue.MAX_VALUE
         ).settings(settings);
-        getClient().admin()
-            .indices()
-            .updateSettings(updateSettingsRequest, ActionListener.wrap(response -> listener.onResponse(null), listener::onFailure));
+        getClient().admin().indices().updateSettings(updateSettingsRequest, listener.wrapMap(r -> null));
     }
 
     public Settings getSettings() {

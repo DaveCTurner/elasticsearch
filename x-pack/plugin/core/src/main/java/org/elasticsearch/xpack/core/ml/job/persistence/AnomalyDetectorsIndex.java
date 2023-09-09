@@ -103,19 +103,6 @@ public final class AnomalyDetectorsIndex {
         TimeValue masterNodeTimeout,
         final ActionListener<Boolean> finalListener
     ) {
-        final ActionListener<Boolean> stateIndexAndAliasCreated = ActionListener.wrap(success -> {
-            final ClusterHealthRequest request = new ClusterHealthRequest(AnomalyDetectorsIndex.jobStateIndexWriteAlias())
-                .waitForYellowStatus()
-                .masterNodeTimeout(masterNodeTimeout);
-            executeAsyncWithOrigin(
-                client,
-                ML_ORIGIN,
-                ClusterHealthAction.INSTANCE,
-                request,
-                ActionListener.wrap(r -> finalListener.onResponse(r.isTimedOut() == false), finalListener::onFailure)
-            );
-        }, finalListener::onFailure);
-
         MlIndexAndAlias.createIndexAndAliasIfNecessary(
             client,
             state,
@@ -123,7 +110,16 @@ public final class AnomalyDetectorsIndex {
             AnomalyDetectorsIndexFields.STATE_INDEX_PREFIX,
             AnomalyDetectorsIndex.jobStateIndexWriteAlias(),
             masterNodeTimeout,
-            stateIndexAndAliasCreated
+            finalListener.delegateFailureAndWrap(
+                (l, success) -> executeAsyncWithOrigin(
+                    client,
+                    ML_ORIGIN,
+                    ClusterHealthAction.INSTANCE,
+                    new ClusterHealthRequest(AnomalyDetectorsIndex.jobStateIndexWriteAlias()).waitForYellowStatus()
+                        .masterNodeTimeout(masterNodeTimeout),
+                    l.wrapMap(r -> r.isTimedOut() == false)
+                )
+            )
         );
     }
 

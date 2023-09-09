@@ -78,6 +78,15 @@ public interface ActionListener<Response> {
     }
 
     /**
+     * Same as {@link #map(CheckedFunction)} except that exceptions from our {@link #onResponse} are permitted, and wrapped back into
+     * {@link #onFailure}.
+     */
+    default <T> ActionListener<T> wrapMap(CheckedFunction<T, Response, Exception> fn) {
+        // TODO unit tests needed
+        return new ActionListenerImplementations.WrappedMappedActionListener<>(fn, this);
+    }
+
+    /**
      * Creates a listener that delegates all responses it receives to this instance.
      *
      * @param bc BiConsumer invoked with delegate listener and exception

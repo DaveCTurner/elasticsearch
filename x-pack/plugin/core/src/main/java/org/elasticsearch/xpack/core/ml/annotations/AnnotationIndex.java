@@ -70,20 +70,20 @@ public class AnnotationIndex {
         TimeValue masterNodeTimeout,
         final ActionListener<Boolean> finalListener
     ) {
-
-        final ActionListener<Boolean> annotationsIndexCreatedListener = ActionListener.wrap(success -> {
-            final ClusterHealthRequest request = new ClusterHealthRequest(READ_ALIAS_NAME).waitForYellowStatus()
-                .masterNodeTimeout(masterNodeTimeout);
-            executeAsyncWithOrigin(
-                client,
-                ML_ORIGIN,
-                ClusterHealthAction.INSTANCE,
-                request,
-                ActionListener.wrap(r -> finalListener.onResponse(r.isTimedOut() == false), finalListener::onFailure)
-            );
-        }, finalListener::onFailure);
-
-        createAnnotationsIndexIfNecessary(client, state, masterNodeTimeout, annotationsIndexCreatedListener);
+        createAnnotationsIndexIfNecessary(
+            client,
+            state,
+            masterNodeTimeout,
+            finalListener.delegateFailureAndWrap(
+                (l, success) -> executeAsyncWithOrigin(
+                    client,
+                    ML_ORIGIN,
+                    ClusterHealthAction.INSTANCE,
+                    new ClusterHealthRequest(READ_ALIAS_NAME).waitForYellowStatus().masterNodeTimeout(masterNodeTimeout),
+                    l.wrapMap(r -> r.isTimedOut() == false)
+                )
+            )
+        );
     }
 
     /**

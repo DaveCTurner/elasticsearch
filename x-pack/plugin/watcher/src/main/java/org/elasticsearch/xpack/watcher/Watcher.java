@@ -16,6 +16,7 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor2;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.bootstrap.BootstrapCheck;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
@@ -822,9 +823,11 @@ public class Watcher extends Plugin implements SystemIndexPlugin, ScriptPlugin, 
         if (manuallyStopped == false) {
             WatcherServiceRequest serviceRequest = new WatcherServiceRequest();
             serviceRequest.stop();
-            originClient.execute(WatcherServiceAction.INSTANCE, serviceRequest, ActionListener.wrap((response) -> {
-                listener.onResponse(Collections.singletonMap("manually_stopped", manuallyStopped));
-            }, listener::onFailure));
+            originClient.execute(
+                WatcherServiceAction.INSTANCE,
+                serviceRequest,
+                listener.wrapMap(ignored -> Collections.singletonMap("manually_stopped", false))
+            );
         } else {
             // If Watcher is manually stopped, we don't want to stop it AGAIN, so just call the listener.
             listener.onResponse(Collections.singletonMap("manually_stopped", manuallyStopped));
@@ -843,9 +846,7 @@ public class Watcher extends Plugin implements SystemIndexPlugin, ScriptPlugin, 
         if (manuallyStopped == false) {
             WatcherServiceRequest serviceRequest = new WatcherServiceRequest();
             serviceRequest.start();
-            originClient.execute(WatcherServiceAction.INSTANCE, serviceRequest, ActionListener.wrap((response) -> {
-                listener.onResponse(response.isAcknowledged());
-            }, listener::onFailure));
+            originClient.execute(WatcherServiceAction.INSTANCE, serviceRequest, listener.wrapMap(AcknowledgedResponse::isAcknowledged));
         } else {
             // Watcher was manually stopped before we got there, don't start it.
             listener.onResponse(true);
