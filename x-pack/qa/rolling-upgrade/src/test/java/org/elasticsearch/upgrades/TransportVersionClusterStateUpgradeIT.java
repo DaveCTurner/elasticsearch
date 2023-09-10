@@ -62,10 +62,12 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
             case MIXED -> {
                 if (UPGRADE_FROM_VERSION.before(Version.V_8_8_0)) {
                     assertFalse(description, hasTransportVersions);
-                } else if (UPGRADE_FROM_VERSION.onOrAfter(Version.V_8_11_0)) {
+                } else if (UPGRADE_FROM_VERSION.before(Version.V_8_11_0)) {
+                    assertTrue(description, hasNodesVersions || hasTransportVersions);
+                } else {
                     assertFalse(description, hasTransportVersions);
                     assertTrue(description, hasNodesVersions);
-                } // else could see either in the response
+                }
             }
             case UPGRADED -> {
                 assertFalse(description, hasTransportVersions);
