@@ -91,7 +91,7 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
                 if (nodeVersion.equals(Version.CURRENT)) {
                     assertEquals(nodeDescription, TransportVersion.current(), transportVersion);
                 } else if (nodeVersion.after(Version.V_8_8_0)) {
-                    assertTrue(nodeDescription, TransportVersions.V_8_8_0.after(transportVersion));
+                    assertTrue(nodeDescription, transportVersion.after(TransportVersions.V_8_8_0));
                 } else {
                     assertEquals(nodeDescription, TransportVersions.V_8_8_0, transportVersion);
                 }
