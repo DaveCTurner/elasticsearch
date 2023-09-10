@@ -561,42 +561,133 @@ public class ActionListenerTests extends ESTestCase {
     public void testStackedWrappers() {
         new Runnable() {
 
-            private Object innerOnResponseResult;
-            private Object innerOnFailureResult;
+            private final Throwable innerOnResponseResult;
+            private final Throwable innerOnFailureResult;
 
             private boolean innerOnResponseCalled;
             private boolean innerOnFailureCalled;
 
-            private Integer expectedInnerResponse;
+            private int exceptionIndex = 0;
+            private final Exception outerException = newException();
+
+            private Integer expectedInnerResponseFromOuterOnResponse = 1;
+            private String expectedInnerExceptionMessageFromOuterOnResponse = null;
+            private String expectedInnerExceptionMessageFromOuterOnFailure = outerException.getMessage();
             private String expectedInnerExceptionMessage;
 
-            private int exceptionIndex = 0;
+            private Throwable expectedOuterOnResponseResult;
+            private Throwable expectedOuterOnFailureResult;
 
-            
+            private boolean outerOnResponseCallsInnerOnResponse = true;
+            private boolean outerOnResponseCallsInnerOnFailure = false;
+            private boolean outerOnFailureCallsInnerOnFailure = true;
+
+            private ActionListener<Integer> listener = new InnerListener();
 
             {
                 if (randomBoolean()) {
-                    innerOnResponseResult = null;
+                    innerOnResponseResult = expectedOuterOnResponseResult = null;
                 } else {
-                    innerOnResponseResult = new CallingOnResponseThrowsException();
+                    innerOnResponseResult = expectedOuterOnResponseResult = new CallingOnResponseThrowsException();
                 }
 
                 if (randomBoolean()) {
-                    innerOnFailureResult = null;
+                    innerOnFailureResult = expectedOuterOnFailureResult = null;
                 } else {
-                    innerOnFailureResult = new CallingOnFailureThrowsException();
+                    innerOnFailureResult = expectedOuterOnFailureResult = new CallingOnFailureThrowsException();
                 }
+            }
+
+            private Exception newException() {
+                return new ElasticsearchException(Integer.toString(exceptionIndex++));
             }
 
             @Override
             public void run() {
+                for (int i = between(0, 4); i > 0; i--) {
+                    addWrapper();
+                }
+
+                logger.info("resulting listener: {}", listener);
+
+                if (randomBoolean()) {
+                    logger.info("completing with onResponse(1)");
+                    expectedInnerExceptionMessage = expectedInnerExceptionMessageFromOuterOnResponse;
+                    final Runnable listenerCompleter = () -> listener.onResponse(1);
+                    if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
+                        expectThrows(CallingOnResponseThrowsException.class, listenerCompleter::run);
+                    } else if (expectedOuterOnResponseResult instanceof CallingOnResponseIsAnError) {
+                        expectThrows(AssertionError.class, listenerCompleter::run);
+                    } else if (expectedOuterOnResponseResult == null) {
+                        listenerCompleter.run();
+                    } else {
+                        fail("impossible");
+                    }
+
+                    assertEquals(outerOnResponseCallsInnerOnResponse, innerOnResponseCalled);
+                    assertEquals(outerOnResponseCallsInnerOnFailure, innerOnFailureCalled);
+                } else {
+                    logger.info("completing with onFailure(outerException)");
+                    expectedInnerExceptionMessage = expectedInnerExceptionMessageFromOuterOnFailure;
+                    final Runnable listenerCompleter = () -> listener.onFailure(outerException);
+                    if (expectedOuterOnFailureResult instanceof CallingOnFailureThrowsException) {
+                        expectThrows(CallingOnFailureThrowsException.class, listenerCompleter::run);
+                    } else if (expectedOuterOnFailureResult instanceof CallingOnFailureIsAnError) {
+                        expectThrows(AssertionError.class, listenerCompleter::run);
+                    } else if (expectedOuterOnFailureResult == null) {
+                        listenerCompleter.run();
+                    } else {
+                        fail("impossible");
+                    }
+
+                    assertFalse(innerOnResponseCalled);
+                    assertEquals(outerOnFailureCallsInnerOnFailure, innerOnFailureCalled);
+                }
+            }
+
+            private void addWrapper() {
+                switch (between(1, 2)) {
+                    case 1 -> {
+                        final int factor = randomFrom(2, 3, 5, 7);
+                        logger.info("wrapping with map(*{})", factor);
+                        listener = listener.map(i -> i * factor);
+                        expectedInnerResponseFromOuterOnResponse *= factor;
+                        if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
+                            expectedOuterOnResponseResult = new CallingOnResponseIsAnError();
+                        }
+                        if (expectedOuterOnFailureResult instanceof CallingOnFailureThrowsException) {
+                            expectedOuterOnFailureResult = new CallingOnFailureIsAnError();
+                        }
+
+                    }
+                    case 2 -> {
+                        final var exception = newException();
+                        logger.info("wrapping with map(throwing({}))", exception.getMessage());
+                        listener = listener.map(i -> { throw exception; });
+                        outerOnResponseCallsInnerOnResponse = false;
+                        outerOnResponseCallsInnerOnFailure = outerOnFailureCallsInnerOnFailure;
+
+                        expectedInnerExceptionMessageFromOuterOnResponse = exception.getMessage();
+
+                        if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
+                            expectedOuterOnResponseResult = new CallingOnResponseIsAnError();
+                        }
+                        if (expectedOuterOnFailureResult instanceof CallingOnFailureThrowsException) {
+                            expectedOuterOnFailureResult = new CallingOnFailureIsAnError();
+                        }
+
+                    }
+                    default -> fail("impossible");
+                }
 
             }
 
             private static class CallingOnResponseThrowsException extends RuntimeException {}
+
             private static class CallingOnFailureThrowsException extends RuntimeException {}
 
             private static class CallingOnResponseIsAnError extends AssertionError {}
+
             private static class CallingOnFailureIsAnError extends AssertionError {}
 
             private class InnerListener implements ActionListener<Integer> {
@@ -604,7 +695,7 @@ public class ActionListenerTests extends ESTestCase {
                 public void onResponse(Integer actualInnerResult) {
                     assert innerOnResponseCalled == false;
                     innerOnResponseCalled = true;
-                    assertEquals(expectedInnerResponse, actualInnerResult);
+                    assertEquals(expectedInnerResponseFromOuterOnResponse, actualInnerResult);
                     completeHandler(innerOnResponseResult);
                 }
 
@@ -625,7 +716,13 @@ public class ActionListenerTests extends ESTestCase {
                         fail("impossible");
                     }
                 }
-            }    }.run();
+
+                @Override
+                public String toString() {
+                    return "InnerListener";
+                }
+            }
+        }.run();
     }
 
     private static void runReleaseAfterTest(boolean successResponse, final boolean throwFromOnResponse) {
