@@ -39,7 +39,9 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
     }
 
     private boolean runTransportVersionsTest() throws Exception {
-        final var clusterState = ObjectPath.createFromResponse(client().performRequest(new Request("GET", "/_cluster/state/nodes")));
+        final var clusterState = ObjectPath.createFromResponse(
+            client().performRequest(new Request("GET", "/_cluster/state" + oneOf("", "/nodes") + oneOf("", "?local")))
+        );
         final var description = clusterState.toString();
 
         final var nodeIds = clusterState.evaluateMapKeys("nodes");
