@@ -39,10 +39,7 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
         final var nodeIds = clusterState.evaluateMapKeys("nodes");
         final Map<String, Version> versionsByNodeId = Maps.newHashMapWithExpectedSize(nodeIds.size());
         for (final var nodeId : nodeIds) {
-            versionsByNodeId.put(
-                clusterState.evaluate("nodes." + nodeId + ".id"),
-                Version.fromString(clusterState.evaluate("nodes." + nodeId + ".version"))
-            );
+            versionsByNodeId.put(nodeId, Version.fromString(clusterState.evaluate("nodes." + nodeId + ".version")));
         }
 
         final var hasTransportVersions = clusterState.evaluate("transport_versions") != null;
