@@ -8,6 +8,7 @@
 package org.elasticsearch.action;
 
 import org.apache.lucene.store.AlreadyClosedException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.core.Assertions;
@@ -31,6 +32,7 @@ import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.in;
 import static org.hamcrest.Matchers.instanceOf;
 
 public class ActionListenerTests extends ESTestCase {
@@ -554,6 +556,76 @@ public class ActionListenerTests extends ESTestCase {
         runReleaseAfterTest(true, false);
         runReleaseAfterTest(true, true);
         runReleaseAfterTest(false, false);
+    }
+
+    public void testStackedWrappers() {
+        new Runnable() {
+
+            private Object innerOnResponseResult;
+            private Object innerOnFailureResult;
+
+            private boolean innerOnResponseCalled;
+            private boolean innerOnFailureCalled;
+
+            private Integer expectedInnerResponse;
+            private String expectedInnerExceptionMessage;
+
+            private int exceptionIndex = 0;
+
+            
+
+            {
+                if (randomBoolean()) {
+                    innerOnResponseResult = null;
+                } else {
+                    innerOnResponseResult = new CallingOnResponseThrowsException();
+                }
+
+                if (randomBoolean()) {
+                    innerOnFailureResult = null;
+                } else {
+                    innerOnFailureResult = new CallingOnFailureThrowsException();
+                }
+            }
+
+            @Override
+            public void run() {
+
+            }
+
+            private static class CallingOnResponseThrowsException extends RuntimeException {}
+            private static class CallingOnFailureThrowsException extends RuntimeException {}
+
+            private static class CallingOnResponseIsAnError extends AssertionError {}
+            private static class CallingOnFailureIsAnError extends AssertionError {}
+
+            private class InnerListener implements ActionListener<Integer> {
+                @Override
+                public void onResponse(Integer actualInnerResult) {
+                    assert innerOnResponseCalled == false;
+                    innerOnResponseCalled = true;
+                    assertEquals(expectedInnerResponse, actualInnerResult);
+                    completeHandler(innerOnResponseResult);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    assert innerOnFailureCalled == false;
+                    innerOnFailureCalled = true;
+                    assertEquals(expectedInnerExceptionMessage, e.getMessage());
+                    completeHandler(innerOnFailureResult);
+                }
+
+                private static void completeHandler(Object result) {
+                    if (result instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    } else if (result instanceof Error error) {
+                        throw error;
+                    } else if (result != null) {
+                        fail("impossible");
+                    }
+                }
+            }    }.run();
     }
 
     private static void runReleaseAfterTest(boolean successResponse, final boolean throwFromOnResponse) {
