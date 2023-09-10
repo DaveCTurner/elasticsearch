@@ -12,6 +12,8 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.test.ESTestCase;
 import org.junit.Before;
 
+import java.util.function.Function;
+
 /**
  * Test suite for the various combinators on {@link ActionListener}, verifying that the various optimisations which apply to stacks of the
  * combinators don't affect their semantics.
@@ -41,6 +43,8 @@ public class ActionListenerStackTests extends ESTestCase {
 
     private ActionListener<Integer> listener = new InnerListener();
 
+    private ExpectedBehaviour expectedBehaviour;
+
     @Before
     public void resetStack() {
         if (randomBoolean()) {
@@ -58,6 +62,7 @@ public class ActionListenerStackTests extends ESTestCase {
         exceptionIndex = 0;
         outerException = newException();
         listener = new InnerListener();
+        expectedBehaviour = new ExpectedBehaviour(null, null);
     }
 
     private Exception newException() {
@@ -126,24 +131,28 @@ public class ActionListenerStackTests extends ESTestCase {
                     default -> throw new AssertionError("impossible");
                 };
 
-                expectedBehaviour = new ExpectedBehaviour(
-                    onResponseForbidException(i -> i * factor),
-                    onFailureForbidException(e -> e)
-                );
+                expectedBehaviour = new ExpectedBehaviour(onResponseForbidException(i -> i * factor), onFailureForbidException(e -> e));
             }
             case 2 -> {
                 final var exception = newException();
                 logger.info("wrapping with map(throwing({}))", exception.getMessage());
                 listener = listener.map(i -> { throw exception; });
 
-                expectedBehaviour = new ExpectedBehaviour(
-                    onFailureForbidException(e -> exception),
-                    onFailureForbidException(e -> e)
-                );
+                expectedBehaviour = new ExpectedBehaviour(onFailureForbidException(e -> exception), onFailureForbidException(e -> e));
             }
             default -> fail("impossible");
         }
     }
+
+    private Object onResponseForbidException(Function<Integer, Object> newBehaviour) {
+        return null;
+    }
+
+    private Object onFailureForbidException(Function<Exception, Exception> newBehaviour) {
+        return null;
+    }
+
+    private record ExpectedBehaviour(Object onResponseBehaviour, Object onFailureBehaviour) {}
 
     @SuppressWarnings("NewClassNamingConvention")
     private static class CallingOnResponseThrowsException extends RuntimeException {}
