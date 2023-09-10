@@ -14,7 +14,6 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.test.rest.ObjectPath;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -37,9 +36,9 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
         final var clusterState = ObjectPath.createFromResponse(client().performRequest(new Request("GET", "/_cluster/state/nodes")));
         final var description = clusterState.toString();
 
-        final Map<String, Object> nodesMap = clusterState.evaluate("nodes");
-        final Map<String, Version> versionsByNodeId = Maps.newHashMapWithExpectedSize(nodesMap.size());
-        for (final var nodeId : nodesMap.keySet()) {
+        final var nodeIds = clusterState.evaluateMapKeys("nodes");
+        final Map<String, Version> versionsByNodeId = Maps.newHashMapWithExpectedSize(nodeIds.size());
+        for (final var nodeId : nodeIds) {
             versionsByNodeId.put(
                 clusterState.evaluate("nodes." + nodeId + ".id"),
                 Version.fromString(clusterState.evaluate("nodes." + nodeId + ".version"))
@@ -82,8 +81,8 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
             assertTrue(description, UPGRADE_FROM_VERSION.onOrAfter(Version.V_8_8_0));
             assertNotEquals(description, ClusterType.UPGRADED, CLUSTER_TYPE);
 
-            assertEquals(description, nodesMap.size(), ((List<?>) clusterState.evaluate("transport_versions")).size());
-            for (int i = 0; i < nodesMap.size(); i++) {
+            assertEquals(description, nodeIds.size(), clusterState.evaluateArraySize("transport_versions"));
+            for (int i = 0; i < nodeIds.size(); i++) {
                 final var path = "transport_versions." + i;
                 final String nodeId = clusterState.evaluate(path + ".node_id");
                 final var nodeDescription = nodeId + "/" + description;
@@ -100,8 +99,8 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
             }
         } else if (hasNodesVersions) {
             assertFalse(description, UPGRADE_FROM_VERSION.before(Version.V_8_11_0) && CLUSTER_TYPE == ClusterType.OLD);
-            assertEquals(description, nodesMap.size(), ((List<?>) clusterState.evaluate("nodes_versions")).size());
-            for (int i = 0; i < nodesMap.size(); i++) {
+            assertEquals(description, nodeIds.size(), clusterState.evaluateArraySize("nodes_versions"));
+            for (int i = 0; i < nodeIds.size(); i++) {
                 final var path = "nodes_versions." + i;
                 final String nodeId = clusterState.evaluate(path + ".node_id");
                 final var nodeDescription = nodeId + "/" + description;
