@@ -13,7 +13,8 @@ import org.elasticsearch.test.ESTestCase;
 import org.junit.Before;
 
 /**
- * Test suite for the various combinators on {@link ActionListener}, verifying that the various optimisations don't affect the semantics.
+ * Test suite for the various combinators on {@link ActionListener}, verifying that the various optimisations which apply to stacks of the
+ * combinators don't affect their semantics.
  */
 public class ActionListenerStackTests extends ESTestCase {
 
@@ -56,6 +57,7 @@ public class ActionListenerStackTests extends ESTestCase {
 
         exceptionIndex = 0;
         outerException = newException();
+        listener = new InnerListener();
     }
 
     private Exception newException() {
@@ -109,18 +111,7 @@ public class ActionListenerStackTests extends ESTestCase {
             case 0 -> {
                 // A no-op wrapper around the current listener, which disables optimisations without changing behaviour
                 logger.info("wrapping trivially");
-                final var oldListener = listener;
-                listener = new ActionListener<>() {
-                    @Override
-                    public void onResponse(Integer integer) {
-                        oldListener.onResponse(integer);
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        oldListener.onFailure(e);
-                    }
-                };
+                listener = new DisablesOptimisations(listener);
             }
             case 1 -> {
                 // A map() or equivalent wrapper
@@ -135,35 +126,23 @@ public class ActionListenerStackTests extends ESTestCase {
                     default -> throw new AssertionError("impossible");
                 };
 
-                expectedInnerResponseFromOuterOnResponse *= factor;
-                if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
-                    expectedOuterOnResponseResult = new CallingOnResponseIsAnError();
-                }
-                if (expectedOuterOnFailureResult instanceof CallingOnFailureThrowsException) {
-                    expectedOuterOnFailureResult = new CallingOnFailureIsAnError();
-                }
-
+                expectedBehaviour = new ExpectedBehaviour(
+                    onResponseForbidException(i -> i * factor),
+                    onFailureForbidException(e -> e)
+                );
             }
             case 2 -> {
                 final var exception = newException();
                 logger.info("wrapping with map(throwing({}))", exception.getMessage());
                 listener = listener.map(i -> { throw exception; });
-                outerOnResponseCallsInnerOnResponse = false;
-                outerOnResponseCallsInnerOnFailure = outerOnFailureCallsInnerOnFailure;
 
-                expectedInnerExceptionMessageFromOuterOnResponse = exception.getMessage();
-
-                if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
-                    expectedOuterOnResponseResult = new CallingOnResponseIsAnError();
-                }
-                if (expectedOuterOnFailureResult instanceof CallingOnFailureThrowsException) {
-                    expectedOuterOnFailureResult = new CallingOnFailureIsAnError();
-                }
-
+                expectedBehaviour = new ExpectedBehaviour(
+                    onFailureForbidException(e -> exception),
+                    onFailureForbidException(e -> e)
+                );
             }
             default -> fail("impossible");
         }
-
     }
 
     @SuppressWarnings("NewClassNamingConvention")
@@ -177,6 +156,26 @@ public class ActionListenerStackTests extends ESTestCase {
 
     @SuppressWarnings("NewClassNamingConvention")
     private static class CallingOnFailureIsAnError extends AssertionError {}
+
+    @SuppressWarnings("NewClassNamingConvention")
+    private static class DisablesOptimisations implements ActionListener<Integer> {
+
+        private final ActionListener<Integer> delegate;
+
+        DisablesOptimisations(ActionListener<Integer> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void onResponse(Integer integer) {
+            delegate.onResponse(integer);
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            delegate.onFailure(e);
+        }
+    }
 
     private class InnerListener implements ActionListener<Integer> {
         @Override
