@@ -646,11 +646,36 @@ public class ActionListenerTests extends ESTestCase {
             }
 
             private void addWrapper() {
-                switch (between(1, 2)) {
+                switch (between(0, 2)) {
+                    case 0 -> {
+                        // A no-op wrapper around the current listener, which disables optimisations without changing behaviour
+                        logger.info("wrapping trivially");
+                        final var oldListener = listener;
+                        listener = new ActionListener<>() {
+                            @Override
+                            public void onResponse(Integer integer) {
+                                oldListener.onResponse(integer);
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                oldListener.onFailure(e);
+                            }
+                        };
+                    }
                     case 1 -> {
+                        // A map() or equivalent wrapper
                         final int factor = randomFrom(2, 3, 5, 7);
-                        logger.info("wrapping with map(*{})", factor);
-                        listener = listener.map(i -> i * factor);
+                        final var wrapType = between(1, 3);
+                        logger.info("wrapping with map(*{}) type {}", factor, wrapType);
+                        listener = switch (wrapType) {
+                            case 1 -> listener.map(i -> i * factor);
+                            case 2 -> listener.safeMap(i -> i * factor);
+                            case 3 -> listener.delegateFailure((l, i) -> l.onResponse(i * factor));
+                            // TODO delegateFailureAndWrap
+                            default -> throw new AssertionError("impossible");
+                        };
+
                         expectedInnerResponseFromOuterOnResponse *= factor;
                         if (expectedOuterOnResponseResult instanceof CallingOnResponseThrowsException) {
                             expectedOuterOnResponseResult = new CallingOnResponseIsAnError();
