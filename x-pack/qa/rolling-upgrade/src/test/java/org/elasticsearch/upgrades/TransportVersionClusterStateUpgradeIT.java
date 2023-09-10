@@ -126,7 +126,7 @@ public class TransportVersionClusterStateUpgradeIT extends AbstractUpgradeTestCa
                         return false;
                     }
                 } else if (nodeVersion.after(VERSION_INTRODUCING_TRANSPORT_VERSIONS)) {
-                    assertTrue(nodeDescription, FIRST_TRANSPORT_VERSION.after(transportVersion));
+                    assertTrue(nodeDescription, transportVersion.after(FIRST_TRANSPORT_VERSION));
                 } else {
                     assertEquals(nodeDescription, TransportVersion.fromId(nodeVersion.id()), transportVersion);
                 }
