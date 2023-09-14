@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.common.CheckedBiConsumer;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
@@ -331,6 +332,22 @@ public class SubscribableListener<T> implements ActionListener<T> {
                 // nothing more can be done here
             }
         }
+    }
+
+    /**
+     * Creates and returns a new {@link SubscribableListener} {@code L} and subscribes {@code nextStep} to this listener such that if this
+     * listener is completed successfully with result {@code R} then {@code nextStep} is invoked with arguments {@code L} and {@code R}. If
+     * this listener is completed with exception {@code E} then so is {@code L}.
+     * <p>
+     * This can be used to construct a sequence of async actions, each starting with the result of the previous one:
+     * <pre>
+     * l.andThen((l1, o1) -> forkAction1(o1, args1, l1)).andThen((l2, o2) -> forkAction2(o2, args2, l2)).addListener(finalListener);
+     * </pre>
+     * After creating this chain, completing {@code l} will execute {@code forkAction1}, then {@code forkAction2}, and ultimately complete
+     * {@code finalListener}.
+     */
+    public <U> SubscribableListener<U> andThen(CheckedBiConsumer<ActionListener<U>, T, ? extends Exception> nextStep) {
+        return newForked(l -> addListener(l.delegateFailureAndWrap(nextStep)));
     }
 
     /**
