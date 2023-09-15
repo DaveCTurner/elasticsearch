@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.transform.action;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -44,7 +45,6 @@ import java.util.List;
 import java.util.Set;
 
 import static java.util.function.Predicate.not;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.elasticsearch.xpack.core.transform.TransformField.INDEX_DOC_TYPE;
 
@@ -72,23 +72,26 @@ public class TransportGetTransformAction extends AbstractTransportGetResourcesAc
         final ClusterState state = clusterService.state();
         TransformNodes.warnIfNoTransformNodes(state);
 
-        // Step 2: Search for all the transform tasks (matching the request) that *do not* have corresponding transform config.
-        ActionListener<QueryPage<TransformConfig>> searchTransformConfigsListener = ActionListener.wrap(r -> {
-            Set<String> transformConfigIds = r.results().stream().map(TransformConfig::getId).collect(toSet());
-            Collection<PersistentTasksCustomMetadata.PersistentTask<?>> transformTasks = TransformTask.findTransformTasks(
-                request.getId(),
-                state
-            );
-            List<Response.Error> errors = transformTasks.stream()
-                .map(PersistentTasksCustomMetadata.PersistentTask::getId)
-                .filter(not(transformConfigIds::contains))
-                .map(transformId -> new Response.Error("dangling_task", Strings.format(DANGLING_TASK_ERROR_MESSAGE_FORMAT, transformId)))
-                .collect(toList());
-            listener.onResponse(new Response(r.results(), r.count(), errors.isEmpty() ? null : errors));
-        }, listener::onFailure);
+        SubscribableListener
+            // Step 1: Search for all the transform configs matching the request.
+            .<QueryPage<TransformConfig>>newForked(
+                l -> searchResources(request, new TaskId(clusterService.localNode().getId(), task.getId()), l)
+            )
 
-        // Step 1: Search for all the transform configs matching the request.
-        searchResources(request, new TaskId(clusterService.localNode().getId(), task.getId()), searchTransformConfigsListener);
+            // Step 2: Search for all the transform tasks (matching the request) that *do not* have corresponding transform config.
+            .addListener(listener.map(r -> {
+                Set<String> transformConfigIds = r.results().stream().map(TransformConfig::getId).collect(toSet());
+                Collection<PersistentTasksCustomMetadata.PersistentTask<?>> transformTasks = TransformTask.findTransformTasks(
+                    request.getId(),
+                    state
+                );
+                List<Response.Error> errors = transformTasks.stream()
+                    .map(PersistentTasksCustomMetadata.PersistentTask::getId)
+                    .filter(not(transformConfigIds::contains))
+                    .map(id -> new Response.Error("dangling_task", Strings.format(DANGLING_TASK_ERROR_MESSAGE_FORMAT, id)))
+                    .toList();
+                return new Response(r.results(), r.count(), errors.isEmpty() ? null : errors);
+            }));
     }
 
     @Override

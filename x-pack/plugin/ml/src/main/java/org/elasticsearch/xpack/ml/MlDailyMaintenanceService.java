@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
@@ -205,24 +206,23 @@ public class MlDailyMaintenanceService implements Releasable {
     }
 
     private void triggerAnomalyDetectionMaintenance() {
-        // Step 3: Log any error that could have happened
-        ActionListener<AcknowledgedResponse> finalListener = ActionListener.wrap(
-            unused -> {},
-            e -> logger.error("An error occurred during [ML] maintenance tasks execution", e)
-        );
+        SubscribableListener
 
-        // Step 2: Delete expired data
-        ActionListener<AcknowledgedResponse> deleteJobsListener = ActionListener.wrap(
-            unused -> triggerDeleteExpiredDataTask(finalListener),
-            e -> {
+            // Step 1: Delete jobs that are in deleting state
+            .<AcknowledgedResponse>newForked(l -> triggerDeleteJobsInStateDeletingWithoutDeletionTask(l.delegateResponse((l2, e) -> {
                 logger.info("[ML] maintenance task: triggerDeleteJobsInStateDeletingWithoutDeletionTask failed", e);
                 // Note: Steps 1 and 2 are independent of each other and step 2 is executed even if step 1 failed.
-                triggerDeleteExpiredDataTask(finalListener);
-            }
-        );
+                l2.onResponse(AcknowledgedResponse.TRUE);
+            })))
 
-        // Step 1: Delete jobs that are in deleting state
-        triggerDeleteJobsInStateDeletingWithoutDeletionTask(deleteJobsListener);
+            // Step 2: Delete expired data
+            .<AcknowledgedResponse>andThen(
+                (l, unused) -> triggerDeleteExpiredDataTask(
+                    l.delegateResponse((l2, e) -> logger.error("An error occurred during [ML] maintenance tasks execution", e))
+                )
+            );
+
+        // Fire-and-forget action, no further steps
     }
 
     private void triggerDataFrameAnalyticsMaintenance() {
