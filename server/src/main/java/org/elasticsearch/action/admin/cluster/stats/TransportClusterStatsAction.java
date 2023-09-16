@@ -17,6 +17,8 @@ import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterSnapshotStats;
 import org.elasticsearch.cluster.ClusterState;
@@ -127,17 +129,16 @@ public class TransportClusterStatsAction extends TransportNodesAction<
             clusterService.threadPool().absoluteTimeInMillis()
         );
 
-        final ListenableFuture<MappingStats> mappingStatsStep = new ListenableFuture<>();
-        final ListenableFuture<AnalysisStats> analysisStatsStep = new ListenableFuture<>();
-        mappingStatsCache.get(metadata, cancellableTask::isCancelled, mappingStatsStep);
-        analysisStatsCache.get(metadata, cancellableTask::isCancelled, analysisStatsStep);
-        mappingStatsStep.addListener(
-            listener.delegateFailureAndWrap(
-                (l, mappingStats) -> analysisStatsStep.addListener(
-                    l.delegateFailureAndWrap(
-                        (ll, analysisStats) -> ActionListener.completeWith(
-                            ll,
-                            () -> new ClusterStatsResponse(
+        new Runnable() {
+            private MappingStats mappingStats;
+            private AnalysisStats analysisStats;
+
+            @Override
+            public void run() {
+                try (
+                    var listeners = new RefCountingListener(
+                        listener.map(
+                            ignored -> new ClusterStatsResponse(
                                 System.currentTimeMillis(),
                                 metadata.clusterUUID(),
                                 clusterService.getClusterName(),
@@ -150,9 +151,12 @@ public class TransportClusterStatsAction extends TransportNodesAction<
                             )
                         )
                     )
-                )
-            )
-        );
+                ) {
+                    mappingStatsCache.get(metadata, cancellableTask::isCancelled, listeners.acquire(r -> mappingStats = r));
+                    analysisStatsCache.get(metadata, cancellableTask::isCancelled, listeners.acquire(r -> analysisStats = r));
+                }
+            }
+        }.run();
     }
 
     @Override
