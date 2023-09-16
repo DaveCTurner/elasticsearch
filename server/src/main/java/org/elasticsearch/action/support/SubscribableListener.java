@@ -339,12 +339,13 @@ public class SubscribableListener<T> implements ActionListener<T> {
      * listener is completed successfully with result {@code R} then {@code nextStep} is invoked with arguments {@code L} and {@code R}. If
      * this listener is completed with exception {@code E} then so is {@code L}.
      * <p>
-     * This can be used to construct a sequence of async actions, each starting with the result of the previous one:
+     * This can be used to construct a sequence of async actions, each invoked with the result of the previous one:
      * <pre>
      * l.andThen((l1, o1) -> forkAction1(o1, args1, l1)).andThen((l2, o2) -> forkAction2(o2, args2, l2)).addListener(finalListener);
      * </pre>
-     * After creating this chain, completing {@code l} will execute {@code forkAction1}, then {@code forkAction2}, and ultimately complete
-     * {@code finalListener}.
+     * After creating this chain, completing {@code l} with a successful response will pass the response to {@code forkAction1}, which will
+     * on completion pass its response to {@code forkAction2}, which will in turn pass its response to {@code finalListener}. A failure of
+     * any step will bypass the remaining steps and ultimately fail {@code finalListener}.
      * <p>
      * The threading of the {@code nextStep} callback is the same as for listeners added with {@link #addListener}: if this listener is
      * already complete then {@code nextStep} is invoked on the thread calling {@link #andThen} and in its thread context, but if this
@@ -359,12 +360,13 @@ public class SubscribableListener<T> implements ActionListener<T> {
      * listener is completed successfully with result {@code R} then {@code nextStep} is invoked with arguments {@code L} and {@code R}. If
      * this listener is completed with exception {@code E} then so is {@code L}.
      * <p>
-     * This can be used to construct a sequence of async actions, each starting with the result of the previous one:
+     * This can be used to construct a sequence of async actions, each invoked with the result of the previous one:
      * <pre>
-     * l.andThen(x,t,(l1, o1) -> forkAction1(o1, args1, l1)).andThen(x,t,(l2, o2) -> forkAction2(o2, args2, l2)).addListener(finalListener);
+     * l.andThen(x, t, (l1,o1) -> forkAction1(o1,args1,l1)).andThen(x, t, (l2,o2) -> forkAction2(o2,args2,l2)).addListener(finalListener);
      * </pre>
-     * After creating this chain, completing {@code l} will execute {@code forkAction1}, then {@code forkAction2}, and ultimately complete
-     * {@code finalListener}.
+     * After creating this chain, completing {@code l} with a successful response will pass the response to {@code forkAction1}, which will
+     * on completion pass its response to {@code forkAction2}, which will in turn pass its response to {@code finalListener}. A failure of
+     * any step will bypass the remaining steps and ultimately fail {@code finalListener}.
      * <p>
      * The threading of the {@code nextStep} callback is the same as for listeners added with {@link #addListener}: if this listener is
      * already complete then {@code nextStep} is invoked on the thread calling {@link #andThen} and in its thread context, but if this
