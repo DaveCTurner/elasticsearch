@@ -15,6 +15,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -425,6 +426,88 @@ public class SubscribableListenerTests extends ESTestCase {
         assertFalse(chainedListener.isDone());
 
         initialListener.onFailure(new ElasticsearchException("simulated"));
-        assertEquals("simulated", expectThrows(ElasticsearchException.class, chainedListener::rawResult).getMessage());
+        assertComplete(chainedListener, "simulated");
+    }
+
+    public void testAndThenThreading() {
+        runAndThenThreadingTest(true);
+        runAndThenThreadingTest(false);
+    }
+
+    private static void runAndThenThreadingTest(boolean testSuccess) {
+        final var completeListener = testSuccess
+            ? SubscribableListener.newSucceeded(new Object())
+            : SubscribableListener.newFailed(new ElasticsearchException("immediate failure"));
+
+        assertComplete(
+            completeListener.andThen(r -> fail("should not fork"), null, ActionListener::onResponse),
+            testSuccess ? null : "immediate failure"
+        );
+
+        final var threadContext = new ThreadContext(Settings.EMPTY);
+        final var headerName = "test-header";
+        final var expectedHeader = randomAlphaOfLength(10);
+
+        final SubscribableListener<Object> deferredListener = new SubscribableListener<>();
+        final SubscribableListener<Object> chainedListener;
+        final AtomicReference<Runnable> forkedRunnable = new AtomicReference<>();
+
+        try (var ignored = threadContext.stashContext()) {
+            threadContext.putHeader(headerName, expectedHeader);
+            chainedListener = deferredListener.andThen(
+                r -> assertTrue(forkedRunnable.compareAndSet(null, r)),
+                threadContext,
+                (l, response) -> {
+                    assertEquals(expectedHeader, threadContext.getHeader(headerName));
+                    l.onResponse(response);
+                }
+            );
+        }
+
+        assertFalse(chainedListener.isDone());
+        assertNull(forkedRunnable.get());
+
+        final AtomicBoolean isComplete = new AtomicBoolean();
+
+        try (var ignored = threadContext.stashContext()) {
+            threadContext.putHeader(headerName, randomAlphaOfLength(10));
+            chainedListener.addListener(ActionListener.running(() -> {
+                assertEquals(expectedHeader, threadContext.getHeader(headerName));
+                assertTrue(isComplete.compareAndSet(false, true));
+            }));
+        }
+
+        try (var ignored = threadContext.stashContext()) {
+            threadContext.putHeader(headerName, randomAlphaOfLength(10));
+            if (testSuccess) {
+                deferredListener.onResponse(new Object());
+            } else {
+                deferredListener.onFailure(new ElasticsearchException("simulated failure"));
+            }
+        }
+
+        assertFalse(chainedListener.isDone());
+        assertFalse(isComplete.get());
+
+        try (var ignored = threadContext.stashContext()) {
+            threadContext.putHeader(headerName, randomAlphaOfLength(10));
+            forkedRunnable.get().run();
+        }
+
+        assertComplete(chainedListener, testSuccess ? null : "simulated failure");
+        assertTrue(isComplete.get());
+    }
+
+    private static void assertComplete(SubscribableListener<Object> listener, @Nullable String expectedFailureMessage) {
+        assertTrue(listener.isDone());
+        if (expectedFailureMessage == null) {
+            try {
+                listener.rawResult();
+            } catch (Exception e) {
+                throw new AssertionError("unexpected", e);
+            }
+        } else {
+            assertEquals(expectedFailureMessage, expectThrows(ElasticsearchException.class, listener::rawResult).getMessage());
+        }
     }
 }
