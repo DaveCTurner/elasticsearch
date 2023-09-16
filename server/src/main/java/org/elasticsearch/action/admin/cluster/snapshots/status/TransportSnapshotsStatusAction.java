@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.ThreadedActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterState;
@@ -25,7 +25,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.CollectionUtils;
-import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
@@ -47,6 +46,7 @@ import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.action.admin.cluster.snapshots.status.TransportNodesSnapshotsStatus.NodesSnapshotStatus;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -138,25 +138,30 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
             for (int i = 0; i < currentSnapshots.size(); i++) {
                 snapshots[i] = currentSnapshots.get(i).snapshot();
             }
-            client.executeLocally(
-                TransportNodesSnapshotsStatus.TYPE,
-                new TransportNodesSnapshotsStatus.Request(nodesIds.toArray(Strings.EMPTY_ARRAY)).snapshots(snapshots)
-                    .timeout(request.masterNodeTimeout()),
-                // fork to snapshot meta since building the response is expensive for large snapshots
-                new ThreadedActionListener<>(
-                    threadPool.executor(ThreadPool.Names.SNAPSHOT_META),
-                    listener.delegateFailureAndWrap(
-                        (l, nodeSnapshotStatuses) -> buildResponse(
-                            snapshotsInProgress,
-                            request,
-                            currentSnapshots,
-                            nodeSnapshotStatuses,
-                            cancellableTask,
-                            l
-                        )
+
+            SubscribableListener //
+                .<NodesSnapshotStatus>newForked(
+                    l -> client.executeLocally(
+                        TransportNodesSnapshotsStatus.TYPE,
+                        new TransportNodesSnapshotsStatus.Request(nodesIds.toArray(Strings.EMPTY_ARRAY)).snapshots(snapshots)
+                            .timeout(request.masterNodeTimeout()),
+                        l
                     )
                 )
-            );
+                .<SnapshotsStatusResponse>andThen(
+                    // fork to snapshot meta since building the response is expensive for large snapshots
+                    threadPool.executor(ThreadPool.Names.SNAPSHOT_META),
+                    threadPool.getThreadContext(),
+                    (l, nodeSnapshotStatuses) -> buildResponse(
+                        snapshotsInProgress,
+                        request,
+                        currentSnapshots,
+                        nodeSnapshotStatuses,
+                        cancellableTask,
+                        l
+                    )
+                )
+                .addListener(listener);
         } else {
             // We don't have any in-progress shards, just return current stats
             buildResponse(snapshotsInProgress, request, currentSnapshots, null, cancellableTask, listener);
@@ -168,7 +173,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
         SnapshotsInProgress snapshotsInProgress,
         SnapshotsStatusRequest request,
         List<SnapshotsInProgress.Entry> currentSnapshotEntries,
-        TransportNodesSnapshotsStatus.NodesSnapshotStatus nodeSnapshotStatuses,
+        NodesSnapshotStatus nodeSnapshotStatuses,
         CancellableTask task,
         ActionListener<SnapshotsStatusResponse> listener
     ) {
@@ -264,101 +269,113 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
         // Now add snapshots on disk that are not currently running
         final String repositoryName = request.repository();
         if (Strings.hasText(repositoryName) && CollectionUtils.isEmpty(request.snapshots()) == false) {
-            loadRepositoryData(snapshotsInProgress, request, builder, currentSnapshotNames, repositoryName, task, listener);
+            SubscribableListener //
+                .<RepositoryData>newForked(l -> repositoriesService.getRepositoryData(repositoryName, l))
+                .<SnapshotsStatusResponse>andThen(
+                    (l, repositoryData) -> doComputeResponse(
+                        snapshotsInProgress,
+                        request,
+                        builder,
+                        currentSnapshotNames,
+                        repositoryName,
+                        repositoryData,
+                        task,
+                        l
+                    )
+                )
+                .addListener(listener);
         } else {
             listener.onResponse(new SnapshotsStatusResponse(Collections.unmodifiableList(builder)));
         }
     }
 
-    private void loadRepositoryData(
+    private void doComputeResponse(
         SnapshotsInProgress snapshotsInProgress,
         SnapshotsStatusRequest request,
         List<SnapshotStatus> builder,
         Set<String> currentSnapshotNames,
         String repositoryName,
+        RepositoryData repositoryData,
         CancellableTask task,
         ActionListener<SnapshotsStatusResponse> listener
     ) {
-        final Set<String> requestedSnapshotNames = Sets.newHashSet(request.snapshots());
-        final ListenableFuture<RepositoryData> repositoryDataListener = new ListenableFuture<>();
-        repositoriesService.getRepositoryData(repositoryName, repositoryDataListener);
-        final Collection<SnapshotId> snapshotIdsToLoad = new ArrayList<>();
-        repositoryDataListener.addListener(listener.delegateFailureAndWrap((delegate, repositoryData) -> {
-            task.ensureNotCancelled();
-            final Map<String, SnapshotId> matchedSnapshotIds = repositoryData.getSnapshotIds()
-                .stream()
-                .filter(s -> requestedSnapshotNames.contains(s.getName()))
-                .collect(Collectors.toMap(SnapshotId::getName, Function.identity()));
-            for (final String snapshotName : request.snapshots()) {
-                if (currentSnapshotNames.contains(snapshotName)) {
-                    // we've already found this snapshot in the current snapshot entries, so skip over
-                    continue;
-                }
-                SnapshotId snapshotId = matchedSnapshotIds.get(snapshotName);
-                if (snapshotId == null) {
-                    // neither in the current snapshot entries nor found in the repository
-                    if (request.ignoreUnavailable()) {
-                        // ignoring unavailable snapshots, so skip over
-                        logger.debug(
-                            "snapshot status request ignoring snapshot [{}], not found in repository [{}]",
-                            snapshotName,
-                            repositoryName
-                        );
-                        continue;
-                    } else {
-                        throw new SnapshotMissingException(repositoryName, snapshotName);
-                    }
-                }
-                if (snapshotsInProgress.snapshot(new Snapshot(repositoryName, snapshotId)) == null) {
-                    snapshotIdsToLoad.add(snapshotId);
-                }
-            }
+        task.ensureNotCancelled();
 
-            if (snapshotIdsToLoad.isEmpty()) {
-                delegate.onResponse(new SnapshotsStatusResponse(Collections.unmodifiableList(builder)));
-            } else {
-                final List<SnapshotStatus> threadSafeBuilder = Collections.synchronizedList(builder);
-                repositoriesService.repository(repositoryName)
-                    .getSnapshotInfo(new GetSnapshotInfoContext(snapshotIdsToLoad, true, task::isCancelled, (context, snapshotInfo) -> {
-                        List<SnapshotIndexShardStatus> shardStatusBuilder = new ArrayList<>();
-                        final Map<ShardId, IndexShardSnapshotStatus> shardStatuses;
-                        try {
-                            shardStatuses = snapshotShards(repositoryName, repositoryData, task, snapshotInfo);
-                        } catch (Exception e) {
-                            // stops all further fetches of snapshotInfo since context is fail-fast
-                            context.onFailure(e);
-                            return;
-                        }
-                        for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardStatus : shardStatuses.entrySet()) {
-                            IndexShardSnapshotStatus.Copy lastSnapshotStatus = shardStatus.getValue().asCopy();
-                            shardStatusBuilder.add(new SnapshotIndexShardStatus(shardStatus.getKey(), lastSnapshotStatus));
-                        }
-                        final SnapshotsInProgress.State state = switch (snapshotInfo.state()) {
-                            case FAILED -> SnapshotsInProgress.State.FAILED;
-                            case SUCCESS, PARTIAL ->
-                                // Translating both PARTIAL and SUCCESS to SUCCESS for now
-                                // TODO: add the differentiation on the metadata level in the next major release
-                                SnapshotsInProgress.State.SUCCESS;
-                            default -> throw new IllegalArgumentException("Unexpected snapshot state " + snapshotInfo.state());
-                        };
-                        final long startTime = snapshotInfo.startTime();
-                        final long endTime = snapshotInfo.endTime();
-                        assert endTime >= startTime || (endTime == 0L && snapshotInfo.state().completed() == false)
-                            : "Inconsistent timestamps found in SnapshotInfo [" + snapshotInfo + "]";
-                        threadSafeBuilder.add(
-                            new SnapshotStatus(
-                                new Snapshot(repositoryName, snapshotInfo.snapshotId()),
-                                state,
-                                Collections.unmodifiableList(shardStatusBuilder),
-                                snapshotInfo.includeGlobalState(),
-                                startTime,
-                                // Use current time to calculate overall runtime for in-progress snapshots that have endTime == 0
-                                (endTime == 0 ? threadPool.absoluteTimeInMillis() : endTime) - startTime
-                            )
-                        );
-                    }, delegate.map(v -> new SnapshotsStatusResponse(List.copyOf(threadSafeBuilder)))));
+        final Set<String> requestedSnapshotNames = Sets.newHashSet(request.snapshots());
+        final Collection<SnapshotId> snapshotIdsToLoad = new ArrayList<>();
+        final Map<String, SnapshotId> matchedSnapshotIds = repositoryData.getSnapshotIds()
+            .stream()
+            .filter(s -> requestedSnapshotNames.contains(s.getName()))
+            .collect(Collectors.toMap(SnapshotId::getName, Function.identity()));
+        for (final String snapshotName : request.snapshots()) {
+            if (currentSnapshotNames.contains(snapshotName)) {
+                // we've already found this snapshot in the current snapshot entries, so skip over
+                continue;
             }
-        }));
+            SnapshotId snapshotId = matchedSnapshotIds.get(snapshotName);
+            if (snapshotId == null) {
+                // neither in the current snapshot entries nor found in the repository
+                if (request.ignoreUnavailable()) {
+                    // ignoring unavailable snapshots, so skip over
+                    logger.debug(
+                        "snapshot status request ignoring snapshot [{}], not found in repository [{}]",
+                        snapshotName,
+                        repositoryName
+                    );
+                    continue;
+                } else {
+                    throw new SnapshotMissingException(repositoryName, snapshotName);
+                }
+            }
+            if (snapshotsInProgress.snapshot(new Snapshot(repositoryName, snapshotId)) == null) {
+                snapshotIdsToLoad.add(snapshotId);
+            }
+        }
+
+        if (snapshotIdsToLoad.isEmpty()) {
+            listener.onResponse(new SnapshotsStatusResponse(Collections.unmodifiableList(builder)));
+        } else {
+            final List<SnapshotStatus> threadSafeBuilder = Collections.synchronizedList(builder);
+            repositoriesService.repository(repositoryName)
+                .getSnapshotInfo(new GetSnapshotInfoContext(snapshotIdsToLoad, true, task::isCancelled, (context, snapshotInfo) -> {
+                    List<SnapshotIndexShardStatus> shardStatusBuilder = new ArrayList<>();
+                    final Map<ShardId, IndexShardSnapshotStatus> shardStatuses;
+                    try {
+                        shardStatuses = snapshotShards(repositoryName, repositoryData, task, snapshotInfo);
+                    } catch (Exception e) {
+                        // stops all further fetches of snapshotInfo since context is fail-fast
+                        context.onFailure(e);
+                        return;
+                    }
+                    for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardStatus : shardStatuses.entrySet()) {
+                        IndexShardSnapshotStatus.Copy lastSnapshotStatus = shardStatus.getValue().asCopy();
+                        shardStatusBuilder.add(new SnapshotIndexShardStatus(shardStatus.getKey(), lastSnapshotStatus));
+                    }
+                    final SnapshotsInProgress.State state = switch (snapshotInfo.state()) {
+                        case FAILED -> SnapshotsInProgress.State.FAILED;
+                        case SUCCESS, PARTIAL ->
+                            // Translating both PARTIAL and SUCCESS to SUCCESS for now
+                            // TODO: add the differentiation on the metadata level in the next major release
+                            SnapshotsInProgress.State.SUCCESS;
+                        default -> throw new IllegalArgumentException("Unexpected snapshot state " + snapshotInfo.state());
+                    };
+                    final long startTime = snapshotInfo.startTime();
+                    final long endTime = snapshotInfo.endTime();
+                    assert endTime >= startTime || (endTime == 0L && snapshotInfo.state().completed() == false)
+                        : "Inconsistent timestamps found in SnapshotInfo [" + snapshotInfo + "]";
+                    threadSafeBuilder.add(
+                        new SnapshotStatus(
+                            new Snapshot(repositoryName, snapshotInfo.snapshotId()),
+                            state,
+                            Collections.unmodifiableList(shardStatusBuilder),
+                            snapshotInfo.includeGlobalState(),
+                            startTime,
+                            // Use current time to calculate overall runtime for in-progress snapshots that have endTime == 0
+                            (endTime == 0 ? threadPool.absoluteTimeInMillis() : endTime) - startTime
+                        )
+                    );
+                }, listener.map(v -> new SnapshotsStatusResponse(List.copyOf(threadSafeBuilder)))));
+        }
     }
 
     /**

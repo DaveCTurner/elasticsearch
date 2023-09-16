@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.repositories.get.TransportGetRepositoriesAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.SnapshotsInProgress;
@@ -254,15 +255,18 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             currentSnapshots.add(snapshotInfo.maybeWithoutIndices(indices));
         }
 
-        final ListenableFuture<RepositoryData> repositoryDataListener = new ListenableFuture<>();
-        if (isCurrentSnapshotsOnly(snapshots)) {
-            repositoryDataListener.onResponse(null);
-        } else {
-            repositoriesService.getRepositoryData(repo, repositoryDataListener);
-        }
+        SubscribableListener
+            // Get repo data if needed
+            .<RepositoryData>newForked(repositoryDataListener -> {
+                if (isCurrentSnapshotsOnly(snapshots)) {
+                    repositoryDataListener.onResponse(null);
+                } else {
+                    repositoriesService.getRepositoryData(repo, repositoryDataListener);
+                }
+            })
 
-        repositoryDataListener.addListener(
-            listener.delegateFailureAndWrap(
+            // Compute result
+            .<SnapshotsInRepo>andThen(
                 (l, repositoryData) -> loadSnapshotInfos(
                     snapshotsInProgress,
                     repo,
@@ -281,7 +285,9 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     l
                 )
             )
-        );
+
+            // Send result
+            .addListener(listener);
     }
 
     /**
