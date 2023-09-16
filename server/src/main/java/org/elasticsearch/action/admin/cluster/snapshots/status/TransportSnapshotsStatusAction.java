@@ -177,6 +177,8 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
         CancellableTask task,
         ActionListener<SnapshotsStatusResponse> listener
     ) {
+        assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT_META);
+
         // First process snapshot that are currently processed
         List<SnapshotStatus> builder = new ArrayList<>();
         Set<String> currentSnapshotNames = new HashSet<>();
