@@ -23,9 +23,13 @@ import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NotMasterException;
+import org.elasticsearch.cluster.RepositoryCleanupInProgress;
+import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
+import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher;
 import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
 import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
+import org.elasticsearch.cluster.metadata.RepositoriesMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Priority;
@@ -345,6 +349,26 @@ public class MasterService extends AbstractLifecycleComponent {
                 );
             }
         }
+
+        logger.info(
+            """
+                Publishing cluster state version [{}] in term [{}]
+                RepositoriesMetadata
+                {}
+                SnapshotsInProgress
+                {}
+                SnapshotDeletionsInProgress
+                {}
+                RepositoryCleanupInProgress
+                {}
+                """,
+            newClusterState.version(),
+            newClusterState.term(),
+            Strings.toString(RepositoriesMetadata.get(newClusterState)),
+            Strings.toString(SnapshotsInProgress.get(newClusterState)),
+            Strings.toString(SnapshotDeletionsInProgress.get(newClusterState)),
+            Strings.toString(RepositoryCleanupInProgress.get(newClusterState))
+        );
 
         logger.debug("publishing cluster state version [{}]", newClusterState.version());
         // initialize routing nodes and the indices lookup concurrently, we will need both of them for the cluster state
