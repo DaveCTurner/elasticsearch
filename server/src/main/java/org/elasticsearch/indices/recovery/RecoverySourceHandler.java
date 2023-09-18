@@ -19,7 +19,6 @@ import org.apache.lucene.store.RateLimiter;
 import org.apache.lucene.util.ArrayUtil;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ListenableActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -33,7 +32,6 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.CountDown;
-import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.core.IOUtils;
@@ -83,6 +81,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
@@ -119,7 +118,7 @@ public class RecoverySourceHandler {
     private final RecoveryPlannerService recoveryPlannerService;
     private final CancellableThreads cancellableThreads = new CancellableThreads();
     private final List<Closeable> resources = new CopyOnWriteArrayList<>();
-    private final ListenableActionFuture<RecoveryResponse> future = new ListenableActionFuture<>();
+    private final SubscribableListener<RecoveryResponse> future = new SubscribableListener<>();
 
     public RecoverySourceHandler(
         IndexShard shard,
@@ -230,10 +229,13 @@ public class RecoverySourceHandler {
             logger.trace("history is retained by retention lock");
         }
 
-        final ListenableFuture<SendFileResult> sendFileStep = new ListenableFuture<>();
-        final ListenableFuture<TimeValue> prepareEngineStep = new ListenableFuture<>();
-        final ListenableFuture<SendSnapshotResult> sendSnapshotStep = new ListenableFuture<>();
-        final ListenableFuture<Void> finalizeStep = new ListenableFuture<>();
+        final SubscribableListener<SendFileResult> sendFileStep = new SubscribableListener<>();
+        final SubscribableListener<TimeValue> prepareEngineStep = new SubscribableListener<>();
+        final SubscribableListener<SendSnapshotResult> sendSnapshotStep = new SubscribableListener<>();
+        final SubscribableListener<Void> finalizeStep = new SubscribableListener<>();
+        final AtomicReference<SendSnapshotResult> sendSnapshotStepResult = new AtomicReference<>();
+        final AtomicReference<SendFileResult> sendFileStepResult = new AtomicReference<>();
+        final AtomicLong prepareEngineTimeMillisRef = new AtomicLong();
 
         if (isSequenceNumberBasedRecovery) {
             logger.trace("performing sequence numbers based recovery. starting at [{}]", request.startingSeqNo());
@@ -293,12 +295,14 @@ public class RecoverySourceHandler {
 
         sendFileStep.addListener(ActionListener.wrap(r -> {
             assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[prepareTargetForTranslog]");
+            sendFileStepResult.set(r);
             // For a sequence based recovery, the target can keep its local translog
             prepareTargetForTranslog(estimateNumberOfHistoryOperations(startingSeqNo), prepareEngineStep);
         }, onFailure));
 
         prepareEngineStep.addListener(ActionListener.wrap(prepareEngineTime -> {
             assert Transports.assertNotTransportThread(RecoverySourceHandler.this + "[phase2]");
+            prepareEngineTimeMillisRef.set(prepareEngineTime.millis());
             /*
              * add shard to replication group (shard will receive replication requests from this point on) now that engine is open.
              * This means that any document indexed into the primary after this will be replicated to this replica as well
@@ -345,14 +349,15 @@ public class RecoverySourceHandler {
 
         // Recovery target can trim all operations >= startingSeqNo as we have sent all these operations in the phase 2
         final long trimAboveSeqNo = startingSeqNo - 1;
-        sendSnapshotStep.addListener(
-            ActionListener.wrap(r -> finalizeRecovery(r.targetLocalCheckpoint, trimAboveSeqNo, finalizeStep), onFailure)
-        );
+        sendSnapshotStep.addListener(ActionListener.wrap(r -> {
+            sendSnapshotStepResult.set(r);
+            finalizeRecovery(r.targetLocalCheckpoint, trimAboveSeqNo, finalizeStep);
+        }, onFailure));
 
         finalizeStep.addListener(ActionListener.wrap(r -> {
             final long phase1ThrottlingWaitTime = 0L; // TODO: return the actual throttle time
-            final SendSnapshotResult sendSnapshotResult = sendSnapshotStep.result();
-            final SendFileResult sendFileResult = sendFileStep.result();
+            final SendSnapshotResult sendSnapshotResult = sendSnapshotStepResult.get();
+            final SendFileResult sendFileResult = sendFileStepResult.get();
             final RecoveryResponse response = new RecoveryResponse(
                 sendFileResult.phase1FileNames,
                 sendFileResult.phase1FileSizes,
@@ -362,7 +367,7 @@ public class RecoverySourceHandler {
                 sendFileResult.existingTotalSize,
                 sendFileResult.took.millis(),
                 phase1ThrottlingWaitTime,
-                prepareEngineStep.result().millis(),
+                prepareEngineTimeMillisRef.get(),
                 sendSnapshotResult.sentOperations,
                 sendSnapshotResult.tookTime.millis()
             );
@@ -535,7 +540,6 @@ public class RecoverySourceHandler {
             // TODO: is this still relevant today?
             if (hasSameLegacySyncId(recoverySourceMetadata, request.metadataSnapshot()) == false) {
                 cancellableThreads.checkForCancel();
-
                 SubscribableListener
                     // compute the plan
                     .<ShardRecoveryPlan>newForked(
@@ -558,11 +562,10 @@ public class RecoverySourceHandler {
                     .addListener(listener);
             } else {
                 logger.trace("skipping [phase1] since source and target have identical sync id [{}]", recoverySourceMetadata.getSyncId());
-
                 SubscribableListener
                     // but we must still create a retention lease
                     .<RetentionLease>newForked(leaseListener -> createRetentionLease(startingSeqNo, leaseListener))
-                    // create an empty result
+                    // and then compute the result of sending no files
                     .<SendFileResult>andThen((l, ignored) -> {
                         final TimeValue took = stopWatch.totalTime();
                         logger.trace("recovery [phase1]: took [{}]", took);
@@ -578,7 +581,7 @@ public class RecoverySourceHandler {
                             )
                         );
                     })
-                    // and respond
+                    // and finally respond
                     .addListener(listener);
             }
         } catch (Exception e) {
@@ -660,10 +663,10 @@ public class RecoverySourceHandler {
             );
         }
 
-        new FileRecoveryContext(store, stopWatch, shardRecoveryPlan).run(listener);
+        new FileBasedRecoveryContext(store, stopWatch, shardRecoveryPlan).run(listener);
     }
 
-    private class FileRecoveryContext {
+    private class FileBasedRecoveryContext {
         private final Store store;
         private final StopWatch stopWatch;
         private final int translogOps;
@@ -674,7 +677,7 @@ public class RecoverySourceHandler {
         // recovery plan that would be used in subsequent steps.
         private ShardRecoveryPlan shardRecoveryPlan;
 
-        FileRecoveryContext(Store store, StopWatch stopWatch, ShardRecoveryPlan shardRecoveryPlan) {
+        FileBasedRecoveryContext(Store store, StopWatch stopWatch, ShardRecoveryPlan shardRecoveryPlan) {
             this.store = store;
             this.stopWatch = stopWatch;
             this.translogOps = shardRecoveryPlan.getTranslogOps();
@@ -791,7 +794,9 @@ public class RecoverySourceHandler {
         private final CountDown countDown;
         private final BlockingQueue<BlobStoreIndexShardSnapshot.FileInfo> pendingSnapshotFilesToRecover;
         private final AtomicBoolean cancelled = new AtomicBoolean();
-        private final Set<ListenableFuture<Void>> outstandingRequests = Sets.newHashSetWithExpectedSize(maxConcurrentSnapshotFileDownloads);
+        private final Set<SubscribableListener<Void>> outstandingRequests = Sets.newHashSetWithExpectedSize(
+            maxConcurrentSnapshotFileDownloads
+        );
         private List<StoreFileMetadata> filesFailedToDownloadFromSnapshot;
 
         SnapshotRecoverFileRequestsSender(ShardRecoveryPlan shardRecoveryPlan, ActionListener<List<StoreFileMetadata>> listener) {
@@ -814,7 +819,7 @@ public class RecoverySourceHandler {
                 return;
             }
 
-            final ListenableFuture<Void> requestFuture = new ListenableFuture<>();
+            final SubscribableListener<Void> requestFuture = new SubscribableListener<>();
             try {
                 cancellableThreads.checkForCancel();
 
@@ -900,7 +905,7 @@ public class RecoverySourceHandler {
             return Objects.requireNonNullElse(filesFailedToDownloadFromSnapshot, Collections.emptyList());
         }
 
-        private void trackOutstandingRequest(ListenableFuture<Void> future) {
+        private void trackOutstandingRequest(SubscribableListener<Void> future) {
             boolean cancelled;
             synchronized (outstandingRequests) {
                 cancelled = cancellableThreads.isCancelled() || this.cancelled.get();
@@ -920,7 +925,7 @@ public class RecoverySourceHandler {
             }
         }
 
-        private void unTrackOutstandingRequest(ListenableFuture<Void> future) {
+        private void unTrackOutstandingRequest(SubscribableListener<Void> future) {
             synchronized (outstandingRequests) {
                 outstandingRequests.remove(future);
             }
@@ -929,7 +934,7 @@ public class RecoverySourceHandler {
         private void notifyFailureOnceAllOutstandingRequestAreDone(Exception e) {
             assert cancelled.get();
 
-            final Set<ListenableFuture<Void>> pendingRequests;
+            final Set<SubscribableListener<Void>> pendingRequests;
             synchronized (outstandingRequests) {
                 pendingRequests = new HashSet<>(outstandingRequests);
             }
@@ -942,7 +947,7 @@ public class RecoverySourceHandler {
             // new requests and therefore we can safely use to wait until all the pending requests complete
             // to notify the listener about the cancellation
             final CountDown pendingRequestsCountDown = new CountDown(pendingRequests.size());
-            for (ListenableFuture<Void> outstandingFuture : pendingRequests) {
+            for (SubscribableListener<Void> outstandingFuture : pendingRequests) {
                 outstandingFuture.addListener(ActionListener.running(() -> {
                     if (pendingRequestsCountDown.countDown()) {
                         listener.onFailure(e);
@@ -1112,7 +1117,7 @@ public class RecoverySourceHandler {
         }
         logger.trace("recovery [phase2]: sending transaction log operations (from [" + startingSeqNo + "] to [" + endingSeqNo + "]");
         final StopWatch stopWatch = new StopWatch().start();
-        final ListenableFuture<Void> sendListener = new ListenableFuture<>();
+        final SubscribableListener<Void> sendListener = new SubscribableListener<>();
         final OperationBatchSender sender = new OperationBatchSender(
             startingSeqNo,
             endingSeqNo,
@@ -1253,7 +1258,7 @@ public class RecoverySourceHandler {
          * marking the shard as in-sync. If the relocation handoff holds all the permits then after the handoff completes and we acquire
          * the permit then the state of the shard will be relocated and this recovery will fail.
          */
-        final ListenableFuture<Void> markInSyncStep = new ListenableFuture<>();
+        final SubscribableListener<Void> markInSyncStep = new SubscribableListener<>();
         runUnderPrimaryPermit(
             () -> shard.markAllocationIdAsInSync(request.targetAllocationId(), targetLocalCheckpoint),
             shard,
@@ -1261,14 +1266,14 @@ public class RecoverySourceHandler {
             markInSyncStep
         );
 
-        final ListenableFuture<Long> finalizeListener = new ListenableFuture<>();
+        final SubscribableListener<Long> finalizeListener = new SubscribableListener<>();
         markInSyncStep.addListener(listener.delegateFailureAndWrap((l, ignored) -> {
             final long globalCheckpoint = shard.getLastKnownGlobalCheckpoint(); // this global checkpoint is persisted in finalizeRecovery
             cancellableThreads.checkForCancel();
             recoveryTarget.finalizeRecovery(globalCheckpoint, trimAboveSeqNo, finalizeListener.map(ignored2 -> globalCheckpoint));
         }));
 
-        final ListenableFuture<Void> updateGlobalCheckpointStep = new ListenableFuture<>();
+        final SubscribableListener<Void> updateGlobalCheckpointStep = new SubscribableListener<>();
         finalizeListener.addListener(
             listener.delegateFailureAndWrap(
                 (l, globalCheckpoint) -> runUnderPrimaryPermit(
@@ -1280,9 +1285,9 @@ public class RecoverySourceHandler {
             )
         );
 
-        final ListenableFuture<Void> finalStep;
+        final SubscribableListener<Void> finalStep;
         if (request.isPrimaryRelocation()) {
-            finalStep = new ListenableFuture<>();
+            finalStep = new SubscribableListener<>();
             updateGlobalCheckpointStep.addListener(listener.delegateFailureAndWrap((l, ignored) -> {
                 logger.trace("performing relocation hand-off");
                 cancellableThreads.execute(
