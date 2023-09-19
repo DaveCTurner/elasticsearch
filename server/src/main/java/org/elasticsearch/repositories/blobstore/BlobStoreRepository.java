@@ -56,7 +56,6 @@ import org.elasticsearch.common.blobstore.fs.FsBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
@@ -1199,16 +1198,15 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     repositoryStateId,
                     repositoryMetaVersion,
                     Function.identity(),
-                    listener.delegateFailureAndWrap((l, v) -> {
-                        blobContainer().deleteBlobsIgnoringIfNotExists(Iterators.single(INDEX_FILE_PREFIX + repositoryData.getGenId()));
-                        cleanupStaleBlobs(
+                    listener.delegateFailureAndWrap(
+                        (l, v) -> cleanupStaleBlobs(
                             Collections.emptyList(),
                             foundIndices,
                             rootBlobs,
                             repositoryData,
                             l.map(RepositoryCleanupResult::new)
-                        );
-                    })
+                        )
+                    )
                 );
             }
         } catch (Exception e) {
