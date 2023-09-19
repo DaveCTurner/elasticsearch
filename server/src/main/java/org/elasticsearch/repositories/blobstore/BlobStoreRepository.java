@@ -56,6 +56,7 @@ import org.elasticsearch.common.blobstore.fs.FsBlobContainer;
 import org.elasticsearch.common.blobstore.support.BlobMetadata;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.compress.NotXContentException;
 import org.elasticsearch.common.io.Streams;
@@ -1188,6 +1189,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 .map(IndexId::getId)
                 .collect(Collectors.toSet());
             final List<String> staleRootBlobs = staleRootBlobs(repositoryData, rootBlobs.keySet());
+            logger.info(
+                "[{}] cleanup at gen [{}]: got root blobs {}, stale blobs {}",
+                metadata.name(),
+                repositoryData.getGenId(),
+                rootBlobs.keySet(),
+                staleRootBlobs
+            );
             if (survivingIndexIds.equals(foundIndices.keySet()) && staleRootBlobs.isEmpty()) {
                 // Nothing to clean up we return
                 listener.onResponse(new RepositoryCleanupResult(DeleteResult.ZERO));
@@ -1273,7 +1281,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     logger.info("[{}] Found stale root level blobs {}. Cleaning them up", metadata.name(), blobsToLog);
                 }
             }
-            deleteFromContainer(blobContainer(), blobsToDelete.iterator());
+            deleteFromContainer(blobContainer(), Iterators.map(blobsToDelete.iterator(), blobName -> {
+                logger.info("[{}] cleanupStaleRootFiles[{}] deleting [{}]", metadata.name(), previousGeneration, blobName);
+                return blobName;
+            }));
             return blobsToDelete;
         } catch (Exception e) {
             logger.warn(
