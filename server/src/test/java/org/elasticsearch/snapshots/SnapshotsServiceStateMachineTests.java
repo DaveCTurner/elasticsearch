@@ -12,6 +12,8 @@ import org.elasticsearch.Build;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionListenerResponseHandler;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
@@ -25,6 +27,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.SnapshotsInProgress;
+import org.elasticsearch.cluster.SnapshotsInProgress.ShardSnapshotStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -61,6 +64,7 @@ import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryShardId;
 import org.elasticsearch.repositories.ShardGeneration;
+import org.elasticsearch.repositories.ShardGenerations;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
 import org.elasticsearch.repositories.VerifyNodeRepositoryAction;
@@ -80,8 +84,10 @@ import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
+import org.hamcrest.Matchers;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -236,7 +242,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
 
+        record RepositoryShardState(Set<String> shardGenerations) {}
+
         class FakeRepository extends AbstractLifecycleComponent implements Repository {
+
+            private final Map<ShardId, RepositoryShardState> repositoryShardStates = new HashMap<>();
 
             private final RepositoryMetadata repositoryMetadata = new RepositoryMetadata(
                 "repo",
@@ -360,6 +370,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void awaitIdle() {}
+
+            public RepositoryShardState getShardState(ShardId shardId) {
+                return repositoryShardStates.computeIfAbsent(shardId, this::newRepositoryShardState);
+            }
+
+            private RepositoryShardState newRepositoryShardState(ShardId ignored) {
+                final var shardGenerations = new HashSet<String>();
+                shardGenerations.add(ShardGenerations.NEW_SHARD_GEN.toString());
+                return new RepositoryShardState(shardGenerations);
+            }
         }
 
         final var repositoriesService = new RepositoriesService(
@@ -396,62 +416,101 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             public void applyClusterState(ClusterChangedEvent event) {
                 SnapshotsInProgress.get(event.state()).asStream().forEach(snapshotInProgress -> {
                     for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
-                        if (shardSnapshotStatusEntry.getValue().state() == SnapshotsInProgress.ShardState.INIT) {
-                            final var ongoingShardSnapshot = new OngoingShardSnapshot(
-                                snapshotInProgress.snapshot(),
-                                shardSnapshotStatusEntry.getKey(),
-                                shardSnapshotStatusEntry.getValue().nodeId()
-                            );
-                            if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
-                                threadPool.generic().execute(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        transportService.sendRequest(
-                                            transportService.getLocalNodeConnection(),
-                                            UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
-                                            new UpdateIndexShardSnapshotStatusRequest(
-                                                ongoingShardSnapshot.snapshot,
-                                                ongoingShardSnapshot.shardId(),
-                                                usually()
-                                                    ? SnapshotsInProgress.ShardSnapshotStatus.success(
-                                                        ongoingShardSnapshot.nodeId(),
-                                                        new ShardSnapshotResult(
-                                                            new ShardGeneration(randomAlphaOfLength(10)),
-                                                            ByteSizeValue.ZERO,
-                                                            1
-                                                        )
-                                                    )
-                                                    : new SnapshotsInProgress.ShardSnapshotStatus(
-                                                        ongoingShardSnapshot.nodeId(),
-                                                        SnapshotsInProgress.ShardState.FAILED,
-                                                        "simulated",
-                                                        randomBoolean() ? null : new ShardGeneration(randomAlphaOfLength(10))
-                                                    )
-                                            ),
-                                            TransportRequestOptions.EMPTY,
-                                            TransportResponseHandler.empty(threadPool.generic(), ActionListener.running(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    assertTrue(ongoingShardSnapshots.remove(ongoingShardSnapshot));
-                                                }
-
-                                                @Override
-                                                public String toString() {
-                                                    return "clean up " + ongoingShardSnapshot;
-                                                }
-                                            }))
-                                        );
-                                    }
-
-                                    @Override
-                                    public String toString() {
-                                        return "complete " + ongoingShardSnapshot;
-                                    }
-                                });
+                        switch (shardSnapshotStatusEntry.getValue().state()) {
+                            case INIT -> {
+                                final var ongoingShardSnapshot = new OngoingShardSnapshot(
+                                    snapshotInProgress.snapshot(),
+                                    shardSnapshotStatusEntry.getKey(),
+                                    shardSnapshotStatusEntry.getValue().nodeId()
+                                );
+                                if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
+                                    doShardSnapshot(
+                                        snapshotInProgress,
+                                        ongoingShardSnapshot,
+                                        shardSnapshotStatusEntry.getValue().generation()
+                                    );
+                                }
+                            }
+                            case ABORTED -> {
+                                // TODO
                             }
                         }
                     }
                 });
+            }
+
+            private void doShardSnapshot(
+                SnapshotsInProgress.Entry snapshotInProgress,
+                OngoingShardSnapshot ongoingShardSnapshot,
+                ShardGeneration originalShardGeneration
+            ) {
+                SubscribableListener
+
+                    // fork
+                    .<Void>newForked(l -> threadPool.generic().execute(ActionRunnable.run(l, () -> {})))
+
+                    // perform shard snapshot
+                    .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> {
+                        ActionListener.completeWith(l, () -> {
+                            final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
+                            final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.shardId());
+                            assertThat(repositoryShardState.shardGenerations(), Matchers.hasItem(originalShardGeneration.toString()));
+
+                            final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
+                            repositoryShardState.shardGenerations().add(newShardGeneration.toString());
+
+                            if (usually()) {
+                                return ShardSnapshotStatus.success(
+                                    ongoingShardSnapshot.nodeId(),
+                                    new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
+                                );
+                            }
+                            return new ShardSnapshotStatus(
+                                ongoingShardSnapshot.nodeId(),
+                                SnapshotsInProgress.ShardState.FAILED,
+                                "simulated",
+                                randomBoolean() ? null : newShardGeneration
+                            );
+                        });
+                    })
+
+                    // clean up
+                    .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> {
+                        assertTrue(ongoingShardSnapshots.remove(ongoingShardSnapshot));
+                        l.onResponse(v);
+                    })
+
+                    // respond to master
+                    .<Void>andThen(
+                        threadPool.generic(),
+                        null,
+                        (l, shardSnapshotStatus) -> transportService.sendRequest(
+                            transportService.getLocalNodeConnection(),
+                            UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
+                            new UpdateIndexShardSnapshotStatusRequest(
+                                ongoingShardSnapshot.snapshot,
+                                ongoingShardSnapshot.shardId(),
+                                shardSnapshotStatus
+                            ),
+                            TransportRequestOptions.EMPTY,
+                            new ActionListenerResponseHandler<>(
+                                l.map(ignored -> null),
+                                in -> ActionResponse.Empty.INSTANCE,
+                                threadPool.generic()
+                            )
+                        )
+                    )
+
+                    // check for no errors
+                    .addListener(new ActionListener<>() {
+                        @Override
+                        public void onResponse(Void unused) {}
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            throw new AssertionError("unexpected", e);
+                        }
+                    });
             }
         });
 
