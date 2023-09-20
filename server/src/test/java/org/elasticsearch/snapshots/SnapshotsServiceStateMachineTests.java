@@ -74,6 +74,7 @@ import org.elasticsearch.repositories.ShardGenerations;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
 import org.elasticsearch.repositories.VerifyNodeRepositoryAction;
+import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
@@ -101,6 +102,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_CREATION_DATE;
@@ -338,40 +340,15 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         )
                     )
 
-                    // store new repo data and fork the subsequent cleanup
+                    // store new repo data
                     .<RepositoryData>andThen(
                         threadPool.generic(),
                         null,
-                        (l, updatedRepositoryData) -> masterService.submitUnbatchedStateUpdateTask(
+                        (l, updatedRepositoryData) -> updateRepositoryData(
                             "finalize snapshot " + finalizeSnapshotContext.snapshotInfo().snapshotId(),
-                            new ClusterStateUpdateTask() {
-                                @Override
-                                public ClusterState execute(ClusterState currentState) {
-                                    final var newRepositoriesMetadata = RepositoriesMetadata.get(currentState)
-                                        .withUpdatedGeneration(
-                                            repositoryName,
-                                            updatedRepositoryData.getGenId(),
-                                            updatedRepositoryData.getGenId()
-                                        );
-
-                                    return finalizeSnapshotContext.updatedClusterState(
-                                        currentState.copyAndUpdateMetadata(
-                                            mdb -> mdb.putCustom(RepositoriesMetadata.TYPE, newRepositoriesMetadata)
-                                        )
-                                    );
-                                }
-
-                                @Override
-                                public void onFailure(Exception e) {
-                                    l.onFailure(e);
-                                }
-
-                                @Override
-                                public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
-                                    repositoryData = updatedRepositoryData;
-                                    l.onResponse(updatedRepositoryData);
-                                }
-                            }
+                            updatedRepositoryData,
+                            finalizeSnapshotContext::updatedClusterState,
+                            l.map(ignored -> updatedRepositoryData)
                         )
                     )
 
@@ -411,14 +388,64 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     .addListener(finalizeSnapshotContext, threadPool.generic(), null);
             }
 
+            private void updateRepositoryData(
+                String description,
+                RepositoryData updatedRepositoryData,
+                UnaryOperator<ClusterState> clusterStateOperator,
+                ActionListener<Void> listener
+            ) {
+                masterService.submitUnbatchedStateUpdateTask(description, new ClusterStateUpdateTask() {
+                    @Override
+                    public ClusterState execute(ClusterState currentState) {
+                        final var newRepositoriesMetadata = RepositoriesMetadata.get(currentState)
+                            .withUpdatedGeneration(repositoryName, updatedRepositoryData.getGenId(), updatedRepositoryData.getGenId());
+
+                        return clusterStateOperator.apply(
+                            currentState.copyAndUpdateMetadata(mdb -> mdb.putCustom(RepositoriesMetadata.TYPE, newRepositoriesMetadata))
+                        );
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        listener.onFailure(e);
+                    }
+
+                    @Override
+                    public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
+                        repositoryData = updatedRepositoryData;
+                        listener.onResponse(null);
+                    }
+                });
+            }
+
             @Override
             public void deleteSnapshots(
                 Collection<SnapshotId> snapshotIds,
                 long repositoryStateId,
-                IndexVersion repositoryMetaVersion,
+                IndexVersion repositoryIndexVersion,
                 SnapshotDeleteListener listener
             ) {
-                listener.onFailure(new UnsupportedOperationException());
+                SubscribableListener
+                    // get current repo data
+                    .newForked(this::getRepositoryData)
+
+                    .<RepositoryData>andThen(threadPool.generic(), null, (l, repositoryData) -> {
+
+                        repositoryData.
+
+
+                    })
+
+
+                for (BlobStoreRepository.ShardSnapshotMetaDeleteResult newGen : deleteResults) {
+                    builder.put(newGen.indexId, newGen.shardId, newGen.newGeneration);
+                }
+                final RepositoryData updatedRepositoryData = repositoryData.removeSnapshots(snapshotIds, builder.build());
+
+
+                repositoryData.
+
+                    listener.onFailure(new UnsupportedOperationException());
             }
 
             @Override
