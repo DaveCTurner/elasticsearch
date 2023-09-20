@@ -74,6 +74,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
@@ -353,6 +354,9 @@ public class MasterService extends AbstractLifecycleComponent {
         logger.info(
             """
                 Publishing cluster state version [{}] in term [{}]
+                Source: {}
+                Tasks:
+                {}
                 RepositoriesMetadata
                 {}
                 SnapshotsInProgress
@@ -364,6 +368,8 @@ public class MasterService extends AbstractLifecycleComponent {
                 """,
             newClusterState.version(),
             newClusterState.term(),
+            summary,
+            executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")),
             Strings.toString(RepositoriesMetadata.get(newClusterState)),
             Strings.toString(SnapshotsInProgress.get(newClusterState)),
             Strings.toString(SnapshotDeletionsInProgress.get(newClusterState)),
@@ -1712,5 +1718,5 @@ public class MasterService extends AbstractLifecycleComponent {
         }
     }
 
-    static final int MAX_TASK_DESCRIPTION_CHARS = 8 * 1024;
+    static final int MAX_TASK_DESCRIPTION_CHARS = 80 * 1024;
 }
