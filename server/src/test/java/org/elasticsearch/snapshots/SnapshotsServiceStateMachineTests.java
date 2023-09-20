@@ -12,6 +12,7 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
@@ -70,7 +71,6 @@ import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +78,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-@TestLogging(reason = "nocommit", value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE")
+@TestLogging(
+    reason = "nocommit",
+    value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+        + ",org.elasticsearch.cluster.service.MasterService:TRACE"
+        + ",org.elasticsearch.repositories.RepositoriesService:TRACE"
+        + ",org.elasticsearch.snapshots.SnapshotsService:TRACE"
+        + ",org.elasticsearch.cluster.service.ClusterApplierService:TRACE"
+)
 public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
     public void testFoo() {
@@ -352,17 +359,32 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         snapshotsService.start();
         transportService.acceptIncomingRequests();
 
-        final var future = new PlainActionFuture<Void>();
+        try {
+            final var future = new PlainActionFuture<Void>();
 
-        SubscribableListener
+            SubscribableListener
 
-            .<AcknowledgedResponse>newForked(l -> repositoriesService.registerRepository(new PutRepositoryRequest("repo").type("fake"), l))
+                .<AcknowledgedResponse>newForked(
+                    l -> repositoriesService.registerRepository(new PutRepositoryRequest("repo").type("fake"), l)
+                )
 
-            .addListener(future.map(ignored -> null));
+                .<SnapshotInfo>andThen((l, r) -> snapshotsService.executeSnapshot(new CreateSnapshotRequest("repo", "snap-1"), l))
 
-        deterministicTaskQueue.runAllTasksInTimeOrder();
-        assertTrue(future.isDone());
-        future.actionGet();
+                .addListener(future.map(ignored -> null));
+
+            deterministicTaskQueue.runAllTasksInTimeOrder();
+            assertTrue(future.isDone());
+            future.actionGet();
+        } finally {
+            snapshotsService.stop();
+            repositoriesService.stop();
+            clusterService.stop();
+            transportService.stop();
+            snapshotsService.close();
+            repositoriesService.close();
+            clusterService.close();
+            transportService.close();
+        }
     }
 
 }
