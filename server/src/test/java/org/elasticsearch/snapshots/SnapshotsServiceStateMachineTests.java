@@ -412,14 +412,21 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                             new UpdateIndexShardSnapshotStatusRequest(
                                                 ongoingShardSnapshot.snapshot,
                                                 ongoingShardSnapshot.shardId(),
-                                                SnapshotsInProgress.ShardSnapshotStatus.success(
-                                                    ongoingShardSnapshot.nodeId(),
-                                                    new ShardSnapshotResult(
-                                                        new ShardGeneration(randomAlphaOfLength(10)),
-                                                        ByteSizeValue.ZERO,
-                                                        1
+                                                usually()
+                                                    ? SnapshotsInProgress.ShardSnapshotStatus.success(
+                                                        ongoingShardSnapshot.nodeId(),
+                                                        new ShardSnapshotResult(
+                                                            new ShardGeneration(randomAlphaOfLength(10)),
+                                                            ByteSizeValue.ZERO,
+                                                            1
+                                                        )
                                                     )
-                                                )
+                                                    : new SnapshotsInProgress.ShardSnapshotStatus(
+                                                        ongoingShardSnapshot.nodeId(),
+                                                        SnapshotsInProgress.ShardState.FAILED,
+                                                        "simulated",
+                                                        randomBoolean() ? null : new ShardGeneration(randomAlphaOfLength(10))
+                                                    )
                                             ),
                                             TransportRequestOptions.EMPTY,
                                             TransportResponseHandler.empty(threadPool.generic(), ActionListener.running(new Runnable() {
