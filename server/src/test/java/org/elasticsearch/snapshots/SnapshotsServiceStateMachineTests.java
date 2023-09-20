@@ -74,13 +74,12 @@ import org.elasticsearch.repositories.ShardGenerations;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
 import org.elasticsearch.repositories.VerifyNodeRepositoryAction;
-import org.elasticsearch.repositories.blobstore.BlobStoreRepository;
 import org.elasticsearch.tasks.TaskManager;
+import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.FakeTransport;
-import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.CloseableConnection;
 import org.elasticsearch.transport.ClusterConnectionManager;
 import org.elasticsearch.transport.ConnectionProfile;
@@ -354,17 +353,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
                     // fork background cleanup
                     .<RepositoryData>andThen((l, updatedRepositoryData) -> {
-                        logger.info(
-                            "--> update repositoryData:\n{}",
-                            Strings.toString(
-                                (ToXContentObject) (builder, p) -> updatedRepositoryData.snapshotsToXContent(
-                                    builder,
-                                    IndexVersion.current()
-                                ),
-                                true,
-                                true
-                            )
-                        );
                         l.onResponse(updatedRepositoryData);
                         try (
                             var refs = new RefCountingRunnable(() -> finalizeSnapshotContext.onDone(finalizeSnapshotContext.snapshotInfo()))
@@ -386,6 +374,55 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
                     // complete the context
                     .addListener(finalizeSnapshotContext, threadPool.generic(), null);
+            }
+
+            @Override
+            public void deleteSnapshots(
+                Collection<SnapshotId> snapshotIds,
+                long repositoryStateId,
+                IndexVersion repositoryIndexVersion,
+                SnapshotDeleteListener snapshotDeleteListener
+            ) {
+                SubscribableListener
+                    // get current repo data
+                    .newForked(this::getRepositoryData)
+
+                    // compute new repository data
+                    .<RepositoryData>andThen(threadPool.generic(), null, (l, currentRepositoryData) -> {
+                        assertEquals(repositoryStateId, currentRepositoryData.getGenId());
+                        l.onResponse(repositoryData.removeSnapshots(snapshotIds, null));
+                    })
+
+                    // update repository data
+                    .<RepositoryData>andThen(threadPool.generic(), null, (l, updatedRepositoryData) -> {
+                        updateRepositoryData(
+                            "deleting snapshots " + snapshotIds,
+                            updatedRepositoryData,
+                            cs -> cs,
+                            l.map(v -> updatedRepositoryData)
+                        );
+                    })
+
+                    // fork background cleanup
+                    .<RepositoryData>andThen((l, updatedRepositoryData) -> {
+                        l.onResponse(updatedRepositoryData);
+                        try (var refs = new RefCountingRunnable(snapshotDeleteListener::onDone)) {
+                            // TODO cleanup
+                        }
+                    })
+
+                    // complete the context
+                    .addListener(new ActionListener<RepositoryData>() {
+                        @Override
+                        public void onResponse(RepositoryData repositoryData) {
+                            snapshotDeleteListener.onRepositoryDataWritten(repositoryData);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            snapshotDeleteListener.onFailure(e);
+                        }
+                    }, threadPool.generic(), null);
             }
 
             private void updateRepositoryData(
@@ -412,40 +449,22 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
                     @Override
                     public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
+                        logger.info(
+                            "--> update repositoryData [{}]\n{}",
+                            description,
+                            Strings.toString(
+                                (ToXContentObject) (builder, p) -> updatedRepositoryData.snapshotsToXContent(
+                                    builder,
+                                    IndexVersion.current()
+                                ),
+                                true,
+                                true
+                            )
+                        );
                         repositoryData = updatedRepositoryData;
                         listener.onResponse(null);
                     }
                 });
-            }
-
-            @Override
-            public void deleteSnapshots(
-                Collection<SnapshotId> snapshotIds,
-                long repositoryStateId,
-                IndexVersion repositoryIndexVersion,
-                SnapshotDeleteListener listener
-            ) {
-                SubscribableListener
-                    // get current repo data
-                    .newForked(this::getRepositoryData)
-
-                    .<RepositoryData>andThen(threadPool.generic(), null, (l, repositoryData) -> {
-
-                        repositoryData.
-
-
-                    })
-
-
-                for (BlobStoreRepository.ShardSnapshotMetaDeleteResult newGen : deleteResults) {
-                    builder.put(newGen.indexId, newGen.shardId, newGen.newGeneration);
-                }
-                final RepositoryData updatedRepositoryData = repositoryData.removeSnapshots(snapshotIds, builder.build());
-
-
-                repositoryData.
-
-                    listener.onFailure(new UnsupportedOperationException());
             }
 
             @Override
