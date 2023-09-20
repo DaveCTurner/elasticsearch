@@ -45,6 +45,7 @@ import org.elasticsearch.cluster.routing.TestShardRouting;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -96,6 +97,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_CREATION_DATE;
 import static org.elasticsearch.snapshots.SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME;
@@ -229,12 +231,19 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
             ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
             ackListener.onCommit(TimeValue.ZERO);
+            final var newState = clusterStatePublicationEvent.getNewState();
+            logger.info(
+                "--> cluster state version {} in term {}\nsnapshotsInProgress\n{}",
+                newState.version(),
+                newState.term(),
+                Strings.toString(SnapshotsInProgress.get(newState), true, true)
+            );
             clusterApplierService.onNewClusterState(
                 clusterStatePublicationEvent.getSummary().toString(),
                 clusterStatePublicationEvent::getNewState,
                 publishListener.delegateFailureAndWrap((l, v) -> {
                     l.onResponse(v);
-                    for (final var discoveryNode : clusterStatePublicationEvent.getNewState().nodes()) {
+                    for (final var discoveryNode : newState.nodes()) {
                         ackListener.onNodeAck(discoveryNode, null);
                     }
                 })
@@ -244,7 +253,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
 
-        record RepositoryShardState(Set<String> shardGenerations) {}
+        record RepositoryShardState(Set<ShardGeneration> shardGenerations) {}
 
         class FakeRepository extends AbstractLifecycleComponent implements Repository {
 
@@ -358,12 +367,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         ) {
                             for (final var obsoleteShardGeneration : finalizeSnapshotContext.obsoleteShardGenerations().entrySet()) {
                                 final var repositoryShardState = getShardState(obsoleteShardGeneration.getKey());
-                                for (ShardGeneration shardGeneration : obsoleteShardGeneration.getValue()) {
+                                for (final var shardGeneration : obsoleteShardGeneration.getValue()) {
                                     threadPool.generic()
                                         .execute(
                                             ActionRunnable.run(
                                                 refs.acquireListener(),
-                                                () -> assertTrue(repositoryShardState.shardGenerations().remove(shardGeneration.toString()))
+                                                () -> assertTrue(repositoryShardState.shardGenerations().remove(shardGeneration))
                                             )
                                         );
                                 }
@@ -455,8 +464,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             private RepositoryShardState newRepositoryShardState(RepositoryShardId ignored) {
-                final var shardGenerations = new HashSet<String>();
-                shardGenerations.add(ShardGenerations.NEW_SHARD_GEN.toString());
+                final var shardGenerations = new HashSet<ShardGeneration>();
+                shardGenerations.add(ShardGenerations.NEW_SHARD_GEN);
                 return new RepositoryShardState(shardGenerations);
             }
         }
@@ -493,6 +502,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void applyClusterState(ClusterChangedEvent event) {
+                final var activeSnapshotIds = SnapshotsInProgress.get(event.state())
+                    .asStream()
+                    .map(SnapshotsInProgress.Entry::snapshot)
+                    .collect(Collectors.toSet());
+                ongoingShardSnapshots.removeIf(ongoingShardSnapshot -> activeSnapshotIds.contains(ongoingShardSnapshot.snapshot) == false);
+
                 SnapshotsInProgress.get(event.state()).asStream().forEach(snapshotInProgress -> {
                     for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
                         switch (shardSnapshotStatusEntry.getValue().state()) {
@@ -535,10 +550,20 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         ActionListener.completeWith(l, () -> {
                             final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
                             final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
-                            assertThat(repositoryShardState.shardGenerations(), Matchers.hasItem(originalShardGeneration.toString()));
+                            logger.info(
+                                "--> doShardSnapshot[{}]: {}",
+                                ongoingShardSnapshot.repositoryShardId(),
+                                repositoryShardState.shardGenerations()
+                            );
+                            assertThat(
+                                ongoingShardSnapshot.repositoryShardId().toString(),
+                                repositoryShardState.shardGenerations(),
+                                Matchers.hasItem(originalShardGeneration)
+                            );
+                            repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
 
                             final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
-                            repositoryShardState.shardGenerations().add(newShardGeneration.toString());
+                            repositoryShardState.shardGenerations().add(newShardGeneration);
 
                             if (usually()) {
                                 return ShardSnapshotStatus.success(
@@ -553,12 +578,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                 randomBoolean() ? null : newShardGeneration
                             );
                         });
-                    })
-
-                    // clean up
-                    .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> {
-                        assertTrue(ongoingShardSnapshots.remove(ongoingShardSnapshot));
-                        l.onResponse(v);
                     })
 
                     // respond to master
@@ -617,6 +636,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             deterministicTaskQueue.runAllTasksInTimeOrder();
             assertTrue(future.isDone());
             future.actionGet();
+
+            final var repository = (FakeRepository) repositoriesService.repository("repo");
+            logger.info("--> final states: {}", repository.repositoryShardStates);
         } finally {
             snapshotsService.stop();
             repositoriesService.stop();
