@@ -2255,11 +2255,12 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
                     // updated repository data and state on the retry. We don't want to wait for the write to finish though
                     // because it could fail for any number of reasons so we just retry instead of waiting on the cluster state
                     // to change in any form.
-                    if (repositoryMetadataStart.equals(
-                        RepositoriesMetadata.get(currentState).repository(repository.getMetadata().name())
-                    )) {
+                    final var currentMetadata = RepositoriesMetadata.get(currentState).repository(repository.getMetadata().name());
+                    if (repositoryMetadataStart.equals(currentMetadata)) {
                         executedTask = true;
                         return updateTask.execute(currentState);
+                    } else {
+                        logger.info("executeConsistentStateUpdate: not consistent:\n{}\n{}", repositoryMetadataStart, currentMetadata);
                     }
                     return currentState;
                 }

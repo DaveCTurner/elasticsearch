@@ -17,6 +17,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingRunnable;
@@ -33,6 +34,7 @@ import org.elasticsearch.cluster.SnapshotsInProgress.ShardSnapshotStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.RepositoriesMetadata;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -46,6 +48,7 @@ import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -87,6 +90,7 @@ import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.hamcrest.Matchers;
 
 import java.util.Collection;
@@ -191,6 +195,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         };
         clusterApplierService.setNodeConnectionsService(new NodeConnectionsService(settings, threadPool, transportService));
 
+        final var initialRepositoryData = RepositoryData.EMPTY.withClusterUuid(UUIDs.randomBase64UUID(random()));
+        final var repositoryName = "repo";
+        final var repositoryType = "fake";
+
         final int dataNodeCount = between(1, 10);
         final var discoveryNodes = DiscoveryNodes.builder();
         discoveryNodes.add(localNode).localNodeId(localNode.getId()).masterNodeId(localNode.getId());
@@ -259,16 +267,13 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             private final Map<RepositoryShardId, RepositoryShardState> repositoryShardStates = new HashMap<>();
 
-            private RepositoryData repositoryData = RepositoryData.EMPTY;
+            private RepositoryData repositoryData = initialRepositoryData;
 
-            private final RepositoryMetadata repositoryMetadata = new RepositoryMetadata(
-                "repo",
-                "fake-uuid",
-                "fake",
-                Settings.EMPTY,
-                1L,
-                1L
-            );
+            private RepositoryMetadata repositoryMetadata;
+
+            FakeRepository(RepositoryMetadata repositoryMetadata) {
+                this.repositoryMetadata = repositoryMetadata;
+            }
 
             @Override
             protected void doStart() {}
@@ -342,7 +347,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             new ClusterStateUpdateTask() {
                                 @Override
                                 public ClusterState execute(ClusterState currentState) {
-                                    return finalizeSnapshotContext.updatedClusterState(currentState);
+                                    final var newRepositoriesMetadata = RepositoriesMetadata.get(currentState)
+                                        .withUpdatedGeneration(
+                                            repositoryName,
+                                            updatedRepositoryData.getGenId(),
+                                            updatedRepositoryData.getGenId()
+                                        );
+
+                                    return finalizeSnapshotContext.updatedClusterState(
+                                        currentState.copyAndUpdateMetadata(
+                                            mdb -> mdb.putCustom(RepositoriesMetadata.TYPE, newRepositoriesMetadata)
+                                        )
+                                    );
                                 }
 
                                 @Override
@@ -361,7 +377,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
                     // fork background cleanup
                     .<RepositoryData>andThen((l, updatedRepositoryData) -> {
-                        l.onResponse(repositoryData = updatedRepositoryData);
+                        logger.info(
+                            "--> update repositoryData:\n{}",
+                            Strings.toString(
+                                (ToXContentObject) (builder, p) -> updatedRepositoryData.snapshotsToXContent(
+                                    builder,
+                                    IndexVersion.current()
+                                ),
+                                true,
+                                true
+                            )
+                        );
+                        l.onResponse(updatedRepositoryData);
                         try (
                             var refs = new RefCountingRunnable(() -> finalizeSnapshotContext.onDone(finalizeSnapshotContext.snapshotInfo()))
                         ) {
@@ -443,7 +470,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             @Override
-            public void updateState(ClusterState state) {}
+            public void updateState(ClusterState state) {
+                repositoryMetadata = RepositoriesMetadata.get(state).repository(repositoryName);
+            }
 
             @Override
             public void cloneShardSnapshot(
@@ -474,7 +503,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             settings,
             clusterService,
             transportService,
-            Map.of("fake", ignored -> new FakeRepository()),
+            Map.of(repositoryType, repositoryMetadata -> new FakeRepository(repositoryMetadata)),
             Map.of(),
             threadPool,
             List.of()
@@ -546,39 +575,37 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     .<Void>newForked(l -> threadPool.generic().execute(ActionRunnable.run(l, () -> {})))
 
                     // perform shard snapshot
-                    .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> {
-                        ActionListener.completeWith(l, () -> {
-                            final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
-                            final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
-                            logger.info(
-                                "--> doShardSnapshot[{}]: {}",
-                                ongoingShardSnapshot.repositoryShardId(),
-                                repositoryShardState.shardGenerations()
-                            );
-                            assertThat(
-                                ongoingShardSnapshot.repositoryShardId().toString(),
-                                repositoryShardState.shardGenerations(),
-                                Matchers.hasItem(originalShardGeneration)
-                            );
-                            repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
+                    .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> ActionListener.completeWith(l, () -> {
+                        final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
+                        final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
+                        logger.info(
+                            "--> doShardSnapshot[{}]: {}",
+                            ongoingShardSnapshot.repositoryShardId(),
+                            repositoryShardState.shardGenerations()
+                        );
+                        assertThat(
+                            ongoingShardSnapshot.repositoryShardId().toString(),
+                            repositoryShardState.shardGenerations(),
+                            Matchers.hasItem(originalShardGeneration)
+                        );
+                        repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
 
-                            final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
-                            repositoryShardState.shardGenerations().add(newShardGeneration);
+                        final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
+                        repositoryShardState.shardGenerations().add(newShardGeneration);
 
-                            if (usually()) {
-                                return ShardSnapshotStatus.success(
-                                    ongoingShardSnapshot.nodeId(),
-                                    new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
-                                );
-                            }
-                            return new ShardSnapshotStatus(
+                        if (usually()) {
+                            return ShardSnapshotStatus.success(
                                 ongoingShardSnapshot.nodeId(),
-                                SnapshotsInProgress.ShardState.FAILED,
-                                "simulated",
-                                randomBoolean() ? null : newShardGeneration
+                                new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
                             );
-                        });
-                    })
+                        }
+                        return new ShardSnapshotStatus(
+                            ongoingShardSnapshot.nodeId(),
+                            SnapshotsInProgress.ShardState.FAILED,
+                            "simulated",
+                            randomBoolean() ? null : newShardGeneration
+                        );
+                    }))
 
                     // respond to master
                     .<Void>andThen(
@@ -623,13 +650,17 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         try {
             final var future = new PlainActionFuture<Void>();
 
+            // deterministicTaskQueue.scheduleAt(60000, () -> { throw new AssertionError("boom"); });
+
             SubscribableListener
 
                 .<AcknowledgedResponse>newForked(
-                    l -> repositoriesService.registerRepository(new PutRepositoryRequest("repo").type("fake"), l)
+                    l -> repositoriesService.registerRepository(new PutRepositoryRequest(repositoryName).type(repositoryType), l)
                 )
 
-                .<SnapshotInfo>andThen((l, r) -> snapshotsService.executeSnapshot(new CreateSnapshotRequest("repo", "snap-1"), l))
+                .<SnapshotInfo>andThen((l, r) -> snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l))
+
+                .<Void>andThen((l, r) -> snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l))
 
                 .addListener(future.map(ignored -> null));
 
