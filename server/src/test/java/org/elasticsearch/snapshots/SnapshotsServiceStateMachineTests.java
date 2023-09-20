@@ -371,13 +371,14 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             for (final var obsoleteShardGeneration : finalizeSnapshotContext.obsoleteShardGenerations().entrySet()) {
                                 final var repositoryShardState = getShardState(obsoleteShardGeneration.getKey());
                                 for (final var shardGeneration : obsoleteShardGeneration.getValue()) {
-                                    threadPool.generic()
-                                        .execute(
-                                            ActionRunnable.run(
-                                                refs.acquireListener(),
-                                                () -> assertTrue(repositoryShardState.shardGenerations().remove(shardGeneration))
-                                            )
+                                    threadPool.generic().execute(ActionRunnable.run(refs.acquireListener(), () -> {
+                                        logger.info(
+                                            "removing shard gen [{}] from [{}] in create",
+                                            shardGeneration,
+                                            obsoleteShardGeneration.getKey()
                                         );
+                                        assertTrue(repositoryShardState.shardGenerations().remove(shardGeneration));
+                                    }));
                                 }
                             }
                         }
@@ -410,15 +411,24 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             final var shardId = repositoryShardStateEntry.getKey();
                             final var currentShardGeneration = currentShardGenerations.getShardGen(shardId.index(), shardId.shardId());
                             final ShardGeneration updatedShardGeneration;
-                            if (randomBoolean()) {
+                            // TODO when is currentShardGeneration null?
+                            if (currentShardGeneration != null && randomBoolean()) {
+                                assertThat(
+                                    shardId + " should have gen " + currentShardGeneration,
+                                    repositoryShardStateEntry.getValue().shardGenerations(),
+                                    hasItem(currentShardGeneration)
+                                );
                                 updatedShardGeneration = currentShardGeneration;
-                                assertThat(repositoryShardStateEntry.getValue().shardGenerations(), hasItem(updatedShardGeneration));
                             } else {
                                 updatedShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
                                 assertTrue(repositoryShardStateEntry.getValue().shardGenerations().add(updatedShardGeneration));
-                                cleanups.add(
-                                    () -> assertTrue(repositoryShardStates.get(shardId).shardGenerations().remove(currentShardGeneration))
-                                );
+                                cleanups.add(() -> {
+                                    logger.info("removing shard gen [{}] from [{}] in delete", currentShardGeneration, shardId);
+                                    assertTrue(
+                                        shardId + " should have gen " + currentShardGeneration,
+                                        repositoryShardStates.get(shardId).shardGenerations().remove(currentShardGeneration)
+                                    );
+                                });
                             }
                             updatedShardGenerations.put(shardId.index(), shardId.shardId(), updatedShardGeneration);
                         }
@@ -699,7 +709,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         );
                     }))
 
-                    // respond to master
+                    // respond to master - TODO might not even be able to notify master, then what?
                     .<Void>andThen(
                         threadPool.generic(),
                         null,
