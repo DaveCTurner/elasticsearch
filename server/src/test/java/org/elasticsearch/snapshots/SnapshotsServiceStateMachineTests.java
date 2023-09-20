@@ -8,11 +8,14 @@
 
 package org.elasticsearch.snapshots;
 
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
 import org.elasticsearch.cluster.ClusterState;
@@ -26,12 +29,12 @@ import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
-import org.elasticsearch.common.component.Lifecycle;
-import org.elasticsearch.common.component.LifecycleListener;
+import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
+import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
@@ -49,16 +52,29 @@ import org.elasticsearch.repositories.RepositoryShardId;
 import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
+import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransport;
+import org.elasticsearch.test.transport.StubbableTransport;
+import org.elasticsearch.tracing.Tracer;
+import org.elasticsearch.transport.CloseableConnection;
+import org.elasticsearch.transport.ClusterConnectionManager;
+import org.elasticsearch.transport.TestTransportChannel;
+import org.elasticsearch.transport.TransportException;
+import org.elasticsearch.transport.TransportMessageListener;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponse;
+import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
@@ -77,15 +93,74 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var localNode = DiscoveryNodeUtils.create("local");
 
-        final var transport = new MockTransport();
-        final var transportService = transport.createTransportService(
+        final var transport = new StubbableTransport(new MockTransport());
+        final var transportService = new TransportService(
             settings,
+            transport,
             threadPool,
             TransportService.NOOP_TRANSPORT_INTERCEPTOR,
             ignored -> localNode,
             clusterSettings,
-            Set.of()
+            new ClusterConnectionManager(settings, transport, threadContext),
+            new TaskManager(settings, threadPool, Set.of()),
+            Tracer.NOOP
         );
+
+        transport.setDefaultConnectBehavior((t, discoveryNode, profile, listener) -> listener.onResponse(new CloseableConnection() {
+            @Override
+            public DiscoveryNode getNode() {
+                return discoveryNode;
+            }
+
+            @Override
+            public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
+                throws TransportException {
+
+                SubscribableListener
+                    // send request
+                    .<TransportResponse>newForked(l -> threadPool.generic().execute(ActionRunnable.wrap(l, new CheckedConsumer<>() {
+                        @Override
+                        public void accept(ActionListener<TransportResponse> l2) throws Exception {
+                            transport.getRequestHandlers().getHandler(action).processMessageReceived(request, new TestTransportChannel(l2));
+                        }
+
+                        @Override
+                        public String toString() {
+                            return "handle request [" + requestId + "][" + action + "]";
+                        }
+                    })))
+                    // handle response
+                    .addListener(new ThreadedActionListener<>(threadPool.generic(), new ActionListener<>() {
+                        private TransportResponseHandler<TransportResponse> getResponseHandler() {
+                            return lookupResponseHandler(requestId, action);
+                        }
+
+                        @Override
+                        public void onResponse(TransportResponse transportResponse) {
+                            getResponseHandler().handleResponse(transportResponse);
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            getResponseHandler().handleException(new TransportException(e));
+                        }
+                    }));
+            }
+
+            @SuppressWarnings("unchecked")
+            private TransportResponseHandler<TransportResponse> lookupResponseHandler(long requestId, String action) {
+                return Objects.requireNonNull(
+                    (TransportResponseHandler<TransportResponse>) transport.getResponseHandlers()
+                        .onResponseReceived(requestId, TransportMessageListener.NOOP_LISTENER),
+                    action
+                );
+            }
+
+            @Override
+            public TransportVersion getTransportVersion() {
+                return TransportVersion.current();
+            }
+        }));
 
         final var clusterApplierService = new ClusterApplierService("test", settings, clusterSettings, threadPool) {
             @Override
@@ -105,10 +180,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
             ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
             ackListener.onCommit(TimeValue.ZERO);
-            publishListener.onResponse(null);
-            for (final var discoveryNode : clusterStatePublicationEvent.getNewState().nodes()) {
-                ackListener.onNodeAck(discoveryNode, null);
-            }
+            clusterApplierService.onNewClusterState(
+                clusterStatePublicationEvent.getSummary().toString(),
+                clusterStatePublicationEvent::getNewState,
+                publishListener.delegateFailureAndWrap((l, v) -> {
+                    l.onResponse(v);
+                    for (final var discoveryNode : clusterStatePublicationEvent.getNewState().nodes()) {
+                        ackListener.onNodeAck(discoveryNode, null);
+                    }
+                })
+            );
         });
         masterService.setClusterStateSupplier(clusterApplierService::state);
 
@@ -116,10 +197,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var systemIndices = new SystemIndices(List.of());
 
-        final var repository = new Repository() {
+        class FakeRepository extends AbstractLifecycleComponent implements Repository {
 
             private final RepositoryMetadata repositoryMetadata = new RepositoryMetadata(
-                "fake",
+                "repo",
                 "fake-uuid",
                 "fake",
                 Settings.EMPTY,
@@ -128,34 +209,42 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             );
 
             @Override
+            protected void doStart() {}
+
+            @Override
+            protected void doStop() {}
+
+            @Override
+            protected void doClose() {}
+
+            @Override
             public RepositoryMetadata getMetadata() {
                 return repositoryMetadata;
             }
 
             @Override
             public void getSnapshotInfo(GetSnapshotInfoContext context) {
-
+                context.onFailure(new UnsupportedOperationException());
             }
 
             @Override
             public Metadata getSnapshotGlobalMetadata(SnapshotId snapshotId) {
-                return null;
+                throw new UnsupportedOperationException();
             }
 
             @Override
-            public IndexMetadata getSnapshotIndexMetaData(RepositoryData repositoryData, SnapshotId snapshotId, IndexId index)
-                throws IOException {
-                return null;
+            public IndexMetadata getSnapshotIndexMetaData(RepositoryData repositoryData, SnapshotId snapshotId, IndexId index) {
+                throw new UnsupportedOperationException();
             }
 
             @Override
             public void getRepositoryData(ActionListener<RepositoryData> listener) {
-
+                threadPool.generic().execute(ActionRunnable.supply(listener, () -> RepositoryData.EMPTY));
             }
 
             @Override
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
-
+                finalizeSnapshotContext.onFailure(new UnsupportedOperationException());
             }
 
             @Override
@@ -165,7 +254,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 IndexVersion repositoryMetaVersion,
                 SnapshotDeleteListener listener
             ) {
-
+                listener.onFailure(new UnsupportedOperationException());
             }
 
             @Override
@@ -180,18 +269,14 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public String startVerification() {
-                return null;
+                return randomAlphaOfLength(10);
             }
 
             @Override
-            public void endVerification(String verificationToken) {
-
-            }
+            public void endVerification(String verificationToken) {}
 
             @Override
-            public void verify(String verificationToken, DiscoveryNode localNode) {
-
-            }
+            public void verify(String verificationToken, DiscoveryNode localNode) {}
 
             @Override
             public boolean isReadOnly() {
@@ -200,7 +285,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void snapshotShard(SnapshotShardContext snapshotShardContext) {
-
+                snapshotShardContext.onFailure(new UnsupportedOperationException());
             }
 
             @Override
@@ -212,18 +297,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 RecoveryState recoveryState,
                 ActionListener<Void> listener
             ) {
-
+                listener.onFailure(new UnsupportedOperationException());
             }
 
             @Override
             public IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
-                return null;
+                throw new UnsupportedOperationException();
             }
 
             @Override
-            public void updateState(ClusterState state) {
-
-            }
+            public void updateState(ClusterState state) {}
 
             @Override
             public void cloneShardSnapshot(
@@ -233,45 +316,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 ShardGeneration shardGeneration,
                 ActionListener<ShardSnapshotResult> listener
             ) {
-
+                listener.onFailure(new UnsupportedOperationException());
             }
 
             @Override
-            public void awaitIdle() {
-
-            }
-
-            @Override
-            public Lifecycle.State lifecycleState() {
-                return null;
-            }
-
-            @Override
-            public void addLifecycleListener(LifecycleListener listener) {
-
-            }
-
-            @Override
-            public void start() {
-
-            }
-
-            @Override
-            public void stop() {
-
-            }
-
-            @Override
-            public void close() {
-
-            }
-        };
+            public void awaitIdle() {}
+        }
 
         final var repositoriesService = new RepositoriesService(
             settings,
             clusterService,
             transportService,
-            Map.of("fake", ignored -> repository),
+            Map.of("fake", ignored -> new FakeRepository()),
             Map.of(),
             threadPool,
             List.of()
@@ -290,9 +346,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         clusterService.addStateApplier(repositoriesService);
         clusterService.addStateApplier(snapshotsService);
 
+        transportService.start();
         clusterService.start();
         repositoriesService.start();
         snapshotsService.start();
+        transportService.acceptIncomingRequests();
 
         final var future = new PlainActionFuture<Void>();
 

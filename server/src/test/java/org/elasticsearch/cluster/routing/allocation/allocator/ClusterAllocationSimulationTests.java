@@ -262,10 +262,7 @@ public class ClusterAllocationSimulationTests extends ESAllocationTestCase {
         };
 
         masterService.setClusterStateSupplier(applierService::state);
-        masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
-            ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
-            publishListener.onResponse(null);
-        });
+        masterService.setClusterStatePublisher(ClusterServiceUtils.createClusterStatePublisher(applierService));
 
         applierService.setNodeConnectionsService(ClusterServiceUtils.createNoOpNodeConnectionsService());
         applierService.setInitialState(unassignedClusterState);
