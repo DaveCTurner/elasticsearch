@@ -13,6 +13,7 @@ import com.carrotsearch.randomizedtesting.generators.RandomNumbers;
 import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.ESTestCase;
