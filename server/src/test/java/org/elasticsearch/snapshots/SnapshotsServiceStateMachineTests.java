@@ -19,12 +19,14 @@ import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequ
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
+import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress.ShardSnapshotStatus;
@@ -246,7 +248,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         class FakeRepository extends AbstractLifecycleComponent implements Repository {
 
-            private final Map<ShardId, RepositoryShardState> repositoryShardStates = new HashMap<>();
+            private final Map<RepositoryShardId, RepositoryShardState> repositoryShardStates = new HashMap<>();
+
+            private RepositoryData repositoryData = RepositoryData.EMPTY;
 
             private final RepositoryMetadata repositoryMetadata = new RepositoryMetadata(
                 "repo",
@@ -288,12 +292,87 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void getRepositoryData(ActionListener<RepositoryData> listener) {
-                threadPool.generic().execute(ActionRunnable.supply(listener, () -> RepositoryData.EMPTY));
+                threadPool.generic().execute(ActionRunnable.supply(listener, () -> repositoryData));
             }
 
             @Override
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
-                finalizeSnapshotContext.onFailure(new UnsupportedOperationException());
+
+                SubscribableListener
+                    // get current repo data
+                    .newForked(this::getRepositoryData)
+
+                    // compute new repo data
+                    .<RepositoryData>andThen(
+                        threadPool.generic(),
+                        null,
+                        (l, currentRepositoryData) -> l.onResponse(
+                            currentRepositoryData.addSnapshot(
+                                finalizeSnapshotContext.snapshotInfo().snapshotId(),
+                                new RepositoryData.SnapshotDetails(
+                                    finalizeSnapshotContext.snapshotInfo().state(),
+                                    IndexVersion.current(),
+                                    finalizeSnapshotContext.snapshotInfo().startTime(),
+                                    finalizeSnapshotContext.snapshotInfo().endTime(),
+                                    null
+                                ),
+                                finalizeSnapshotContext.updatedShardGenerations(),
+                                null /*TODO*/
+                                ,
+                                null/*TODO*/
+                            )
+                        )
+                    )
+
+                    // store new repo data and fork the subsequent cleanup
+                    .<RepositoryData>andThen(
+                        threadPool.generic(),
+                        null,
+                        (l, updatedRepositoryData) -> masterService.submitUnbatchedStateUpdateTask(
+                            "finalize snapshot " + finalizeSnapshotContext.snapshotInfo().snapshotId(),
+                            new ClusterStateUpdateTask() {
+                                @Override
+                                public ClusterState execute(ClusterState currentState) {
+                                    return finalizeSnapshotContext.updatedClusterState(currentState);
+                                }
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    l.onFailure(e);
+                                }
+
+                                @Override
+                                public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
+                                    repositoryData = updatedRepositoryData;
+                                    l.onResponse(updatedRepositoryData);
+                                }
+                            }
+                        )
+                    )
+
+                    // fork background cleanup
+                    .<RepositoryData>andThen((l, updatedRepositoryData) -> {
+                        l.onResponse(repositoryData = updatedRepositoryData);
+                        try (
+                            var refs = new RefCountingRunnable(() -> finalizeSnapshotContext.onDone(finalizeSnapshotContext.snapshotInfo()))
+                        ) {
+                            for (final var obsoleteShardGeneration : finalizeSnapshotContext.obsoleteShardGenerations().entrySet()) {
+                                final var repositoryShardState = getShardState(obsoleteShardGeneration.getKey());
+                                for (ShardGeneration shardGeneration : obsoleteShardGeneration.getValue()) {
+                                    threadPool.generic()
+                                        .execute(
+                                            ActionRunnable.run(
+                                                refs.acquireListener(),
+                                                () -> assertTrue(repositoryShardState.shardGenerations().remove(shardGeneration.toString()))
+                                            )
+                                        );
+                                }
+                            }
+                        }
+                    })
+
+                    // complete the context
+                    .addListener(finalizeSnapshotContext, threadPool.generic(), null);
             }
 
             @Override
@@ -371,11 +450,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             @Override
             public void awaitIdle() {}
 
-            public RepositoryShardState getShardState(ShardId shardId) {
-                return repositoryShardStates.computeIfAbsent(shardId, this::newRepositoryShardState);
+            public RepositoryShardState getShardState(RepositoryShardId repositoryShardId) {
+                return repositoryShardStates.computeIfAbsent(repositoryShardId, this::newRepositoryShardState);
             }
 
-            private RepositoryShardState newRepositoryShardState(ShardId ignored) {
+            private RepositoryShardState newRepositoryShardState(RepositoryShardId ignored) {
                 final var shardGenerations = new HashSet<String>();
                 shardGenerations.add(ShardGenerations.NEW_SHARD_GEN.toString());
                 return new RepositoryShardState(shardGenerations);
@@ -408,7 +487,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         clusterService.addStateApplier(snapshotsService);
         clusterService.addStateApplier(new ClusterStateApplier() {
 
-            private record OngoingShardSnapshot(Snapshot snapshot, ShardId shardId, String nodeId) {}
+            private record OngoingShardSnapshot(Snapshot snapshot, ShardId shardId, RepositoryShardId repositoryShardId, String nodeId) {}
 
             private final Set<OngoingShardSnapshot> ongoingShardSnapshots = new HashSet<>();
 
@@ -418,9 +497,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
                         switch (shardSnapshotStatusEntry.getValue().state()) {
                             case INIT -> {
+                                final var shardId = shardSnapshotStatusEntry.getKey();
                                 final var ongoingShardSnapshot = new OngoingShardSnapshot(
                                     snapshotInProgress.snapshot(),
-                                    shardSnapshotStatusEntry.getKey(),
+                                    shardId,
+                                    new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
                                     shardSnapshotStatusEntry.getValue().nodeId()
                                 );
                                 if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
@@ -453,7 +534,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     .<ShardSnapshotStatus>andThen(threadPool.generic(), null, (l, v) -> {
                         ActionListener.completeWith(l, () -> {
                             final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
-                            final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.shardId());
+                            final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
                             assertThat(repositoryShardState.shardGenerations(), Matchers.hasItem(originalShardGeneration.toString()));
 
                             final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
