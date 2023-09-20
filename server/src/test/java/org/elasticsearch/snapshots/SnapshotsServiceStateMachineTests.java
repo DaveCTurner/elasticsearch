@@ -8,7 +8,9 @@
 
 package org.elasticsearch.snapshots;
 
+import org.elasticsearch.Build;
 import org.elasticsearch.TransportVersion;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
@@ -16,26 +18,34 @@ import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotReq
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
-import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.support.replication.ClusterStateCreationUtils;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateApplier;
 import org.elasticsearch.cluster.NodeConnectionsService;
+import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.routing.IndexRoutingTable;
+import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.ShardRoutingState;
+import org.elasticsearch.cluster.routing.TestShardRouting;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
-import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
@@ -53,16 +63,16 @@ import org.elasticsearch.repositories.RepositoryShardId;
 import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
+import org.elasticsearch.repositories.VerifyNodeRepositoryAction;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
-import org.elasticsearch.test.transport.MockTransport;
-import org.elasticsearch.test.transport.StubbableTransport;
+import org.elasticsearch.test.transport.FakeTransport;
 import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.CloseableConnection;
 import org.elasticsearch.transport.ClusterConnectionManager;
-import org.elasticsearch.transport.TestTransportChannel;
+import org.elasticsearch.transport.ConnectionProfile;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportMessageListener;
 import org.elasticsearch.transport.TransportRequest;
@@ -72,11 +82,15 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_CREATION_DATE;
+import static org.elasticsearch.snapshots.SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME;
 
 @TestLogging(
     reason = "nocommit",
@@ -100,7 +114,53 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var localNode = DiscoveryNodeUtils.create("local");
 
-        final var transport = new StubbableTransport(new MockTransport());
+        final var transport = new FakeTransport() {
+            @Override
+            public void openConnection(DiscoveryNode discoveryNode, ConnectionProfile profile, ActionListener<Connection> listener) {
+                listener.onResponse(new CloseableConnection() {
+                    @Override
+                    public DiscoveryNode getNode() {
+                        return discoveryNode;
+                    }
+
+                    @Override
+                    public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
+                        throws TransportException {
+
+                        switch (action) {
+                            case TransportService.HANDSHAKE_ACTION_NAME -> lookupResponseHandler(requestId, action).handleResponse(
+                                new TransportService.HandshakeResponse(
+                                    Version.CURRENT,
+                                    Build.current().hash(),
+                                    discoveryNode,
+                                    ClusterName.DEFAULT
+                                )
+                            );
+                            case VerifyNodeRepositoryAction.ACTION_NAME -> lookupResponseHandler(requestId, action).handleResponse(
+                                TransportResponse.Empty.INSTANCE
+                            );
+                            default -> throw new UnsupportedOperationException("unexpected action [" + action + "]");
+                        }
+                    }
+
+                    @SuppressWarnings("unchecked")
+                    private TransportResponseHandler<TransportResponse> lookupResponseHandler(long requestId, String action) {
+                        return Objects.requireNonNull(
+                            (TransportResponseHandler<TransportResponse>) getResponseHandlers().onResponseReceived(
+                                requestId,
+                                TransportMessageListener.NOOP_LISTENER
+                            ),
+                            action
+                        );
+                    }
+
+                    @Override
+                    public TransportVersion getTransportVersion() {
+                        return TransportVersion.current();
+                    }
+                });
+            }
+        };
         final var transportService = new TransportService(
             settings,
             transport,
@@ -113,62 +173,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             Tracer.NOOP
         );
 
-        transport.setDefaultConnectBehavior((t, discoveryNode, profile, listener) -> listener.onResponse(new CloseableConnection() {
-            @Override
-            public DiscoveryNode getNode() {
-                return discoveryNode;
-            }
-
-            @Override
-            public void sendRequest(long requestId, String action, TransportRequest request, TransportRequestOptions options)
-                throws TransportException {
-
-                SubscribableListener
-                    // send request
-                    .<TransportResponse>newForked(l -> threadPool.generic().execute(ActionRunnable.wrap(l, new CheckedConsumer<>() {
-                        @Override
-                        public void accept(ActionListener<TransportResponse> l2) throws Exception {
-                            transport.getRequestHandlers().getHandler(action).processMessageReceived(request, new TestTransportChannel(l2));
-                        }
-
-                        @Override
-                        public String toString() {
-                            return "handle request [" + requestId + "][" + action + "]";
-                        }
-                    })))
-                    // handle response
-                    .addListener(new ThreadedActionListener<>(threadPool.generic(), new ActionListener<>() {
-                        private TransportResponseHandler<TransportResponse> getResponseHandler() {
-                            return lookupResponseHandler(requestId, action);
-                        }
-
-                        @Override
-                        public void onResponse(TransportResponse transportResponse) {
-                            getResponseHandler().handleResponse(transportResponse);
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            getResponseHandler().handleException(new TransportException(e));
-                        }
-                    }));
-            }
-
-            @SuppressWarnings("unchecked")
-            private TransportResponseHandler<TransportResponse> lookupResponseHandler(long requestId, String action) {
-                return Objects.requireNonNull(
-                    (TransportResponseHandler<TransportResponse>) transport.getResponseHandlers()
-                        .onResponseReceived(requestId, TransportMessageListener.NOOP_LISTENER),
-                    action
-                );
-            }
-
-            @Override
-            public TransportVersion getTransportVersion() {
-                return TransportVersion.current();
-            }
-        }));
-
         final var clusterApplierService = new ClusterApplierService("test", settings, clusterSettings, threadPool) {
             @Override
             protected PrioritizedEsThreadPoolExecutor createThreadPoolExecutor() {
@@ -176,7 +180,37 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
         };
         clusterApplierService.setNodeConnectionsService(new NodeConnectionsService(settings, threadPool, transportService));
-        clusterApplierService.setInitialState(ClusterStateCreationUtils.state(localNode, localNode));
+
+        final int dataNodeCount = between(1, 10);
+        final var discoveryNodes = DiscoveryNodes.builder();
+        discoveryNodes.add(localNode).localNodeId(localNode.getId()).masterNodeId(localNode.getId());
+        for (int i = 0; i < dataNodeCount; i++) {
+            discoveryNodes.add(DiscoveryNodeUtils.builder("node-" + i).roles(Set.of(DiscoveryNodeRole.DATA_ROLE)).build());
+        }
+
+        final var indexName = "test-index";
+        final var indexMetadata = IndexMetadata.builder(indexName)
+            .settings(indexSettings(IndexVersion.current(), between(1, 10), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis()))
+            .build();
+        final var indexRoutingTable = IndexRoutingTable.builder(indexMetadata.getIndex());
+        for (int i = 0; i < indexMetadata.getRoutingNumShards(); i++) {
+            indexRoutingTable.addShard(
+                TestShardRouting.newShardRouting(
+                    new ShardId(indexMetadata.getIndex(), i),
+                    "node-" + between(0, dataNodeCount - 1),
+                    true,
+                    ShardRoutingState.STARTED
+                )
+            );
+        }
+
+        clusterApplierService.setInitialState(
+            ClusterState.builder(ClusterName.DEFAULT)
+                .nodes(discoveryNodes)
+                .metadata(Metadata.builder().put(indexMetadata, false).generateClusterUuidIfNeeded())
+                .routingTable(RoutingTable.builder().add(indexRoutingTable))
+                .build()
+        );
 
         final var masterService = new MasterService(settings, clusterSettings, threadPool, transportService.getTaskManager()) {
             @Override
@@ -201,8 +235,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         masterService.setClusterStateSupplier(clusterApplierService::state);
 
         final var clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
-
-        final var systemIndices = new SystemIndices(List.of());
 
         class FakeRepository extends AbstractLifecycleComponent implements Repository {
 
@@ -340,6 +372,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             List.of()
         );
 
+        final var systemIndices = new SystemIndices(List.of());
+
         final var snapshotsService = new SnapshotsService(
             settings,
             clusterService,
@@ -352,6 +386,67 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         clusterService.addStateApplier(repositoriesService);
         clusterService.addStateApplier(snapshotsService);
+        clusterService.addStateApplier(new ClusterStateApplier() {
+
+            private record OngoingShardSnapshot(Snapshot snapshot, ShardId shardId, String nodeId) {}
+
+            private final Set<OngoingShardSnapshot> ongoingShardSnapshots = new HashSet<>();
+
+            @Override
+            public void applyClusterState(ClusterChangedEvent event) {
+                SnapshotsInProgress.get(event.state()).asStream().forEach(snapshotInProgress -> {
+                    for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
+                        if (shardSnapshotStatusEntry.getValue().state() == SnapshotsInProgress.ShardState.INIT) {
+                            final var ongoingShardSnapshot = new OngoingShardSnapshot(
+                                snapshotInProgress.snapshot(),
+                                shardSnapshotStatusEntry.getKey(),
+                                shardSnapshotStatusEntry.getValue().nodeId()
+                            );
+                            if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
+                                threadPool.generic().execute(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        transportService.sendRequest(
+                                            transportService.getLocalNodeConnection(),
+                                            UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
+                                            new UpdateIndexShardSnapshotStatusRequest(
+                                                ongoingShardSnapshot.snapshot,
+                                                ongoingShardSnapshot.shardId(),
+                                                SnapshotsInProgress.ShardSnapshotStatus.success(
+                                                    ongoingShardSnapshot.nodeId(),
+                                                    new ShardSnapshotResult(
+                                                        new ShardGeneration(randomAlphaOfLength(10)),
+                                                        ByteSizeValue.ZERO,
+                                                        1
+                                                    )
+                                                )
+                                            ),
+                                            TransportRequestOptions.EMPTY,
+                                            TransportResponseHandler.empty(threadPool.generic(), ActionListener.running(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    assertTrue(ongoingShardSnapshots.remove(ongoingShardSnapshot));
+                                                }
+
+                                                @Override
+                                                public String toString() {
+                                                    return "clean up " + ongoingShardSnapshot;
+                                                }
+                                            }))
+                                        );
+                                    }
+
+                                    @Override
+                                    public String toString() {
+                                        return "complete " + ongoingShardSnapshot;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+        });
 
         transportService.start();
         clusterService.start();
