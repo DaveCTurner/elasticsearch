@@ -11,7 +11,6 @@ package org.elasticsearch.snapshots;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -33,7 +32,6 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
@@ -51,7 +49,6 @@ import org.elasticsearch.repositories.RepositoryShardId;
 import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.repositories.SnapshotShardContext;
-import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
@@ -65,7 +62,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-@TestLogging(reason = "nocommit", value="org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE")
+@TestLogging(reason = "nocommit", value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE")
 public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
     public void testFoo() {
@@ -74,6 +71,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         final var clusterSettings = ClusterSettings.createBuiltInClusterSettings(settings);
 
         final var deterministicTaskQueue = new DeterministicTaskQueue();
+        deterministicTaskQueue.setExecutionDelayVariabilityMillis(1000);
         final var threadPool = deterministicTaskQueue.getThreadPool();
         final var threadContext = threadPool.getThreadContext();
 
@@ -107,10 +105,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         masterService.setClusterStatePublisher((clusterStatePublicationEvent, publishListener, ackListener) -> {
             ClusterServiceUtils.setAllElapsedMillis(clusterStatePublicationEvent);
             ackListener.onCommit(TimeValue.ZERO);
+            publishListener.onResponse(null);
             for (final var discoveryNode : clusterStatePublicationEvent.getNewState().nodes()) {
                 ackListener.onNodeAck(discoveryNode, null);
             }
-            publishListener.onResponse(null);
         });
         masterService.setClusterStateSupplier(clusterApplierService::state);
 
@@ -121,7 +119,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         final var repository = new Repository() {
 
             private final RepositoryMetadata repositoryMetadata = new RepositoryMetadata(
-                "fake", "fake-uuid", "fake", Settings.EMPTY, 1L, 1L
+                "fake",
+                "fake-uuid",
+                "fake",
+                Settings.EMPTY,
+                1L,
+                1L
             );
 
             @Override
@@ -140,7 +143,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             @Override
-            public IndexMetadata getSnapshotIndexMetaData(RepositoryData repositoryData, SnapshotId snapshotId, IndexId index) throws IOException {
+            public IndexMetadata getSnapshotIndexMetaData(RepositoryData repositoryData, SnapshotId snapshotId, IndexId index)
+                throws IOException {
                 return null;
             }
 
@@ -155,7 +159,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             @Override
-            public void deleteSnapshots(Collection<SnapshotId> snapshotIds, long repositoryStateId, IndexVersion repositoryMetaVersion, SnapshotDeleteListener listener) {
+            public void deleteSnapshots(
+                Collection<SnapshotId> snapshotIds,
+                long repositoryStateId,
+                IndexVersion repositoryMetaVersion,
+                SnapshotDeleteListener listener
+            ) {
 
             }
 
@@ -195,7 +204,14 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             @Override
-            public void restoreShard(Store store, SnapshotId snapshotId, IndexId indexId, ShardId snapshotShardId, RecoveryState recoveryState, ActionListener<Void> listener) {
+            public void restoreShard(
+                Store store,
+                SnapshotId snapshotId,
+                IndexId indexId,
+                ShardId snapshotShardId,
+                RecoveryState recoveryState,
+                ActionListener<Void> listener
+            ) {
 
             }
 
@@ -210,7 +226,13 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             }
 
             @Override
-            public void cloneShardSnapshot(SnapshotId source, SnapshotId target, RepositoryShardId shardId, ShardGeneration shardGeneration, ActionListener<ShardSnapshotResult> listener) {
+            public void cloneShardSnapshot(
+                SnapshotId source,
+                SnapshotId target,
+                RepositoryShardId shardId,
+                ShardGeneration shardGeneration,
+                ActionListener<ShardSnapshotResult> listener
+            ) {
 
             }
 
@@ -280,7 +302,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             .addListener(future.map(ignored -> null));
 
-        deterministicTaskQueue.runAllTasks();
+        deterministicTaskQueue.runAllTasksInTimeOrder();
         assertTrue(future.isDone());
         future.actionGet();
     }

@@ -714,7 +714,17 @@ public class MasterService extends AbstractLifecycleComponent {
             } else if (countDown.countDown()) {
                 finish();
             } else {
-                this.ackTimeoutCallback = threadPool.schedule(this::onTimeout, timeLeft, threadPool.generic());
+                this.ackTimeoutCallback = threadPool.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        onTimeout();
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "cluster state version [" + clusterStateVersion + "] ack timeout handler with delay [" + timeLeft + "ms]";
+                    }
+                }, timeLeft, threadPool.generic());
                 // re-check if onNodeAck has not completed while we were scheduling the timeout
                 if (countDown.isCountedDown()) {
                     ackTimeoutCallback.cancel();
