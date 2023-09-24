@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.clone.CloneSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
@@ -95,6 +96,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -105,6 +107,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -281,6 +284,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             private RepositoryData repositoryData = initialRepositoryData;
             private RepositoryMetadata repositoryMetadata;
             private final Semaphore writeRepositoryDataPermits = new Semaphore(1);
+            private final Map<SnapshotId, SnapshotInfo> snapshotInfos = new HashMap<>();
+            private final Map<String, IndexMetadata> indexMetadatas = new HashMap<>();
 
             FakeRepository(RepositoryMetadata repositoryMetadata) {
                 this.repositoryMetadata = repositoryMetadata;
@@ -302,7 +307,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void getSnapshotInfo(GetSnapshotInfoContext context) {
-                context.onFailure(new UnsupportedOperationException());
+                for (SnapshotId snapshotId : context.snapshotIds()) {
+                    threadPool.generic().execute(ActionRunnable.supply(context, () -> {
+                        var snapshotInfo = snapshotInfos.get(snapshotId);
+                        if (snapshotInfo == null) {
+                            throw new SnapshotMissingException(repositoryName, snapshotId, null);
+                        } else {
+                            return snapshotInfo;
+                        }
+                    }));
+                }
             }
 
             @Override
@@ -312,7 +326,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public IndexMetadata getSnapshotIndexMetaData(RepositoryData repositoryData, SnapshotId snapshotId, IndexId index) {
-                throw new UnsupportedOperationException();
+                final var indexMetadata = indexMetadatas.get(repositoryData.indexMetaDataGenerations().indexMetaBlobId(snapshotId, index));
+                if (indexMetadata == null) {
+                    throw new SnapshotMissingException(repositoryName, snapshotId, new NoSuchFileException(index.toString()));
+                }
+                return indexMetadata;
             }
 
             @Override
@@ -323,6 +341,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             @Override
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
                 assertTrue(writeRepositoryDataPermits.tryAcquire()); // TODO will not hold on master failover
+                snapshotInfos.put(finalizeSnapshotContext.snapshotInfo().snapshotId(), finalizeSnapshotContext.snapshotInfo());
                 SubscribableListener
                     // get current repo data
                     .newForked(this::getRepositoryData)
@@ -460,6 +479,15 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     .<RepositoryData>andThen((l, deleteResult) -> {
                         l.onResponse(deleteResult.updatedRepositoryData());
                         try (var refs = new RefCountingRunnable(snapshotDeleteListener::onDone)) {
+                            for (final var snapshotId : snapshotIds) {
+                                threadPool.generic()
+                                    .execute(
+                                        ActionRunnable.run(
+                                            refs.acquireListener(),
+                                            () -> { assertNotNull(snapshotInfos.remove(snapshotId)); }
+                                        )
+                                    );
+                            }
                             for (final var cleanup : deleteResult.cleanups()) {
                                 threadPool.generic().execute(ActionRunnable.run(refs.acquireListener(), cleanup::run));
                             }
@@ -647,6 +675,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             systemIndices
         );
 
+        final var shardSnapshotsMayFail = new AtomicBoolean(true);
+
         clusterService.addStateApplier(new ClusterStateApplier() {
 
             private record OngoingShardSnapshot(Snapshot snapshot, ShardId shardId, RepositoryShardId repositoryShardId, String nodeId) {}
@@ -662,46 +692,48 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 ongoingShardSnapshots.removeIf(ongoingShardSnapshot -> activeSnapshotIds.contains(ongoingShardSnapshot.snapshot) == false);
 
                 SnapshotsInProgress.get(event.state()).asStream().forEach(snapshotInProgress -> {
-                    for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
-                        switch (shardSnapshotStatusEntry.getValue().state()) {
-                            case INIT -> {
-                                final var shardId = shardSnapshotStatusEntry.getKey();
-                                final var ongoingShardSnapshot = new OngoingShardSnapshot(
-                                    snapshotInProgress.snapshot(),
-                                    shardId,
-                                    new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
-                                    shardSnapshotStatusEntry.getValue().nodeId()
-                                );
-                                if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
-                                    threadPool.generic().execute(ActionRunnable.<Void>wrap(new ActionListener<>() {
-                                        @Override
-                                        public void onResponse(Void unused) {}
+                    if (snapshotInProgress.isClone() == false) {
+                        for (final var shardSnapshotStatusEntry : snapshotInProgress.shards().entrySet()) {
+                            switch (shardSnapshotStatusEntry.getValue().state()) {
+                                case INIT -> {
+                                    final var shardId = shardSnapshotStatusEntry.getKey();
+                                    final var ongoingShardSnapshot = new OngoingShardSnapshot(
+                                        snapshotInProgress.snapshot(),
+                                        shardId,
+                                        new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
+                                        shardSnapshotStatusEntry.getValue().nodeId()
+                                    );
+                                    if (ongoingShardSnapshots.add(ongoingShardSnapshot)) {
+                                        threadPool.generic().execute(ActionRunnable.<Void>wrap(new ActionListener<>() {
+                                            @Override
+                                            public void onResponse(Void unused) {}
 
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            throw new AssertionError("unexpected", e);
-                                        }
-                                    },
-                                        l -> doShardSnapshot(
-                                            snapshotInProgress,
-                                            ongoingShardSnapshot,
-                                            shardSnapshotStatusEntry.getValue().generation(),
-                                            l
-                                        )
-                                    ));
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                throw new AssertionError("unexpected", e);
+                                            }
+                                        },
+                                            l -> doShardSnapshot(
+                                                snapshotInProgress,
+                                                ongoingShardSnapshot,
+                                                shardSnapshotStatusEntry.getValue().generation(),
+                                                l
+                                            )
+                                        ));
+                                    }
                                 }
-                            }
-                            case ABORTED -> {
-                                final var shardId = shardSnapshotStatusEntry.getKey();
-                                final var ongoingShardSnapshot = new OngoingShardSnapshot(
-                                    snapshotInProgress.snapshot(),
-                                    shardId,
-                                    new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
-                                    shardSnapshotStatusEntry.getValue().nodeId()
-                                );
-                                // TODO can a shard bypass INIT and move straight to ABORTED?
-                                // Let's assert that it cannot for now, but we might need to treat ABORTED shards like INIT ones.
-                                assertThat(ongoingShardSnapshots, hasItem(ongoingShardSnapshot));
+                                case ABORTED -> {
+                                    final var shardId = shardSnapshotStatusEntry.getKey();
+                                    final var ongoingShardSnapshot = new OngoingShardSnapshot(
+                                        snapshotInProgress.snapshot(),
+                                        shardId,
+                                        new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
+                                        shardSnapshotStatusEntry.getValue().nodeId()
+                                    );
+                                    // TODO can a shard bypass INIT and move straight to ABORTED?
+                                    // Let's assert that it cannot for now, but we might need to treat ABORTED shards like INIT ones.
+                                    assertThat(ongoingShardSnapshots, hasItem(ongoingShardSnapshot));
+                                }
                             }
                         }
                     }
@@ -829,6 +861,25 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             listeners.acquire(i -> {})
                         );
                     }
+                })
+
+                .<SnapshotInfo>andThen((l, r) -> {
+                    logger.info("--> create snapshot");
+                    shardSnapshotsMayFail.set(false);
+                    snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-3-orig"), l);
+                })
+
+                .<Void>andThen((l, r) -> {
+                    logger.info("--> clone snapshot");
+                    snapshotsService.cloneSnapshot(
+                        new CloneSnapshotRequest(repositoryName, "snap-3-orig", "snap-3-clone", new String[] { "*" }),
+                        l
+                    );
+                })
+
+                .<Void>andThen((l, r) -> {
+                    logger.info("--> delete snapshot and clone");
+                    snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-3-*"), l);
                 })
 
                 // TODO node leaves cluster while holding shards (shards may also be ABORTED; may also let an ongoing delete start)
