@@ -107,6 +107,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_CREATION_DATE;
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_UUID;
 import static org.elasticsearch.snapshots.SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME;
 import static org.hamcrest.Matchers.hasItem;
 
@@ -212,7 +213,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var indexName = "test-index";
         final var indexMetadata = IndexMetadata.builder(indexName)
-            .settings(indexSettings(IndexVersion.current(), between(1, 10), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis()))
+            .settings(
+                indexSettings(IndexVersion.current(), between(1, 10), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis())
+                    .put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))
+            )
             .build();
         final var indexRoutingTable = IndexRoutingTable.builder(indexMetadata.getIndex());
         for (int i = 0; i < indexMetadata.getRoutingNumShards(); i++) {
@@ -411,26 +415,28 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             final var shardId = repositoryShardStateEntry.getKey();
                             final var currentShardGeneration = currentShardGenerations.getShardGen(shardId.index(), shardId.shardId());
                             final ShardGeneration updatedShardGeneration;
-                            // TODO when is currentShardGeneration null?
-                            if (currentShardGeneration != null && randomBoolean()) {
+                            final Set<ShardGeneration> shardGenerationsToRemove;
+                            if (currentShardGeneration == null) {
+                                // no successful snapshots of this shard
+                                updatedShardGeneration = null;
+                                shardGenerationsToRemove = Set.copyOf(repositoryShardStateEntry.getValue().shardGenerations());
+                            } else if (randomBoolean()) {
+                                // shard generation is unchanged
                                 assertThat(
                                     shardId + " should have gen " + currentShardGeneration,
                                     repositoryShardStateEntry.getValue().shardGenerations(),
                                     hasItem(currentShardGeneration)
                                 );
                                 updatedShardGeneration = currentShardGeneration;
+                                shardGenerationsToRemove = Set.of();
                             } else {
+                                // new shard generation created
                                 updatedShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
+                                shardGenerationsToRemove = Set.copyOf(repositoryShardStateEntry.getValue().shardGenerations());
                                 assertTrue(repositoryShardStateEntry.getValue().shardGenerations().add(updatedShardGeneration));
-                                cleanups.add(() -> {
-                                    logger.info("removing shard gen [{}] from [{}] in delete", currentShardGeneration, shardId);
-                                    assertTrue(
-                                        shardId + " should have gen " + currentShardGeneration,
-                                        repositoryShardStates.get(shardId).shardGenerations().remove(currentShardGeneration)
-                                    );
-                                });
                             }
                             updatedShardGenerations.put(shardId.index(), shardId.shardId(), updatedShardGeneration);
+                            cleanups.add(() -> repositoryShardStateEntry.getValue().shardGenerations().removeAll(shardGenerationsToRemove));
                         }
 
                         l.onResponse(
@@ -695,17 +701,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
                         repositoryShardState.shardGenerations().add(newShardGeneration);
 
-                        if (usually()) {
-                            return ShardSnapshotStatus.success(
+                        if (rarely()) {
+                            return new ShardSnapshotStatus(
                                 ongoingShardSnapshot.nodeId(),
-                                new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
+                                SnapshotsInProgress.ShardState.FAILED,
+                                "simulated",
+                                randomBoolean() ? originalShardGeneration : newShardGeneration
                             );
                         }
-                        return new ShardSnapshotStatus(
+
+                        return ShardSnapshotStatus.success(
                             ongoingShardSnapshot.nodeId(),
-                            SnapshotsInProgress.ShardState.FAILED,
-                            "simulated",
-                            randomBoolean() ? originalShardGeneration : newShardGeneration
+                            new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
                         );
                     }))
 
