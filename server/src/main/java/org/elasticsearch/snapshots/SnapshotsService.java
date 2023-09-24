@@ -1855,6 +1855,13 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
             if (entry.repository().equals(repository)) {
                 final List<SnapshotId> updatedSnapshotIds = new ArrayList<>(entry.getSnapshots());
                 if (updatedSnapshotIds.removeAll(snapshotIds)) {
+                    assert entry.state() == SnapshotDeletionsInProgress.State.WAITING
+                        : Strings.format(
+                            "deletion already runnning in [%s] while removing %s: %s",
+                            repository,
+                            snapshotIds,
+                            Strings.toString(deletions, false, false)
+                        );
                     changed = true;
                     updatedEntries.add(entry.withSnapshots(updatedSnapshotIds));
                 } else {

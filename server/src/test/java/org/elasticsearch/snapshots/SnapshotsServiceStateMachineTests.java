@@ -330,6 +330,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             @Override
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
 
+                // TODO verify no concurrent finalizations or deletes (without master failover)
+
                 SubscribableListener
                     // get current repo data
                     .newForked(this::getRepositoryData)
@@ -401,6 +403,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 IndexVersion repositoryIndexVersion,
                 SnapshotDeleteListener snapshotDeleteListener
             ) {
+                // TODO verify no concurrent finalizations or deletes (without master failover)
+
                 record DeleteResult(RepositoryData updatedRepositoryData, List<Runnable> cleanups) {}
 
                 SubscribableListener
@@ -552,7 +556,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void snapshotShard(SnapshotShardContext snapshotShardContext) {
-                snapshotShardContext.onFailure(new UnsupportedOperationException());
+                fail("these tests only look at master-node behaviour, should not be calling this");
             }
 
             @Override
@@ -724,7 +728,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         );
                     }))
 
-                    // respond to master - TODO might not even be able to notify master, then what?
+                    // respond to master
+                    // TODO might not even be able to notify master, then what? No retries, does snapshot just hang?
                     .<Void>andThen(
                         threadPool.generic(),
                         null,
@@ -764,11 +769,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     l -> repositoriesService.registerRepository(new PutRepositoryRequest(repositoryName).type(repositoryType), l)
                 )
 
-                .<SnapshotInfo>andThen((l, r) -> snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l))
-
-                .<Void>andThen((l, r) -> snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l))
+                .<SnapshotInfo>andThen((l, r) -> {
+                    logger.info("--> create snapshot");
+                    snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l);
+                })
 
                 .<Void>andThen((l, r) -> {
+                    logger.info("--> delete snapshot");
+                    snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l);
+                })
+
+                .<Void>andThen((l, r) -> {
+                    logger.info("--> abort running snapshot");
                     try (var listeners = new RefCountingListener(l)) {
                         class DeleteAfterStartListener implements ClusterStateListener {
                             @Override
@@ -797,11 +809,35 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     }
                 })
 
+                // TODO node leaves cluster while holding shards (shards may also be ABORTED; may also let an ongoing delete start)
+                // TODO index deleted while snapshot running
+                // TODO primary shard moves from INITIALIZING to STARTED
+                // TODO master failover, new master continues work of old master & old master completes listeners
+                // TODO clones!
+                // TODO name collisions (both running & completed)
+                // TODO cleanups
+                // TODO concurrency limit
+                // TODO invalid snapshot name
+                // TODO repository removed concurrently with snap operation
+                // TODO metadata filtering (drop global metadata, and datastream metadata)
+                // TODO snapshot a datastream concurrently with rollover (looks like we drop datastream metadata in this case)
+                // TODO interleaved finalizations, finalizing snapshot not at head of list
+                // TODO removing completed (failed?) snapshot ID from enqueued snapshot deletion
+                // TODO concurrent ops in multiple repositories
+                // TODO wildcard deletes (including match-none)
+                // TODO delete with concurrent restore
+                // TODO delete with concurrent clone
+                // TODO aborting snapshot with no started shards
+                // TODO batching deletes (adding snapshots to WAITING delete, and skipping snapshots in STARTED delete)
+                // TODO retries in executeConsistentStateUpdate
+                // TODO snapshot/clone enqueued behind running deletion
+
                 .addListener(future.map(ignored -> null));
 
             deterministicTaskQueue.runAllTasksInTimeOrder();
             assertTrue(future.isDone());
             future.actionGet();
+            assertTrue(snapshotsService.assertAllListenersResolved());
 
             final var repository = (FakeRepository) repositoriesService.repository("repo");
             logger.info("--> final states: {}", repository.repositoryShardStates);
