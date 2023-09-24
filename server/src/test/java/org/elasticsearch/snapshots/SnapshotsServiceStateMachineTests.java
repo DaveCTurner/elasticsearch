@@ -20,6 +20,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotReq
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -27,6 +28,7 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.RepositoryCleanupInProgress;
@@ -598,6 +600,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 shardGenerations.add(ShardGenerations.NEW_SHARD_GEN);
                 return new RepositoryShardState(shardGenerations);
             }
+
+            @Override
+            public String toString() {
+                return FakeRepository.class.getSimpleName();
+            }
         }
 
         final var repositoriesService = new RepositoriesService(
@@ -667,6 +674,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                 }
                             }
                             case ABORTED -> {
+                                // fail("TODO");
                                 // TODO
                             }
                         }
@@ -759,6 +767,35 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 .<SnapshotInfo>andThen((l, r) -> snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l))
 
                 .<Void>andThen((l, r) -> snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l))
+
+                .<Void>andThen((l, r) -> {
+                    try (var listeners = new RefCountingListener(l)) {
+                        class DeleteAfterStartListener implements ClusterStateListener {
+                            @Override
+                            public void clusterChanged(ClusterChangedEvent event) {
+                                if (SnapshotsInProgress.get(event.state())
+                                    .asStream()
+                                    .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snap-2"))) {
+                                    clusterApplierService.removeListener(DeleteAfterStartListener.this);
+                                    threadPool.generic().execute(ActionRunnable.wrap(listeners.acquire().delegateResponse((dl, e) -> {
+                                        if (e instanceof SnapshotMissingException) {
+                                            // TODO should be impossible, we know the snapshot started
+                                            dl.onResponse(null);
+                                        } else {
+                                            dl.onFailure(e);
+                                        }
+                                    }), dl -> snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-2"), dl)));
+                                }
+                            }
+                        }
+
+                        clusterService.addListener(new DeleteAfterStartListener());
+                        snapshotsService.executeSnapshot(
+                            new CreateSnapshotRequest(repositoryName, "snap-2").partial(true),
+                            listeners.acquire(i -> {})
+                        );
+                    }
+                })
 
                 .addListener(future.map(ignored -> null));
 
