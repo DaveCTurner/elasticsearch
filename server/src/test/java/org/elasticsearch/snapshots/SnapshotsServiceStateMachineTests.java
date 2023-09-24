@@ -82,7 +82,6 @@ import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.FakeTransport;
 import org.elasticsearch.transport.CloseableConnection;
 import org.elasticsearch.transport.ClusterConnectionManager;
@@ -114,14 +113,6 @@ import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_UUI
 import static org.elasticsearch.snapshots.SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME;
 import static org.hamcrest.Matchers.hasItem;
 
-@TestLogging(
-    reason = "nocommit",
-    value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
-        + ",org.elasticsearch.cluster.service.MasterService:TRACE"
-        + ",org.elasticsearch.repositories.RepositoriesService:TRACE"
-        + ",org.elasticsearch.snapshots.SnapshotsService:TRACE"
-        + ",org.elasticsearch.cluster.service.ClusterApplierService:TRACE"
-)
 public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
     public void testFoo() {
@@ -701,8 +692,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                 }
                             }
                             case ABORTED -> {
-                                // fail("TODO");
-                                // TODO
+                                final var shardId = shardSnapshotStatusEntry.getKey();
+                                final var ongoingShardSnapshot = new OngoingShardSnapshot(
+                                    snapshotInProgress.snapshot(),
+                                    shardId,
+                                    new RepositoryShardId(snapshotInProgress.indices().get(shardId.getIndexName()), shardId.id()),
+                                    shardSnapshotStatusEntry.getValue().nodeId()
+                                );
+                                // TODO can a shard bypass INIT and move straight to ABORTED?
+                                // Let's assert that it cannot for now, but we might need to treat ABORTED shards like INIT ones.
+                                assertThat(ongoingShardSnapshots, hasItem(ongoingShardSnapshot));
                             }
                         }
                     }
