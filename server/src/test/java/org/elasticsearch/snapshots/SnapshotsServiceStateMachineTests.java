@@ -24,6 +24,7 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
@@ -70,6 +71,7 @@ import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.repositories.FinalizeSnapshotContext;
 import org.elasticsearch.repositories.GetSnapshotInfoContext;
 import org.elasticsearch.repositories.IndexId;
+import org.elasticsearch.repositories.IndexMetaDataGenerations;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
@@ -285,6 +287,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             private RepositoryMetadata repositoryMetadata;
             private final Semaphore writeRepositoryDataPermits = new Semaphore(1);
             private final Map<SnapshotId, SnapshotInfo> snapshotInfos = new HashMap<>();
+            private final Map<SnapshotId, Metadata> globalMetadatas = new HashMap<>();
             private final Map<String, IndexMetadata> indexMetadatas = new HashMap<>();
 
             FakeRepository(RepositoryMetadata repositoryMetadata) {
@@ -321,7 +324,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public Metadata getSnapshotGlobalMetadata(SnapshotId snapshotId) {
-                throw new UnsupportedOperationException();
+                final var globalMetadata = globalMetadatas.get(snapshotId);
+                if (globalMetadata == null) {
+                    throw new SnapshotMissingException(repositoryName, snapshotId, new NoSuchFileException("global metadata"));
+                }
+                return globalMetadata;
             }
 
             @Override
@@ -342,9 +349,48 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
                 assertTrue(writeRepositoryDataPermits.tryAcquire()); // TODO will not hold on master failover
                 snapshotInfos.put(finalizeSnapshotContext.snapshotInfo().snapshotId(), finalizeSnapshotContext.snapshotInfo());
+
+                final Map<IndexId, String> currentSnapshotIndexMetadataIdentifierByIndex = new HashMap<>();
+                final Map<String, String> newIndexMetaBlobNamesByIdentifier = new HashMap<>();
+
                 SubscribableListener
                     // get current repo data
                     .newForked(this::getRepositoryData)
+
+                    // capture index metadata
+                    // TODO this duplicates quite some work in BlobStoreRepository, should we move more of it into SnapshotsServce?
+                    .<RepositoryData>andThen(threadPool.generic(), null, (l, currentRepositoryData) -> {
+                        try (
+                            var listeners = new RefCountingListener(
+                                new ThreadedActionListener<>(threadPool.generic(), l.map(ignored -> currentRepositoryData))
+                            )
+                        ) {
+                            for (IndexId indexId : finalizeSnapshotContext.updatedShardGenerations().indices()) {
+                                threadPool.generic().execute(ActionRunnable.run(listeners.acquire(), () -> {
+                                    final var indexMetadata = finalizeSnapshotContext.clusterMetadata().index(indexId.getName());
+                                    final var indexMetadataIdentifier = IndexMetaDataGenerations.buildUniqueIdentifier(indexMetadata);
+                                    currentSnapshotIndexMetadataIdentifierByIndex.put(indexId, indexMetadataIdentifier);
+                                    if (currentRepositoryData.indexMetaDataGenerations()
+                                        .getIndexMetaBlobId(indexMetadataIdentifier) == null) {
+                                        final var newIndexMetaBlobId = UUIDs.randomBase64UUID(random());
+                                        newIndexMetaBlobNamesByIdentifier.put(indexMetadataIdentifier, newIndexMetaBlobId);
+                                        FakeRepository.this.indexMetadatas.put(newIndexMetaBlobId, indexMetadata);
+                                    }
+                                }));
+                            }
+
+                            threadPool.generic()
+                                .execute(
+                                    ActionRunnable.run(
+                                        listeners.acquire(),
+                                        () -> globalMetadatas.put(
+                                            finalizeSnapshotContext.snapshotInfo().snapshotId(),
+                                            finalizeSnapshotContext.clusterMetadata()
+                                        )
+                                    )
+                                );
+                        }
+                    })
 
                     // compute new repo data
                     .<RepositoryData>andThen(
@@ -361,9 +407,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                     null
                                 ),
                                 finalizeSnapshotContext.updatedShardGenerations(),
-                                null /*TODO*/
-                                ,
-                                null/*TODO*/
+                                currentSnapshotIndexMetadataIdentifierByIndex,
+                                newIndexMetaBlobNamesByIdentifier
                             )
                         )
                     )
@@ -570,6 +615,23 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 }
             }
 
+            void assertShardGenerationsUnique() {
+                for (var indexId : repositoryData.shardGenerations().indices()) {
+                    final var indexShardGenerations = repositoryData.shardGenerations().getGens(indexId);
+                    for (int i = 0; i < indexShardGenerations.size(); i++) {
+                        final var expectedShardGeneration = indexShardGenerations.get(i);
+                        final var repositoryShardId = new RepositoryShardId(indexId, i);
+                        assertEquals(
+                            repositoryShardId.toString(),
+                            expectedShardGeneration != null && expectedShardGeneration != ShardGenerations.NEW_SHARD_GEN
+                                ? Set.of(expectedShardGeneration)
+                                : Set.of(),
+                            repositoryShardStates.get(repositoryShardId).shardGenerations()
+                        );
+                    }
+                }
+            }
+
             @Override
             public long getSnapshotThrottleTimeInNanos() {
                 return 0;
@@ -631,7 +693,14 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 ShardGeneration shardGeneration,
                 ActionListener<ShardSnapshotResult> listener
             ) {
-                listener.onFailure(new UnsupportedOperationException());
+                threadPool.generic().execute(ActionRunnable.supply(listener, () -> {
+                    // TODO might fail
+                    final var shardGenerations = repositoryShardStates.get(shardId).shardGenerations();
+                    assertThat(shardGenerations, hasItem(shardGeneration));
+                    final var newGeneration = ShardGeneration.newGeneration(random());
+                    assertTrue(shardGenerations.add(newGeneration));
+                    return new ShardSnapshotResult(newGeneration, ByteSizeValue.ZERO, 1);
+                }));
             }
 
             @Override
@@ -767,7 +836,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
                         repositoryShardState.shardGenerations().add(newShardGeneration);
 
-                        if (rarely()) {
+                        if (shardSnapshotsMayFail.get() && rarely()) {
                             return new ShardSnapshotStatus(
                                 ongoingShardSnapshot.nodeId(),
                                 SnapshotsInProgress.ShardState.FAILED,
@@ -864,7 +933,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 })
 
                 .<SnapshotInfo>andThen((l, r) -> {
-                    logger.info("--> create snapshot");
+                    logger.info("--> create snapshot for clone");
                     shardSnapshotsMayFail.set(false);
                     snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-3-orig"), l);
                 })
@@ -914,6 +983,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             final var repository = (FakeRepository) repositoriesService.repository("repo");
             repository.assertShardGenerationsPresent();
+            repository.assertShardGenerationsUnique();
+            // TODO also verify no leaked global metadata and snapshot info
+            // TODO also verify no leaked index metadata
             logger.info("--> final states: {}", repository.repositoryShardStates);
         } finally {
             snapshotsService.stop();
