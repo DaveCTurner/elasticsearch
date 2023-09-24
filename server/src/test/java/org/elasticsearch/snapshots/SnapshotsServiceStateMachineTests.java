@@ -105,6 +105,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -288,6 +289,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             private final Map<RepositoryShardId, RepositoryShardState> repositoryShardStates = new HashMap<>();
             private RepositoryData repositoryData = initialRepositoryData;
             private RepositoryMetadata repositoryMetadata;
+            private final Semaphore writeRepositoryDataPermits = new Semaphore(1);
 
             FakeRepository(RepositoryMetadata repositoryMetadata) {
                 this.repositoryMetadata = repositoryMetadata;
@@ -329,9 +331,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             @Override
             public void finalizeSnapshot(FinalizeSnapshotContext finalizeSnapshotContext) {
-
-                // TODO verify no concurrent finalizations or deletes (without master failover)
-
+                assertTrue(writeRepositoryDataPermits.tryAcquire()); // TODO will not hold on master failover
                 SubscribableListener
                     // get current repo data
                     .newForked(this::getRepositoryData)
@@ -393,7 +393,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     })
 
                     // complete the context
-                    .addListener(finalizeSnapshotContext, threadPool.generic(), null);
+                    .addListener(
+                        ActionListener.runBefore(finalizeSnapshotContext, writeRepositoryDataPermits::release),
+                        threadPool.generic(),
+                        null
+                    );
             }
 
             @Override
@@ -403,10 +407,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 IndexVersion repositoryIndexVersion,
                 SnapshotDeleteListener snapshotDeleteListener
             ) {
-                // TODO verify no concurrent finalizations or deletes (without master failover)
-
                 record DeleteResult(RepositoryData updatedRepositoryData, List<Runnable> cleanups) {}
 
+                assertTrue(writeRepositoryDataPermits.tryAcquire()); // TODO will not hold on master failover
                 SubscribableListener
                     // get current repo data
                     .newForked(this::getRepositoryData)
@@ -473,7 +476,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     })
 
                     // complete the context
-                    .addListener(new ActionListener<>() {
+                    .addListener(ActionListener.runBefore(new ActionListener<>() {
                         @Override
                         public void onResponse(RepositoryData repositoryData) {
                             snapshotDeleteListener.onRepositoryDataWritten(repositoryData);
@@ -483,7 +486,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         public void onFailure(Exception e) {
                             snapshotDeleteListener.onFailure(e);
                         }
-                    }, threadPool.generic(), null);
+                    }, writeRepositoryDataPermits::release), threadPool.generic(), null);
             }
 
             private void updateRepositoryData(
@@ -495,6 +498,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 masterService.submitUnbatchedStateUpdateTask(description, new ClusterStateUpdateTask() {
                     @Override
                     public ClusterState execute(ClusterState currentState) {
+                        assertShardGenerationsPresent();
+
                         final var newRepositoriesMetadata = RepositoriesMetadata.get(currentState)
                             .withUpdatedGeneration(repositoryName, updatedRepositoryData.getGenId(), updatedRepositoryData.getGenId());
 
@@ -523,9 +528,27 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             )
                         );
                         repositoryData = updatedRepositoryData;
+                        assertShardGenerationsPresent();
                         listener.onResponse(null);
                     }
                 });
+            }
+
+            void assertShardGenerationsPresent() {
+                for (var indexId : repositoryData.shardGenerations().indices()) {
+                    final var indexShardGenerations = repositoryData.shardGenerations().getGens(indexId);
+                    for (int i = 0; i < indexShardGenerations.size(); i++) {
+                        final var expectedShardGeneration = indexShardGenerations.get(i);
+                        if (expectedShardGeneration != null && expectedShardGeneration != ShardGenerations.NEW_SHARD_GEN) {
+                            final var repositoryShardId = new RepositoryShardId(indexId, i);
+                            assertThat(
+                                repositoryShardId.toString(),
+                                repositoryShardStates.get(repositoryShardId).shardGenerations(),
+                                hasItem(expectedShardGeneration)
+                            );
+                        }
+                    }
+                }
             }
 
             @Override
@@ -840,6 +863,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             assertTrue(snapshotsService.assertAllListenersResolved());
 
             final var repository = (FakeRepository) repositoriesService.repository("repo");
+            repository.assertShardGenerationsPresent();
             logger.info("--> final states: {}", repository.repositoryShardStates);
         } finally {
             snapshotsService.stop();
