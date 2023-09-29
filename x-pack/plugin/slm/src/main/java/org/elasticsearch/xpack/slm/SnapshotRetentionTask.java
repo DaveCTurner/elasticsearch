@@ -44,12 +44,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.elasticsearch.core.Strings.format;
 import static org.elasticsearch.snapshots.SnapshotsService.POLICY_ID_METADATA_FIELD;
@@ -186,15 +188,13 @@ public class SnapshotRetentionTask implements SchedulerEngine.Listener {
     }
 
     static boolean snapshotEligibleForDeletion(
-        SnapshotInfo snapshot,
-        Map<String, List<SnapshotInfo>> allSnapshots,
+        SnapshotId snapshotId,
+        RepositoryData.SnapshotDetails snapshotDetails,
+        Map<String, Map<SnapshotId, RepositoryData.SnapshotDetails>> allSnapshots,
         Map<String, SnapshotLifecyclePolicy> policies
     ) {
-        assert snapshot.userMetadata() != null
-            : "snapshots without user metadata should have gotten filtered by the caller but saw [" + snapshot + "]";
-        final Object policyId = snapshot.userMetadata().get(POLICY_ID_METADATA_FIELD);
-        assert policyId instanceof String
-            : "snapshots without a policy id should have gotten filtered by the caller but saw [" + snapshot + "]";
+        final var policyId = snapshotDetails.getSlmPolicy();
+        assert policyId != null : "snapshots without a policy id should have gotten filtered by the caller but saw [" + snapshotId + "]";
         SnapshotLifecyclePolicy policy = policies.get(policyId);
         if (policy == null) {
             // This snapshot was taking by a policy that doesn't exist, so it's not eligible
@@ -210,21 +210,18 @@ public class SnapshotRetentionTask implements SchedulerEngine.Listener {
         final String repository = policy.getRepository();
         // Retrieve the predicate based on the retention policy, passing in snapshots pertaining only to *this* policy and repository
         boolean eligible = retention.isSnapshotEligibleForDeletion(
-            snapshot,
+            snapshotId,
+            snapshotDetails,
             allSnapshots.get(repository)
+                .entrySet()
                 .stream()
-                .filter(
-                    info -> Optional.ofNullable(info.userMetadata())
-                        .map(meta -> meta.get(POLICY_ID_METADATA_FIELD))
-                        .map(pId -> pId.equals(policyId))
-                        .orElse(false)
-                )
-                .collect(Collectors.toMap(SnapshotInfo::snapshotId, RepositoryData.SnapshotDetails::fromSnapshotInfo))
+                .filter(entry -> Objects.equals(entry.getValue().getSlmPolicy(), policyId))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
         );
         logger.debug(
             "[{}] testing snapshot [{}] deletion eligibility: {}",
             repository,
-            snapshot.snapshotId(),
+            snapshotId,
             eligible ? "ELIGIBLE" : "INELIGIBLE"
         );
         return eligible;
@@ -298,10 +295,17 @@ public class SnapshotRetentionTask implements SchedulerEngine.Listener {
                             Map.Entry::getKey,
                             e -> e.getValue()
                                 .stream()
-                                .filter(snapshot -> snapshotEligibleForDeletion(snapshot, snapshots, policies))
-                                // SnapshotInfo instances can be quite large in case they contain e.g. a large collection of
-                                // exceptions so we extract the only two things (id + policy id) here so they can be GCed
-                                .map(snapshotInfo -> Tuple.tuple(snapshotInfo.snapshotId(), getPolicyId(snapshotInfo)))
+                                .flatMap(snapshotInfo -> {
+                                    final var snapshotId = snapshotInfo.snapshotId();
+                                    final var snapshotDetails = RepositoryData.SnapshotDetails.fromSnapshotInfo(snapshotInfo);
+                                    if (snapshotEligibleForDeletion(snapshotId, snapshotDetails, snapshots, policies)) {
+                                        // SnapshotInfo instances can be quite large in case they contain e.g. a large collection of
+                                        // exceptions so we extract the only two things (id + policy id) here so they can be GCed
+                                        return Stream.of(Tuple.tuple(snapshotInfo.snapshotId(), getPolicyId(snapshotInfo)));
+                                    } else {
+                                        return Stream.of();
+                                    }
+                                })
                                 .toList()
                         )
                     );
