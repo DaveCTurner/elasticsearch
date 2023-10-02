@@ -821,36 +821,48 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
                         final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
                         logger.info(
-                            "--> doShardSnapshot[{}]: {}",
+                            "--> doShardSnapshot[{}]: [{}] vs {}",
                             ongoingShardSnapshot.repositoryShardId(),
+                            originalShardGeneration,
                             repositoryShardState.shardGenerations()
                         );
-                        if (originalShardGeneration != null) {
-                            // TODO SUPER FISHY why is it null?
-                            assertThat(
-                                ongoingShardSnapshot.repositoryShardId().toString(),
-                                repositoryShardState.shardGenerations(),
-                                hasItem(originalShardGeneration)
-                            );
-                        }
-                        repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
+                        assertThat(
+                            ongoingShardSnapshot.repositoryShardId().toString(),
+                            repositoryShardState.shardGenerations(),
+                            hasItem(originalShardGeneration)
+                        );
 
-                        final var newShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
-                        repositoryShardState.shardGenerations().add(newShardGeneration);
+                        final var newShardGeneration = ShardGeneration.newGeneration(random());
 
+                        final ShardSnapshotStatus result;
                         if (shardSnapshotsMayFail.get() && rarely()) {
-                            return new ShardSnapshotStatus(
+                            boolean createGeneration = randomBoolean();
+                            if (createGeneration) {
+                                repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
+                                repositoryShardState.shardGenerations().add(newShardGeneration);
+                                // TODO might also fail after writing shard gen but without returning?
+                            }
+                            result = new ShardSnapshotStatus(
                                 ongoingShardSnapshot.nodeId(),
                                 SnapshotsInProgress.ShardState.FAILED,
                                 "simulated",
-                                randomBoolean() ? originalShardGeneration : newShardGeneration
+                                createGeneration ? newShardGeneration : originalShardGeneration
+                            );
+                        } else {
+                            repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
+                            repositoryShardState.shardGenerations().add(newShardGeneration);
+                            result = ShardSnapshotStatus.success(
+                                ongoingShardSnapshot.nodeId(),
+                                new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
                             );
                         }
-
-                        return ShardSnapshotStatus.success(
-                            ongoingShardSnapshot.nodeId(),
-                            new ShardSnapshotResult(newShardGeneration, ByteSizeValue.ZERO, 1)
+                        logger.info(
+                            "--> doShardSnapshot[{}] created shard gen [{}] returning [{}]",
+                            ongoingShardSnapshot.repositoryShardId(),
+                            newShardGeneration,
+                            result
                         );
+                        return result;
                     }))
 
                     // respond to master
