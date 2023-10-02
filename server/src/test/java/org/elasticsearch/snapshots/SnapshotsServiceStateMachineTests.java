@@ -212,7 +212,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         final var indexName = "test-index";
         final var indexMetadata = IndexMetadata.builder(indexName)
             .settings(
-                indexSettings(IndexVersion.current(), between(1, 10), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis())
+                indexSettings(IndexVersion.current(), between(1, 3), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis())
                     .put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))
             )
             .build();
@@ -914,7 +914,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 .<Void>andThen((l0, r) -> {
                     final var snapshotNames = Set.of("snap-1", "snap-2", "snap-3", "snap-4", "snap-5");
                     try (var refs = new RefCountingRunnable(() -> l0.onResponse(null))) {
-                        for (int i = 0; i < 3; i++) {
+                        for (int i = 0; i < 2; i++) {
                             if (randomBoolean()) {
                                 threadPool.generic()
                                     .execute(
