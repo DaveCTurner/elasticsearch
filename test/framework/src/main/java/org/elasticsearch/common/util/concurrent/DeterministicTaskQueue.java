@@ -206,20 +206,36 @@ public class DeterministicTaskQueue {
     }
 
     public PrioritizedEsThreadPoolExecutor getPrioritizedEsThreadPoolExecutor(Function<Runnable, Runnable> runnableWrapper) {
-        return new PrioritizedEsThreadPoolExecutor("DeterministicTaskQueue", 1, 1, 1, TimeUnit.SECONDS, r -> {
-            throw new AssertionError("should not create new threads");
-        }, null, null) {
-            @Override
-            public void execute(Runnable command, final TimeValue timeout, final Runnable timeoutCallback) {
-                throw new AssertionError("not implemented");
-            }
+        return new DeterministicPrioritizedEsThreadPoolExecutor(runnableWrapper);
+    }
 
-            @Override
-            public void execute(Runnable command) {
-                final var wrappedCommand = runnableWrapper.apply(command);
-                runnableWrapper.apply(() -> scheduleNow(wrappedCommand)).run();
-            }
-        };
+    private class DeterministicPrioritizedEsThreadPoolExecutor extends PrioritizedEsThreadPoolExecutor {
+        private final Function<Runnable, Runnable> runnableWrapper;
+
+        DeterministicPrioritizedEsThreadPoolExecutor(Function<Runnable, Runnable> runnableWrapper) {
+            super(
+                "DeterministicTaskQueue",
+                1,
+                1,
+                1,
+                TimeUnit.SECONDS,
+                r -> { throw new AssertionError("should not create new threads"); },
+                null,
+                null
+            );
+            this.runnableWrapper = runnableWrapper;
+        }
+
+        @Override
+        public void execute(Runnable command, final TimeValue timeout, final Runnable timeoutCallback) {
+            throw new AssertionError("not implemented");
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            final var wrappedCommand = runnableWrapper.apply(command);
+            runnableWrapper.apply(() -> scheduleNow(wrappedCommand)).run();
+        }
     }
 
     /**

@@ -608,6 +608,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
                 repo.updateState(state);
             }
             repositories = unmodifiableMap(builder);
+            logger.info("repo names: {}", repositories.keySet());
         } catch (Exception ex) {
             assert false : new AssertionError(ex);
             logger.warn("failure updating cluster state ", ex);

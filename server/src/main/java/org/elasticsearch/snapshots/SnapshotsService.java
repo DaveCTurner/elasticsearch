@@ -600,32 +600,43 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
                             () -> currentlyCloning.remove(repoShardId)
                         )
                     ),
-                    e -> innerUpdateSnapshotState(
-                        target,
-                        null,
-                        repoShardId,
-                        new ShardSnapshotStatus(
-                            localNodeId,
-                            ShardState.FAILED,
-                            "failed to clone shard snapshot",
-                            shardStatusBefore.generation()
-                        ),
-                        ActionListener.runBefore(
-                            ActionListener.wrap(
-                                v -> logger.trace(
-                                    "Marked [{}] as failed clone from [{}] to [{}]",
-                                    repoShardId,
-                                    sourceSnapshot,
-                                    targetSnapshot
-                                ),
-                                ex -> {
-                                    logger.warn("Cluster state update after failed shard clone [{}] failed", repoShardId);
-                                    failAllListenersOnMasterFailOver(ex);
-                                }
+                    e -> {
+                        logger.warn(
+                            () -> Strings.format(
+                                "Failed to clone snapshot [%s] of shard [%s] to snapshot [%s]",
+                                sourceSnapshot,
+                                repoShardId,
+                                target
                             ),
-                            () -> currentlyCloning.remove(repoShardId)
-                        )
-                    )
+                            e
+                        );
+                        innerUpdateSnapshotState(
+                            target,
+                            null,
+                            repoShardId,
+                            new ShardSnapshotStatus(
+                                localNodeId,
+                                ShardState.FAILED,
+                                "failed to clone shard snapshot",
+                                shardStatusBefore.generation()
+                            ),
+                            ActionListener.runBefore(
+                                ActionListener.wrap(
+                                    v -> logger.trace(
+                                        "Marked [{}] as failed clone from [{}] to [{}]",
+                                        repoShardId,
+                                        sourceSnapshot,
+                                        targetSnapshot
+                                    ),
+                                    ex -> {
+                                        logger.warn("Cluster state update after failed shard clone [{}] failed", repoShardId);
+                                        failAllListenersOnMasterFailOver(ex);
+                                    }
+                                ),
+                                () -> currentlyCloning.remove(repoShardId)
+                            )
+                        );
+                    }
                 )
             );
         }
@@ -1857,6 +1868,13 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
             if (entry.repository().equals(repository)) {
                 final List<SnapshotId> updatedSnapshotIds = new ArrayList<>(entry.getSnapshots());
                 if (updatedSnapshotIds.removeAll(snapshotIds)) {
+                    assert entry.state() == SnapshotDeletionsInProgress.State.WAITING
+                        : Strings.format(
+                            "deletion already runnning in [%s] while removing %s: %s",
+                            repository,
+                            snapshotIds,
+                            Strings.toString(deletions, false, false)
+                        );
                     changed = true;
                     updatedEntries.add(entry.withSnapshots(updatedSnapshotIds));
                 } else {
@@ -2257,11 +2275,12 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
                     // updated repository data and state on the retry. We don't want to wait for the write to finish though
                     // because it could fail for any number of reasons so we just retry instead of waiting on the cluster state
                     // to change in any form.
-                    if (repositoryMetadataStart.equals(
-                        RepositoriesMetadata.get(currentState).repository(repository.getMetadata().name())
-                    )) {
+                    final var currentMetadata = RepositoriesMetadata.get(currentState).repository(repository.getMetadata().name());
+                    if (repositoryMetadataStart.equals(currentMetadata)) {
                         executedTask = true;
                         return updateTask.execute(currentState);
+                    } else {
+                        logger.info("executeConsistentStateUpdate: not consistent:\n{}\n{}", repositoryMetadataStart, currentMetadata);
                     }
                     return currentState;
                 }
