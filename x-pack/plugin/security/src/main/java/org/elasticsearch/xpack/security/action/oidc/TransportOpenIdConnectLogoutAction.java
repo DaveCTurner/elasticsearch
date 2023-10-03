@@ -18,6 +18,7 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.oidc.OpenIdConnectLogoutAction;
@@ -50,12 +51,7 @@ public class TransportOpenIdConnectLogoutAction extends HandledTransportAction<O
         Realms realms,
         TokenService tokenService
     ) {
-        super(
-            OpenIdConnectLogoutAction.NAME,
-            transportService,
-            actionFilters,
-            (Writeable.Reader<OpenIdConnectLogoutRequest>) OpenIdConnectLogoutRequest::new
-        );
+        super(OpenIdConnectLogoutAction.NAME, transportService, actionFilters, (Writeable.Reader<OpenIdConnectLogoutRequest>) OpenIdConnectLogoutRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
         this.realms = realms;
         this.tokenService = tokenService;
     }

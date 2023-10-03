@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.SecurityContext;
@@ -34,12 +35,7 @@ public final class TransportInvalidateApiKeyAction extends HandledTransportActio
         ApiKeyService apiKeyService,
         SecurityContext context
     ) {
-        super(
-            InvalidateApiKeyAction.NAME,
-            transportService,
-            actionFilters,
-            (Writeable.Reader<InvalidateApiKeyRequest>) InvalidateApiKeyRequest::new
-        );
+        super(InvalidateApiKeyAction.NAME, transportService, actionFilters, (Writeable.Reader<InvalidateApiKeyRequest>) InvalidateApiKeyRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
         this.apiKeyService = apiKeyService;
         this.securityContext = context;
     }
