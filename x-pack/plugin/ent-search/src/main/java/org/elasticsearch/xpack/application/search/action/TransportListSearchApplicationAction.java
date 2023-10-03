@@ -35,7 +35,13 @@ public class TransportListSearchApplicationAction extends HandledTransportAction
         NamedWriteableRegistry namedWriteableRegistry,
         BigArrays bigArrays
     ) {
-        super(ListSearchApplicationAction.NAME, transportService, actionFilters, ListSearchApplicationAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ListSearchApplicationAction.NAME,
+            transportService,
+            actionFilters,
+            ListSearchApplicationAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.systemIndexService = new SearchApplicationIndexService(client, clusterService, namedWriteableRegistry, bigArrays);
     }
 

@@ -29,7 +29,13 @@ public class TransportFindStructureAction extends HandledTransportAction<FindStr
 
     @Inject
     public TransportFindStructureAction(TransportService transportService, ActionFilters actionFilters, ThreadPool threadPool) {
-        super(FindStructureAction.NAME, transportService, actionFilters, FindStructureAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            FindStructureAction.NAME,
+            transportService,
+            actionFilters,
+            FindStructureAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
     }
 

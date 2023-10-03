@@ -25,7 +25,13 @@ public class TransportSetProfileEnabledAction extends HandledTransportAction<Set
 
     @Inject
     public TransportSetProfileEnabledAction(TransportService transportService, ActionFilters actionFilters, ProfileService profileService) {
-        super(SetProfileEnabledAction.NAME, transportService, actionFilters, SetProfileEnabledRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SetProfileEnabledAction.NAME,
+            transportService,
+            actionFilters,
+            SetProfileEnabledRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.profileService = profileService;
     }
 

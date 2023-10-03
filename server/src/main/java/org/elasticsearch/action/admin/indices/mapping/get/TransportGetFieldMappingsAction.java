@@ -42,7 +42,13 @@ public class TransportGetFieldMappingsAction extends HandledTransportAction<GetF
         IndexNameExpressionResolver indexNameExpressionResolver,
         NodeClient client
     ) {
-        super(GetFieldMappingsAction.NAME, transportService, actionFilters, GetFieldMappingsRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetFieldMappingsAction.NAME,
+            transportService,
+            actionFilters,
+            GetFieldMappingsRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.clusterService = clusterService;
         this.indexNameExpressionResolver = indexNameExpressionResolver;
         this.client = client;

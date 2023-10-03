@@ -150,7 +150,13 @@ public class LocalStateMonitoring extends LocalStateCompositeXPackPlugin {
 
         @Inject
         public TransportEnrichStatsStubAction(TransportService transportService, ActionFilters actionFilters) {
-            super(EnrichStatsAction.NAME, transportService, actionFilters, EnrichStatsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+            super(
+                EnrichStatsAction.NAME,
+                transportService,
+                actionFilters,
+                EnrichStatsAction.Request::new,
+                EsExecutors.DIRECT_EXECUTOR_SERVICE
+            );
         }
 
         @Override

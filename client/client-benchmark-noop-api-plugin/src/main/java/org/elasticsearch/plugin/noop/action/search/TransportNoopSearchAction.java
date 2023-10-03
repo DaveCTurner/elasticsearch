@@ -31,7 +31,13 @@ import java.util.Collections;
 public class TransportNoopSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
     @Inject
     public TransportNoopSearchAction(TransportService transportService, ActionFilters actionFilters) {
-        super(NoopSearchAction.NAME, transportService, actionFilters, (Writeable.Reader<SearchRequest>) SearchRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            NoopSearchAction.NAME,
+            transportService,
+            actionFilters,
+            (Writeable.Reader<SearchRequest>) SearchRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
     }
 
     @Override

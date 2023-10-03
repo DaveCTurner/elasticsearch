@@ -50,7 +50,13 @@ public class TransportGetTrainedModelsAction extends HandledTransportAction<Requ
         Client client,
         TrainedModelProvider trainedModelProvider
     ) {
-        super(GetTrainedModelsAction.NAME, transportService, actionFilters, GetTrainedModelsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetTrainedModelsAction.NAME,
+            transportService,
+            actionFilters,
+            GetTrainedModelsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.provider = trainedModelProvider;
         this.clusterService = clusterService;
         this.client = client;

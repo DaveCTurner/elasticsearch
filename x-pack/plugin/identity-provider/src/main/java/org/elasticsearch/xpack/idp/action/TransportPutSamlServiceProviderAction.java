@@ -57,7 +57,13 @@ public class TransportPutSamlServiceProviderAction extends HandledTransportActio
         SamlIdentityProvider identityProvider,
         Clock clock
     ) {
-        super(PutSamlServiceProviderAction.NAME, transportService, actionFilters, PutSamlServiceProviderRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            PutSamlServiceProviderAction.NAME,
+            transportService,
+            actionFilters,
+            PutSamlServiceProviderRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.index = index;
         this.identityProvider = identityProvider;
         this.clock = clock;

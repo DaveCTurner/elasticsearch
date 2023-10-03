@@ -40,7 +40,13 @@ public class TransportGetCalendarEventsAction extends HandledTransportAction<
         JobResultsProvider jobResultsProvider,
         JobConfigProvider jobConfigProvider
     ) {
-        super(GetCalendarEventsAction.NAME, transportService, actionFilters, GetCalendarEventsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetCalendarEventsAction.NAME,
+            transportService,
+            actionFilters,
+            GetCalendarEventsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.jobResultsProvider = jobResultsProvider;
         this.jobConfigProvider = jobConfigProvider;
     }

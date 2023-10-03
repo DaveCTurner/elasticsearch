@@ -38,7 +38,13 @@ public class TransportGetCategoriesAction extends HandledTransportAction<GetCate
         JobManager jobManager,
         ClusterService clusterService
     ) {
-        super(GetCategoriesAction.NAME, transportService, actionFilters, GetCategoriesAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetCategoriesAction.NAME,
+            transportService,
+            actionFilters,
+            GetCategoriesAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.jobResultsProvider = jobResultsProvider;
         this.client = client;
         this.jobManager = jobManager;

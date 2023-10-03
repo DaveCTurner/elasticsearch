@@ -65,7 +65,13 @@ public class TransportProfileHasPrivilegesAction extends HandledTransportAction<
         SecurityContext securityContext,
         ThreadPool threadPool
     ) {
-        super(ProfileHasPrivilegesAction.NAME, transportService, actionFilters, ProfileHasPrivilegesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ProfileHasPrivilegesAction.NAME,
+            transportService,
+            actionFilters,
+            ProfileHasPrivilegesRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.authorizationService = authorizationService;
         this.privilegeStore = privilegeStore;
         this.profileService = profileService;

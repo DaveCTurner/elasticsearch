@@ -36,7 +36,13 @@ public class TransportPutSearchApplicationAction extends HandledTransportAction<
         NamedWriteableRegistry namedWriteableRegistry,
         BigArrays bigArrays
     ) {
-        super(PutSearchApplicationAction.NAME, transportService, actionFilters, PutSearchApplicationAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            PutSearchApplicationAction.NAME,
+            transportService,
+            actionFilters,
+            PutSearchApplicationAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.systemIndexService = new SearchApplicationIndexService(client, clusterService, namedWriteableRegistry, bigArrays);
     }
 

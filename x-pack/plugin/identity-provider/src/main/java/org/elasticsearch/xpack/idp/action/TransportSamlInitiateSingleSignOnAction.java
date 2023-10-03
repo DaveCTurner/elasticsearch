@@ -54,7 +54,13 @@ public class TransportSamlInitiateSingleSignOnAction extends HandledTransportAct
         SamlFactory factory,
         UserPrivilegeResolver privilegeResolver
     ) {
-        super(SamlInitiateSingleSignOnAction.NAME, transportService, actionFilters, SamlInitiateSingleSignOnRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SamlInitiateSingleSignOnAction.NAME,
+            transportService,
+            actionFilters,
+            SamlInitiateSingleSignOnRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.securityContext = securityContext;
         this.identityProvider = idp;
         this.samlFactory = factory;

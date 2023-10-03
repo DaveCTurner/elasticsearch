@@ -33,7 +33,13 @@ public class TransportUpdateCalendarJobAction extends HandledTransportAction<Upd
         JobResultsProvider jobResultsProvider,
         JobManager jobManager
     ) {
-        super(UpdateCalendarJobAction.NAME, transportService, actionFilters, UpdateCalendarJobAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            UpdateCalendarJobAction.NAME,
+            transportService,
+            actionFilters,
+            UpdateCalendarJobAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.jobResultsProvider = jobResultsProvider;
         this.jobManager = jobManager;
     }

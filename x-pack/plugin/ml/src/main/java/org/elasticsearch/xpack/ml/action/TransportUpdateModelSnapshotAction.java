@@ -53,7 +53,13 @@ public class TransportUpdateModelSnapshotAction extends HandledTransportAction<
         JobResultsProvider jobResultsProvider,
         Client client
     ) {
-        super(UpdateModelSnapshotAction.NAME, transportService, actionFilters, UpdateModelSnapshotAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            UpdateModelSnapshotAction.NAME,
+            transportService,
+            actionFilters,
+            UpdateModelSnapshotAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.jobResultsProvider = jobResultsProvider;
         this.client = client;
     }

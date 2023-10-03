@@ -29,7 +29,13 @@ public class TransportDeleteQueryRulesetAction extends HandledTransportAction<De
         ActionFilters actionFilters,
         Client client
     ) {
-        super(DeleteQueryRulesetAction.NAME, transportService, actionFilters, DeleteQueryRulesetAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteQueryRulesetAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteQueryRulesetAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.systemIndexService = new QueryRulesIndexService(client, clusterService.getClusterSettings());
     }
 

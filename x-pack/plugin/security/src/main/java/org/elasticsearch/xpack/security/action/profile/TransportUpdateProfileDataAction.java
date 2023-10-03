@@ -25,7 +25,13 @@ public class TransportUpdateProfileDataAction extends HandledTransportAction<Upd
 
     @Inject
     public TransportUpdateProfileDataAction(TransportService transportService, ActionFilters actionFilters, ProfileService profileService) {
-        super(UpdateProfileDataAction.NAME, transportService, actionFilters, UpdateProfileDataRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            UpdateProfileDataAction.NAME,
+            transportService,
+            actionFilters,
+            UpdateProfileDataRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.profileService = profileService;
     }
 

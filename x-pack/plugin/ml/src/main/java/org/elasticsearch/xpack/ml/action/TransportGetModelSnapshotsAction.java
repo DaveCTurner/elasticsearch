@@ -42,7 +42,13 @@ public class TransportGetModelSnapshotsAction extends HandledTransportAction<
         JobManager jobManager,
         ClusterService clusterService
     ) {
-        super(GetModelSnapshotsAction.NAME, transportService, actionFilters, GetModelSnapshotsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetModelSnapshotsAction.NAME,
+            transportService,
+            actionFilters,
+            GetModelSnapshotsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.jobResultsProvider = jobResultsProvider;
         this.jobManager = jobManager;
         this.clusterService = clusterService;

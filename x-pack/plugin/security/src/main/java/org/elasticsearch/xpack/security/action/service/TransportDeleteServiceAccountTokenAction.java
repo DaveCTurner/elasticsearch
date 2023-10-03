@@ -31,7 +31,13 @@ public class TransportDeleteServiceAccountTokenAction extends HandledTransportAc
         ActionFilters actionFilters,
         ServiceAccountService serviceAccountService
     ) {
-        super(DeleteServiceAccountTokenAction.NAME, transportService, actionFilters, DeleteServiceAccountTokenRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteServiceAccountTokenAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteServiceAccountTokenRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.serviceAccountService = serviceAccountService;
     }
 

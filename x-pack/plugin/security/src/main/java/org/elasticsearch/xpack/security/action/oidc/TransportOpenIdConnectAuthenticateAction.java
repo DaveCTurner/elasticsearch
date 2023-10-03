@@ -55,7 +55,13 @@ public class TransportOpenIdConnectAuthenticateAction extends HandledTransportAc
         TokenService tokenService,
         SecurityContext securityContext
     ) {
-        super(OpenIdConnectAuthenticateAction.NAME, transportService, actionFilters, (Writeable.Reader<OpenIdConnectAuthenticateRequest>) OpenIdConnectAuthenticateRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            OpenIdConnectAuthenticateAction.NAME,
+            transportService,
+            actionFilters,
+            (Writeable.Reader<OpenIdConnectAuthenticateRequest>) OpenIdConnectAuthenticateRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
         this.authenticationService = authenticationService;
         this.tokenService = tokenService;

@@ -33,7 +33,13 @@ public class TransportSuggestProfilesAction extends HandledTransportAction<Sugge
         ProfileService profileService,
         ClusterService clusterService
     ) {
-        super(SuggestProfilesAction.NAME, transportService, actionFilters, SuggestProfilesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SuggestProfilesAction.NAME,
+            transportService,
+            actionFilters,
+            SuggestProfilesRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.profileService = profileService;
         this.clusterService = clusterService;
     }

@@ -50,7 +50,13 @@ public class TransportImportDanglingIndexAction extends HandledTransportAction<I
         LocalAllocateDangledIndices danglingIndexAllocator,
         NodeClient nodeClient
     ) {
-        super(ImportDanglingIndexAction.NAME, transportService, actionFilters, ImportDanglingIndexRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ImportDanglingIndexAction.NAME,
+            transportService,
+            actionFilters,
+            ImportDanglingIndexRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.danglingIndexAllocator = danglingIndexAllocator;
         this.nodeClient = nodeClient;
     }

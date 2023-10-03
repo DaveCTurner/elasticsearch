@@ -25,7 +25,13 @@ public class TransportDeleteSynonymsAction extends HandledTransportAction<Delete
 
     @Inject
     public TransportDeleteSynonymsAction(TransportService transportService, ActionFilters actionFilters, Client client) {
-        super(DeleteSynonymsAction.NAME, transportService, actionFilters, DeleteSynonymsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteSynonymsAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteSynonymsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
 
         this.synonymsManagementAPIService = new SynonymsManagementAPIService(client);
     }

@@ -22,7 +22,13 @@ public class TransportGetScriptLanguageAction extends HandledTransportAction<Get
 
     @Inject
     public TransportGetScriptLanguageAction(TransportService transportService, ActionFilters actionFilters, ScriptService scriptService) {
-        super(GetScriptLanguageAction.NAME, transportService, actionFilters, GetScriptLanguageRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetScriptLanguageAction.NAME,
+            transportService,
+            actionFilters,
+            GetScriptLanguageRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.scriptService = scriptService;
     }
 

@@ -42,7 +42,13 @@ public class TransportMultiTermVectorsAction extends HandledTransportAction<Mult
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver
     ) {
-        super(MultiTermVectorsAction.NAME, transportService, actionFilters, MultiTermVectorsRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            MultiTermVectorsAction.NAME,
+            transportService,
+            actionFilters,
+            MultiTermVectorsRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.clusterService = clusterService;
         this.client = client;
         this.indexNameExpressionResolver = indexNameExpressionResolver;

@@ -40,7 +40,13 @@ public final class TransportCreateCrossClusterApiKeyAction extends HandledTransp
         ApiKeyService apiKeyService,
         SecurityContext context
     ) {
-        super(CreateCrossClusterApiKeyAction.NAME, transportService, actionFilters, CreateCrossClusterApiKeyRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            CreateCrossClusterApiKeyAction.NAME,
+            transportService,
+            actionFilters,
+            CreateCrossClusterApiKeyRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.apiKeyService = apiKeyService;
         this.securityContext = context;
     }

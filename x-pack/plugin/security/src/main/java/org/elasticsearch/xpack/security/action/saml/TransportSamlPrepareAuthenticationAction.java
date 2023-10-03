@@ -38,7 +38,13 @@ public final class TransportSamlPrepareAuthenticationAction extends HandledTrans
 
     @Inject
     public TransportSamlPrepareAuthenticationAction(TransportService transportService, ActionFilters actionFilters, Realms realms) {
-        super(SamlPrepareAuthenticationAction.NAME, transportService, actionFilters, SamlPrepareAuthenticationRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SamlPrepareAuthenticationAction.NAME,
+            transportService,
+            actionFilters,
+            SamlPrepareAuthenticationRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.realms = realms;
     }
 

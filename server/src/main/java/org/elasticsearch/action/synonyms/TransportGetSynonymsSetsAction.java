@@ -24,7 +24,13 @@ public class TransportGetSynonymsSetsAction extends HandledTransportAction<GetSy
 
     @Inject
     public TransportGetSynonymsSetsAction(TransportService transportService, ActionFilters actionFilters, Client client) {
-        super(GetSynonymsSetsAction.NAME, transportService, actionFilters, GetSynonymsSetsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetSynonymsSetsAction.NAME,
+            transportService,
+            actionFilters,
+            GetSynonymsSetsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
 
         this.synonymsManagementAPIService = new SynonymsManagementAPIService(client);
     }

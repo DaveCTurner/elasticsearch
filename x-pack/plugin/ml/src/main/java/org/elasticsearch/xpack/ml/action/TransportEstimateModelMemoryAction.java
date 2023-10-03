@@ -43,7 +43,13 @@ public class TransportEstimateModelMemoryAction extends HandledTransportAction<
 
     @Inject
     public TransportEstimateModelMemoryAction(TransportService transportService, ActionFilters actionFilters) {
-        super(EstimateModelMemoryAction.NAME, transportService, actionFilters, EstimateModelMemoryAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            EstimateModelMemoryAction.NAME,
+            transportService,
+            actionFilters,
+            EstimateModelMemoryAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
     }
 
     @Override

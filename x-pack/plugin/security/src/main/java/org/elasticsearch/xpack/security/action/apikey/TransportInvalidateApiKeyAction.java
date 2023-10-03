@@ -35,7 +35,13 @@ public final class TransportInvalidateApiKeyAction extends HandledTransportActio
         ApiKeyService apiKeyService,
         SecurityContext context
     ) {
-        super(InvalidateApiKeyAction.NAME, transportService, actionFilters, (Writeable.Reader<InvalidateApiKeyRequest>) InvalidateApiKeyRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            InvalidateApiKeyAction.NAME,
+            transportService,
+            actionFilters,
+            (Writeable.Reader<InvalidateApiKeyRequest>) InvalidateApiKeyRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.apiKeyService = apiKeyService;
         this.securityContext = context;
     }

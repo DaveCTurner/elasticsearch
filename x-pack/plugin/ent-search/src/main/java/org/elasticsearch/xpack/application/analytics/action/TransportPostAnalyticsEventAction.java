@@ -33,7 +33,13 @@ public class TransportPostAnalyticsEventAction extends HandledTransportAction<
         ActionFilters actionFilters,
         AnalyticsEventIngestService eventEmitterService
     ) {
-        super(PostAnalyticsEventAction.NAME, transportService, actionFilters, PostAnalyticsEventAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            PostAnalyticsEventAction.NAME,
+            transportService,
+            actionFilters,
+            PostAnalyticsEventAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.eventEmitterService = eventEmitterService;
     }
 

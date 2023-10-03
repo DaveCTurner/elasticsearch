@@ -35,7 +35,13 @@ public class TransportCreateServiceAccountTokenAction extends HandledTransportAc
         ServiceAccountService serviceAccountService,
         SecurityContext securityContext
     ) {
-        super(CreateServiceAccountTokenAction.NAME, transportService, actionFilters, CreateServiceAccountTokenRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            CreateServiceAccountTokenAction.NAME,
+            transportService,
+            actionFilters,
+            CreateServiceAccountTokenRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.serviceAccountService = serviceAccountService;
         this.securityContext = securityContext;
     }

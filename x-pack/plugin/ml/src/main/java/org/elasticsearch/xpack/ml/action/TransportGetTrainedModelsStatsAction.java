@@ -88,7 +88,13 @@ public class TransportGetTrainedModelsStatsAction extends HandledTransportAction
         TrainedModelProvider trainedModelProvider,
         Client client
     ) {
-        super(GetTrainedModelsStatsAction.NAME, transportService, actionFilters, GetTrainedModelsStatsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetTrainedModelsStatsAction.NAME,
+            transportService,
+            actionFilters,
+            GetTrainedModelsStatsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.clusterService = clusterService;
         this.trainedModelProvider = trainedModelProvider;

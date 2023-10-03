@@ -38,7 +38,13 @@ public class TransportAuditMlNotificationAction extends HandledTransportAction<A
         InferenceAuditor inferenceAuditor,
         SystemAuditor systemAuditor
     ) {
-        super(AuditMlNotificationAction.NAME, transportService, actionFilters, AuditMlNotificationAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            AuditMlNotificationAction.NAME,
+            transportService,
+            actionFilters,
+            AuditMlNotificationAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.anomalyDetectionAuditor = anomalyDetectionAuditor;
         this.dfaAuditor = dfaAuditor;
         this.inferenceAuditor = inferenceAuditor;

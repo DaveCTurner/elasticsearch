@@ -78,7 +78,13 @@ public class TransportGetOverallBucketsAction extends HandledTransportAction<
         JobManager jobManager,
         Client client
     ) {
-        super(GetOverallBucketsAction.NAME, transportService, actionFilters, GetOverallBucketsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetOverallBucketsAction.NAME,
+            transportService,
+            actionFilters,
+            GetOverallBucketsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
         this.clusterService = clusterService;
         this.client = client;

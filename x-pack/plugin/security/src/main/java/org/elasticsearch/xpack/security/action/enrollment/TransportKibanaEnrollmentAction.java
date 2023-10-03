@@ -53,7 +53,13 @@ public class TransportKibanaEnrollmentAction extends HandledTransportAction<Kiba
         SSLService sslService,
         ActionFilters actionFilters
     ) {
-        super(KibanaEnrollmentAction.NAME, transportService, actionFilters, KibanaEnrollmentRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            KibanaEnrollmentAction.NAME,
+            transportService,
+            actionFilters,
+            KibanaEnrollmentRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = new OriginSettingClient(client, SECURITY_ORIGIN);
         this.sslService = sslService;
     }

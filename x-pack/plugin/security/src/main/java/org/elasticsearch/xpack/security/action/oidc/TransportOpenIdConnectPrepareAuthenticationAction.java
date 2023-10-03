@@ -37,7 +37,13 @@ public class TransportOpenIdConnectPrepareAuthenticationAction extends HandledTr
         ActionFilters actionFilters,
         Realms realms
     ) {
-        super(OpenIdConnectPrepareAuthenticationAction.NAME, transportService, actionFilters, OpenIdConnectPrepareAuthenticationRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            OpenIdConnectPrepareAuthenticationAction.NAME,
+            transportService,
+            actionFilters,
+            OpenIdConnectPrepareAuthenticationRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.realms = realms;
     }
 

@@ -31,7 +31,13 @@ public class TransportSamlValidateAuthnRequestAction extends HandledTransportAct
         SamlIdentityProvider idp,
         SamlFactory factory
     ) {
-        super(SamlValidateAuthnRequestAction.NAME, transportService, actionFilters, SamlValidateAuthnRequestRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SamlValidateAuthnRequestAction.NAME,
+            transportService,
+            actionFilters,
+            SamlValidateAuthnRequestRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.identityProvider = idp;
         this.samlFactory = factory;
     }

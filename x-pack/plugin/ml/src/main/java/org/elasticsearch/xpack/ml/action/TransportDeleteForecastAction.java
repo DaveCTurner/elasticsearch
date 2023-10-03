@@ -82,7 +82,13 @@ public class TransportDeleteForecastAction extends HandledTransportAction<Delete
         Client client,
         ClusterService clusterService
     ) {
-        super(DeleteForecastAction.NAME, transportService, actionFilters, DeleteForecastAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteForecastAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteForecastAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.clusterService = clusterService;
     }

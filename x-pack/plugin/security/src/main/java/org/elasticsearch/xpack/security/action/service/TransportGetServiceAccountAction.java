@@ -27,7 +27,13 @@ public class TransportGetServiceAccountAction extends HandledTransportAction<Get
 
     @Inject
     public TransportGetServiceAccountAction(TransportService transportService, ActionFilters actionFilters) {
-        super(GetServiceAccountAction.NAME, transportService, actionFilters, GetServiceAccountRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetServiceAccountAction.NAME,
+            transportService,
+            actionFilters,
+            GetServiceAccountRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
     }
 
     @Override

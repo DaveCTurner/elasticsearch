@@ -28,7 +28,13 @@ public class TransportGetBuiltinPrivilegesAction extends HandledTransportAction<
 
     @Inject
     public TransportGetBuiltinPrivilegesAction(ActionFilters actionFilters, TransportService transportService) {
-        super(GetBuiltinPrivilegesAction.NAME, transportService, actionFilters, GetBuiltinPrivilegesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetBuiltinPrivilegesAction.NAME,
+            transportService,
+            actionFilters,
+            GetBuiltinPrivilegesRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
     }
 
     @Override

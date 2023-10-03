@@ -44,7 +44,13 @@ public class TransportDeleteCalendarAction extends HandledTransportAction<Delete
         JobManager jobManager,
         JobResultsProvider jobResultsProvider
     ) {
-        super(DeleteCalendarAction.NAME, transportService, actionFilters, DeleteCalendarAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteCalendarAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteCalendarAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.jobManager = jobManager;
         this.jobResultsProvider = jobResultsProvider;

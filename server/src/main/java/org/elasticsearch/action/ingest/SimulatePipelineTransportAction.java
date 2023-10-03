@@ -59,7 +59,13 @@ public class SimulatePipelineTransportAction extends HandledTransportAction<Simu
         ActionFilters actionFilters,
         IngestService ingestService
     ) {
-        super(SimulatePipelineAction.NAME, transportService, actionFilters, SimulatePipelineRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SimulatePipelineAction.NAME,
+            transportService,
+            actionFilters,
+            SimulatePipelineRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.ingestService = ingestService;
         this.executionService = new SimulateExecutionService(threadPool);
         this.transportService = transportService;

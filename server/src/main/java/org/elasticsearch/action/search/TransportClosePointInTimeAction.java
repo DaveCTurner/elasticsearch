@@ -34,7 +34,13 @@ public class TransportClosePointInTimeAction extends HandledTransportAction<Clos
         SearchTransportService searchTransportService,
         NamedWriteableRegistry namedWriteableRegistry
     ) {
-        super(ClosePointInTimeAction.NAME, transportService, actionFilters, ClosePointInTimeRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ClosePointInTimeAction.NAME,
+            transportService,
+            actionFilters,
+            ClosePointInTimeRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.clusterService = clusterService;
         this.searchTransportService = searchTransportService;
         this.namedWriteableRegistry = namedWriteableRegistry;

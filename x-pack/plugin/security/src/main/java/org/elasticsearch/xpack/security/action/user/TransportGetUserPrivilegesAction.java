@@ -35,7 +35,13 @@ public class TransportGetUserPrivilegesAction extends HandledTransportAction<Get
         AuthorizationService authorizationService,
         SecurityContext securityContext
     ) {
-        super(GetUserPrivilegesAction.NAME, transportService, actionFilters, GetUserPrivilegesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetUserPrivilegesAction.NAME,
+            transportService,
+            actionFilters,
+            GetUserPrivilegesRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.authorizationService = authorizationService;
         this.securityContext = securityContext;
     }

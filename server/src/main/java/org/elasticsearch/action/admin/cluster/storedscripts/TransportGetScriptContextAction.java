@@ -25,7 +25,13 @@ public class TransportGetScriptContextAction extends HandledTransportAction<GetS
 
     @Inject
     public TransportGetScriptContextAction(TransportService transportService, ActionFilters actionFilters, ScriptService scriptService) {
-        super(GetScriptContextAction.NAME, transportService, actionFilters, GetScriptContextRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetScriptContextAction.NAME,
+            transportService,
+            actionFilters,
+            GetScriptContextRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.scriptService = scriptService;
     }
 

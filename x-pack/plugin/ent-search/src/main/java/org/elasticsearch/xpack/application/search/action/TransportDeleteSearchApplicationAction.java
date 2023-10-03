@@ -35,7 +35,13 @@ public class TransportDeleteSearchApplicationAction extends HandledTransportActi
         NamedWriteableRegistry namedWriteableRegistry,
         BigArrays bigArrays
     ) {
-        super(DeleteSearchApplicationAction.NAME, transportService, actionFilters, DeleteSearchApplicationAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteSearchApplicationAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteSearchApplicationAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.systemIndexService = new SearchApplicationIndexService(client, clusterService, namedWriteableRegistry, bigArrays);
     }
 

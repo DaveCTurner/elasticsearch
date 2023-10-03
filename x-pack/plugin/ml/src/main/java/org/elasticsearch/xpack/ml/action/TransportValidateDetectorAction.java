@@ -20,7 +20,13 @@ public class TransportValidateDetectorAction extends HandledTransportAction<Vali
 
     @Inject
     public TransportValidateDetectorAction(TransportService transportService, ActionFilters actionFilters) {
-        super(ValidateDetectorAction.NAME, transportService, actionFilters, ValidateDetectorAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ValidateDetectorAction.NAME,
+            transportService,
+            actionFilters,
+            ValidateDetectorAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
     }
 
     @Override

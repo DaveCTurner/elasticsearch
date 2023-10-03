@@ -48,7 +48,13 @@ public class TransportQuerySearchApplicationAction extends HandledTransportActio
         ScriptService scriptService,
         NamedXContentRegistry xContentRegistry
     ) {
-        super(QuerySearchApplicationAction.NAME, transportService, actionFilters, SearchApplicationSearchRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            QuerySearchApplicationAction.NAME,
+            transportService,
+            actionFilters,
+            SearchApplicationSearchRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.templateService = new SearchApplicationTemplateService(scriptService, xContentRegistry);
         this.systemIndexService = new SearchApplicationIndexService(client, clusterService, namedWriteableRegistry, bigArrays);

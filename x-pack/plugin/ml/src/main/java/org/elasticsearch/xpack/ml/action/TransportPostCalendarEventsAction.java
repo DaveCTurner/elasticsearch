@@ -54,7 +54,13 @@ public class TransportPostCalendarEventsAction extends HandledTransportAction<
         JobResultsProvider jobResultsProvider,
         JobManager jobManager
     ) {
-        super(PostCalendarEventsAction.NAME, transportService, actionFilters, PostCalendarEventsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            PostCalendarEventsAction.NAME,
+            transportService,
+            actionFilters,
+            PostCalendarEventsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.jobResultsProvider = jobResultsProvider;
         this.jobManager = jobManager;

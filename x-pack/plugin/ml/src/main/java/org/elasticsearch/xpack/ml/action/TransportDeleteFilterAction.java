@@ -49,7 +49,13 @@ public class TransportDeleteFilterAction extends HandledTransportAction<DeleteFi
         Client client,
         JobConfigProvider jobConfigProvider
     ) {
-        super(DeleteFilterAction.NAME, transportService, actionFilters, DeleteFilterAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteFilterAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteFilterAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.jobConfigProvider = jobConfigProvider;
     }

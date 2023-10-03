@@ -66,7 +66,13 @@ public final class TransportDelegatePkiAuthenticationAction extends HandledTrans
         TokenService tokenService,
         SecurityContext securityContext
     ) {
-        super(DelegatePkiAuthenticationAction.NAME, transportService, actionFilters, DelegatePkiAuthenticationRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DelegatePkiAuthenticationAction.NAME,
+            transportService,
+            actionFilters,
+            DelegatePkiAuthenticationRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
         this.authenticationService = authenticationService;
         this.tokenService = tokenService;

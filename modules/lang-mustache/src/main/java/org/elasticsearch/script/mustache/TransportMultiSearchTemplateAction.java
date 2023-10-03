@@ -45,7 +45,13 @@ public class TransportMultiSearchTemplateAction extends HandledTransportAction<M
         NodeClient client,
         UsageService usageService
     ) {
-        super(MultiSearchTemplateAction.NAME, transportService, actionFilters, MultiSearchTemplateRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            MultiSearchTemplateAction.NAME,
+            transportService,
+            actionFilters,
+            MultiSearchTemplateRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.scriptService = scriptService;
         this.xContentRegistry = xContentRegistry;
         this.client = client;

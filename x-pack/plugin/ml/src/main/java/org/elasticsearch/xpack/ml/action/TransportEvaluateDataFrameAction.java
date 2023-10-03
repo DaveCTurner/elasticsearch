@@ -54,7 +54,13 @@ public class TransportEvaluateDataFrameAction extends HandledTransportAction<
         Client client,
         ClusterService clusterService
     ) {
-        super(EvaluateDataFrameAction.NAME, transportService, actionFilters, EvaluateDataFrameAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            EvaluateDataFrameAction.NAME,
+            transportService,
+            actionFilters,
+            EvaluateDataFrameAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
         this.client = client;
         this.securityContext = XPackSettings.SECURITY_ENABLED.get(settings)

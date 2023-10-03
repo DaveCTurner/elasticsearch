@@ -63,7 +63,13 @@ public class TransportSubmitAsyncSearchAction extends HandledTransportAction<Sub
         TransportSearchAction searchAction,
         BigArrays bigArrays
     ) {
-        super(SubmitAsyncSearchAction.NAME, transportService, actionFilters, SubmitAsyncSearchRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SubmitAsyncSearchAction.NAME,
+            transportService,
+            actionFilters,
+            SubmitAsyncSearchRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.clusterService = clusterService;
         this.nodeClient = nodeClient;
         this.requestToAggReduceContextBuilder = (task, request) -> searchService.aggReduceContextBuilder(

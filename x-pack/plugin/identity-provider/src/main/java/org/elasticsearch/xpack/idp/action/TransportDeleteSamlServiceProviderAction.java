@@ -37,7 +37,13 @@ public class TransportDeleteSamlServiceProviderAction extends HandledTransportAc
         ActionFilters actionFilters,
         SamlServiceProviderIndex index
     ) {
-        super(DeleteSamlServiceProviderAction.NAME, transportService, actionFilters, DeleteSamlServiceProviderRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteSamlServiceProviderAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteSamlServiceProviderRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.index = index;
     }
 

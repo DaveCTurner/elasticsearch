@@ -33,7 +33,13 @@ public class TransportGetRoleMappingsAction extends HandledTransportAction<GetRo
         TransportService transportService,
         NativeRoleMappingStore nativeRoleMappingStore
     ) {
-        super(GetRoleMappingsAction.NAME, transportService, actionFilters, GetRoleMappingsRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetRoleMappingsAction.NAME,
+            transportService,
+            actionFilters,
+            GetRoleMappingsRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.roleMappingStore = nativeRoleMappingStore;
     }
 

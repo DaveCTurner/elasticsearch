@@ -31,7 +31,13 @@ public class TransportGetServiceAccountCredentialsAction extends HandledTranspor
         ActionFilters actionFilters,
         ServiceAccountService serviceAccountService
     ) {
-        super(GetServiceAccountCredentialsAction.NAME, transportService, actionFilters, GetServiceAccountCredentialsRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetServiceAccountCredentialsAction.NAME,
+            transportService,
+            actionFilters,
+            GetServiceAccountCredentialsRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.serviceAccountService = serviceAccountService;
     }
 

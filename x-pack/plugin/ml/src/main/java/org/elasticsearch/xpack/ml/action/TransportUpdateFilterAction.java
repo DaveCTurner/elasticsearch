@@ -63,7 +63,13 @@ public class TransportUpdateFilterAction extends HandledTransportAction<UpdateFi
         JobManager jobManager,
         ClusterService clusterService
     ) {
-        super(UpdateFilterAction.NAME, transportService, actionFilters, UpdateFilterAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            UpdateFilterAction.NAME,
+            transportService,
+            actionFilters,
+            UpdateFilterAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.jobManager = jobManager;
     }

@@ -29,7 +29,13 @@ public final class TransportInvalidateTokenAction extends HandledTransportAction
 
     @Inject
     public TransportInvalidateTokenAction(TransportService transportService, ActionFilters actionFilters, TokenService tokenService) {
-        super(InvalidateTokenAction.NAME, transportService, actionFilters, InvalidateTokenRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            InvalidateTokenAction.NAME,
+            transportService,
+            actionFilters,
+            InvalidateTokenRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.tokenService = tokenService;
     }
 

@@ -29,7 +29,13 @@ public class TransportGetQueryRulesetAction extends HandledTransportAction<GetQu
         ActionFilters actionFilters,
         Client client
     ) {
-        super(GetQueryRulesetAction.NAME, transportService, actionFilters, GetQueryRulesetAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetQueryRulesetAction.NAME,
+            transportService,
+            actionFilters,
+            GetQueryRulesetAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.systemIndexService = new QueryRulesIndexService(client, clusterService.getClusterSettings());
     }
 

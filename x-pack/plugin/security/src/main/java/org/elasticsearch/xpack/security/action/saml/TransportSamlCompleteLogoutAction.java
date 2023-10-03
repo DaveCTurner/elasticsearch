@@ -34,7 +34,13 @@ public final class TransportSamlCompleteLogoutAction extends HandledTransportAct
 
     @Inject
     public TransportSamlCompleteLogoutAction(TransportService transportService, ActionFilters actionFilters, Realms realms) {
-        super(SamlCompleteLogoutAction.NAME, transportService, actionFilters, SamlCompleteLogoutRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            SamlCompleteLogoutAction.NAME,
+            transportService,
+            actionFilters,
+            SamlCompleteLogoutRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.realms = realms;
     }
 

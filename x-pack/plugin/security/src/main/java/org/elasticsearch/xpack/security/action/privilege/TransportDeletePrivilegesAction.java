@@ -35,7 +35,13 @@ public class TransportDeletePrivilegesAction extends HandledTransportAction<Dele
         NativePrivilegeStore privilegeStore,
         TransportService transportService
     ) {
-        super(DeletePrivilegesAction.NAME, transportService, actionFilters, DeletePrivilegesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeletePrivilegesAction.NAME,
+            transportService,
+            actionFilters,
+            DeletePrivilegesRequest::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.privilegeStore = privilegeStore;
     }
 

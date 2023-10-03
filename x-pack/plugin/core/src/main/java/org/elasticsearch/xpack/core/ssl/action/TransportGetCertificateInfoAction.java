@@ -28,7 +28,13 @@ public class TransportGetCertificateInfoAction extends HandledTransportAction<
 
     @Inject
     public TransportGetCertificateInfoAction(TransportService transportService, ActionFilters actionFilters, SSLService sslService) {
-        super(GetCertificateInfoAction.NAME, transportService, actionFilters, GetCertificateInfoAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            GetCertificateInfoAction.NAME,
+            transportService,
+            actionFilters,
+            GetCertificateInfoAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.sslService = sslService;
     }
 

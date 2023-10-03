@@ -82,7 +82,13 @@ public class TransportExplainDataFrameAnalyticsAction extends HandledTransportAc
         Settings settings,
         ThreadPool threadPool
     ) {
-        super(ExplainDataFrameAnalyticsAction.NAME, transportService, actionFilters, ExplainDataFrameAnalyticsAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            ExplainDataFrameAnalyticsAction.NAME,
+            transportService,
+            actionFilters,
+            ExplainDataFrameAnalyticsAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.transportService = transportService;
         this.clusterService = Objects.requireNonNull(clusterService);
         this.client = Objects.requireNonNull(client);

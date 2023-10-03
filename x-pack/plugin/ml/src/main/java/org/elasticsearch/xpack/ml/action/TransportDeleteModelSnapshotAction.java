@@ -49,7 +49,13 @@ public class TransportDeleteModelSnapshotAction extends HandledTransportAction<D
         JobManager jobManager,
         AnomalyDetectionAuditor auditor
     ) {
-        super(DeleteModelSnapshotAction.NAME, transportService, actionFilters, DeleteModelSnapshotAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            DeleteModelSnapshotAction.NAME,
+            transportService,
+            actionFilters,
+            DeleteModelSnapshotAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.client = client;
         this.jobManager = jobManager;
         this.jobResultsProvider = jobResultsProvider;

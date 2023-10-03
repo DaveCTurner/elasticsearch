@@ -79,7 +79,13 @@ public class TransportPreviewDatafeedAction extends HandledTransportAction<Previ
         DatafeedConfigProvider datafeedConfigProvider,
         NamedXContentRegistry xContentRegistry
     ) {
-        super(PreviewDatafeedAction.NAME, transportService, actionFilters, PreviewDatafeedAction.Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(
+            PreviewDatafeedAction.NAME,
+            transportService,
+            actionFilters,
+            PreviewDatafeedAction.Request::new,
+            EsExecutors.DIRECT_EXECUTOR_SERVICE
+        );
         this.threadPool = threadPool;
         this.client = client;
         this.clusterService = clusterService;
