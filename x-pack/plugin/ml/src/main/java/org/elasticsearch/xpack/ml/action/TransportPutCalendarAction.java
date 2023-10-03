@@ -16,7 +16,6 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -41,14 +40,7 @@ public class TransportPutCalendarAction extends HandledTransportAction<PutCalend
 
     @Inject
     public TransportPutCalendarAction(TransportService transportService, ActionFilters actionFilters, Client client) {
-        super(
-            PutCalendarAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            PutCalendarAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(PutCalendarAction.NAME, transportService, actionFilters, PutCalendarAction.Request::new);
         this.client = client;
     }
 

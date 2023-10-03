@@ -13,7 +13,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.user.PutUserAction;
@@ -39,7 +38,7 @@ public class TransportPutUserAction extends HandledTransportAction<PutUserReques
         NativeUsersStore usersStore,
         TransportService transportService
     ) {
-        super(PutUserAction.NAME, true, transportService, actionFilters, PutUserRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(PutUserAction.NAME, transportService, actionFilters, PutUserRequest::new);
         this.settings = settings;
         this.usersStore = usersStore;
     }

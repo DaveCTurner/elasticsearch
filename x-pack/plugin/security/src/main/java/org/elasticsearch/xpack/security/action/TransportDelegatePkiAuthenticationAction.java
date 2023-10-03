@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
@@ -66,14 +65,7 @@ public final class TransportDelegatePkiAuthenticationAction extends HandledTrans
         TokenService tokenService,
         SecurityContext securityContext
     ) {
-        super(
-            DelegatePkiAuthenticationAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            DelegatePkiAuthenticationRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(DelegatePkiAuthenticationAction.NAME, transportService, actionFilters, DelegatePkiAuthenticationRequest::new);
         this.threadPool = threadPool;
         this.authenticationService = authenticationService;
         this.tokenService = tokenService;

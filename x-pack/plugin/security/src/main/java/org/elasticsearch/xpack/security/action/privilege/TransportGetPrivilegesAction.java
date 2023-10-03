@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.privilege.GetPrivilegesAction;
@@ -39,14 +38,7 @@ public class TransportGetPrivilegesAction extends HandledTransportAction<GetPriv
         NativePrivilegeStore privilegeStore,
         TransportService transportService
     ) {
-        super(
-            GetPrivilegesAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            GetPrivilegesRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(GetPrivilegesAction.NAME, transportService, actionFilters, GetPrivilegesRequest::new);
         this.privilegeStore = privilegeStore;
     }
 

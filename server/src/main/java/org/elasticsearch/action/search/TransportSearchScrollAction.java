@@ -13,7 +13,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
@@ -33,14 +32,7 @@ public class TransportSearchScrollAction extends HandledTransportAction<SearchSc
         ActionFilters actionFilters,
         SearchTransportService searchTransportService
     ) {
-        super(
-            SearchScrollAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            SearchScrollRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(SearchScrollAction.NAME, transportService, actionFilters, SearchScrollRequest::new);
         this.clusterService = clusterService;
         this.searchTransportService = searchTransportService;
     }

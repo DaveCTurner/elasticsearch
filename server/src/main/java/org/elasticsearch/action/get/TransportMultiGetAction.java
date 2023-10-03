@@ -20,7 +20,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.tasks.Task;
@@ -45,7 +44,7 @@ public class TransportMultiGetAction extends HandledTransportAction<MultiGetRequ
         IndexNameExpressionResolver resolver,
         IndicesService indicesService
     ) {
-        super(MultiGetAction.NAME, true, transportService, actionFilters, MultiGetRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(MultiGetAction.NAME, transportService, actionFilters, MultiGetRequest::new);
         this.clusterService = clusterService;
         this.client = client;
         this.indexNameExpressionResolver = resolver;

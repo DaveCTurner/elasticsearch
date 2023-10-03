@@ -11,7 +11,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.ml.action.GetBucketsAction;
@@ -33,14 +32,7 @@ public class TransportGetBucketsAction extends HandledTransportAction<GetBuckets
         JobManager jobManager,
         Client client
     ) {
-        super(
-            GetBucketsAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            GetBucketsAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(GetBucketsAction.NAME, transportService, actionFilters, GetBucketsAction.Request::new);
         this.jobResultsProvider = jobResultsProvider;
         this.jobManager = jobManager;
         this.client = client;

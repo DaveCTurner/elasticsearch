@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.IndexShard;
@@ -37,7 +36,7 @@ public class TransportGetCheckpointNodeAction extends HandledTransportAction<Req
         final ActionFilters actionFilters,
         final IndicesService indicesService
     ) {
-        super(GetCheckpointNodeAction.NAME, true, transportService, actionFilters, Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(GetCheckpointNodeAction.NAME, transportService, actionFilters, Request::new);
         this.indicesService = indicesService;
     }
 

@@ -16,7 +16,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
@@ -57,11 +56,9 @@ public class TransportOpenIdConnectAuthenticateAction extends HandledTransportAc
     ) {
         super(
             OpenIdConnectAuthenticateAction.NAME,
-            true,
             transportService,
             actionFilters,
-            (Writeable.Reader<OpenIdConnectAuthenticateRequest>) OpenIdConnectAuthenticateRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
+            (Writeable.Reader<OpenIdConnectAuthenticateRequest>) OpenIdConnectAuthenticateRequest::new
         );
         this.threadPool = threadPool;
         this.authenticationService = authenticationService;

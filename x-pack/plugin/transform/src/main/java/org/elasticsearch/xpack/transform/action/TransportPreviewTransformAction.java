@@ -24,7 +24,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.HeaderWarning;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.core.TimeValue;
@@ -94,7 +93,7 @@ public class TransportPreviewTransformAction extends HandledTransportAction<Requ
         IngestService ingestService,
         TransformExtensionHolder transformExtensionHolder
     ) {
-        super(PreviewTransformAction.NAME, true, transportService, actionFilters, Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(PreviewTransformAction.NAME, transportService, actionFilters, Request::new);
         this.securityContext = XPackSettings.SECURITY_ENABLED.get(settings)
             ? new SecurityContext(settings, threadPool.getThreadContext())
             : null;

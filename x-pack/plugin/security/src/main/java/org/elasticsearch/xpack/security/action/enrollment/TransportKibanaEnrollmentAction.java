@@ -18,7 +18,6 @@ import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.ssl.SslKeyConfig;
 import org.elasticsearch.common.ssl.StoreKeyConfig;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -53,14 +52,7 @@ public class TransportKibanaEnrollmentAction extends HandledTransportAction<Kiba
         SSLService sslService,
         ActionFilters actionFilters
     ) {
-        super(
-            KibanaEnrollmentAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            KibanaEnrollmentRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(KibanaEnrollmentAction.NAME, transportService, actionFilters, KibanaEnrollmentRequest::new);
         this.client = new OriginSettingClient(client, SECURITY_ORIGIN);
         this.sslService = sslService;
     }

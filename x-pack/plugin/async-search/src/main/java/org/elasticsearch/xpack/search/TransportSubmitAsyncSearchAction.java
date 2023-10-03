@@ -20,7 +20,6 @@ import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.SearchService;
@@ -63,14 +62,7 @@ public class TransportSubmitAsyncSearchAction extends HandledTransportAction<Sub
         TransportSearchAction searchAction,
         BigArrays bigArrays
     ) {
-        super(
-            SubmitAsyncSearchAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            SubmitAsyncSearchRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(SubmitAsyncSearchAction.NAME, transportService, actionFilters, SubmitAsyncSearchRequest::new);
         this.clusterService = clusterService;
         this.nodeClient = nodeClient;
         this.requestToAggReduceContextBuilder = (task, request) -> searchService.aggReduceContextBuilder(

@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.ssl.SSLService;
@@ -28,14 +27,7 @@ public class TransportGetCertificateInfoAction extends HandledTransportAction<
 
     @Inject
     public TransportGetCertificateInfoAction(TransportService transportService, ActionFilters actionFilters, SSLService sslService) {
-        super(
-            GetCertificateInfoAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            GetCertificateInfoAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(GetCertificateInfoAction.NAME, transportService, actionFilters, GetCertificateInfoAction.Request::new);
         this.sslService = sslService;
     }
 

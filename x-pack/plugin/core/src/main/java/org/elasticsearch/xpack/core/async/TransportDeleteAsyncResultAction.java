@@ -40,14 +40,7 @@ public class TransportDeleteAsyncResultAction extends HandledTransportAction<Del
         ThreadPool threadPool,
         BigArrays bigArrays
     ) {
-        super(
-            DeleteAsyncResultAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            DeleteAsyncResultRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(DeleteAsyncResultAction.NAME, transportService, actionFilters, DeleteAsyncResultRequest::new);
         this.transportService = transportService;
         this.clusterService = clusterService;
         AsyncTaskIndexService<?> store = new AsyncTaskIndexService<>(

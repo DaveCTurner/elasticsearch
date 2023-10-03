@@ -11,7 +11,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.ml.action.ValidateDetectorAction;
@@ -20,14 +19,7 @@ public class TransportValidateDetectorAction extends HandledTransportAction<Vali
 
     @Inject
     public TransportValidateDetectorAction(TransportService transportService, ActionFilters actionFilters) {
-        super(
-            ValidateDetectorAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            ValidateDetectorAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(ValidateDetectorAction.NAME, transportService, actionFilters, ValidateDetectorAction.Request::new);
     }
 
     @Override

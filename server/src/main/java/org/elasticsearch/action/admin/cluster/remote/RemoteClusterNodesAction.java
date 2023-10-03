@@ -25,7 +25,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.RemoteClusterServerInfo;
@@ -99,7 +98,7 @@ public class RemoteClusterNodesAction extends ActionType<RemoteClusterNodesActio
 
         @Inject
         public TransportAction(TransportService transportService, ActionFilters actionFilters) {
-            super(RemoteClusterNodesAction.NAME, true, transportService, actionFilters, Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+            super(RemoteClusterNodesAction.NAME, transportService, actionFilters, Request::new);
             this.transportService = transportService;
         }
 

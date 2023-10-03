@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.reservedstate.ActionWithReservedState;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -35,7 +34,7 @@ public abstract class ReservedStateAwareHandledTransportAction<Request extends A
         ActionFilters actionFilters,
         Writeable.Reader<Request> requestReader
     ) {
-        super(actionName, true, transportService, actionFilters, requestReader, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(actionName, transportService, actionFilters, requestReader);
         this.clusterService = clusterService;
     }
 

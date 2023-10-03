@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.idp.saml.idp.SamlIdentityProvider;
@@ -29,14 +28,7 @@ public class TransportSamlMetadataAction extends HandledTransportAction<SamlMeta
         SamlIdentityProvider idp,
         SamlFactory factory
     ) {
-        super(
-            SamlMetadataAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            SamlMetadataRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(SamlMetadataAction.NAME, transportService, actionFilters, SamlMetadataRequest::new);
         this.identityProvider = idp;
         this.samlFactory = factory;
     }

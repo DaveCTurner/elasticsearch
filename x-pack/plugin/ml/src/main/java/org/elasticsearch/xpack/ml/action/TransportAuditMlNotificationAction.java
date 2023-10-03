@@ -12,7 +12,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.common.notifications.AbstractAuditor;
@@ -38,14 +37,7 @@ public class TransportAuditMlNotificationAction extends HandledTransportAction<A
         InferenceAuditor inferenceAuditor,
         SystemAuditor systemAuditor
     ) {
-        super(
-            AuditMlNotificationAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            AuditMlNotificationAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(AuditMlNotificationAction.NAME, transportService, actionFilters, AuditMlNotificationAction.Request::new);
         this.anomalyDetectionAuditor = anomalyDetectionAuditor;
         this.dfaAuditor = dfaAuditor;
         this.inferenceAuditor = inferenceAuditor;

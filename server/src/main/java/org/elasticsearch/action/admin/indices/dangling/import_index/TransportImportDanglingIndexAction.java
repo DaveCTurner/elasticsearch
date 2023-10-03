@@ -22,7 +22,6 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.gateway.LocalAllocateDangledIndices;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -50,14 +49,7 @@ public class TransportImportDanglingIndexAction extends HandledTransportAction<I
         LocalAllocateDangledIndices danglingIndexAllocator,
         NodeClient nodeClient
     ) {
-        super(
-            ImportDanglingIndexAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            ImportDanglingIndexRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(ImportDanglingIndexAction.NAME, transportService, actionFilters, ImportDanglingIndexRequest::new);
         this.danglingIndexAllocator = danglingIndexAllocator;
         this.nodeClient = nodeClient;
     }

@@ -19,7 +19,6 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.time.DateUtils;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.mapper.DateFieldMapper;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -79,14 +78,7 @@ public class TransportPreviewDatafeedAction extends HandledTransportAction<Previ
         DatafeedConfigProvider datafeedConfigProvider,
         NamedXContentRegistry xContentRegistry
     ) {
-        super(
-            PreviewDatafeedAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            PreviewDatafeedAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(PreviewDatafeedAction.NAME, transportService, actionFilters, PreviewDatafeedAction.Request::new);
         this.threadPool = threadPool;
         this.client = client;
         this.clusterService = clusterService;

@@ -18,7 +18,6 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.regex.Regex;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -70,7 +69,7 @@ public abstract class AbstractTransportGetResourcesAction<
         Client client,
         NamedXContentRegistry xContentRegistry
     ) {
-        super(actionName, true, transportService, actionFilters, request, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(actionName, transportService, actionFilters, request);
         this.client = Objects.requireNonNull(client);
         this.xContentRegistry = Objects.requireNonNull(xContentRegistry);
     }

@@ -12,7 +12,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.profile.SetProfileEnabledAction;
@@ -25,14 +24,7 @@ public class TransportSetProfileEnabledAction extends HandledTransportAction<Set
 
     @Inject
     public TransportSetProfileEnabledAction(TransportService transportService, ActionFilters actionFilters, ProfileService profileService) {
-        super(
-            SetProfileEnabledAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            SetProfileEnabledRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(SetProfileEnabledAction.NAME, transportService, actionFilters, SetProfileEnabledRequest::new);
         this.profileService = profileService;
     }
 

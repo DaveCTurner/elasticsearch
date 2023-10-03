@@ -14,7 +14,6 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
@@ -34,14 +33,7 @@ public class TransportClosePointInTimeAction extends HandledTransportAction<Clos
         SearchTransportService searchTransportService,
         NamedWriteableRegistry namedWriteableRegistry
     ) {
-        super(
-            ClosePointInTimeAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            ClosePointInTimeRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(ClosePointInTimeAction.NAME, transportService, actionFilters, ClosePointInTimeRequest::new);
         this.clusterService = clusterService;
         this.searchTransportService = searchTransportService;
         this.namedWriteableRegistry = namedWriteableRegistry;

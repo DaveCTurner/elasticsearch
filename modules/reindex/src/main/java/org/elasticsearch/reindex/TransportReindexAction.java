@@ -19,7 +19,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.BulkByScrollTask;
 import org.elasticsearch.index.reindex.ReindexAction;
@@ -83,7 +82,7 @@ public class TransportReindexAction extends HandledTransportAction<ReindexReques
         TransportService transportService,
         ReindexSslConfig sslConfig
     ) {
-        super(name, true, transportService, actionFilters, ReindexRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(name, transportService, actionFilters, ReindexRequest::new);
         this.client = client;
         this.reindexValidator = new ReindexValidator(settings, clusterService, indexNameExpressionResolver, autoCreateIndex);
         this.reindexer = new Reindexer(clusterService, client, threadPool, scriptService, sslConfig);

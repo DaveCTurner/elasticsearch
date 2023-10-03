@@ -16,7 +16,6 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
@@ -53,7 +52,7 @@ public class FrozenCacheInfoNodeAction extends ActionType<FrozenCacheInfoRespons
 
         @Inject
         public TransportAction(Settings settings, TransportService transportService, ActionFilters actionFilters) {
-            super(NAME, true, transportService, actionFilters, Request::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+            super(NAME, transportService, actionFilters, Request::new);
             response = new FrozenCacheInfoResponse(SHARED_CACHE_SIZE_SETTING.get(settings).isNonZeroSize());
         }
 

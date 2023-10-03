@@ -13,7 +13,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.synonyms.SynonymsManagementAPIService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -24,14 +23,7 @@ public class TransportPutSynonymsAction extends HandledTransportAction<PutSynony
 
     @Inject
     public TransportPutSynonymsAction(TransportService transportService, ActionFilters actionFilters, Client client) {
-        super(
-            PutSynonymsAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            PutSynonymsAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(PutSynonymsAction.NAME, transportService, actionFilters, PutSynonymsAction.Request::new);
 
         this.synonymsManagementAPIService = new SynonymsManagementAPIService(client);
     }

@@ -18,7 +18,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
@@ -186,7 +185,7 @@ public class ListTasksIT extends ESSingleNodeTestCase {
             PluginsService pluginsService,
             ThreadPool threadPool
         ) {
-            super(NAME, true, transportService, actionFilters, in -> new TestRequest(), EsExecutors.DIRECT_EXECUTOR_SERVICE);
+            super(NAME, transportService, actionFilters, in -> new TestRequest());
             testPlugin = pluginsService.filterPlugins(TestPlugin.class).get(0);
             this.threadPool = threadPool;
         }

@@ -19,7 +19,6 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.ingest.IngestService;
@@ -59,14 +58,7 @@ public class SimulatePipelineTransportAction extends HandledTransportAction<Simu
         ActionFilters actionFilters,
         IngestService ingestService
     ) {
-        super(
-            SimulatePipelineAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            SimulatePipelineRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(SimulatePipelineAction.NAME, transportService, actionFilters, SimulatePipelineRequest::new);
         this.ingestService = ingestService;
         this.executionService = new SimulateExecutionService(threadPool);
         this.transportService = transportService;

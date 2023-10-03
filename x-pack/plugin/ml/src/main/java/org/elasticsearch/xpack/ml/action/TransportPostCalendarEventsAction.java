@@ -16,7 +16,6 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContent;
@@ -54,14 +53,7 @@ public class TransportPostCalendarEventsAction extends HandledTransportAction<
         JobResultsProvider jobResultsProvider,
         JobManager jobManager
     ) {
-        super(
-            PostCalendarEventsAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            PostCalendarEventsAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(PostCalendarEventsAction.NAME, transportService, actionFilters, PostCalendarEventsAction.Request::new);
         this.client = client;
         this.jobResultsProvider = jobResultsProvider;
         this.jobManager = jobManager;

@@ -16,7 +16,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -38,14 +37,7 @@ public class TransportGetFlamegraphAction extends HandledTransportAction<GetStac
 
     @Inject
     public TransportGetFlamegraphAction(NodeClient nodeClient, TransportService transportService, ActionFilters actionFilters) {
-        super(
-            GetFlamegraphAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            GetStackTracesRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(GetFlamegraphAction.NAME, transportService, actionFilters, GetStackTracesRequest::new);
         this.nodeClient = nodeClient;
         this.transportService = transportService;
     }

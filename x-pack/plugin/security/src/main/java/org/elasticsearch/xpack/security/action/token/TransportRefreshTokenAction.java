@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.token.CreateTokenRequest;
@@ -26,7 +25,7 @@ public class TransportRefreshTokenAction extends HandledTransportAction<CreateTo
 
     @Inject
     public TransportRefreshTokenAction(TransportService transportService, ActionFilters actionFilters, TokenService tokenService) {
-        super(RefreshTokenAction.NAME, true, transportService, actionFilters, CreateTokenRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(RefreshTokenAction.NAME, transportService, actionFilters, CreateTokenRequest::new);
         this.tokenService = tokenService;
     }
 

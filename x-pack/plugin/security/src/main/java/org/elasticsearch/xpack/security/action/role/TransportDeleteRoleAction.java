@@ -11,7 +11,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.core.security.action.role.DeleteRoleAction;
@@ -26,7 +25,7 @@ public class TransportDeleteRoleAction extends HandledTransportAction<DeleteRole
 
     @Inject
     public TransportDeleteRoleAction(ActionFilters actionFilters, NativeRolesStore rolesStore, TransportService transportService) {
-        super(DeleteRoleAction.NAME, true, transportService, actionFilters, DeleteRoleRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(DeleteRoleAction.NAME, transportService, actionFilters, DeleteRoleRequest::new);
         this.rolesStore = rolesStore;
     }
 

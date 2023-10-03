@@ -20,7 +20,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.Maps;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptService;
@@ -70,7 +69,7 @@ public class TransportRankEvalAction extends HandledTransportAction<RankEvalRequ
         ScriptService scriptService,
         NamedXContentRegistry namedXContentRegistry
     ) {
-        super(RankEvalAction.NAME, true, transportService, actionFilters, RankEvalRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        super(RankEvalAction.NAME, transportService, actionFilters, RankEvalRequest::new);
         this.scriptService = scriptService;
         this.namedXContentRegistry = namedXContentRegistry;
         this.client = client;

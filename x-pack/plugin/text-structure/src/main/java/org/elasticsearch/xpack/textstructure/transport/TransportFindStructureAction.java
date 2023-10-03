@@ -10,7 +10,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -29,14 +28,7 @@ public class TransportFindStructureAction extends HandledTransportAction<FindStr
 
     @Inject
     public TransportFindStructureAction(TransportService transportService, ActionFilters actionFilters, ThreadPool threadPool) {
-        super(
-            FindStructureAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            FindStructureAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(FindStructureAction.NAME, transportService, actionFilters, FindStructureAction.Request::new);
         this.threadPool = threadPool;
     }
 

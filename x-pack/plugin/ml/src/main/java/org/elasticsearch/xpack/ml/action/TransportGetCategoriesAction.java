@@ -13,7 +13,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -38,14 +37,7 @@ public class TransportGetCategoriesAction extends HandledTransportAction<GetCate
         JobManager jobManager,
         ClusterService clusterService
     ) {
-        super(
-            GetCategoriesAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            GetCategoriesAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(GetCategoriesAction.NAME, transportService, actionFilters, GetCategoriesAction.Request::new);
         this.jobResultsProvider = jobResultsProvider;
         this.client = client;
         this.jobManager = jobManager;

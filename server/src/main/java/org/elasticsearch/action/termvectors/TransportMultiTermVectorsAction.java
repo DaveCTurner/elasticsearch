@@ -19,7 +19,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
@@ -42,14 +41,7 @@ public class TransportMultiTermVectorsAction extends HandledTransportAction<Mult
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver
     ) {
-        super(
-            MultiTermVectorsAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            MultiTermVectorsRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(MultiTermVectorsAction.NAME, transportService, actionFilters, MultiTermVectorsRequest::new);
         this.clusterService = clusterService;
         this.client = client;
         this.indexNameExpressionResolver = indexNameExpressionResolver;

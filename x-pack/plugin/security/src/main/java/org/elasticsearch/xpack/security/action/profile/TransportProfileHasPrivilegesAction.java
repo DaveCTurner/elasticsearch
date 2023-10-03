@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskCancelledException;
@@ -65,14 +64,7 @@ public class TransportProfileHasPrivilegesAction extends HandledTransportAction<
         SecurityContext securityContext,
         ThreadPool threadPool
     ) {
-        super(
-            ProfileHasPrivilegesAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            ProfileHasPrivilegesRequest::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(ProfileHasPrivilegesAction.NAME, transportService, actionFilters, ProfileHasPrivilegesRequest::new);
         this.authorizationService = authorizationService;
         this.privilegeStore = privilegeStore;
         this.profileService = profileService;

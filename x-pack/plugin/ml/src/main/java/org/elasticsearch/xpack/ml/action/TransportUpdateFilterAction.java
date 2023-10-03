@@ -21,7 +21,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.tasks.Task;
@@ -63,14 +62,7 @@ public class TransportUpdateFilterAction extends HandledTransportAction<UpdateFi
         JobManager jobManager,
         ClusterService clusterService
     ) {
-        super(
-            UpdateFilterAction.NAME,
-            true,
-            transportService,
-            actionFilters,
-            UpdateFilterAction.Request::new,
-            EsExecutors.DIRECT_EXECUTOR_SERVICE
-        );
+        super(UpdateFilterAction.NAME, transportService, actionFilters, UpdateFilterAction.Request::new);
         this.client = client;
         this.jobManager = jobManager;
     }
