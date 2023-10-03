@@ -80,7 +80,7 @@ public class GatewayServiceTests extends ESTestCase {
     public void testRecoverStateUpdateTask() throws Exception {
         GatewayService service = createService(Settings.builder());
         final long expectedTerm = randomLongBetween(1, 42);
-        ClusterStateUpdateTask clusterStateUpdateTask = service.new RecoverStateUpdateTask(expectedTerm, () -> {});
+        ClusterStateUpdateTask clusterStateUpdateTask = service.new RecoverStateUpdateTask(expectedTerm);
 
         ClusterState stateWithBlock = buildClusterState(1, expectedTerm);
 
@@ -95,7 +95,7 @@ public class GatewayServiceTests extends ESTestCase {
     public void testRecoveryWillAbortIfExpectedTermDoesNotMatch() throws Exception {
         GatewayService service = createService(Settings.builder());
         final long expectedTerm = randomLongBetween(1, 42);
-        ClusterStateUpdateTask clusterStateUpdateTask = service.new RecoverStateUpdateTask(expectedTerm, () -> {});
+        ClusterStateUpdateTask clusterStateUpdateTask = service.new RecoverStateUpdateTask(expectedTerm);
 
         ClusterState stateWithBlock = buildClusterState(1, randomLongBetween(43, 99));
 
