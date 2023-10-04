@@ -1649,15 +1649,24 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
                 Coordinator.COMMIT_STATE_ACTION_NAME,
                 (handler, request, channel, task) -> {
                     assertThat(request, instanceOf(ApplyCommitRequest.class));
+                    logger.info(
+                        "--> COMMIT_STATE_ACTION_NAME received on primary for state [{}]",
+                        ((ApplyCommitRequest) request).getVersion()
+                    );
                     recoveryClusterStateDelayListeners.getClusterStateDelayListener(((ApplyCommitRequest) request).getVersion())
-                        .addListener(
-                            ActionListener.wrap(ignored -> handler.messageReceived(request, channel, task), e -> fail(e, "unexpected"))
-                        );
+                        .addListener(ActionListener.wrap(ignored -> {
+                            logger.info(
+                                "--> COMMIT_STATE_ACTION_NAME released on primary for state [{}]",
+                                ((ApplyCommitRequest) request).getVersion()
+                            );
+                            handler.messageReceived(request, channel, task);
+                        }, e -> fail(e, "unexpected")));
                 }
             );
             primaryNodeTransportService.addRequestHandlingBehavior(
                 PeerRecoverySourceService.Actions.START_RECOVERY,
                 (handler, request, channel, task) -> {
+                    logger.info("--> START_RECOVERY received on primary");
                     assertThat(request, instanceOf(StartRecoveryRequest.class));
                     assertThat(((StartRecoveryRequest) request).clusterStateVersion(), greaterThan(initialClusterStateVersion));
                     handler.messageReceived(
@@ -1678,14 +1687,17 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
             final ClusterStateListener clusterStateListener = event -> {
                 final var primaryProceedListener = recoveryClusterStateDelayListeners.getClusterStateDelayListener(event.state().version());
                 final var indexRoutingTable = event.state().routingTable().index(indexName);
+                logger.info("--> version [{}], listener got {}", event.state().version(), indexRoutingTable);
                 assertNotNull(indexRoutingTable);
                 final var indexShardRoutingTable = indexRoutingTable.shard(0);
                 if (indexShardRoutingTable.size() == 2 && indexShardRoutingTable.getAllInitializingShards().isEmpty() == false) {
                     // this is the cluster state update which starts the recovery, so delay the primary node application until recovery
                     // has started
+                    logger.info("--> version [{}], delaying primary application", event.state().version());
                     recoveryClusterStateDelayListeners.delayUntilRecoveryStart(primaryProceedListener);
                 } else {
                     // this is some other cluster state update, so we must let it proceed now
+                    logger.info("--> version [{}], releasing primary application", event.state().version());
                     primaryProceedListener.onResponse(null);
                 }
             };
