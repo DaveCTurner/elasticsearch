@@ -800,7 +800,7 @@ public class RequestDispatcherTests extends ESAllocationTestCase {
             threadPool.executor(ThreadPool.Names.SEARCH_COORDINATION).submit(new AbstractRunnable() {
                 @Override
                 public void onFailure(Exception e) {
-                    throw new AssertionError(e);
+                    fail(e);
                 }
 
                 @Override

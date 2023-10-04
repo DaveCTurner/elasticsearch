@@ -303,7 +303,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
             @Override
             public void onFailure(Exception e) {
                 latch.countDown();
-                throw new AssertionError(e);
+                fail(e);
             }
         };
         for (int i = 0; i < count; i++) {

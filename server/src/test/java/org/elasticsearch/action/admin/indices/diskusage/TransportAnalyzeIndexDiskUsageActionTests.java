@@ -192,7 +192,7 @@ public class TransportAnalyzeIndexDiskUsageActionTests extends ESTestCase {
                         }
                     }
                 } catch (InterruptedException e) {
-                    throw new AssertionError(e);
+                    fail(e);
                 }
             }
         });

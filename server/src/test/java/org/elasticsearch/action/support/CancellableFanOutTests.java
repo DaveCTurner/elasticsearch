@@ -230,7 +230,7 @@ public class CancellableFanOutTests extends ESTestCase {
                     safeAwait(barrier);
                     item.run();
                 } catch (Exception e) {
-                    throw new AssertionError(e);
+                    fail(e);
                 }
             }, "processor-thread-" + i);
             processorThreads[i].start();

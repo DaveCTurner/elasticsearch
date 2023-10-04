@@ -233,7 +233,7 @@ public class TransportShardBulkActionTests extends IndexShardTestCase {
                     assertDocCount(shard, items.length - 1);
                     closeShards(shard);
                 } catch (IOException e) {
-                    throw new AssertionError(e);
+                    fail(e);
                 }
             }), latch::countDown),
             threadPool,
@@ -812,7 +812,7 @@ public class TransportShardBulkActionTests extends IndexShardTestCase {
             CountDownLatch latch = new CountDownLatch(1);
             shard.syncAfterWrite(context.getLocationToSync(), e -> {
                 if (e != null) {
-                    throw new AssertionError(e);
+                    fail(e);
                 }
                 latch.countDown();
             });

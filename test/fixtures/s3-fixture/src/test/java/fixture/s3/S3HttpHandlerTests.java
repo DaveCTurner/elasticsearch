@@ -355,7 +355,7 @@ public class S3HttpHandlerTests extends ESTestCase {
             try {
                 return requestBody.streamInput();
             } catch (IOException e) {
-                throw new AssertionError(e);
+                return fail(e);
             }
         }
 

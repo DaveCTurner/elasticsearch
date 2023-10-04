@@ -470,7 +470,7 @@ public class PointInTimeIT extends ESIntegTestCase {
                             assertTrue(readyLatch.await(1, TimeUnit.MINUTES));
                             handler.messageReceived(request, channel, task);
                         } catch (Exception e) {
-                            throw new AssertionError(e);
+                            fail(e);
                         }
                     });
                     thread.start();

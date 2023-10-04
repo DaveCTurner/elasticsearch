@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.elasticsearch.test.ESTestCase.fail;
+
 /**
  * SearchPhaseContext for tests
  */
@@ -50,7 +52,7 @@ public final class MockSearchPhaseContext implements SearchPhaseContext {
 
     public void assertNoFailure() {
         if (phaseFailure.get() != null) {
-            throw new AssertionError(phaseFailure.get());
+            fail(phaseFailure.get());
         }
     }
 

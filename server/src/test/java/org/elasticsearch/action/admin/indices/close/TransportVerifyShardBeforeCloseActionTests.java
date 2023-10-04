@@ -162,7 +162,7 @@ public class TransportVerifyShardBeforeCloseActionTests extends ESTestCase {
         try {
             res.get();
         } catch (InterruptedException e) {
-            throw new AssertionError(e);
+            fail(e);
         } catch (ExecutionException e) {
             throw e.getCause();
         }
