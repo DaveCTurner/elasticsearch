@@ -1623,6 +1623,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         );
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service.MasterService:TRACE")
     public void testWaitForClusterStateToBeAppliedOnSourceNode() throws Exception {
         internalCluster().startMasterOnlyNode();
         final var primaryNode = internalCluster().startDataOnlyNode();
