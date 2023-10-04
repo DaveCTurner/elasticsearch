@@ -2007,9 +2007,9 @@ public abstract class ESTestCase extends LuceneTestCase {
             barrier.await(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AssertionError("unexpected", e);
+            fail(e);
         } catch (Exception e) {
-            throw new AssertionError("unexpected", e);
+            fail(e);
         }
     }
 
@@ -2018,7 +2018,7 @@ public abstract class ESTestCase extends LuceneTestCase {
             assertTrue(countDownLatch.await(10, TimeUnit.SECONDS));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AssertionError("unexpected", e);
+            fail(e);
         }
     }
 
@@ -2027,7 +2027,7 @@ public abstract class ESTestCase extends LuceneTestCase {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new AssertionError("unexpected", e);
+            fail(e);
         }
     }
 
@@ -2036,7 +2036,11 @@ public abstract class ESTestCase extends LuceneTestCase {
             || Locale.getDefault().getLanguage().equals(new Locale("az").getLanguage());
     }
 
-    public static void fail(Throwable t, String msg, Object... args) {
+    public static <T> T fail(Throwable t, String msg, Object... args) {
         throw new AssertionError(org.elasticsearch.common.Strings.format(msg, args), t);
+    }
+
+    public static <T> T fail(Throwable t) {
+        return fail(t, "unexpected");
     }
 }

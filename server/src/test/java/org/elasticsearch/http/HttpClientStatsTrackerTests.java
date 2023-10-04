@@ -25,11 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -276,11 +273,7 @@ public class HttpClientStatsTrackerTests extends ESTestCase {
 
         for (int i = 0; i < clientThreads.length; i++) {
             clientThreads[i] = new Thread(() -> {
-                try {
-                    startBarrier.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                    throw new AssertionError("unexpected", e);
-                }
+                safeAwait(startBarrier);
 
                 HttpChannel httpChannel = randomHttpChannel();
                 httpClientStatsTracker.addClientStats(httpChannel);
@@ -301,11 +294,7 @@ public class HttpClientStatsTrackerTests extends ESTestCase {
 
         final AtomicBoolean keepGoing = new AtomicBoolean(true);
         final Thread statsThread = new Thread(() -> {
-            try {
-                startBarrier.await(10, TimeUnit.SECONDS);
-            } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                throw new AssertionError("unexpected", e);
-            }
+            safeAwait(startBarrier);
 
             while (keepGoing.get()) {
                 closeLock.writeLock().lock();
@@ -345,11 +334,7 @@ public class HttpClientStatsTrackerTests extends ESTestCase {
         );
         for (int i = 0; i < clientThreads.length; i++) {
             clientThreads[i] = new Thread(() -> {
-                try {
-                    startBarrier.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                    throw new AssertionError("unexpected", e);
-                }
+                safeAwait(startBarrier);
 
                 HttpChannel httpChannel = randomHttpChannel();
                 httpClientStatsTracker.addClientStats(httpChannel);
@@ -368,11 +353,7 @@ public class HttpClientStatsTrackerTests extends ESTestCase {
             clientThreads[i].start();
         }
 
-        try {
-            startBarrier.await(10, TimeUnit.SECONDS);
-        } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-            throw new AssertionError("unexpected", e);
-        }
+        safeAwait(startBarrier);
         clusterSettings.applySettings(Settings.builder().put(SETTING_HTTP_CLIENT_STATS_ENABLED.getKey(), false).build());
 
         try {

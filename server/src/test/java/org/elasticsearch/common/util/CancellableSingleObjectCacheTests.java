@@ -23,12 +23,10 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -357,7 +355,7 @@ public class CancellableSingleObjectCacheTests extends ESTestCase {
                         if (e instanceof TaskCancelledException) {
                             assertTrue(cancel);
                         } else {
-                            throw new AssertionError("unexpected", e);
+                            fail(e);
                         }
                     }));
                 });
@@ -381,11 +379,7 @@ public class CancellableSingleObjectCacheTests extends ESTestCase {
 
             @Override
             public void run() {
-                try {
-                    barrier.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                    throw new AssertionError("unexpected", e);
-                }
+                safeAwait(barrier);
             }
         };
 

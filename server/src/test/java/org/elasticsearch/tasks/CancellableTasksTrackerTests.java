@@ -13,10 +13,7 @@ import org.elasticsearch.test.ESTestCase;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -154,11 +151,7 @@ public class CancellableTasksTrackerTests extends ESTestCase {
 
             @Override
             public void run() {
-                try {
-                    startBarrier.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                    throw new AssertionError("unexpected", e);
-                }
+                safeAwait(startBarrier);
             }
         };
 

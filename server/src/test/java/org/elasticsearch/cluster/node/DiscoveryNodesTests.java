@@ -466,7 +466,7 @@ public class DiscoveryNodesTests extends ESTestCase {
                             TransportVersion.current()
                         );
                     } catch (IOException e) {
-                        throw new AssertionError("unexpected", e);
+                        fail(e);
                     }
                 }
                 assertEquals(expectedGeneration, discoveryNodes.getNodeLeftGeneration());

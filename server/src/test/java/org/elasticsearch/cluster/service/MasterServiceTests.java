@@ -69,13 +69,11 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1686,11 +1684,7 @@ public class MasterServiceTests extends ESTestCase {
 
                 @Override
                 public void run() {
-                    try {
-                        cyclicBarrier.await(10, TimeUnit.SECONDS);
-                    } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                        throw new AssertionError("unexpected", e);
-                    }
+                    safeAwait(cyclicBarrier);
                 }
             };
             final Runnable awaitNextTask = () -> {
@@ -2320,7 +2314,7 @@ public class MasterServiceTests extends ESTestCase {
 
                 @Override
                 public void onFailure(Exception e) {
-                    throw new AssertionError("unexpected", e);
+                    fail(e);
                 }
             }
 
@@ -2415,7 +2409,7 @@ public class MasterServiceTests extends ESTestCase {
 
                 @Override
                 public void onFailure(Exception e) {
-                    throw new AssertionError("unexpected", e);
+                    fail(e);
                 }
             }
 
@@ -2492,7 +2486,7 @@ public class MasterServiceTests extends ESTestCase {
 
                     @Override
                     public void onFailure(Exception e) {
-                        throw new AssertionError("unexpected", e);
+                        fail(e);
                     }
                 });
             }
