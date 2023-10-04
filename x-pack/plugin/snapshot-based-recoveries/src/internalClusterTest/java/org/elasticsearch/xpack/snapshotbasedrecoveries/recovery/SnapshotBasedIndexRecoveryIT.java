@@ -728,7 +728,7 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
                                         try {
                                             channel.sendResponse(exception);
                                         } catch (IOException e) {
-                                            throw new AssertionError("unexpected", e);
+                                            fail(e);
                                         }
                                     });
                                 }

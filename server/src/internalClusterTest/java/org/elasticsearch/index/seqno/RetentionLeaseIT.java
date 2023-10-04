@@ -432,7 +432,7 @@ public class RetentionLeaseIT extends ESIntegTestCase {
                     )
                 );
             } catch (final Exception e) {
-                failWithException(e);
+                fail(e);
             }
         });
 
@@ -488,7 +488,7 @@ public class RetentionLeaseIT extends ESIntegTestCase {
 
                 @Override
                 public void onFailure(final Exception e) {
-                    failWithException(e);
+                    fail(e);
                 }
 
             });
@@ -533,7 +533,7 @@ public class RetentionLeaseIT extends ESIntegTestCase {
                     )
                 );
             } catch (final Exception e) {
-                failWithException(e);
+                fail(e);
             }
         });
 
@@ -590,17 +590,13 @@ public class RetentionLeaseIT extends ESIntegTestCase {
 
             @Override
             public void onFailure(final Exception e) {
-                failWithException(e);
+                fail(e);
             }
 
         });
         actionLatch.await();
         assertTrue(success.get());
         afterSync.accept(primary);
-    }
-
-    private static void failWithException(Exception e) {
-        throw new AssertionError("unexpected", e);
     }
 
     private static ActionListener<ReplicationResponse> countDownLatchListener(CountDownLatch latch) {
