@@ -147,7 +147,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     public void testCreateAndRestoreSnapshot_pre_8_10_0_fix() throws IOException {
-        // Like estCreateAndRestoreSnapshot, except we must delete all the newer snapshots to allow the older version to read the repo
+        // Like testCreateAndRestoreSnapshot, except we must delete all the newer snapshots to allow the older version to read the repo
         // see https://github.com/elastic/elasticsearch/issues/98454
 
         final String repoName = getTestName();
@@ -163,14 +163,26 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
             createSnapshot(repoName, snapshotToDeleteName, index);
             final List<Map<String, Object>> snapshotsIncludingToDelete = listSnapshots(repoName);
             // Every step creates one snapshot and we have to add one more for the temporary snapshot
-            assertThat(snapshotsIncludingToDelete, hasSize(TEST_STEP.ordinal() + 1 + 1));
+            assertThat(snapshotsIncludingToDelete, hasSize(
+                switch (TEST_STEP) {
+                    case STEP1_OLD_CLUSTER -> 2; // STEP1 creates 2 snapshots
+                    case STEP2_NEW_CLUSTER -> 3; // STEP1 deletes one of its snapshots and then STEP2 adds 2
+                    case STEP3_OLD_CLUSTER -> 3; // STEP2 deletes both of its snapshots and then STEP3 adds 2
+                    case STEP4_NEW_CLUSTER -> 4; // STEP3 deletes one of its snapshots and then STEP4 adds 2
+                }));
             assertThat(
                 snapshotsIncludingToDelete.stream().map(sn -> (String) sn.get("snapshot")).collect(Collectors.toList()),
                 hasItem(snapshotToDeleteName)
             );
             deleteSnapshot(repoName, snapshotToDeleteName);
             final List<Map<String, Object>> snapshots = listSnapshots(repoName);
-            assertThat(snapshots, hasSize(TEST_STEP.ordinal() + 1));
+            assertThat(snapshots, hasSize(
+                switch (TEST_STEP) {
+                    case STEP1_OLD_CLUSTER -> 1; // STEP1 creates 2 snapshots then deletes one
+                    case STEP2_NEW_CLUSTER -> 2; // STEP2 creates 2 snapshots then deletes one
+                    case STEP3_OLD_CLUSTER -> 2; // STEP2 deletes its other snapshot and then STEP3 adds 2 and deletes one
+                    case STEP4_NEW_CLUSTER -> 3; // STEP4 creates 2 snapshots then deletes one
+                }));
             switch (TEST_STEP) {
                 case STEP2_NEW_CLUSTER, STEP4_NEW_CLUSTER -> assertSnapshotStatusSuccessful(
                     repoName,
