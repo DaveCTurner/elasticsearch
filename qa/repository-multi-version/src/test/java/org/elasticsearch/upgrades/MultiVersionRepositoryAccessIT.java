@@ -95,8 +95,12 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
         return true;
     }
 
-    @LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
     public void testCreateAndRestoreSnapshot() throws IOException {
+        assumeFalse(
+            "test does not work for downgrades before 8.10.0, see https://github.com/elastic/elasticsearch/issues/98454",
+            TEST_STEP == TestStep.STEP3_OLD_CLUSTER && OLD_CLUSTER_VERSION.before(Version.V_8_10_0)
+        );
+
         final String repoName = getTestName();
         try {
             final int shards = 3;
@@ -136,6 +140,59 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
                 for (TestStep value : TestStep.values()) {
                     ensureSnapshotRestoreWorks(repoName, "snapshot-" + value, shards, index);
                 }
+            }
+        } finally {
+            deleteRepository(repoName);
+        }
+    }
+
+    public void testCreateAndRestoreSnapshot_pre_8_10_0_fix() throws IOException {
+        // Like estCreateAndRestoreSnapshot, except we must delete all the newer snapshots to allow the older version to read the repo
+        // see https://github.com/elastic/elasticsearch/issues/98454
+
+        final String repoName = getTestName();
+        try {
+            final int shards = 3;
+            final String index = "test-index";
+            createIndex(index, shards);
+            createRepository(repoName, false, true);
+            createSnapshot(repoName, "snapshot-" + TEST_STEP, index);
+            final String snapshotToDeleteName = "snapshot-to-delete";
+            // Create a snapshot and delete it right away again to test the impact of each version's cleanup functionality that is run
+            // as part of the snapshot delete
+            createSnapshot(repoName, snapshotToDeleteName, index);
+            final List<Map<String, Object>> snapshotsIncludingToDelete = listSnapshots(repoName);
+            // Every step creates one snapshot and we have to add one more for the temporary snapshot
+            assertThat(snapshotsIncludingToDelete, hasSize(TEST_STEP.ordinal() + 1 + 1));
+            assertThat(
+                snapshotsIncludingToDelete.stream().map(sn -> (String) sn.get("snapshot")).collect(Collectors.toList()),
+                hasItem(snapshotToDeleteName)
+            );
+            deleteSnapshot(repoName, snapshotToDeleteName);
+            final List<Map<String, Object>> snapshots = listSnapshots(repoName);
+            assertThat(snapshots, hasSize(TEST_STEP.ordinal() + 1));
+            switch (TEST_STEP) {
+                case STEP2_NEW_CLUSTER, STEP4_NEW_CLUSTER -> assertSnapshotStatusSuccessful(
+                    repoName,
+                    snapshots.stream().map(sn -> (String) sn.get("snapshot")).toArray(String[]::new)
+                );
+                case STEP1_OLD_CLUSTER -> assertSnapshotStatusSuccessful(repoName, "snapshot-" + TEST_STEP);
+                case STEP3_OLD_CLUSTER -> assertSnapshotStatusSuccessful(
+                    repoName,
+                    "snapshot-" + TEST_STEP,
+                    "snapshot-" + TestStep.STEP3_OLD_CLUSTER
+                );
+            }
+            if (TEST_STEP == TestStep.STEP3_OLD_CLUSTER) {
+                ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+            } else if (TEST_STEP == TestStep.STEP4_NEW_CLUSTER) {
+                for (TestStep value : TestStep.values()) {
+                    ensureSnapshotRestoreWorks(repoName, "snapshot-" + value, shards, index);
+                }
+            }
+
+            if (TEST_STEP == TestStep.STEP2_NEW_CLUSTER) {
+                deleteSnapshot(repoName, "snapshot-" + TEST_STEP);
             }
         } finally {
             deleteRepository(repoName);
