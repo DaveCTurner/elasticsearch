@@ -965,9 +965,7 @@ public final class RepositoryData {
             return IndexVersion.fromId(parser.intValue());
         } else {
             XContentParserUtils.ensureExpectedToken(XContentParser.Token.VALUE_STRING, token, parser);
-            Version v = Version.fromString(parser.text());
-            assert v.before(Version.V_8_10_0);
-            return IndexVersion.fromId(v.id);
+            return IndexVersion.fromId(Version.fromString(parser.text()).id());
         }
     }
 
