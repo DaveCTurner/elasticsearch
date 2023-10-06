@@ -2325,7 +2325,7 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
 
                         @Override
                         public void onDone() {
-                            logger.info("snapshots {} deleted", snapshotIds);
+                            logger.info("snapshots {} deleted from repository [{}]", snapshotIds, deleteEntry.repository());
                             doneFuture.onResponse(null);
                         }
 
@@ -2353,6 +2353,10 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
 
                         @Override
                         public void onFailure(Exception e) {
+                            logger.warn(
+                                Strings.format("failed to delete snapshots %s from repository [%s]", snapshotIds, deleteEntry.repository()),
+                                e
+                            );
                             submitUnbatchedTask(
                                 "remove snapshot deletion metadata after failed delete",
                                 new RemoveSnapshotDeletionAndContinueTask(deleteEntry, repositoryData) {

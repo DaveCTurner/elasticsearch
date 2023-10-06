@@ -7,6 +7,7 @@
  */
 package org.elasticsearch.snapshots;
 
+import org.apache.logging.log4j.Level;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
@@ -21,11 +22,15 @@ import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.common.io.FileSystemUtils;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryConflictException;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.MockLogAppender;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -33,6 +38,7 @@ import java.util.List;
 import static org.elasticsearch.repositories.blobstore.BlobStoreRepository.READONLY_SETTING_KEY;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertRequestBuilderThrows;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
@@ -294,5 +300,83 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> wait until snapshot deletion is finished");
         assertAcked(future.actionGet());
+    }
+
+    @TestLogging(reason = "testing logging at INFO level", value = "org.elasticsearch.snapshots.SnapshotsService:INFO")
+    public void testLoggingOnDeleteFailure() throws Exception {
+        final Client client = client();
+        final Path repositoryPath = randomRepoPath();
+        final String repositoryName = "test-repo";
+        final String snapshotName = "test-snap-1";
+
+        createRepository(repositoryName, "mock", repositoryPath);
+
+        createIndex("test-idx");
+        for (int j = 0; j < 10; j++) {
+            indexDoc("test-idx", Integer.toString(10 + j), "foo", "bar" + 10 + j);
+        }
+        ensureGreen();
+
+        createFullSnapshot(repositoryName, snapshotName);
+
+        final var repository = (MockRepository) internalCluster().getCurrentMasterNodeInstance(RepositoriesService.class)
+            .repository(repositoryName);
+        repository.setRandomControlIOExceptionRate(1.0);
+
+        var mockLogAppender = new MockLogAppender();
+        try (var ignored = mockLogAppender.capturing(SnapshotsService.class)) {
+
+            mockLogAppender.addExpectation(
+                new MockLogAppender.SeenEventExpectation(
+                    "delete start",
+                    SnapshotsService.class.getCanonicalName(),
+                    Level.INFO,
+                    "deleting snapshots [" + snapshotName + "] from repository [" + repositoryName + "]"
+                )
+            );
+            mockLogAppender.addExpectation(
+                new MockLogAppender.SeenEventExpectation(
+                    "delete failure",
+                    SnapshotsService.class.getCanonicalName(),
+                    Level.WARN,
+                    "failed to delete snapshots [" + snapshotName + "/*] from repository [" + repositoryName + "]"
+                )
+            );
+
+            assertThat(
+                expectThrows(
+                    RepositoryException.class,
+                    () -> client.admin().cluster().prepareDeleteSnapshot(repositoryName, snapshotName).get()
+                ).getMessage(),
+                allOf(containsString("failed to delete snapshots"), containsString(repositoryName), containsString(snapshotName))
+            );
+
+            mockLogAppender.assertAllExpectationsMatched();
+
+            repository.setRandomControlIOExceptionRate(0.0);
+
+            mockLogAppender.addExpectation(
+                new MockLogAppender.SeenEventExpectation(
+                    "delete start",
+                    SnapshotsService.class.getCanonicalName(),
+                    Level.INFO,
+                    "deleting snapshots [" + snapshotName + "] from repository [" + repositoryName + "]"
+                )
+            );
+            mockLogAppender.addExpectation(
+                new MockLogAppender.SeenEventExpectation(
+                    "delete success",
+                    SnapshotsService.class.getCanonicalName(),
+                    Level.INFO,
+                    "snapshots [" + snapshotName + "/*] deleted from repository [" + repositoryName + "]"
+                )
+            );
+
+            client.admin().cluster().prepareDeleteSnapshot(repositoryName, snapshotName).get();
+
+            mockLogAppender.assertAllExpectationsMatched();
+        }
+
+        assertFileCount(repositoryPath, 2); // just the index-N and index.latest blobs
     }
 }
