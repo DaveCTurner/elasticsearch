@@ -639,6 +639,7 @@ public final class RepositoryData {
     private static final String CLUSTER_UUID = "cluster_id";
     private static final String STATE = "state";
     private static final String VERSION = "version";
+    private static final String INDEX_VERSION = "index_version";
     private static final String MIN_VERSION = "min_version";
     private static final String START_TIME_MILLIS = "start_time_millis";
     private static final String END_TIME_MILLIS = "end_time_millis";
@@ -740,10 +741,11 @@ public final class RepositoryData {
             }
             final IndexVersion version = snapshotDetails.getVersion();
             if (version != null) {
-                if (version.before(IndexVersion.V_8_9_0)) {
-                    builder.field(VERSION, Version.fromId(version.id()).toString());
+                if (version.onOrAfter(IndexVersion.V_8_500_000)) {
+                    builder.field(VERSION, "8.11.0");
+                    builder.field(INDEX_VERSION, version.id());
                 } else {
-                    builder.field(VERSION, version.id());
+                    builder.field(VERSION, Version.fromId(version.id()).toString());
                 }
             }
 
@@ -915,6 +917,7 @@ public final class RepositoryData {
             SnapshotState state = null;
             Map<String, String> metaGenerations = null;
             IndexVersion version = null;
+            IndexVersion indexVersion = null;
             long startTimeMillis = -1;
             long endTimeMillis = -1;
             String slmPolicy = null;
@@ -930,6 +933,7 @@ public final class RepositoryData {
                         p -> stringDeduplicator.computeIfAbsent(p.text(), Function.identity())
                     );
                     case VERSION -> version = parseIndexVersion(token, parser);
+                    case INDEX_VERSION -> indexVersion = IndexVersion.fromId(parser.intValue());
                     case START_TIME_MILLIS -> {
                         assert startTimeMillis == -1;
                         startTimeMillis = parser.longValue();
@@ -943,8 +947,11 @@ public final class RepositoryData {
             }
             assert (startTimeMillis == -1) == (endTimeMillis == -1) : "unexpected: " + startTimeMillis + ", " + endTimeMillis + ", ";
             final SnapshotId snapshotId = new SnapshotId(name, uuid);
-            if (state != null || version != null) {
-                snapshotsDetails.put(uuid, new SnapshotDetails(state, version, startTimeMillis, endTimeMillis, slmPolicy));
+            if (indexVersion == null) {
+                indexVersion = version;
+            }
+            if (state != null || indexVersion != null) {
+                snapshotsDetails.put(uuid, new SnapshotDetails(state, indexVersion, startTimeMillis, endTimeMillis, slmPolicy));
             }
             snapshots.put(uuid, snapshotId);
             if (metaGenerations != null && metaGenerations.isEmpty() == false) {

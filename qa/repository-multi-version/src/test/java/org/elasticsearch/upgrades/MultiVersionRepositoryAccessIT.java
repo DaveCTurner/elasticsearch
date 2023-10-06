@@ -10,6 +10,7 @@ package org.elasticsearch.upgrades;
 
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -46,7 +47,6 @@ import static org.hamcrest.Matchers.is;
  * </ul>
  */
 @SuppressWarnings("removal")
-@LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
 public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
 
     private enum TestStep {
@@ -78,6 +78,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     private static final TestStep TEST_STEP = TestStep.parse(System.getProperty("tests.rest.suite"));
+    private static final Version OLD_CLUSTER_VERSION = Version.fromString(System.getProperty("tests.old_cluster_version"));
 
     @Override
     protected boolean preserveSnapshotsUponCompletion() {
@@ -95,6 +96,11 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     public void testCreateAndRestoreSnapshot() throws IOException {
+        assumeFalse(
+            "test does not work for downgrades to 8.10.0-8.10.2, see https://github.com/elastic/elasticsearch/issues/98454",
+            OLD_CLUSTER_VERSION.onOrAfter(Version.V_8_10_0) && OLD_CLUSTER_VERSION.onOrBefore(Version.V_8_10_2)
+        );
+
         final String repoName = getTestName();
         try {
             final int shards = 3;
@@ -140,7 +146,80 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
         }
     }
 
+    public void testCreateAndRestoreSnapshot_pre_8_10_0_fix() throws IOException {
+        // Like testCreateAndRestoreSnapshot, except we must delete all the newer snapshots to allow the older version to read the repo
+        // see https://github.com/elastic/elasticsearch/issues/98454
+
+        final String repoName = getTestName();
+        try {
+            final int shards = 3;
+            final String index = "test-index";
+            createIndex(index, shards);
+            createRepository(repoName, false, true);
+            createSnapshot(repoName, "snapshot-" + TEST_STEP, index);
+            final String snapshotToDeleteName = "snapshot-to-delete";
+            // Create a snapshot and delete it right away again to test the impact of each version's cleanup functionality that is run
+            // as part of the snapshot delete
+            createSnapshot(repoName, snapshotToDeleteName, index);
+            final List<Map<String, Object>> snapshotsIncludingToDelete = listSnapshots(repoName);
+            // Every step creates one snapshot and we have to add one more for the temporary snapshot
+            assertThat(snapshotsIncludingToDelete, hasSize(switch (TEST_STEP) {
+                case STEP1_OLD_CLUSTER -> 2; // STEP1 creates 2 snapshots
+                case STEP2_NEW_CLUSTER -> 3; // STEP1 deletes one of its snapshots and then STEP2 adds 2
+                case STEP3_OLD_CLUSTER -> 3; // STEP2 deletes both of its snapshots and then STEP3 adds 2
+                case STEP4_NEW_CLUSTER -> 4; // STEP3 deletes one of its snapshots and then STEP4 adds 2
+            }));
+            assertThat(
+                snapshotsIncludingToDelete.stream().map(sn -> (String) sn.get("snapshot")).collect(Collectors.toList()),
+                hasItem(snapshotToDeleteName)
+            );
+            deleteSnapshot(repoName, snapshotToDeleteName);
+            final List<Map<String, Object>> snapshots = listSnapshots(repoName);
+            assertThat(snapshots, hasSize(switch (TEST_STEP) {
+                case STEP1_OLD_CLUSTER -> 1; // STEP1 creates 2 snapshots then deletes one
+                case STEP2_NEW_CLUSTER -> 2; // STEP2 creates 2 snapshots then deletes one
+                case STEP3_OLD_CLUSTER -> 2; // STEP2 deletes its other snapshot and then STEP3 adds 2 and deletes one
+                case STEP4_NEW_CLUSTER -> 3; // STEP4 creates 2 snapshots then deletes one
+            }));
+            switch (TEST_STEP) {
+                case STEP2_NEW_CLUSTER, STEP4_NEW_CLUSTER -> assertSnapshotStatusSuccessful(
+                    repoName,
+                    snapshots.stream().map(sn -> (String) sn.get("snapshot")).toArray(String[]::new)
+                );
+                case STEP1_OLD_CLUSTER -> assertSnapshotStatusSuccessful(repoName, "snapshot-" + TEST_STEP);
+                case STEP3_OLD_CLUSTER -> assertSnapshotStatusSuccessful(
+                    repoName,
+                    "snapshot-" + TEST_STEP,
+                    "snapshot-" + TestStep.STEP3_OLD_CLUSTER
+                );
+            }
+            if (TEST_STEP == TestStep.STEP3_OLD_CLUSTER) {
+                ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+            } else if (TEST_STEP == TestStep.STEP4_NEW_CLUSTER) {
+                for (TestStep value : TestStep.values()) {
+                    if (value == TestStep.STEP2_NEW_CLUSTER) {
+                        continue; // this snapshot was deleted
+                    }
+                    ensureSnapshotRestoreWorks(repoName, "snapshot-" + value, shards, index);
+                }
+            }
+
+            if (TEST_STEP == TestStep.STEP2_NEW_CLUSTER) {
+                deleteSnapshot(repoName, "snapshot-" + TEST_STEP);
+            }
+        } finally {
+            deleteRepository(repoName);
+        }
+    }
+
     public void testReadOnlyRepo() throws IOException {
+        assumeFalse(
+            "test does not work for downgrades to 8.10.0-8.10.2, see https://github.com/elastic/elasticsearch/issues/98454",
+            TEST_STEP == TestStep.STEP3_OLD_CLUSTER
+                && OLD_CLUSTER_VERSION.onOrAfter(Version.V_8_10_0)
+                && OLD_CLUSTER_VERSION.onOrBefore(Version.V_8_10_2)
+        );
+
         final String repoName = getTestName();
         final int shards = 3;
         final boolean readOnly = TEST_STEP.ordinal() > 1; // only restore from read-only repo in steps 3 and 4
@@ -168,11 +247,45 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
         }
     }
 
+    public void testReadOnlyRepo_pre_8_10_0_fix() throws IOException {
+        // Like testReadOnlyRepo, except we must delete all the newer snapshots to allow the older version to read the repo
+        // see https://github.com/elastic/elasticsearch/issues/98454
+
+        final String repoName = getTestName();
+        final int shards = 3;
+        final boolean readOnly = TEST_STEP.ordinal() > 1; // only restore from read-only repo in steps 3 and 4
+        createRepository(repoName, readOnly, true);
+        final String index = "test-index";
+        if (readOnly == false) {
+            createIndex(index, shards);
+            createSnapshot(repoName, "snapshot-" + TEST_STEP, index);
+        }
+        final List<Map<String, Object>> snapshots = listSnapshots(repoName);
+        switch (TEST_STEP) {
+            case STEP1_OLD_CLUSTER, STEP3_OLD_CLUSTER, STEP4_NEW_CLUSTER -> assertThat(snapshots, hasSize(1));
+            case STEP2_NEW_CLUSTER -> assertThat(snapshots, hasSize(2));
+        }
+        if (TEST_STEP != TestStep.STEP2_NEW_CLUSTER) {
+            assertSnapshotStatusSuccessful(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER);
+        } else {
+            assertSnapshotStatusSuccessful(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, "snapshot-" + TestStep.STEP2_NEW_CLUSTER);
+        }
+        if (TEST_STEP == TestStep.STEP3_OLD_CLUSTER) {
+            ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+        } else if (TEST_STEP == TestStep.STEP4_NEW_CLUSTER) {
+            ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+        }
+        if (TEST_STEP == TestStep.STEP2_NEW_CLUSTER) {
+            deleteSnapshot(repoName, "snapshot-" + TEST_STEP);
+        }
+    }
+
     private static final List<Class<? extends Exception>> EXPECTED_BWC_EXCEPTIONS = List.of(
         ResponseException.class,
         ElasticsearchStatusException.class
     );
 
+    @LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
     public void testUpgradeMovesRepoToNewMetaVersion() throws IOException {
         final String repoName = getTestName();
         try {
