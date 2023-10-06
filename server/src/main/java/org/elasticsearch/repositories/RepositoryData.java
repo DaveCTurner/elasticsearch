@@ -740,7 +740,7 @@ public final class RepositoryData {
             }
             final IndexVersion version = snapshotDetails.getVersion();
             if (version != null) {
-                if (version.before(IndexVersion.V_8_9_0)) {
+                if (version.before(IndexVersion.V_8_10_0)) {
                     builder.field(VERSION, Version.fromId(version.id()).toString());
                 } else {
                     builder.field(VERSION, version.id());

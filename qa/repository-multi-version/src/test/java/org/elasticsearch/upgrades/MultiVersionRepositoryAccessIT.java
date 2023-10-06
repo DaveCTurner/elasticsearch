@@ -10,6 +10,7 @@ package org.elasticsearch.upgrades;
 
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -46,7 +47,6 @@ import static org.hamcrest.Matchers.is;
  * </ul>
  */
 @SuppressWarnings("removal")
-@LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
 public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
 
     private enum TestStep {
@@ -78,6 +78,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     private static final TestStep TEST_STEP = TestStep.parse(System.getProperty("tests.rest.suite"));
+    private static final Version OLD_CLUSTER_VERSION = Version.fromString(System.getProperty("tests.old_cluster_version"));
 
     @Override
     protected boolean preserveSnapshotsUponCompletion() {
@@ -94,6 +95,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
         return true;
     }
 
+    @LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
     public void testCreateAndRestoreSnapshot() throws IOException {
         final String repoName = getTestName();
         try {
@@ -141,6 +143,11 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     public void testReadOnlyRepo() throws IOException {
+        assumeFalse(
+            "test does not work for downgrades before 8.10.0, see https://github.com/elastic/elasticsearch/issues/98454",
+            TEST_STEP == TestStep.STEP3_OLD_CLUSTER && OLD_CLUSTER_VERSION.before(Version.V_8_10_0)
+        );
+
         final String repoName = getTestName();
         final int shards = 3;
         final boolean readOnly = TEST_STEP.ordinal() > 1; // only restore from read-only repo in steps 3 and 4
@@ -168,11 +175,45 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
         }
     }
 
+    public void testReadOnlyRepo_pre_8_10_0_fix() throws IOException {
+        // Like testReadOnlyRepo, except we must delete all the newer snapshots to allow the older version to read the repo
+        // see https://github.com/elastic/elasticsearch/issues/98454
+
+        final String repoName = getTestName();
+        final int shards = 3;
+        final boolean readOnly = TEST_STEP.ordinal() > 1; // only restore from read-only repo in steps 3 and 4
+        createRepository(repoName, readOnly, true);
+        final String index = "test-index";
+        if (readOnly == false) {
+            createIndex(index, shards);
+            createSnapshot(repoName, "snapshot-" + TEST_STEP, index);
+        }
+        final List<Map<String, Object>> snapshots = listSnapshots(repoName);
+        switch (TEST_STEP) {
+            case STEP1_OLD_CLUSTER,STEP3_OLD_CLUSTER,STEP4_NEW_CLUSTER  -> assertThat(snapshots, hasSize(1));
+            case STEP2_NEW_CLUSTER -> assertThat(snapshots, hasSize(2));
+        }
+        if (TEST_STEP != TestStep.STEP2_NEW_CLUSTER) {
+            assertSnapshotStatusSuccessful(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER);
+        } else {
+            assertSnapshotStatusSuccessful(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, "snapshot-" + TestStep.STEP2_NEW_CLUSTER);
+        }
+        if (TEST_STEP == TestStep.STEP3_OLD_CLUSTER) {
+            ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+        } else if (TEST_STEP == TestStep.STEP4_NEW_CLUSTER) {
+            ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
+        }
+        if (TEST_STEP == TestStep.STEP2_NEW_CLUSTER) {
+            deleteSnapshot(repoName, "snapshot-" + TEST_STEP);
+        }
+    }
+
     private static final List<Class<? extends Exception>> EXPECTED_BWC_EXCEPTIONS = List.of(
         ResponseException.class,
         ElasticsearchStatusException.class
     );
 
+    @LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/98454")
     public void testUpgradeMovesRepoToNewMetaVersion() throws IOException {
         final String repoName = getTestName();
         try {
