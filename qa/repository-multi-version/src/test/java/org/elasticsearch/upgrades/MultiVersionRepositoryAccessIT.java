@@ -147,7 +147,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
     }
 
     public void testCreateAndRestoreSnapshot_pre_8_10_0_fix() throws IOException {
-        // Like testCreateAndRestoreSnapshot, except we must delete all the newer snapshots to allow the older version to read the repo
+        // Like testCreateAndRestoreSnapshot, except verifying that deleting all the newer snapshots allows the older version to proceed
         // see https://github.com/elastic/elasticsearch/issues/98454
 
         final String repoName = getTestName();
@@ -214,7 +214,7 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
 
     public void testReadOnlyRepo() throws IOException {
         assumeFalse(
-            "test does not work for downgrades to 8.10.0-8.10.2, see https://github.com/elastic/elasticsearch/issues/98454",
+            "test does not fully work for downgrades to 8.10.0-8.10.2, see https://github.com/elastic/elasticsearch/issues/98454",
             TEST_STEP == TestStep.STEP3_OLD_CLUSTER
                 && OLD_CLUSTER_VERSION.onOrAfter(Version.V_8_10_0)
                 && OLD_CLUSTER_VERSION.onOrBefore(Version.V_8_10_2)
