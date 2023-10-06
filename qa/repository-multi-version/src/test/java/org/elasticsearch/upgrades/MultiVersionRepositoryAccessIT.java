@@ -199,6 +199,9 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
                 ensureSnapshotRestoreWorks(repoName, "snapshot-" + TestStep.STEP1_OLD_CLUSTER, shards, index);
             } else if (TEST_STEP == TestStep.STEP4_NEW_CLUSTER) {
                 for (TestStep value : TestStep.values()) {
+                    if (value == TestStep.STEP2_NEW_CLUSTER) {
+                        continue; // this snapshot was deleted
+                    }
                     ensureSnapshotRestoreWorks(repoName, "snapshot-" + value, shards, index);
                 }
             }
