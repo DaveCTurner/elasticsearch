@@ -214,8 +214,10 @@ public class MultiVersionRepositoryAccessIT extends ESRestTestCase {
 
     public void testReadOnlyRepo() throws IOException {
         assumeFalse(
-            "test does not work for downgrades before 8.10.0, see https://github.com/elastic/elasticsearch/issues/98454",
-            TEST_STEP == TestStep.STEP3_OLD_CLUSTER && OLD_CLUSTER_VERSION.before(Version.V_8_10_0)
+            "test does not work for downgrades to 8.10.0-8.10.2, see https://github.com/elastic/elasticsearch/issues/98454",
+            TEST_STEP == TestStep.STEP3_OLD_CLUSTER
+                && OLD_CLUSTER_VERSION.onOrAfter(Version.V_8_10_0)
+                && OLD_CLUSTER_VERSION.onOrBefore(Version.V_8_10_2)
         );
 
         final String repoName = getTestName();
