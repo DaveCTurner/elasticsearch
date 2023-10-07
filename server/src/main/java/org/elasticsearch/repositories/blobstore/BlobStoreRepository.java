@@ -3443,7 +3443,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     listener.onRepositoryDataWritten(updatedRepoData);
                     // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                     try (var refs = new RefCountingRunnable(listener::onDone)) {
-                        cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, updatedRepoData, refs.acquireListener());
+                        cleanupUnlinkedRootAndIndicesBlobs(updatedRepoData, refs.acquireListener());
                         asyncCleanupUnlinkedShardLevelBlobs(
                             repositoryData,
                             snapshotIds,
@@ -3466,7 +3466,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             listener.onDone();
                         })) {
                             // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
-                            cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, newRepoData, refs.acquireListener());
+                            cleanupUnlinkedRootAndIndicesBlobs(newRepoData, refs.acquireListener());
                             writeUpdatedShardMetaDataAndComputeDeletes(
                                 refs.acquireListener()
                                     .delegateFailure(
@@ -3604,14 +3604,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
-        private void cleanupUnlinkedRootAndIndicesBlobs(
-            Collection<SnapshotId> deletedSnapshots,
-            Map<String, BlobContainer> foundIndices,
-            Map<String, BlobMetadata> rootBlobs,
-            RepositoryData updatedRepoData,
-            ActionListener<Void> listener
-        ) {
-            cleanupStaleBlobs(deletedSnapshots, foundIndices, rootBlobs, updatedRepoData, listener.map(ignored -> null));
+        private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData updatedRepoData, ActionListener<Void> listener) {
+            cleanupStaleBlobs(snapshotIds, foundIndices, rootBlobs, updatedRepoData, listener.map(ignored -> null));
         }
 
         private void asyncCleanupUnlinkedShardLevelBlobs(
