@@ -8,9 +8,13 @@
 
 package org.elasticsearch.gateway;
 
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateListener;
+import org.elasticsearch.cluster.ClusterStateTaskExecutor;
+import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.TestShardRoutingRoleStrategies;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
@@ -18,23 +22,37 @@ import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.coordination.CoordinationMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.routing.RerouteService;
+import org.elasticsearch.cluster.routing.ShardRoutingRoleStrategy;
+import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.service.FakeThreadPoolMasterService;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
+import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
+import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.tasks.TaskManager;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.hamcrest.Matchers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.elasticsearch.common.settings.ClusterSettings.createBuiltInClusterSettings;
 import static org.elasticsearch.gateway.GatewayService.STATE_NOT_RECOVERED_BLOCK;
 import static org.elasticsearch.test.NodeRoles.masterNode;
 import static org.hamcrest.CoreMatchers.not;
@@ -160,6 +178,152 @@ public class GatewayServiceTests extends ESTestCase {
         final GatewayService service = createService(Settings.builder());
         service.clusterChanged(clusterChangedEvent);
         assertThat(service.currentPendingStateRecovery, nullValue());
+    }
+
+    public void testDeterministically() {
+
+        final var deterministicTaskQueue = new DeterministicTaskQueue();
+        final var threadPool = deterministicTaskQueue.getThreadPool();
+
+        final var settings = Settings.builder()
+            .put(GatewayService.RECOVER_AFTER_DATA_NODES_SETTING.getKey(), 2)
+            .put(GatewayService.EXPECTED_DATA_NODES_SETTING.getKey(), 4)
+            .put(GatewayService.RECOVER_AFTER_TIME_SETTING.getKey(), TimeValue.timeValueMinutes(10))
+            .build();
+        final var clusterSettings = createBuiltInClusterSettings(settings);
+
+        final var initialState = buildClusterState(1, 1);
+        final var clusterService = new ClusterService(
+            settings,
+            clusterSettings,
+            new FakeThreadPoolMasterService(initialState.nodes().getLocalNodeId(), threadPool, deterministicTaskQueue::scheduleNow),
+            new ClusterApplierService(initialState.nodes().getLocalNodeId(), settings, clusterSettings, threadPool) {
+                @Override
+                protected PrioritizedEsThreadPoolExecutor createThreadPoolExecutor() {
+                    return deterministicTaskQueue.getPrioritizedEsThreadPoolExecutor();
+                }
+            }
+        );
+
+        clusterService.getClusterApplierService().setInitialState(initialState);
+        clusterService.setNodeConnectionsService(ClusterServiceUtils.createNoOpNodeConnectionsService());
+        clusterService.getMasterService()
+            .setClusterStatePublisher(ClusterServiceUtils.createClusterStatePublisher(clusterService.getClusterApplierService()));
+        clusterService.getMasterService().setClusterStateSupplier(clusterService.getClusterApplierService()::state);
+        clusterService.start();
+
+        record SetDataNodeCountTask(int dataNodeCount) implements ClusterStateTaskListener {
+            @Override
+            public void onFailure(Exception e) {
+                fail(e, "unexpected");
+            }
+        }
+
+        final var setDataNodeCountQueue = clusterService.<SetDataNodeCountTask>createTaskQueue(
+            "set-data-node-count",
+            Priority.NORMAL,
+            batchExecutionContext -> {
+                final var clusterState = batchExecutionContext.initialState();
+                final var initialDataNodeCount = clusterState.nodes().getDataNodes().size();
+                int targetDataNodeCount = initialDataNodeCount;
+                for (final var taskContext : batchExecutionContext.taskContexts()) {
+                    targetDataNodeCount = taskContext.getTask().dataNodeCount();
+                    taskContext.success(() -> {});
+                }
+                if (targetDataNodeCount == initialDataNodeCount) {
+                    return clusterState;
+                }
+
+                final var nodesBuilder = DiscoveryNodes.builder(clusterState.nodes());
+                for (int i = initialDataNodeCount; i < targetDataNodeCount; i++) {
+                    nodesBuilder.add(DiscoveryNodeUtils.create("node-" + i));
+                }
+                for (int i = targetDataNodeCount; i < initialDataNodeCount; i++) {
+                    nodesBuilder.remove("node-" + i);
+                }
+                return ClusterState.builder(clusterState).nodes(nodesBuilder).build();
+            }
+        );
+
+        record ResetStateTask() implements ClusterStateTaskListener {
+            @Override
+            public void onFailure(Exception e) {
+                fail(e, "unexpected");
+            }
+        }
+
+        final var resetStateQueue = clusterService.<ResetStateTask>createTaskQueue(
+            "reset-state",
+            Priority.NORMAL,
+            batchExecutionContext -> {
+                for (final var taskContext : batchExecutionContext.taskContexts()) {
+                    taskContext.success(() -> {});
+                }
+                return buildClusterState(1, batchExecutionContext.initialState().term() + 1);
+            }
+        );
+
+        final var rerouteCount = new AtomicInteger();
+        final RerouteService rerouteService = (reason, priority, listener) -> {
+            rerouteCount.incrementAndGet();
+            listener.onResponse(null);
+        };
+
+        final var gatewayService = new GatewayService(
+            settings,
+            rerouteService,
+            clusterService,
+            ShardRoutingRoleStrategy.NO_SHARD_CREATION,
+            threadPool
+        );
+
+        gatewayService.start();
+
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(0, rerouteCount.get());
+        assertTrue(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+
+        long joinTime = deterministicTaskQueue.getCurrentTimeMillis();
+        setDataNodeCountQueue.submitTask("", new SetDataNodeCountTask(2), null);
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(1, rerouteCount.get());
+        assertFalse(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+        assertEquals(TimeValue.timeValueMinutes(10).millis(), deterministicTaskQueue.getCurrentTimeMillis() - joinTime);
+
+        resetStateQueue.submitTask("", new ResetStateTask(), null);
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(1, rerouteCount.get());
+        assertTrue(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+
+        joinTime = deterministicTaskQueue.getCurrentTimeMillis();
+        setDataNodeCountQueue.submitTask("", new SetDataNodeCountTask(4), null);
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(2, rerouteCount.get());
+        assertFalse(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+        assertEquals(0L, deterministicTaskQueue.getCurrentTimeMillis() - joinTime);
+
+        resetStateQueue.submitTask("", new ResetStateTask(), null);
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(2, rerouteCount.get());
+        assertTrue(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+
+        joinTime = deterministicTaskQueue.getCurrentTimeMillis();
+        deterministicTaskQueue.scheduleAt(
+            joinTime + TimeValue.timeValueMinutes(1).millis(),
+            () -> setDataNodeCountQueue.submitTask("", new SetDataNodeCountTask(3), null)
+        );
+        deterministicTaskQueue.scheduleAt(
+            joinTime + TimeValue.timeValueMinutes(2).millis(),
+            () -> setDataNodeCountQueue.submitTask("", new SetDataNodeCountTask(1), null)
+        );
+        deterministicTaskQueue.scheduleAt(
+            joinTime + TimeValue.timeValueMinutes(3).millis(),
+            () -> setDataNodeCountQueue.submitTask("", new SetDataNodeCountTask(2), null)
+        );
+        deterministicTaskQueue.runAllTasksInTimeOrder();
+        assertEquals(3, rerouteCount.get());
+        assertFalse(clusterService.state().blocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK));
+        assertEquals(TimeValue.timeValueMinutes(13).millis(), deterministicTaskQueue.getCurrentTimeMillis() - joinTime);
     }
 
     public void testImmediateRecovery() {
