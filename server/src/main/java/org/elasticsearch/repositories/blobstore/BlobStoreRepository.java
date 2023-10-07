@@ -3494,12 +3494,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
         }
 
+        /**
+         * Represents the process of updating the shard-level metadata for a single index.
+         */
         private class IndexSnapshotsDeletion {
             private final IndexId indexId;
             private final Set<SnapshotId> survivingSnapshots;
             private final Collection<String> indexMetaGenerations;
             private final BlobContainer indexContainer;
-            private int shardCount;
 
             IndexSnapshotsDeletion(IndexId indexId) {
                 this.indexId = indexId;
@@ -3515,6 +3517,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .collect(Collectors.toSet());
             }
 
+            /**
+             * The overall execution: work out the shard count by reading all the index metadata, then update all the shards.
+             */
             private void run(ActionListener<Void> listener) {
                 SubscribableListener
 
@@ -3532,6 +3537,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
                     .addListener(listener);
             }
+
+            // -----------------------------------------------------------------------------------------------------------------------------
+            // Determining the shard count
+
+            private int shardCount;
 
             private void readShardCounts(ActionListener<Void> listener) {
                 try (var refs = new RefCountingRunnable(() -> listener.onResponse(null))) {
@@ -3560,6 +3570,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 return INDEX_METADATA_FORMAT.read(metadata.name(), indexContainer, indexMetaGeneration, namedXContentRegistry);
             }
 
+            // -----------------------------------------------------------------------------------------------------------------------------
+            // Updating each shard
+
             private class ShardSnapshotsDeletion extends AbstractRunnable {
 
                 private final int shardId;
@@ -3571,31 +3584,33 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 }
 
                 private BlobContainer shardContainer;
-                private Set<String> blobs;
+                private Set<String> originalShardBlobs;
 
                 @Override
                 protected void doRun() throws Exception {
                     shardContainer = shardContainer(indexId, shardId);
-                    blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
+                    originalShardBlobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
                     final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
                     final long newGen;
                     if (useShardGenerations) {
                         newGen = -1L;
                         blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
-                            blobs,
+                            originalShardBlobs,
                             shardContainer,
                             originalRepositoryData.shardGenerations().getShardGen(indexId, shardId)
                         ).v1();
                     } else {
-                        Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(blobs, shardContainer);
+                        Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(
+                            originalShardBlobs,
+                            shardContainer
+                        );
                         newGen = tuple.v2() + 1;
                         blobStoreIndexShardSnapshots = tuple.v1();
                     }
 
-                    // Build a list of snapshots that should be preserved
-                    final var updatedSnapshots = blobStoreIndexShardSnapshots.withRetainedSnapshots(survivingSnapshots);
-
-                    addShardDeleteResult(deleteFromShardSnapshotMeta(newGen, updatedSnapshots));
+                    addShardDeleteResult(
+                        deleteFromShardSnapshotMeta(newGen, blobStoreIndexShardSnapshots.withRetainedSnapshots(survivingSnapshots))
+                    );
                 }
 
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
@@ -3605,7 +3620,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     ShardGeneration writtenGeneration = null;
                     try {
                         if (updatedSnapshots.snapshots().isEmpty()) {
-                            return new ShardSnapshotMetaDeleteResult(indexId, shardId, ShardGenerations.DELETED_SHARD_GEN, blobs);
+                            return new ShardSnapshotMetaDeleteResult(
+                                indexId,
+                                shardId,
+                                ShardGenerations.DELETED_SHARD_GEN,
+                                originalShardBlobs
+                            );
                         } else {
                             if (indexGeneration < 0L) {
                                 writtenGeneration = ShardGeneration.newGeneration();
@@ -3626,7 +3646,19 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 indexId,
                                 shardId,
                                 writtenGeneration,
-                                unusedBlobs(blobs, survivingSnapshotUUIDs, updatedSnapshots)
+                                originalShardBlobs.stream()
+                                    .filter(
+                                        blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)
+                                            || (blob.startsWith(SNAPSHOT_PREFIX)
+                                                && blob.endsWith(".dat")
+                                                && survivingSnapshotUUIDs.contains(
+                                                    blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
+                                                ) == false)
+                                            || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
+                                                && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
+                                            || FsBlobContainer.isTempBlobName(blob)
+                                    )
+                                    .toList()
                             );
                         }
                     } catch (IOException e) {
@@ -3640,28 +3672,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             e
                         );
                     }
-                }
-
-                // Unused blobs are all previous index-, data- and meta-blobs and that are not referenced by the new index- as well as all
-                // temporary blobs
-                private static List<String> unusedBlobs(
-                    Set<String> blobs,
-                    Set<String> survivingSnapshotUUIDs,
-                    BlobStoreIndexShardSnapshots updatedSnapshots
-                ) {
-                    return blobs.stream()
-                        .filter(
-                            blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)
-                                || (blob.startsWith(SNAPSHOT_PREFIX)
-                                    && blob.endsWith(".dat")
-                                    && survivingSnapshotUUIDs.contains(
-                                        blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
-                                    ) == false)
-                                || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
-                                    && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
-                                || FsBlobContainer.isTempBlobName(blob)
-                        )
-                        .toList();
                 }
 
                 @Override
