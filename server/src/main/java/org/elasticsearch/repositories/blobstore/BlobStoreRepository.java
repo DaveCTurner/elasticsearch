@@ -3373,6 +3373,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * The {@link RepositoryData} at the start of the operation, obtained (for the sake of paranoia) by re-reading the
          * {@code index-${repositoryStateId}} blob and verifying that {@link #rootBlobs} contains no later {@link RepositoryData}.
          */
+        // TODO rename to originalRepositoryData to distinguish from the updated one
         private RepositoryData repositoryData;
 
         void run() {
@@ -3407,7 +3408,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
                     new ListenableFuture<>();
-                writeUpdatedShardMetaDataAndComputeDeletes(snapshotIds, repositoryData, true, writeShardMetaDataAndComputeDeletesStep);
+                writeUpdatedShardMetaDataAndComputeDeletes(true, writeShardMetaDataAndComputeDeletesStep);
                 // Once we have put the new shard-level metadata into place, we can update the repository metadata as follows:
                 // 1. Remove the snapshots from the list of existing snapshots
                 // 2. Update the index shard generations of all updated shard folders
@@ -3460,8 +3461,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                             cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, newRepoData, refs.acquireListener());
                             writeUpdatedShardMetaDataAndComputeDeletes(
-                                snapshotIds,
-                                repositoryData,
                                 false,
                                 refs.acquireListener()
                                     .delegateFailure(
@@ -3481,14 +3480,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
         // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(
-            Collection<SnapshotId> snapshotIds,
-            RepositoryData oldRepositoryData,
             boolean useUUIDs,
             ActionListener<Collection<ShardSnapshotMetaDeleteResult>> onAllShardsCompleted
         ) {
-
             final Executor executor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
-            final List<IndexId> indices = oldRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
+            final List<IndexId> indices = repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
 
             if (indices.isEmpty()) {
                 onAllShardsCompleted.onResponse(Collections.emptyList());
@@ -3502,14 +3498,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
 
             for (IndexId indexId : indices) {
-                final Set<SnapshotId> snapshotsWithIndex = Set.copyOf(oldRepositoryData.getSnapshots(indexId));
+                final Set<SnapshotId> snapshotsWithIndex = Set.copyOf(repositoryData.getSnapshots(indexId));
                 final Set<SnapshotId> survivingSnapshots = snapshotsWithIndex.stream()
                     .filter(id -> snapshotIds.contains(id) == false)
                     .collect(Collectors.toSet());
                 final ListenableFuture<Collection<Integer>> shardCountListener = new ListenableFuture<>();
                 final Collection<String> indexMetaGenerations = snapshotIds.stream()
                     .filter(snapshotsWithIndex::contains)
-                    .map(id -> oldRepositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
+                    .map(id -> repositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
                     .collect(Collectors.toSet());
                 final ActionListener<Integer> allShardCountsListener = new GroupedActionListener<>(
                     indexMetaGenerations.size(),
@@ -3559,7 +3555,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                     blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
                                         blobs,
                                         shardContainer,
-                                        oldRepositoryData.shardGenerations().getShardGen(indexId, finalShardId)
+                                        repositoryData.shardGenerations().getShardGen(indexId, finalShardId)
                                     ).v1();
                                 } else {
                                     Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(
