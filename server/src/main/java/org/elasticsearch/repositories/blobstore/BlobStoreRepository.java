@@ -3216,21 +3216,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     /**
-     * The result of removing a snapshot from a shard folder in the repository.
-     *
-     * @param indexId       Index that the snapshot was removed from
-     * @param shardId       Shard id that the snapshot was removed from
-     * @param newGeneration Id of the new index-${uuid} blob that does not include the snapshot any more
-     * @param blobsToDelete Blob names in the shard directory that have become unreferenced in the new shard generation
-     */
-    private record ShardSnapshotMetaDeleteResult(
-        IndexId indexId,
-        int shardId,
-        ShardGeneration newGeneration,
-        Collection<String> blobsToDelete
-    ) {}
-
-    /**
      * <p>Represents the process of deleting some collection of snapshots within this repository which since 7.6.0 looks like this:</p>
      * <ul>
      *     <li>Write a new {@link BlobStoreIndexShardSnapshots} for each affected shard, and compute the blobs to delete.</li>
@@ -3301,6 +3286,29 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * Executor to use for all repository interactions.
          */
         private final Executor snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
+
+        /**
+         * The result of removing a snapshot from a shard folder in the repository.
+         *
+         * @param indexId       Index that the snapshot was removed from
+         * @param shardId       Shard id that the snapshot was removed from
+         * @param newGeneration Id of the new index-${uuid} blob that does not include the snapshot any more
+         * @param blobsToDelete Blob names in the shard directory that have become unreferenced after the delete
+         */
+        private record ShardSnapshotMetaDeleteResult(
+            IndexId indexId,
+            int shardId,
+            ShardGeneration newGeneration,
+            Collection<String> blobsToDelete
+        ) {
+            /**
+             * @return an iterator over the full paths (including repository base path) to the blobs to be deleted.
+             */
+            Iterator<String> fullPathsToDelete(BlobStoreRepository repository) {
+                final String shardPath = repository.shardPath(indexId, shardId).buildAsString();
+                return Iterators.map(blobsToDelete.iterator(), blob -> shardPath + blob);
+            }
+        }
 
         SnapshotsDeletion(
             Collection<SnapshotId> snapshotIds,
@@ -3377,8 +3385,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
             rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
             repositoryData = safeRepositoryData(repositoryStateId, rootBlobs);
-            // Cache the indices that were found before writing out the new index-N blob so that a stuck master will never
-            // delete an index that was created by another master node after writing this index-N blob.
+            // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will never delete an
+            // index that was created by another master node after writing this RepositoryData blob.
             foundIndices = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
 
             if (useShardGenerations) {
@@ -3667,7 +3675,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
         /**
          * Delete any dangling blobs in the repository root (i.e. {@link RepositoryData}, {@link SnapshotInfo} and {@link Metadata} blobs)
-         * as well as any containers for indices that are completely unreferenced.
+         * as well as any containers for indices that are now completely unreferenced.
          */
         private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData updatedRepoData, ActionListener<Void> listener) {
             cleanupStaleBlobs(snapshotIds, foundIndices, rootBlobs, updatedRepoData, listener.map(ignored -> null));
@@ -3679,10 +3687,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
             final Iterator<String> filesToDelete = Iterators.concat(
                 // shard-level dangling blobs
-                Iterators.flatMap(shardDeleteResults.iterator(), shardResult -> {
-                    final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
-                    return Iterators.map(shardResult.blobsToDelete.iterator(), blob -> shardPath + blob);
-                }),
+                Iterators.flatMap(shardDeleteResults.iterator(), r -> r.fullPathsToDelete(BlobStoreRepository.this)),
                 // dangling index metadata blobs
                 // NB 1. Computes the dangling IndexMetadata purely from the RepositoryData; TODO list & clean up previous failures too
                 // NB 2. Re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; TODO avoid that by doing this computation earlier
@@ -3693,7 +3698,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
 
             // NB 3. We add the base path onto every blob name only to strip it off here so the container can add it back on.
-            // NB 4. Could we parallelise these deletes across threads?
+            // NB 4. Deletes all the shard-level blobs on a single thread; TODO parallelise this
             if (filesToDelete.hasNext()) {
                 snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
                     try {
