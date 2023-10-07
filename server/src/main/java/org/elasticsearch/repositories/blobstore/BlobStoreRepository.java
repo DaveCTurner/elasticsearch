@@ -3393,18 +3393,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .<RepositoryData>andThen((l, ignored) -> updateRepositoryData(l))
 
                     // Once we have updated the repository, run the clean-ups
-                    .<RepositoryData>andThen((l, repositoryData) -> {
-                        l.onResponse(repositoryData); // already safe to start the next snapshot operation
+                    .<RepositoryData>andThen((l, newRepositoryData) -> {
+                        l.onResponse(newRepositoryData); // already safe to start the next snapshot operation
                         try (var refs = new RefCountingRunnable(listener::onDone)) {
-                            cleanupUnlinkedRootAndIndicesBlobs(repositoryData, refs.acquireListener());
+                            cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
                             cleanupUnlinkedShardLevelBlobs(refs.acquireListener());
                         }
                     })
 
                     .addListener(new ActionListener<>() {
                         @Override
-                        public void onResponse(RepositoryData repositoryData) {
-                            listener.onRepositoryDataWritten(repositoryData);
+                        public void onResponse(RepositoryData newRepositoryData) {
+                            listener.onRepositoryDataWritten(newRepositoryData);
                         }
 
                         @Override
@@ -3421,9 +3421,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .newForked(this::updateRepositoryData)
 
                     // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
-                    .<RepositoryData>andThen((l, newRepoData) -> {
-                        try (var refs = new RefCountingRunnable(() -> l.onResponse(newRepoData))) {
-                            cleanupUnlinkedRootAndIndicesBlobs(newRepoData, refs.acquireListener());
+                    .<RepositoryData>andThen((l, newRepositoryData) -> {
+                        try (var refs = new RefCountingRunnable(() -> l.onResponse(newRepositoryData))) {
+                            cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
                             SubscribableListener
                                 // Write the new shard state metadata (with the removed snapshot) and compute deletion targets
                                 .newForked(this::writeUpdatedShardMetaDataAndComputeDeletes)
@@ -3435,8 +3435,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
                     .addListener(new ActionListener<>() {
                         @Override
-                        public void onResponse(RepositoryData repositoryData) {
-                            listener.onRepositoryDataWritten(repositoryData);
+                        public void onResponse(RepositoryData newRepositoryData) {
+                            listener.onRepositoryDataWritten(newRepositoryData);
                             listener.onDone();
                         }
 
@@ -3667,8 +3667,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * Delete any dangling blobs in the repository root (i.e. {@link RepositoryData}, {@link SnapshotInfo} and {@link Metadata} blobs)
          * as well as any containers for indices that are now completely unreferenced.
          */
-        private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData updatedRepoData, ActionListener<Void> listener) {
-            cleanupStaleBlobs(snapshotIds, originalIndexContainers, originalRootBlobs, updatedRepoData, listener.map(ignored -> null));
+        private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData newRepositoryData, ActionListener<Void> listener) {
+            cleanupStaleBlobs(snapshotIds, originalIndexContainers, originalRootBlobs, newRepositoryData, listener.map(ignored -> null));
         }
 
         /**
