@@ -3237,17 +3237,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * The {@link RepositoryData} generation at the start of the process, to ensure that the {@link RepositoryData} does not change
          * while the new {@link BlobStoreIndexShardSnapshots} are being written.
          */
-        private final long repositoryStateId;
+        private final long originalRepositoryDataGeneration;
 
         /**
          * The minimum {@link IndexVersion} of the nodes in the cluster and the snapshots remaining in the repository. The repository must
          * remain readable by all node versions which support this {@link IndexVersion}.
          */
-        private final IndexVersion repositoryMetaVersion;
+        private final IndexVersion repositoryFormatIndexVersion;
 
         /**
-         * Whether the {@link #repositoryMetaVersion} is new enough to support naming {@link BlobStoreIndexShardSnapshots} blobs with UUIDs.
-         * Older repositories use (unsafe) numeric indices for these blobs instead.
+         * Whether the {@link #repositoryFormatIndexVersion} is new enough to support naming {@link BlobStoreIndexShardSnapshots} blobs with
+         * UUIDs (i.e. does not need to remain compatible with versions before v7.6.0). Older repositories use (unsafe) numeric indices for
+         * these blobs instead.
          */
         private final boolean useShardGenerations;
 
@@ -3304,11 +3305,15 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
-        SnapshotsDeletion(Collection<SnapshotId> snapshotIds, long repositoryStateId, IndexVersion repositoryMetaVersion) {
+        SnapshotsDeletion(
+            Collection<SnapshotId> snapshotIds,
+            long originalRepositoryDataGeneration,
+            IndexVersion repositoryFormatIndexVersion
+        ) {
             this.snapshotIds = snapshotIds;
-            this.repositoryStateId = repositoryStateId;
-            this.repositoryMetaVersion = repositoryMetaVersion;
-            this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryMetaVersion);
+            this.originalRepositoryDataGeneration = originalRepositoryDataGeneration;
+            this.repositoryFormatIndexVersion = repositoryFormatIndexVersion;
+            this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryFormatIndexVersion);
             this.shardGenerationsBuilder = useShardGenerations ? new ShardGenerations.Builder() : null;
         }
 
@@ -3330,7 +3335,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
         /**
          * The {@link RepositoryData} at the start of the operation, obtained after verifying that {@link #originalRootBlobs} contains no
-         * {@link RepositoryData} blob newer than the one identified by {@link #repositoryStateId}.
+         * {@link RepositoryData} blob newer than the one identified by {@link #originalRepositoryDataGeneration}.
          */
         private RepositoryData originalRepositoryData;
 
@@ -3371,7 +3376,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
 
             originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-            originalRepositoryData = safeRepositoryData(repositoryStateId, originalRootBlobs);
+            originalRepositoryData = safeRepositoryData(originalRepositoryDataGeneration, originalRootBlobs);
             // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will never delete an
             // index that was created by another master node after writing this RepositoryData blob.
             originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
@@ -3656,8 +3661,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     snapshotIds,
                     useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY
                 ),
-                repositoryStateId,
-                repositoryMetaVersion,
+                originalRepositoryDataGeneration,
+                repositoryFormatIndexVersion,
                 Function.identity(),
                 listener
             );
