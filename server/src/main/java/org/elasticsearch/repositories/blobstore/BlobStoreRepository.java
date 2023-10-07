@@ -776,16 +776,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         return new RepositoryStats(store.stats());
     }
 
-    @Override
-    public void deleteSnapshots(
-        Collection<SnapshotId> snapshotIds,
-        long repositoryStateId,
-        IndexVersion repositoryMetaVersion,
-        SnapshotDeleteListener listener
-    ) {
-        new SnapshotsDeletion(snapshotIds, repositoryStateId, repositoryMetaVersion, listener).run();
-    }
-
     /**
      * Loads {@link RepositoryData} ensuring that it is consistent with the given {@code rootBlobs} as well of the assumed generation.
      *
@@ -3215,6 +3205,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         return bufferSize;
     }
 
+    @Override
+    public void deleteSnapshots(
+        Collection<SnapshotId> snapshotIds,
+        long repositoryStateId,
+        IndexVersion repositoryMetaVersion,
+        SnapshotDeleteListener listener
+    ) {
+        new SnapshotsDeletion(snapshotIds, repositoryStateId, repositoryMetaVersion).run(listener);
+    }
+
     /**
      * <p>Represents the process of deleting some collection of snapshots within this repository which since 7.6.0 looks like this:</p>
      * <ul>
@@ -3224,7 +3224,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
      *     <li>Remove up any now-unreferenced blobs.</li>
      * </ul>
      * <p>Until the {@link RepositoryData} is updated there should be no other activities in the repository, and in particular the root
-     * blob must not change until it is updated by the deletion.</p>
+     * blob must not change until it is updated by this deletion and {@link SnapshotDeleteListener#onRepositoryDataWritten} is called.</p>
      */
     class SnapshotsDeletion {
 
@@ -3277,12 +3277,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final ShardGenerations.Builder shardGenerationsBuilder;
 
         /**
-         * Listener to complete when the {@link RepositoryData} update succeeds (or the process fails before getting to that stage) and
-         * then again when the final cleanup stage completes.
-         */
-        private final SnapshotDeleteListener listener;
-
-        /**
          * Executor to use for all repository interactions.
          */
         private final Executor snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
@@ -3313,15 +3307,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         SnapshotsDeletion(
             Collection<SnapshotId> snapshotIds,
             long repositoryStateId,
-            IndexVersion repositoryMetaVersion,
-            SnapshotDeleteListener listener
+            IndexVersion repositoryMetaVersion
         ) {
             this.snapshotIds = snapshotIds;
             this.repositoryStateId = repositoryStateId;
             this.repositoryMetaVersion = repositoryMetaVersion;
             this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryMetaVersion);
             this.shardGenerationsBuilder = useShardGenerations ? new ShardGenerations.Builder() : null;
-            this.listener = listener;
         }
 
         /**
@@ -3347,14 +3339,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         // TODO rename to originalRepositoryData to distinguish from the updated one
         private RepositoryData repositoryData;
 
-        void run() {
+        void run(SnapshotDeleteListener listener) {
             if (isReadOnly()) {
                 listener.onFailure(new RepositoryException(metadata.name(), "cannot delete snapshot from a readonly repository"));
             } else {
                 snapshotExecutor.execute(new AbstractRunnable() {
                     @Override
                     protected void doRun() throws Exception {
-                        runOnSnapshotThread();
+                        runOnSnapshotThread(listener);
                     }
 
                     @Override
@@ -3380,7 +3372,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
          */
-        private void runOnSnapshotThread() throws IOException {
+        private void runOnSnapshotThread(SnapshotDeleteListener listener) throws IOException {
             assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
 
             rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
@@ -3682,7 +3674,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         /**
-         * Delete the blobs previously identified as dangling in the shard-level containers, and {@link IndexMetadata} that became dangling.
+         * Delete the blobs previously identified as dangling in the shard-level containers, and {@link IndexMetadata} blobs that became
+         * dangling as a consequence of this delete operation.
          */
         private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
             final Iterator<String> filesToDelete = Iterators.concat(
