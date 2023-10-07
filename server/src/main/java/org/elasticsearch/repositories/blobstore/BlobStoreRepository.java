@@ -3268,6 +3268,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final boolean useShardGenerations;
 
         /**
+         * The shard-level results of deletion, identifying the resulting {@link BlobStoreIndexShardSnapshots} blob (which is stored in the
+         * updated {@link RepositoryData}) and all the dangling blobs in the shard-level container which should be deleted once the new
+         * {@link RepositoryData} has been updated.
+         */
+        private final List<ShardSnapshotMetaDeleteResult> shardDeleteResults = new ArrayList<>();
+
+        /**
+         * Records the new {@link ShardGeneration} for every updated shard.
+         */
+        private final ShardGenerations.Builder shardGenerationsBuilder;
+
+        /**
          * Listener to complete when the {@link RepositoryData} update succeeds (or the process fails before getting to that stage) and
          * then again when the final cleanup stage completes.
          */
@@ -3288,6 +3300,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             this.repositoryStateId = repositoryStateId;
             this.repositoryMetaVersion = repositoryMetaVersion;
             this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryMetaVersion);
+            shardGenerationsBuilder = useShardGenerations ? new ShardGenerations.Builder() : null;
             this.listener = listener;
         }
 
@@ -3314,13 +3327,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         // TODO rename to originalRepositoryData to distinguish from the updated one
         private RepositoryData repositoryData;
 
-        /**
-         * The shard-level results of deletion, identifying the resulting {@link BlobStoreIndexShardSnapshots} blob (which is stored in the
-         * updated {@link RepositoryData}) and all the dangling blobs in the shard-level container which should be deleted once the new
-         * {@link RepositoryData} has been updated.
-         */
-        private final List<ShardSnapshotMetaDeleteResult> shardDeleteResults = Collections.synchronizedList(new ArrayList<>());
-
         void run() {
             if (isReadOnly()) {
                 listener.onFailure(new RepositoryException(metadata.name(), "cannot delete snapshot from a readonly repository"));
@@ -3344,6 +3350,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
+        private synchronized void addShardDeleteResult(ShardSnapshotMetaDeleteResult shardDeleteResult) {
+            shardDeleteResults.add(shardDeleteResult);
+            if (useShardGenerations) {
+                shardGenerationsBuilder.put(shardDeleteResult.indexId(), shardDeleteResult.shardId(), shardDeleteResult.newGeneration());
+            }
+        }
+
         /**
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
@@ -3363,19 +3376,15 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     // Note: If we fail updating any of the individual shard paths, none of them are changed since the newly created
                     // index-${gen_uuid} will not be referenced by the existing RepositoryData and new RepositoryData is only
                     // written if all shard paths have been successfully updated.
-                    .<RepositoryData>andThen((l, ignored) -> {
-                        final ShardGenerations.Builder builder = ShardGenerations.builder();
-                        for (ShardSnapshotMetaDeleteResult newGen : shardDeleteResults) {
-                            builder.put(newGen.indexId, newGen.shardId, newGen.newGeneration);
-                        }
-                        writeIndexGen(
-                            repositoryData.removeSnapshots(snapshotIds, builder.build()),
+                    .<RepositoryData>andThen(
+                        (l, ignored) -> writeIndexGen(
+                            repositoryData.removeSnapshots(snapshotIds, shardGenerationsBuilder.build()),
                             repositoryStateId,
                             repositoryMetaVersion,
                             Function.identity(),
                             l
-                        );
-                    })
+                        )
+                    )
 
                     // Once we have updated the repository, run the clean-ups
                     .<RepositoryData>andThen((l, repositoryData) -> {
@@ -3550,7 +3559,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     // Build a list of snapshots that should be preserved
                     final var updatedSnapshots = blobStoreIndexShardSnapshots.withRetainedSnapshots(survivingSnapshots);
 
-                    shardDeleteResults.add(deleteFromShardSnapshotMeta(newGen, updatedSnapshots));
+                    addShardDeleteResult(deleteFromShardSnapshotMeta(newGen, updatedSnapshots));
                 }
 
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
