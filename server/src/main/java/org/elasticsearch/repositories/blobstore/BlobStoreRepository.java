@@ -3551,61 +3551,63 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         delegate
                     );
                     for (int shardId = 0; shardId < shardCount; shardId++) {
-                        final int finalShardId = shardId;
-                        snapshotExecutor.execute(new AbstractRunnable() {
-                            @Override
-                            protected void doRun() throws Exception {
-                                final BlobContainer shardContainer = shardContainer(indexId, finalShardId);
-                                final Set<String> blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
-                                final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
-                                final long newGen;
-                                if (useShardGenerations) {
-                                    newGen = -1L;
-                                    blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
-                                        blobs,
-                                        shardContainer,
-                                        repositoryData.shardGenerations().getShardGen(indexId, finalShardId)
-                                    ).v1();
-                                } else {
-                                    Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(
-                                        blobs,
-                                        shardContainer
-                                    );
-                                    newGen = tuple.v2() + 1;
-                                    blobStoreIndexShardSnapshots = tuple.v1();
-                                }
-                                allShardsListener.onResponse(
-                                    deleteFromShardSnapshotMeta(
-                                        survivingSnapshots,
-                                        indexId,
-                                        finalShardId,
-                                        snapshotIds,
-                                        shardContainer,
-                                        blobs,
-                                        blobStoreIndexShardSnapshots,
-                                        newGen
-                                    )
-                                );
-                            }
-
-                            @Override
-                            public void onFailure(Exception ex) {
-                                logger.warn(
-                                    () -> format(
-                                        "%s failed to delete shard data for shard [%s][%s]",
-                                        snapshotIds,
-                                        indexId.getName(),
-                                        finalShardId
-                                    ),
-                                    ex
-                                );
-                                // Just passing null here to count down the listener instead of failing it, the stale data left behind
-                                // here will be retried in the next delete or repository cleanup
-                                allShardsListener.onResponse(null);
-                            }
-                        });
+                        snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, allShardsListener));
                     }
                 }));
+            }
+
+            private class ShardSnapshotsDeletion extends AbstractRunnable {
+
+                private final int shardId;
+                private final ActionListener<ShardSnapshotMetaDeleteResult> shardListener;
+
+                ShardSnapshotsDeletion(int shardId, ActionListener<ShardSnapshotMetaDeleteResult> shardListener) {
+                    this.shardId = shardId;
+                    this.shardListener = shardListener;
+                }
+
+                @Override
+                protected void doRun() throws Exception {
+                    final BlobContainer shardContainer = shardContainer(indexId, shardId);
+                    final Set<String> blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
+                    final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
+                    final long newGen;
+                    if (useShardGenerations) {
+                        newGen = -1L;
+                        blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
+                            blobs,
+                            shardContainer,
+                            repositoryData.shardGenerations().getShardGen(indexId, shardId)
+                        ).v1();
+                    } else {
+                        Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(blobs, shardContainer);
+                        newGen = tuple.v2() + 1;
+                        blobStoreIndexShardSnapshots = tuple.v1();
+                    }
+                    shardListener.onResponse(
+                        deleteFromShardSnapshotMeta(
+                            survivingSnapshots,
+                            indexId,
+                            shardId,
+                            snapshotIds,
+                            shardContainer,
+                            blobs,
+                            blobStoreIndexShardSnapshots,
+                            newGen
+                        )
+                    );
+                }
+
+                @Override
+                public void onFailure(Exception ex) {
+                    logger.warn(
+                        () -> format("%s failed to delete shard data for shard [%s][%s]", snapshotIds, indexId.getName(), shardId),
+                        ex
+                    );
+                    // Just passing null here to count down the listener instead of failing it, the stale data left behind
+                    // here will be retried in the next delete or repository cleanup
+                    shardListener.onResponse(null);
+                }
             }
         }
 
