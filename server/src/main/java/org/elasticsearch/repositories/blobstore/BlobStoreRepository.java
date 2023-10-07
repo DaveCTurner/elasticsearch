@@ -3304,11 +3304,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
-        SnapshotsDeletion(
-            Collection<SnapshotId> snapshotIds,
-            long repositoryStateId,
-            IndexVersion repositoryMetaVersion
-        ) {
+        SnapshotsDeletion(Collection<SnapshotId> snapshotIds, long repositoryStateId, IndexVersion repositoryMetaVersion) {
             this.snapshotIds = snapshotIds;
             this.repositoryStateId = repositoryStateId;
             this.repositoryMetaVersion = repositoryMetaVersion;
@@ -3319,25 +3315,24 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         /**
          * All blobs in the repository root at the start of the operation, obtained by listing the repository contents. Note that this may
          * include some blobs which are no longer referenced by the current {@link RepositoryData}, but which have not yet been removed by
-         * the cleanup that follows the previous deletion. This cleanup may or may not still be ongoing (it could have been running on a
+         * the cleanup that follows an earlier deletion. This cleanup may or may not still be ongoing (it could have been running on a
          * different node, which died before completing it) so we track all the blobs here and clean them up again at the end.
          */
-        private Map<String, BlobMetadata> rootBlobs;
+        private Map<String, BlobMetadata> originalRootBlobs;
 
         /**
          * All index containers at the start of the operation, obtained by listing the repository contents. Note that this may include some
          * containers which are no longer referenced by the current {@link RepositoryData}, but which have not yet been removed by
-         * the cleanup that follows the previous deletion. This cleanup may or may not still be ongoing (it could have been running on a
+         * the cleanup that follows an earlier deletion. This cleanup may or may not still be ongoing (it could have been running on a
          * different node, which died before completing it) so we track all the blobs here and clean them up again at the end.
          */
-        private Map<String, BlobContainer> foundIndices;
+        private Map<String, BlobContainer> originalIndexContainers;
 
         /**
-         * The {@link RepositoryData} at the start of the operation, obtained after verifying that {@link #rootBlobs} contains no
+         * The {@link RepositoryData} at the start of the operation, obtained after verifying that {@link #originalRootBlobs} contains no
          * {@link RepositoryData} blob newer than the one identified by {@link #repositoryStateId}.
          */
-        // TODO rename to originalRepositoryData to distinguish from the updated one
-        private RepositoryData repositoryData;
+        private RepositoryData originalRepositoryData;
 
         void run(SnapshotDeleteListener listener) {
             if (isReadOnly()) {
@@ -3375,11 +3370,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private void runOnSnapshotThread(SnapshotDeleteListener listener) throws IOException {
             assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
 
-            rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-            repositoryData = safeRepositoryData(repositoryStateId, rootBlobs);
+            originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
+            originalRepositoryData = safeRepositoryData(repositoryStateId, originalRootBlobs);
             // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will never delete an
             // index that was created by another master node after writing this RepositoryData blob.
-            foundIndices = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
+            originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
 
             if (useShardGenerations) {
 
@@ -3459,7 +3454,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
             ThrottledIterator.run(
-                repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds),
+                originalRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds),
                 (ref, indexId) -> new IndexSnapshotsDeletion(indexId).run(ActionListener.releasing(ref)),
                 threadPool.info(ThreadPool.Names.SNAPSHOT).getMax(),
                 () -> {},
@@ -3478,13 +3473,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 this.indexId = indexId;
                 this.indexContainer = indexContainer(indexId);
 
-                final var snapshotsWithIndex = Set.copyOf(repositoryData.getSnapshots(indexId));
+                final var snapshotsWithIndex = Set.copyOf(originalRepositoryData.getSnapshots(indexId));
                 survivingSnapshots = snapshotsWithIndex.stream()
                     .filter(id -> snapshotIds.contains(id) == false)
                     .collect(Collectors.toSet());
                 indexMetaGenerations = snapshotIds.stream()
                     .filter(snapshotsWithIndex::contains)
-                    .map(id -> repositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
+                    .map(id -> originalRepositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
                     .collect(Collectors.toSet());
             }
 
@@ -3557,7 +3552,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
                             blobs,
                             shardContainer,
-                            repositoryData.shardGenerations().getShardGen(indexId, shardId)
+                            originalRepositoryData.shardGenerations().getShardGen(indexId, shardId)
                         ).v1();
                     } else {
                         Tuple<BlobStoreIndexShardSnapshots, Long> tuple = buildBlobStoreIndexShardSnapshots(blobs, shardContainer);
@@ -3657,7 +3652,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private void updateRepositoryData(ActionListener<RepositoryData> listener) {
             writeIndexGen(
-                repositoryData.removeSnapshots(snapshotIds, useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY),
+                originalRepositoryData.removeSnapshots(
+                    snapshotIds,
+                    useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY
+                ),
                 repositoryStateId,
                 repositoryMetaVersion,
                 Function.identity(),
@@ -3670,7 +3668,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * as well as any containers for indices that are now completely unreferenced.
          */
         private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData updatedRepoData, ActionListener<Void> listener) {
-            cleanupStaleBlobs(snapshotIds, foundIndices, rootBlobs, updatedRepoData, listener.map(ignored -> null));
+            cleanupStaleBlobs(snapshotIds, originalIndexContainers, originalRootBlobs, updatedRepoData, listener.map(ignored -> null));
         }
 
         /**
@@ -3684,10 +3682,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // dangling index metadata blobs
                 // NB 1. Computes the dangling IndexMetadata purely from the RepositoryData; TODO list & clean up previous failures too
                 // NB 2. Re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; TODO avoid that by doing this computation earlier
-                Iterators.flatMap(repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().iterator(), entry -> {
-                    final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
-                    return Iterators.map(entry.getValue().iterator(), id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
-                })
+                Iterators.flatMap(
+                    originalRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().iterator(),
+                    entry -> {
+                        final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
+                        return Iterators.map(entry.getValue().iterator(), id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
+                    }
+                )
             );
 
             // NB 3. We add the base path onto every blob name only to strip it off here so the container can add it back on.
