@@ -3347,12 +3347,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 snapshotExecutor.execute(new AbstractRunnable() {
                     @Override
                     protected void doRun() throws Exception {
-                        rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-                        repositoryData = safeRepositoryData(repositoryStateId, rootBlobs);
-                        // Cache the indices that were found before writing out the new index-N blob so that a stuck master will never
-                        // delete an index that was created by another master node after writing this index-N blob.
-                        foundIndices = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
-                        doDeleteShardSnapshots();
+                        runOnSnapshotThread();
                     }
 
                     @Override
@@ -3378,12 +3373,20 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
          */
-        private void doDeleteShardSnapshots() {
+        private void runOnSnapshotThread() throws IOException {
+            assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+
+            rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
+            repositoryData = safeRepositoryData(repositoryStateId, rootBlobs);
+            // Cache the indices that were found before writing out the new index-N blob so that a stuck master will never
+            // delete an index that was created by another master node after writing this index-N blob.
+            foundIndices = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
+
             if (useShardGenerations) {
 
                 SubscribableListener
 
-                    // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
+                    // First write the new shard state metadata (with the removed snapshots) and compute deletion results
                     .newForked(this::writeUpdatedShardMetaDataAndComputeDeletes)
 
                     // Once we have put the new shard-level metadata into place, we can update the repository metadata as follows:
@@ -3451,6 +3454,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
+        /**
+         * Compute the new {@link RepositoryData} and write it to the repository.
+         */
         private void updateRepositoryData(ActionListener<RepositoryData> listener) {
             writeIndexGen(
                 repositoryData.removeSnapshots(snapshotIds, useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY),
