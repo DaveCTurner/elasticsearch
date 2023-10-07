@@ -3013,57 +3013,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     /**
-     * Delete snapshot from shard level metadata.
-     *
-     * @param indexGeneration generation to write the new shard level level metadata to. If negative a uuid id shard generation should be
-     *                        used
-     */
-    private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
-        Set<SnapshotId> survivingSnapshots,
-        IndexId indexId,
-        int snapshotShardId,
-        Collection<SnapshotId> snapshotIds,
-        BlobContainer shardContainer,
-        Set<String> blobs,
-        BlobStoreIndexShardSnapshots snapshots,
-        long indexGeneration
-    ) {
-        // Build a list of snapshots that should be preserved
-        final BlobStoreIndexShardSnapshots updatedSnapshots = snapshots.withRetainedSnapshots(survivingSnapshots);
-        ShardGeneration writtenGeneration = null;
-        try {
-            if (updatedSnapshots.snapshots().isEmpty()) {
-                return new ShardSnapshotMetaDeleteResult(indexId, snapshotShardId, ShardGenerations.DELETED_SHARD_GEN, blobs);
-            } else {
-                if (indexGeneration < 0L) {
-                    writtenGeneration = ShardGeneration.newGeneration();
-                    INDEX_SHARD_SNAPSHOTS_FORMAT.write(updatedSnapshots, shardContainer, writtenGeneration.toBlobNamePart(), compress);
-                } else {
-                    writtenGeneration = new ShardGeneration(indexGeneration);
-                    writeShardIndexBlobAtomic(shardContainer, indexGeneration, updatedSnapshots, Collections.emptyMap());
-                }
-                final Set<String> survivingSnapshotUUIDs = survivingSnapshots.stream().map(SnapshotId::getUUID).collect(Collectors.toSet());
-                return new ShardSnapshotMetaDeleteResult(
-                    indexId,
-                    snapshotShardId,
-                    writtenGeneration,
-                    unusedBlobs(blobs, survivingSnapshotUUIDs, updatedSnapshots)
-                );
-            }
-        } catch (IOException e) {
-            throw new RepositoryException(
-                metadata.name(),
-                "Failed to finalize snapshot deletion "
-                    + snapshotIds
-                    + " with shard index ["
-                    + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(writtenGeneration.toBlobNamePart())
-                    + "]",
-                e
-            );
-        }
-    }
-
-    /**
      * Utility for atomically writing shard level metadata to a numeric shard generation. This is only required for writing
      * numeric shard generations where atomic writes with fail-if-already-exists checks are useful in preventing repository corruption.
      */
@@ -3596,6 +3545,58 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             newGen
                         )
                     );
+                }
+
+                private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
+                    Set<SnapshotId> survivingSnapshots,
+                    IndexId indexId,
+                    int snapshotShardId,
+                    Collection<SnapshotId> snapshotIds,
+                    BlobContainer shardContainer,
+                    Set<String> blobs,
+                    BlobStoreIndexShardSnapshots snapshots,
+                    long indexGeneration
+                ) {
+                    // Build a list of snapshots that should be preserved
+                    final BlobStoreIndexShardSnapshots updatedSnapshots = snapshots.withRetainedSnapshots(survivingSnapshots);
+                    ShardGeneration writtenGeneration = null;
+                    try {
+                        if (updatedSnapshots.snapshots().isEmpty()) {
+                            return new ShardSnapshotMetaDeleteResult(indexId, snapshotShardId, ShardGenerations.DELETED_SHARD_GEN, blobs);
+                        } else {
+                            if (indexGeneration < 0L) {
+                                writtenGeneration = ShardGeneration.newGeneration();
+                                INDEX_SHARD_SNAPSHOTS_FORMAT.write(
+                                    updatedSnapshots,
+                                    shardContainer,
+                                    writtenGeneration.toBlobNamePart(),
+                                    compress
+                                );
+                            } else {
+                                writtenGeneration = new ShardGeneration(indexGeneration);
+                                writeShardIndexBlobAtomic(shardContainer, indexGeneration, updatedSnapshots, Collections.emptyMap());
+                            }
+                            final Set<String> survivingSnapshotUUIDs = survivingSnapshots.stream()
+                                .map(SnapshotId::getUUID)
+                                .collect(Collectors.toSet());
+                            return new ShardSnapshotMetaDeleteResult(
+                                indexId,
+                                snapshotShardId,
+                                writtenGeneration,
+                                unusedBlobs(blobs, survivingSnapshotUUIDs, updatedSnapshots)
+                            );
+                        }
+                    } catch (IOException e) {
+                        throw new RepositoryException(
+                            metadata.name(),
+                            "Failed to finalize snapshot deletion "
+                                + snapshotIds
+                                + " with shard index ["
+                                + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(writtenGeneration.toBlobNamePart())
+                                + "]",
+                            e
+                        );
+                    }
                 }
 
                 @Override
