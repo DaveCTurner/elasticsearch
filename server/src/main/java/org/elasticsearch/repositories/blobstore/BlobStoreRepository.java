@@ -3331,6 +3331,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private final IndexVersion repositoryMetaVersion;
 
         /**
+         * Whether the {@link #repositoryMetaVersion} is new enough to support naming {@link BlobStoreIndexShardSnapshots} blobs with UUIDs.
+         * Older repositories use (unsafe) numeric indices for these blobs instead.
+         */
+        private final boolean useShardGenerations;
+
+        /**
          * Listener to complete when the {@link RepositoryData} update succeeds (or the process fails before getting to that stage) and
          * then again when the final cleanup stage completes.
          */
@@ -3350,6 +3356,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             this.snapshotIds = snapshotIds;
             this.repositoryStateId = repositoryStateId;
             this.repositoryMetaVersion = repositoryMetaVersion;
+            this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryMetaVersion);
             this.listener = listener;
         }
 
@@ -3404,11 +3411,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * and then has all now unreferenced blobs in it deleted.
          */
         private void doDeleteShardSnapshots() {
-            if (SnapshotsService.useShardGenerations(repositoryMetaVersion)) {
+            if (useShardGenerations) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
                     new ListenableFuture<>();
-                writeUpdatedShardMetaDataAndComputeDeletes(true, writeShardMetaDataAndComputeDeletesStep);
+                writeUpdatedShardMetaDataAndComputeDeletes(writeShardMetaDataAndComputeDeletesStep);
                 // Once we have put the new shard-level metadata into place, we can update the repository metadata as follows:
                 // 1. Remove the snapshots from the list of existing snapshots
                 // 2. Update the index shard generations of all updated shard folders
@@ -3461,7 +3468,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                             cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, newRepoData, refs.acquireListener());
                             writeUpdatedShardMetaDataAndComputeDeletes(
-                                false,
                                 refs.acquireListener()
                                     .delegateFailure(
                                         (l, deleteResults) -> asyncCleanupUnlinkedShardLevelBlobs(
@@ -3480,7 +3486,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
         // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(
-            boolean useUUIDs,
             ActionListener<Collection<ShardSnapshotMetaDeleteResult>> onAllShardsCompleted
         ) {
             final List<IndexId> indices = repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
@@ -3549,7 +3554,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 final Set<String> blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
                                 final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
                                 final long newGen;
-                                if (useUUIDs) {
+                                if (useShardGenerations) {
                                     newGen = -1L;
                                     blobStoreIndexShardSnapshots = buildBlobStoreIndexShardSnapshots(
                                         blobs,
