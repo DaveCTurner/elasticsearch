@@ -3512,6 +3512,26 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 shardCountListener
             );
             final BlobContainer indexContainer = indexContainer(indexId);
+            writeUpdatedShardMetaDataAndComputeDeletes(
+                indexId,
+                deleteIndexMetadataListener,
+                survivingSnapshots,
+                shardCountListener,
+                indexMetaGenerations,
+                allShardCountsListener,
+                indexContainer
+            );
+        }
+
+        private void writeUpdatedShardMetaDataAndComputeDeletes(
+            IndexId indexId,
+            ActionListener<Collection<ShardSnapshotMetaDeleteResult>> deleteIndexMetadataListener,
+            Set<SnapshotId> survivingSnapshots,
+            ListenableFuture<Collection<Integer>> shardCountListener,
+            Collection<String> indexMetaGenerations,
+            ActionListener<Integer> allShardCountsListener,
+            BlobContainer indexContainer
+        ) {
             for (String indexMetaGeneration : indexMetaGenerations) {
                 snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
                     try {
