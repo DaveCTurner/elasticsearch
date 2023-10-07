@@ -3707,16 +3707,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 listener.onResponse(null);
                 return;
             }
-            snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
+            snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
                 try {
                     deleteFromContainer(blobContainer(), filesToDelete);
-                    l.onResponse(null);
                 } catch (Exception e) {
                     logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
                     throw e;
                 }
             }));
         }
-
     }
 }
