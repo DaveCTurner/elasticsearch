@@ -3490,38 +3490,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
 
             for (IndexId indexId : indices) {
-                newIndexSnapshotsDeletion(indexId, deleteIndexMetadataListener).run();
+                new IndexSnapshotsDeletion(indexId, deleteIndexMetadataListener).run();
             }
-        }
-
-        private IndexSnapshotsDeletion newIndexSnapshotsDeletion(
-            IndexId indexId,
-            ActionListener<Collection<ShardSnapshotMetaDeleteResult>> deleteIndexMetadataListener
-        ) {
-            final Set<SnapshotId> snapshotsWithIndex = Set.copyOf(repositoryData.getSnapshots(indexId));
-            final Set<SnapshotId> survivingSnapshots = snapshotsWithIndex.stream()
-                .filter(id -> snapshotIds.contains(id) == false)
-                .collect(Collectors.toSet());
-            final ListenableFuture<Collection<Integer>> shardCountListener = new ListenableFuture<>();
-            final Collection<String> indexMetaGenerations = snapshotIds.stream()
-                .filter(snapshotsWithIndex::contains)
-                .map(id -> repositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
-                .collect(Collectors.toSet());
-            final ActionListener<Integer> allShardCountsListener = new GroupedActionListener<>(
-                indexMetaGenerations.size(),
-                shardCountListener
-            );
-            final BlobContainer indexContainer = indexContainer(indexId);
-            final var indexSnapshotsDeletion = new IndexSnapshotsDeletion(
-                indexId,
-                deleteIndexMetadataListener,
-                survivingSnapshots,
-                shardCountListener,
-                indexMetaGenerations,
-                allShardCountsListener,
-                indexContainer
-            );
-            return indexSnapshotsDeletion;
         }
 
         private class IndexSnapshotsDeletion {
@@ -3533,22 +3503,21 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             private final ActionListener<Integer> allShardCountsListener;
             private final BlobContainer indexContainer;
 
-            IndexSnapshotsDeletion(
-                IndexId indexId,
-                ActionListener<Collection<ShardSnapshotMetaDeleteResult>> deleteIndexMetadataListener,
-                Set<SnapshotId> survivingSnapshots,
-                ListenableFuture<Collection<Integer>> shardCountListener,
-                Collection<String> indexMetaGenerations,
-                ActionListener<Integer> allShardCountsListener,
-                BlobContainer indexContainer
-            ) {
+            IndexSnapshotsDeletion(IndexId indexId, ActionListener<Collection<ShardSnapshotMetaDeleteResult>> deleteIndexMetadataListener) {
                 this.indexId = indexId;
+                this.indexContainer = indexContainer(indexId);
                 this.deleteIndexMetadataListener = deleteIndexMetadataListener;
-                this.survivingSnapshots = survivingSnapshots;
-                this.shardCountListener = shardCountListener;
-                this.indexMetaGenerations = indexMetaGenerations;
-                this.allShardCountsListener = allShardCountsListener;
-                this.indexContainer = indexContainer;
+
+                final var snapshotsWithIndex = Set.copyOf(repositoryData.getSnapshots(indexId));
+                survivingSnapshots = snapshotsWithIndex.stream()
+                    .filter(id -> snapshotIds.contains(id) == false)
+                    .collect(Collectors.toSet());
+                shardCountListener = new ListenableFuture<>();
+                indexMetaGenerations = snapshotIds.stream()
+                    .filter(snapshotsWithIndex::contains)
+                    .map(id -> repositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
+                    .collect(Collectors.toSet());
+                allShardCountsListener = new GroupedActionListener<>(indexMetaGenerations.size(), shardCountListener);
             }
 
             private void run() {
