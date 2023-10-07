@@ -3444,12 +3444,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                     try (var refs = new RefCountingRunnable(listener::onDone)) {
                         cleanupUnlinkedRootAndIndicesBlobs(updatedRepoData, refs.acquireListener());
-                        asyncCleanupUnlinkedShardLevelBlobs(
-                            repositoryData,
-                            snapshotIds,
-                            writeShardMetaDataAndComputeDeletesStep.result(),
-                            refs.acquireListener()
-                        );
+                        asyncCleanupUnlinkedShardLevelBlobs(writeShardMetaDataAndComputeDeletesStep.result(), refs.acquireListener());
                     }
                 }, listener::onFailure));
             } else {
@@ -3469,14 +3464,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             cleanupUnlinkedRootAndIndicesBlobs(newRepoData, refs.acquireListener());
                             writeUpdatedShardMetaDataAndComputeDeletes(
                                 refs.acquireListener()
-                                    .delegateFailure(
-                                        (l, deleteResults) -> asyncCleanupUnlinkedShardLevelBlobs(
-                                            repositoryData,
-                                            snapshotIds,
-                                            deleteResults,
-                                            l
-                                        )
-                                    )
+                                    .delegateFailure((l, deleteResults) -> asyncCleanupUnlinkedShardLevelBlobs(deleteResults, l))
                             );
                         }
                     }, listener::onFailure)
@@ -3609,12 +3597,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         private void asyncCleanupUnlinkedShardLevelBlobs(
-            RepositoryData oldRepositoryData,
-            Collection<SnapshotId> snapshotIds,
             Collection<ShardSnapshotMetaDeleteResult> deleteResults,
             ActionListener<Void> listener
         ) {
-            final Iterator<String> filesToDelete = resolveFilesToDelete(oldRepositoryData, snapshotIds, deleteResults);
+            final Iterator<String> filesToDelete = resolveFilesToDelete(deleteResults);
             if (filesToDelete.hasNext() == false) {
                 listener.onResponse(null);
                 return;
@@ -3630,14 +3616,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }));
         }
 
-        private Iterator<String> resolveFilesToDelete(
-            RepositoryData oldRepositoryData,
-            Collection<SnapshotId> snapshotIds,
-            Collection<ShardSnapshotMetaDeleteResult> deleteResults
-        ) {
+        private Iterator<String> resolveFilesToDelete(Collection<ShardSnapshotMetaDeleteResult> deleteResults) {
             final String basePath = basePath().buildAsString();
             final int basePathLen = basePath.length();
-            final Map<IndexId, Collection<String>> indexMetaGenerations = oldRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(
+            final Map<IndexId, Collection<String>> indexMetaGenerations = repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(
                 snapshotIds
             );
             return Stream.concat(deleteResults.stream().flatMap(shardResult -> {
