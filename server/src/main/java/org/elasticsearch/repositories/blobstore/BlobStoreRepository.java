@@ -72,6 +72,7 @@ import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
+import org.elasticsearch.common.util.concurrent.ThrottledIterator;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.CheckedConsumer;
@@ -3442,12 +3443,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
         // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
-            try (var listeners = new RefCountingListener(onAllShardsCompleted)) {
-                final var indexIds = repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
-                while (indexIds.hasNext()) {
-                    new IndexSnapshotsDeletion(indexIds.next()).run(listeners.acquire());
-                }
-            }
+            ThrottledIterator.run(
+                repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds),
+                (ref, indexId) -> new IndexSnapshotsDeletion(indexId).run(ActionListener.releasing(ref)),
+                threadPool.info(ThreadPool.Names.SNAPSHOT).getMax(),
+                () -> {},
+                () -> onAllShardsCompleted.onResponse(null)
+            );
         }
 
         private class IndexSnapshotsDeletion {
