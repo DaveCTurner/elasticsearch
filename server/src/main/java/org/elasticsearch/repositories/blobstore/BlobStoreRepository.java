@@ -3402,7 +3402,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         l.onResponse(repositoryData); // already safe to start the next snapshot operation
                         try (var refs = new RefCountingRunnable(listener::onDone)) {
                             cleanupUnlinkedRootAndIndicesBlobs(repositoryData, refs.acquireListener());
-                            asyncCleanupUnlinkedShardLevelBlobs(refs.acquireListener());
+                            cleanupUnlinkedShardLevelBlobs(refs.acquireListener());
                         }
                     })
 
@@ -3433,7 +3433,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 // Write the new shard state metadata (with the removed snapshot) and compute deletion targets
                                 .newForked(this::writeUpdatedShardMetaDataAndComputeDeletes)
                                 // Then do the shard-level deletion
-                                .<Void>andThen((l2, ignored) -> asyncCleanupUnlinkedShardLevelBlobs(l2))
+                                .<Void>andThen((l2, ignored) -> cleanupUnlinkedShardLevelBlobs(l2))
                                 .addListener(refs.acquireListener());
                         }
                     })
@@ -3674,10 +3674,35 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         /**
-         * Delete the blobs previously identified as dangling in the shard-level containers.
+         * Delete the blobs previously identified as dangling in the shard-level containers, and {@link IndexMetadata} that became dangling.
          */
-        private void asyncCleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
-            final Iterator<String> filesToDelete = resolveFilesToDelete();
+        private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
+            final var basePath = basePath().buildAsString();
+            final var basePathLen = basePath.length();
+
+            final var indexMetaGenerations = repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds);
+            // NB 1. This computes the dangling IndexMetadata purely from the RepositoryData, it does not list & clean up previous failures
+            // NB 2. This re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; we could avoid that by doing this computation earlier
+
+            final Iterator<String> filesToDelete = Stream
+
+                .concat(
+
+                    shardDeleteResults.stream().flatMap(shardResult -> {
+                        final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
+                        return shardResult.blobsToDelete.stream().map(blob -> shardPath + blob);
+                    }),
+                    indexMetaGenerations.entrySet().stream().flatMap(entry -> {
+                        final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
+                        return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
+                    })
+                )
+                .map(absolutePath -> {
+                    assert absolutePath.startsWith(basePath);
+                    return absolutePath.substring(basePathLen);
+                })
+                .iterator();
+
             if (filesToDelete.hasNext() == false) {
                 listener.onResponse(null);
                 return;
@@ -3693,22 +3718,5 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }));
         }
 
-        private Iterator<String> resolveFilesToDelete() {
-            final String basePath = basePath().buildAsString();
-            final int basePathLen = basePath.length();
-            final Map<IndexId, Collection<String>> indexMetaGenerations = repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(
-                snapshotIds
-            );
-            return Stream.concat(shardDeleteResults.stream().flatMap(shardResult -> {
-                final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
-                return shardResult.blobsToDelete.stream().map(blob -> shardPath + blob);
-            }), indexMetaGenerations.entrySet().stream().flatMap(entry -> {
-                final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
-                return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
-            })).map(absolutePath -> {
-                assert absolutePath.startsWith(basePath);
-                return absolutePath.substring(basePathLen);
-            }).iterator();
-        }
     }
 }
