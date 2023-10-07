@@ -3387,15 +3387,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         // Cache the indices that were found before writing out the new index-N blob so that a stuck master will never
                         // delete an index that was created by another master node after writing this index-N blob.
                         foundIndices = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
-                        doDeleteShardSnapshots(
-                            snapshotIds,
-                            repositoryStateId,
-                            foundIndices,
-                            rootBlobs,
-                            repositoryData,
-                            repositoryMetaVersion,
-                            listener
-                        );
+                        doDeleteShardSnapshots();
                     }
 
                     @Override
@@ -3409,26 +3401,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         /**
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
-         *
-         * @param snapshotIds       SnapshotIds to delete
-         * @param repositoryStateId Expected repository state id
-         * @param foundIndices      All indices folders found in the repository before executing any writes to the repository during this
-         *                          delete operation
-         * @param rootBlobs         All blobs found at the root of the repository before executing any writes to the repository during this
-         *                          delete operation
-         * @param repositoryData    RepositoryData found the in the repository before executing this delete
-         * @param listener          Listener to invoke once finished
          */
-        private void doDeleteShardSnapshots(
-            Collection<SnapshotId> snapshotIds,
-            long repositoryStateId,
-            Map<String, BlobContainer> foundIndices,
-            Map<String, BlobMetadata> rootBlobs,
-            RepositoryData repositoryData,
-            IndexVersion repoMetaVersion,
-            SnapshotDeleteListener listener
-        ) {
-            if (SnapshotsService.useShardGenerations(repoMetaVersion)) {
+        private void doDeleteShardSnapshots() {
+            if (SnapshotsService.useShardGenerations(repositoryMetaVersion)) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
                     new ListenableFuture<>();
@@ -3450,7 +3425,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     writeIndexGen(
                         updatedRepoData,
                         repositoryStateId,
-                        repoMetaVersion,
+                        repositoryMetaVersion,
                         Function.identity(),
                         ActionListener.wrap(writeUpdatedRepoDataStep::onResponse, listener::onFailure)
                     );
@@ -3472,24 +3447,35 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             } else {
                 // Write the new repository data first (with the removed snapshot), using no shard generations
                 final RepositoryData updatedRepoData = repositoryData.removeSnapshots(snapshotIds, ShardGenerations.EMPTY);
-                writeIndexGen(updatedRepoData, repositoryStateId, repoMetaVersion, Function.identity(), ActionListener.wrap(newRepoData -> {
-                    try (var refs = new RefCountingRunnable(() -> {
-                        listener.onRepositoryDataWritten(newRepoData);
-                        listener.onDone();
-                    })) {
-                        // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
-                        cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, newRepoData, refs.acquireListener());
-                        writeUpdatedShardMetaDataAndComputeDeletes(
-                            snapshotIds,
-                            repositoryData,
-                            false,
-                            refs.acquireListener()
-                                .delegateFailure(
-                                    (l, deleteResults) -> asyncCleanupUnlinkedShardLevelBlobs(repositoryData, snapshotIds, deleteResults, l)
-                                )
-                        );
-                    }
-                }, listener::onFailure));
+                writeIndexGen(
+                    updatedRepoData,
+                    repositoryStateId,
+                    repositoryMetaVersion,
+                    Function.identity(),
+                    ActionListener.wrap(newRepoData -> {
+                        try (var refs = new RefCountingRunnable(() -> {
+                            listener.onRepositoryDataWritten(newRepoData);
+                            listener.onDone();
+                        })) {
+                            // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
+                            cleanupUnlinkedRootAndIndicesBlobs(snapshotIds, foundIndices, rootBlobs, newRepoData, refs.acquireListener());
+                            writeUpdatedShardMetaDataAndComputeDeletes(
+                                snapshotIds,
+                                repositoryData,
+                                false,
+                                refs.acquireListener()
+                                    .delegateFailure(
+                                        (l, deleteResults) -> asyncCleanupUnlinkedShardLevelBlobs(
+                                            repositoryData,
+                                            snapshotIds,
+                                            deleteResults,
+                                            l
+                                        )
+                                    )
+                            );
+                        }
+                    }, listener::onFailure)
+                );
             }
         }
 
