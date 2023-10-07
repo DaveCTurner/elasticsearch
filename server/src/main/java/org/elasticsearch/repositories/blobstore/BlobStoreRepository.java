@@ -3377,8 +3377,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private Map<String, BlobContainer> foundIndices;
 
         /**
-         * The {@link RepositoryData} at the start of the operation, obtained (for the sake of paranoia) by re-reading the
-         * {@code index-${repositoryStateId}} blob and verifying that {@link #rootBlobs} contains no later {@link RepositoryData}.
+         * The {@link RepositoryData} at the start of the operation, obtained after verifying that {@link #rootBlobs} contains no
+         * {@link RepositoryData} blob newer than the one identified by {@link #repositoryStateId}.
          */
         // TODO rename to originalRepositoryData to distinguish from the updated one
         private RepositoryData repositoryData;
