@@ -3605,7 +3605,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 listener.onResponse(null);
                 return;
             }
-            threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.wrap(listener, l -> {
+            snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
                 try {
                     deleteFromContainer(blobContainer(), filesToDelete);
                     l.onResponse(null);
