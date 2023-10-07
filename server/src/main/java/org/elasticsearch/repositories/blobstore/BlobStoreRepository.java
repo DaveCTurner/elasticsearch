@@ -3515,15 +3515,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         newGen = tuple.v2() + 1;
                         blobStoreIndexShardSnapshots = tuple.v1();
                     }
-                    shardResultListener.onResponse(deleteFromShardSnapshotMeta(blobStoreIndexShardSnapshots, newGen));
+
+                    // Build a list of snapshots that should be preserved
+                    final var updatedSnapshots = blobStoreIndexShardSnapshots.withRetainedSnapshots(survivingSnapshots);
+
+                    shardResultListener.onResponse(deleteFromShardSnapshotMeta(newGen, updatedSnapshots));
                 }
 
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
-                    BlobStoreIndexShardSnapshots snapshots,
-                    long indexGeneration
+                    long indexGeneration,
+                    BlobStoreIndexShardSnapshots updatedSnapshots
                 ) {
-                    // Build a list of snapshots that should be preserved
-                    final BlobStoreIndexShardSnapshots updatedSnapshots = snapshots.withRetainedSnapshots(survivingSnapshots);
                     ShardGeneration writtenGeneration = null;
                     try {
                         if (updatedSnapshots.snapshots().isEmpty()) {
