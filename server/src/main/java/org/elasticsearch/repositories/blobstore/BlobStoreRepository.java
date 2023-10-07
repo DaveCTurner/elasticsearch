@@ -148,7 +148,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -3483,6 +3482,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             private final Set<SnapshotId> survivingSnapshots;
             private final Collection<String> indexMetaGenerations;
             private final BlobContainer indexContainer;
+            private int shardCount;
 
             IndexSnapshotsDeletion(IndexId indexId) {
                 this.indexId = indexId;
@@ -3498,9 +3498,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .collect(Collectors.toSet());
             }
 
-            private void run(ActionListener<Void> listener) {
-                final AtomicInteger indexShardCount = new AtomicInteger();
+            private synchronized void updateShardCount(int newShardCount) {
+                shardCount = Math.max(shardCount, newShardCount);
+            }
 
+            private void run(ActionListener<Void> listener) {
                 SubscribableListener
 
                     .<Void>newForked(l -> {
@@ -3508,8 +3510,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             for (final var indexMetaGeneration : indexMetaGenerations) {
                                 snapshotExecutor.execute(ActionRunnable.run(ActionListener.releasing(refs.acquire()), () -> {
                                     try {
-                                        final var currentShardCount = readIndexMetadata(indexMetaGeneration).getNumberOfShards();
-                                        indexShardCount.updateAndGet(i -> Math.max(i, currentShardCount));
+                                        updateShardCount(readIndexMetadata(indexMetaGeneration).getNumberOfShards());
                                     } catch (Exception ex) {
                                         // Log a failure to read the index metadata but then carry on - it's possible this means we won't
                                         // update all the shards in this index, leaving them as-is in the RepositoryData, so their
@@ -3528,7 +3529,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         try (var refs = new RefCountingRunnable(() -> l.onResponse(null))) {
                             // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data
                             // behind. Leftover data will be cleaned up in the next delete that touches this shard.
-                            for (int shardId = 0; shardId < indexShardCount.get(); shardId++) {
+                            for (int shardId = 0; shardId < shardCount; shardId++) {
                                 snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, refs.acquire()));
                             }
                         }
