@@ -3498,32 +3498,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .collect(Collectors.toSet());
             }
 
-            private synchronized void updateShardCount(int newShardCount) {
-                shardCount = Math.max(shardCount, newShardCount);
-            }
-
             private void run(ActionListener<Void> listener) {
                 SubscribableListener
 
-                    .<Void>newForked(l -> {
-                        try (var refs = new RefCountingRunnable(() -> l.onResponse(null))) {
-                            for (final var indexMetaGeneration : indexMetaGenerations) {
-                                snapshotExecutor.execute(ActionRunnable.run(ActionListener.releasing(refs.acquire()), () -> {
-                                    try {
-                                        updateShardCount(readIndexMetadata(indexMetaGeneration).getNumberOfShards());
-                                    } catch (Exception ex) {
-                                        // Log a failure to read the index metadata but then carry on - it's possible this means we won't
-                                        // update all the shards in this index, leaving them as-is in the RepositoryData, so their
-                                        // BlobStoreIndexShardSnapshots blob will refer to snapshots that no longer exist in the root.
-                                        // TODO: Getting here means repository corruption. We should find a way of dealing with this instead
-                                        // of just ignoring it and letting the cleanup deal with it.
-                                        logger.warn(() -> format("""
-                                            [%s] [%s] failed to read metadata for index""", indexMetaGeneration, indexId.getName()), ex);
-                                    }
-                                }));
-                            }
-                        }
-                    })
+                    .newForked(this::readShardCounts)
 
                     .<Void>andThen((l, ignored) -> {
                         try (var refs = new RefCountingRunnable(() -> l.onResponse(null))) {
@@ -3536,6 +3514,29 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     })
 
                     .addListener(listener);
+            }
+
+            private void readShardCounts(ActionListener<Void> listener) {
+                try (var refs = new RefCountingRunnable(() -> listener.onResponse(null))) {
+                    for (final var indexMetaGeneration : indexMetaGenerations) {
+                        snapshotExecutor.execute(ActionRunnable.run(ActionListener.releasing(refs.acquire()), () -> {
+                            try {
+                                final var newShardCount = readIndexMetadata(indexMetaGeneration).getNumberOfShards();
+                                synchronized (IndexSnapshotsDeletion.this) {
+                                    shardCount = Math.max(shardCount, newShardCount);
+                                }
+                            } catch (Exception ex) {
+                                // Log a failure to read the index metadata but then carry on - it's possible this means we won't update all
+                                // the shards in this index, leaving them as-is in the RepositoryData, so their BlobStoreIndexShardSnapshots
+                                // blob will refer to snapshots that no longer exist in the root.
+                                // TODO: Getting here means repository corruption. We should find a way of dealing with this instead of just
+                                // ignoring it and letting the cleanup deal with it.
+                                logger.warn(() -> format("""
+                                    [%s] [%s] failed to read metadata for index""", indexMetaGeneration, indexId.getName()), ex);
+                            }
+                        }));
+                    }
+                }
             }
 
             private IndexMetadata readIndexMetadata(String indexMetaGeneration) throws IOException {
