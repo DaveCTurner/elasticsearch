@@ -3677,44 +3677,40 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * Delete the blobs previously identified as dangling in the shard-level containers, and {@link IndexMetadata} that became dangling.
          */
         private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
-            final var basePath = basePath().buildAsString();
-            final var basePathLen = basePath.length();
-
-            final var indexMetaGenerations = repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds);
-            // NB 1. This computes the dangling IndexMetadata purely from the RepositoryData, it does not list & clean up previous failures
-            // NB 2. This re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; we could avoid that by doing this computation earlier
-
-            final Iterator<String> filesToDelete = Stream
-
-                .concat(
-
-                    shardDeleteResults.stream().flatMap(shardResult -> {
-                        final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
-                        return shardResult.blobsToDelete.stream().map(blob -> shardPath + blob);
-                    }),
-                    indexMetaGenerations.entrySet().stream().flatMap(entry -> {
-                        final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
-                        return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
-                    })
-                )
-                .map(absolutePath -> {
-                    assert absolutePath.startsWith(basePath);
-                    return absolutePath.substring(basePathLen);
+            final Iterator<String> filesToDelete = Iterators.concat(
+                // shard-level dangling blobs
+                Iterators.flatMap(shardDeleteResults.iterator(), shardResult -> {
+                    final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
+                    return Iterators.map(shardResult.blobsToDelete.iterator(), blob -> shardPath + blob);
+                }),
+                // dangling index metadata blobs
+                // NB 1. Computes the dangling IndexMetadata purely from the RepositoryData; TODO list & clean up previous failures too
+                // NB 2. Re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; TODO avoid that by doing this computation earlier
+                Iterators.flatMap(repositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().iterator(), entry -> {
+                    final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
+                    return Iterators.map(entry.getValue().iterator(), id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
                 })
-                .iterator();
+            );
 
-            if (filesToDelete.hasNext() == false) {
+            // NB 3. We add the base path onto every blob name only to strip it off here so the container can add it back on.
+            // NB 4. Could we parallelise these deletes across threads?
+            if (filesToDelete.hasNext()) {
+                snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
+                    try {
+                        final var basePath = basePath().buildAsString();
+                        final var basePathLen = basePath.length();
+                        deleteFromContainer(blobContainer(), Iterators.map(filesToDelete, absolutePath -> {
+                            assert absolutePath.startsWith(basePath);
+                            return absolutePath.substring(basePathLen);
+                        }));
+                    } catch (Exception e) {
+                        logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
+                        throw e;
+                    }
+                }));
+            } else {
                 listener.onResponse(null);
-                return;
             }
-            snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
-                try {
-                    deleteFromContainer(blobContainer(), filesToDelete);
-                } catch (Exception e) {
-                    logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
-                    throw e;
-                }
-            }));
         }
     }
 }
