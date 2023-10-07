@@ -3487,17 +3487,20 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             private class ShardSnapshotsDeletion extends AbstractRunnable {
 
                 private final int shardId;
-                private final ActionListener<ShardSnapshotMetaDeleteResult> shardListener;
+                private final ActionListener<ShardSnapshotMetaDeleteResult> shardResultListener;
 
-                ShardSnapshotsDeletion(int shardId, ActionListener<ShardSnapshotMetaDeleteResult> shardListener) {
+                ShardSnapshotsDeletion(int shardId, ActionListener<ShardSnapshotMetaDeleteResult> shardResultListener) {
                     this.shardId = shardId;
-                    this.shardListener = shardListener;
+                    this.shardResultListener = shardResultListener;
                 }
+
+                private BlobContainer shardContainer;
+                private Set<String> blobs;
 
                 @Override
                 protected void doRun() throws Exception {
-                    final BlobContainer shardContainer = shardContainer(indexId, shardId);
-                    final Set<String> blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
+                    shardContainer = shardContainer(indexId, shardId);
+                    blobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
                     final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
                     final long newGen;
                     if (useShardGenerations) {
@@ -3512,12 +3515,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         newGen = tuple.v2() + 1;
                         blobStoreIndexShardSnapshots = tuple.v1();
                     }
-                    shardListener.onResponse(deleteFromShardSnapshotMeta(shardContainer, blobs, blobStoreIndexShardSnapshots, newGen));
+                    shardResultListener.onResponse(deleteFromShardSnapshotMeta(blobStoreIndexShardSnapshots, newGen));
                 }
 
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
-                    BlobContainer shardContainer,
-                    Set<String> blobs,
                     BlobStoreIndexShardSnapshots snapshots,
                     long indexGeneration
                 ) {
@@ -3593,7 +3594,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     );
                     // Just passing null here to count down the listener instead of failing it, the stale data left behind
                     // here will be retried in the next delete or repository cleanup
-                    shardListener.onResponse(null);
+                    shardResultListener.onResponse(null);
                 }
             }
         }
