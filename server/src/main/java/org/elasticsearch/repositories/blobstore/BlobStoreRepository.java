@@ -3454,19 +3454,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         /**
-         * Compute the new {@link RepositoryData} and write it to the repository.
+         * Loop through the indices which appear in the snapshots being deleted, writing a new {@link BlobStoreIndexShardSnapshots} blob for
+         * each of their shards and recording the results in {@link #shardDeleteResults}.
          */
-        private void updateRepositoryData(ActionListener<RepositoryData> listener) {
-            writeIndexGen(
-                repositoryData.removeSnapshots(snapshotIds, useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY),
-                repositoryStateId,
-                repositoryMetaVersion,
-                Function.identity(),
-                listener
-            );
-        }
-
-        // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
             ThrottledIterator.run(
                 repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds),
@@ -3662,10 +3652,30 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
+        /**
+         * Compute the new {@link RepositoryData} and write it to the repository.
+         */
+        private void updateRepositoryData(ActionListener<RepositoryData> listener) {
+            writeIndexGen(
+                repositoryData.removeSnapshots(snapshotIds, useShardGenerations ? shardGenerationsBuilder.build() : ShardGenerations.EMPTY),
+                repositoryStateId,
+                repositoryMetaVersion,
+                Function.identity(),
+                listener
+            );
+        }
+
+        /**
+         * Delete any dangling blobs in the repository root (i.e. {@link RepositoryData}, {@link SnapshotInfo} and {@link Metadata} blobs)
+         * as well as any containers for indices that are completely unreferenced.
+         */
         private void cleanupUnlinkedRootAndIndicesBlobs(RepositoryData updatedRepoData, ActionListener<Void> listener) {
             cleanupStaleBlobs(snapshotIds, foundIndices, rootBlobs, updatedRepoData, listener.map(ignored -> null));
         }
 
+        /**
+         * Delete the blobs previously identified as dangling in the shard-level containers.
+         */
         private void asyncCleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
             final Iterator<String> filesToDelete = resolveFilesToDelete();
             if (filesToDelete.hasNext() == false) {
