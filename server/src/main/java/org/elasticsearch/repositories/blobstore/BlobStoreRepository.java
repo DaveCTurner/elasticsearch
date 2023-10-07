@@ -3410,38 +3410,37 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
             try (var listeners = new RefCountingListener(onAllShardsCompleted)) {
                 for (final var indexId : repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds)) {
-                    new IndexSnapshotsDeletion(indexId, listeners.acquire()).run();
+                    new IndexSnapshotsDeletion(indexId).run(listeners.acquire());
                 }
             }
         }
 
         private class IndexSnapshotsDeletion {
             private final IndexId indexId;
-            private final ActionListener<Void> deleteIndexMetadataListener;
             private final Set<SnapshotId> survivingSnapshots;
-            private final ListenableFuture<Collection<Integer>> shardCountListener;
             private final Collection<String> indexMetaGenerations;
-            private final ActionListener<Integer> allShardCountsListener;
             private final BlobContainer indexContainer;
 
-            IndexSnapshotsDeletion(IndexId indexId, ActionListener<Void> deleteIndexMetadataListener) {
+            IndexSnapshotsDeletion(IndexId indexId) {
                 this.indexId = indexId;
                 this.indexContainer = indexContainer(indexId);
-                this.deleteIndexMetadataListener = deleteIndexMetadataListener;
 
                 final var snapshotsWithIndex = Set.copyOf(repositoryData.getSnapshots(indexId));
                 survivingSnapshots = snapshotsWithIndex.stream()
                     .filter(id -> snapshotIds.contains(id) == false)
                     .collect(Collectors.toSet());
-                shardCountListener = new ListenableFuture<>();
                 indexMetaGenerations = snapshotIds.stream()
                     .filter(snapshotsWithIndex::contains)
                     .map(id -> repositoryData.indexMetaDataGenerations().indexMetaBlobId(id, indexId))
                     .collect(Collectors.toSet());
-                allShardCountsListener = new GroupedActionListener<>(indexMetaGenerations.size(), shardCountListener);
             }
 
-            private void run() {
+            private void run(ActionListener<Void> deleteIndexMetadataListener) {
+                final ListenableFuture<Collection<Integer>> shardCountListener = new ListenableFuture<>();
+                final ActionListener<Integer> allShardCountsListener = new GroupedActionListener<>(
+                    indexMetaGenerations.size(),
+                    shardCountListener
+                );
                 for (String indexMetaGeneration : indexMetaGenerations) {
                     snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
                         try {
