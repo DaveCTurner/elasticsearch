@@ -61,10 +61,17 @@ public class RepositoryDataTests extends ESTestCase {
             final List<SnapshotId> snapshotIds = repositoryData.getSnapshots(index);
             return snapshotIds.contains(randomSnapshot) && snapshotIds.size() > 1;
         }).toArray(IndexId[]::new);
+
         assertThat(
-            repositoryData.indicesToUpdateAfterRemovingSnapshot(Collections.singleton(randomSnapshot)),
+            indicesToUpdateAfterRemovingSnapshot(repositoryData, Collections.singleton(randomSnapshot)),
             containsInAnyOrder(indicesToUpdate)
         );
+    }
+
+    private static List<IndexId> indicesToUpdateAfterRemovingSnapshot(RepositoryData repositoryData, Set<SnapshotId> snapshotIdsToRemove) {
+        final var indexIdsToUpdate = new ArrayList<IndexId>();
+        repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIdsToRemove).forEachRemaining(indexIdsToUpdate::add);
+        return indexIdsToUpdate;
     }
 
     public void testXContent() throws IOException {
@@ -346,7 +353,7 @@ public class RepositoryDataTests extends ESTestCase {
         final RepositoryData repositoryData = generateRandomRepoData();
         final SnapshotId snapshotId = randomFrom(repositoryData.getSnapshotIds());
         final IndexMetaDataGenerations indexMetaDataGenerations = repositoryData.indexMetaDataGenerations();
-        final Collection<IndexId> indicesToUpdate = repositoryData.indicesToUpdateAfterRemovingSnapshot(Collections.singleton(snapshotId));
+        final Collection<IndexId> indicesToUpdate = indicesToUpdateAfterRemovingSnapshot(repositoryData, Collections.singleton(snapshotId));
         final Map<IndexId, Collection<String>> identifiersToRemove = indexMetaDataGenerations.lookup.get(snapshotId)
             .entrySet()
             .stream()

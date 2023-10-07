@@ -3443,8 +3443,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
             try (var listeners = new RefCountingListener(onAllShardsCompleted)) {
-                for (final var indexId : repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds)) {
-                    new IndexSnapshotsDeletion(indexId).run(listeners.acquire());
+                final var indexIds = repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
+                while (indexIds.hasNext()) {
+                    new IndexSnapshotsDeletion(indexIds.next()).run(listeners.acquire());
                 }
             }
         }

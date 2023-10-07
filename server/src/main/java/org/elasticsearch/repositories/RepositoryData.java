@@ -14,6 +14,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.UUIDs;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
@@ -34,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -330,19 +332,27 @@ public final class RepositoryData {
      * @param snapshotIds SnapshotId to remove
      * @return List of indices that are changed but not removed
      */
-    public List<IndexId> indicesToUpdateAfterRemovingSnapshot(Collection<SnapshotId> snapshotIds) {
-        return indexSnapshots.entrySet().stream().filter(entry -> {
-            final Collection<SnapshotId> existingIds = entry.getValue();
-            if (snapshotIds.containsAll(existingIds)) {
-                return existingIds.size() > snapshotIds.size();
+    public Iterator<IndexId> indicesToUpdateAfterRemovingSnapshot(Collection<SnapshotId> snapshotIds) {
+        return Iterators.flatMap(indexSnapshots.entrySet().iterator(), entry -> {
+            if (isIndexToUpdate(snapshotIds, entry.getValue())) {
+                return Iterators.single(entry.getKey());
+            } else {
+                return Collections.emptyIterator();
             }
-            for (SnapshotId snapshotId : snapshotIds) {
-                if (entry.getValue().contains(snapshotId)) {
+        });
+    }
+
+    private static boolean isIndexToUpdate(Collection<SnapshotId> snapshotsToDelete, List<SnapshotId> indexSnapshots) {
+        if (snapshotsToDelete.containsAll(indexSnapshots)) {
+            return indexSnapshots.size() > snapshotsToDelete.size();
+        } else {
+            for (SnapshotId snapshotId : snapshotsToDelete) {
+                if (indexSnapshots.contains(snapshotId)) {
                     return true;
                 }
             }
-            return false;
-        }).map(Map.Entry::getKey).toList();
+        }
+        return false;
     }
 
     /**
@@ -354,7 +364,7 @@ public final class RepositoryData {
      * @return map of index to index metadata blob id to delete
      */
     public Map<IndexId, Collection<String>> indexMetaDataToRemoveAfterRemovingSnapshots(Collection<SnapshotId> snapshotIds) {
-        Collection<IndexId> indicesForSnapshot = indicesToUpdateAfterRemovingSnapshot(snapshotIds);
+        Iterator<IndexId> indicesForSnapshot = indicesToUpdateAfterRemovingSnapshot(snapshotIds);
         final Set<String> allRemainingIdentifiers = indexMetaDataGenerations.lookup.entrySet()
             .stream()
             .filter(e -> snapshotIds.contains(e.getKey()) == false)
@@ -362,7 +372,8 @@ public final class RepositoryData {
             .map(indexMetaDataGenerations::getIndexMetaBlobId)
             .collect(Collectors.toSet());
         final Map<IndexId, Collection<String>> toRemove = new HashMap<>();
-        for (IndexId indexId : indicesForSnapshot) {
+        while (indicesForSnapshot.hasNext()) {
+            final IndexId indexId = indicesForSnapshot.next();
             for (SnapshotId snapshotId : snapshotIds) {
                 final String identifier = indexMetaDataGenerations.indexMetaBlobId(snapshotId, indexId);
                 if (allRemainingIdentifiers.contains(identifier) == false) {
