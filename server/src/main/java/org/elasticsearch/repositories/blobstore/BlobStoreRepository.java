@@ -3483,7 +3483,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             boolean useUUIDs,
             ActionListener<Collection<ShardSnapshotMetaDeleteResult>> onAllShardsCompleted
         ) {
-            final Executor executor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
             final List<IndexId> indices = repositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
 
             if (indices.isEmpty()) {
@@ -3513,7 +3512,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 );
                 final BlobContainer indexContainer = indexContainer(indexId);
                 for (String indexMetaGeneration : indexMetaGenerations) {
-                    executor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
+                    snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
                         try {
                             return INDEX_METADATA_FORMAT.read(metadata.name(), indexContainer, indexMetaGeneration, namedXContentRegistry)
                                 .getNumberOfShards();
@@ -3543,7 +3542,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     );
                     for (int shardId = 0; shardId < shardCount; shardId++) {
                         final int finalShardId = shardId;
-                        executor.execute(new AbstractRunnable() {
+                        snapshotExecutor.execute(new AbstractRunnable() {
                             @Override
                             protected void doRun() throws Exception {
                                 final BlobContainer shardContainer = shardContainer(indexId, finalShardId);
