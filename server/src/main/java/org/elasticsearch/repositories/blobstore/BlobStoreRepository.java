@@ -1012,7 +1012,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         private void runWithUniqueShardMetadataNaming(SnapshotDeleteListener listener) {
             // First write the new shard state metadata (with the removed snapshots) and compute deletion results
             final ListenableFuture<Void> writeShardMetaDataAndComputeDeletesStep = new ListenableFuture<>();
-            writeUpdatedShardMetaDataAndComputeDeletes(writeShardMetaDataAndComputeDeletesStep);
+            writeUpdatedShardMetadataAndComputeDeletes(() -> writeShardMetaDataAndComputeDeletesStep.onResponse(null));
             // Once we have put the new shard-level metadata into place, we can update the repository metadata as follows:
             // 1. Remove the snapshots from the list of existing snapshots
             // 2. Update the index shard generations of all updated shard folders
@@ -1053,40 +1053,31 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 })) {
                     // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                     cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
-
-                    // writeIndexGen finishes on master-service thread so must fork here.
-                    snapshotExecutor.execute(
-                        ActionRunnable.wrap(
-                            refs.acquireListener(),
-                            l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
-                                l0.delegateFailure((l, ignored) -> cleanupUnlinkedShardLevelBlobs(l))
-                            )
-                        )
-                    );
+                    writeLegacyShardMetadataAndCleanUp(refs.acquireListener());
                 }
             }, listener::onFailure));
+        }
+
+        private void writeLegacyShardMetadataAndCleanUp(ActionListener<Void> listener) {
+            assert useShardGenerations == false : "unsafe, only use for legacy repository layout";
+            // writeIndexGen finishes on master-service thread so must fork here.
+            snapshotExecutor.execute(
+                ActionRunnable.wrap(listener, l -> writeUpdatedShardMetadataAndComputeDeletes(() -> cleanupUnlinkedShardLevelBlobs(l)))
+            );
         }
 
         // ---------------------------------------------------------------------------------------------------------------------------------
         // Updating the shard-level metadata and accumulating results
 
-        // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
-        private void writeUpdatedShardMetaDataAndComputeDeletes(ActionListener<Void> onAllShardsCompleted) {
-            final List<IndexId> indices = originalRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
-
-            if (indices.isEmpty()) {
-                onAllShardsCompleted.onResponse(null);
-                return;
-            }
-
-            // Listener that flattens out the delete results for each index
-            final ActionListener<Void> deleteIndexMetadataListener = new GroupedActionListener<>(
-                indices.size(),
-                onAllShardsCompleted.map(ignored -> null)
-            );
-
-            for (IndexId indexId : indices) {
-                new IndexSnapshotsDeletion(indexId).run(() -> deleteIndexMetadataListener.onResponse(null));
+        /**
+         * Loop through the indices which appear in the snapshots being deleted, writing a new {@link BlobStoreIndexShardSnapshots} blob for
+         * each of their shards and recording the results in {@link #shardDeleteResults}.
+         */
+        private void writeUpdatedShardMetadataAndComputeDeletes(Runnable onCompletion) {
+            try (var refs = new RefCountingRunnable(onCompletion)) {
+                for (IndexId indexId : originalRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds)) {
+                    new IndexSnapshotsDeletion(indexId).run(refs.acquire()::close);
+                }
             }
         }
 
