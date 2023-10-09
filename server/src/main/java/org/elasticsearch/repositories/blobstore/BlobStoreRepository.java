@@ -869,6 +869,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private final IndexVersion repositoryFormatIndexVersion;
 
+        /**
+         * Whether the {@link #repositoryFormatIndexVersion} is new enough to support naming {@link BlobStoreIndexShardSnapshots} blobs with
+         * UUIDs (i.e. does not need to remain compatible with versions before v7.6.0). Older repositories use (unsafe) numeric indices for
+         * these blobs instead.
+         */
+        private final boolean useShardGenerations;
+
         SnapshotsDeletion(
             Collection<SnapshotId> snapshotIds,
             long originalRepositoryDataGeneration,
@@ -877,6 +884,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             this.snapshotIds = snapshotIds;
             this.originalRepositoryDataGeneration = originalRepositoryDataGeneration;
             this.repositoryFormatIndexVersion = repositoryFormatIndexVersion;
+            this.useShardGenerations = SnapshotsService.useShardGenerations(repositoryFormatIndexVersion);
         }
 
         // ---------------------------------------------------------------------------------------------------------------------------------
@@ -941,11 +949,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             RepositoryData originalRepositoryData,
             SnapshotDeleteListener listener
         ) {
-            if (SnapshotsService.useShardGenerations(repositoryFormatIndexVersion)) {
+            if (useShardGenerations) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
                     new ListenableFuture<>();
-                writeUpdatedShardMetaDataAndComputeDeletes(originalRepositoryData, true, writeShardMetaDataAndComputeDeletesStep);
+                writeUpdatedShardMetaDataAndComputeDeletes(originalRepositoryData, writeShardMetaDataAndComputeDeletesStep);
                 // Once we have put the new shard-level metadata into place, we can update the repository metadata as follows:
                 // 1. Remove the snapshots from the list of existing snapshots
                 // 2. Update the index shard generations of all updated shard folders
@@ -1016,7 +1024,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                         refs.acquireListener(),
                                         l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
                                             originalRepositoryData,
-                                            false,
                                             l0.delegateFailure(
                                                 (l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(
                                                     originalRepositoryData,
@@ -1040,7 +1047,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         // updates the shard state metadata for shards of a snapshot that is to be deleted. Also computes the files to be cleaned up.
         private void writeUpdatedShardMetaDataAndComputeDeletes(
             RepositoryData originalRepositoryData,
-            boolean useShardGenerations,
             ActionListener<Collection<ShardSnapshotMetaDeleteResult>> onAllShardsCompleted
         ) {
 
