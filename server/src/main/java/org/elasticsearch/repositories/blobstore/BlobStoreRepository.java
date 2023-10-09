@@ -876,6 +876,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private final boolean useShardGenerations;
 
+        /**
+         * Executor to use for all repository interactions.
+         */
+        private final Executor snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
+
         SnapshotsDeletion(
             Collection<SnapshotId> snapshotIds,
             long originalRepositoryDataGeneration,
@@ -894,7 +899,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             if (isReadOnly()) {
                 listener.onFailure(new RepositoryException(metadata.name(), "cannot delete snapshot from a readonly repository"));
             } else {
-                threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(new AbstractRunnable() {
+                snapshotExecutor.execute(new AbstractRunnable() {
                     @Override
                     protected void doRun() throws Exception {
                         final Map<String, BlobMetadata> rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
@@ -1018,23 +1023,22 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             );
 
                             // writeIndexGen finishes on master-service thread so must fork here.
-                            threadPool.executor(ThreadPool.Names.SNAPSHOT)
-                                .execute(
-                                    ActionRunnable.wrap(
-                                        refs.acquireListener(),
-                                        l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
-                                            originalRepositoryData,
-                                            l0.delegateFailure(
-                                                (l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(
-                                                    originalRepositoryData,
-                                                    snapshotIds,
-                                                    deleteResults,
-                                                    l
-                                                )
+                            snapshotExecutor.execute(
+                                ActionRunnable.wrap(
+                                    refs.acquireListener(),
+                                    l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
+                                        originalRepositoryData,
+                                        l0.delegateFailure(
+                                            (l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(
+                                                originalRepositoryData,
+                                                snapshotIds,
+                                                deleteResults,
+                                                l
                                             )
                                         )
                                     )
-                                );
+                                )
+                            );
                         }
                     }, listener::onFailure)
                 );
@@ -1049,8 +1053,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             RepositoryData originalRepositoryData,
             ActionListener<Collection<ShardSnapshotMetaDeleteResult>> onAllShardsCompleted
         ) {
-
-            final Executor executor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
             final List<IndexId> indices = originalRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds);
 
             if (indices.isEmpty()) {
@@ -1080,7 +1082,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 );
                 final BlobContainer indexContainer = indexContainer(indexId);
                 for (String indexMetaGeneration : indexMetaGenerations) {
-                    executor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
+                    snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
                         try {
                             return INDEX_METADATA_FORMAT.read(metadata.name(), indexContainer, indexMetaGeneration, namedXContentRegistry)
                                 .getNumberOfShards();
@@ -1114,7 +1116,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     );
                     for (int i = 0; i < shardCount; i++) {
                         final int shardId = i;
-                        executor.execute(new AbstractRunnable() {
+                        snapshotExecutor.execute(new AbstractRunnable() {
                             @Override
                             protected void doRun() throws Exception {
                                 final BlobContainer shardContainer = shardContainer(indexId, shardId);
@@ -1298,7 +1300,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 listener.onResponse(null);
                 return;
             }
-            threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.wrap(listener, l -> {
+            snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
                 try {
                     deleteFromContainer(blobContainer(), filesToDelete);
                     l.onResponse(null);
