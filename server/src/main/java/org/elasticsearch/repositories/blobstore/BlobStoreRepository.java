@@ -1086,7 +1086,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
 
             for (IndexId indexId : indices) {
-                new IndexSnapshotsDeletion(indexId).run(deleteIndexMetadataListener);
+                new IndexSnapshotsDeletion(indexId).run(() -> deleteIndexMetadataListener.onResponse(null));
             }
         }
 
@@ -1113,19 +1113,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .collect(Collectors.toSet());
             }
 
-            void run(ActionListener<Void> deleteIndexMetadataListener) {
-                final ListenableFuture<Void> shardCountListener = new ListenableFuture<>();
-                readShardCounts(() -> shardCountListener.onResponse(null));
-
-                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((l, ignored) -> {
-                    try (var refs = new RefCountingRunnable(() -> l.onResponse(null))) {
-                        // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data
-                        // behind. Leftover data will be cleaned up in the next delete that touches this shard.
+            void run(Runnable onCompletion) {
+                readShardCounts(() -> {
+                    try (var refs = new RefCountingRunnable(onCompletion)) {
+                        // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data behind.
+                        // Leftover data will be cleaned up in the next delete that touches this shard.
                         for (int shardId = 0; shardId < shardCount; shardId++) {
                             snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, refs.acquire()));
                         }
                     }
-                }));
+                });
             }
 
             // -----------------------------------------------------------------------------------------------------------------------------
