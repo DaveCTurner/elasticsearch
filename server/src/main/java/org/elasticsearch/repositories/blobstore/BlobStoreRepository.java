@@ -1329,18 +1329,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * dangling as a consequence of this delete operation.
          */
         private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
-            final Iterator<String> filesToDelete = Stream.concat(
+            final Iterator<String> filesToDelete = Iterators.concat(
                 // shard-level dangling blobs
-                shardDeleteResults.stream().flatMap(shardResult -> {
-                    final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
-                    return shardResult.blobsToDelete.stream().map(blob -> shardPath + blob);
-                }),
+                Iterators.flatMap(shardDeleteResults.iterator(), r -> r.fullPathsToDelete(BlobStoreRepository.this)),
                 // dangling index metadata blobs
-                originalRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().stream().flatMap(entry -> {
-                    final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
-                    return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
-                })
-            ).iterator();
+                Iterators.flatMap(
+                    originalRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().iterator(),
+                    entry -> {
+                        final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
+                        return Iterators.map(entry.getValue().iterator(), id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
+                    }
+                )
+            );
 
             if (filesToDelete.hasNext()) {
                 snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
