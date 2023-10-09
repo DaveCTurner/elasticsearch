@@ -1324,19 +1324,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             cleanupStaleBlobs(snapshotIds, originalIndexContainers, originalRootBlobs, newRepositoryData, listener.map(ignored -> null));
         }
 
+        /**
+         * Delete the blobs previously identified as dangling in the shard-level containers, and {@link IndexMetadata} blobs that became
+         * dangling as a consequence of this delete operation.
+         */
         private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
-            final String basePath = basePath().buildAsString();
-            final int basePathLen = basePath.length();
             final Iterator<String> filesToDelete = Stream.concat(shardDeleteResults.stream().flatMap(shardResult -> {
                 final String shardPath = shardPath(shardResult.indexId, shardResult.shardId).buildAsString();
                 return shardResult.blobsToDelete.stream().map(blob -> shardPath + blob);
             }), originalRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().stream().flatMap(entry -> {
                 final String indexContainerPath = indexPath(entry.getKey()).buildAsString();
                 return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
-            })).map(absolutePath -> {
-                assert absolutePath.startsWith(basePath);
-                return absolutePath.substring(basePathLen);
-            }).iterator();
+            })).iterator();
 
             if (filesToDelete.hasNext() == false) {
                 listener.onResponse(null);
@@ -1344,7 +1343,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
             snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
                 try {
-                    deleteFromContainer(blobContainer(), filesToDelete);
+                    final var basePath = basePath().buildAsString();
+                    final var basePathLen = basePath.length();
+                    deleteFromContainer(blobContainer(), Iterators.map(filesToDelete, absolutePath -> {
+                        assert absolutePath.startsWith(basePath);
+                        return absolutePath.substring(basePathLen);
+                    }));
                     l.onResponse(null);
                 } catch (Exception e) {
                     logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
