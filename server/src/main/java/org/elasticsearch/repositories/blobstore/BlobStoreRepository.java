@@ -927,13 +927,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 snapshotExecutor.execute(new AbstractRunnable() {
                     @Override
                     protected void doRun() throws Exception {
-                        originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-                        originalRepositoryData = safeRepositoryData(originalRepositoryDataGeneration, originalRootBlobs);
-                        // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will
-                        // never delete an
-                        // index that was created by another master node after writing this RepositoryData blob.
-                        originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
-                        doDeleteShardSnapshots(listener);
+                        runOnSnapshotThread(listener);
                     }
 
                     @Override
@@ -966,6 +960,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
          */
+        private void runOnSnapshotThread(SnapshotDeleteListener listener) throws IOException {
+            assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.SNAPSHOT);
+
+            originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
+            originalRepositoryData = safeRepositoryData(originalRepositoryDataGeneration, originalRootBlobs);
+            // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will never delete an
+            // index that was created by another master node after writing this RepositoryData blob.
+            originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
+            doDeleteShardSnapshots(listener);
+        }
+
         private void doDeleteShardSnapshots(SnapshotDeleteListener listener) {
             if (useShardGenerations) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
