@@ -1176,17 +1176,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     allShardsListener.onResponse(deleteFromShardSnapshotMeta(newGen, blobStoreIndexShardSnapshots));
                 }
 
-                @Override
-                public void onFailure(Exception ex) {
-                    logger.warn(
-                        () -> format("%s failed to delete shard data for shard [%s][%s]", snapshotIds, indexId.getName(), shardId),
-                        ex
-                    );
-                    // Just passing null here to count down the listener instead of failing it, the stale data left behind
-                    // here will be retried in the next delete or repository cleanup
-                    allShardsListener.onResponse(null);
-                }
-
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
                     long indexGeneration,
                     BlobStoreIndexShardSnapshots snapshots
@@ -1258,6 +1247,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 || FsBlobContainer.isTempBlobName(blob)
                         )
                         .toList();
+                }
+
+                @Override
+                public void onFailure(Exception ex) {
+                    logger.warn(
+                        () -> format("%s failed to delete shard data for shard [%s][%s]", snapshotIds, indexId.getName(), shardId),
+                        ex
+                    );
+                    // Just passing null here to count down the listener instead of failing it, the stale data left behind
+                    // here will be retried in the next delete or repository cleanup
+                    allShardsListener.onResponse(null);
                 }
             }
         }
