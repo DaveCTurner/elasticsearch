@@ -893,6 +893,31 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         // ---------------------------------------------------------------------------------------------------------------------------------
+        // Information about the state of the repository captured at the start of the deletion process:
+
+        /**
+         * All blobs in the repository root at the start of the operation, obtained by listing the repository contents. Note that this may
+         * include some blobs which are no longer referenced by the current {@link RepositoryData}, but which have not yet been removed by
+         * the cleanup that follows an earlier deletion. This cleanup may or may not still be ongoing (it could have been running on a
+         * different node, which died before completing it) so we track all the blobs here and clean them up again at the end.
+         */
+        private Map<String, BlobMetadata> originalRootBlobs;
+
+        /**
+         * All index containers at the start of the operation, obtained by listing the repository contents. Note that this may include some
+         * containers which are no longer referenced by the current {@link RepositoryData}, but which have not yet been removed by
+         * the cleanup that follows an earlier deletion. This cleanup may or may not still be ongoing (it could have been running on a
+         * different node, which died before completing it) so we track all the blobs here and clean them up again at the end.
+         */
+        private Map<String, BlobContainer> originalIndexContainers;
+
+        /**
+         * The {@link RepositoryData} at the start of the operation, obtained after verifying that {@link #originalRootBlobs} contains no
+         * {@link RepositoryData} blob newer than the one identified by {@link #originalRepositoryDataGeneration}.
+         */
+        private RepositoryData originalRepositoryData;
+
+        // ---------------------------------------------------------------------------------------------------------------------------------
         // The overall flow of execution
 
         void run(SnapshotDeleteListener listener) {
@@ -902,13 +927,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 snapshotExecutor.execute(new AbstractRunnable() {
                     @Override
                     protected void doRun() throws Exception {
-                        final Map<String, BlobMetadata> rootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-                        final RepositoryData repositoryData = safeRepositoryData(originalRepositoryDataGeneration, rootBlobs);
-                        // Cache the indices that were found before writing out the new index-N blob so that a stuck master will never
-                        // delete an index that was created by another master node after writing this index-N blob.
-                        final Map<String, BlobContainer> foundIndices = blobStore().blobContainer(indicesPath())
-                            .children(OperationPurpose.SNAPSHOT);
-                        doDeleteShardSnapshots(foundIndices, rootBlobs, repositoryData, listener);
+                        originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
+                        originalRepositoryData = safeRepositoryData(originalRepositoryDataGeneration, originalRootBlobs);
+                        // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will
+                        // never delete an
+                        // index that was created by another master node after writing this RepositoryData blob.
+                        originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
+                        doDeleteShardSnapshots(originalIndexContainers, originalRootBlobs, originalRepositoryData, listener);
                     }
 
                     @Override
