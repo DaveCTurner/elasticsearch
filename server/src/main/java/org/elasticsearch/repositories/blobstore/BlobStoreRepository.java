@@ -968,10 +968,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             // Record the indices that were found before writing out the new RepositoryData blob so that a stuck master will never delete an
             // index that was created by another master node after writing this RepositoryData blob.
             originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
-            doDeleteShardSnapshots(listener);
-        }
-
-        private void doDeleteShardSnapshots(SnapshotDeleteListener listener) {
             if (useShardGenerations) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
