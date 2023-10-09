@@ -1033,7 +1033,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                 try (var refs = new RefCountingRunnable(listener::onDone)) {
                     cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
-                    cleanupUnlinkedShardLevelBlobs(shardDeleteResults, refs.acquireListener());
+                    cleanupUnlinkedShardLevelBlobs(refs.acquireListener());
                 }
             }, listener::onFailure));
         }
@@ -1058,7 +1058,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         ActionRunnable.wrap(
                             refs.acquireListener(),
                             l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
-                                l0.delegateFailure((l, ignored) -> cleanupUnlinkedShardLevelBlobs(shardDeleteResults, l))
+                                l0.delegateFailure((l, ignored) -> cleanupUnlinkedShardLevelBlobs(l))
                             )
                         )
                     );
@@ -1300,10 +1300,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             cleanupStaleBlobs(snapshotIds, originalIndexContainers, originalRootBlobs, newRepositoryData, listener.map(ignored -> null));
         }
 
-        private void cleanupUnlinkedShardLevelBlobs(
-            Collection<ShardSnapshotMetaDeleteResult> shardDeleteResults,
-            ActionListener<Void> listener
-        ) {
+        private void cleanupUnlinkedShardLevelBlobs(ActionListener<Void> listener) {
             final String basePath = basePath().buildAsString();
             final int basePathLen = basePath.length();
             final Iterator<String> filesToDelete = Stream.concat(shardDeleteResults.stream().flatMap(shardResult -> {
