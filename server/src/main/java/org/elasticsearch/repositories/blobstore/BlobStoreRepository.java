@@ -998,14 +998,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 for (ShardSnapshotMetaDeleteResult newGen : deleteResults) {
                     builder.put(newGen.indexId, newGen.shardId, newGen.newGeneration);
                 }
-                final RepositoryData newRepositoryData = originalRepositoryData.removeSnapshots(snapshotIds, builder.build());
-                writeIndexGen(
-                    newRepositoryData,
-                    originalRepositoryDataGeneration,
-                    repositoryFormatIndexVersion,
-                    Function.identity(),
-                    ActionListener.wrap(writeUpdatedRepoDataStep::onResponse, listener::onFailure)
-                );
+                updateRepositoryData(builder.build(), ActionListener.wrap(writeUpdatedRepoDataStep::onResponse, listener::onFailure));
             }, listener::onFailure));
             // Once we have updated the repository, run the clean-ups
             writeUpdatedRepoDataStep.addListener(ActionListener.wrap(newRepositoryData -> {
@@ -1025,31 +1018,25 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private void runWithLegacyNumericShardMetadataNaming(SnapshotDeleteListener listener) {
             // Write the new repository data first (with the removed snapshot), using no shard generations
-            writeIndexGen(
-                originalRepositoryData.removeSnapshots(snapshotIds, ShardGenerations.EMPTY),
-                originalRepositoryDataGeneration,
-                repositoryFormatIndexVersion,
-                Function.identity(),
-                ActionListener.wrap(newRepositoryData -> {
-                    try (var refs = new RefCountingRunnable(() -> {
-                        listener.onRepositoryDataWritten(newRepositoryData);
-                        listener.onDone();
-                    })) {
-                        // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
-                        cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
+            updateRepositoryData(ShardGenerations.EMPTY, ActionListener.wrap(newRepositoryData -> {
+                try (var refs = new RefCountingRunnable(() -> {
+                    listener.onRepositoryDataWritten(newRepositoryData);
+                    listener.onDone();
+                })) {
+                    // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
+                    cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
 
-                        // writeIndexGen finishes on master-service thread so must fork here.
-                        snapshotExecutor.execute(
-                            ActionRunnable.wrap(
-                                refs.acquireListener(),
-                                l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
-                                    l0.delegateFailure((l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(deleteResults, l))
-                                )
+                    // writeIndexGen finishes on master-service thread so must fork here.
+                    snapshotExecutor.execute(
+                        ActionRunnable.wrap(
+                            refs.acquireListener(),
+                            l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
+                                l0.delegateFailure((l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(deleteResults, l))
                             )
-                        );
-                    }
-                }, listener::onFailure)
-            );
+                        )
+                    );
+                }
+            }, listener::onFailure));
         }
 
         // ---------------------------------------------------------------------------------------------------------------------------------
@@ -1276,6 +1263,22 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 assert absolutePath.startsWith(basePath);
                 return absolutePath.substring(basePathLen);
             }).iterator();
+        }
+
+        // ---------------------------------------------------------------------------------------------------------------------------------
+        // Updating the RepositoryData
+
+        /**
+         * Compute the new {@link RepositoryData} and write it to the repository.
+         */
+        private void updateRepositoryData(ShardGenerations shardGenerations, ActionListener<RepositoryData> listener) {
+            writeIndexGen(
+                originalRepositoryData.removeSnapshots(snapshotIds, shardGenerations),
+                originalRepositoryDataGeneration,
+                repositoryFormatIndexVersion,
+                Function.identity(),
+                listener
+            );
         }
 
         // ---------------------------------------------------------------------------------------------------------------------------------
