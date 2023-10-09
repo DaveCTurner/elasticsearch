@@ -933,7 +933,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         // never delete an
                         // index that was created by another master node after writing this RepositoryData blob.
                         originalIndexContainers = blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT);
-                        doDeleteShardSnapshots(originalIndexContainers, originalRootBlobs, originalRepositoryData, listener);
+                        doDeleteShardSnapshots(listener);
                     }
 
                     @Override
@@ -965,20 +965,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         /**
          * After updating the {@link RepositoryData} each of the shards directories is individually first moved to the next shard generation
          * and then has all now unreferenced blobs in it deleted.
-         *
-         * @param originalIndexContainers          All index containers at the start of the operation, obtained by listing the repository
-         *                                         contents.
-         * @param originalRootBlobs                All blobs found at the root of the repository at the start of the operation, obtained by
-         *                                         listing the repository contents.
-         * @param originalRepositoryData           {@link RepositoryData} at the start of the operation.
-         * @param listener                         Listener to invoke once finished
          */
-        private void doDeleteShardSnapshots(
-            Map<String, BlobContainer> originalIndexContainers,
-            Map<String, BlobMetadata> originalRootBlobs,
-            RepositoryData originalRepositoryData,
-            SnapshotDeleteListener listener
-        ) {
+        private void doDeleteShardSnapshots(SnapshotDeleteListener listener) {
             if (useShardGenerations) {
                 // First write the new shard state metadata (with the removed snapshot) and compute deletion targets
                 final ListenableFuture<Collection<ShardSnapshotMetaDeleteResult>> writeShardMetaDataAndComputeDeletesStep =
