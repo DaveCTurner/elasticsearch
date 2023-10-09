@@ -1149,10 +1149,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     this.allShardsListener = allShardsListener;
                 }
 
+                private BlobContainer shardContainer;
+                private Set<String> originalShardBlobs;
+
                 @Override
                 protected void doRun() throws Exception {
-                    final BlobContainer shardContainer = shardContainer(indexId, shardId);
-                    final Set<String> originalShardBlobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
+                    shardContainer = shardContainer(indexId, shardId);
+                    originalShardBlobs = shardContainer.listBlobs(OperationPurpose.SNAPSHOT).keySet();
                     final BlobStoreIndexShardSnapshots blobStoreIndexShardSnapshots;
                     final long newGen;
                     if (useShardGenerations) {
@@ -1170,18 +1173,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         newGen = tuple.v2() + 1;
                         blobStoreIndexShardSnapshots = tuple.v1();
                     }
-                    allShardsListener.onResponse(
-                        deleteFromShardSnapshotMeta(
-                            survivingSnapshots,
-                            indexId,
-                            shardId,
-                            snapshotIds,
-                            shardContainer,
-                            originalShardBlobs,
-                            blobStoreIndexShardSnapshots,
-                            newGen
-                        )
-                    );
+                    allShardsListener.onResponse(deleteFromShardSnapshotMeta(newGen, blobStoreIndexShardSnapshots));
                 }
 
                 @Override
@@ -1195,21 +1187,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     allShardsListener.onResponse(null);
                 }
 
-                /**
-                 * Delete snapshot from shard level metadata.
-                 *
-                 * @param indexGeneration generation to write the new shard level level metadata to. If negative a uuid id shard generation
-                 *                        should be used
-                 */
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
-                    Set<SnapshotId> survivingSnapshots,
-                    IndexId indexId,
-                    int shardId,
-                    Collection<SnapshotId> snapshotIds,
-                    BlobContainer shardContainer,
-                    Set<String> originalShardBlobs,
-                    BlobStoreIndexShardSnapshots snapshots,
-                    long indexGeneration
+                    long indexGeneration,
+                    BlobStoreIndexShardSnapshots snapshots
                 ) {
                     // Build a list of snapshots that should be preserved
                     final BlobStoreIndexShardSnapshots updatedSnapshots = snapshots.withRetainedSnapshots(survivingSnapshots);
