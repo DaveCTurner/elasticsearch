@@ -1088,20 +1088,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
 
             void run(ActionListener<Collection<ShardSnapshotMetaDeleteResult>> deleteIndexMetadataListener) {
-                final ListenableFuture<Collection<Integer>> shardCountListener = new ListenableFuture<>();
+                final ListenableFuture<Void> shardCountListener = new ListenableFuture<>();
+                readShardCounts(() -> shardCountListener.onResponse(null));
 
-                final ActionListener<Integer> allShardCountsListener = new GroupedActionListener<>(
-                    indexMetaGenerations.size(),
-                    shardCountListener
-                );
-                readShardCounts(allShardCountsListener);
-
-                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((delegate, counts) -> {
-                    final int shardCount = counts.stream().mapToInt(i -> i).max().orElse(0);
-                    if (shardCount == 0) {
-                        delegate.onResponse(null);
-                        return;
-                    }
+                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((delegate, ignored) -> {
                     // Listener for collecting the results of removing the snapshot from each shard's metadata in the current index
                     final ActionListener<ShardSnapshotMetaDeleteResult> allShardsListener = new GroupedActionListener<>(
                         shardCount,
@@ -1116,25 +1106,33 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             // -----------------------------------------------------------------------------------------------------------------------------
             // Determining the shard count
 
-            private void readShardCounts(ActionListener<Integer> allShardCountsListener) {
-                for (String indexMetaGeneration : indexMetaGenerations) {
-                    snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
-                        try {
-                            return INDEX_METADATA_FORMAT.read(metadata.name(), indexContainer, indexMetaGeneration, namedXContentRegistry)
-                                .getNumberOfShards();
-                        } catch (Exception ex) {
-                            logger.warn(
-                                () -> format("[%s] [%s] failed to read metadata for index", indexMetaGeneration, indexId.getName()),
-                                ex
-                            );
-                            // Just invoke the listener without any shard generations to count it down, this index will be cleaned up
-                            // by the stale data cleanup in the end.
-                            // TODO: Getting here means repository corruption. We should find a way of dealing with this instead of just
-                            // ignoring it and letting the cleanup deal with it.
-                            return null;
-                        }
-                    }));
+            private int shardCount;
+
+            private void readShardCounts(Runnable onCompletion) {
+                try (var refs = new RefCountingRunnable(onCompletion)) {
+                    for (final var indexMetaGeneration : indexMetaGenerations) {
+                        snapshotExecutor.execute(ActionRunnable.run(ActionListener.releasing(refs.acquire()), () -> {
+                            try {
+                                final var newShardCount = readIndexMetadata(indexMetaGeneration).getNumberOfShards();
+                                synchronized (IndexSnapshotsDeletion.this) {
+                                    shardCount = Math.max(shardCount, newShardCount);
+                                }
+                            } catch (Exception ex) {
+                                // Log a failure to read the index metadata but then carry on - it's possible this means we won't update all
+                                // the shards in this index, leaving them as-is in the RepositoryData, so their BlobStoreIndexShardSnapshots
+                                // blob will refer to snapshots that no longer exist in the root.
+                                // TODO: Getting here means repository corruption. We should find a way of dealing with this instead of just
+                                // ignoring it and letting the cleanup deal with it.
+                                logger.warn(() -> format("""
+                                    [%s] [%s] failed to read metadata for index""", indexMetaGeneration, indexId.getName()), ex);
+                            }
+                        }));
+                    }
                 }
+            }
+
+            private IndexMetadata readIndexMetadata(String indexMetaGeneration) throws IOException {
+                return INDEX_METADATA_FORMAT.read(metadata.name(), indexContainer, indexMetaGeneration, namedXContentRegistry);
             }
 
             // -----------------------------------------------------------------------------------------------------------------------------
