@@ -1094,6 +1094,29 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     indexMetaGenerations.size(),
                     shardCountListener
                 );
+                readShardCounts(allShardCountsListener);
+
+                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((delegate, counts) -> {
+                    final int shardCount = counts.stream().mapToInt(i -> i).max().orElse(0);
+                    if (shardCount == 0) {
+                        delegate.onResponse(null);
+                        return;
+                    }
+                    // Listener for collecting the results of removing the snapshot from each shard's metadata in the current index
+                    final ActionListener<ShardSnapshotMetaDeleteResult> allShardsListener = new GroupedActionListener<>(
+                        shardCount,
+                        delegate
+                    );
+                    for (int shardId = 0; shardId < shardCount; shardId++) {
+                        snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, allShardsListener));
+                    }
+                }));
+            }
+
+            // -----------------------------------------------------------------------------------------------------------------------------
+            // Determining the shard count
+
+            private void readShardCounts(ActionListener<Integer> allShardCountsListener) {
                 for (String indexMetaGeneration : indexMetaGenerations) {
                     snapshotExecutor.execute(ActionRunnable.supply(allShardCountsListener, () -> {
                         try {
@@ -1112,25 +1135,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         }
                     }));
                 }
-
-                // -------------------------------------------------------------------------------------------------------------------------
-                // Determining the shard count
-
-                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((delegate, counts) -> {
-                    final int shardCount = counts.stream().mapToInt(i -> i).max().orElse(0);
-                    if (shardCount == 0) {
-                        delegate.onResponse(null);
-                        return;
-                    }
-                    // Listener for collecting the results of removing the snapshot from each shard's metadata in the current index
-                    final ActionListener<ShardSnapshotMetaDeleteResult> allShardsListener = new GroupedActionListener<>(
-                        shardCount,
-                        delegate
-                    );
-                    for (int shardId = 0; shardId < shardCount; shardId++) {
-                        snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, allShardsListener));
-                    }
-                }));
             }
 
             // -----------------------------------------------------------------------------------------------------------------------------
