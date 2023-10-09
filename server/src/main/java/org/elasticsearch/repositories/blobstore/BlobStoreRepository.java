@@ -1104,16 +1104,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     .collect(Collectors.toSet());
             }
 
+            /**
+             * The overall execution: work out the shard count by reading all the index metadata, then update all the shards.
+             */
             void run(Runnable onCompletion) {
-                readShardCounts(() -> {
-                    try (var refs = new RefCountingRunnable(onCompletion)) {
-                        // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data behind.
-                        // Leftover data will be cleaned up in the next delete that touches this shard.
-                        for (int shardId = 0; shardId < shardCount; shardId++) {
-                            snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, refs.acquire()));
-                        }
-                    }
-                });
+                readShardCounts(() -> writeUpdatedShardMetadataAndComputeDeletesForIndex(onCompletion));
             }
 
             // -----------------------------------------------------------------------------------------------------------------------------
@@ -1150,6 +1145,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
             // -----------------------------------------------------------------------------------------------------------------------------
             // Updating each shard
+
+            private void writeUpdatedShardMetadataAndComputeDeletesForIndex(Runnable onCompletion) {
+                try (var refs = new RefCountingRunnable(onCompletion)) {
+                    // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data behind.
+                    // Leftover data will be cleaned up in the next delete that touches this shard.
+                    for (int shardId = 0; shardId < shardCount; shardId++) {
+                        snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, refs.acquire()));
+                    }
+                }
+            }
 
             private class ShardSnapshotsDeletion extends AbstractRunnable {
                 private final int shardId;
