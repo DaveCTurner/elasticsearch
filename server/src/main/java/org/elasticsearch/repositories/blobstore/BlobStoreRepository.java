@@ -1333,6 +1333,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // shard-level dangling blobs
                 Iterators.flatMap(shardDeleteResults.iterator(), r -> r.fullPathsToDelete(BlobStoreRepository.this)),
                 // dangling index metadata blobs
+                // NB 1. Computes the dangling IndexMetadata purely from the RepositoryData; TODO list & clean up previous failures too
+                // NB 2. Re-runs RepositoryData#indicesToUpdateAfterRemovingSnapshot; TODO avoid that by doing this computation earlier
                 Iterators.flatMap(
                     originalRepositoryData.indexMetaDataToRemoveAfterRemovingSnapshots(snapshotIds).entrySet().iterator(),
                     entry -> {
@@ -1342,6 +1344,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 )
             );
 
+            // NB 3. We add the base path onto every blob name only to strip it off here so the container can add it back on.
+            // NB 4. Deletes all the shard-level blobs on a single thread; TODO parallelise this
             if (filesToDelete.hasNext()) {
                 snapshotExecutor.execute(ActionRunnable.run(listener, () -> {
                     try {
