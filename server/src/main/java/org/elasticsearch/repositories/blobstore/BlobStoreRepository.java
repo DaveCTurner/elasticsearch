@@ -1337,24 +1337,24 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 return entry.getValue().stream().map(id -> indexContainerPath + INDEX_METADATA_FORMAT.blobName(id));
             })).iterator();
 
-            if (filesToDelete.hasNext() == false) {
+            if (filesToDelete.hasNext()) {
+                snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
+                    try {
+                        final var basePath = basePath().buildAsString();
+                        final var basePathLen = basePath.length();
+                        deleteFromContainer(blobContainer(), Iterators.map(filesToDelete, absolutePath -> {
+                            assert absolutePath.startsWith(basePath);
+                            return absolutePath.substring(basePathLen);
+                        }));
+                        l.onResponse(null);
+                    } catch (Exception e) {
+                        logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
+                        throw e;
+                    }
+                }));
+            } else {
                 listener.onResponse(null);
-                return;
             }
-            snapshotExecutor.execute(ActionRunnable.wrap(listener, l -> {
-                try {
-                    final var basePath = basePath().buildAsString();
-                    final var basePathLen = basePath.length();
-                    deleteFromContainer(blobContainer(), Iterators.map(filesToDelete, absolutePath -> {
-                        assert absolutePath.startsWith(basePath);
-                        return absolutePath.substring(basePathLen);
-                    }));
-                    l.onResponse(null);
-                } catch (Exception e) {
-                    logger.warn(() -> format("%s Failed to delete some blobs during snapshot delete", snapshotIds), e);
-                    throw e;
-                }
-            }));
         }
     }
 
