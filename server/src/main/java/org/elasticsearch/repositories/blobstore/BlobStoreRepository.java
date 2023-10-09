@@ -1211,7 +1211,19 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 indexId,
                                 shardId,
                                 writtenGeneration,
-                                unusedBlobs(originalShardBlobs, survivingSnapshotUUIDs, updatedSnapshots)
+                                originalShardBlobs.stream()
+                                    .filter(
+                                        blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)
+                                            || (blob.startsWith(SNAPSHOT_PREFIX)
+                                                && blob.endsWith(".dat")
+                                                && survivingSnapshotUUIDs.contains(
+                                                    blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
+                                                ) == false)
+                                            || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
+                                                && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
+                                            || FsBlobContainer.isTempBlobName(blob)
+                                    )
+                                    .toList()
                             );
                         }
                     } catch (IOException e) {
@@ -1225,28 +1237,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             e
                         );
                     }
-                }
-
-                // Unused blobs are all previous index-, data- and meta-blobs and that are not referenced by the new index- as well as all
-                // temporary blobs
-                private static List<String> unusedBlobs(
-                    Set<String> originalShardBlobs,
-                    Set<String> survivingSnapshotUUIDs,
-                    BlobStoreIndexShardSnapshots updatedSnapshots
-                ) {
-                    return originalShardBlobs.stream()
-                        .filter(
-                            blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)
-                                || (blob.startsWith(SNAPSHOT_PREFIX)
-                                    && blob.endsWith(".dat")
-                                    && survivingSnapshotUUIDs.contains(
-                                        blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
-                                    ) == false)
-                                || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
-                                    && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
-                                || FsBlobContainer.isTempBlobName(blob)
-                        )
-                        .toList();
                 }
 
                 @Override
