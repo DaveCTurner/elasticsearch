@@ -1013,12 +1013,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                 try (var refs = new RefCountingRunnable(listener::onDone)) {
                     cleanupUnlinkedRootAndIndicesBlobs(newRepositoryData, refs.acquireListener());
-                    cleanupUnlinkedShardLevelBlobs(
-                        originalRepositoryData,
-                        snapshotIds,
-                        writeShardMetaDataAndComputeDeletesStep.result(),
-                        refs.acquireListener()
-                    );
+                    cleanupUnlinkedShardLevelBlobs(writeShardMetaDataAndComputeDeletesStep.result(), refs.acquireListener());
                 }
             }, listener::onFailure));
         }
@@ -1048,14 +1043,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             ActionRunnable.wrap(
                                 refs.acquireListener(),
                                 l0 -> writeUpdatedShardMetaDataAndComputeDeletes(
-                                    l0.delegateFailure(
-                                        (l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(
-                                            originalRepositoryData,
-                                            snapshotIds,
-                                            deleteResults,
-                                            l
-                                        )
-                                    )
+                                    l0.delegateFailure((l, deleteResults) -> cleanupUnlinkedShardLevelBlobs(deleteResults, l))
                                 )
                             )
                         );
@@ -1302,8 +1290,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
 
         private void cleanupUnlinkedShardLevelBlobs(
-            RepositoryData originalRepositoryData,
-            Collection<SnapshotId> snapshotIds,
             Collection<ShardSnapshotMetaDeleteResult> shardDeleteResults,
             ActionListener<Void> listener
         ) {
