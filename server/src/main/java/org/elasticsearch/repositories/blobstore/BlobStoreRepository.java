@@ -78,6 +78,7 @@ import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.IndexVersion;
@@ -1116,11 +1117,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 final ListenableFuture<Void> shardCountListener = new ListenableFuture<>();
                 readShardCounts(() -> shardCountListener.onResponse(null));
 
-                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((delegate, ignored) -> {
-                    // Listener for collecting the results of removing the snapshot from each shard's metadata in the current index
-                    final ActionListener<Void> allShardsListener = new GroupedActionListener<>(shardCount, delegate.map(ignored2 -> null));
-                    for (int shardId = 0; shardId < shardCount; shardId++) {
-                        snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, allShardsListener));
+                shardCountListener.addListener(deleteIndexMetadataListener.delegateFailureAndWrap((l, ignored) -> {
+                    try (var refs = new RefCountingRunnable(() -> l.onResponse(null))) {
+                        // Shard-level failures are logged but do not fail the whole deletion and will instead just leave stale data
+                        // behind. Leftover data will be cleaned up in the next delete that touches this shard.
+                        for (int shardId = 0; shardId < shardCount; shardId++) {
+                            snapshotExecutor.execute(new ShardSnapshotsDeletion(shardId, refs.acquire()));
+                        }
                     }
                 }));
             }
@@ -1162,11 +1165,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
             private class ShardSnapshotsDeletion extends AbstractRunnable {
                 private final int shardId;
-                private final ActionListener<Void> allShardsListener;
+                private final Releasable shardRef;
 
-                ShardSnapshotsDeletion(int shardId, ActionListener<Void> allShardsListener) {
+                ShardSnapshotsDeletion(int shardId, Releasable shardRef) {
                     this.shardId = shardId;
-                    this.allShardsListener = allShardsListener;
+                    this.shardRef = shardRef;
                 }
 
                 private BlobContainer shardContainer;
@@ -1196,7 +1199,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     addShardDeleteResult(
                         deleteFromShardSnapshotMeta(newGen, blobStoreIndexShardSnapshots.withRetainedSnapshots(survivingSnapshots))
                     );
-                    allShardsListener.onResponse(null);
                 }
 
                 private ShardSnapshotMetaDeleteResult deleteFromShardSnapshotMeta(
@@ -1266,9 +1268,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         () -> format("%s failed to delete shard data for shard [%s][%s]", snapshotIds, indexId.getName(), shardId),
                         ex
                     );
-                    // Just passing null here to count down the listener instead of failing it, the stale data left behind
-                    // here will be retried in the next delete or repository cleanup
-                    allShardsListener.onResponse(null);
+                }
+
+                @Override
+                public void onAfter() {
+                    Releasables.closeExpectNoException(shardRef);
                 }
             }
         }
