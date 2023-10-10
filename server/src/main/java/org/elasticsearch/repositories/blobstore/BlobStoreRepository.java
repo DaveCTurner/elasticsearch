@@ -444,7 +444,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     @Override
     protected void doStart() {
         uncleanStart = metadata.pendingGeneration() > RepositoryData.EMPTY_REPO_GEN
-            && metadata.generation() != metadata.pendingGeneration();
+                       && metadata.generation() != metadata.pendingGeneration();
         ByteSizeValue chunkSize = chunkSize();
         if (chunkSize != null && chunkSize.getBytes() <= 0) {
             throw new IllegalArgumentException("the chunk size cannot be negative: [" + chunkSize + "]");
@@ -550,12 +550,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 throw new RepositoryException(
                     metadata.name(),
                     "Can't create clone of ["
-                        + shardId
-                        + "] for snapshot ["
-                        + target
-                        + "]. The source snapshot ["
-                        + source
-                        + "] was not found in the shard metadata."
+                    + shardId
+                    + "] for snapshot ["
+                    + target
+                    + "]. The source snapshot ["
+                    + source
+                    + "] was not found in the shard metadata."
                 );
             }
             if (existingTargetFiles != null) {
@@ -569,10 +569,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 throw new RepositoryException(
                     metadata.name(),
                     "Can't create clone of ["
-                        + shardId
-                        + "] for snapshot ["
-                        + target
-                        + "]. A snapshot by that name already exists for this shard."
+                    + shardId
+                    + "] for snapshot ["
+                    + target
+                    + "]. A snapshot by that name already exists for this shard."
                 );
             }
             final BlobStoreIndexShardSnapshot sourceMeta = loadShardSnapshot(shardContainer, source);
@@ -652,8 +652,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             final long previousBest = latestKnownRepoGen.getAndSet(metadata.generation());
             if (previousBest != metadata.generation()) {
                 assert wasBestEffortConsistency
-                    || metadata.generation() == RepositoryData.CORRUPTED_REPO_GEN
-                    || previousBest < metadata.generation()
+                       || metadata.generation() == RepositoryData.CORRUPTED_REPO_GEN
+                       || previousBest < metadata.generation()
                     : "Illegal move from repository generation [" + previousBest + "] to generation [" + metadata.generation() + "]";
                 logger.debug("Updated repository generation from [{}] to [{}]", previousBest, metadata.generation());
             }
@@ -807,21 +807,21 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             // snapshot delete run anyway.
             logger.debug(
                 "Determined repository's generation from its contents to ["
-                    + generation
-                    + "] but "
-                    + "current generation is at least ["
-                    + genToLoad
-                    + "]"
+                + generation
+                + "] but "
+                + "current generation is at least ["
+                + genToLoad
+                + "]"
             );
         }
         if (genToLoad != repositoryStateId) {
             throw new RepositoryException(
                 metadata.name(),
                 "concurrent modification of the index-N file, expected current generation ["
-                    + repositoryStateId
-                    + "], actual current generation ["
-                    + genToLoad
-                    + "]"
+                + repositoryStateId
+                + "], actual current generation ["
+                + genToLoad
+                + "]"
             );
         }
         if (cached != null && cached.getGenId() == genToLoad) {
@@ -1265,14 +1265,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 originalShardBlobs.stream()
                                     .filter(
                                         blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)
-                                            || (blob.startsWith(SNAPSHOT_PREFIX)
-                                                && blob.endsWith(".dat")
-                                                && survivingSnapshotUUIDs.contains(
-                                                    blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
-                                                ) == false)
-                                            || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
-                                                && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
-                                            || FsBlobContainer.isTempBlobName(blob)
+                                                || (blob.startsWith(SNAPSHOT_PREFIX)
+                                                    && blob.endsWith(".dat")
+                                                    && survivingSnapshotUUIDs.contains(
+                                            blob.substring(SNAPSHOT_PREFIX.length(), blob.length() - ".dat".length())
+                                        ) == false)
+                                                || (blob.startsWith(UPLOADED_DATA_BLOB_PREFIX)
+                                                    && updatedSnapshots.findNameFile(canonicalName(blob)) == null)
+                                                || FsBlobContainer.isTempBlobName(blob)
                                     )
                                     .toList()
                             );
@@ -1281,10 +1281,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         throw new RepositoryException(
                             metadata.name(),
                             "Failed to finalize snapshot deletion "
-                                + snapshotIds
-                                + " with shard index ["
-                                + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(writtenGeneration.toBlobNamePart())
-                                + "]",
+                            + snapshotIds
+                            + " with shard index ["
+                            + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(writtenGeneration.toBlobNamePart())
+                            + "]",
                             e
                         );
                     }
@@ -1600,10 +1600,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     throw new RepositoryException(
                         metadata.name(),
                         "Cannot add another snapshot to this repository as it already contains ["
-                            + existingSnapshotCount
-                            + "] snapshots and is configured to hold up to ["
-                            + maxSnapshotCount
-                            + "] snapshots only."
+                        + existingSnapshotCount
+                        + "] snapshots and is configured to hold up to ["
+                        + maxSnapshotCount
+                        + "] snapshots only."
                     );
                 }
 
@@ -1747,7 +1747,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             for (Map.Entry<RepositoryShardId, Set<ShardGeneration>> obsoleteEntry : finalizeSnapshotContext.obsoleteShardGenerations()
                 .entrySet()) {
                 final String containerPath = shardPath(obsoleteEntry.getKey().index(), obsoleteEntry.getKey().shardId()).buildAsString()
-                    .substring(prefixPathLen) + INDEX_FILE_PREFIX;
+                                                 .substring(prefixPathLen) + INDEX_FILE_PREFIX;
                 for (ShardGeneration shardGeneration : obsoleteEntry.getValue()) {
                     toDelete.add(containerPath + shardGeneration);
                 }
@@ -1924,7 +1924,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 if (maxConfiguredBytesPerSec.getBytes() > effectiveRecoverySpeed.getBytes()) {
                     logger.warn(
                         "repository [{}] has a rate limit [{}={}] per second which is above the effective recovery rate limit "
-                            + "[{}={}] per second, thus the repository rate limit will be superseded by the recovery rate limit",
+                        + "[{}={}] per second, thus the repository rate limit will be superseded by the recovery rate limit",
                         metadata.name(),
                         settingKey,
                         maxConfiguredBytesPerSec,
@@ -2267,10 +2267,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     lastFailedGeneration = genToLoad;
                     logger.warn(
                         "Failed to load repository data generation ["
-                            + genToLoad
-                            + "] because a concurrent operation moved the current generation to ["
-                            + latestKnownRepoGen.get()
-                            + "]",
+                        + genToLoad
+                        + "] because a concurrent operation moved the current generation to ["
+                        + latestKnownRepoGen.get()
+                        + "]",
                         e
                     );
                     continue;
@@ -2319,10 +2319,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             toCache = repositoryData.withoutShardGenerations();
             assert repositoryData.indexMetaDataGenerations().equals(IndexMetaDataGenerations.EMPTY)
                 : "repository data should not contain index generations at version ["
-                    + version
-                    + "] but saw ["
-                    + repositoryData.indexMetaDataGenerations()
-                    + "]";
+                  + version
+                  + "] but saw ["
+                  + repositoryData.indexMetaDataGenerations()
+                  + "]";
         }
         assert toCache.getGenId() >= 0 : "No need to cache abstract generations but attempted to cache [" + toCache.getGenId() + "]";
         latestKnownRepositoryData.updateAndGet(known -> {
@@ -2346,10 +2346,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         return previousWriterInfo == null
             ? ""
             : " The last cluster to write to this repository was ["
-                + previousWriterInfo.v2()
-                + "] at generation ["
-                + previousWriterInfo.v1()
-                + "].";
+              + previousWriterInfo.v2()
+              + "] at generation ["
+              + previousWriterInfo.v1()
+              + "].";
     }
 
     /**
@@ -2376,10 +2376,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     if (repoState.generation() != corruptedGeneration) {
                         throw new IllegalStateException(
                             "Tried to mark repo generation ["
-                                + corruptedGeneration
-                                + "] as corrupted but its state concurrently changed to ["
-                                + repoState
-                                + "]"
+                            + corruptedGeneration
+                            + "] as corrupted but its state concurrently changed to ["
+                            + repoState
+                            + "]"
                         );
                     }
                     return ClusterState.builder(currentState)
@@ -2507,10 +2507,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 new RepositoryException(
                     metadata.name(),
                     "concurrent modification of the index-N file, expected current generation ["
-                        + expectedGen
-                        + "], actual current generation ["
-                        + currentGen
-                        + "]"
+                    + expectedGen
+                    + "], actual current generation ["
+                    + currentGen
+                    + "]"
                 )
             );
             return;
@@ -2532,7 +2532,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 if (uninitializedMeta == false && meta.pendingGeneration() != genInState) {
                     logger.info(
                         "Trying to write new repository data over unfinished write, repo [{}] is at "
-                            + "safe generation [{}] and pending generation [{}]",
+                        + "safe generation [{}] and pending generation [{}]",
                         meta.name(),
                         genInState,
                         meta.pendingGeneration()
@@ -2553,10 +2553,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 newGen = uninitializedMeta ? Math.max(expectedGen + 1, nextPendingGen) : nextPendingGen;
                 assert newGen > latestKnownRepoGen.get()
                     : "Attempted new generation ["
-                        + newGen
-                        + "] must be larger than latest known generation ["
-                        + latestKnownRepoGen.get()
-                        + "]";
+                      + newGen
+                      + "] must be larger than latest known generation ["
+                      + latestKnownRepoGen.get()
+                      + "]";
                 return ClusterState.builder(currentState)
                     .metadata(
                         Metadata.builder(currentState.getMetadata())
@@ -2635,10 +2635,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             if (latestKnownRepoGen.get() >= newGen) {
                 throw new IllegalArgumentException(
                     "Tried writing generation ["
-                        + newGen
-                        + "] but repository is at least at generation ["
-                        + latestKnownRepoGen.get()
-                        + "] already"
+                    + newGen
+                    + "] but repository is at least at generation ["
+                    + latestKnownRepoGen.get()
+                    + "] already"
                 );
             }
             // write the index file
@@ -2668,10 +2668,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     if (meta.pendingGeneration() != newGen) {
                         throw new IllegalStateException(
                             "Tried to update from unexpected pending repo generation ["
-                                + meta.pendingGeneration()
-                                + "] after write to generation ["
-                                + newGen
-                                + "]"
+                            + meta.pendingGeneration()
+                            + "] after write to generation ["
+                            + newGen
+                            + "]"
                         );
                     }
                     final RepositoriesMetadata withGenerations = RepositoriesMetadata.get(currentState)
@@ -2732,8 +2732,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 logger.warn(
                     () -> format(
                         "Failed to write index.latest blob. If you do not intend to use this "
-                            + "repository as the basis for a URL repository you may turn off attempting to write the index.latest blob by "
-                            + "setting repository setting [%s] to [false]",
+                        + "repository as the basis for a URL repository you may turn off attempting to write the index.latest blob by "
+                        + "setting repository setting [%s] to [false]",
                         SUPPORT_URL_REPO.getKey()
                     ),
                     e
@@ -2765,9 +2765,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             final Exception exception = new RepositoryException(
                 metadata.name(),
                 "concurrent modification of the index-N file, expected current generation ["
-                    + safeGeneration
-                    + "] but it was not found in the repository."
-                    + previousWriterMessage(previousWriterInfo)
+                + safeGeneration
+                + "] but it was not found in the repository."
+                + previousWriterMessage(previousWriterInfo)
             );
             if (readRepoDataEx != null) {
                 exception.addSuppressed(readRepoDataEx);
@@ -2890,9 +2890,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             throw new RepositoryException(
                 metadata.name(),
                 "exception reading blob ["
-                    + INDEX_LATEST_BLOB
-                    + "]: expected 8 bytes but blob was "
-                    + (content.length() < Long.BYTES ? content.length() + " bytes" : "longer")
+                + INDEX_LATEST_BLOB
+                + "]: expected 8 bytes but blob was "
+                + (content.length() < Long.BYTES ? content.length() + " bytes" : "longer")
             );
         }
         return Numbers.bytesToLong(content.toBytesRef());
@@ -3101,10 +3101,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     throw new IndexShardSnapshotFailedException(
                         shardId,
                         "Failed to write shard level snapshot metadata for ["
-                            + snapshotId
-                            + "] to ["
-                            + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(indexGeneration.toBlobNamePart())
-                            + "]",
+                        + snapshotId
+                        + "] to ["
+                        + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(indexGeneration.toBlobNamePart())
+                        + "]",
                         e
                     );
                 }
@@ -3118,13 +3118,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 // Delete all previous index-N blobs
                 final List<String> blobsToDelete = blobs.stream().filter(blob -> blob.startsWith(SNAPSHOT_INDEX_PREFIX)).toList();
                 assert blobsToDelete.stream()
-                    .mapToLong(b -> Long.parseLong(b.replaceFirst(SNAPSHOT_INDEX_PREFIX, "")))
-                    .max()
-                    .orElse(-1L) < Long.parseLong(indexGeneration.toString())
+                           .mapToLong(b -> Long.parseLong(b.replaceFirst(SNAPSHOT_INDEX_PREFIX, "")))
+                           .max()
+                           .orElse(-1L) < Long.parseLong(indexGeneration.toString())
                     : "Tried to delete an index-N blob newer than the current generation ["
-                        + indexGeneration
-                        + "] when deleting index-N blobs "
-                        + blobsToDelete;
+                      + indexGeneration
+                      + "] when deleting index-N blobs "
+                      + blobsToDelete;
                 final var finalFilesInShardMetadataCount = filesInShardMetadataCount;
                 final var finalFilesInShardMetadataSize = filesInShardMetadataSize;
 
@@ -3139,10 +3139,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         throw new IndexShardSnapshotFailedException(
                             shardId,
                             "Failed to finalize snapshot creation ["
-                                + snapshotId
-                                + "] with shard index ["
-                                + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(indexGeneration.toBlobNamePart())
-                                + "]",
+                            + snapshotId
+                            + "] with shard index ["
+                            + INDEX_SHARD_SNAPSHOTS_FORMAT.blobName(indexGeneration.toBlobNamePart())
+                            + "]",
                             e
                         );
                     }
@@ -3523,14 +3523,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 throw new RepositoryVerificationException(
                     metadata.name(),
                     "a file written by master to the store ["
-                        + blobStore()
-                        + "] cannot be accessed on the node ["
-                        + localNode
-                        + "]. "
-                        + "This might indicate that the store ["
-                        + blobStore()
-                        + "] is not shared between this node and the master node or "
-                        + "that permissions on the store don't allow reading files written by the master node",
+                    + blobStore()
+                    + "] cannot be accessed on the node ["
+                    + localNode
+                    + "]. "
+                    + "This might indicate that the store ["
+                    + blobStore()
+                    + "] is not shared between this node and the master node or "
+                    + "that permissions on the store don't allow reading files written by the master node",
                     e
                 );
             } catch (Exception e) {
@@ -3646,10 +3646,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             return new Tuple<>(shardSnapshots, latest);
         } else if (blobs.stream()
             .anyMatch(b -> b.startsWith(SNAPSHOT_PREFIX) || b.startsWith(INDEX_FILE_PREFIX) || b.startsWith(UPLOADED_DATA_BLOB_PREFIX))) {
-                logger.warn(
-                    "Could not find a readable index-N file in a non-empty shard snapshot directory [" + shardContainer.path() + "]"
-                );
-            }
+            logger.warn(
+                "Could not find a readable index-N file in a non-empty shard snapshot directory [" + shardContainer.path() + "]"
+            );
+        }
         return new Tuple<>(BlobStoreIndexShardSnapshots.EMPTY, latest);
     }
 
