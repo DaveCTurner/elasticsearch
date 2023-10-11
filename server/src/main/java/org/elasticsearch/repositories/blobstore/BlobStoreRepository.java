@@ -981,6 +981,20 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          */
         private final Executor snapshotExecutor = threadPool.executor(ThreadPool.Names.SNAPSHOT);
 
+        /**
+         * Accumulates the number of blobs deleted as the process runs.
+         */
+        // NB this only includes blobs targetted by cleanup today (root blobs and entirely-dangling indices)
+        // TODO track shard-level blobs here too
+        private final AtomicLong blobsDeleted = new AtomicLong();
+
+        /**
+         * Accumulates the total size of deleted blobs as the process runs.
+         */
+        // NB this only includes blobs targetted by cleanup today (root blobs and entirely-dangling indices)
+        // TODO track shard-level blobs here too
+        private final AtomicLong bytesDeleted = new AtomicLong();
+
         SnapshotsDeletion(
             Collection<SnapshotId> snapshotIds,
             long originalRepositoryDataGeneration,
@@ -1360,8 +1374,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
          * @param listener                listener to invoke with the combined {@link DeleteResult} of all blobs removed in this operation
          */
         private void cleanupStaleBlobs(RepositoryData newRepositoryData, ActionListener<DeleteResult> listener) {
-            final var blobsDeleted = new AtomicLong();
-            final var bytesDeleted = new AtomicLong();
             try (
                 var listeners = new RefCountingListener(listener.map(ignored -> DeleteResult.of(blobsDeleted.get(), bytesDeleted.get())))
             ) {
