@@ -101,7 +101,6 @@ import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.IndexMetaDataGenerations;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
-import org.elasticsearch.repositories.RepositoryCleanupResult;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryData.SnapshotDetails;
 import org.elasticsearch.repositories.RepositoryException;
@@ -822,7 +821,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
      *                                         must remain compatible
      * @param listener                         Listener to complete when done
      */
-    public void cleanup(long repositoryDataGeneration, IndexVersion minimumNodeVersion, ActionListener<RepositoryCleanupResult> listener) {
+    public void cleanup(long repositoryDataGeneration, IndexVersion minimumNodeVersion, ActionListener<DeleteResult> listener) {
         createSnapshotsDeletion(
             List.of(),
             repositoryDataGeneration,
@@ -1086,7 +1085,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             }
         }
 
-        void runCleanup(ActionListener<RepositoryCleanupResult> listener) {
+        void runCleanup(ActionListener<DeleteResult> listener) {
             final Set<String> survivingIndexIds = originalRepositoryData.getIndices()
                 .values()
                 .stream()
@@ -1095,7 +1094,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             final List<String> staleRootBlobs = staleRootBlobs(originalRepositoryData, originalRootBlobs.keySet());
             if (survivingIndexIds.equals(originalIndexContainers.keySet()) && staleRootBlobs.isEmpty()) {
                 // Nothing to clean up we return
-                listener.onResponse(new RepositoryCleanupResult(DeleteResult.ZERO));
+                listener.onResponse(DeleteResult.ZERO);
             } else {
                 // write new index-N blob to ensure concurrent operations will fail
                 writeIndexGen(
@@ -1103,9 +1102,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     originalRepositoryDataGeneration,
                     repositoryFormatIndexVersion,
                     Function.identity(),
-                    listener.delegateFailureAndWrap(
-                        (l, v) -> cleanupStaleBlobs(originalRepositoryData, l.map(RepositoryCleanupResult::new))
-                    )
+                    listener.delegateFailureAndWrap((l, v) -> cleanupStaleBlobs(originalRepositoryData, l))
                 );
             }
         }
