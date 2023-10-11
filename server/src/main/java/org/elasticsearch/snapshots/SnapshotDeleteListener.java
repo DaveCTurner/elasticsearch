@@ -26,7 +26,7 @@ public interface SnapshotDeleteListener {
     void onRepositoryDataWritten(RepositoryData repositoryData);
 
     /**
-     * Invoked if writing updated {@link RepositoryData} to the repository failed. Once {@link #onRepositoryDataWritten(RepositoryData)} has
+     * Invoked if writing updated {@link RepositoryData} to the repository failed. Once {@link #onRepositoryDataWritten} has
      * been invoked this method will never be invoked.
      *
      * @param e exception during metadata steps of snapshot delete

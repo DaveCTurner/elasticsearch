@@ -787,10 +787,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     public void deleteSnapshots(
         Collection<SnapshotId> snapshotIds,
         long repositoryDataGeneration,
-        IndexVersion repositoryFormatIndexVersion,
+        IndexVersion minimumNodeVersion,
         SnapshotDeleteListener listener
     ) {
-        createSnapshotsDeletion(snapshotIds, repositoryDataGeneration, repositoryFormatIndexVersion, new ActionListener<>() {
+        createSnapshotsDeletion(snapshotIds, repositoryDataGeneration, minimumNodeVersion, new ActionListener<>() {
             @Override
             public void onResponse(SnapshotsDeletion snapshotsDeletion) {
                 snapshotsDeletion.runDelete(listener);
@@ -798,9 +798,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
             @Override
             public void onFailure(Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(e /* no need for any cooldown, the deletion process never even started */);
             }
         });
+    }
+
+    protected SnapshotDeleteListener wrapForUnsafeRepositoryFormat(SnapshotDeleteListener listener) {
+        return listener;
     }
 
     /**
@@ -814,18 +818,15 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
      * </ul>
      *
      * @param repositoryDataGeneration         Generation of {@link RepositoryData} at start of process
-     * @param repositoryFormatIndexVersion     Repository format version
+     * @param minimumNodeVersion               The minimum {@link IndexVersion} of nodes in the cluster, with which the repository format
+     *                                         must remain compatible
      * @param listener                         Listener to complete when done
      */
-    public void cleanup(
-        long repositoryDataGeneration,
-        IndexVersion repositoryFormatIndexVersion,
-        ActionListener<RepositoryCleanupResult> listener
-    ) {
+    public void cleanup(long repositoryDataGeneration, IndexVersion minimumNodeVersion, ActionListener<RepositoryCleanupResult> listener) {
         createSnapshotsDeletion(
             List.of(),
             repositoryDataGeneration,
-            repositoryFormatIndexVersion,
+            minimumNodeVersion,
             listener.delegateFailureAndWrap((delegate, snapshotsDeletion) -> snapshotsDeletion.runCleanup(delegate))
         );
     }
@@ -833,7 +834,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     private void createSnapshotsDeletion(
         Collection<SnapshotId> snapshotIds,
         long repositoryDataGeneration,
-        IndexVersion repositoryFormatIndexVersion,
+        IndexVersion minimumNodeVersion,
         ActionListener<SnapshotsDeletion> listener
     ) {
         if (isReadOnly()) {
@@ -844,6 +845,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 public SnapshotsDeletion get() throws Exception {
                     final var originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
                     final var originalRepositoryData = safeRepositoryData(repositoryDataGeneration, originalRootBlobs);
+                    final var repositoryFormatIndexVersion = SnapshotsService.minCompatibleVersion(
+                        minimumNodeVersion,
+                        originalRepositoryData,
+                        snapshotIds
+                    );
                     return new SnapshotsDeletion(
                         snapshotIds,
                         repositoryDataGeneration,
@@ -1049,6 +1055,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     }
                 }, listener::onFailure));
             } else {
+                final var safeListener = wrapForUnsafeRepositoryFormat(listener);
+
                 // Write the new repository data first (with the removed snapshot), using no shard generations
                 writeIndexGen(
                     originalRepositoryData.removeSnapshots(snapshotIds, ShardGenerations.EMPTY),
@@ -1057,8 +1065,8 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     Function.identity(),
                     ActionListener.wrap(newRepositoryData -> {
                         try (var refs = new RefCountingRunnable(() -> {
-                            listener.onRepositoryDataWritten(newRepositoryData);
-                            listener.onDone();
+                            safeListener.onRepositoryDataWritten(newRepositoryData);
+                            safeListener.onDone();
                         })) {
                             // Run unreferenced blobs cleanup in parallel to shard-level snapshot deletion
                             cleanupStaleBlobs(newRepositoryData, refs.acquireListener().map(ignored -> null));
@@ -1073,7 +1081,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                                 )
                             );
                         }
-                    }, listener::onFailure)
+                    }, safeListener::onFailure)
                 );
             }
         }

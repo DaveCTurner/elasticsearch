@@ -213,21 +213,14 @@ public final class TransportCleanupRepositoryAction extends TransportMasterNodeA
                     public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
                         startedCleanup = true;
                         logger.debug("Initialized repository cleanup in cluster state for [{}][{}]", repositoryName, repositoryStateId);
-                        threadPool.executor(ThreadPool.Names.SNAPSHOT)
-                            .execute(
-                                ActionRunnable.wrap(
-                                    delegate,
-                                    l -> blobStoreRepository.cleanup(
-                                        repositoryStateId,
-                                        SnapshotsService.minCompatibleVersion(
-                                            newState.nodes().getMaxDataNodeCompatibleIndexVersion(),
-                                            repositoryData,
-                                            null
-                                        ),
-                                        ActionListener.wrap(result -> after(null, result), e -> after(e, null))
-                                    )
-                                )
-                            );
+                        ActionListener.run(
+                            ActionListener.<RepositoryCleanupResult>wrap(result -> after(null, result), e -> after(e, null)),
+                            l -> blobStoreRepository.cleanup(
+                                repositoryStateId,
+                                newState.nodes().getMaxDataNodeCompatibleIndexVersion(),
+                                ActionListener.wrap(result -> after(null, result), e -> after(e, null))
+                            )
+                        );
                     }
 
                     private void after(@Nullable Exception failure, @Nullable RepositoryCleanupResult result) {
