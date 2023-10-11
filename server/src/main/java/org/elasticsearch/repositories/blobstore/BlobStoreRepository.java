@@ -2413,7 +2413,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         Function<ClusterState, ClusterState> stateFilter,
         ActionListener<RepositoryData> listener
     ) {
-        logger.trace("[{}] writing repository data on top of expected generation [{}]", metadata.name(), expectedGen);
+        logger.info("[{}] writing repository data on top of expected generation [{}]", metadata.name(), expectedGen);
         assert isReadOnly() == false; // can not write to a read only repository
         final long currentGen = repositoryData.getGenId();
         if (currentGen != expectedGen) {
@@ -2562,7 +2562,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 return;
             }
             final String indexBlob = INDEX_FILE_PREFIX + Long.toString(newGen);
-            logger.debug("Repository [{}] writing new index generational blob [{}]", metadata.name(), indexBlob);
+            logger.info("Repository [{}] writing new index generational blob [{}]", metadata.name(), indexBlob);
             writeAtomic(blobContainer(), indexBlob, out -> {
                 try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder(org.elasticsearch.core.Streams.noCloseStream(out))) {
                     newRepositoryData.snapshotsToXContent(xContentBuilder, version);
@@ -2616,7 +2616,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
                 @Override
                 public void clusterStateProcessed(ClusterState oldState, ClusterState newState) {
-                    logger.trace("[{}] successfully set safe repository generation to [{}]", metadata.name(), newGen);
+                    logger.info("[{}] successfully set safe repository generation to [{}]", metadata.name(), newGen);
                     cacheRepositoryData(newRepositoryData, version);
                     delegate.onResponse(newRepositoryData);
                 }
