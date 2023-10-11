@@ -43,6 +43,7 @@ import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.Numbers;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
@@ -782,53 +783,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         return new RepositoryStats(store.stats());
     }
 
-    /**
-     * Loads {@link RepositoryData} ensuring that it is consistent with the given {@code rootBlobs} as well of the assumed generation.
-     *
-     * @param repositoryDataGeneration Expected repository generation
-     * @param rootBlobs                Blobs at the repository root
-     * @return RepositoryData
-     */
-    private RepositoryData safeRepositoryData(long repositoryDataGeneration, Map<String, BlobMetadata> rootBlobs) {
-        final long generation = latestGeneration(rootBlobs.keySet());
-        final long genToLoad;
-        final RepositoryData cached;
-        if (bestEffortConsistency) {
-            genToLoad = latestKnownRepoGen.accumulateAndGet(repositoryDataGeneration, Math::max);
-            cached = null;
-        } else {
-            genToLoad = latestKnownRepoGen.get();
-            cached = latestKnownRepositoryData.get();
-        }
-        if (genToLoad > generation) {
-            // It's always a possibility to not see the latest index-N in the listing here on an eventually consistent blob store, just
-            // debug log it. Any blobs leaked as a result of an inconsistent listing here will be cleaned up in a subsequent cleanup or
-            // snapshot delete run anyway.
-            logger.debug(
-                "Determined repository's generation from its contents to ["
-                    + generation
-                    + "] but "
-                    + "current generation is at least ["
-                    + genToLoad
-                    + "]"
-            );
-        }
-        if (genToLoad != repositoryDataGeneration) {
-            throw new RepositoryException(
-                metadata.name(),
-                "concurrent modification of the index-N file, expected current generation ["
-                    + repositoryDataGeneration
-                    + "], actual current generation ["
-                    + genToLoad
-                    + "]"
-            );
-        }
-        if (cached != null && cached.getGenId() == genToLoad) {
-            return cached;
-        }
-        return getRepositoryData(genToLoad);
-    }
-
     @Override
     public void deleteSnapshots(
         Collection<SnapshotId> snapshotIds,
@@ -885,16 +839,70 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         if (isReadOnly()) {
             listener.onFailure(new RepositoryException(metadata.name(), "repository is readonly"));
         } else {
-            threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.supply(listener, () -> {
-                final var originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
-                return new SnapshotsDeletion(
-                    snapshotIds,
-                    repositoryDataGeneration,
-                    repositoryFormatIndexVersion,
-                    originalRootBlobs,
-                    blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT),
-                    safeRepositoryData(repositoryDataGeneration, originalRootBlobs)
-                );
+            threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(ActionRunnable.supply(listener, new CheckedSupplier<>() {
+                @Override
+                public SnapshotsDeletion get() throws Exception {
+                    final var originalRootBlobs = blobContainer().listBlobs(OperationPurpose.SNAPSHOT);
+                    final var originalRepositoryData = safeRepositoryData(repositoryDataGeneration, originalRootBlobs);
+                    return new SnapshotsDeletion(
+                        snapshotIds,
+                        repositoryDataGeneration,
+                        repositoryFormatIndexVersion,
+                        originalRootBlobs,
+                        blobStore().blobContainer(indicesPath()).children(OperationPurpose.SNAPSHOT),
+                        originalRepositoryData
+                    );
+                }
+
+                /**
+                 * Loads {@link RepositoryData} ensuring that it is consistent with the given {@code rootBlobs} as well of the assumed
+                 * generation.
+                 *
+                 * @param repositoryDataGeneration Expected repository generation
+                 * @param rootBlobs                Blobs at the repository root
+                 * @return RepositoryData
+                 */
+                private RepositoryData safeRepositoryData(long repositoryDataGeneration, Map<String, BlobMetadata> rootBlobs) {
+                    final long latestGenerationFromRootBlobs = latestGeneration(rootBlobs.keySet());
+                    final long safeRepositoryDataGeneration;
+                    final RepositoryData cachedRepositoryData;
+                    if (bestEffortConsistency) {
+                        // TODO Get out of bestEffortConsistency mode before starting the delete/cleanup operation
+                        // We cannot be readonly, we can fix an UNKNOWN_REPO_GEN, and we should complete/abort a pending root blob write.
+                        safeRepositoryDataGeneration = latestKnownRepoGen.accumulateAndGet(repositoryDataGeneration, Math::max);
+                        cachedRepositoryData = null;
+                    } else {
+                        safeRepositoryDataGeneration = latestKnownRepoGen.get();
+                        cachedRepositoryData = latestKnownRepositoryData.get();
+                    }
+                    if (safeRepositoryDataGeneration > latestGenerationFromRootBlobs) {
+                        // It's always a possibility to not see the latest index-N in the listing here on an eventually consistent blob
+                        // store, just debug log it. Any blobs leaked as a result of an inconsistent listing here will be cleaned up in a
+                        // subsequent cleanup or snapshot delete run anyway.
+                        logger.debug(
+                            "Determined repository's generation from its contents to ["
+                                + latestGenerationFromRootBlobs
+                                + "] but "
+                                + "current generation is at least ["
+                                + safeRepositoryDataGeneration
+                                + "]"
+                        );
+                    }
+                    if (safeRepositoryDataGeneration != repositoryDataGeneration) {
+                        throw new RepositoryException(
+                            metadata.name(),
+                            "concurrent modification of the index-N file, expected current generation ["
+                                + repositoryDataGeneration
+                                + "], actual current generation ["
+                                + safeRepositoryDataGeneration
+                                + "]"
+                        );
+                    }
+                    if (cachedRepositoryData != null && cachedRepositoryData.getGenId() == repositoryDataGeneration) {
+                        return cachedRepositoryData;
+                    }
+                    return getRepositoryData(repositoryDataGeneration);
+                }
             }));
         }
     }
