@@ -1352,8 +1352,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             try (
                 var listeners = new RefCountingListener(listener.map(ignored -> DeleteResult.of(blobsDeleted.get(), bytesDeleted.get())))
             ) {
-
+                logger.info("originalRootBlobs: {}", originalRootBlobs.keySet());
                 final List<String> staleRootBlobs = staleRootBlobs(newRepositoryData, originalRootBlobs.keySet());
+                logger.info("staleRootBlobs: {}", staleRootBlobs);
                 if (staleRootBlobs.isEmpty() == false) {
                     staleBlobDeleteRunner.enqueueTask(listeners.acquire(ref -> {
                         try (ref) {
@@ -1388,11 +1389,11 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     }
                     staleBlobDeleteRunner.enqueueTask(listeners.acquire(ref -> {
                         try (ref) {
-                            logger.debug("[{}] Found stale index [{}]. Cleaning it up", metadata.name(), indexId);
+                            logger.info("[{}] Found stale index [{}]. Cleaning it up", metadata.name(), indexId);
                             final var deleteResult = indexEntry.getValue().delete(OperationPurpose.SNAPSHOT);
                             blobsDeleted.addAndGet(deleteResult.blobsDeleted());
                             bytesDeleted.addAndGet(deleteResult.bytesDeleted());
-                            logger.debug("[{}] Cleaned up stale index [{}]", metadata.name(), indexId);
+                            logger.info("[{}] Cleaned up stale index [{}]: {}", metadata.name(), indexId, deleteResult);
                         } catch (IOException e) {
                             logger.warn(() -> format("""
                                 [%s] index %s is no longer part of any snapshot in the repository, \

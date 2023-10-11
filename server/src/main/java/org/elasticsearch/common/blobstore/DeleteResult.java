@@ -46,4 +46,12 @@ public final class DeleteResult {
             return new DeleteResult(blobs, bytes);
         }
     }
+
+    @Override
+    public String toString() {
+        return "DeleteResult{" +
+               "blobsDeleted=" + blobsDeleted +
+               ", bytesDeleted=" + bytesDeleted +
+               '}';
+    }
 }
