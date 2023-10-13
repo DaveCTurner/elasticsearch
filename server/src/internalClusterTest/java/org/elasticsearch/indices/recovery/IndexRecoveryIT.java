@@ -235,12 +235,19 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         assertThat(state.getStage(), not(equalTo(Stage.DONE)));
     }
 
-    private static Settings.Builder createRecoverySettingsChunkPerSecond(long chunkSize) {
+    /**
+     * Creates node settings that will throttle shard recovery to 'chunkSize' bytes per second.
+     *
+     * @param chunkSizeBytes size of the chunk in bytes
+     * @return A Settings.Builder
+     */
+    // private static??
+    public Settings.Builder createRecoverySettingsChunkPerSecond(long chunkSizeBytes) {
         return Settings.builder()
-            // one chunk per sec..
-            .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), chunkSize, ByteSizeUnit.BYTES)
-            // small chunks
-            .put(CHUNK_SIZE_SETTING.getKey(), new ByteSizeValue(chunkSize, ByteSizeUnit.BYTES));
+            // Set the chunk size in bytes
+            .put(CHUNK_SIZE_SETTING.getKey(), new ByteSizeValue(chunkSizeBytes, ByteSizeUnit.BYTES))
+            // Set one chunk of bytes per second.
+            .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), chunkSizeBytes, ByteSizeUnit.BYTES);
     }
 
     private void slowDownRecovery(ByteSizeValue shardSize) {
