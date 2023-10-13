@@ -235,15 +235,17 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         assertThat(state.getStage(), not(equalTo(Stage.DONE)));
     }
 
+    private static Settings.Builder createRecoverySettingsChunkPerSecond(long chunkSize) {
+        return Settings.builder()
+            // one chunk per sec..
+            .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), chunkSize, ByteSizeUnit.BYTES)
+            // small chunks
+            .put(CHUNK_SIZE_SETTING.getKey(), new ByteSizeValue(chunkSize, ByteSizeUnit.BYTES));
+    }
+
     private void slowDownRecovery(ByteSizeValue shardSize) {
         long chunkSize = Math.max(1, shardSize.getBytes() / 10);
-        updateClusterSettings(
-            Settings.builder()
-                // one chunk per sec..
-                .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), chunkSize, ByteSizeUnit.BYTES)
-                // small chunks
-                .put(CHUNK_SIZE_SETTING.getKey(), new ByteSizeValue(chunkSize, ByteSizeUnit.BYTES))
-        );
+        updateClusterSettings(createRecoverySettingsChunkPerSecond(chunkSize));
     }
 
     private void restoreRecoverySpeed() {
