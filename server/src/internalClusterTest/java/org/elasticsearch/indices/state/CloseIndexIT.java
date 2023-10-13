@@ -9,6 +9,7 @@ package org.elasticsearch.indices.state;
 
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.UnavailableShardsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
@@ -25,6 +26,7 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.IndexService;
@@ -34,6 +36,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.indices.IndexClosedException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.RecoveryState;
+import org.elasticsearch.node.NodeClosedException;
 import org.elasticsearch.test.BackgroundIndexer;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
@@ -50,6 +53,7 @@ import java.util.stream.IntStream;
 import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toList;
 import static org.elasticsearch.action.support.IndicesOptions.lenientExpandOpen;
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_WAIT_FOR_ACTIVE_SHARDS;
 import static org.elasticsearch.search.internal.SearchContext.TRACK_TOTAL_HITS_ACCURATE;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
@@ -245,6 +249,59 @@ public class CloseIndexIT extends ESIntegTestCase {
         assertIndexIsClosed(indexName);
         assertAcked(indicesAdmin().prepareOpen(indexName));
         assertHitCount(client().prepareSearch(indexName).setSize(0).setTrackTotalHitsUpTo(TRACK_TOTAL_HITS_ACCURATE).get(), nbDocs);
+    }
+
+    public void testCloseWhileIndexingDocumentsAndRestartingNode() throws Exception {
+        final var dataNode1 = internalCluster().startDataOnlyNode();
+        final var dataNode2 = internalCluster().startDataOnlyNode();
+
+        final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
+        createIndex(
+            indexName,
+            indexSettings(1, 1).putList(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_PREFIX + "._name", dataNode1, dataNode2)
+                .put(SETTING_WAIT_FOR_ACTIVE_SHARDS.getKey(), "0")
+                .build()
+        );
+        ensureGreen(indexName);
+
+        try (BackgroundIndexer indexer = new BackgroundIndexer(indexName, client(), MAX_DOCS)) {
+            indexer.setFailureAssertion(t -> {
+                if ((t instanceof NodeClosedException
+                    || t instanceof EsRejectedExecutionException
+                    || t instanceof UnavailableShardsException) == false) {
+                    assertException(t, indexName);
+                }
+            });
+            waitForDocs(randomIntBetween(10, 50), indexer);
+
+            internalCluster().restartNode(dataNode1, new InternalTestCluster.RestartCallback() {
+                @Override
+                public Settings onNodeStopped(String nodeName) {
+                    try {
+                        internalCluster().restartNode(dataNode2, new InternalTestCluster.RestartCallback() {
+                            @Override
+                            public Settings onNodeStopped(String nodeName) {
+                                try {
+                                    indexer.stopAndAwaitStopped();
+                                    assertTrue(indicesAdmin().prepareClose(indexName).setWaitForActiveShards(0).get().isAcknowledged());
+                                } catch (Exception e) {
+                                    throw new AssertionError(e);
+                                }
+                                return Settings.EMPTY;
+                            }
+                        });
+                    } catch (Exception e) {
+                        throw new AssertionError(e);
+                    }
+                    return Settings.EMPTY;
+                }
+            });
+        }
+
+        assertIndexIsClosed(indexName);
+        ensureGreen(indexName);
+        assertAcked(indicesAdmin().prepareOpen(indexName));
+        ensureGreen(indexName);
     }
 
     public void testCloseWhileDeletingIndices() throws Exception {
