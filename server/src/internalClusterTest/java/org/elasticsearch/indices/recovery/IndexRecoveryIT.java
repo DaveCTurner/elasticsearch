@@ -265,7 +265,8 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
     private void unthrottleRecovery() {
         updateClusterSettings(
             Settings.builder()
-                .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "20mb")
+                // 200mb is an arbitrary number intended to be large enough to avoid more throttling.
+                .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "200mb")
                 .put(CHUNK_SIZE_SETTING.getKey(), RecoverySettings.DEFAULT_CHUNK_SIZE)
         );
     }
