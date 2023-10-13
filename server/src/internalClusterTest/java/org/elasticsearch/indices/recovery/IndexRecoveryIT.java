@@ -255,7 +255,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         updateClusterSettings(createRecoverySettingsChunkPerSecond(chunkSize));
     }
 
-    private void restoreRecoverySpeed() {
+    private void unthrottleRecovery() {
         updateClusterSettings(
             Settings.builder()
                 .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "20mb")
@@ -549,7 +549,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         });
 
         logger.info("--> speeding up recoveries");
-        restoreRecoverySpeed();
+        unthrottleRecovery();
 
         // wait for it to be finished
         ensureGreen();
@@ -639,7 +639,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         }
 
         logger.info("--> speeding up recoveries");
-        restoreRecoverySpeed();
+        unthrottleRecovery();
         ensureGreen();
 
         response = indicesAdmin().prepareRecoveries(INDEX_NAME).execute().actionGet();
