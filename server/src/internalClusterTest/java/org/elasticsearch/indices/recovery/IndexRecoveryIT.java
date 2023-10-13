@@ -250,11 +250,18 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
             .put(RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), chunkSizeBytes, ByteSizeUnit.BYTES);
     }
 
+    /**
+     * Updates the cluster state settings to throttle shard recovery speed for shards of size 'shardSize' to 10 seconds.
+     * @param shardSize size in bytes to recover in 10 seconds
+     */
     private void throttleRecovery(ByteSizeValue shardSize) {
         long chunkSize = Math.max(1, shardSize.getBytes() / 10);
         updateClusterSettings(createRecoverySettingsChunkPerSecond(chunkSize));
     }
 
+    /**
+     * Sets high MB per second throttling for recovery on all nodes in the cluster.
+     */
     private void unthrottleRecovery() {
         updateClusterSettings(
             Settings.builder()
