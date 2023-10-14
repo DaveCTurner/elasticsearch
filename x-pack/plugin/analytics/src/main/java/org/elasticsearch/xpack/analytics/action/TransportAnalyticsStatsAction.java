@@ -39,7 +39,6 @@ public class TransportAnalyticsStatsAction extends TransportNodesAction<
     ) {
         super(
             AnalyticsStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -56,7 +56,6 @@ public class TransportSearchableSnapshotCacheStoresAction extends TransportNodes
     ) {
         super(
             ACTION_NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

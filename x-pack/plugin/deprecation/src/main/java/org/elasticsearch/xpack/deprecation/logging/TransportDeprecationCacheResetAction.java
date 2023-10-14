@@ -44,7 +44,6 @@ public class TransportDeprecationCacheResetAction extends TransportNodesAction<
     ) {
         super(
             DeprecationCacheResetAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -41,7 +41,6 @@ public final class TransportRepositoriesStatsAction extends TransportNodesAction
     ) {
         super(
             RepositoriesMeteringAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

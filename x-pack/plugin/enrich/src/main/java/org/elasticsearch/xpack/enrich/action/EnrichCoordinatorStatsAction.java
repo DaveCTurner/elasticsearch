@@ -141,7 +141,6 @@ public class EnrichCoordinatorStatsAction extends ActionType<EnrichCoordinatorSt
         ) {
             super(
                 NAME,
-                threadPool,
                 clusterService,
                 transportService,
                 actionFilters,

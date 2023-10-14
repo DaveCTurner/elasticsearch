@@ -43,7 +43,6 @@ public final class TransportClearRepositoriesStatsArchiveAction extends Transpor
     ) {
         super(
             ClearRepositoriesMeteringArchiveAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -148,7 +148,6 @@ public abstract class TaskManagerTestCase extends ESTestCase {
         ) {
             super(
                 actionName,
-                threadPool,
                 clusterService,
                 transportService,
                 new ActionFilters(new HashSet<>()),

@@ -57,8 +57,24 @@ public abstract class TransportNodesAction<
     private final Executor finalExecutor;
 
     /**
+     * @deprecated Use the one without the unused threadPool arg instead
+     */
+    @Deprecated(forRemoval = true)
+    protected TransportNodesAction(
+        String actionName,
+        ThreadPool threadPool,
+        ClusterService clusterService,
+        TransportService transportService,
+        ActionFilters actionFilters,
+        Writeable.Reader<NodesRequest> request,
+        Writeable.Reader<NodeRequest> nodeRequest,
+        Executor executor
+    ) {
+        this(actionName, clusterService, transportService, actionFilters, request, nodeRequest, executor);
+    }
+
+    /**
      * @param actionName        action name
-     * @param threadPool        thread-pool
      * @param clusterService    cluster service
      * @param transportService  transport service
      * @param actionFilters     action filters
@@ -68,7 +84,6 @@ public abstract class TransportNodesAction<
      */
     protected TransportNodesAction(
         String actionName,
-        ThreadPool threadPool,
         ClusterService clusterService,
         TransportService transportService,
         ActionFilters actionFilters,

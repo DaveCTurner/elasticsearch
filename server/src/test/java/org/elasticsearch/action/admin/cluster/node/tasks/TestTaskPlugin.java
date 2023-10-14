@@ -263,7 +263,6 @@ public class TestTaskPlugin extends Plugin implements ActionPlugin, NetworkPlugi
         public TransportTestTaskAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService) {
             super(
                 TestTaskAction.NAME,
-                threadPool,
                 clusterService,
                 transportService,
                 new ActionFilters(new HashSet<>()),

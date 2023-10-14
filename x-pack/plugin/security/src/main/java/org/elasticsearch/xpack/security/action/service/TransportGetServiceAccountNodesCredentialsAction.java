@@ -49,7 +49,6 @@ public class TransportGetServiceAccountNodesCredentialsAction extends TransportN
     ) {
         super(
             GetServiceAccountNodesCredentialsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -43,7 +43,6 @@ public class TransportEqlStatsAction extends TransportNodesAction<
     ) {
         super(
             EqlStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -48,7 +48,6 @@ public class TransportListDanglingIndicesAction extends TransportNodesAction<
     ) {
         super(
             ListDanglingIndicesAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

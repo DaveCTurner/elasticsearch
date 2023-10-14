@@ -46,7 +46,6 @@ public class TransportClearPrivilegesCacheAction extends TransportNodesAction<
     ) {
         super(
             ClearPrivilegesCacheAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

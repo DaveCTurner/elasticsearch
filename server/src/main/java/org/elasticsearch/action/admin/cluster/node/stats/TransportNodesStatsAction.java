@@ -48,7 +48,6 @@ public class TransportNodesStatsAction extends TransportNodesAction<
     ) {
         super(
             NodesStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

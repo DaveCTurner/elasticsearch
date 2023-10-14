@@ -47,7 +47,6 @@ public class TransportClearSecurityCacheAction extends TransportNodesAction<
     ) {
         super(
             ClearSecurityCacheAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

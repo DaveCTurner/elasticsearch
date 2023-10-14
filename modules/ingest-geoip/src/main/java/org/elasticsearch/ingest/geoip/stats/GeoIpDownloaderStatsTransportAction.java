@@ -46,7 +46,6 @@ public class GeoIpDownloaderStatsTransportAction extends TransportNodesAction<Re
     ) {
         super(
             GeoIpDownloaderStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

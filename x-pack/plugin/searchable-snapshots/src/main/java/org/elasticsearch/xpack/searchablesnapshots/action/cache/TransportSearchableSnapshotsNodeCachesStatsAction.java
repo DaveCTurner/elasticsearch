@@ -66,7 +66,6 @@ public class TransportSearchableSnapshotsNodeCachesStatsAction extends Transport
     ) {
         super(
             ACTION_NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

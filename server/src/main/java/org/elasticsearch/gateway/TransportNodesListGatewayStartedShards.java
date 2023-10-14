@@ -81,7 +81,6 @@ public class TransportNodesListGatewayStartedShards extends TransportNodesAction
     ) {
         super(
             ACTION_NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

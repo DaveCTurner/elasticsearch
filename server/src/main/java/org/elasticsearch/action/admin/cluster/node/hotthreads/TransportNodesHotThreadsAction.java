@@ -41,7 +41,6 @@ public class TransportNodesHotThreadsAction extends TransportNodesAction<
     ) {
         super(
             NodesHotThreadsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -39,7 +39,6 @@ public class SpatialStatsTransportAction extends TransportNodesAction<
     ) {
         super(
             SpatialStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

@@ -47,7 +47,6 @@ public class TransportTrainedModelCacheInfoAction extends TransportNodesAction<
     ) {
         super(
             TrainedModelCacheInfoAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

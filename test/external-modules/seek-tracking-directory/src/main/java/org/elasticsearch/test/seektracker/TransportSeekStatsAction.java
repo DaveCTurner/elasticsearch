@@ -38,7 +38,6 @@ public class TransportSeekStatsAction extends TransportNodesAction<SeekStatsRequ
     ) {
         super(
             SeekStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,

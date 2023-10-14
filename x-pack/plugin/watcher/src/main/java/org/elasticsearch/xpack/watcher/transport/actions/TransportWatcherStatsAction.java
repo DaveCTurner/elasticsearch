@@ -54,7 +54,6 @@ public class TransportWatcherStatsAction extends TransportNodesAction<
     ) {
         super(
             WatcherStatsAction.NAME,
-            threadPool,
             clusterService,
             transportService,
             actionFilters,
