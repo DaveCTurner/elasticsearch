@@ -146,6 +146,7 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         createIndex("index-0", 1, 0);
         createIndex("index-1", 1, 0);
         createIndex("index-2", 1, 0);
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-0").setWaitForCompletion(true).get();
 
         final var masterTransportService = asInstanceOf(
             MockTransportService.class,
