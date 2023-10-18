@@ -11,17 +11,36 @@ package org.elasticsearch.snapshots;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.support.ActionTestUtils;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.MockLogAppender;
+import org.elasticsearch.test.transport.MockTransportService;
+import org.elasticsearch.test.transport.StubbableTransport;
+import org.elasticsearch.transport.TestTransportChannel;
+import org.elasticsearch.transport.TransportService;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
+
+    @Override
+    protected Collection<Class<? extends Plugin>> nodePlugins() {
+        return CollectionUtils.appendToCopy(super.nodePlugins(), MockTransportService.TestPlugin.class);
+    }
 
     public void testDeletingSnapshotsIsLoggedAfterClusterStateIsProcessed() throws Exception {
         createRepository("test-repo", "fs");
@@ -120,5 +139,92 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
             mockLogAppender.stop();
             deleteRepository("test-repo");
         }
+    }
+
+    public void testConcurrentOutOfOrderFinalization() throws Exception {
+        createRepository("test-repo", "mock");
+        createIndex("index-0", 1, 0);
+        createIndex("index-1", 1, 0);
+        createIndex("index-2", 1, 0);
+
+        final var masterTransportService = asInstanceOf(
+            MockTransportService.class,
+            internalCluster().getCurrentMasterNodeInstance(TransportService.class)
+        );
+
+        final var readyToBlockLatch = new CountDownLatch(4);
+        final var readyToUnblockLatch = new CountDownLatch(1);
+        final var unblockIndex1Listener = new SubscribableListener<Void>();
+        final var unblockIndex2Listener = new SubscribableListener<Void>();
+        masterTransportService.addRequestHandlingBehavior(
+            SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
+            (StubbableTransport.RequestHandlingBehavior<UpdateIndexShardSnapshotStatusRequest>) (handler, request, channel, task) -> {
+                switch (request.shardId().getIndexName()) {
+                    case "index-0" -> handler.messageReceived(
+                        request,
+                        new TestTransportChannel(ActionTestUtils.assertNoFailureListener(response -> {
+                            readyToBlockLatch.countDown();
+                            channel.sendResponse(response);
+                        })),
+                        task
+                    );
+
+                    case "index-1" -> {
+                        unblockIndex1Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
+                            handler.messageReceived(request, channel, task);
+                            readyToUnblockLatch.countDown();
+                        }));
+                        readyToBlockLatch.countDown();
+                    }
+
+                    case "index-2" -> {
+                        unblockIndex2Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
+                            handler.messageReceived(request, channel, task);
+                            unblockIndex1Listener.onResponse(null);
+                        }));
+                        readyToBlockLatch.countDown();
+                    }
+                }
+            }
+        );
+
+        final var barrier = new CyclicBarrier(2);
+        final var blockingTask = new ClusterStateUpdateTask() {
+            @Override
+            public ClusterState execute(ClusterState currentState) {
+                safeAwait(barrier);
+                safeAwait(barrier);
+                return currentState;
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                fail(e);
+            }
+        };
+
+        // start the snapshots running
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-1").setIndices("index-0", "index-1").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-2").setIndices("index-0", "index-2").get();
+
+        // wait until the master has marked index-0 as complete in both snapshots, and index-1 and index-2 are ready to mark complete
+        safeAwait(readyToBlockLatch);
+
+        // block the master service so the submitted tasks are processed in a batch
+        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
+        safeAwait(barrier);
+
+        // enqueues the task to mark index-2 complete, then the same for index-1
+        unblockIndex2Listener.onResponse(null);
+        safeAwait(readyToUnblockLatch);
+
+        // release the master service
+        safeAwait(barrier);
+
+        // wait for all snapshots to complete
+        awaitNoMoreRunningOperations();
+
+        // ensure that another snapshot works
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setWaitForCompletion(true).get();
     }
 }
