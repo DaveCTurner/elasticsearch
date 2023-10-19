@@ -39,6 +39,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -378,6 +379,42 @@ public class SnapshotsInProgress extends AbstractNamedDiffable<Custom> implement
             queuedShards.add(Tuple.tuple(indexName, shardId));
         }
         return true;
+    }
+
+    public String toSummary() {
+        final var stringBuilder = new StringBuilder();
+        for (final var repoEntries : entriesByRepo()) {
+            for (final var entry : repoEntries) {
+                stringBuilder.append(
+                    Strings.format(
+                        "[%s][%s] %s ",
+                        entry.repository(),
+                        entry.snapshot().getSnapshotId().getName(),
+                        entry.state().toString().substring(0, 4)
+                    )
+                );
+                entry.shards()
+                    .entrySet()
+                    .stream()
+                    .sorted(
+                        Comparator.<Map.Entry<ShardId, ShardSnapshotStatus>, String>comparing(e -> e.getKey().getIndexName())
+                            .thenComparingInt(e -> e.getKey().getId())
+                    )
+                    .forEach(
+                        shardEntry -> stringBuilder.append(
+                            Strings.format(
+                                "[%s/%d %s %s]",
+                                shardEntry.getKey().getIndexName(),
+                                shardEntry.getKey().id(),
+                                (shardEntry.getValue().generation + "     ").substring(0, 5),
+                                shardEntry.getValue().state().toString().substring(0, 4)
+                            )
+                        )
+                    );
+                stringBuilder.append("\n");
+            }
+        }
+        return stringBuilder.toString();
     }
 
     public enum ShardState {

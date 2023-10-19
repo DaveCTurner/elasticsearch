@@ -18,6 +18,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.plugins.Plugin;
@@ -203,7 +204,6 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
                     case "index-3" -> {
                         unblockIndex3Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
                             handler.messageReceived(request, channel, task);
-                            unblockIndex2Listener.onResponse(null);
                         }));
                         readyToBlockLatch.countDown();
                     }
@@ -212,7 +212,7 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         );
 
         final var barrier = new CyclicBarrier(2);
-        final var blockingTask = new ClusterStateUpdateTask() {
+        final var blockingTask = new ClusterStateUpdateTask(Priority.LANGUID) {
             @Override
             public ClusterState execute(ClusterState currentState) {
                 safeAwait(barrier);
@@ -238,11 +238,16 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
         safeAwait(barrier);
 
-        // enqueues the task to mark index-3 complete, then the same for index-2 and finally index-1
-        unblockIndex3Listener.onResponse(null);
+        // enqueues the task to mark index-2 complete, then the same for index-1
+        unblockIndex2Listener.onResponse(null);
         safeAwait(readyToUnblockLatch);
 
         // release the master service
+        safeAwait(barrier);
+
+        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
+        safeAwait(barrier);
+        unblockIndex3Listener.onResponse(null);
         safeAwait(barrier);
 
         // wait for all snapshots to complete

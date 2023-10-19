@@ -136,6 +136,7 @@ import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -2687,11 +2688,22 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 metadata.name(),
                 indexBlob,
                 Strings.toString(
-                    (ToXContentObject) (builder, params) -> newRepositoryData.snapshotsToXContent(builder, IndexVersion.current()),
-                    true,
-                    true
+                    (ToXContentObject) (builder, params) -> newRepositoryData.snapshotsToXContent(builder, IndexVersion.current())
                 )
             );
+            newRepositoryData.shardGenerations()
+                .indices()
+                .stream()
+                .sorted(Comparator.comparing(IndexId::getName))
+                .forEach(
+                    i -> logger.info(
+                        "[{}] RepositoryData gen [{}] index [{}] shard gens [{}]",
+                        metadata.name(),
+                        newGen,
+                        i.getName(),
+                        newRepositoryData.shardGenerations().getGens(i).stream().map(Objects::toString).collect(Collectors.joining(","))
+                    )
+                );
             writeAtomic(blobContainer(), indexBlob, out -> {
                 try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder(org.elasticsearch.core.Streams.noCloseStream(out))) {
                     newRepositoryData.snapshotsToXContent(xContentBuilder, version);
