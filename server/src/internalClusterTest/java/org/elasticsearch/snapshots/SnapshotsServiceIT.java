@@ -146,10 +146,12 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
 
     public void testConcurrentOutOfOrderFinalization() throws Exception {
         createRepository("test-repo", "mock");
-        createIndex("index-0", 1, 0);
-        createIndex("index-1", 1, 0);
-        createIndex("index-2", 1, 0);
-        createIndex("index-3", 1, 0);
+        createIndex("index-00", 1, 0);
+        createIndex("index-11", 1, 0);
+        createIndex("index-12", 1, 0);
+        createIndex("index-13", 1, 0);
+        createIndex("index-14", 1, 0);
+        createIndex("index-15", 1, 0);
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-initial").setWaitForCompletion(true).get();
 
         final var masterTransportService = asInstanceOf(
@@ -187,39 +189,47 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         };
 
         // start the snapshots running
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-12").setPartial(true).setIndices("index-0", "index-1").get();
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-13").setPartial(true).setIndices("index-0", "index-2").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-11").setPartial(true).setIndices("index-00", "index-11").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-12").setPartial(true).setIndices("index-00", "index-12").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-13").setPartial(true).setIndices("index-00", "index-13").get();
 
         CheckedConsumer<String, Exception> x = name -> {
             Thread.sleep(500);
             logger.info("--> execute {}", name);
-            Objects.requireNonNull(actions.remove(name)).run();
+            Objects.requireNonNull(actions.remove(name), name).run();
         };
 
-        x.accept("snapshot-12/index-0");
+        x.accept("snapshot-11/index-00");
+        x.accept("snapshot-12/index-00");
 
         final var abort13Future = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-13").execute();
         Thread.sleep(500);
 
-        x.accept("snapshot-13/index-0");
-        x.accept("snapshot-13/index-2");
+        x.accept("snapshot-13/index-00");
+        x.accept("snapshot-13/index-13");
 
         Thread.sleep(500);
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-15").setPartial(true).setIndices("index-0", "index-3").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-14").setPartial(true).setIndices("index-00", "index-14").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-15").setPartial(true).setIndices("index-00", "index-15").get();
+
+        x.accept("snapshot-14/index-00");
 
         final var abort15Future = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-15").execute();
-        Thread.sleep(500);
 
-        x.accept("snapshot-15/index-0");
+        x.accept("snapshot-15/index-00");
+
+        x.accept("snapshot-11/index-11");
 
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
         safeAwait(barrier);
 
-        x.accept("snapshot-15/index-3");
-        x.accept("snapshot-12/index-1");
+        x.accept("snapshot-15/index-15");
+        x.accept("snapshot-12/index-12");
 
         Thread.sleep(500);
         safeAwait(barrier);
+
+        x.accept("snapshot-14/index-14");
 
         // wait for all snapshots to complete
         awaitNoMoreRunningOperations();
