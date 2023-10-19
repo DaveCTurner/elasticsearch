@@ -14,6 +14,7 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.CollectionUtils;
@@ -203,15 +204,22 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         x.accept("snapshot-13/index-0");
         x.accept("snapshot-13/index-2");
 
+        Thread.sleep(500);
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-15").setPartial(true).setIndices("index-0", "index-3").get();
 
         final var abort15Future = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-15").execute();
         Thread.sleep(500);
 
         x.accept("snapshot-15/index-0");
-        x.accept("snapshot-15/index-3");
 
+        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
+        safeAwait(barrier);
+
+        x.accept("snapshot-15/index-3");
         x.accept("snapshot-12/index-1");
+
+        Thread.sleep(500);
+        safeAwait(barrier);
 
         // wait for all snapshots to complete
         awaitNoMoreRunningOperations();
