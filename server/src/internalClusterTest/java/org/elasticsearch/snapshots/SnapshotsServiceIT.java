@@ -150,7 +150,6 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         createIndex("index-0", 1, 0);
         createIndex("index-1", 1, 0);
         createIndex("index-2", 1, 0);
-        createIndex("index-3", 1, 0);
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-initial").setWaitForCompletion(true).get();
 
         final var masterTransportService = asInstanceOf(
@@ -158,11 +157,10 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
             internalCluster().getCurrentMasterNodeInstance(TransportService.class)
         );
 
-        final var readyToBlockLatch = new CountDownLatch(6);
+        final var readyToBlockLatch = new CountDownLatch(4);
         final var readyToUnblockLatch = new CountDownLatch(1);
         final var unblockIndex1Listener = new SubscribableListener<Void>();
         final var unblockIndex2Listener = new SubscribableListener<Void>();
-        final var unblockIndex3Listener = new SubscribableListener<Void>();
         masterTransportService.addRequestHandlingBehavior(
             SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
             (StubbableTransport.RequestHandlingBehavior<UpdateIndexShardSnapshotStatusRequest>) (handler, request, channel, task) -> {
@@ -202,13 +200,6 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
                         }));
                         readyToBlockLatch.countDown();
                     }
-
-                    case "index-3" -> {
-                        unblockIndex3Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
-                            handler.messageReceived(request, channel, task);
-                        }));
-                        readyToBlockLatch.countDown();
-                    }
                 }
             }
         );
@@ -231,10 +222,13 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         // start the snapshots running
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-1").setPartial(true).setIndices("index-0", "index-1").get();
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-2").setPartial(true).setIndices("index-0", "index-2").get();
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setPartial(true).setIndices("index-0", "index-3").get();
 
         // wait until the master has marked index-0 as complete in both snapshots, and index-1 and index-2 are ready to mark complete
         safeAwait(readyToBlockLatch);
+
+        final var abortFuture = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-2").execute();
+
+        Thread.sleep(2000);
 
         // block the master service so the submitted tasks are processed in a batch
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
@@ -245,15 +239,6 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         safeAwait(readyToUnblockLatch);
 
         // release the master service
-        safeAwait(barrier);
-
-        final var abortFuture = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-3").execute();
-
-        Thread.sleep(2000);
-
-        internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
-        safeAwait(barrier);
-        unblockIndex3Listener.onResponse(null);
         safeAwait(barrier);
 
         // wait for all snapshots to complete
