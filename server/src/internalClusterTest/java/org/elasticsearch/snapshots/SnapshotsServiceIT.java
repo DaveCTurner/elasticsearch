@@ -16,6 +16,7 @@ import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
+import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.CollectionUtils;
@@ -146,23 +147,36 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         createIndex("index-0", 1, 0);
         createIndex("index-1", 1, 0);
         createIndex("index-2", 1, 0);
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-0").setWaitForCompletion(true).get();
+        createIndex("index-3", 1, 0);
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-initial").setWaitForCompletion(true).get();
 
         final var masterTransportService = asInstanceOf(
             MockTransportService.class,
             internalCluster().getCurrentMasterNodeInstance(TransportService.class)
         );
 
-        final var readyToBlockLatch = new CountDownLatch(4);
+        final var readyToBlockLatch = new CountDownLatch(6);
         final var readyToUnblockLatch = new CountDownLatch(1);
         final var unblockIndex1Listener = new SubscribableListener<Void>();
         final var unblockIndex2Listener = new SubscribableListener<Void>();
+        final var unblockIndex3Listener = new SubscribableListener<Void>();
         masterTransportService.addRequestHandlingBehavior(
             SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
             (StubbableTransport.RequestHandlingBehavior<UpdateIndexShardSnapshotStatusRequest>) (handler, request, channel, task) -> {
                 switch (request.shardId().getIndexName()) {
                     case "index-0" -> handler.messageReceived(
-                        request,
+                        request.snapshot().getSnapshotId().getName().equals("snapshot-3")
+                            ? new UpdateIndexShardSnapshotStatusRequest(
+                                request.snapshot(),
+                                request.shardId(),
+                                new SnapshotsInProgress.ShardSnapshotStatus(
+                                    request.status().nodeId(),
+                                    SnapshotsInProgress.ShardState.FAILED,
+                                    "simulated",
+                                    request.status().generation()
+                                )
+                            )
+                            : request,
                         new TestTransportChannel(ActionTestUtils.assertNoFailureListener(response -> {
                             readyToBlockLatch.countDown();
                             channel.sendResponse(response);
@@ -182,6 +196,14 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
                         unblockIndex2Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
                             handler.messageReceived(request, channel, task);
                             unblockIndex1Listener.onResponse(null);
+                        }));
+                        readyToBlockLatch.countDown();
+                    }
+
+                    case "index-3" -> {
+                        unblockIndex3Listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> {
+                            handler.messageReceived(request, channel, task);
+                            unblockIndex2Listener.onResponse(null);
                         }));
                         readyToBlockLatch.countDown();
                     }
@@ -207,6 +229,7 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         // start the snapshots running
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-1").setIndices("index-0", "index-1").get();
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-2").setIndices("index-0", "index-2").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setIndices("index-0", "index-3").get();
 
         // wait until the master has marked index-0 as complete in both snapshots, and index-1 and index-2 are ready to mark complete
         safeAwait(readyToBlockLatch);
@@ -215,8 +238,8 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
         safeAwait(barrier);
 
-        // enqueues the task to mark index-2 complete, then the same for index-1
-        unblockIndex2Listener.onResponse(null);
+        // enqueues the task to mark index-3 complete, then the same for index-2 and finally index-1
+        unblockIndex3Listener.onResponse(null);
         safeAwait(readyToUnblockLatch);
 
         // release the master service
@@ -226,6 +249,6 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         awaitNoMoreRunningOperations();
 
         // ensure that another snapshot works
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setWaitForCompletion(true).get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-final").setWaitForCompletion(true).get();
     }
 }
