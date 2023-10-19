@@ -33,7 +33,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
@@ -227,9 +229,9 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         };
 
         // start the snapshots running
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-1").setIndices("index-0", "index-1").get();
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-2").setIndices("index-0", "index-2").get();
-        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setIndices("index-0", "index-3").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-1").setPartial(true).setIndices("index-0", "index-1").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-2").setPartial(true).setIndices("index-0", "index-2").get();
+        clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-3").setPartial(true).setIndices("index-0", "index-3").get();
 
         // wait until the master has marked index-0 as complete in both snapshots, and index-1 and index-2 are ready to mark complete
         safeAwait(readyToBlockLatch);
@@ -245,6 +247,10 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         // release the master service
         safeAwait(barrier);
 
+        final var abortFuture = clusterAdmin().prepareDeleteSnapshot("test-repo", "snapshot-3").execute();
+
+        Thread.sleep(2000);
+
         internalCluster().getCurrentMasterNodeInstance(ClusterService.class).submitUnbatchedStateUpdateTask("blocking", blockingTask);
         safeAwait(barrier);
         unblockIndex3Listener.onResponse(null);
@@ -252,6 +258,7 @@ public class SnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
 
         // wait for all snapshots to complete
         awaitNoMoreRunningOperations();
+        assertAcked(abortFuture.get(10, TimeUnit.SECONDS));
 
         // ensure that another snapshot works
         clusterAdmin().prepareCreateSnapshot("test-repo", "snapshot-final").setWaitForCompletion(true).get();
