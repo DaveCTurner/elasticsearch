@@ -266,8 +266,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
 
     private final boolean compress;
 
-    private final boolean cacheRepositoryData;
-
     private volatile RateLimiter snapshotRateLimiter;
 
     private volatile RateLimiter restoreRateLimiter;
@@ -353,31 +351,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     private final NamedXContentRegistry namedXContentRegistry;
 
     protected final BigArrays bigArrays;
-
-    /**
-     * Flag that is set to {@code true} if this instance is started with {@link #metadata} that has a higher value for
-     * {@link RepositoryMetadata#pendingGeneration()} than for {@link RepositoryMetadata#generation()} indicating a full cluster restart
-     * potentially accounting for the the last {@code index-N} write in the cluster state.
-     * Note: While it is true that this value could also be set to {@code true} for an instance on a node that is just joining the cluster
-     * during a new {@code index-N} write, this does not present a problem. The node will still load the correct {@link RepositoryData} in
-     * all cases and simply do a redundant listing of the repository contents if it tries to load {@link RepositoryData} and falls back
-     * to {@link #latestIndexBlobId()} to validate the value of {@link RepositoryMetadata#generation()}.
-     */
-    private boolean uncleanStart;
-
-    /**
-     * This flag indicates that the repository can not exclusively rely on the value stored in {@link #latestKnownRepoGen} to determine the
-     * latest repository generation but must inspect its physical contents as well via {@link #latestIndexBlobId()}.
-     * This flag is set in the following situations:
-     * <ul>
-     *     <li>All repositories that are read-only, i.e. for which {@link #isReadOnly()} returns {@code true} because there are no
-     *     guarantees that another cluster is not writing to the repository at the same time</li>
-     *     <li>The value of {@link RepositoryMetadata#generation()} for this repository is {@link RepositoryData#UNKNOWN_REPO_GEN}
-     *     indicating that no consistent repository generation is tracked in the cluster state yet.</li>
-     *     <li>The {@link #uncleanStart} flag is set to {@code true}</li>
-     * </ul>
-     */
-    private volatile boolean bestEffortConsistency;
 
     /**
      * IO buffer size hint for reading and writing to the underlying blob store.
@@ -780,53 +753,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             return RepositoryStats.EMPTY_STATS;
         }
         return new RepositoryStats(store.stats());
-    }
-
-    /**
-     * Loads {@link RepositoryData} ensuring that it is consistent with the given {@code rootBlobs} as well of the assumed generation.
-     *
-     * @param repositoryDataGeneration Expected repository generation
-     * @param rootBlobs                Blobs at the repository root
-     * @return RepositoryData
-     */
-    private RepositoryData safeRepositoryData(long repositoryDataGeneration, Map<String, BlobMetadata> rootBlobs) {
-        final long generation = latestGeneration(rootBlobs.keySet());
-        final long genToLoad;
-        final RepositoryData cached;
-        if (bestEffortConsistency) {
-            genToLoad = latestKnownRepoGen.accumulateAndGet(repositoryDataGeneration, Math::max);
-            cached = null;
-        } else {
-            genToLoad = latestKnownRepoGen.get();
-            cached = latestKnownRepositoryData.get();
-        }
-        if (genToLoad > generation) {
-            // It's always a possibility to not see the latest index-N in the listing here on an eventually consistent blob store, just
-            // debug log it. Any blobs leaked as a result of an inconsistent listing here will be cleaned up in a subsequent cleanup or
-            // snapshot delete run anyway.
-            logger.debug(
-                "Determined repository's generation from its contents to ["
-                    + generation
-                    + "] but "
-                    + "current generation is at least ["
-                    + genToLoad
-                    + "]"
-            );
-        }
-        if (genToLoad != repositoryDataGeneration) {
-            throw new RepositoryException(
-                metadata.name(),
-                "concurrent modification of the index-N file, expected current generation ["
-                    + repositoryDataGeneration
-                    + "], actual current generation ["
-                    + genToLoad
-                    + "]"
-            );
-        }
-        if (cached != null && cached.getGenId() == genToLoad) {
-            return cached;
-        }
-        return getRepositoryData(genToLoad);
     }
 
     /**
@@ -1999,12 +1925,86 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
     }
 
+    private final boolean cacheRepositoryData;
+
+    /**
+     * Flag that is set to {@code true} if this instance is started with {@link #metadata} that has a higher value for
+     * {@link RepositoryMetadata#pendingGeneration()} than for {@link RepositoryMetadata#generation()} indicating a full cluster restart
+     * potentially accounting for the the last {@code index-N} write in the cluster state.
+     * Note: While it is true that this value could also be set to {@code true} for an instance on a node that is just joining the cluster
+     * during a new {@code index-N} write, this does not present a problem. The node will still load the correct {@link RepositoryData} in
+     * all cases and simply do a redundant listing of the repository contents if it tries to load {@link RepositoryData} and falls back
+     * to {@link #latestIndexBlobId()} to validate the value of {@link RepositoryMetadata#generation()}.
+     */
+    private boolean uncleanStart;
+
+    /**
+     * This flag indicates that the repository can not exclusively rely on the value stored in {@link #latestKnownRepoGen} to determine the
+     * latest repository generation but must inspect its physical contents as well via {@link #latestIndexBlobId()}.
+     * This flag is set in the following situations:
+     * <ul>
+     *     <li>All repositories that are read-only, i.e. for which {@link #isReadOnly()} returns {@code true} because there are no
+     *     guarantees that another cluster is not writing to the repository at the same time</li>
+     *     <li>The value of {@link RepositoryMetadata#generation()} for this repository is {@link RepositoryData#UNKNOWN_REPO_GEN}
+     *     indicating that no consistent repository generation is tracked in the cluster state yet.</li>
+     *     <li>The {@link #uncleanStart} flag is set to {@code true}</li>
+     * </ul>
+     */
+    private volatile boolean bestEffortConsistency;
+
     // Tracks the latest known repository generation in a best-effort way to detect inconsistent listing of root level index-N blobs
     // and concurrent modifications.
     private final AtomicLong latestKnownRepoGen = new AtomicLong(RepositoryData.UNKNOWN_REPO_GEN);
 
     // Best effort cache of the latest known repository data
     private final AtomicReference<RepositoryData> latestKnownRepositoryData = new AtomicReference<>(RepositoryData.EMPTY);
+
+    /**
+     * Loads {@link RepositoryData} ensuring that it is consistent with the given {@code rootBlobs} as well of the assumed generation.
+     *
+     * @param repositoryDataGeneration Expected repository generation
+     * @param rootBlobs                Blobs at the repository root
+     * @return RepositoryData
+     */
+    private RepositoryData safeRepositoryData(long repositoryDataGeneration, Map<String, BlobMetadata> rootBlobs) {
+        final long generation = latestGeneration(rootBlobs.keySet());
+        final long genToLoad;
+        final RepositoryData cached;
+        if (bestEffortConsistency) {
+            genToLoad = latestKnownRepoGen.accumulateAndGet(repositoryDataGeneration, Math::max);
+            cached = null;
+        } else {
+            genToLoad = latestKnownRepoGen.get();
+            cached = latestKnownRepositoryData.get();
+        }
+        if (genToLoad > generation) {
+            // It's always a possibility to not see the latest index-N in the listing here on an eventually consistent blob store, just
+            // debug log it. Any blobs leaked as a result of an inconsistent listing here will be cleaned up in a subsequent cleanup or
+            // snapshot delete run anyway.
+            logger.debug(
+                "Determined repository's generation from its contents to ["
+                + generation
+                + "] but "
+                + "current generation is at least ["
+                + genToLoad
+                + "]"
+            );
+        }
+        if (genToLoad != repositoryDataGeneration) {
+            throw new RepositoryException(
+                metadata.name(),
+                "concurrent modification of the index-N file, expected current generation ["
+                + repositoryDataGeneration
+                + "], actual current generation ["
+                + genToLoad
+                + "]"
+            );
+        }
+        if (cached != null && cached.getGenId() == genToLoad) {
+            return cached;
+        }
+        return getRepositoryData(genToLoad);
+    }
 
     @Override
     public void getRepositoryData(ActionListener<RepositoryData> listener) {
@@ -2430,15 +2430,6 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
     }
 
-    private static String testBlobPrefix(String seed) {
-        return TESTS_FILE + seed;
-    }
-
-    @Override
-    public boolean isReadOnly() {
-        return readOnly;
-    }
-
     /**
      * Writing a new index generation (root) blob is a three-step process. Typically, it starts from a stable state where the pending
      * generation {@link RepositoryMetadata#pendingGeneration()} is equal to the safe generation {@link RepositoryMetadata#generation()},
@@ -2824,6 +2815,15 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         }
         updatedDeletionsInProgress = changedDeletions ? SnapshotDeletionsInProgress.of(deletionEntries) : null;
         return SnapshotsService.updateWithSnapshots(state, updatedSnapshotsInProgress, updatedDeletionsInProgress);
+    }
+
+    private static String testBlobPrefix(String seed) {
+        return TESTS_FILE + seed;
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return readOnly;
     }
 
     private RepositoryMetadata getRepoMetadata(ClusterState state) {
