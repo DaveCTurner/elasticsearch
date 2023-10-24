@@ -177,6 +177,15 @@ public class S3HttpHandler implements HttpHandler {
                     exchange.getResponseBody().write(response);
                 }
             } else if (Regex.simpleMatch("DELETE /" + path + "/*?uploadId=*", request)) {
+                if (random.nextDouble() < 0.7) {
+                    try {
+                        Thread.sleep(random.nextInt(500));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        exchange.sendResponseHeaders(RestStatus.SERVICE_UNAVAILABLE.getStatus(), -1);
+                        return;
+                    }
+                }
                 if (random.nextDouble() < 0.05) {
                     exchange.sendResponseHeaders(RestStatus.INTERNAL_SERVER_ERROR.getStatus(), -1);
                 } else {
