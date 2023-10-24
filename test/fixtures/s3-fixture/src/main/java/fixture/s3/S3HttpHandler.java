@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -52,6 +53,8 @@ import static org.w3c.dom.Node.ELEMENT_NODE;
  */
 @SuppressForbidden(reason = "this test uses a HttpServer to emulate an S3 endpoint")
 public class S3HttpHandler implements HttpHandler {
+
+    private final Random random = new Random(System.currentTimeMillis());
 
     private final String bucket;
     private final String path;
@@ -174,11 +177,14 @@ public class S3HttpHandler implements HttpHandler {
                     exchange.getResponseBody().write(response);
                 }
             } else if (Regex.simpleMatch("DELETE /" + path + "/*?uploadId=*", request)) {
-                final Map<String, String> params = new HashMap<>();
-                RestUtils.decodeQueryString(exchange.getRequestURI().getQuery(), 0, params);
-                final var upload = uploads.remove(params.get("uploadId"));
-                exchange.sendResponseHeaders((upload == null ? RestStatus.NOT_FOUND : RestStatus.NO_CONTENT).getStatus(), -1);
-
+                if (random.nextDouble() < 0.05) {
+                    exchange.sendResponseHeaders(RestStatus.INTERNAL_SERVER_ERROR.getStatus(), -1);
+                } else {
+                    final Map<String, String> params = new HashMap<>();
+                    RestUtils.decodeQueryString(exchange.getRequestURI().getQuery(), 0, params);
+                    final var upload = uploads.remove(params.get("uploadId"));
+                    exchange.sendResponseHeaders((upload == null ? RestStatus.NOT_FOUND : RestStatus.NO_CONTENT).getStatus(), -1);
+                }
             } else if (Regex.simpleMatch("PUT /" + path + "/*", request)) {
                 final Tuple<String, BytesReference> blob = parseRequestBody(exchange);
                 blobs.put(exchange.getRequestURI().toString(), blob.v2());
