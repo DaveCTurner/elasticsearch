@@ -515,7 +515,7 @@ public class RepositoryAnalyzeAction extends ActionType<RepositoryAnalyzeAction.
                     }
                 }
 
-                if (minClusterTransportVersion.onOrAfter(TransportVersions.UNCONTENDED_REGISTER_ANALYSIS_ADDED)) {
+                if (false && minClusterTransportVersion.onOrAfter(TransportVersions.UNCONTENDED_REGISTER_ANALYSIS_ADDED)) {
                     new UncontendedRegisterAnalysis(new Random(random.nextLong()), nodes, contendedRegisterAnalysisComplete).run();
                 }
             }
