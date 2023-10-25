@@ -346,16 +346,16 @@ class S3BlobContainer extends AbstractBlobContainer {
     public Map<String, BlobContainer> children(OperationPurpose purpose) throws IOException {
         try (AmazonS3Reference clientReference = blobStore.clientReference()) {
             return executeListing(purpose, clientReference, listObjectsRequest(purpose, keyPath)).stream().flatMap(listing -> {
-                assert listing.getObjectSummaries().stream().noneMatch(s -> {
-                    for (String commonPrefix : listing.getCommonPrefixes()) {
-                        if (s.getKey().substring(keyPath.length()).startsWith(commonPrefix)) {
-                            return true;
+                    assert listing.getObjectSummaries().stream().noneMatch(s -> {
+                        for (String commonPrefix : listing.getCommonPrefixes()) {
+                            if (s.getKey().substring(keyPath.length()).startsWith(commonPrefix)) {
+                                return true;
+                            }
                         }
-                    }
-                    return false;
-                }) : "Response contained children for listed common prefixes.";
-                return listing.getCommonPrefixes().stream();
-            })
+                        return false;
+                    }) : "Response contained children for listed common prefixes.";
+                    return listing.getCommonPrefixes().stream();
+                })
                 .map(prefix -> prefix.substring(keyPath.length()))
                 .filter(name -> name.isEmpty() == false)
                 // Stripping the trailing slash off of the common prefix
@@ -807,13 +807,13 @@ class S3BlobContainer extends AbstractBlobContainer {
     ) {
         final var clientReference = blobStore.clientReference();
         ActionListener.run(ActionListener.releaseAfter(listener.delegateResponse((delegate, e) -> {
-            if (e instanceof AmazonS3Exception amazonS3Exception && amazonS3Exception.getStatusCode() == 404) {
-                // an uncaught 404 means that our multipart upload was aborted by a concurrent operation before we could complete it
-                delegate.onResponse(OptionalBytesReference.MISSING);
-            } else {
-                delegate.onFailure(e);
-            }
-        }), clientReference),
+                if (e instanceof AmazonS3Exception amazonS3Exception && amazonS3Exception.getStatusCode() == 404) {
+                    // an uncaught 404 means that our multipart upload was aborted by a concurrent operation before we could complete it
+                    delegate.onResponse(OptionalBytesReference.MISSING);
+                } else {
+                    delegate.onFailure(e);
+                }
+            }), clientReference),
             l -> new CompareAndExchangeOperation(purpose, clientReference.client(), blobStore.bucket(), key, blobStore.getThreadPool()).run(
                 expected,
                 updated,
