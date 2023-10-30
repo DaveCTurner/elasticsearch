@@ -42,7 +42,7 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         createRepository(repoName, "mock");
 
         final var clusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
-        final var snapshotFuture = startFullSnapshotBlockedOnDataNode("snapshot-1", repoName, originalNode);
+        final var snapshotFuture = startFullSnapshotBlockedOnDataNode(randomIdentifier(), repoName, originalNode);
         final var snapshotPausedListener = createSnapshotPausedListener(clusterService, repoName);
 
         updateIndexSettings(Settings.builder().putNull(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name"), indexName);
@@ -68,21 +68,21 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
     }
 
     public void testStartRemoveNodeButDoNotComplete() throws Exception {
-        final var oldNode = internalCluster().startDataOnlyNode();
+        final var primaryNode = internalCluster().startDataOnlyNode();
         final var indexName = randomIdentifier();
         createIndexWithContent(
             indexName,
-            indexSettings(1, 0).put(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name", oldNode).build()
+            indexSettings(1, 0).put(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name", primaryNode).build()
         );
 
         final var repoName = randomIdentifier();
         createRepository(repoName, "mock");
 
         final var clusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
-        final var snapshotFuture = startFullSnapshotBlockedOnDataNode("snapshot-1", repoName, oldNode);
+        final var snapshotFuture = startFullSnapshotBlockedOnDataNode(randomIdentifier(), repoName, primaryNode);
         final var snapshotPausedListener = createSnapshotPausedListener(clusterService, repoName);
 
-        putShutdownMetadata(oldNode, clusterService);
+        putShutdownMetadata(primaryNode, clusterService);
         unblockAllDataNodes(repoName); // lets the shard snapshot abort, but allocation filtering stops it from moving
         PlainActionFuture.get(snapshotPausedListener::addListener, 10, TimeUnit.SECONDS);
         assertFalse(snapshotFuture.isDone());
