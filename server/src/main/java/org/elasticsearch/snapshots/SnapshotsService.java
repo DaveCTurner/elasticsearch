@@ -852,10 +852,10 @@ public class SnapshotsService extends AbstractLifecycleComponent implements Clus
     }
 
     private synchronized void logCurrentState() {
-        logger.info("currentlyFinalizing: {}", currentlyFinalizing);
-        logger.info("currentlyCloning: {}", currentlyCloning);
-        logger.info("endingSnapshots: {}", endingSnapshots);
-        logger.info("initializingClones: {}", initializingClones);
+        logger.info("currentlyFinalizing: {}", currentlyFinalizing.toString());
+        logger.info("currentlyCloning: {}", currentlyCloning.toString());
+        logger.info("endingSnapshots: {}", endingSnapshots.toString());
+        logger.info("initializingClones: {}", initializingClones.toString());
     }
 
     private boolean assertConsistentWithClusterState(ClusterState state) {
