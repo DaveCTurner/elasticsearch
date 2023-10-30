@@ -21,6 +21,7 @@ import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress.ShardSnapshotStatus;
 import org.elasticsearch.cluster.SnapshotsInProgress.ShardState;
 import org.elasticsearch.cluster.SnapshotsInProgress.State;
+import org.elasticsearch.cluster.metadata.NodesShutdownMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -61,6 +62,11 @@ import java.util.Map;
 
 import static java.util.Collections.emptyMap;
 import static org.elasticsearch.core.Strings.format;
+import static org.elasticsearch.index.snapshots.IndexShardSnapshotStatus.AbortStatus.NODE_SHUTTING_DOWN;
+import static org.elasticsearch.index.snapshots.IndexShardSnapshotStatus.AbortStatus.NOT_ABORTED;
+import static org.elasticsearch.index.snapshots.IndexShardSnapshotStatus.AbortStatus.SHARD_CLOSED;
+import static org.elasticsearch.index.snapshots.IndexShardSnapshotStatus.AbortStatus.SNAPSHOT_ABORTED;
+import static org.elasticsearch.index.snapshots.IndexShardSnapshotStatus.AbortStatus.SNAPSHOT_REMOVED;
 
 /**
  * This service runs on data nodes and controls currently running shard snapshots on these nodes. It is responsible for
@@ -130,11 +136,31 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
     public void clusterChanged(ClusterChangedEvent event) {
         try {
             SnapshotsInProgress currentSnapshots = SnapshotsInProgress.get(event.state());
-            if (SnapshotsInProgress.get(event.previousState()).equals(currentSnapshots) == false) {
+            final var localNodeShutdownMetadata = event.state()
+                .metadata()
+                .custom(NodesShutdownMetadata.TYPE, NodesShutdownMetadata.EMPTY)
+                .get(event.state().nodes().getLocalNodeId());
+            if (localNodeShutdownMetadata != null) {
+                // TODO does it make sense to pause the snapshot work when the node is restarting? If there are replicas then they are
+                //  promoted in place when the node stops, there is no move-to-STARTED step to trigger new snapshots. And if there are no
+                //  replicas then we do not expect the node to restart gracefully so a PARTIAL snapshot is ok. To handle this properly is
+                //  really #71333 which is nothing to do with node shutdown.
                 synchronized (shardSnapshots) {
-                    cancelRemoved(currentSnapshots);
-                    for (List<SnapshotsInProgress.Entry> snapshots : currentSnapshots.entriesByRepo()) {
-                        startNewSnapshots(snapshots);
+                    for (Map.Entry<Snapshot, Map<ShardId, IndexShardSnapshotStatus>> snapshotMapEntry : shardSnapshots.entrySet()) {
+                        for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardIdIndexShardSnapshotStatusEntry : snapshotMapEntry.getValue()
+                            .entrySet()) {
+                            shardIdIndexShardSnapshotStatusEntry.getValue()
+                                .abortIfNotCompleted("node is shutting down", NODE_SHUTTING_DOWN, notifyOnAbortTaskRunner::enqueueTask);
+                        }
+                    }
+                }
+            } else {
+                if (SnapshotsInProgress.get(event.previousState()).equals(currentSnapshots) == false) {
+                    synchronized (shardSnapshots) {
+                        cancelRemoved(currentSnapshots);
+                        for (List<SnapshotsInProgress.Entry> snapshots : currentSnapshots.entriesByRepo()) {
+                            startNewSnapshots(snapshots);
+                        }
                     }
                 }
             }
@@ -168,7 +194,11 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         shardId,
                         snapshotShards.getKey().getSnapshotId()
                     );
-                    indexShardSnapshotStatus.abortIfNotCompleted("shard is closing, aborting", notifyOnAbortTaskRunner::enqueueTask);
+                    indexShardSnapshotStatus.abortIfNotCompleted(
+                        "shard is closing, aborting",
+                        SHARD_CLOSED,
+                        notifyOnAbortTaskRunner::enqueueTask
+                    );
                 }
             }
         }
@@ -205,6 +235,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 for (IndexShardSnapshotStatus snapshotStatus : entry.getValue().values()) {
                     snapshotStatus.abortIfNotCompleted(
                         "snapshot has been removed in cluster state, aborting",
+                        SNAPSHOT_REMOVED,
                         notifyOnAbortTaskRunner::enqueueTask
                     );
                 }
@@ -270,10 +301,20 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         // due to CS batching we might have missed the INIT state and straight went into ABORTED
                         // notify master that abort has completed by moving to FAILED
                         if (shard.getValue().state() == ShardState.ABORTED && localNodeId.equals(shard.getValue().nodeId())) {
-                            notifyFailedSnapshotShard(snapshot, sid, shard.getValue().reason(), shard.getValue().generation());
+                            notifyFailedSnapshotShard(
+                                snapshot,
+                                sid,
+                                ShardState.FAILED,
+                                shard.getValue().reason(),
+                                shard.getValue().generation()
+                            );
                         }
                     } else {
-                        snapshotStatus.abortIfNotCompleted("snapshot has been aborted", notifyOnAbortTaskRunner::enqueueTask);
+                        snapshotStatus.abortIfNotCompleted(
+                            "snapshot has been aborted",
+                            SNAPSHOT_ABORTED,
+                            notifyOnAbortTaskRunner::enqueueTask
+                        );
                     }
                 }
             }
@@ -312,15 +353,25 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
             @Override
             public void onFailure(Exception e) {
                 final String failure;
+                final ShardState shardState;
                 if (e instanceof AbortedSnapshotException) {
-                    failure = "aborted";
-                    logger.debug(() -> format("[%s][%s] aborted shard snapshot", shardId, snapshot), e);
+                    final var abortStatus = snapshotStatus.getAbortStatus();
+                    if (abortStatus == NODE_SHUTTING_DOWN) {
+                        failure = "paused for shutdown";
+                        shardState = ShardState.WAITING;
+                        logger.debug(() -> format("[%s][%s] pausing shard snapshot for node shutdown", shardId, snapshot), e);
+                    } else {
+                        failure = "aborted";
+                        shardState = ShardState.FAILED;
+                        logger.debug(() -> format("[%s][%s] aborted shard snapshot: [%s]", shardId, snapshot, abortStatus), e);
+                    }
                 } else {
                     failure = summarizeFailure(e);
+                    shardState = ShardState.FAILED;
                     logger.warn(() -> format("[%s][%s] failed to snapshot shard", shardId, snapshot), e);
                 }
                 snapshotStatus.moveToFailed(threadPool.absoluteTimeInMillis(), failure);
-                notifyFailedSnapshotShard(snapshot, shardId, failure, snapshotStatus.generation());
+                notifyFailedSnapshotShard(snapshot, shardId, shardState, failure, snapshotStatus.generation());
             }
         });
     }
@@ -426,7 +477,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
         return new ActionListener<>() {
             @Override
             public void onResponse(IndexShardSnapshotStatus.AbortStatus abortStatus) {
-                if (abortStatus == IndexShardSnapshotStatus.AbortStatus.ABORTED) {
+                if (abortStatus != NOT_ABORTED) {
                     assert ThreadPool.assertCurrentThreadPool(ThreadPool.Names.GENERIC, ThreadPool.Names.SNAPSHOT);
                     snapshotIndexCommit.onAbort();
                 }
@@ -514,6 +565,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                 notifyFailedSnapshotShard(
                                     snapshot.snapshot(),
                                     shardId,
+                                    ShardState.FAILED,
                                     indexShardSnapshotStatus.getFailure(),
                                     localShard.getValue().generation()
                                 );
@@ -536,13 +588,20 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
     private void notifyFailedSnapshotShard(
         final Snapshot snapshot,
         final ShardId shardId,
+        final ShardState shardState,
         final String failure,
         final ShardGeneration generation
     ) {
+        assert shardState == ShardState.FAILED || shardState == ShardState.WAITING : shardState;
+
+        // TODO Danger: if we move to WAITING the shard must transition out of, and back into, routing state STARTED to get the shard
+        //  snapshot back into state INIT to trigger another shard snapshot attempt. Work out how to guarantee that this will happen.
+        //  Presumably SnapshotsService will also need to move shards to state INIT on removal of node shutdown metadata.
+
         sendSnapshotShardUpdate(
             snapshot,
             shardId,
-            new ShardSnapshotStatus(clusterService.localNode().getId(), ShardState.FAILED, failure, generation)
+            new ShardSnapshotStatus(clusterService.localNode().getId(), shardState, failure, generation)
         );
     }
 
