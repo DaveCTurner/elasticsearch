@@ -30,6 +30,44 @@ import static org.hamcrest.Matchers.hasSize;
 public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
 
     public void testRemoveNodeDuringSnapshot() throws Exception {
+        internalCluster().ensureAtLeastNumDataNodes(1);
+        final var originalNode = internalCluster().startDataOnlyNode();
+        final var indexName = randomIdentifier();
+        createIndexWithContent(
+            indexName,
+            indexSettings(1, 0).put(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name", originalNode).build()
+        );
+
+        final var repoName = randomIdentifier();
+        createRepository(repoName, "mock");
+
+        final var clusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
+        final var snapshotFuture = startFullSnapshotBlockedOnDataNode("snapshot-1", repoName, originalNode);
+        final var snapshotPausedListener = createSnapshotPausedListener(clusterService, repoName);
+
+        updateIndexSettings(Settings.builder().putNull(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name"), indexName);
+        putShutdownMetadata(originalNode, clusterService);
+        unblockAllDataNodes(repoName); // lets the shard snapshot abort, which frees up the shard so it can move
+        PlainActionFuture.get(snapshotPausedListener::addListener, 10, TimeUnit.SECONDS);
+
+        // reroute to work around https://github.com/elastic/elasticsearch/issues/101514
+        PlainActionFuture.get(
+            fut -> clusterService.getRerouteService().reroute("test", Priority.NORMAL, fut.map(ignored -> null)),
+            10,
+            TimeUnit.SECONDS
+        );
+
+        // snapshot completes when the node vacates even though it hasn't been removed yet
+        assertEquals(SnapshotState.SUCCESS, snapshotFuture.get(10, TimeUnit.SECONDS).getSnapshotInfo().state());
+
+        if (randomBoolean()) {
+            internalCluster().stopNode(originalNode);
+        }
+
+        clearShutdownMetadata(clusterService);
+    }
+
+    public void testStartRemoveNodeButDoNotComplete() throws Exception {
         final var oldNode = internalCluster().startDataOnlyNode();
         final var indexName = randomIdentifier();
         createIndexWithContent(
@@ -42,7 +80,20 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
 
         final var clusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
         final var snapshotFuture = startFullSnapshotBlockedOnDataNode("snapshot-1", repoName, oldNode);
+        final var snapshotPausedListener = createSnapshotPausedListener(clusterService, repoName);
 
+        putShutdownMetadata(oldNode, clusterService);
+        unblockAllDataNodes(repoName); // lets the shard snapshot abort, but allocation filtering stops it from moving
+        PlainActionFuture.get(snapshotPausedListener::addListener, 10, TimeUnit.SECONDS);
+        assertFalse(snapshotFuture.isDone());
+
+        // give up on the node shutdown so the shard snapshot can restart
+        clearShutdownMetadata(clusterService);
+
+        assertEquals(SnapshotState.SUCCESS, snapshotFuture.get(10, TimeUnit.SECONDS).getSnapshotInfo().state());
+    }
+
+    private static SubscribableListener<Object> createSnapshotPausedListener(ClusterService clusterService, String repoName) {
         final var snapshotPausedListener = new SubscribableListener<>();
         final ClusterStateListener snapshotPauseListener = event -> {
             final var entriesForRepo = SnapshotsInProgress.get(event.state()).forRepo(repoName);
@@ -61,11 +112,11 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         };
         clusterService.addListener(snapshotPauseListener);
         snapshotPausedListener.addListener(ActionListener.running(() -> clusterService.removeListener(snapshotPauseListener)));
+        return snapshotPausedListener;
+    }
 
-        internalCluster().ensureAtLeastNumDataNodes(2);
-        updateIndexSettings(Settings.builder().putNull(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_PREFIX + "._name"), indexName);
-
-        final var oldNodeId = clusterService.state().nodes().resolveNode(oldNode).getId();
+    private static void putShutdownMetadata(String nodeName, ClusterService clusterService) {
+        final var nodeId = clusterService.state().nodes().resolveNode(nodeName).getId();
         PlainActionFuture.get(fut -> clusterService.submitUnbatchedStateUpdateTask("mark node for removal", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
@@ -74,9 +125,9 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
                         NodesShutdownMetadata.TYPE,
                         new NodesShutdownMetadata(
                             Map.of(
-                                oldNodeId,
+                                nodeId,
                                 SingleNodeShutdownMetadata.builder()
-                                    .setNodeId(oldNodeId)
+                                    .setNodeId(nodeId)
                                     .setType(SingleNodeShutdownMetadata.Type.REMOVE)
                                     .setStartedAtMillis(clusterService.threadPool().absoluteTimeInMillis())
                                     .setReason("test")
@@ -97,20 +148,9 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
                 fut.onResponse(null);
             }
         }), 10, TimeUnit.SECONDS);
+    }
 
-        logger.info("--> unblock");
-        unblockAllDataNodes(repoName);
-        PlainActionFuture.get(snapshotPausedListener::addListener, 10, TimeUnit.SECONDS);
-
-        // reroute to work around https://github.com/elastic/elasticsearch/issues/101514
-        PlainActionFuture.get(
-            fut -> clusterService.getRerouteService().reroute("test", Priority.NORMAL, fut.map(ignored -> null)),
-            10,
-            TimeUnit.SECONDS
-        );
-
-        assertEquals(SnapshotState.SUCCESS, snapshotFuture.get(10, TimeUnit.SECONDS).getSnapshotInfo().state());
-
+    private static void clearShutdownMetadata(ClusterService clusterService) {
         PlainActionFuture.get(fut -> clusterService.submitUnbatchedStateUpdateTask("remove restart marker", new ClusterStateUpdateTask() {
             @Override
             public ClusterState execute(ClusterState currentState) {
