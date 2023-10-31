@@ -188,10 +188,7 @@ public class IndexShardSnapshotStatus {
         abortListeners.addListener(listener);
     }
 
-    public synchronized void abortIfNotCompleted(
-        final AbortStatus abortStatus,
-        final Consumer<ActionListener<Releasable>> notifyRunner
-    ) {
+    public synchronized void abortIfNotCompleted(final AbortStatus abortStatus, final Consumer<ActionListener<Releasable>> notifyRunner) {
         assert abortStatus != AbortStatus.NOT_ABORTED;
         if (stage.compareAndSet(Stage.INIT, Stage.ABORTED) || stage.compareAndSet(Stage.STARTED, Stage.ABORTED)) {
             this.abortStatus = abortStatus;
