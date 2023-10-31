@@ -151,11 +151,9 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
             SnapshotsInProgress currentSnapshots = SnapshotsInProgress.get(event.state());
             if (removingLocalNode(event.state())) {
                 synchronized (shardSnapshots) {
-                    for (Map.Entry<Snapshot, Map<ShardId, IndexShardSnapshotStatus>> snapshotMapEntry : shardSnapshots.entrySet()) {
-                        for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardIdIndexShardSnapshotStatusEntry : snapshotMapEntry.getValue()
-                            .entrySet()) {
-                            shardIdIndexShardSnapshotStatusEntry.getValue()
-                                .abortIfNotCompleted(NODE_SHUTTING_DOWN, notifyOnAbortTaskRunner::enqueueTask);
+                    for (final var oneSnapshotShards : shardSnapshots.values()) {
+                        for (final var indexShardSnapshotStatus : oneSnapshotShards.values()) {
+                            indexShardSnapshotStatus.abortIfNotCompleted(NODE_SHUTTING_DOWN, notifyOnAbortTaskRunner::enqueueTask);
                         }
                     }
                 }
