@@ -70,7 +70,18 @@ public class IndexShardSnapshotStatus {
         /** The shard snapshot was aborted because the shard closed */
         SHARD_CLOSED,
         /** The shard snapshot was aborted because the node is shutting down */
-        NODE_SHUTTING_DOWN,
+        NODE_SHUTTING_DOWN
+        /* */
+        ;
+
+        public String getDescription() {
+            return switch (this) {
+                case NOT_ABORTED -> "not aborted";
+                case SNAPSHOT_ABORTED -> "snapshot has been aborted";
+                case SNAPSHOT_REMOVED -> "snapshot has been removed in cluster state, aborting";
+                case SHARD_CLOSED -> "shard is closing, aborting";
+            };
+        }
     }
 
     private final AtomicReference<Stage> stage;
@@ -178,14 +189,13 @@ public class IndexShardSnapshotStatus {
     }
 
     public synchronized void abortIfNotCompleted(
-        final String failure,
         final AbortStatus abortStatus,
-        Consumer<ActionListener<Releasable>> notifyRunner
+        final Consumer<ActionListener<Releasable>> notifyRunner
     ) {
         assert abortStatus != AbortStatus.NOT_ABORTED;
         if (stage.compareAndSet(Stage.INIT, Stage.ABORTED) || stage.compareAndSet(Stage.STARTED, Stage.ABORTED)) {
             this.abortStatus = abortStatus;
-            this.failure = failure;
+            this.failure = abortStatus.getDescription();
             notifyRunner.accept(abortListeners.map(r -> {
                 Releasables.closeExpectNoException(r);
                 return abortStatus;

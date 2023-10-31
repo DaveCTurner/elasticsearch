@@ -199,11 +199,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         shardId,
                         snapshotShards.getKey().getSnapshotId()
                     );
-                    indexShardSnapshotStatus.abortIfNotCompleted(
-                        "shard is closing, aborting",
-                        SHARD_CLOSED,
-                        notifyOnAbortTaskRunner::enqueueTask
-                    );
+                    indexShardSnapshotStatus.abortIfNotCompleted(SHARD_CLOSED, notifyOnAbortTaskRunner::enqueueTask);
                 }
             }
         }
@@ -238,11 +234,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 // state update, which is being processed here
                 it.remove();
                 for (IndexShardSnapshotStatus snapshotStatus : entry.getValue().values()) {
-                    snapshotStatus.abortIfNotCompleted(
-                        "snapshot has been removed in cluster state, aborting",
-                        SNAPSHOT_REMOVED,
-                        notifyOnAbortTaskRunner::enqueueTask
-                    );
+                    snapshotStatus.abortIfNotCompleted(SNAPSHOT_REMOVED, notifyOnAbortTaskRunner::enqueueTask);
                 }
             }
         }
@@ -315,11 +307,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                             );
                         }
                     } else {
-                        snapshotStatus.abortIfNotCompleted(
-                            "snapshot has been aborted",
-                            SNAPSHOT_ABORTED,
-                            notifyOnAbortTaskRunner::enqueueTask
-                        );
+                        snapshotStatus.abortIfNotCompleted(SNAPSHOT_ABORTED, notifyOnAbortTaskRunner::enqueueTask);
                     }
                 }
             }
@@ -361,12 +349,13 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 final ShardState shardState;
                 if (e instanceof AbortedSnapshotException) {
                     final var abortStatus = snapshotStatus.getAbortStatus();
+                    assert abortStatus != NOT_ABORTED;
                     if (abortStatus == NODE_SHUTTING_DOWN) {
                         failure = "paused for shutdown";
                         shardState = ShardState.WAITING;
                         logger.debug(() -> format("[%s][%s] pausing shard snapshot for node shutdown", shardId, snapshot), e);
                     } else {
-                        failure = "aborted";
+                        failure = abortStatus.getDescription();
                         shardState = ShardState.FAILED;
                         logger.debug(() -> format("[%s][%s] aborted shard snapshot: [%s]", shardId, snapshot, abortStatus), e);
                     }
