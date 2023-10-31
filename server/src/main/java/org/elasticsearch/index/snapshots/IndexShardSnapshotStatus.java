@@ -71,7 +71,7 @@ public class IndexShardSnapshotStatus {
         SHARD_CLOSED,
         /** The shard snapshot was aborted because the node is shutting down */
         NODE_SHUTTING_DOWN
-        /* */
+        //
         ;
 
         public String getDescription() {
@@ -80,6 +80,7 @@ public class IndexShardSnapshotStatus {
                 case SNAPSHOT_ABORTED -> "snapshot has been aborted";
                 case SNAPSHOT_REMOVED -> "snapshot has been removed in cluster state, aborting";
                 case SHARD_CLOSED -> "shard is closing, aborting";
+                case NODE_SHUTTING_DOWN -> "paused for removal of node holding primary";
             };
         }
     }
