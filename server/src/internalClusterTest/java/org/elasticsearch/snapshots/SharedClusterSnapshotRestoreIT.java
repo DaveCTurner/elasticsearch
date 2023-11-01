@@ -1783,7 +1783,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         SnapshotInfo snapshotInfo = snapshotFuture.get().getSnapshotInfo();
         assertEquals(1, snapshotInfo.shardFailures().size());
         assertEquals(0, snapshotInfo.shardFailures().get(0).shardId());
-        assertThat(snapshotInfo.shardFailures().get(0).reason(), is("shard is closing, aborting"));
+        assertThat(snapshotInfo.shardFailures().get(0).reason(), is("aborted"));
     }
 
     public void testSnapshotSucceedsAfterSnapshotFailure() throws Exception {
