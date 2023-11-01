@@ -16,6 +16,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.snapshots.AbortedSnapshotException;
+import org.elasticsearch.snapshots.PausedSnapshotException;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,6 +51,10 @@ public class IndexShardSnapshotStatus {
          * Snapshot failed
          */
         FAILURE,
+        /**
+         * Snapshot pausing because of node removal
+         */
+        PAUSING,
         /**
          * Snapshot aborted
          */
@@ -119,9 +124,8 @@ public class IndexShardSnapshotStatus {
             this.totalFileCount = totalFileCount;
             this.incrementalSize = incrementalSize;
             this.totalSize = totalSize;
-        } else if (isAborted()) {
-            throw new AbortedSnapshotException();
         } else {
+            ensureNotAborted();
             assert false : "Should not try to move stage [" + stage.get() + "] to [STARTED]";
             throw new IllegalStateException(
                 "Unable to move the shard snapshot status to [STARTED]: " + "expecting [INIT] but got [" + stage.get() + "]"
@@ -138,6 +142,7 @@ public class IndexShardSnapshotStatus {
                 yield asCopy();
             }
             case ABORTED -> throw new AbortedSnapshotException();
+            case PAUSING -> throw new PausedSnapshotException();
             default -> {
                 final var message = Strings.format(
                     "Unable to move the shard snapshot status to [FINALIZE]: expecting [STARTED] but got [%s]",
@@ -168,14 +173,25 @@ public class IndexShardSnapshotStatus {
         abortListeners.addListener(listener);
     }
 
-    public synchronized void abortIfNotCompleted(final AbortStatus abortStatus, final Consumer<ActionListener<Releasable>> notifyRunner) {
-        assert abortStatus != AbortStatus.NOT_ABORTED;
-        if (stage.compareAndSet(Stage.INIT, Stage.ABORTED) || stage.compareAndSet(Stage.STARTED, Stage.ABORTED)) {
-            this.abortStatus = abortStatus;
-            this.failure = abortStatus.getDescription();
+    public void abortIfNotCompleted(final String failure, Consumer<ActionListener<Releasable>> notifyRunner) {
+        abortIfNotCompleted(failure, Stage.ABORTED, notifyRunner);
+    }
+
+    public void pauseIfNotCompleted(Consumer<ActionListener<Releasable>> notifyRunner) {
+        abortIfNotCompleted("paused for removal of node holding primary", Stage.PAUSING, notifyRunner);
+    }
+
+    private synchronized void abortIfNotCompleted(
+        final String failure,
+        final Stage newStage,
+        final Consumer<ActionListener<Releasable>> notifyRunner
+    ) {
+        assert newStage == Stage.ABORTED || newStage == Stage.PAUSING : newStage;
+        if (stage.compareAndSet(Stage.INIT, newStage) || stage.compareAndSet(Stage.STARTED, newStage)) {
+            this.failure = failure;
             notifyRunner.accept(abortListeners.map(r -> {
                 Releasables.closeExpectNoException(r);
-                return abortStatus;
+                return AbortStatus.ABORTED;
             }));
         }
     }
@@ -198,12 +214,16 @@ public class IndexShardSnapshotStatus {
     }
 
     public boolean isAborted() {
-        return stage.get() == Stage.ABORTED;
+        return switch (stage.get()) {
+            case ABORTED, PAUSING -> true;
+            default -> false;
+        };
     }
 
     public void ensureNotAborted() {
-        if (isAborted()) {
-            throw new AbortedSnapshotException();
+        switch (stage.get()) {
+            case ABORTED -> throw new AbortedSnapshotException();
+            case PAUSING -> throw new PausedSnapshotException();
         }
     }
 

@@ -149,7 +149,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 synchronized (shardSnapshots) {
                     for (final var oneSnapshotShards : shardSnapshots.values()) {
                         for (final var indexShardSnapshotStatus : oneSnapshotShards.values()) {
-                            indexShardSnapshotStatus.abortIfNotCompleted(NODE_SHUTTING_DOWN, notifyOnAbortTaskRunner::enqueueTask);
+                            indexShardSnapshotStatus.pauseIfNotCompleted(notifyOnAbortTaskRunner::enqueueTask);
                         }
                     }
                 }
@@ -348,15 +348,17 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 final String failure;
                 final ShardState shardState;
                 if (e instanceof AbortedSnapshotException) {
-                    final var abortStatus = snapshotStatus.getAbortStatus();
-                    logger.debug(() -> format("[%s][%s] aborted shard snapshot: [%s]", shardId, snapshot, abortStatus), e);
-                    assert abortStatus != NOT_ABORTED;
-                    failure = abortStatus.getDescription();
-                    shardState = abortStatus == NODE_SHUTTING_DOWN ? ShardState.WAITING : ShardState.FAILED;
-                } else {
-                    logger.warn(() -> format("[%s][%s] failed to snapshot shard", shardId, snapshot), e);
-                    failure = summarizeFailure(e);
                     shardState = ShardState.FAILED;
+                    failure = "aborted";
+                    logger.debug(() -> format("[%s][%s] aborted shard snapshot", shardId, snapshot), e);
+                } else if (e instanceof PausedSnapshotException) {
+                    shardState = ShardState.WAITING;
+                    failure = "paused for removal of node holding primary";
+                    logger.debug(() -> format("[%s][%s] pausing shard snapshot: [%s]", shardId, snapshot), e);
+                } else {
+                    shardState = ShardState.FAILED;
+                    failure = summarizeFailure(e);
+                    logger.warn(() -> format("[%s][%s] failed to snapshot shard", shardId, snapshot), e);
                 }
                 snapshotStatus.moveToFailed(threadPool.absoluteTimeInMillis(), failure);
                 notifyFailedSnapshotShard(snapshot, shardId, shardState, failure, snapshotStatus.generation());
