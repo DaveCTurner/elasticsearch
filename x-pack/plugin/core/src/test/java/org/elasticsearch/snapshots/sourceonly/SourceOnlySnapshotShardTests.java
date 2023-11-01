@@ -61,6 +61,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.indices.recovery.RecoveryState;
@@ -184,7 +185,7 @@ public class SourceOnlySnapshotShardTests extends IndexShardTestCase {
                 )
             );
             shardGeneration = future.actionGet().getGeneration();
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
+            IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
             assertEquals(indexShardSnapshotStatus.getTotalFileCount(), indexShardSnapshotStatus.getIncrementalFileCount());
             totalFileCount = indexShardSnapshotStatus.getTotalFileCount();
             assertEquals(indexShardSnapshotStatus.getStage(), RunningIndexShardSnapshot.Stage.DONE);
@@ -215,7 +216,7 @@ public class SourceOnlySnapshotShardTests extends IndexShardTestCase {
                 )
             );
             shardGeneration = future.actionGet().getGeneration();
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
+            IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
             // we processed the segments_N file plus _1.si, _1.fnm, _1.fdx, _1.fdt, _1.fdm
             assertEquals(6, indexShardSnapshotStatus.getIncrementalFileCount());
             // in total we have 5 more files than the previous snap since we don't count the segments_N twice
@@ -246,7 +247,7 @@ public class SourceOnlySnapshotShardTests extends IndexShardTestCase {
                 )
             );
             future.actionGet();
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
+            IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
             // we processed the segments_N file plus _1_1.liv
             assertEquals(2, indexShardSnapshotStatus.getIncrementalFileCount());
             // in total we have 6 more files than the previous snap since we don't count the segments_N twice
@@ -346,7 +347,7 @@ public class SourceOnlySnapshotShardTests extends IndexShardTestCase {
                 );
                 finFuture.actionGet();
             });
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
+            IndexShardSnapshotStatus indexShardSnapshotStatus = runningIndexShardSnapshot.asCopy();
             assertEquals(indexShardSnapshotStatus.getTotalFileCount(), indexShardSnapshotStatus.getIncrementalFileCount());
             assertEquals(indexShardSnapshotStatus.getStage(), RunningIndexShardSnapshot.Stage.DONE);
         }

@@ -49,6 +49,7 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.recovery.RecoverySettings;
@@ -134,7 +135,7 @@ public class FsRepositoryTests extends ESTestCase {
                 )
             );
             final ShardGeneration shardGeneration = snapshot1Future.actionGet().getGeneration();
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus snapshot1ShardStatus = snapshotStatus.asCopy();
+            IndexShardSnapshotStatus snapshot1ShardStatus = snapshotStatus.asCopy();
             assertEquals(snapshot1ShardStatus.getTotalFileCount(), snapshot1ShardStatus.getIncrementalFileCount());
             Lucene.cleanLuceneIndex(directory);
             expectThrows(org.apache.lucene.index.IndexNotFoundException.class, () -> Lucene.readSegmentInfos(directory));
@@ -177,7 +178,7 @@ public class FsRepositoryTests extends ESTestCase {
                 )
             );
             snapshot2future.actionGet();
-            RunningIndexShardSnapshot.IndexShardSnapshotStatus snapshot2ShardStatus = snapshotStatus2.asCopy();
+            IndexShardSnapshotStatus snapshot2ShardStatus = snapshotStatus2.asCopy();
             assertEquals(2, snapshot2ShardStatus.getIncrementalFileCount());
             assertEquals(commitFileNames.size(), snapshot2ShardStatus.getTotalFileCount());
 

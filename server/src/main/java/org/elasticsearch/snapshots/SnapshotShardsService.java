@@ -36,6 +36,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.snapshots.IndexShardSnapshotFailedException;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot.Stage;
 import org.elasticsearch.indices.IndicesService;
@@ -296,7 +297,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 assert newGeneration != null;
                 assert newGeneration.equals(snapshotStatus.generation());
                 if (logger.isDebugEnabled()) {
-                    final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = snapshotStatus.asCopy();
+                    final IndexShardSnapshotStatus lastSnapshotStatus = snapshotStatus.asCopy();
                     logger.debug(
                         "[{}][{}] completed snapshot to [{}] with status [{}] at generation [{}]",
                         shardId,
@@ -490,8 +491,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         ShardId shardId = localShard.getKey();
                         ShardSnapshotStatus masterShard = masterShards.get(shardId);
                         if (masterShard != null && masterShard.state().completed() == false) {
-                            final RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue()
-                                .asCopy();
+                            final IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue().asCopy();
                             final Stage stage = indexShardSnapshotStatus.getStage();
                             // Master knows about the shard and thinks it has not completed
                             if (stage == Stage.DONE) {

@@ -28,6 +28,7 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.repositories.GetSnapshotInfoContext;
 import org.elasticsearch.repositories.IndexId;
@@ -331,7 +332,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                             return;
                         }
                         for (Map.Entry<ShardId, RunningIndexShardSnapshot> shardStatus : shardStatuses.entrySet()) {
-                            RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = shardStatus.getValue().asCopy();
+                            IndexShardSnapshotStatus lastSnapshotStatus = shardStatus.getValue().asCopy();
                             shardStatusBuilder.add(new SnapshotIndexShardStatus(shardStatus.getKey(), lastSnapshotStatus));
                         }
                         final SnapshotsInProgress.State state = switch (snapshotInfo.state()) {

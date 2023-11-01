@@ -16,7 +16,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
@@ -54,11 +54,11 @@ public class SnapshotIndexShardStatus extends BroadcastShardResponse implements 
         this.stats = new SnapshotStats();
     }
 
-    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardStatus) {
+    SnapshotIndexShardStatus(ShardId shardId, IndexShardSnapshotStatus indexShardStatus) {
         this(shardId, indexShardStatus, null);
     }
 
-    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardStatus, String nodeId) {
+    SnapshotIndexShardStatus(ShardId shardId, IndexShardSnapshotStatus indexShardStatus, String nodeId) {
         super(shardId);
         stage = switch (indexShardStatus.getStage()) {
             case INIT -> SnapshotIndexShardStage.INIT;

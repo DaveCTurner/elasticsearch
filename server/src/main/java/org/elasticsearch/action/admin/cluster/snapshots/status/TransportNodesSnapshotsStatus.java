@@ -25,6 +25,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotShardsService;
@@ -103,7 +104,7 @@ public class TransportNodesSnapshotsStatus extends TransportNodesAction<
                 for (Map.Entry<ShardId, RunningIndexShardSnapshot> shardEntry : shardsStatus.entrySet()) {
                     final ShardId shardId = shardEntry.getKey();
 
-                    final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = shardEntry.getValue().asCopy();
+                    final IndexShardSnapshotStatus lastSnapshotStatus = shardEntry.getValue().asCopy();
                     final RunningIndexShardSnapshot.Stage stage = lastSnapshotStatus.getStage();
 
                     String shardNodeId = null;
