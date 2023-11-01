@@ -492,7 +492,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         ShardSnapshotStatus masterShard = masterShards.get(shardId);
                         if (masterShard != null && masterShard.state().completed() == false) {
                             final IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue().asCopy();
-                            final Stage stage = indexShardSnapshotStatus.getStage();
+                            final Stage stage = indexShardSnapshotStatus.stage();
                             // Master knows about the shard and thinks it has not completed
                             if (stage == Stage.DONE) {
                                 // but we think the shard is done - we need to make new master know that the shard is done
@@ -515,7 +515,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                 notifyFailedSnapshotShard(
                                     snapshot.snapshot(),
                                     shardId,
-                                    indexShardSnapshotStatus.getFailure(),
+                                    indexShardSnapshotStatus.failure(),
                                     localShard.getValue().generation()
                                 );
                             }

@@ -136,7 +136,7 @@ public class FsRepositoryTests extends ESTestCase {
             );
             final ShardGeneration shardGeneration = snapshot1Future.actionGet().getGeneration();
             IndexShardSnapshotStatus snapshot1ShardStatus = snapshotStatus.asCopy();
-            assertEquals(snapshot1ShardStatus.getTotalFileCount(), snapshot1ShardStatus.getIncrementalFileCount());
+            assertEquals(snapshot1ShardStatus.totalFileCount(), snapshot1ShardStatus.incrementalFileCount());
             Lucene.cleanLuceneIndex(directory);
             expectThrows(org.apache.lucene.index.IndexNotFoundException.class, () -> Lucene.readSegmentInfos(directory));
             DiscoveryNode localNode = DiscoveryNodeUtils.builder("foo").roles(emptySet()).build();
@@ -179,8 +179,8 @@ public class FsRepositoryTests extends ESTestCase {
             );
             snapshot2future.actionGet();
             IndexShardSnapshotStatus snapshot2ShardStatus = snapshotStatus2.asCopy();
-            assertEquals(2, snapshot2ShardStatus.getIncrementalFileCount());
-            assertEquals(commitFileNames.size(), snapshot2ShardStatus.getTotalFileCount());
+            assertEquals(2, snapshot2ShardStatus.incrementalFileCount());
+            assertEquals(commitFileNames.size(), snapshot2ShardStatus.totalFileCount());
 
             // roll back to the first snap and then incrementally restore
             RecoveryState firstState = new RecoveryState(routing, localNode, null);

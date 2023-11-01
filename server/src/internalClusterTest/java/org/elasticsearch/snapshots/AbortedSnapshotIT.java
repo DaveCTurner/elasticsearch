@@ -82,13 +82,13 @@ public class AbortedSnapshotIT extends AbstractSnapshotIntegTestCase {
             logger.info("--> {}", shardStatus);
 
             if (i == 0) {
-                assertEquals(RunningIndexShardSnapshot.Stage.INIT, shardStatus.getStage());
-                assertEquals(0, shardStatus.getProcessedFileCount());
-                assertEquals(0, shardStatus.getTotalFileCount());
+                assertEquals(RunningIndexShardSnapshot.Stage.INIT, shardStatus.stage());
+                assertEquals(0, shardStatus.processedFileCount());
+                assertEquals(0, shardStatus.totalFileCount());
             } else {
-                assertEquals(RunningIndexShardSnapshot.Stage.STARTED, shardStatus.getStage());
-                assertThat(shardStatus.getProcessedFileCount(), greaterThan(0));
-                assertThat(shardStatus.getProcessedFileCount(), lessThan(shardStatus.getTotalFileCount()));
+                assertEquals(RunningIndexShardSnapshot.Stage.STARTED, shardStatus.stage());
+                assertThat(shardStatus.processedFileCount(), greaterThan(0));
+                assertThat(shardStatus.processedFileCount(), lessThan(shardStatus.totalFileCount()));
             }
         }
 

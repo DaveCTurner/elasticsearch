@@ -3192,10 +3192,10 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 final BlobStoreIndexShardSnapshot blobStoreIndexShardSnapshot = new BlobStoreIndexShardSnapshot(
                     snapshotId.getName(),
                     indexCommitPointFiles,
-                    lastSnapshotStatus.getStartTime(),
-                    threadPool.absoluteTimeInMillis() - lastSnapshotStatus.getStartTime(),
-                    lastSnapshotStatus.getIncrementalFileCount(),
-                    lastSnapshotStatus.getIncrementalSize()
+                    lastSnapshotStatus.startTime(),
+                    threadPool.absoluteTimeInMillis() - lastSnapshotStatus.startTime(),
+                    lastSnapshotStatus.incrementalFileCount(),
+                    lastSnapshotStatus.incrementalSize()
                 );
                 // Once we start writing the shard level snapshot file, no cleanup will be performed because it is possible that
                 // written files are referenced by another concurrent process.
