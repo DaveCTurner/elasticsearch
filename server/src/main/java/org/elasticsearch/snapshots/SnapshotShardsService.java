@@ -150,6 +150,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
         try {
             SnapshotsInProgress currentSnapshots = SnapshotsInProgress.get(event.state());
             if (removingLocalNode(event.state())) {
+                // TODO only take this branch if the cluster fully supports pausing snapshots for shutdown, otherwise let them run
                 synchronized (shardSnapshots) {
                     for (final var oneSnapshotShards : shardSnapshots.values()) {
                         for (final var indexShardSnapshotStatus : oneSnapshotShards.values()) {
@@ -157,6 +158,9 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         }
                     }
                 }
+                /* TODO
+                 *  Must also handle INIT/ABORTED shards newly-assigned to this node by immediately notifying the master that they are
+                 *  complete (respectively WAITING/FAILED) without even adding them to shardSnapshots */
             } else {
                 if (SnapshotsInProgress.get(event.previousState()).equals(currentSnapshots) == false) {
                     synchronized (shardSnapshots) {
