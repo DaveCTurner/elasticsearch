@@ -519,7 +519,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
             if (shardRouting.shardId().id() == shardId.getId() && shardRouting.primary() && shardRouting.active()) {
                 // we only care about the shard size here for shard allocation, populate the rest with dummy values
                 final long totalSize = shardStats.getStats().getStore().getSizeInBytes();
-                return RunningIndexShardSnapshot.newDone(0L, 0L, 1, 1, totalSize, totalSize, DUMMY_GENERATION).asCopy();
+                return RunningIndexShardSnapshot.newDone(0L, 0L, 1, 1, totalSize, totalSize, DUMMY_GENERATION);
             }
         }
         throw new ElasticsearchException("Could not get shard stats for primary of index " + leaderIndex + " on leader cluster");

@@ -392,7 +392,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                     ShardId shardId = new ShardId(indexMetadata.getIndex(), i);
                     SnapshotShardFailure shardFailure = findShardFailure(snapshotInfo.shardFailures(), shardId);
                     if (shardFailure != null) {
-                        shardStatus.put(shardId, RunningIndexShardSnapshot.newFailed(shardFailure.reason()).asCopy());
+                        shardStatus.put(shardId, RunningIndexShardSnapshot.newFailed(shardFailure.reason()));
                     } else {
                         final IndexShardSnapshotStatus shardSnapshotStatus;
                         if (snapshotInfo.state() == SnapshotState.FAILED) {
@@ -403,7 +403,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                             // snapshot status will throw an exception. Instead, we create
                             // a status for the shard to indicate that the shard snapshot
                             // could not be taken due to partial being set to false.
-                            shardSnapshotStatus = RunningIndexShardSnapshot.newFailed("skipped").asCopy();
+                            shardSnapshotStatus = RunningIndexShardSnapshot.newFailed("skipped");
                         } else {
                             task.ensureNotCancelled();
                             shardSnapshotStatus = repository.getShardSnapshotStatus(snapshotInfo.snapshotId(), indexId, shardId);

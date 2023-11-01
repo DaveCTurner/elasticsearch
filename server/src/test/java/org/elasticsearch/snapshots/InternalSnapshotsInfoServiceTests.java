@@ -134,7 +134,7 @@ public class InternalSnapshotsInfoServiceTests extends ESTestCase {
                 assertThat(shardId.id(), allOf(greaterThanOrEqualTo(0), lessThan(numberOfShards)));
                 safeAwait(latch);
                 getShardSnapshotStatusCount.incrementAndGet();
-                return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, expectedShardSizes[shardId.id()], null).asCopy();
+                return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, expectedShardSizes[shardId.id()], null);
             }
         };
         when(repositoriesService.repository("_repo")).thenReturn(mockRepository);
@@ -205,7 +205,7 @@ public class InternalSnapshotsInfoServiceTests extends ESTestCase {
                 } else {
                     final long shardSize = randomNonNegativeLong();
                     results.put(snapshotShard, shardSize);
-                    return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, shardSize, null).asCopy();
+                    return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, shardSize, null);
                 }
             }
         };
@@ -282,7 +282,7 @@ public class InternalSnapshotsInfoServiceTests extends ESTestCase {
         final Repository mockRepository = new FilterRepository(mock(Repository.class)) {
             @Override
             public IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
-                return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, randomNonNegativeLong(), null).asCopy();
+                return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, randomNonNegativeLong(), null);
             }
         };
         when(repositoriesService.repository("_repo")).thenReturn(mockRepository);
@@ -321,7 +321,7 @@ public class InternalSnapshotsInfoServiceTests extends ESTestCase {
                 if (randomBoolean()) {
                     throw new SnapshotException(new Snapshot("_repo", snapshotId), "simulated");
                 } else {
-                    return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, randomNonNegativeLong(), null).asCopy();
+                    return RunningIndexShardSnapshot.newDone(0L, 0L, 0, 0, 0L, randomNonNegativeLong(), null);
                 }
             }
         };
