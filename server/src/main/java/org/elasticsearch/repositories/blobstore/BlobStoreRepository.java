@@ -3498,7 +3498,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public RunningIndexShardSnapshot getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
+    public IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
         BlobStoreIndexShardSnapshot snapshot = loadShardSnapshot(shardContainer(indexId, shardId), snapshotId);
         return RunningIndexShardSnapshot.newDone(
             snapshot.startTime(),
@@ -3508,7 +3508,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             snapshot.incrementalSize(),
             snapshot.totalSize(),
             null
-        ); // Not adding a real generation here as it doesn't matter to callers
+        ).asCopy(); // Not adding a real generation here as it doesn't matter to callers
     }
 
     @Override

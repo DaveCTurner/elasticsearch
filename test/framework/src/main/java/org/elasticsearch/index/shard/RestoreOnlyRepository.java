@@ -15,7 +15,7 @@ import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.index.IndexVersion;
-import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.repositories.FinalizeSnapshotContext;
 import org.elasticsearch.repositories.GetSnapshotInfoContext;
 import org.elasticsearch.repositories.IndexId;
@@ -134,7 +134,7 @@ public abstract class RestoreOnlyRepository extends AbstractLifecycleComponent i
     public void snapshotShard(SnapshotShardContext context) {}
 
     @Override
-    public RunningIndexShardSnapshot getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
+    public IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
         return null;
     }
 

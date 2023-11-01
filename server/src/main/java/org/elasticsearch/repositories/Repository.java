@@ -18,6 +18,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.recovery.RecoveryState;
@@ -244,7 +245,7 @@ public interface Repository extends LifecycleComponent {
      * @param shardId    shard id
      * @return snapshot status
      */
-    RunningIndexShardSnapshot getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId);
+    IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId);
 
     /**
      * Check if this instances {@link Settings} can be changed to the provided updated settings without recreating the repository.

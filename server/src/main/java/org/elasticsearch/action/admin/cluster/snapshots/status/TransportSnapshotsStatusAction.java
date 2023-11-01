@@ -375,14 +375,14 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
      * @param snapshotInfo    snapshot info
      * @return map of shard id to snapshot status
      */
-    private Map<ShardId, RunningIndexShardSnapshot> snapshotShards(
+    private Map<ShardId, IndexShardSnapshotStatus> snapshotShards(
         final String repositoryName,
         final RepositoryData repositoryData,
         final CancellableTask task,
         final SnapshotInfo snapshotInfo
     ) throws IOException {
         final Repository repository = repositoriesService.repository(repositoryName);
-        final Map<ShardId, RunningIndexShardSnapshot> shardStatus = new HashMap<>();
+        final Map<ShardId, IndexShardSnapshotStatus> shardStatus = new HashMap<>();
         for (String index : snapshotInfo.indices()) {
             IndexId indexId = repositoryData.resolveIndexId(index);
             task.ensureNotCancelled();
@@ -393,9 +393,9 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                     ShardId shardId = new ShardId(indexMetadata.getIndex(), i);
                     SnapshotShardFailure shardFailure = findShardFailure(snapshotInfo.shardFailures(), shardId);
                     if (shardFailure != null) {
-                        shardStatus.put(shardId, RunningIndexShardSnapshot.newFailed(shardFailure.reason()));
+                        shardStatus.put(shardId, RunningIndexShardSnapshot.newFailed(shardFailure.reason()).asCopy());
                     } else {
-                        final RunningIndexShardSnapshot shardSnapshotStatus;
+                        final IndexShardSnapshotStatus shardSnapshotStatus;
                         if (snapshotInfo.state() == SnapshotState.FAILED) {
                             // If the snapshot failed, but the shard's snapshot does
                             // not have an exception, it means that partial snapshots
@@ -404,7 +404,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                             // snapshot status will throw an exception. Instead, we create
                             // a status for the shard to indicate that the shard snapshot
                             // could not be taken due to partial being set to false.
-                            shardSnapshotStatus = RunningIndexShardSnapshot.newFailed("skipped");
+                            shardSnapshotStatus = RunningIndexShardSnapshot.newFailed("skipped").asCopy();
                         } else {
                             task.ensureNotCancelled();
                             shardSnapshotStatus = repository.getShardSnapshotStatus(snapshotInfo.snapshotId(), indexId, shardId);
