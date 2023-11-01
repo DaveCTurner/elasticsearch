@@ -296,7 +296,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                 assert newGeneration != null;
                 assert newGeneration.equals(snapshotStatus.generation());
                 if (logger.isDebugEnabled()) {
-                    final RunningIndexShardSnapshot.Copy lastSnapshotStatus = snapshotStatus.asCopy();
+                    final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = snapshotStatus.asCopy();
                     logger.debug(
                         "[{}][{}] completed snapshot to [{}] with status [{}] at generation [{}]",
                         shardId,
@@ -490,7 +490,8 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                         ShardId shardId = localShard.getKey();
                         ShardSnapshotStatus masterShard = masterShards.get(shardId);
                         if (masterShard != null && masterShard.state().completed() == false) {
-                            final RunningIndexShardSnapshot.Copy indexShardSnapshotStatus = localShard.getValue().asCopy();
+                            final RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue()
+                                .asCopy();
                             final Stage stage = indexShardSnapshotStatus.getStage();
                             // Master knows about the shard and thinks it has not completed
                             if (stage == Stage.DONE) {

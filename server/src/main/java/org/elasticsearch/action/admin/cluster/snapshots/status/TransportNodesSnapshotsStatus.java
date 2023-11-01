@@ -103,7 +103,7 @@ public class TransportNodesSnapshotsStatus extends TransportNodesAction<
                 for (Map.Entry<ShardId, RunningIndexShardSnapshot> shardEntry : shardsStatus.entrySet()) {
                     final ShardId shardId = shardEntry.getKey();
 
-                    final RunningIndexShardSnapshot.Copy lastSnapshotStatus = shardEntry.getValue().asCopy();
+                    final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = shardEntry.getValue().asCopy();
                     final RunningIndexShardSnapshot.Stage stage = lastSnapshotStatus.getStage();
 
                     String shardNodeId = null;

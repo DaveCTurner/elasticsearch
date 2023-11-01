@@ -106,7 +106,7 @@ public class RunningIndexShardSnapshot {
         this.failure = failure;
     }
 
-    public synchronized Copy moveToStarted(
+    public synchronized IndexShardSnapshotStatus moveToStarted(
         final long startTime,
         final int incrementalFileCount,
         final int totalFileCount,
@@ -130,7 +130,7 @@ public class RunningIndexShardSnapshot {
         return asCopy();
     }
 
-    public synchronized Copy moveToFinalize() {
+    public synchronized IndexShardSnapshotStatus moveToFinalize() {
         final var prevStage = stage.compareAndExchange(Stage.STARTED, Stage.FINALIZE);
         return switch (prevStage) {
             case STARTED -> {
@@ -222,10 +222,10 @@ public class RunningIndexShardSnapshot {
      * Returns a copy of the current {@link RunningIndexShardSnapshot}. This method is
      * intended to be used when a coherent state of {@link RunningIndexShardSnapshot} is needed.
      *
-     * @return a  {@link RunningIndexShardSnapshot.Copy}
+     * @return a  {@link IndexShardSnapshotStatus}
      */
-    public synchronized RunningIndexShardSnapshot.Copy asCopy() {
-        return new RunningIndexShardSnapshot.Copy(
+    public synchronized IndexShardSnapshotStatus asCopy() {
+        return new IndexShardSnapshotStatus(
             stage.get(),
             startTime,
             totalTime,
@@ -279,7 +279,7 @@ public class RunningIndexShardSnapshot {
     /**
      * Returns an immutable state of {@link RunningIndexShardSnapshot} at a given point in time.
      */
-    public static class Copy {
+    public static class IndexShardSnapshotStatus {
 
         private final Stage stage;
         private final long startTime;
@@ -292,7 +292,7 @@ public class RunningIndexShardSnapshot {
         private final long incrementalSize;
         private final String failure;
 
-        public Copy(
+        public IndexShardSnapshotStatus(
             final Stage stage,
             final long startTime,
             final long totalTime,

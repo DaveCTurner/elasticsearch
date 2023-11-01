@@ -1122,7 +1122,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
             shardGen = future.actionGet().getGeneration();
         }
 
-        final RunningIndexShardSnapshot.Copy lastSnapshotStatus = snapshotStatus.asCopy();
+        final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = snapshotStatus.asCopy();
         assertEquals(RunningIndexShardSnapshot.Stage.DONE, lastSnapshotStatus.getStage());
         assertEquals(shard.snapshotStoreMetadata().size(), lastSnapshotStatus.getTotalFileCount());
         assertNull(lastSnapshotStatus.getFailure());

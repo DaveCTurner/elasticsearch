@@ -3184,7 +3184,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             // filesToSnapshot will be emptied while snapshotting the file. We make a copy here for cleanup purpose in case of failure.
             final AtomicReference<List<FileInfo>> fileToCleanUp = new AtomicReference<>(List.copyOf(filesToSnapshot));
             final ActionListener<Collection<Void>> allFilesUploadedListener = ActionListener.assertOnce(ActionListener.wrap(ignore -> {
-                final RunningIndexShardSnapshot.Copy lastSnapshotStatus = snapshotStatus.moveToFinalize();
+                final RunningIndexShardSnapshot.IndexShardSnapshotStatus lastSnapshotStatus = snapshotStatus.moveToFinalize();
 
                 // now create and write the commit point
                 logger.trace("[{}] [{}] writing shard snapshot file", shardId, snapshotId);

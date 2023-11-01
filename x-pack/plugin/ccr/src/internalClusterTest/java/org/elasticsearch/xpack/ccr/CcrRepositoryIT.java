@@ -527,7 +527,7 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
         assertThat(repository.getMetadata().name(), equalTo(leaderCluster));
 
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            RunningIndexShardSnapshot.Copy indexShardSnapshotStatus = repository.getShardSnapshotStatus(
+            RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardSnapshotStatus = repository.getShardSnapshotStatus(
                 new SnapshotId(CcrRepository.LATEST, CcrRepository.LATEST),
                 new IndexId(indexStats.getIndex(), indexStats.getUuid()),
                 new ShardId(new Index(indexStats.getIndex(), indexStats.getUuid()), shardId)

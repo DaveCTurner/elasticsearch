@@ -54,11 +54,11 @@ public class SnapshotIndexShardStatus extends BroadcastShardResponse implements 
         this.stats = new SnapshotStats();
     }
 
-    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.Copy indexShardStatus) {
+    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardStatus) {
         this(shardId, indexShardStatus, null);
     }
 
-    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.Copy indexShardStatus, String nodeId) {
+    SnapshotIndexShardStatus(ShardId shardId, RunningIndexShardSnapshot.IndexShardSnapshotStatus indexShardStatus, String nodeId) {
         super(shardId);
         stage = switch (indexShardStatus.getStage()) {
             case INIT -> SnapshotIndexShardStage.INIT;
