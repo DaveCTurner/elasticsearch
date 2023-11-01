@@ -244,7 +244,6 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                                     entry.indices().get(shardId.getIndexName()),
                                     shardId
                                 )
-                                .asCopy()
                         );
                     } else {
                         shardStatus = new SnapshotIndexShardStatus(entry.shardId(shardEntry.getKey()), stage);
@@ -323,7 +322,7 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                 repositoriesService.repository(repositoryName)
                     .getSnapshotInfo(new GetSnapshotInfoContext(snapshotIdsToLoad, true, task::isCancelled, (context, snapshotInfo) -> {
                         List<SnapshotIndexShardStatus> shardStatusBuilder = new ArrayList<>();
-                        final Map<ShardId, RunningIndexShardSnapshot> shardStatuses;
+                        final Map<ShardId, IndexShardSnapshotStatus> shardStatuses;
                         try {
                             shardStatuses = snapshotShards(repositoryName, repositoryData, task, snapshotInfo);
                         } catch (Exception e) {
@@ -331,8 +330,8 @@ public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<Sn
                             context.onFailure(e);
                             return;
                         }
-                        for (Map.Entry<ShardId, RunningIndexShardSnapshot> shardStatus : shardStatuses.entrySet()) {
-                            IndexShardSnapshotStatus lastSnapshotStatus = shardStatus.getValue().asCopy();
+                        for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardStatus : shardStatuses.entrySet()) {
+                            IndexShardSnapshotStatus lastSnapshotStatus = shardStatus.getValue();
                             shardStatusBuilder.add(new SnapshotIndexShardStatus(shardStatus.getKey(), lastSnapshotStatus));
                         }
                         final SnapshotsInProgress.State state = switch (snapshotInfo.state()) {
