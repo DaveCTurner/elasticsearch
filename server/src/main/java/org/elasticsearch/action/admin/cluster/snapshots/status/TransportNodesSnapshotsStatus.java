@@ -25,7 +25,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotShardsService;
 import org.elasticsearch.tasks.Task;
@@ -95,19 +95,19 @@ public class TransportNodesSnapshotsStatus extends TransportNodesAction<
         try {
             final String nodeId = clusterService.localNode().getId();
             for (Snapshot snapshot : request.snapshots) {
-                Map<ShardId, IndexShardSnapshotStatus> shardsStatus = snapshotShardsService.currentSnapshotShards(snapshot);
+                Map<ShardId, RunningIndexShardSnapshot> shardsStatus = snapshotShardsService.currentSnapshotShards(snapshot);
                 if (shardsStatus == null) {
                     continue;
                 }
                 Map<ShardId, SnapshotIndexShardStatus> shardMapBuilder = new HashMap<>();
-                for (Map.Entry<ShardId, IndexShardSnapshotStatus> shardEntry : shardsStatus.entrySet()) {
+                for (Map.Entry<ShardId, RunningIndexShardSnapshot> shardEntry : shardsStatus.entrySet()) {
                     final ShardId shardId = shardEntry.getKey();
 
-                    final IndexShardSnapshotStatus.Copy lastSnapshotStatus = shardEntry.getValue().asCopy();
-                    final IndexShardSnapshotStatus.Stage stage = lastSnapshotStatus.getStage();
+                    final RunningIndexShardSnapshot.Copy lastSnapshotStatus = shardEntry.getValue().asCopy();
+                    final RunningIndexShardSnapshot.Stage stage = lastSnapshotStatus.getStage();
 
                     String shardNodeId = null;
-                    if (stage != IndexShardSnapshotStatus.Stage.DONE && stage != IndexShardSnapshotStatus.Stage.FAILURE) {
+                    if (stage != RunningIndexShardSnapshot.Stage.DONE && stage != RunningIndexShardSnapshot.Stage.FAILURE) {
                         // Store node id for the snapshots that are currently running.
                         shardNodeId = nodeId;
                     }

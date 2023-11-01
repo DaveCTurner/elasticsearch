@@ -17,7 +17,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.snapshots.IndexShardSnapshotFailedException;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.snapshots.SnapshotId;
 
@@ -35,7 +35,7 @@ public final class SnapshotShardContext extends DelegatingActionListener<ShardSn
     private final SnapshotIndexCommit commitRef;
     @Nullable
     private final String shardStateIdentifier;
-    private final IndexShardSnapshotStatus snapshotStatus;
+    private final RunningIndexShardSnapshot snapshotStatus;
     private final IndexVersion repositoryMetaVersion;
     private final long snapshotStartTime;
 
@@ -61,7 +61,7 @@ public final class SnapshotShardContext extends DelegatingActionListener<ShardSn
         IndexId indexId,
         SnapshotIndexCommit commitRef,
         @Nullable String shardStateIdentifier,
-        IndexShardSnapshotStatus snapshotStatus,
+        RunningIndexShardSnapshot snapshotStatus,
         IndexVersion repositoryMetaVersion,
         final long snapshotStartTime,
         ActionListener<ShardSnapshotResult> listener
@@ -103,7 +103,7 @@ public final class SnapshotShardContext extends DelegatingActionListener<ShardSn
         return shardStateIdentifier;
     }
 
-    public IndexShardSnapshotStatus status() {
+    public RunningIndexShardSnapshot status() {
         return snapshotStatus;
     }
 

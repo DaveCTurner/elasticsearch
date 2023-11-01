@@ -8,7 +8,7 @@
 
 package org.elasticsearch.snapshots;
 
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -68,13 +68,13 @@ public class SnapshotShardsServiceIT extends AbstractSnapshotIntegTestCase {
         SnapshotShardsService snapshotShardsService = internalCluster().getInstance(SnapshotShardsService.class, blockedNode);
         assertBusy(() -> {
             final Snapshot snapshot = new Snapshot("test-repo", snapshotId);
-            List<IndexShardSnapshotStatus.Stage> stages = snapshotShardsService.currentSnapshotShards(snapshot)
+            List<RunningIndexShardSnapshot.Stage> stages = snapshotShardsService.currentSnapshotShards(snapshot)
                 .values()
                 .stream()
                 .map(status -> status.asCopy().getStage())
                 .toList();
             assertThat(stages, hasSize(shards));
-            assertThat(stages, everyItem(equalTo(IndexShardSnapshotStatus.Stage.DONE)));
+            assertThat(stages, everyItem(equalTo(RunningIndexShardSnapshot.Stage.DONE)));
         }, 30L, TimeUnit.SECONDS);
 
         logger.info("--> stop disrupting cluster");

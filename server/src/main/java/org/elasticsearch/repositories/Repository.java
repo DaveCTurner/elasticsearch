@@ -18,7 +18,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.snapshots.SnapshotDeleteListener;
@@ -207,8 +207,8 @@ public interface Repository extends LifecycleComponent {
     /**
      * Creates a snapshot of the shard referenced by the given {@link SnapshotShardContext}.
      * <p>
-     * As snapshot process progresses, implementation of this method should update {@link IndexShardSnapshotStatus} object returned by
-     * {@link SnapshotShardContext#status()} and check its {@link IndexShardSnapshotStatus#isAborted()} to see if the snapshot process
+     * As snapshot process progresses, implementation of this method should update {@link RunningIndexShardSnapshot} object returned by
+     * {@link SnapshotShardContext#status()} and check its {@link RunningIndexShardSnapshot#isAborted()} to see if the snapshot process
      * should be aborted.
      *
      * @param snapshotShardContext snapshot shard context that must be completed via {@link SnapshotShardContext#onResponse} or
@@ -244,7 +244,7 @@ public interface Repository extends LifecycleComponent {
      * @param shardId    shard id
      * @return snapshot status
      */
-    IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId);
+    RunningIndexShardSnapshot getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId);
 
     /**
      * Check if this instances {@link Settings} can be changed to the provided updated settings without recreating the repository.

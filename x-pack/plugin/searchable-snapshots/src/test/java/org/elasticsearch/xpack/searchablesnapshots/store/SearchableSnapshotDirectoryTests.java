@@ -73,7 +73,7 @@ import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.store.StoreFileMetadata;
@@ -621,7 +621,7 @@ public class SearchableSnapshotDirectoryTests extends AbstractSearchableSnapshot
 
                 final PlainActionFuture<ShardSnapshotResult> future = PlainActionFuture.newFuture();
                 threadPool.generic().submit(() -> {
-                    IndexShardSnapshotStatus snapshotStatus = IndexShardSnapshotStatus.newInitializing(null);
+                    RunningIndexShardSnapshot snapshotStatus = RunningIndexShardSnapshot.newInitializing(null);
                     repository.snapshotShard(
                         new SnapshotShardContext(
                             store,

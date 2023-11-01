@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 /**
  * Represent shard snapshot status
  */
-public class IndexShardSnapshotStatus {
+public class RunningIndexShardSnapshot {
 
     /**
      * Snapshot stage
@@ -79,7 +79,7 @@ public class IndexShardSnapshotStatus {
     private String failure;
     private final SubscribableListener<AbortStatus> abortListeners = new SubscribableListener<>();
 
-    private IndexShardSnapshotStatus(
+    private RunningIndexShardSnapshot(
         final Stage stage,
         final long startTime,
         final long totalTime,
@@ -219,13 +219,13 @@ public class IndexShardSnapshotStatus {
     }
 
     /**
-     * Returns a copy of the current {@link IndexShardSnapshotStatus}. This method is
-     * intended to be used when a coherent state of {@link IndexShardSnapshotStatus} is needed.
+     * Returns a copy of the current {@link RunningIndexShardSnapshot}. This method is
+     * intended to be used when a coherent state of {@link RunningIndexShardSnapshot} is needed.
      *
-     * @return a  {@link IndexShardSnapshotStatus.Copy}
+     * @return a  {@link RunningIndexShardSnapshot.Copy}
      */
-    public synchronized IndexShardSnapshotStatus.Copy asCopy() {
-        return new IndexShardSnapshotStatus.Copy(
+    public synchronized RunningIndexShardSnapshot.Copy asCopy() {
+        return new RunningIndexShardSnapshot.Copy(
             stage.get(),
             startTime,
             totalTime,
@@ -239,19 +239,19 @@ public class IndexShardSnapshotStatus {
         );
     }
 
-    public static IndexShardSnapshotStatus newInitializing(ShardGeneration generation) {
-        return new IndexShardSnapshotStatus(Stage.INIT, 0L, 0L, 0, 0, 0, 0, 0, 0, null, generation);
+    public static RunningIndexShardSnapshot newInitializing(ShardGeneration generation) {
+        return new RunningIndexShardSnapshot(Stage.INIT, 0L, 0L, 0, 0, 0, 0, 0, 0, null, generation);
     }
 
-    public static IndexShardSnapshotStatus newFailed(final String failure) {
+    public static RunningIndexShardSnapshot newFailed(final String failure) {
         assert failure != null : "expecting non null failure for a failed IndexShardSnapshotStatus";
         if (failure == null) {
             throw new IllegalArgumentException("A failure description is required for a failed IndexShardSnapshotStatus");
         }
-        return new IndexShardSnapshotStatus(Stage.FAILURE, 0L, 0L, 0, 0, 0, 0, 0, 0, failure, null);
+        return new RunningIndexShardSnapshot(Stage.FAILURE, 0L, 0L, 0, 0, 0, 0, 0, 0, failure, null);
     }
 
-    public static IndexShardSnapshotStatus newDone(
+    public static RunningIndexShardSnapshot newDone(
         final long startTime,
         final long totalTime,
         final int incrementalFileCount,
@@ -261,7 +261,7 @@ public class IndexShardSnapshotStatus {
         ShardGeneration generation
     ) {
         // The snapshot is done which means the number of processed files is the same as total
-        return new IndexShardSnapshotStatus(
+        return new RunningIndexShardSnapshot(
             Stage.DONE,
             startTime,
             totalTime,
@@ -277,7 +277,7 @@ public class IndexShardSnapshotStatus {
     }
 
     /**
-     * Returns an immutable state of {@link IndexShardSnapshotStatus} at a given point in time.
+     * Returns an immutable state of {@link RunningIndexShardSnapshot} at a given point in time.
      */
     public static class Copy {
 

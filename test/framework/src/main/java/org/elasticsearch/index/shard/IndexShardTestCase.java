@@ -54,7 +54,7 @@ import org.elasticsearch.index.seqno.ReplicationTracker;
 import org.elasticsearch.index.seqno.RetentionLeaseSyncer;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.similarity.SimilarityService;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
@@ -1097,7 +1097,7 @@ public abstract class IndexShardTestCase extends ESTestCase {
         throws IOException {
         final Index index = shard.shardId().getIndex();
         final IndexId indexId = new IndexId(index.getName(), index.getUUID());
-        final IndexShardSnapshotStatus snapshotStatus = IndexShardSnapshotStatus.newInitializing(
+        final RunningIndexShardSnapshot snapshotStatus = RunningIndexShardSnapshot.newInitializing(
             ESBlobStoreRepositoryIntegTestCase.getRepositoryData(repository)
                 .shardGenerations()
                 .getShardGen(indexId, shard.shardId().getId())
@@ -1122,8 +1122,8 @@ public abstract class IndexShardTestCase extends ESTestCase {
             shardGen = future.actionGet().getGeneration();
         }
 
-        final IndexShardSnapshotStatus.Copy lastSnapshotStatus = snapshotStatus.asCopy();
-        assertEquals(IndexShardSnapshotStatus.Stage.DONE, lastSnapshotStatus.getStage());
+        final RunningIndexShardSnapshot.Copy lastSnapshotStatus = snapshotStatus.asCopy();
+        assertEquals(RunningIndexShardSnapshot.Stage.DONE, lastSnapshotStatus.getStage());
         assertEquals(shard.snapshotStoreMetadata().size(), lastSnapshotStatus.getTotalFileCount());
         assertNull(lastSnapshotStatus.getFailure());
         return shardGen;

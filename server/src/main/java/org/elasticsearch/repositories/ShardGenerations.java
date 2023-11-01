@@ -10,7 +10,7 @@ package org.elasticsearch.repositories;
 
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.core.Nullable;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +55,7 @@ public final class ShardGenerations {
     private static final Pattern IS_NUMBER = Pattern.compile("^\\d+$");
 
     /**
-     * Filters out unreliable numeric shard generations read from {@link RepositoryData} or {@link IndexShardSnapshotStatus}, returning
+     * Filters out unreliable numeric shard generations read from {@link RepositoryData} or {@link RunningIndexShardSnapshot}, returning
      * {@code null} in their place.
      * @see <a href="https://github.com/elastic/elasticsearch/issues/57798">Issue #57988</a>
      *

@@ -40,7 +40,7 @@ import org.elasticsearch.core.Strings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -527,14 +527,14 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
         assertThat(repository.getMetadata().name(), equalTo(leaderCluster));
 
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            IndexShardSnapshotStatus.Copy indexShardSnapshotStatus = repository.getShardSnapshotStatus(
+            RunningIndexShardSnapshot.Copy indexShardSnapshotStatus = repository.getShardSnapshotStatus(
                 new SnapshotId(CcrRepository.LATEST, CcrRepository.LATEST),
                 new IndexId(indexStats.getIndex(), indexStats.getUuid()),
                 new ShardId(new Index(indexStats.getIndex(), indexStats.getUuid()), shardId)
             ).asCopy();
 
             assertThat(indexShardSnapshotStatus, notNullValue());
-            assertThat(indexShardSnapshotStatus.getStage(), is(IndexShardSnapshotStatus.Stage.DONE));
+            assertThat(indexShardSnapshotStatus.getStage(), is(RunningIndexShardSnapshot.Stage.DONE));
             assertThat(
                 indexShardSnapshotStatus.getTotalSize(),
                 equalTo(indexStats.getIndexShards().get(shardId).getPrimary().getStore().getSizeInBytes())

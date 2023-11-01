@@ -49,7 +49,7 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.indices.recovery.RecoveryState;
@@ -118,7 +118,7 @@ public class FsRepositoryTests extends ESTestCase {
 
             IndexCommit indexCommit = Lucene.getIndexCommit(Lucene.readSegmentInfos(store.directory()), store.directory());
             final PlainActionFuture<ShardSnapshotResult> snapshot1Future = PlainActionFuture.newFuture();
-            IndexShardSnapshotStatus snapshotStatus = IndexShardSnapshotStatus.newInitializing(null);
+            RunningIndexShardSnapshot snapshotStatus = RunningIndexShardSnapshot.newInitializing(null);
             repository.snapshotShard(
                 new SnapshotShardContext(
                     store,
@@ -134,7 +134,7 @@ public class FsRepositoryTests extends ESTestCase {
                 )
             );
             final ShardGeneration shardGeneration = snapshot1Future.actionGet().getGeneration();
-            IndexShardSnapshotStatus.Copy snapshot1StatusCopy = snapshotStatus.asCopy();
+            RunningIndexShardSnapshot.Copy snapshot1StatusCopy = snapshotStatus.asCopy();
             assertEquals(snapshot1StatusCopy.getTotalFileCount(), snapshot1StatusCopy.getIncrementalFileCount());
             Lucene.cleanLuceneIndex(directory);
             expectThrows(org.apache.lucene.index.IndexNotFoundException.class, () -> Lucene.readSegmentInfos(directory));
@@ -161,7 +161,7 @@ public class FsRepositoryTests extends ESTestCase {
             IndexCommit incIndexCommit = Lucene.getIndexCommit(Lucene.readSegmentInfos(store.directory()), store.directory());
             Collection<String> commitFileNames = incIndexCommit.getFileNames();
             final PlainActionFuture<ShardSnapshotResult> snapshot2future = PlainActionFuture.newFuture();
-            IndexShardSnapshotStatus snapshotStatus2 = IndexShardSnapshotStatus.newInitializing(shardGeneration);
+            RunningIndexShardSnapshot snapshotStatus2 = RunningIndexShardSnapshot.newInitializing(shardGeneration);
             repository.snapshotShard(
                 new SnapshotShardContext(
                     store,
@@ -177,7 +177,7 @@ public class FsRepositoryTests extends ESTestCase {
                 )
             );
             snapshot2future.actionGet();
-            IndexShardSnapshotStatus.Copy snapshot2statusCopy = snapshotStatus2.asCopy();
+            RunningIndexShardSnapshot.Copy snapshot2statusCopy = snapshotStatus2.asCopy();
             assertEquals(2, snapshot2statusCopy.getIncrementalFileCount());
             assertEquals(commitFileNames.size(), snapshot2statusCopy.getTotalFileCount());
 
@@ -295,7 +295,7 @@ public class FsRepositoryTests extends ESTestCase {
             final IndexId indexId = new IndexId(idxSettings.getIndex().getName(), idxSettings.getUUID());
             IndexCommit indexCommit1 = Lucene.getIndexCommit(Lucene.readSegmentInfos(store1.directory()), store1.directory());
             final PlainActionFuture<ShardSnapshotResult> snapshot1Future = PlainActionFuture.newFuture();
-            IndexShardSnapshotStatus snapshotStatus1 = IndexShardSnapshotStatus.newInitializing(null);
+            RunningIndexShardSnapshot snapshotStatus1 = RunningIndexShardSnapshot.newInitializing(null);
 
             // Scenario 1 - Shard data files will be cleaned up if they fail to write
             canErrorForWriteBlob.set(true);
@@ -343,7 +343,7 @@ public class FsRepositoryTests extends ESTestCase {
                     indexId,
                     new SnapshotIndexCommit(new Engine.IndexCommitRef(indexCommit2, () -> {})),
                     null,
-                    IndexShardSnapshotStatus.newInitializing(null),
+                    RunningIndexShardSnapshot.newInitializing(null),
                     IndexVersion.current(),
                     randomMillisUpToYear9999(),
                     snapshot2Future

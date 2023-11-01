@@ -85,7 +85,7 @@ import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.snapshots.IndexShardRestoreFailedException;
 import org.elasticsearch.index.snapshots.IndexShardSnapshotFailedException;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshots;
 import org.elasticsearch.index.snapshots.blobstore.RateLimitingInputStream;
@@ -2966,7 +2966,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         final Store store = context.store();
         final ShardId shardId = store.shardId();
         final SnapshotId snapshotId = context.snapshotId();
-        final IndexShardSnapshotStatus snapshotStatus = context.status();
+        final RunningIndexShardSnapshot snapshotStatus = context.status();
         final long startTime = threadPool.absoluteTimeInMillis();
         try {
             final ShardGeneration generation = snapshotStatus.generation();
@@ -3184,7 +3184,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             // filesToSnapshot will be emptied while snapshotting the file. We make a copy here for cleanup purpose in case of failure.
             final AtomicReference<List<FileInfo>> fileToCleanUp = new AtomicReference<>(List.copyOf(filesToSnapshot));
             final ActionListener<Collection<Void>> allFilesUploadedListener = ActionListener.assertOnce(ActionListener.wrap(ignore -> {
-                final IndexShardSnapshotStatus.Copy lastSnapshotStatus = snapshotStatus.moveToFinalize();
+                final RunningIndexShardSnapshot.Copy lastSnapshotStatus = snapshotStatus.moveToFinalize();
 
                 // now create and write the commit point
                 logger.trace("[{}] [{}] writing shard snapshot file", shardId, snapshotId);
@@ -3258,7 +3258,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     private static boolean assertFileContentsMatchHash(
-        IndexShardSnapshotStatus snapshotStatus,
+        RunningIndexShardSnapshot snapshotStatus,
         BlobStoreIndexShardSnapshot.FileInfo fileInfo,
         Store store
     ) {
@@ -3497,9 +3497,9 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
     }
 
     @Override
-    public IndexShardSnapshotStatus getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
+    public RunningIndexShardSnapshot getShardSnapshotStatus(SnapshotId snapshotId, IndexId indexId, ShardId shardId) {
         BlobStoreIndexShardSnapshot snapshot = loadShardSnapshot(shardContainer(indexId, shardId), snapshotId);
-        return IndexShardSnapshotStatus.newDone(
+        return RunningIndexShardSnapshot.newDone(
             snapshot.startTime(),
             snapshot.time(),
             snapshot.incrementalFileCount(),
@@ -3684,7 +3684,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         final IndexId indexId = context.indexId();
         final Store store = context.store();
         final ShardId shardId = store.shardId();
-        final IndexShardSnapshotStatus snapshotStatus = context.status();
+        final RunningIndexShardSnapshot snapshotStatus = context.status();
         final SnapshotId snapshotId = context.snapshotId();
         final BlobContainer shardContainer = shardContainer(indexId, shardId);
         final String file = fileInfo.physicalName();

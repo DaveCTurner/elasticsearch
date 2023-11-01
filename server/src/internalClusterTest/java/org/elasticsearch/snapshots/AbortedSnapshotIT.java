@@ -11,7 +11,7 @@ package org.elasticsearch.snapshots;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -82,11 +82,11 @@ public class AbortedSnapshotIT extends AbstractSnapshotIntegTestCase {
             logger.info("--> {}", shardStatus);
 
             if (i == 0) {
-                assertEquals(IndexShardSnapshotStatus.Stage.INIT, shardStatus.getStage());
+                assertEquals(RunningIndexShardSnapshot.Stage.INIT, shardStatus.getStage());
                 assertEquals(0, shardStatus.getProcessedFileCount());
                 assertEquals(0, shardStatus.getTotalFileCount());
             } else {
-                assertEquals(IndexShardSnapshotStatus.Stage.STARTED, shardStatus.getStage());
+                assertEquals(RunningIndexShardSnapshot.Stage.STARTED, shardStatus.getStage());
                 assertThat(shardStatus.getProcessedFileCount(), greaterThan(0));
                 assertThat(shardStatus.getProcessedFileCount(), lessThan(shardStatus.getTotalFileCount()));
             }

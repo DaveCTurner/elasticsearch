@@ -18,7 +18,7 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
+import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.index.snapshots.blobstore.BlobStoreIndexShardSnapshot;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.store.StoreFileMetadata;
@@ -124,7 +124,7 @@ public class ShardSnapshotTaskRunnerTests extends ESTestCase {
             indexId,
             new SnapshotIndexCommit(new Engine.IndexCommitRef(null, () -> {})),
             null,
-            IndexShardSnapshotStatus.newInitializing(null),
+            RunningIndexShardSnapshot.newInitializing(null),
             IndexVersion.current(),
             startTime,
             ActionListener.noop()
