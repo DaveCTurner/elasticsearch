@@ -16,6 +16,7 @@ import org.elasticsearch.core.Releasables;
 import org.elasticsearch.repositories.ShardGeneration;
 import org.elasticsearch.repositories.ShardSnapshotResult;
 import org.elasticsearch.snapshots.AbortedSnapshotException;
+import org.elasticsearch.snapshots.PausedSnapshotException;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,6 +51,10 @@ public class IndexShardSnapshotStatus {
          * Snapshot failed
          */
         FAILURE,
+        /**
+         * Snapshot pausing because of node removal
+         */
+        PAUSING,
         /**
          * Snapshot aborted
          */
@@ -137,6 +142,7 @@ public class IndexShardSnapshotStatus {
                 yield asCopy();
             }
             case ABORTED -> throw new AbortedSnapshotException();
+            case PAUSING -> throw new PausedSnapshotException();
             default -> {
                 final var message = Strings.format(
                     "Unable to move the shard snapshot status to [FINALIZE]: expecting [STARTED] but got [%s]",
@@ -167,8 +173,21 @@ public class IndexShardSnapshotStatus {
         abortListeners.addListener(listener);
     }
 
-    public synchronized void abortIfNotCompleted(final String failure, Consumer<ActionListener<Releasable>> notifyRunner) {
-        if (stage.compareAndSet(Stage.INIT, Stage.ABORTED) || stage.compareAndSet(Stage.STARTED, Stage.ABORTED)) {
+    public void abortIfNotCompleted(final String failure, Consumer<ActionListener<Releasable>> notifyRunner) {
+        abortIfNotCompleted(failure, Stage.ABORTED, notifyRunner);
+    }
+
+    public void pauseIfNotCompleted(Consumer<ActionListener<Releasable>> notifyRunner) {
+        abortIfNotCompleted("paused for removal of node holding primary", Stage.PAUSING, notifyRunner);
+    }
+
+    private synchronized void abortIfNotCompleted(
+        final String failure,
+        final Stage newStage,
+        final Consumer<ActionListener<Releasable>> notifyRunner
+    ) {
+        assert newStage == Stage.ABORTED || newStage == Stage.PAUSING : newStage;
+        if (stage.compareAndSet(Stage.INIT, newStage) || stage.compareAndSet(Stage.STARTED, newStage)) {
             this.failure = failure;
             notifyRunner.accept(abortListeners.map(r -> {
                 Releasables.closeExpectNoException(r);
@@ -195,8 +214,9 @@ public class IndexShardSnapshotStatus {
     }
 
     public void ensureNotAborted() {
-        if (stage.get() == Stage.ABORTED) {
-            throw new AbortedSnapshotException();
+        switch (stage.get()) {
+            case ABORTED -> throw new AbortedSnapshotException();
+            case PAUSING -> throw new PausedSnapshotException();
         }
     }
 
