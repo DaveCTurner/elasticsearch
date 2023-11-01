@@ -225,8 +225,9 @@ public class RunningIndexShardSnapshot {
      * @return a  {@link IndexShardSnapshotStatus}
      */
     public synchronized IndexShardSnapshotStatus asCopy() {
+        final var currentStage = stage.get();
         return new IndexShardSnapshotStatus(
-            stage.get(),
+            currentStage,
             startTime,
             totalTime,
             incrementalFileCount,
@@ -235,7 +236,9 @@ public class RunningIndexShardSnapshot {
             incrementalSize,
             totalSize,
             processedSize,
-            failure
+            failure,
+            currentStage == Stage.DONE ? getShardSnapshotResult() : null,
+            generation()
         );
     }
 

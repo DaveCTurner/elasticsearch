@@ -8,6 +8,7 @@
 
 package org.elasticsearch.snapshots;
 
+import org.elasticsearch.index.snapshots.IndexShardSnapshotStatus;
 import org.elasticsearch.index.snapshots.RunningIndexShardSnapshot;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
@@ -71,7 +72,7 @@ public class SnapshotShardsServiceIT extends AbstractSnapshotIntegTestCase {
             List<RunningIndexShardSnapshot.Stage> stages = snapshotShardsService.currentSnapshotShards(snapshot)
                 .values()
                 .stream()
-                .map(status -> status.asCopy().stage())
+                .map(IndexShardSnapshotStatus::stage)
                 .toList();
             assertThat(stages, hasSize(shards));
             assertThat(stages, everyItem(equalTo(RunningIndexShardSnapshot.Stage.DONE)));

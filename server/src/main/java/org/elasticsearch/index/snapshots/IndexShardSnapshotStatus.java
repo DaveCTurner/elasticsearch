@@ -8,6 +8,10 @@
 
 package org.elasticsearch.index.snapshots;
 
+import org.elasticsearch.core.Nullable;
+import org.elasticsearch.repositories.ShardGeneration;
+import org.elasticsearch.repositories.ShardSnapshotResult;
+
 /**
  * An immutable state of {@link RunningIndexShardSnapshot} at a given point in time.
  */
@@ -21,5 +25,7 @@ public record IndexShardSnapshotStatus(
     long incrementalSize,
     long totalSize,
     long processedSize,
-    String failure
+    @Nullable String failure,
+    @Nullable ShardSnapshotResult shardSnapshotResult,
+    @Nullable ShardGeneration shardGeneration
 ) {}

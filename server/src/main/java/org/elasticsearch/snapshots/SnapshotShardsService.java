@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.index.IndexVersion;
@@ -184,10 +185,19 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
      * @param snapshot  snapshot
      * @return map of shard id to snapshot status
      */
-    public Map<ShardId, RunningIndexShardSnapshot> currentSnapshotShards(Snapshot snapshot) {
+    public Map<ShardId, IndexShardSnapshotStatus> currentSnapshotShards(Snapshot snapshot) {
         synchronized (shardSnapshots) {
-            final Map<ShardId, RunningIndexShardSnapshot> current = shardSnapshots.get(snapshot);
-            return current == null ? null : new HashMap<>(current);
+            final var current = shardSnapshots.get(snapshot);
+            if (current == null) {
+                return null;
+            }
+
+            final Map<ShardId, IndexShardSnapshotStatus> result = Maps.newMapWithExpectedSize(current.size());
+            for (final var entry : current.entrySet()) {
+                result.put(entry.getKey(), entry.getValue().asCopy());
+            }
+
+            return result;
         }
     }
 
@@ -484,14 +494,14 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
     private void syncShardStatsOnNewMaster(List<SnapshotsInProgress.Entry> entries) {
         for (SnapshotsInProgress.Entry snapshot : entries) {
             if (snapshot.state() == State.STARTED || snapshot.state() == State.ABORTED) {
-                Map<ShardId, RunningIndexShardSnapshot> localShards = currentSnapshotShards(snapshot.snapshot());
+                final var localShards = currentSnapshotShards(snapshot.snapshot());
                 if (localShards != null) {
                     Map<ShardId, ShardSnapshotStatus> masterShards = snapshot.shards();
-                    for (Map.Entry<ShardId, RunningIndexShardSnapshot> localShard : localShards.entrySet()) {
+                    for (final var localShard : localShards.entrySet()) {
                         ShardId shardId = localShard.getKey();
                         ShardSnapshotStatus masterShard = masterShards.get(shardId);
                         if (masterShard != null && masterShard.state().completed() == false) {
-                            final IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue().asCopy();
+                            final IndexShardSnapshotStatus indexShardSnapshotStatus = localShard.getValue();
                             final Stage stage = indexShardSnapshotStatus.stage();
                             // Master knows about the shard and thinks it has not completed
                             if (stage == Stage.DONE) {
@@ -502,7 +512,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                     snapshot.snapshot(),
                                     shardId
                                 );
-                                notifySuccessfulSnapshotShard(snapshot.snapshot(), shardId, localShard.getValue().getShardSnapshotResult());
+                                notifySuccessfulSnapshotShard(snapshot.snapshot(), shardId, localShard.getValue().shardSnapshotResult());
 
                             } else if (stage == Stage.FAILURE) {
                                 // but we think the shard failed - we need to make new master know that the shard failed
@@ -516,7 +526,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent implements
                                     snapshot.snapshot(),
                                     shardId,
                                     indexShardSnapshotStatus.failure(),
-                                    localShard.getValue().generation()
+                                    localShard.getValue().shardGeneration()
                                 );
                             }
                         }
