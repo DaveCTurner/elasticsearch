@@ -46,7 +46,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testEachMasterPublishesTheirThresholds() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             int numberOfNodes = 3;
             Map<String, String> watermarkByNode = new HashMap<>();
             Map<String, ByteSizeValue> maxHeadroomByNode = new HashMap<>();
@@ -105,7 +105,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testWatermarkSettingUpdate() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             int numberOfNodes = 3;
             ByteSizeValue randomBytes = ByteSizeValue.ofBytes(randomLongBetween(6, 19));
             String initialWatermark = percentageMode ? randomIntBetween(86, 94) + "%" : randomBytes.toString();
@@ -207,7 +207,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testHealthNodeToggleEnabled() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             int numberOfNodes = 3;
             Map<String, String> watermarkByNode = new HashMap<>();
             Map<String, ByteSizeValue> maxHeadroomByNode = new HashMap<>();

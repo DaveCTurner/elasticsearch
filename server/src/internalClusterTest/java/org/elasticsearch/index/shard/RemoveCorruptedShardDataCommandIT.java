@@ -60,6 +60,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.CorruptionUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.transport.MockTransportService;
 

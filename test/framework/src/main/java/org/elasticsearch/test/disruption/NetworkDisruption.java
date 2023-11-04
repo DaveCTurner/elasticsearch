@@ -17,7 +17,6 @@ import org.elasticsearch.cluster.NodeConnectionsService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.ConnectTransportException;
@@ -70,7 +69,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
     }
 
     @Override
-    public void removeAndEnsureHealthy(CloseableInternalTestCluster testCluster) {
+    public void removeAndEnsureHealthy(InternalTestCluster testCluster) {
         removeFromCluster(testCluster);
         ensureHealthy(testCluster);
     }
@@ -78,7 +77,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
     /**
      * ensures the cluster is healthy after the disruption
      */
-    public void ensureHealthy(CloseableInternalTestCluster testCluster) {
+    public void ensureHealthy(InternalTestCluster testCluster) {
         assert activeDisruption == false;
         ensureNodeCount(testCluster);
         ensureFullyConnectedCluster(testCluster);
@@ -106,7 +105,7 @@ public class NetworkDisruption implements ServiceDisruptionScheme {
         }
     }
 
-    protected void ensureNodeCount(CloseableInternalTestCluster testCluster) {
+    protected void ensureNodeCount(InternalTestCluster testCluster) {
         testCluster.validateClusterFormed();
     }
 

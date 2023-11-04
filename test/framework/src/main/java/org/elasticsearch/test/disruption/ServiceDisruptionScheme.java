@@ -8,7 +8,6 @@
 package org.elasticsearch.test.disruption;
 
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.InternalTestCluster;
 
 public interface ServiceDisruptionScheme {
@@ -17,7 +16,7 @@ public interface ServiceDisruptionScheme {
 
     void removeFromCluster(InternalTestCluster cluster);
 
-    void removeAndEnsureHealthy(CloseableInternalTestCluster cluster);
+    void removeAndEnsureHealthy(InternalTestCluster cluster);
 
     void applyToNode(String node, InternalTestCluster cluster);
 

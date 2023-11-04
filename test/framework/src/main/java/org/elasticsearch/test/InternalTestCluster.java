@@ -64,6 +64,8 @@ public interface InternalTestCluster {
 
     void wipePendingDataDirectories();
 
+    void validateClusterFormed();
+
     ClusterService clusterService();
 
     ClusterService clusterService(@Nullable String node);

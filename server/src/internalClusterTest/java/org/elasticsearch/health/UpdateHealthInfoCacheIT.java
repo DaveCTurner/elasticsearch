@@ -36,7 +36,7 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
     private static final DiskHealthInfo GREEN = new DiskHealthInfo(HealthStatus.GREEN, null);
 
     public void testNodesReportingHealth() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             decreasePollingInterval(internalCluster);
             String[] nodeIds = getNodes(internalCluster).keySet().toArray(new String[0]);
             DiscoveryNode healthNode = waitAndGetHealthNode(internalCluster);
@@ -48,7 +48,7 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
     }
 
     public void testNodeLeavingCluster() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             decreasePollingInterval(internalCluster);
             Collection<DiscoveryNode> nodes = getNodes(internalCluster).values();
             DiscoveryNode healthNode = waitAndGetHealthNode(internalCluster);
@@ -75,7 +75,7 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
 
     @TestLogging(value = "org.elasticsearch.health.node:DEBUG", reason = "https://github.com/elastic/elasticsearch/issues/97213")
     public void testHealthNodeFailOver() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             decreasePollingInterval(internalCluster);
             String[] nodeIds = getNodes(internalCluster).keySet().toArray(new String[0]);
             DiscoveryNode healthNodeToBeShutDown = waitAndGetHealthNode(internalCluster);
@@ -93,7 +93,7 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
 
     @TestLogging(value = "org.elasticsearch.health.node:DEBUG", reason = "https://github.com/elastic/elasticsearch/issues/97213")
     public void testMasterFailure() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             decreasePollingInterval(internalCluster);
             String[] nodeIds = getNodes(internalCluster).keySet().toArray(new String[0]);
             DiscoveryNode healthNodeBeforeIncident = waitAndGetHealthNode(internalCluster);

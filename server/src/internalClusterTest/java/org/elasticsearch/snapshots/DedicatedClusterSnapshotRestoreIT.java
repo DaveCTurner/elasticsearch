@@ -58,6 +58,7 @@ import org.elasticsearch.snapshots.mockstore.MockRepository;
 import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.disruption.BusyMasterServiceDisruption;
 import org.elasticsearch.test.disruption.ServiceDisruptionScheme;

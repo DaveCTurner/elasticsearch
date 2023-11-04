@@ -31,7 +31,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class DiskHealthIndicatorServiceIT extends ESIntegTestCase {
 
     public void testGreen() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             internalCluster.startMasterOnlyNode();
             internalCluster.startDataOnlyNode();
             ensureStableCluster(internalCluster.getNodeNames().length);
@@ -49,7 +49,7 @@ public class DiskHealthIndicatorServiceIT extends ESIntegTestCase {
     }
 
     public void testRed() throws Exception {
-        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = (CloseableInternalTestCluster) internalCluster()) {
             internalCluster.startMasterOnlyNode(getVeryLowWatermarksSettings());
             internalCluster.startDataOnlyNode(getVeryLowWatermarksSettings());
             ensureStableCluster(internalCluster.getNodeNames().length);

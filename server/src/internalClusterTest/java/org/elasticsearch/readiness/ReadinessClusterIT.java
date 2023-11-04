@@ -26,6 +26,7 @@ import org.elasticsearch.reservedstate.action.ReservedClusterSettingsAction;
 import org.elasticsearch.reservedstate.service.FileSettingsService;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
+import org.elasticsearch.test.InternalTestCluster;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

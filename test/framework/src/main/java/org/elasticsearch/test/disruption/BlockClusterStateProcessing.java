@@ -13,6 +13,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.test.CloseableInternalTestCluster;
+import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -84,7 +85,7 @@ public class BlockClusterStateProcessing extends SingleNodeDisruption {
     }
 
     @Override
-    public void removeAndEnsureHealthy(CloseableInternalTestCluster cluster) {
+    public void removeAndEnsureHealthy(InternalTestCluster cluster) {
         removeFromCluster(cluster);
     }
 
