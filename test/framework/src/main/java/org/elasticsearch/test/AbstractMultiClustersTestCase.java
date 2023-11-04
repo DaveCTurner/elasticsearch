@@ -83,7 +83,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
         return clusterGroup.getCluster(clusterAlias);
     }
 
-    protected final Map<String, InternalTestCluster> clusters() {
+    protected final Map<String, CloseableInternalTestCluster> clusters() {
         return Collections.unmodifiableMap(clusterGroup.clusters);
     }
 
@@ -97,7 +97,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
             return;
         }
         stopClusters();
-        final Map<String, InternalTestCluster> clusters = new HashMap<>();
+        final Map<String, CloseableInternalTestCluster> clusters = new HashMap<>();
         final List<String> clusterAliases = new ArrayList<>(remoteClusterAlias());
         clusterAliases.add(LOCAL_CLUSTER);
         for (String clusterAlias : clusterAliases) {
@@ -222,9 +222,9 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
     }
 
     static class ClusterGroup implements Closeable {
-        private final Map<String, InternalTestCluster> clusters;
+        private final Map<String, CloseableInternalTestCluster> clusters;
 
-        ClusterGroup(Map<String, InternalTestCluster> clusters) {
+        ClusterGroup(Map<String, CloseableInternalTestCluster> clusters) {
             this.clusters = Collections.unmodifiableMap(clusters);
         }
 
