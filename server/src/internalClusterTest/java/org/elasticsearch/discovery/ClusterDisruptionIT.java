@@ -36,6 +36,7 @@ import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.Bridge;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;

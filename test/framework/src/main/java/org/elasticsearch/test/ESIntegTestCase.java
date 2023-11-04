@@ -620,14 +620,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     public static boolean isInternalCluster() {
-        return (currentCluster instanceof CloseableInternalTestCluster);
+        return (currentCluster instanceof InternalTestCluster);
     }
 
-    public static CloseableInternalTestCluster internalCluster() {
+    public static InternalTestCluster internalCluster() {
         if (isInternalCluster() == false) {
             throw new UnsupportedOperationException("current test cluster is immutable");
         }
-        return (CloseableInternalTestCluster) currentCluster;
+        return (InternalTestCluster) currentCluster;
     }
 
     public ClusterService clusterService() {
@@ -845,7 +845,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     private static Settings.Builder getExcludeSettings(int num, Settings.Builder builder) {
-        String exclude = String.join(",", internalCluster().allDataNodesButN(num));
+        String exclude = String.join(",", ((CloseableInternalTestCluster) internalCluster()).allDataNodesButN(num));
         builder.put("index.routing.allocation.exclude._name", exclude);
         return builder;
     }
@@ -2394,7 +2394,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * of the provided index.
      */
     protected String routingKeyForShard(String index, int shard) {
-        return internalCluster().routingKeyForShard(resolveIndex(index), shard, random());
+        return ((CloseableInternalTestCluster) internalCluster()).routingKeyForShard(resolveIndex(index), shard, random());
     }
 
     @Override

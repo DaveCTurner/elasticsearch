@@ -18,6 +18,7 @@ import org.elasticsearch.gateway.CorruptStateException;
 import org.elasticsearch.gateway.PersistedClusterStateService;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.NodeRoles;
 import org.elasticsearch.xcontent.XContentType;
 

@@ -21,6 +21,7 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Collection;
 import java.util.List;
