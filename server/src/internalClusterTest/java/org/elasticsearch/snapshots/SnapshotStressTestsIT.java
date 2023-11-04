@@ -48,7 +48,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.repositories.RepositoryCleanupResult;
 import org.elasticsearch.repositories.fs.FsRepository;
-import org.elasticsearch.test.CloseableInternalTestCluster;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.threadpool.ScalingExecutorBuilder;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -217,7 +217,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final Executor clientExecutor = threadPool.executor(CLIENT);
 
         private final AtomicBoolean shouldStop = new AtomicBoolean();
-        private final CloseableInternalTestCluster cluster;
+        private final InternalTestCluster cluster;
         private final Map<String, TrackedNode> nodes = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedRepository> repositories = ConcurrentCollections.newConcurrentMap();
         private final Map<String, TrackedIndex> indices = ConcurrentCollections.newConcurrentMap();
@@ -233,7 +233,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
         private final AtomicInteger snapshotCounter = new AtomicInteger();
         private final CountDownLatch completedSnapshotLatch = new CountDownLatch(30);
 
-        TrackedCluster(CloseableInternalTestCluster cluster, Set<String> masterNodeNames, Set<String> dataNodeNames) {
+        TrackedCluster(InternalTestCluster cluster, Set<String> masterNodeNames, Set<String> dataNodeNames) {
             this.cluster = cluster;
             for (String nodeName : cluster.getNodeNames()) {
                 nodes.put(nodeName, new TrackedNode(nodeName, masterNodeNames.contains(nodeName), dataNodeNames.contains(nodeName)));
