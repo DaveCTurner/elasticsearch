@@ -66,6 +66,8 @@ public interface InternalTestCluster {
 
     void validateClusterFormed();
 
+    void wipeIndices(String... indices);
+
     ClusterService clusterService();
 
     ClusterService clusterService(@Nullable String node);
@@ -161,6 +163,8 @@ public interface InternalTestCluster {
     int numDataAndMasterNodes();
 
     int numMasterNodes();
+
+    int numDataNodes();
 
     void setDisruptionScheme(ServiceDisruptionScheme scheme);
 

@@ -26,6 +26,7 @@ import org.elasticsearch.mocksocket.MockHttpServer;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugin.discovery.azure.classic.AzureDiscoveryPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.transport.TransportSettings;
 import org.junit.AfterClass;
@@ -264,7 +265,7 @@ public class AzureDiscoveryClusterFormationTests extends ESIntegTestCase {
     public static void stopHttpd() throws IOException {
         try {
             // shut them all down otherwise we get spammed with connection refused exceptions
-            internalCluster().close();
+            ((CloseableInternalTestCluster) internalCluster()).close();
         } finally {
             httpsServer.stop(0);
             httpsServer = null;
