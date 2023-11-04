@@ -78,14 +78,14 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     private class Disruptor implements Runnable {
-        final CloseableInternalTestCluster cluster;
+        final InternalTestCluster cluster;
         private final String sourceIndex;
         private final DisruptionListener listener;
         private final String clientNode;
         private final Consumer<String> disruption;
 
         private Disruptor(
-            final CloseableInternalTestCluster cluster,
+            final InternalTestCluster cluster,
             final String sourceIndex,
             final DisruptionListener listener,
             final String clientNode,
@@ -150,7 +150,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     public void testDownsampleIndexWithDataNodeRestart() throws Exception {
-        try (CloseableInternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = (CloseableInternalTestCluster) internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -212,7 +212,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
 
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/100653")
     public void testDownsampleIndexWithRollingRestart() throws Exception {
-        try (CloseableInternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = (CloseableInternalTestCluster) internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -302,7 +302,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     public void testDownsampleIndexWithFullClusterRestart() throws Exception {
-        try (CloseableInternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = (CloseableInternalTestCluster) internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());

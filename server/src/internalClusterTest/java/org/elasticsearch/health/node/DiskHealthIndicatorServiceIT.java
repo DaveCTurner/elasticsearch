@@ -19,7 +19,6 @@ import org.elasticsearch.health.HealthStatus;
 import org.elasticsearch.health.node.selection.HealthNode;
 import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.List;
 import java.util.Map;

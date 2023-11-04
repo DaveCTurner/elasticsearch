@@ -33,7 +33,6 @@ import org.elasticsearch.node.NodeValidationException;
 import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.MockHttpTransport;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 

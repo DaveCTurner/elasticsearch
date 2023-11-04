@@ -141,7 +141,7 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
     }
 
     public void testILMDownsampleRollingRestart() throws Exception {
-        try (CloseableInternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = (CloseableInternalTestCluster) internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -298,14 +298,14 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
     }
 
     private class Disruptor implements Runnable {
-        final CloseableInternalTestCluster cluster;
+        final InternalTestCluster cluster;
         private final String sourceIndex;
         private final DisruptionListener listener;
         private final String clientNode;
         private final Consumer<String> disruption;
 
         private Disruptor(
-            final CloseableInternalTestCluster cluster,
+            final InternalTestCluster cluster,
             final String sourceIndex,
             final DisruptionListener listener,
             final String clientNode,

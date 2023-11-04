@@ -158,6 +158,8 @@ public interface InternalTestCluster {
 
     void closeNonSharedNodes(boolean wipeData) throws IOException;
 
+    int numDataAndMasterNodes();
+
     int numMasterNodes();
 
     void setDisruptionScheme(ServiceDisruptionScheme scheme);

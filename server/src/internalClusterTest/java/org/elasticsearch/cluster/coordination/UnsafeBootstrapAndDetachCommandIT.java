@@ -22,8 +22,8 @@ import org.elasticsearch.env.TestEnvironment;
 import org.elasticsearch.gateway.GatewayMetaState;
 import org.elasticsearch.gateway.PersistedClusterStateService;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.CloseableInternalTestCluster;
+import org.elasticsearch.test.ESIntegTestCase;
 
 import java.io.IOException;
 import java.util.ArrayList;

@@ -24,6 +24,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.aggregatemetric.AggregateMetricMapperPlugin;
 import org.elasticsearch.xpack.core.LocalStateCompositeXPackPlugin;
@@ -59,7 +60,7 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/99520")
     @TestLogging(value = "org.elasticsearch.datastreams.lifecycle:TRACE", reason = "debugging")
     public void testDataStreamLifecycleDownsampleRollingRestart() throws Exception {
-        try (CloseableInternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = (CloseableInternalTestCluster) internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -157,14 +158,14 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
     }
 
     private class Disruptor implements Runnable {
-        final CloseableInternalTestCluster cluster;
+        final InternalTestCluster cluster;
         private final String sourceIndex;
         private final DisruptionListener listener;
         private final String clientNode;
         private final Consumer<String> disruption;
 
         private Disruptor(
-            final CloseableInternalTestCluster cluster,
+            final InternalTestCluster cluster,
             final String sourceIndex,
             final DisruptionListener listener,
             final String clientNode,

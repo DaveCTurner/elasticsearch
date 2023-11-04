@@ -364,7 +364,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
         return clusterGroup.followerCluster.client();
     }
 
-    protected final CloseableInternalTestCluster getLeaderCluster() {
+    protected final InternalTestCluster getLeaderCluster() {
         return clusterGroup.leaderCluster;
     }
 

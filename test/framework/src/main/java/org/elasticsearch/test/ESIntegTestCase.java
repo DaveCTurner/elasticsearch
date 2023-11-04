@@ -2221,8 +2221,8 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * Returns path to a random directory that can be used to create a temporary file system repo
      */
     public static Path randomRepoPath() {
-        if (currentCluster instanceof CloseableInternalTestCluster) {
-            return randomRepoPath(((InternalTestCluster) currentCluster).getDefaultSettings());
+        if (currentCluster instanceof InternalTestCluster internalTestCluster) {
+            return randomRepoPath(internalTestCluster.getDefaultSettings());
         }
         throw new UnsupportedOperationException("unsupported cluster type");
     }
