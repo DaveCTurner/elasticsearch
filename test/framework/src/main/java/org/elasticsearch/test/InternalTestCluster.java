@@ -172,4 +172,40 @@ public interface InternalTestCluster {
     Settings getDefaultSettings();
 
     void assertRequestsFinished();
+
+    /**
+     * An abstract class that is called during {@link #rollingRestart(CloseableInternalTestCluster.RestartCallback)}
+     * and / or {@link #fullRestart(CloseableInternalTestCluster.RestartCallback)} to execute actions at certain
+     * stages of the restart.
+     */
+    class RestartCallback {
+
+        /**
+         * Executed once the give node name has been stopped.
+         */
+        public Settings onNodeStopped(String nodeName) throws Exception {
+            return Settings.EMPTY;
+        }
+
+        public void onAllNodesStopped() throws Exception {}
+
+        /**
+         * Executed for each node before the {@code n + 1} node is restarted. The given client is
+         * an active client to the node that will be restarted next.
+         */
+        public void doAfterNodes(int n, Client client) throws Exception {}
+
+        /**
+         * If this returns <code>true</code> all data for the node with the given node name will be cleared including
+         * gateways and all index data. Returns <code>false</code> by default.
+         */
+        public boolean clearData(String nodeName) {
+            return false;
+        }
+
+        /** returns true if the restart should also validate the cluster has reformed */
+        public boolean validateClusterForming() {
+            return true;
+        }
+    }
 }
