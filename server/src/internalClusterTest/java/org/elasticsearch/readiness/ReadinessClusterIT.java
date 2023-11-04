@@ -24,7 +24,6 @@ import org.elasticsearch.discovery.MasterNotDiscoveredException;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.reservedstate.action.ReservedClusterSettingsAction;
 import org.elasticsearch.reservedstate.service.FileSettingsService;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 
@@ -166,7 +165,7 @@ public class ReadinessClusterIT extends ESIntegTestCase {
         }
 
         logger.info("--> restart data node 1");
-        internalCluster().restartNode(dataNodes.get(0), new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNodes.get(0), new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 tcpReadinessProbeTrue(internalCluster().getInstance(ReadinessService.class, masterNode));
@@ -178,7 +177,7 @@ public class ReadinessClusterIT extends ESIntegTestCase {
 
         logger.info("--> restart master");
 
-        internalCluster().restartNode(masterNode, new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(masterNode, new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 expectMasterNotFound();

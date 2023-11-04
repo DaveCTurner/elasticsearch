@@ -405,7 +405,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         assertAcked(indicesAdmin().prepareClose("test-idx"));
 
         logger.info("--> shutdown one of the nodes that should make half of the shards unavailable");
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
             @Override
             public boolean clearData(String nodeName) {
                 return true;
@@ -854,7 +854,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             .get();
         disruption.startDisrupting();
         logger.info("-->  restarting data node, which should cause primary shards to be failed");
-        internalCluster().restartNode(dataNode, new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNode, new InternalTestCluster.RestartCallback() {
             @Override
             public boolean validateClusterForming() {
                 // skip this step since BusyMasterServiceDisruption prevents the master queue from ever emptying

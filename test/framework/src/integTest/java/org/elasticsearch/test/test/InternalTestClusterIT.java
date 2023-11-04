@@ -9,7 +9,6 @@ package org.elasticsearch.test.test;
 
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 
@@ -58,13 +57,13 @@ public class InternalTestClusterIT extends ESIntegTestCase {
     public void testOperationsDuringRestart() throws Exception {
         internalCluster().startMasterOnlyNode();
         internalCluster().startDataOnlyNodes(2);
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 ensureGreen();
                 internalCluster().validateClusterFormed();
                 assertNotNull(internalCluster().getInstance(NodeClient.class));
-                internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+                internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
                     @Override
                     public Settings onNodeStopped(String nodeName) throws Exception {
                         ensureGreen();

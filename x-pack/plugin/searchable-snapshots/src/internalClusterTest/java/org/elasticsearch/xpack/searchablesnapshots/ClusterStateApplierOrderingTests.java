@@ -16,7 +16,6 @@ import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.snapshots.SnapshotInfo;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.xpack.core.searchablesnapshots.MountSearchableSnapshotAction;
 import org.elasticsearch.xpack.core.searchablesnapshots.MountSearchableSnapshotRequest;
@@ -81,7 +80,7 @@ public class ClusterStateApplierOrderingTests extends BaseSearchableSnapshotsInt
 
         // In order to reproduce this issue we need to force a full cluster restart so the new elected master
         // sends the entire ClusterState in one message, including assigned shards and repositories.
-        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
                 // make sure state is not recovered until a third node joins

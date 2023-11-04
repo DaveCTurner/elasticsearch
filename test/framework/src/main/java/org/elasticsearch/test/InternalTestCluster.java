@@ -104,17 +104,17 @@ public interface InternalTestCluster {
 
     void restartRandomDataNode() throws Exception;
 
-    void restartRandomDataNode(CloseableInternalTestCluster.RestartCallback callback) throws Exception;
+    void restartRandomDataNode(InternalTestCluster.RestartCallback callback) throws Exception;
 
     void restartNode(String nodeName) throws Exception;
 
-    void restartNode(String nodeName, CloseableInternalTestCluster.RestartCallback callback) throws Exception;
+    void restartNode(String nodeName, InternalTestCluster.RestartCallback callback) throws Exception;
 
     void fullRestart() throws Exception;
 
-    void rollingRestart(CloseableInternalTestCluster.RestartCallback callback) throws Exception;
+    void rollingRestart(InternalTestCluster.RestartCallback callback) throws Exception;
 
-    void fullRestart(CloseableInternalTestCluster.RestartCallback callback) throws Exception;
+    void fullRestart(InternalTestCluster.RestartCallback callback) throws Exception;
 
     String getMasterName();
 
@@ -174,8 +174,8 @@ public interface InternalTestCluster {
     void assertRequestsFinished();
 
     /**
-     * An abstract class that is called during {@link #rollingRestart(CloseableInternalTestCluster.RestartCallback)}
-     * and / or {@link #fullRestart(CloseableInternalTestCluster.RestartCallback)} to execute actions at certain
+     * An abstract class that is called during {@link #rollingRestart(InternalTestCluster.RestartCallback)}
+     * and / or {@link #fullRestart(InternalTestCluster.RestartCallback)} to execute actions at certain
      * stages of the restart.
      */
     class RestartCallback {

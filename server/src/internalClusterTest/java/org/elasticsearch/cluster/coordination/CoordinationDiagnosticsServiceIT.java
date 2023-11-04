@@ -15,7 +15,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.disruption.BlockClusterStateProcessing;
 import org.elasticsearch.test.disruption.NetworkDisruption;
@@ -253,7 +252,7 @@ public class CoordinationDiagnosticsServiceIT extends ESIntegTestCase {
                 throw new RuntimeException(e);
             }
         });
-        CloseableInternalTestCluster.RestartCallback nonValidatingRestartCallback = new CloseableInternalTestCluster.RestartCallback() {
+        InternalTestCluster.RestartCallback nonValidatingRestartCallback = new InternalTestCluster.RestartCallback() {
             public boolean validateClusterForming() {
                 return false;
             }

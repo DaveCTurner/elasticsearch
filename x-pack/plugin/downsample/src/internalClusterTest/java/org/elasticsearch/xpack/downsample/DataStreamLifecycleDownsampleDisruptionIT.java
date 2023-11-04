@@ -115,7 +115,7 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.rollingRestart(new CloseableInternalTestCluster.RestartCallback() {
+                    cluster.rollingRestart(new InternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;

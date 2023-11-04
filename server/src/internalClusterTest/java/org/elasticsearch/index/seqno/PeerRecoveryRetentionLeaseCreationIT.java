@@ -13,7 +13,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.index.IndexVersionUtils;
 
@@ -59,7 +58,7 @@ public class PeerRecoveryRetentionLeaseCreationIT extends ESIntegTestCase {
         Path path = service.indexService(new Index(INDEX_NAME, uuid)).getShard(0).shardPath().getShardStatePath();
 
         long version = between(1, 1000);
-        internalCluster().restartNode(dataNode, new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNode, new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 RetentionLeases.FORMAT.writeAndCleanup(new RetentionLeases(1, version, List.of()), path);

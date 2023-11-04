@@ -25,7 +25,6 @@ import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xpack.CcrIntegTestCase;
@@ -106,7 +105,7 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
         for (ShardRouting shardRouting : clusterState.routingTable().allShards(followerIndex)) {
             if (shardRouting.primary()) {
                 DiscoveryNode assignedNode = clusterState.nodes().get(shardRouting.currentNodeId());
-                getFollowerCluster().restartNode(assignedNode.getName(), new CloseableInternalTestCluster.RestartCallback());
+                getFollowerCluster().restartNode(assignedNode.getName(), new InternalTestCluster.RestartCallback());
                 break;
             }
         }

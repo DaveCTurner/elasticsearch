@@ -8,7 +8,6 @@
 package org.elasticsearch.test.test;
 
 import org.elasticsearch.index.IndexVersion;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.index.IndexVersionUtils;
 
@@ -42,7 +41,7 @@ public class InternalClusterForbiddenSettingIT extends ESIntegTestCase {
         prepareCreate("test").setSettings(settings(version).build()).get();
         indicesAdmin().prepareDelete("test").get();
         // rolling restart
-        internalCluster().rollingRestart(new CloseableInternalTestCluster.RestartCallback());
+        internalCluster().rollingRestart(new InternalTestCluster.RestartCallback());
         // create / delete an index with forbidden setting
         prepareCreate("test").setSettings(settings(version).build()).get();
         indicesAdmin().prepareDelete("test").get();

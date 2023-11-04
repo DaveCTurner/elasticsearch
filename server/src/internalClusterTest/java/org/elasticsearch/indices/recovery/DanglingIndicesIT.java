@@ -21,7 +21,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 
@@ -203,11 +202,11 @@ public class DanglingIndicesIT extends ESIntegTestCase {
         ensurePendingDanglingIndicesWritten();
 
         // Restart 2 nodes, deleting the indices in their absence, so that there is a dangling index to recover
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
 
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
-                internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+                internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
 
                     @Override
                     public Settings onNodeStopped(String nodeName) throws Exception {
@@ -370,7 +369,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
 
         final int nodes = internalCluster().size();
         // Restart node, deleting the indices in its absence, so that there is a dangling index to recover
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
 
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {

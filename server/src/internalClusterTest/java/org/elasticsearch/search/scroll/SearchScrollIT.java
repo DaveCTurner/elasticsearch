@@ -29,7 +29,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
 import org.elasticsearch.xcontent.ToXContent;
@@ -653,7 +652,7 @@ public class SearchScrollIT extends ESIntegTestCase {
             .setScroll(TimeValue.timeValueMinutes(5))
             .get();
 
-        internalCluster().restartNode(dataNode, new CloseableInternalTestCluster.RestartCallback());
+        internalCluster().restartNode(dataNode, new InternalTestCluster.RestartCallback());
         ensureGreen("demo", "prod");
         SearchResponse respFromProdIndex = prepareSearch("prod").setSize(randomIntBetween(1, 10))
             .setQuery(new MatchAllQueryBuilder())

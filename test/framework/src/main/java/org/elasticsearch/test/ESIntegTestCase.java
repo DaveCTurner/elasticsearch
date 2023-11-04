@@ -2517,7 +2517,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 )
             );
         final ClusterState clusterState = clusterStateBuilder.build();
-        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 final PersistedClusterStateService lucenePersistedStateFactory = lucenePersistedStateFactories.get(nodeName);

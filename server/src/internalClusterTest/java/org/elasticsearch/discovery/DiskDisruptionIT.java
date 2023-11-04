@@ -18,7 +18,6 @@ import org.elasticsearch.core.PathUtilsForTesting;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.test.BackgroundIndexer;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -148,7 +147,7 @@ public class DiskDisruptionIT extends AbstractDisruptionTestCase {
         }
 
         logger.info("full cluster restart");
-        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
 
             @Override
             public void onAllNodesStopped() {

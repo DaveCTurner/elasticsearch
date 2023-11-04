@@ -193,7 +193,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (node) -> {
                 try {
-                    cluster.restartNode(node, new CloseableInternalTestCluster.RestartCallback() {
+                    cluster.restartNode(node, new InternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;
@@ -255,7 +255,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.rollingRestart(new CloseableInternalTestCluster.RestartCallback() {
+                    cluster.rollingRestart(new InternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;
@@ -345,7 +345,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.fullRestart(new CloseableInternalTestCluster.RestartCallback() {
+                    cluster.fullRestart(new InternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;

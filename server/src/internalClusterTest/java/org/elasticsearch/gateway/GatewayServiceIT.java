@@ -20,7 +20,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.Collection;
@@ -127,7 +126,7 @@ public class GatewayServiceIT extends ESIntegTestCase {
 
         createIndex("test-index");
 
-        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
                 return Settings.builder().put(TEST_SETTING.getKey(), false).build();

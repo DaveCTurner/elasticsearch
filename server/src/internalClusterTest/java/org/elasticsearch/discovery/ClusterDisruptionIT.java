@@ -392,7 +392,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         String masterNode = internalCluster().startMasterOnlyNode();
         String dataNode = internalCluster().startDataOnlyNode();
 
-        internalCluster().restartNode(masterNode, new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(masterNode, new InternalTestCluster.RestartCallback() {
             @Override
             public boolean clearData(String nodeName) {
                 return true;
@@ -498,7 +498,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         }
         ensureGreen(index);
         assertBusy(() -> assertThat(docID.get(), greaterThanOrEqualTo(100)), 1L, TimeUnit.MINUTES);
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback());
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback());
         ensureGreen(index);
         assertBusy(() -> assertThat(docID.get(), greaterThanOrEqualTo(200)), 1L, TimeUnit.MINUTES);
         stopped.set(true);

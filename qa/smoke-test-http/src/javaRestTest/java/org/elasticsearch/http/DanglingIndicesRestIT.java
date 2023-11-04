@@ -14,7 +14,6 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.XContentTestUtils;
@@ -269,7 +268,7 @@ public class DanglingIndicesRestIT extends HttpSmokeTestCase {
         );
 
         // Restart node, deleting the index in its absence, so that there is a dangling index to recover
-        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
 
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
