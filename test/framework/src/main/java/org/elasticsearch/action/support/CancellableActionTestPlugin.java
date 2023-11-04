@@ -6,15 +6,11 @@
  * Side Public License, v 1.
  */
 
-package org.elasticsearch.http;
+package org.elasticsearch.action.support;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.ActionTestUtils;
-import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
@@ -45,11 +41,11 @@ import static org.junit.Assert.fail;
  */
 public class CancellableActionTestPlugin extends Plugin implements ActionPlugin {
 
-    interface BlockedAction extends Releasable {
+    public interface BlockedAction extends Releasable {
         void captureAndCancel(Runnable doCancel);
     }
 
-    static BlockedAction capturingActionOnNode(String actionName, String nodeName) {
+    public static BlockedAction capturingActionOnNode(String actionName, String nodeName) {
         final var plugins = internalCluster().getInstance(PluginsService.class, nodeName)
             .filterPlugins(CancellableActionTestPlugin.class)
             .toList();

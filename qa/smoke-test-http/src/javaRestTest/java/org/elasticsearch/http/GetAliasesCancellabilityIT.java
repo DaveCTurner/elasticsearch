@@ -9,6 +9,7 @@
 package org.elasticsearch.http;
 
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
+import org.elasticsearch.action.support.CancellableActionTestPlugin;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
@@ -21,6 +22,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.action.support.ActionTestUtils.wrapAsRestResponseListener;
+import static org.elasticsearch.test.TaskAssertions.assertAllTasksHaveFinished;
 
 public class GetAliasesCancellabilityIT extends HttpSmokeTestCase {
 
@@ -51,6 +53,8 @@ public class GetAliasesCancellabilityIT extends HttpSmokeTestCase {
                 )
             );
         }
+
+        assertAllTasksHaveFinished(GetAliasesAction.NAME);
     }
 
     @Override
