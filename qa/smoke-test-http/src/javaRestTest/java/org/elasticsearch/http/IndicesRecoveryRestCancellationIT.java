@@ -14,14 +14,13 @@ import org.elasticsearch.action.support.CancellableActionTestPlugin;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
-import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.plugins.Plugin;
 
 import java.util.Collection;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static org.elasticsearch.action.support.ActionTestUtils.wrapAsRestResponseListener;
 import static org.elasticsearch.test.TaskAssertions.assertAllTasksHaveFinished;
@@ -40,22 +39,17 @@ public class IndicesRecoveryRestCancellationIT extends HttpSmokeTestCase {
         createIndex("test");
         ensureGreen("test");
 
-        final var clusterState = internalCluster().clusterService().state();
-        final var blockedNode = randomFrom(
-            clusterState.routingTable()
-                .index("test")
-                .allShards()
-                .flatMap(IndexShardRoutingTable::allShards)
-                .map(s -> clusterState.nodes().get(s.currentNodeId()).getName())
-                .collect(Collectors.toSet())
-        );
+        final var node = internalCluster().startCoordinatingOnlyNode(Settings.EMPTY);
 
-        try (var capturingAction = CancellableActionTestPlugin.capturingActionOnNode(RecoveryAction.NAME + "[n]", blockedNode)) {
+        try (
+            var restClient = createRestClient(client(node).admin().cluster().prepareNodesInfo("_local").get().getNodes(), null, "http");
+            var capturingAction = CancellableActionTestPlugin.capturingActionOnNode(RecoveryAction.NAME, node)
+        ) {
             expectThrows(
                 CancellationException.class,
                 () -> PlainActionFuture.<Response, Exception>get(
                     responseFuture -> capturingAction.captureAndCancel(
-                        getRestClient().performRequestAsync(request, wrapAsRestResponseListener(responseFuture))::cancel
+                        restClient.performRequestAsync(request, wrapAsRestResponseListener(responseFuture))::cancel
                     ),
                     10,
                     TimeUnit.SECONDS

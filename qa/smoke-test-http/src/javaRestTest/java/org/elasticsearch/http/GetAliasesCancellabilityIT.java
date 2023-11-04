@@ -36,17 +36,16 @@ public class GetAliasesCancellabilityIT extends HttpSmokeTestCase {
 
     private void runCancellationTest(Request request) throws Exception {
         final var node = internalCluster().startCoordinatingOnlyNode(Settings.EMPTY);
-        final var nodeInfo = client(node).admin().cluster().prepareNodesInfo("_local").get().getNodes();
 
         try (
-            var client = createRestClient(nodeInfo, null, "http");
+            var restClient = createRestClient(client(node).admin().cluster().prepareNodesInfo("_local").get().getNodes(), null, "http");
             var capturingAction = CancellableActionTestPlugin.capturingActionOnNode(GetAliasesAction.NAME, node)
         ) {
             expectThrows(
                 CancellationException.class,
                 () -> PlainActionFuture.<Response, Exception>get(
                     responseFuture -> capturingAction.captureAndCancel(
-                        client.performRequestAsync(request, wrapAsRestResponseListener(responseFuture))::cancel
+                        restClient.performRequestAsync(request, wrapAsRestResponseListener(responseFuture))::cancel
                     ),
                     10,
                     TimeUnit.SECONDS
@@ -61,5 +60,4 @@ public class GetAliasesCancellabilityIT extends HttpSmokeTestCase {
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.appendToCopy(super.nodePlugins(), CancellableActionTestPlugin.class);
     }
-
 }
