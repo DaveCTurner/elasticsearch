@@ -8,10 +8,10 @@
 package org.elasticsearch.action.admin.indices.alias.get;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
+import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.DataStreamAlias;
@@ -23,9 +23,11 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.DeprecationCategory;
 import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.regex.Regex;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.indices.SystemIndices;
 import org.elasticsearch.indices.SystemIndices.SystemIndexAccessLevel;
+import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -36,56 +38,71 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.function.Predicate;
 
-public class TransportGetAliasesAction extends TransportMasterNodeReadAction<GetAliasesRequest, GetAliasesResponse> {
+/**
+ * NB prior to 8.12 this was a TransportMasterNodeReadAction so for BwC it must be registered with the TransportService (i.e. a
+ * HandledTransportAction) until we no longer need to support {@link org.elasticsearch.TransportVersions#CLUSTER_FEATURES_ADDED} and
+ * earlier.
+ */
+public class TransportGetAliasesAction extends HandledTransportAction<GetAliasesRequest, GetAliasesResponse> {
     private static final DeprecationLogger deprecationLogger = DeprecationLogger.getLogger(TransportGetAliasesAction.class);
 
+    private final ClusterService clusterService;
+    private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final SystemIndices systemIndices;
+    private final Executor managementExecutor;
+    private final ThreadContext threadContext;
 
     @Inject
     public TransportGetAliasesAction(
         TransportService transportService,
-        ClusterService clusterService,
-        ThreadPool threadPool,
         ActionFilters actionFilters,
+        ClusterService clusterService,
         IndexNameExpressionResolver indexNameExpressionResolver,
         SystemIndices systemIndices
     ) {
-        super(
-            GetAliasesAction.NAME,
-            transportService,
-            clusterService,
-            threadPool,
-            actionFilters,
-            GetAliasesRequest::new,
-            indexNameExpressionResolver,
-            GetAliasesResponse::new,
-            threadPool.executor(ThreadPool.Names.MANAGEMENT)
-        );
+        // TODO replace DIRECT_EXECUTOR_SERVICE when removing workaround for https://github.com/elastic/elasticsearch/issues/97916
+        super(GetAliasesAction.NAME, transportService, actionFilters, GetAliasesRequest::new, EsExecutors.DIRECT_EXECUTOR_SERVICE);
+        this.clusterService = clusterService;
+        this.indexNameExpressionResolver = indexNameExpressionResolver;
         this.systemIndices = systemIndices;
+        this.managementExecutor = clusterService.threadPool().executor(ThreadPool.Names.MANAGEMENT);
+        this.threadContext = clusterService.threadPool().getThreadContext();
     }
 
-    @Override
-    protected ClusterBlockException checkBlock(GetAliasesRequest request, ClusterState state) {
+    private void ensureNotBlocked(GetAliasesRequest request, ClusterState state) {
         // Resolve with system index access since we're just checking blocks
-        return state.blocks()
+        final var clusterBlockException = state.blocks()
             .indicesBlockedException(
                 ClusterBlockLevel.METADATA_READ,
                 indexNameExpressionResolver.concreteIndexNamesWithSystemIndexAccess(state, request)
             );
+        if (clusterBlockException != null) {
+            throw clusterBlockException;
+        }
     }
 
     @Override
-    protected void masterOperation(Task task, GetAliasesRequest request, ClusterState state, ActionListener<GetAliasesResponse> listener) {
+    protected void doExecute(Task task, GetAliasesRequest request, ActionListener<GetAliasesResponse> listener) {
+        // Workaround for https://github.com/elastic/elasticsearch/issues/97916 - TODO remove this when we can
+        managementExecutor.execute(ActionRunnable.wrap(listener, l -> doExecuteForked((CancellableTask) task, request, l)));
+    }
+
+    private void doExecuteForked(CancellableTask task, GetAliasesRequest request, ActionListener<GetAliasesResponse> listener) {
         assert Transports.assertNotTransportThread("no need to avoid the context switch and may be expensive if there are many aliases");
+        task.ensureNotCancelled();
+        final var state = clusterService.state();
+        ensureNotBlocked(request, state);
         // resolve all concrete indices upfront and warn/error later
         final String[] concreteIndices = indexNameExpressionResolver.concreteIndexNamesWithSystemIndexAccess(state, request);
         final SystemIndexAccessLevel systemIndexAccessLevel = indexNameExpressionResolver.getSystemIndexAccessLevel();
         Map<String, List<AliasMetadata>> aliases = state.metadata().findAliases(request.aliases(), concreteIndices);
+        task.ensureNotCancelled();
         listener.onResponse(
             new GetAliasesResponse(
-                postProcess(request, concreteIndices, aliases, state, systemIndexAccessLevel, threadPool.getThreadContext(), systemIndices),
+                postProcess(request, concreteIndices, aliases, state, systemIndexAccessLevel, threadContext, systemIndices),
                 postProcess(indexNameExpressionResolver, request, state)
             )
         );
@@ -122,7 +139,7 @@ public class TransportGetAliasesAction extends TransportMasterNodeReadAction<Get
         }
         final Map<String, List<AliasMetadata>> finalResponse = Collections.unmodifiableMap(mapBuilder);
         if (systemIndexAccessLevel != SystemIndexAccessLevel.ALL) {
-            checkSystemIndexAccess(request, systemIndices, state, finalResponse, systemIndexAccessLevel, threadContext);
+            checkSystemIndexAccess(systemIndices, state, finalResponse, systemIndexAccessLevel, threadContext);
         }
         return finalResponse;
     }
@@ -151,7 +168,6 @@ public class TransportGetAliasesAction extends TransportMasterNodeReadAction<Get
     }
 
     private static void checkSystemIndexAccess(
-        GetAliasesRequest request,
         SystemIndices systemIndices,
         ClusterState state,
         Map<String, List<AliasMetadata>> aliasesMap,
