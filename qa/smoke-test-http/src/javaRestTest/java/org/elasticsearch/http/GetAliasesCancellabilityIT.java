@@ -38,7 +38,7 @@ public class GetAliasesCancellabilityIT extends HttpSmokeTestCase {
         final var node = internalCluster().startCoordinatingOnlyNode(Settings.EMPTY);
 
         try (
-            var restClient = createRestClient(client(node).admin().cluster().prepareNodesInfo("_local").get().getNodes(), null, "http");
+            var restClient = createRestClient(node);
             var capturingAction = CancellableActionTestPlugin.capturingActionOnNode(GetAliasesAction.NAME, node)
         ) {
             expectThrows(
