@@ -620,14 +620,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     public static boolean isInternalCluster() {
-        return (currentCluster instanceof InternalTestCluster);
+        return (currentCluster instanceof CloseableInternalTestCluster);
     }
 
-    public static InternalTestCluster internalCluster() {
+    public static CloseableInternalTestCluster internalCluster() {
         if (isInternalCluster() == false) {
             throw new UnsupportedOperationException("current test cluster is immutable");
         }
-        return (InternalTestCluster) currentCluster;
+        return (CloseableInternalTestCluster) currentCluster;
     }
 
     public ClusterService clusterService() {
@@ -1828,10 +1828,10 @@ public abstract class ESIntegTestCase extends ESTestCase {
         boolean autoManageMasterNodes() default true;
 
         /**
-         * Returns the number of client nodes in the cluster. Default is {@link InternalTestCluster#DEFAULT_NUM_CLIENT_NODES}, a
+         * Returns the number of client nodes in the cluster. Default is {@link CloseableInternalTestCluster#DEFAULT_NUM_CLIENT_NODES}, a
          * negative value means that the number of client nodes will be randomized.
          */
-        int numClientNodes() default InternalTestCluster.DEFAULT_NUM_CLIENT_NODES;
+        int numClientNodes() default CloseableInternalTestCluster.DEFAULT_NUM_CLIENT_NODES;
     }
 
     private class LatchedActionListener<Response> implements ActionListener<Response> {
@@ -1924,20 +1924,20 @@ public abstract class ESIntegTestCase extends ESTestCase {
     private int getMinNumDataNodes() {
         ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         return annotation == null || annotation.minNumDataNodes() == -1
-            ? InternalTestCluster.DEFAULT_MIN_NUM_DATA_NODES
+            ? CloseableInternalTestCluster.DEFAULT_MIN_NUM_DATA_NODES
             : annotation.minNumDataNodes();
     }
 
     private int getMaxNumDataNodes() {
         ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         return annotation == null || annotation.maxNumDataNodes() == -1
-            ? InternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES
+            ? CloseableInternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES
             : annotation.maxNumDataNodes();
     }
 
     private int getNumClientNodes() {
         ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
-        return annotation == null ? InternalTestCluster.DEFAULT_NUM_CLIENT_NODES : annotation.numClientNodes();
+        return annotation == null ? CloseableInternalTestCluster.DEFAULT_NUM_CLIENT_NODES : annotation.numClientNodes();
     }
 
     /**
@@ -2049,14 +2049,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
             }
             mockPlugins = mocks;
         }
-        return new InternalTestCluster(
+        return new CloseableInternalTestCluster(
             seed,
             createTempDir(),
             supportsDedicatedMasters,
             getAutoManageMasterNodes(),
             minNumDataNodes,
             maxNumDataNodes,
-            InternalTestCluster.clusterName(scope.name(), seed) + "-cluster",
+            CloseableInternalTestCluster.clusterName(scope.name(), seed) + "-cluster",
             nodeConfigurationSource,
             getNumClientNodes(),
             nodePrefix,
@@ -2221,7 +2221,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * Returns path to a random directory that can be used to create a temporary file system repo
      */
     public static Path randomRepoPath() {
-        if (currentCluster instanceof InternalTestCluster) {
+        if (currentCluster instanceof CloseableInternalTestCluster) {
             return randomRepoPath(((InternalTestCluster) currentCluster).getDefaultSettings());
         }
         throw new UnsupportedOperationException("unsupported cluster type");
@@ -2319,7 +2319,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
         // need to check that there are no more in-flight search contexts before
         // we remove indices
         if (isInternalCluster()) {
-            internalCluster().setBootstrapMasterNodeIndex(InternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO);
+            internalCluster().setBootstrapMasterNodeIndex(CloseableInternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO);
         }
         super.ensureAllSearchContextsReleased();
         if (runTestScopeLifecycle()) {
@@ -2517,7 +2517,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 )
             );
         final ClusterState clusterState = clusterStateBuilder.build();
-        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 final PersistedClusterStateService lucenePersistedStateFactory = lucenePersistedStateFactories.get(nodeName);

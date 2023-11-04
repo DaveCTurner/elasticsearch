@@ -31,6 +31,7 @@ import org.elasticsearch.index.mapper.DateFieldMapper;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -77,14 +78,14 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     private class Disruptor implements Runnable {
-        final InternalTestCluster cluster;
+        final CloseableInternalTestCluster cluster;
         private final String sourceIndex;
         private final DisruptionListener listener;
         private final String clientNode;
         private final Consumer<String> disruption;
 
         private Disruptor(
-            final InternalTestCluster cluster,
+            final CloseableInternalTestCluster cluster,
             final String sourceIndex,
             final DisruptionListener listener,
             final String clientNode,
@@ -149,7 +150,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     public void testDownsampleIndexWithDataNodeRestart() throws Exception {
-        try (InternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -192,7 +193,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (node) -> {
                 try {
-                    cluster.restartNode(node, new InternalTestCluster.RestartCallback() {
+                    cluster.restartNode(node, new CloseableInternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;
@@ -211,7 +212,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
 
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/100653")
     public void testDownsampleIndexWithRollingRestart() throws Exception {
-        try (InternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -254,7 +255,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.rollingRestart(new InternalTestCluster.RestartCallback() {
+                    cluster.rollingRestart(new CloseableInternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;
@@ -301,7 +302,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
     }
 
     public void testDownsampleIndexWithFullClusterRestart() throws Exception {
-        try (InternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -344,7 +345,7 @@ public class DownsampleClusterDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.fullRestart(new InternalTestCluster.RestartCallback() {
+                    cluster.fullRestart(new CloseableInternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;

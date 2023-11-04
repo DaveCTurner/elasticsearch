@@ -22,8 +22,8 @@ import org.elasticsearch.env.TestEnvironment;
 import org.elasticsearch.gateway.GatewayMetaState;
 import org.elasticsearch.gateway.PersistedClusterStateService;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -130,7 +130,8 @@ public class UnsafeBootstrapAndDetachCommandIT extends ESIntegTestCase {
     }
 
     public void testBootstrapNotBootstrappedCluster() throws Exception {
-        internalCluster().setBootstrapMasterNodeIndex(InternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_DONE); // explicitly skip bootstrap
+        internalCluster().setBootstrapMasterNodeIndex(CloseableInternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_DONE); // explicitly skip
+                                                                                                                      // bootstrap
         String node = internalCluster().startNode(
             Settings.builder()
                 .put(Node.INITIAL_STATE_TIMEOUT_SETTING.getKey(), "0s") // to ensure quick node startup

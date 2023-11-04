@@ -68,6 +68,7 @@ import org.elasticsearch.snapshots.RestoreService;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.tasks.TaskInfo;
 import org.elasticsearch.test.BackgroundIndexer;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
@@ -166,7 +167,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
             getTestTransportPlugin()
         );
 
-        InternalTestCluster leaderCluster = new InternalTestCluster(
+        CloseableInternalTestCluster leaderCluster = new CloseableInternalTestCluster(
             randomLong(),
             createTempDir(),
             true,
@@ -188,7 +189,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
         }, 60, TimeUnit.SECONDS);
 
         String address = leaderCluster.getDataNodeInstance(TransportService.class).boundAddress().publishAddress().toString();
-        InternalTestCluster followerCluster = new InternalTestCluster(
+        CloseableInternalTestCluster followerCluster = new CloseableInternalTestCluster(
             randomLong(),
             createTempDir(),
             true,
@@ -363,7 +364,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
         return clusterGroup.followerCluster.client();
     }
 
-    protected final InternalTestCluster getLeaderCluster() {
+    protected final CloseableInternalTestCluster getLeaderCluster() {
         return clusterGroup.leaderCluster;
     }
 
@@ -894,10 +895,10 @@ public abstract class CcrIntegTestCase extends ESTestCase {
 
     static class ClusterGroup implements Closeable {
 
-        final InternalTestCluster leaderCluster;
-        final InternalTestCluster followerCluster;
+        final CloseableInternalTestCluster leaderCluster;
+        final CloseableInternalTestCluster followerCluster;
 
-        ClusterGroup(InternalTestCluster leaderCluster, InternalTestCluster followerCluster) {
+        ClusterGroup(CloseableInternalTestCluster leaderCluster, CloseableInternalTestCluster followerCluster) {
             this.leaderCluster = leaderCluster;
             this.followerCluster = followerCluster;
         }

@@ -22,8 +22,8 @@ import org.elasticsearch.datastreams.DataStreamsPlugin;
 import org.elasticsearch.datastreams.lifecycle.DataStreamLifecycleService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.xpack.aggregatemetric.AggregateMetricMapperPlugin;
 import org.elasticsearch.xpack.core.LocalStateCompositeXPackPlugin;
@@ -59,7 +59,7 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/99520")
     @TestLogging(value = "org.elasticsearch.datastreams.lifecycle:TRACE", reason = "debugging")
     public void testDataStreamLifecycleDownsampleRollingRestart() throws Exception {
-        try (InternalTestCluster cluster = internalCluster()) {
+        try (CloseableInternalTestCluster cluster = internalCluster()) {
             final List<String> masterNodes = cluster.startMasterOnlyNodes(1);
             cluster.startDataOnlyNodes(3);
             ensureStableCluster(cluster.size());
@@ -115,7 +115,7 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
                 }
             }, masterNodes.get(0), (ignored) -> {
                 try {
-                    cluster.rollingRestart(new InternalTestCluster.RestartCallback() {
+                    cluster.rollingRestart(new CloseableInternalTestCluster.RestartCallback() {
                         @Override
                         public boolean validateClusterForming() {
                             return true;
@@ -157,14 +157,14 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
     }
 
     private class Disruptor implements Runnable {
-        final InternalTestCluster cluster;
+        final CloseableInternalTestCluster cluster;
         private final String sourceIndex;
         private final DisruptionListener listener;
         private final String clientNode;
         private final Consumer<String> disruption;
 
         private Disruptor(
-            final InternalTestCluster cluster,
+            final CloseableInternalTestCluster cluster,
             final String sourceIndex,
             final DisruptionListener listener,
             final String clientNode,

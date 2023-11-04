@@ -24,8 +24,8 @@ import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.repositories.fs.FsRepository;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.test.BackgroundIndexer;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xpack.searchablesnapshots.BaseSearchableSnapshotsIntegTestCase;
 import org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots;
 
@@ -128,7 +128,7 @@ public class SearchableSnapshotsPersistentCacheIntegTests extends BaseSearchable
         final PersistentCache persistentCache = cacheService.getPersistentCache();
         assertThat(persistentCache.getNumDocs(), equalTo((long) cacheFiles.size()));
 
-        internalCluster().restartNode(dataNode, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNode, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
                 try {

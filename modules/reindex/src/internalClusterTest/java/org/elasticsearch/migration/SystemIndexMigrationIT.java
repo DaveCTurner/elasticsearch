@@ -22,7 +22,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.persistent.PersistentTasksCustomMetadata;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.reindex.ReindexPlugin;
-import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -91,7 +91,7 @@ public class SystemIndexMigrationIT extends AbstractFeatureMigrationIntegTest {
 
         safeAwait(taskCreated); // waiting when the task is created
 
-        internalCluster().restartNode(masterAndDataNode, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(masterAndDataNode, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 safeAwait(shutdownCompleted); // now we can release the master thread

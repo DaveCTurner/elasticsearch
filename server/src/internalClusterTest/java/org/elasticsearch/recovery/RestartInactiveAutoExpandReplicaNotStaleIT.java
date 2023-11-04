@@ -12,8 +12,8 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 @ESIntegTestCase.ClusterScope(numDataNodes = 0, scope = ESIntegTestCase.Scope.TEST)
 public class RestartInactiveAutoExpandReplicaNotStaleIT extends ESIntegTestCase {
@@ -31,7 +31,7 @@ public class RestartInactiveAutoExpandReplicaNotStaleIT extends ESIntegTestCase 
         ClusterStateResponse clusterStateResponse = clusterAdmin().prepareState().get();
         IndexMetadata target = clusterStateResponse.getState().getMetadata().index("test");
 
-        internalCluster().restartNode(replica, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(replica, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 IndicesService indicesService = internalCluster().getInstance(IndicesService.class, primary);

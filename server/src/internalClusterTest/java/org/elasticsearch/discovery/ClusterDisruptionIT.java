@@ -34,8 +34,8 @@ import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.Bridge;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
@@ -392,7 +392,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         String masterNode = internalCluster().startMasterOnlyNode();
         String dataNode = internalCluster().startDataOnlyNode();
 
-        internalCluster().restartNode(masterNode, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(masterNode, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public boolean clearData(String nodeName) {
                 return true;
@@ -464,7 +464,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
                 assertTrue("index not deleted on " + masterNode, masterState.metadata().hasIndex(idxName) == false);
             }
         });
-        internalCluster().restartNode(masterNode1, InternalTestCluster.EMPTY_CALLBACK);
+        internalCluster().restartNode(masterNode1, CloseableInternalTestCluster.EMPTY_CALLBACK);
         ensureYellow();
         assertFalse(indexExists(idxName));
     }
@@ -498,7 +498,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         }
         ensureGreen(index);
         assertBusy(() -> assertThat(docID.get(), greaterThanOrEqualTo(100)), 1L, TimeUnit.MINUTES);
-        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback());
+        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback());
         ensureGreen(index);
         assertBusy(() -> assertThat(docID.get(), greaterThanOrEqualTo(200)), 1L, TimeUnit.MINUTES);
         stopped.set(true);

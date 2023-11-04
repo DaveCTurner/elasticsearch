@@ -24,8 +24,8 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.MockScriptEngine;
 import org.elasticsearch.script.MockScriptPlugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Arrays;
@@ -137,7 +137,7 @@ public class IngestRestartIT extends ESIntegTestCase {
         checkPipelineExists.accept(pipelineIdWithScript);
         checkPipelineExists.accept(pipelineIdWithoutScript);
 
-        internalCluster().restartNode(internalCluster().getMasterName(), new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(internalCluster().getMasterName(), new CloseableInternalTestCluster.RestartCallback() {
 
             @Override
             public Settings onNodeStopped(String nodeName) {
@@ -255,7 +255,7 @@ public class IngestRestartIT extends ESIntegTestCase {
         assertThat(source.get("y"), equalTo(0));
 
         logger.info("Stopping");
-        internalCluster().restartNode(node, new InternalTestCluster.RestartCallback());
+        internalCluster().restartNode(node, new CloseableInternalTestCluster.RestartCallback());
 
         client(ingestNode).prepareIndex("index")
             .setId("2")
@@ -293,7 +293,7 @@ public class IngestRestartIT extends ESIntegTestCase {
             }
             """, XContentType.JSON).get(timeout);
 
-        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
                 return Settings.builder().put(GatewayService.RECOVER_AFTER_DATA_NODES_SETTING.getKey(), "2").build();

@@ -17,8 +17,8 @@ import org.elasticsearch.core.PathUtils;
 import org.elasticsearch.gateway.CorruptStateException;
 import org.elasticsearch.gateway.PersistedClusterStateService;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.NodeRoles;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -67,7 +67,7 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
         IllegalStateException ex = expectThrows(
             IllegalStateException.class,
             "node not having the data and master roles while having existing index metadata must fail",
-            () -> internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+            () -> internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) {
                     return NodeRoles.removeRoles(nonDataNode(), Set.of(DiscoveryNodeRole.MASTER_ROLE));
@@ -90,7 +90,7 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
         ex = expectThrows(
             IllegalStateException.class,
             "node not having the data role while having existing shard data must fail",
-            () -> internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+            () -> internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) {
                     return nonDataNode();
@@ -106,7 +106,7 @@ public class NodeEnvironmentIT extends ESIntegTestCase {
         final Path[] dataPaths = internalCluster().getInstance(NodeEnvironment.class).nodeDataPaths();
         return expectThrows(
             IllegalStateException.class,
-            () -> internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+            () -> internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) {
                     try {

@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.test.InternalTestCluster;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -132,7 +132,7 @@ public class SlowClusterStateProcessing extends SingleNodeDisruption {
     }
 
     @Override
-    public void removeAndEnsureHealthy(InternalTestCluster cluster) {
+    public void removeAndEnsureHealthy(CloseableInternalTestCluster cluster) {
         removeFromCluster(cluster);
         ensureNodeCount(cluster);
     }

@@ -15,8 +15,8 @@ import org.elasticsearch.cluster.coordination.JoinHelper;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.MockHttpTransport;
 import org.elasticsearch.test.MockLogAppender;
 import org.elasticsearch.test.NodeConfigurationSource;
@@ -75,7 +75,7 @@ public class SingleNodeDiscoveryIT extends ESIntegTestCase {
             }
         };
         try (
-            InternalTestCluster other = new InternalTestCluster(
+            CloseableInternalTestCluster other = new CloseableInternalTestCluster(
                 randomLong(),
                 createTempDir(),
                 false,
@@ -141,7 +141,7 @@ public class SingleNodeDiscoveryIT extends ESIntegTestCase {
             }
         };
         try (
-            InternalTestCluster other = new InternalTestCluster(
+            CloseableInternalTestCluster other = new CloseableInternalTestCluster(
                 randomLong(),
                 createTempDir(),
                 false,

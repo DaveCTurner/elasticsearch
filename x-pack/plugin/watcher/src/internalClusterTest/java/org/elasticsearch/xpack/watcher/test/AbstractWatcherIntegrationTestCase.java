@@ -35,6 +35,7 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.MockMustacheScriptEngine;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.InternalTestCluster;
@@ -653,7 +654,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
         }
 
         @Override
-        public void removeAndEnsureHealthy(InternalTestCluster cluster) {
+        public void removeAndEnsureHealthy(CloseableInternalTestCluster cluster) {
             stopDisrupting();
         }
 

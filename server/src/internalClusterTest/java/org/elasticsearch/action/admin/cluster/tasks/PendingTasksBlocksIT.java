@@ -10,8 +10,8 @@ package org.elasticsearch.action.admin.cluster.tasks;
 
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.gateway.GatewayService;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Arrays;
 
@@ -68,7 +68,7 @@ public class PendingTasksBlocksIT extends ESIntegTestCase {
 
         // restart the cluster but prevent it from performing state recovery
         final int nodeCount = clusterAdmin().prepareNodesInfo("data:true").get().getNodes().size();
-        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) {
                 return Settings.builder().put(GatewayService.RECOVER_AFTER_DATA_NODES_SETTING.getKey(), nodeCount + 1).build();

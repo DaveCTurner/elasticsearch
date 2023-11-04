@@ -35,8 +35,8 @@ import org.elasticsearch.indices.IndexClosedException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.test.BackgroundIndexer;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -433,7 +433,7 @@ public class CloseIndexIT extends ESIntegTestCase {
         indicesAdmin().prepareFlush(indexName).get();
 
         // index more documents while one shard copy is offline
-        internalCluster().restartNode(dataNodes.get(1), new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNodes.get(1), new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 Client client = client(dataNodes.get(0));
@@ -501,7 +501,7 @@ public class CloseIndexIT extends ESIntegTestCase {
             .nodes()
             .get(clusterService().state().routingTable().index(indexName).shard(0).primaryShard().currentNodeId())
             .getName();
-        internalCluster().restartNode(nodeWithPrimary, new InternalTestCluster.RestartCallback());
+        internalCluster().restartNode(nodeWithPrimary, new CloseableInternalTestCluster.RestartCallback());
         ensureGreen(indexName);
         long primaryTerm = clusterService().state().metadata().index(indexName).primaryTerm(0);
         for (String nodeName : internalCluster().nodesInclude(indexName)) {

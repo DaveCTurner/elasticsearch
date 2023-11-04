@@ -31,8 +31,8 @@ import org.elasticsearch.search.builder.PointInTimeBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.query.ThrowingQueryBuilder;
 import org.elasticsearch.tasks.TaskId;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xcontent.ContextParser;
 import org.elasticsearch.xpack.async.AsyncResultsIndexPlugin;
 import org.elasticsearch.xpack.core.LocalStateCompositeXPackPlugin;
@@ -152,7 +152,7 @@ public abstract class AsyncSearchIntegTestCase extends ESIntegTestCase {
         pauseMaintenanceService();
         ensureAllSearchContextsReleased();
 
-        internalCluster().restartNode(node.getName(), new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(node.getName(), new CloseableInternalTestCluster.RestartCallback() {
         });
         unpauseMaintenanceService();
         ensureYellow(ASYNC_RESULTS_INDEX, indexName);

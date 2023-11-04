@@ -16,8 +16,8 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.concurrent.TimeUnit;
 
@@ -66,7 +66,7 @@ public class InitialClusterStateIT extends ESIntegTestCase {
             internalCluster().stopCurrentMasterNode();
             assertClusterUuid(true, clusterUUID);
 
-            internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+            internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public boolean validateClusterForming() {
                     return false;

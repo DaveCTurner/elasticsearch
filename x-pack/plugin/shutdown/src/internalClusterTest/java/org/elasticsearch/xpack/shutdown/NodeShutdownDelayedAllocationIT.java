@@ -18,8 +18,8 @@ import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,7 +59,7 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
         AcknowledgedResponse putShutdownResponse = client().execute(PutShutdownNodeAction.INSTANCE, putShutdownRequest).get();
         assertTrue(putShutdownResponse.isAcknowledged());
 
-        internalCluster().restartNode(nodeToRestartName, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(nodeToRestartName, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 assertBusy(() -> assertThat(clusterAdmin().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1)));
@@ -126,7 +126,7 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
         AcknowledgedResponse putShutdownResponse = client().execute(PutShutdownNodeAction.INSTANCE, putShutdownRequest).get();
         assertTrue(putShutdownResponse.isAcknowledged());
 
-        internalCluster().restartNode(nodeToRestartName, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(nodeToRestartName, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 assertBusy(() -> { assertThat(clusterAdmin().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1)); });

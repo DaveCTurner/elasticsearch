@@ -33,9 +33,9 @@ import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -407,7 +407,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         internalCluster().stopNode(replicaNode);
         ensureYellow("test");
         assertEquals(2, clusterAdmin().prepareState().get().getState().metadata().index("test").inSyncAllocationIds(0).size());
-        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public boolean clearData(String nodeName) {
                 return true;
@@ -439,7 +439,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         logger.info("--> indexing...");
         client().prepareIndex("test").setSource(jsonBuilder().startObject().field("field", "value1").endObject()).get();
         assertEquals(1, clusterAdmin().prepareState().get().getState().metadata().index("test").inSyncAllocationIds(0).size());
-        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public boolean clearData(String nodeName) {
                 return true;

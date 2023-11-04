@@ -112,9 +112,9 @@ import org.elasticsearch.snapshots.AbstractSnapshotIntegTestCase;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.test.BackgroundIndexer;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -497,7 +497,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         });
 
         logger.info("--> restart node B");
-        internalCluster().restartNode(nodeB, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(nodeB, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 safeAwait(phase1ReadyBlocked);
@@ -728,7 +728,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
             shardSize,
             ByteSizeValue.ofBytes(chunkSize)
         );
-        internalCluster().restartNode(nodeA, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(nodeA, new CloseableInternalTestCluster.RestartCallback() {
             // This callback returns node Settings that are ultimately passed into the restarted node.
             @Override
             public Settings onNodeStopped(String nodeName) {
@@ -1104,7 +1104,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
             safeAwait(phase1ReadyBlocked);
             internalCluster().restartNode(
                 clusterService().state().nodes().getMasterNode().getName(),
-                new InternalTestCluster.RestartCallback()
+                new CloseableInternalTestCluster.RestartCallback()
             );
             internalCluster().ensureAtLeastNumDataNodes(3);
             updateIndexSettings(
@@ -1250,7 +1250,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         final ShardRouting replicaShardRouting = indexShardRoutingTable.replicaShards().get(0);
         internalCluster().restartNode(
             discoveryNodes.get(replicaShardRouting.currentNodeId()).getName(),
-            new InternalTestCluster.RestartCallback() {
+            new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) throws Exception {
                     assertFalse(
@@ -1314,7 +1314,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         final ShardRouting replicaShardRouting = indexShardRoutingTable.replicaShards().get(0);
         internalCluster().restartNode(
             discoveryNodes.get(replicaShardRouting.currentNodeId()).getName(),
-            new InternalTestCluster.RestartCallback() {
+            new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) throws Exception {
                     assertFalse(
@@ -1423,7 +1423,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         );
         internalCluster().restartNode(
             discoveryNodes.get(replicaShardRouting.currentNodeId()).getName(),
-            new InternalTestCluster.RestartCallback() {
+            new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) throws Exception {
                     assertFalse(
@@ -1694,7 +1694,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         }
         readyToRestartNode.await();
         transportService.clearAllRules();
-        internalCluster().restartNode(nodeWithOldPrimary.getName(), new InternalTestCluster.RestartCallback());
+        internalCluster().restartNode(nodeWithOldPrimary.getName(), new CloseableInternalTestCluster.RestartCallback());
         for (Thread indexer : indexers) {
             indexer.join();
         }

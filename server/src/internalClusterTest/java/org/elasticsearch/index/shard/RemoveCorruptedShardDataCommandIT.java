@@ -57,10 +57,10 @@ import org.elasticsearch.index.translog.TranslogCorruptedException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.CorruptionUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.transport.MockTransportService;
 
@@ -155,7 +155,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         final Path indexDir = getPathToShardData(indexName, ShardPath.INDEX_FOLDER_NAME);
 
-        internalCluster().restartNode(node, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(node, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 // Try running it before the shard is corrupted, it should flip out because there is no corruption file marker
@@ -188,7 +188,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             );
         });
 
-        internalCluster().restartNode(node, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(node, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 terminal.addTextInput("y");
@@ -320,7 +320,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         // Restart the single node
         logger.info("--> restarting node");
-        internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
+        internalCluster().restartRandomDataNode(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 logger.info("--> corrupting translog on node {}", nodeName);
@@ -343,7 +343,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         });
 
         // have to shut down primary node - otherwise node lock is present
-        internalCluster().restartNode(node1, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(node1, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 assertBusy(() -> {

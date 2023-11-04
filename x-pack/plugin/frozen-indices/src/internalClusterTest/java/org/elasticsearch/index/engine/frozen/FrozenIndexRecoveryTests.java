@@ -15,8 +15,8 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.protocol.xpack.frozen.FreezeRequest;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xpack.core.frozen.action.FreezeIndexAction;
 import org.elasticsearch.xpack.frozen.FrozenIndices;
 
@@ -68,7 +68,7 @@ public class FrozenIndexRecoveryTests extends ESIntegTestCase {
         ensureGreen(indexName);
         indicesAdmin().prepareFlush(indexName).get();
         // index more documents while one shard copy is offline
-        internalCluster().restartNode(dataNodes.get(1), new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(dataNodes.get(1), new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 Client client = client(dataNodes.get(0));

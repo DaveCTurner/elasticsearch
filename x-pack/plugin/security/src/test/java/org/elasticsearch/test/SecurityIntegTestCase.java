@@ -82,22 +82,22 @@ public abstract class SecurityIntegTestCase extends ESIntegTestCase {
     protected static int defaultMaxNumberOfNodes() {
         ClusterScope clusterScope = SecurityIntegTestCase.class.getAnnotation(ClusterScope.class);
         if (clusterScope == null) {
-            return InternalTestCluster.DEFAULT_HIGH_NUM_MASTER_NODES + InternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES
-                + InternalTestCluster.DEFAULT_MAX_NUM_CLIENT_NODES;
+            return CloseableInternalTestCluster.DEFAULT_HIGH_NUM_MASTER_NODES + CloseableInternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES
+                + CloseableInternalTestCluster.DEFAULT_MAX_NUM_CLIENT_NODES;
         } else {
             int clientNodes = clusterScope.numClientNodes();
             if (clientNodes < 0) {
-                clientNodes = InternalTestCluster.DEFAULT_MAX_NUM_CLIENT_NODES;
+                clientNodes = CloseableInternalTestCluster.DEFAULT_MAX_NUM_CLIENT_NODES;
             }
             int masterNodes = 0;
             if (clusterScope.supportsDedicatedMasters()) {
-                masterNodes = InternalTestCluster.DEFAULT_HIGH_NUM_MASTER_NODES;
+                masterNodes = CloseableInternalTestCluster.DEFAULT_HIGH_NUM_MASTER_NODES;
             }
 
             int dataNodes = 0;
             if (clusterScope.numDataNodes() < 0) {
                 if (clusterScope.maxNumDataNodes() < 0) {
-                    dataNodes = InternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES;
+                    dataNodes = CloseableInternalTestCluster.DEFAULT_MAX_NUM_DATA_NODES;
                 } else {
                     dataNodes = clusterScope.maxNumDataNodes();
                 }

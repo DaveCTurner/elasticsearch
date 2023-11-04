@@ -16,8 +16,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.snapshots.SnapshotId;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.xpack.searchablesnapshots.BaseSearchableSnapshotsIntegTestCase;
 import org.elasticsearch.xpack.searchablesnapshots.SearchableSnapshots;
 import org.elasticsearch.xpack.searchablesnapshots.cache.full.CacheService;
@@ -78,7 +78,7 @@ public class SearchableSnapshotShutdownIntegTests extends BaseSearchableSnapshot
             cacheService.synchronizeCache();
 
             logger.info("--> Restarting [{}/{}]", indexNodeId, indexNode);
-            internalCluster().restartNode(indexNode, new InternalTestCluster.RestartCallback() {
+            internalCluster().restartNode(indexNode, new CloseableInternalTestCluster.RestartCallback() {
                 @Override
                 public Settings onNodeStopped(String nodeName) throws Exception {
                     assertBusy(() -> {

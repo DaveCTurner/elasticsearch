@@ -16,8 +16,8 @@ import org.elasticsearch.action.admin.indices.analyze.ReloadAnalyzersResponse;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -46,7 +46,7 @@ public class ReloadSynonymAnalyzerIT extends ESIntegTestCase {
 
     /**
      * This test needs to write to the config directory, this is difficult in an external cluster so we overwrite this to force running with
-     * {@link InternalTestCluster}
+     * {@link CloseableInternalTestCluster}
      */
     @Override
     protected boolean ignoreExternalCluster() {

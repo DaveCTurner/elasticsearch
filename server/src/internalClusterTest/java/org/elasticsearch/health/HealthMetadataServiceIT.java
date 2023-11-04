@@ -15,6 +15,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.health.metadata.HealthMetadata;
 import org.elasticsearch.health.node.selection.HealthNodeTaskExecutor;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
 import org.junit.Before;
@@ -45,7 +46,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testEachMasterPublishesTheirThresholds() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             int numberOfNodes = 3;
             Map<String, String> watermarkByNode = new HashMap<>();
             Map<String, ByteSizeValue> maxHeadroomByNode = new HashMap<>();
@@ -104,7 +105,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testWatermarkSettingUpdate() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             int numberOfNodes = 3;
             ByteSizeValue randomBytes = ByteSizeValue.ofBytes(randomLongBetween(6, 19));
             String initialWatermark = percentageMode ? randomIntBetween(86, 94) + "%" : randomBytes.toString();
@@ -206,7 +207,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
     }
 
     public void testHealthNodeToggleEnabled() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             int numberOfNodes = 3;
             Map<String, String> watermarkByNode = new HashMap<>();
             Map<String, ByteSizeValue> maxHeadroomByNode = new HashMap<>();

@@ -23,8 +23,8 @@ import org.elasticsearch.index.translog.TestTranslog;
 import org.elasticsearch.index.translog.TranslogCorruptedException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.transport.MockTransportService;
 
@@ -70,7 +70,7 @@ public class CorruptedTranslogIT extends ESIntegTestCase {
             .shardPath()
             .resolveTranslog();
 
-        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
+        internalCluster().fullRestart(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public void onAllNodesStopped() throws Exception {
                 TestTranslog.corruptRandomTranslogFile(logger, random(), translogPath);

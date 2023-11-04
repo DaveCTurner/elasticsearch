@@ -24,8 +24,8 @@ import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Collection;
 import java.util.List;
@@ -78,7 +78,7 @@ public class NodeShutdownShardsIT extends ESIntegTestCase {
 
         // Stop the node we're going to shut down and mark it as shutting down while it's offline. This checks that the cluster state
         // listener is working correctly.
-        internalCluster().restartNode(nodeToRestartName, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(nodeToRestartName, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 putNodeShutdown(nodeToRestartId, SingleNodeShutdownMetadata.Type.REMOVE, null);
@@ -354,7 +354,7 @@ public class NodeShutdownShardsIT extends ESIntegTestCase {
         assertBusy(() -> assertIndexSetting("myindex", "index.number_of_replicas", "1"));
         indexRandomData("myindex");
 
-        internalCluster().restartNode(primaryNode, new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(primaryNode, new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
                 ensureYellow("myindex");

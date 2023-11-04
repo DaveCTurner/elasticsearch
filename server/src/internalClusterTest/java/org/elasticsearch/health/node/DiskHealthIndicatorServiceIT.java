@@ -17,8 +17,8 @@ import org.elasticsearch.health.HealthIndicatorResult;
 import org.elasticsearch.health.HealthService;
 import org.elasticsearch.health.HealthStatus;
 import org.elasticsearch.health.node.selection.HealthNode;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.List;
 import java.util.Map;
@@ -30,7 +30,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class DiskHealthIndicatorServiceIT extends ESIntegTestCase {
 
     public void testGreen() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             internalCluster.startMasterOnlyNode();
             internalCluster.startDataOnlyNode();
             ensureStableCluster(internalCluster.getNodeNames().length);
@@ -48,7 +48,7 @@ public class DiskHealthIndicatorServiceIT extends ESIntegTestCase {
     }
 
     public void testRed() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             internalCluster.startMasterOnlyNode(getVeryLowWatermarksSettings());
             internalCluster.startDataOnlyNode(getVeryLowWatermarksSettings());
             ensureStableCluster(internalCluster.getNodeNames().length);

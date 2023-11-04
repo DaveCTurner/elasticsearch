@@ -21,6 +21,7 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.MockHttpTransport;
@@ -71,7 +72,7 @@ public class InternalTestClusterTests extends ESTestCase {
         String nodePrefix = randomRealisticUnicodeOfCodepointLengthBetween(1, 10);
 
         Path baseDir = createTempDir();
-        InternalTestCluster cluster0 = new InternalTestCluster(
+        CloseableInternalTestCluster cluster0 = new CloseableInternalTestCluster(
             clusterSeed,
             baseDir,
             masterNodes,
@@ -85,7 +86,7 @@ public class InternalTestClusterTests extends ESTestCase {
             Collections.emptyList(),
             Function.identity()
         );
-        InternalTestCluster cluster1 = new InternalTestCluster(
+        CloseableInternalTestCluster cluster1 = new CloseableInternalTestCluster(
             clusterSeed,
             baseDir,
             masterNodes,
@@ -116,7 +117,11 @@ public class InternalTestClusterTests extends ESTestCase {
         clusterUniqueSettings.add(Environment.PATH_LOGS_SETTING.getKey());
     }
 
-    public static void assertClusters(InternalTestCluster cluster0, InternalTestCluster cluster1, boolean checkClusterUniqueSettings) {
+    public static void assertClusters(
+        CloseableInternalTestCluster cluster0,
+        CloseableInternalTestCluster cluster1,
+        boolean checkClusterUniqueSettings
+    ) {
         Settings defaultSettings0 = cluster0.getDefaultSettings();
         Settings defaultSettings1 = cluster1.getDefaultSettings();
         assertSettings(defaultSettings0, defaultSettings1, checkClusterUniqueSettings);
@@ -151,14 +156,14 @@ public class InternalTestClusterTests extends ESTestCase {
             masterNodes = randomBoolean();
             minNumDataNodes = randomIntBetween(0, 3);
             maxNumDataNodes = randomIntBetween(minNumDataNodes, 4);
-            bootstrapMasterNodeIndex = InternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO;
+            bootstrapMasterNodeIndex = CloseableInternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO;
         } else {
             // if we manage min master nodes, we need to lock down the number of nodes
             minNumDataNodes = randomIntBetween(0, 4);
             maxNumDataNodes = minNumDataNodes;
             masterNodes = false;
             bootstrapMasterNodeIndex = maxNumDataNodes == 0
-                ? InternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO
+                ? CloseableInternalTestCluster.BOOTSTRAP_MASTER_NODE_INDEX_AUTO
                 : randomIntBetween(0, maxNumDataNodes - 1);
         }
         final int numClientNodes = randomIntBetween(0, 2);
@@ -184,7 +189,7 @@ public class InternalTestClusterTests extends ESTestCase {
 
         String nodePrefix = "foobar";
 
-        InternalTestCluster cluster0 = new InternalTestCluster(
+        CloseableInternalTestCluster cluster0 = new CloseableInternalTestCluster(
             clusterSeed,
             createTempDir(),
             masterNodes,
@@ -200,7 +205,7 @@ public class InternalTestClusterTests extends ESTestCase {
         );
         cluster0.setBootstrapMasterNodeIndex(bootstrapMasterNodeIndex);
 
-        InternalTestCluster cluster1 = new InternalTestCluster(
+        CloseableInternalTestCluster cluster1 = new CloseableInternalTestCluster(
             clusterSeed,
             createTempDir(),
             masterNodes,
@@ -266,7 +271,7 @@ public class InternalTestClusterTests extends ESTestCase {
         };
         String nodePrefix = "test";
         Path baseDir = createTempDir();
-        InternalTestCluster cluster = new InternalTestCluster(
+        CloseableInternalTestCluster cluster = new CloseableInternalTestCluster(
             clusterSeed,
             baseDir,
             masterNodes,
@@ -345,7 +350,7 @@ public class InternalTestClusterTests extends ESTestCase {
         final Path baseDir = createTempDir();
         final int numNodes = 5;
 
-        InternalTestCluster cluster = new InternalTestCluster(
+        CloseableInternalTestCluster cluster = new CloseableInternalTestCluster(
             randomLong(),
             baseDir,
             false,
@@ -453,7 +458,7 @@ public class InternalTestClusterTests extends ESTestCase {
         Path baseDir = createTempDir();
         List<Class<? extends Plugin>> plugins = new ArrayList<>(mockPlugins());
         plugins.add(NodeAttrCheckPlugin.class);
-        InternalTestCluster cluster = new InternalTestCluster(
+        CloseableInternalTestCluster cluster = new CloseableInternalTestCluster(
             randomLong(),
             baseDir,
             false,
@@ -474,7 +479,7 @@ public class InternalTestClusterTests extends ESTestCase {
                     cluster.stopRandomDataNode();
                     cluster.startNode();
                 }
-                case 1 -> cluster.rollingRestart(InternalTestCluster.EMPTY_CALLBACK);
+                case 1 -> cluster.rollingRestart(CloseableInternalTestCluster.EMPTY_CALLBACK);
                 case 2 -> cluster.fullRestart();
             }
         } finally {

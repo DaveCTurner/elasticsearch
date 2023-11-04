@@ -20,8 +20,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -330,7 +330,7 @@ public class ClusterHealthIT extends ESIntegTestCase {
                     .setMasterNodeTimeout(TimeValue.timeValueMinutes(timeoutMinutes))
                     .execute()
             );
-            internalCluster().restartNode(internalCluster().getMasterName(), InternalTestCluster.EMPTY_CALLBACK);
+            internalCluster().restartNode(internalCluster().getMasterName(), CloseableInternalTestCluster.EMPTY_CALLBACK);
         }
         if (withIndex) {
             setReplicaCount(0, "test");

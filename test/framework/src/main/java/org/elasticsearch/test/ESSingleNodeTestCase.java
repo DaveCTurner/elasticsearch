@@ -228,7 +228,10 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         final Path tempDir = createTempDir();
         final String nodeName = nodeSettings().get(Node.NODE_NAME_SETTING.getKey(), "node_s_0");
         Settings.Builder settingBuilder = Settings.builder()
-            .put(ClusterName.CLUSTER_NAME_SETTING.getKey(), InternalTestCluster.clusterName("single-node-cluster", random().nextLong()))
+            .put(
+                ClusterName.CLUSTER_NAME_SETTING.getKey(),
+                CloseableInternalTestCluster.clusterName("single-node-cluster", random().nextLong())
+            )
             .put(DestructiveOperations.REQUIRES_NAME_SETTING.getKey(), false)
             .put(Environment.PATH_HOME_SETTING.getKey(), tempDir)
             .put(Environment.PATH_REPO_SETTING.getKey(), tempDir.resolve("repo"))

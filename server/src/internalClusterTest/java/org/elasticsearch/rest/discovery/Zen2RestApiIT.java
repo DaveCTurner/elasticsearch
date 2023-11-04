@@ -22,8 +22,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -57,7 +57,7 @@ public class Zen2RestApiIT extends ESIntegTestCase {
 
         RestClient restClient = getRestClient();
 
-        internalCluster().rollingRestart(new InternalTestCluster.RestartCallback() {
+        internalCluster().rollingRestart(new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public void doAfterNodes(int n, Client client) throws IOException {
                 ensureGreen("test");

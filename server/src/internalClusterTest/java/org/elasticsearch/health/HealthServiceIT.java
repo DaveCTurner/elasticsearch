@@ -17,8 +17,8 @@ import org.elasticsearch.health.node.FetchHealthInfoCacheAction;
 import org.elasticsearch.health.node.HealthInfo;
 import org.elasticsearch.plugins.HealthPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,7 +52,7 @@ public class HealthServiceIT extends ESIntegTestCase {
     }
 
     public void testThatHealthNodeDataIsFetchedAndPassedToIndicators() throws Exception {
-        try (InternalTestCluster internalCluster = internalCluster()) {
+        try (CloseableInternalTestCluster internalCluster = internalCluster()) {
             ensureStableCluster(internalCluster.getNodeNames().length);
             waitForAllNodesToReportHealth();
             for (String node : internalCluster.getNodeNames()) {

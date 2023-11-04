@@ -15,8 +15,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.InternalTestCluster;
 
 import java.util.Collection;
 import java.util.List;
@@ -44,7 +44,7 @@ public class DesiredBalanceShutdownIT extends ESIntegTestCase {
         );
         ensureGreen(INDEX);
 
-        internalCluster().restartNode(internalCluster().startNode(), new InternalTestCluster.RestartCallback() {
+        internalCluster().restartNode(internalCluster().startNode(), new CloseableInternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String newNodeName) {
 

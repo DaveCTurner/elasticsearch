@@ -79,7 +79,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
         return cluster(clusterAlias).client();
     }
 
-    protected final InternalTestCluster cluster(String clusterAlias) {
+    protected final CloseableInternalTestCluster cluster(String clusterAlias) {
         return clusterGroup.getCluster(clusterAlias);
     }
 
@@ -111,7 +111,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
             final Collection<Class<? extends Plugin>> nodePlugins = nodePlugins(clusterAlias);
 
             final NodeConfigurationSource nodeConfigurationSource = nodeConfigurationSource(nodeSettings(), nodePlugins);
-            final InternalTestCluster cluster = new InternalTestCluster(
+            final CloseableInternalTestCluster cluster = new CloseableInternalTestCluster(
                 randomLong(),
                 createTempDir(),
                 true,
@@ -134,7 +134,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
 
     @After
     public void assertAfterTest() throws Exception {
-        for (InternalTestCluster cluster : clusters().values()) {
+        for (CloseableInternalTestCluster cluster : clusters().values()) {
             cluster.wipe(Set.of());
             cluster.assertAfterTest();
         }
@@ -228,7 +228,7 @@ public abstract class AbstractMultiClustersTestCase extends ESTestCase {
             this.clusters = Collections.unmodifiableMap(clusters);
         }
 
-        InternalTestCluster getCluster(String clusterAlias) {
+        CloseableInternalTestCluster getCluster(String clusterAlias) {
             assertThat(clusters, hasKey(clusterAlias));
             return clusters.get(clusterAlias);
         }
