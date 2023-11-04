@@ -17,6 +17,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.discovery.MasterNotDiscoveredException;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.CloseableInternalTestCluster;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.TransportService;
@@ -211,7 +212,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
         shutdown.set(true);
         assertingThread.join();
         updatingThread.join();
-        internalCluster().close();
+        ((CloseableInternalTestCluster) internalCluster()).close();
     }
 
 }
