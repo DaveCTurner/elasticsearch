@@ -18,6 +18,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.threadpool.TestThreadPool;
@@ -37,7 +38,7 @@ import java.util.function.Supplier;
  *
  * See also {@link NoOpClient} if you do not specifically need a {@link NodeClient}.
  */
-public class NoOpNodeClient extends NodeClient {
+public class NoOpNodeClient extends NodeClient implements Releasable {
 
     private final AtomicLong executionCount = new AtomicLong(0);
 

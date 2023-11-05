@@ -35,19 +35,18 @@ public class ParentTaskAssigningClientTests extends ESTestCase {
                 super.doExecute(action, request, listener);
             }
         };
-        try (ParentTaskAssigningClient client = new ParentTaskAssigningClient(mock, parentTaskId[0])) {
-            assertEquals(parentTaskId[0], client.getParentTask());
+        final var client = new ParentTaskAssigningClient(mock, parentTaskId[0]);
+        assertEquals(parentTaskId[0], client.getParentTask());
 
-            // All of these should have the parentTaskId set
-            client.bulk(new BulkRequest());
-            client.search(new SearchRequest());
-            client.clearScroll(new ClearScrollRequest());
+        // All of these should have the parentTaskId set
+        client.bulk(new BulkRequest());
+        client.search(new SearchRequest());
+        client.clearScroll(new ClearScrollRequest());
 
-            // Now lets verify that unwrapped calls don't have the parentTaskId set
-            parentTaskId[0] = TaskId.EMPTY_TASK_ID;
-            client.unwrap().bulk(new BulkRequest());
-            client.unwrap().search(new SearchRequest());
-            client.unwrap().clearScroll(new ClearScrollRequest());
-        }
+        // Now lets verify that unwrapped calls don't have the parentTaskId set
+        parentTaskId[0] = TaskId.EMPTY_TASK_ID;
+        client.unwrap().bulk(new BulkRequest());
+        client.unwrap().search(new SearchRequest());
+        client.unwrap().clearScroll(new ClearScrollRequest());
     }
 }

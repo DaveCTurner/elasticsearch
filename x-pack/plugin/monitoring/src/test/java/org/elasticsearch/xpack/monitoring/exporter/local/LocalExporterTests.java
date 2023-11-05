@@ -51,7 +51,7 @@ public class LocalExporterTests extends ESTestCase {
         final Exporter.Config config = new Exporter.Config("name", "type", Settings.EMPTY, clusterService, licenseState);
         final CleanerService cleanerService = mock(CleanerService.class);
         final MonitoringMigrationCoordinator migrationCoordinator = new MonitoringMigrationCoordinator();
-        try (Client client = new NoOpClient(getTestName())) {
+        try (var client = new NoOpClient(getTestName())) {
             final LocalExporter exporter = new LocalExporter(config, client, migrationCoordinator, cleanerService);
 
             final TimeValue retention = TimeValue.timeValueDays(randomIntBetween(1, 90));

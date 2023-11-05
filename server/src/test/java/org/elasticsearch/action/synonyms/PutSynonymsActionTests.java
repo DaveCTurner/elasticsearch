@@ -8,7 +8,6 @@
 
 package org.elasticsearch.action.synonyms;
 
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.synonyms.RestPutSynonymsAction;
 import org.elasticsearch.test.ESTestCase;
@@ -27,7 +26,7 @@ public class PutSynonymsActionTests extends ESTestCase {
             .build();
 
         FakeRestChannel channel = new FakeRestChannel(request, false, 0);
-        try (NodeClient nodeClient = new NoOpNodeClient(this.getTestName())) {
+        try (var nodeClient = new NoOpNodeClient(this.getTestName())) {
             expectThrows(IllegalArgumentException.class, () -> action.handleRequest(request, channel, nodeClient));
         }
     }

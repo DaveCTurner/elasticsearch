@@ -87,7 +87,7 @@ public class RestControllerTests extends ESTestCase {
     private RestController restController;
     private HierarchyCircuitBreakerService circuitBreakerService;
     private UsageService usageService;
-    private NodeClient client;
+    private NoOpNodeClient client;
     private Tracer tracer;
     private List<RestRequest.Method> methodList;
 

@@ -10,7 +10,6 @@ package org.elasticsearch.xpack.transform.transforms;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.support.ActionTestUtils;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -69,7 +68,7 @@ import static org.mockito.Mockito.when;
 
 public class TransformTaskTests extends ESTestCase {
 
-    private Client client;
+    private NoOpClient client;
 
     @Before
     public void setupClient() {

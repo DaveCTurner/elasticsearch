@@ -97,7 +97,7 @@ public class NativePrivilegeStoreTests extends ESTestCase {
     private NativePrivilegeStore store;
     private List<ActionRequest> requests;
     private AtomicReference<ActionListener<ActionResponse>> listener;
-    private Client client;
+    private NoOpClient client;
     private SecurityIndexManager securityIndex;
     private CacheInvalidatorRegistry cacheInvalidatorRegistry;
     private ThreadPool threadPool;

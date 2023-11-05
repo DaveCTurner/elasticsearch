@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.support.AbstractClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -26,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  *
  * See also {@link NoOpNodeClient} if you need to mock a {@link org.elasticsearch.client.internal.node.NodeClient}.
  */
-public class NoOpClient extends AbstractClient {
+public class NoOpClient extends AbstractClient implements Releasable {
     /**
      * Build with {@link ThreadPool}. This {@linkplain ThreadPool} is terminated on {@link #close()}.
      */

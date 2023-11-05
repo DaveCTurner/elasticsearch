@@ -154,16 +154,12 @@ public class AsyncBulkByScrollActionTests extends ESTestCase {
     }
 
     private void setupClient(ThreadPool threadPool) {
-        if (client != null) {
-            client.close();
-        }
         client = new MyMockClient(new NoOpClient(threadPool));
         client.threadPool().getThreadContext().putHeader(expectedHeaders);
     }
 
     @After
-    public void tearDownAndVerifyCommonStuff() throws Exception {
-        client.close();
+    public void tearDownAndVerifyCommonStuff() {
         terminate(threadPool);
     }
 

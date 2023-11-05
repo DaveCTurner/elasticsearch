@@ -56,15 +56,11 @@ public class LifecyclePolicyClientTests extends ESTestCase {
 
         SearchRequest request = new SearchRequest("foo");
 
-        try (
-            LifecyclePolicySecurityClient policyClient = new LifecyclePolicySecurityClient(
-                client,
-                ClientHelper.INDEX_LIFECYCLE_ORIGIN,
-                Collections.emptyMap()
-            )
-        ) {
-            policyClient.execute(SearchAction.INSTANCE, request, listener);
-        }
+        new LifecyclePolicySecurityClient(client, ClientHelper.INDEX_LIFECYCLE_ORIGIN, Collections.emptyMap()).execute(
+            SearchAction.INSTANCE,
+            request,
+            listener
+        );
 
         latch.await();
     }
@@ -95,15 +91,11 @@ public class LifecyclePolicyClientTests extends ESTestCase {
         headers.put("foo", "foo");
         headers.put("bar", "bar");
 
-        try (
-            LifecyclePolicySecurityClient policyClient = new LifecyclePolicySecurityClient(
-                client,
-                ClientHelper.INDEX_LIFECYCLE_ORIGIN,
-                headers
-            )
-        ) {
-            policyClient.execute(SearchAction.INSTANCE, request, listener);
-        }
+        new LifecyclePolicySecurityClient(client, ClientHelper.INDEX_LIFECYCLE_ORIGIN, headers).execute(
+            SearchAction.INSTANCE,
+            request,
+            listener
+        );
 
         latch.await();
     }
@@ -136,15 +128,11 @@ public class LifecyclePolicyClientTests extends ESTestCase {
         headers.put("es-security-runas-user", "foo");
         headers.put("_xpack_security_authentication", "bar");
 
-        try (
-            LifecyclePolicySecurityClient policyClient = new LifecyclePolicySecurityClient(
-                client,
-                ClientHelper.INDEX_LIFECYCLE_ORIGIN,
-                headers
-            )
-        ) {
-            policyClient.execute(SearchAction.INSTANCE, request, listener);
-        }
+        new LifecyclePolicySecurityClient(client, ClientHelper.INDEX_LIFECYCLE_ORIGIN, headers).execute(
+            SearchAction.INSTANCE,
+            request,
+            listener
+        );
 
         latch.await();
     }

@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockUtils;
@@ -27,7 +26,7 @@ import static org.mockito.Mockito.mock;
 public class TransportDeletePipelineActionTests extends ESTestCase {
 
     public void testDeletePipelineWithMissingIndex() throws Exception {
-        try (Client client = getFailureClient(new IndexNotFoundException("missing .logstash"))) {
+        try (var client = getFailureClient(new IndexNotFoundException("missing .logstash"))) {
             TransportService transportService = MockUtils.setupTransportServiceWithThreadpoolExecutor();
             final TransportDeletePipelineAction action = new TransportDeletePipelineAction(
                 transportService,
@@ -41,7 +40,7 @@ public class TransportDeletePipelineActionTests extends ESTestCase {
         }
     }
 
-    private Client getFailureClient(Exception e) {
+    private NoOpClient getFailureClient(Exception e) {
         return new NoOpClient(getTestName()) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(

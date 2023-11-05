@@ -107,7 +107,7 @@ import static org.mockito.Mockito.when;
 public class IndexLifecycleRunnerTests extends ESTestCase {
     private static final NamedXContentRegistry REGISTRY;
     private ThreadPool threadPool;
-    private Client noopClient;
+    private NoOpClient noopClient;
     private NoOpHistoryStore historyStore;
 
     static {

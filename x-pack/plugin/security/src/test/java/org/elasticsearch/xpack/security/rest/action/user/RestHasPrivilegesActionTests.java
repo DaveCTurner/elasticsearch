@@ -7,7 +7,6 @@
 package org.elasticsearch.xpack.security.rest.action.user;
 
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.license.License;
@@ -45,7 +44,7 @@ public class RestHasPrivilegesActionTests extends ESTestCase {
         final RestHasPrivilegesAction action = new RestHasPrivilegesAction(Settings.EMPTY, mock(SecurityContext.class), licenseState);
         try (
             XContentBuilder bodyBuilder = JsonXContent.contentBuilder().startObject().endObject();
-            NodeClient client = new NoOpNodeClient(this.getTestName())
+            var client = new NoOpNodeClient(this.getTestName())
         ) {
             final RestRequest request = new FakeRestRequest.Builder(xContentRegistry()).withPath("/_security/user/_has_privileges/")
                 .withContent(new BytesArray(bodyBuilder.toString()), XContentType.JSON)
@@ -70,7 +69,7 @@ public class RestHasPrivilegesActionTests extends ESTestCase {
         );
         try (
             XContentBuilder bodyBuilder = JsonXContent.contentBuilder().startObject().endObject();
-            NodeClient client = new NoOpNodeClient(this.getTestName())
+            var client = new NoOpNodeClient(this.getTestName())
         ) {
             final RestRequest request = new FakeRestRequest.Builder(xContentRegistry()).withPath("/_security/user/_has_privileges/")
                 .withContent(new BytesArray(bodyBuilder.toString()), XContentType.JSON)

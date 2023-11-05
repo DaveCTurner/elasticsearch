@@ -520,7 +520,7 @@ public class TrainedModelProviderTests extends ESTestCase {
         return TrainedModelConfigTests.createTestInstance(modelId).setDefinitionFromBytes(bytes).build();
     }
 
-    private Client createMockClient() {
+    private NoOpClient createMockClient() {
         var noOpClient = new NoOpClient(getTestName());
 
         return spy(noOpClient);

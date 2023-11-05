@@ -18,7 +18,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionTestUtils;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
@@ -98,7 +97,7 @@ public class TransformIndexerStateTests extends ESTestCase {
         SearchResponse.Clusters.EMPTY
     );
 
-    private Client client;
+    private NoOpClient client;
     private ThreadPool threadPool;
     private TransformAuditor auditor;
     private TransformConfigManager transformConfigManager;

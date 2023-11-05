@@ -95,10 +95,10 @@ public class SourceDestValidatorTests extends ESTestCase {
         REMOTE_SOURCE_VALIDATION
     );
 
-    private Client clientWithBasicLicense;
-    private Client clientWithExpiredBasicLicense;
-    private Client clientWithPlatinumLicense;
-    private Client clientWithTrialLicense;
+    private NoOpClient clientWithBasicLicense;
+    private NoOpClient clientWithExpiredBasicLicense;
+    private NoOpClient clientWithPlatinumLicense;
+    private NoOpClient clientWithTrialLicense;
     private RemoteClusterLicenseChecker remoteClusterLicenseCheckerBasic;
     private LicensedFeature platinumFeature;
 

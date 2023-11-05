@@ -14,7 +14,6 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.rest.RestChannel;
@@ -39,7 +38,7 @@ public class RestBulkActionTests extends ESTestCase {
 
     public void testBulkPipelineUpsert() throws Exception {
         SetOnce<Boolean> bulkCalled = new SetOnce<>();
-        try (NodeClient verifyingClient = new NoOpNodeClient(this.getTestName()) {
+        try (var verifyingClient = new NoOpNodeClient(this.getTestName()) {
             @Override
             public void bulk(BulkRequest request, ActionListener<BulkResponse> listener) {
                 bulkCalled.set(true);
@@ -68,7 +67,7 @@ public class RestBulkActionTests extends ESTestCase {
         AtomicBoolean bulkCalled = new AtomicBoolean(false);
         AtomicBoolean listExecutedPipelinesRequest1 = new AtomicBoolean(false);
         AtomicBoolean listExecutedPipelinesRequest2 = new AtomicBoolean(false);
-        try (NodeClient verifyingClient = new NoOpNodeClient(this.getTestName()) {
+        try (var verifyingClient = new NoOpNodeClient(this.getTestName()) {
             @Override
             public void bulk(BulkRequest request, ActionListener<BulkResponse> listener) {
                 bulkCalled.set(true);

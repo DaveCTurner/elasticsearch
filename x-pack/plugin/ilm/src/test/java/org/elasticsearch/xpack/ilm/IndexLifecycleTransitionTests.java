@@ -8,7 +8,6 @@
 package org.elasticsearch.xpack.ilm;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -592,7 +591,7 @@ public class IndexLifecycleTransitionTests extends ESTestCase {
 
         IndexMetadata meta = buildIndexMetadata("my-policy", executionState);
 
-        try (Client client = new NoOpClient(getTestName())) {
+        try (var client = new NoOpClient(getTestName())) {
             Step.StepKey currentStepKey = new Step.StepKey("hot", RolloverAction.NAME, WaitForRolloverReadyStep.NAME);
             Step.StepKey nextStepKey = new Step.StepKey("hot", RolloverAction.NAME, RolloverStep.NAME);
             Step currentStep = new WaitForRolloverReadyStep(
@@ -648,7 +647,7 @@ public class IndexLifecycleTransitionTests extends ESTestCase {
 
         IndexMetadata meta = buildIndexMetadata("my-policy", executionState);
 
-        try (Client client = new NoOpClient(getTestName())) {
+        try (var client = new NoOpClient(getTestName())) {
             Step.StepKey currentStepKey = new Step.StepKey("warm", MigrateAction.NAME, DataTierMigrationRoutedStep.NAME);
             Step.StepKey nextStepKey = new Step.StepKey("warm", PhaseCompleteStep.NAME, PhaseCompleteStep.NAME);
 
@@ -708,7 +707,7 @@ public class IndexLifecycleTransitionTests extends ESTestCase {
 
         IndexMetadata meta = buildIndexMetadata("my-policy", executionState);
 
-        try (Client client = new NoOpClient(getTestName())) {
+        try (var client = new NoOpClient(getTestName())) {
             Step.StepKey currentStepKey = new Step.StepKey("warm", MigrateAction.NAME, MigrateAction.NAME);
             Step.StepKey nextStepKey = new Step.StepKey("warm", MigrateAction.NAME, DataTierMigrationRoutedStep.NAME);
 
@@ -1198,7 +1197,7 @@ public class IndexLifecycleTransitionTests extends ESTestCase {
                 2L
             );
 
-            try (Client client = new NoOpClient(getTestName())) {
+            try (var client = new NoOpClient(getTestName())) {
                 LifecycleExecutionState newState = moveStateToNextActionAndUpdateCachedPhase(
                     meta,
                     meta.getLifecycleExecutionState(),
@@ -1235,7 +1234,7 @@ public class IndexLifecycleTransitionTests extends ESTestCase {
                 2L
             );
 
-            try (Client client = new NoOpClient(getTestName())) {
+            try (var client = new NoOpClient(getTestName())) {
                 LifecycleExecutionState newState = moveStateToNextActionAndUpdateCachedPhase(
                     meta,
                     meta.getLifecycleExecutionState(),

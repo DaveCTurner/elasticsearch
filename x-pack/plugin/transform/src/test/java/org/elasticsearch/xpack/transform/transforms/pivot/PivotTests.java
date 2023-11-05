@@ -82,7 +82,7 @@ import static org.mockito.Mockito.when;
 public class PivotTests extends ESTestCase {
 
     private NamedXContentRegistry namedXContentRegistry;
-    private Client client;
+    private NoOpClient client;
 
     // exclude aggregations from the analytics module as we don't have parser for it here
     private final Set<String> externalAggregations = Set.of("top_metrics", "boxplot");
@@ -279,7 +279,7 @@ public class PivotTests extends ESTestCase {
         final AtomicReference<Exception> exceptionHolder = new AtomicReference<>();
         final AtomicReference<List<Map<String, Object>>> responseHolder = new AtomicReference<>();
 
-        Client emptyAggregationClient = new MyMockClientWithEmptyAggregation("empty aggregation test for preview");
+        final var emptyAggregationClient = new MyMockClientWithEmptyAggregation("empty aggregation test for preview");
         pivot.preview(emptyAggregationClient, null, new HashMap<>(), new SourceConfig("test"), null, 1, ActionListener.wrap(r -> {
             responseHolder.set(r);
             latch.countDown();
@@ -306,7 +306,7 @@ public class PivotTests extends ESTestCase {
         final AtomicReference<Exception> exceptionHolder = new AtomicReference<>();
         final AtomicReference<List<Map<String, Object>>> responseHolder = new AtomicReference<>();
 
-        Client compositeAggregationClient = new MyMockClientWithCompositeAggregation("composite aggregation test for preview");
+        final var compositeAggregationClient = new MyMockClientWithCompositeAggregation("composite aggregation test for preview");
         pivot.preview(compositeAggregationClient, null, new HashMap<>(), new SourceConfig("test"), null, 1, ActionListener.wrap(r -> {
             responseHolder.set(r);
             latch.countDown();

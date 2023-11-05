@@ -7,7 +7,6 @@
 
 package org.elasticsearch.xpack.security.rest.action.user;
 
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
@@ -55,7 +54,7 @@ public class RestGetUserPrivilegesActionTests extends ESTestCase {
         );
         final FakeRestRequest request = new FakeRestRequest();
         final FakeRestChannel channel = new FakeRestChannel(request, true, 1);
-        try (NodeClient nodeClient = new NoOpNodeClient(this.getTestName())) {
+        try (var nodeClient = new NoOpNodeClient(this.getTestName())) {
             action.handleRequest(request, channel, nodeClient);
         }
         assertThat(channel.capturedResponse(), notNullValue());

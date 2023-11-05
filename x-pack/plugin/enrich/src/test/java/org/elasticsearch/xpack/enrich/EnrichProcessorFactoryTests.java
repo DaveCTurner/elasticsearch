@@ -14,7 +14,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
@@ -63,7 +62,7 @@ public class EnrichProcessorFactoryTests extends ESTestCase {
     public void testCreateProcessorInstance() throws Exception {
         List<String> enrichValues = List.of("globalRank", "tldRank", "tld");
         EnrichPolicy policy = new EnrichPolicy(EnrichPolicy.MATCH_TYPE, null, List.of("source_index"), "my_key", enrichValues);
-        try (Client client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
+        try (var client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
             EnrichProcessorFactory factory = new EnrichProcessorFactory(client, scriptService, enrichCache);
             factory.metadata = createMetadata("majestic", policy);
 
@@ -172,7 +171,7 @@ public class EnrichProcessorFactoryTests extends ESTestCase {
     public void testUnsupportedPolicy() throws Exception {
         List<String> enrichValues = List.of("globalRank", "tldRank", "tld");
         EnrichPolicy policy = new EnrichPolicy("unsupported", null, List.of("source_index"), "my_key", enrichValues);
-        try (Client client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
+        try (var client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
             EnrichProcessorFactory factory = new EnrichProcessorFactory(client, scriptService, enrichCache);
             factory.metadata = createMetadata("majestic", policy);
 
@@ -193,7 +192,7 @@ public class EnrichProcessorFactoryTests extends ESTestCase {
     public void testCompactEnrichValuesFormat() throws Exception {
         List<String> enrichValues = List.of("globalRank", "tldRank", "tld");
         EnrichPolicy policy = new EnrichPolicy(EnrichPolicy.MATCH_TYPE, null, List.of("source_index"), "host", enrichValues);
-        try (Client client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
+        try (var client = new NoOpClient(this.getClass().getSimpleName() + "TestClient")) {
             EnrichProcessorFactory factory = new EnrichProcessorFactory(client, scriptService, enrichCache);
             factory.metadata = createMetadata("majestic", policy);
 
@@ -245,7 +244,7 @@ public class EnrichProcessorFactoryTests extends ESTestCase {
         enrichCache = new EnrichCache(100L);
         List<String> enrichValues = List.of("globalRank", "tldRank", "tld");
         EnrichPolicy policy = new EnrichPolicy(EnrichPolicy.MATCH_TYPE, null, List.of("source_index"), "host", enrichValues);
-        try (Client client = new NoOpClient(this.getClass().getSimpleName() + "testCaching") {
+        try (var client = new NoOpClient(this.getClass().getSimpleName() + "testCaching") {
 
             @Override
             @SuppressWarnings("unchecked")

@@ -18,7 +18,6 @@ import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.common.breaker.CircuitBreaker.Durability;
 import org.elasticsearch.common.breaker.CircuitBreakingException;
@@ -97,7 +96,7 @@ import static org.mockito.Mockito.mock;
  */
 public class TransformIndexerFailureHandlingTests extends ESTestCase {
 
-    private Client client;
+    private NoOpClient client;
     private ThreadPool threadPool;
 
     static class MockedTransformIndexer extends ClientTransformIndexer {

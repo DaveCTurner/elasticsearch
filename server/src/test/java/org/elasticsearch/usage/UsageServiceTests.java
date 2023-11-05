@@ -95,7 +95,7 @@ public class UsageServiceTests extends ESTestCase {
         usageService.addRestHandler(handlerD);
         usageService.addRestHandler(handlerE);
         usageService.addRestHandler(handlerF);
-        try (NodeClient client = new NoOpNodeClient(this.getClass().getSimpleName() + "TestClient")) {
+        try (var client = new NoOpNodeClient(this.getClass().getSimpleName() + "TestClient")) {
             handlerA.handleRequest(restRequest, null, client);
             handlerB.handleRequest(restRequest, null, client);
             handlerA.handleRequest(restRequest, null, client);

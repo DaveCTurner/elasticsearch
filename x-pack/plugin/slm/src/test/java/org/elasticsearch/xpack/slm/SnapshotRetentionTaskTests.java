@@ -135,7 +135,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
         );
         try (
             ClusterService clusterService = ClusterServiceUtils.createClusterService(threadPool, settings);
-            Client noOpClient = new NoOpClient("slm-test")
+            var noOpClient = new NoOpClient("slm-test")
         ) {
 
             final String policyId = "policy";
@@ -232,7 +232,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
         final String repoId = "repo";
         try (
             ClusterService clusterService = ClusterServiceUtils.createClusterService(threadPool, settings);
-            Client noOpClient = new NoOpClient("slm-test") {
+            var noOpClient = new NoOpClient("slm-test") {
 
                 @Override
                 @SuppressWarnings("unchecked")
@@ -307,7 +307,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
         );
         try (
             ClusterService clusterService = ClusterServiceUtils.createClusterService(threadPool, settings);
-            Client noOpClient = new NoOpClient("slm-test") {
+            var noOpClient = new NoOpClient("slm-test") {
 
                 @Override
                 @SuppressWarnings("unchecked")
@@ -393,7 +393,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
         );
         try (
             ClusterService clusterService = ClusterServiceUtils.createClusterService(threadPool, settings);
-            Client noOpClient = new NoOpClient("slm-test")
+            var noOpClient = new NoOpClient("slm-test")
         ) {
             final String policyId = "policy";
             final String repoId = "repo";
@@ -449,7 +449,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
         );
         try (
             ClusterService clusterService = ClusterServiceUtils.createClusterService(threadPool, settings);
-            Client noOpClient = new NoOpClient("slm-test")
+            var noOpClient = new NoOpClient("slm-test")
         ) {
             final String policyId = "policy";
             final String repoId = "repo";

@@ -7,7 +7,6 @@
 
 package org.elasticsearch.xpack.application;
 
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.license.XPackLicenseState;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESTestCase;
@@ -28,7 +27,7 @@ public abstract class AbstractRestEnterpriseSearchActionTests extends ESTestCase
 
         final FakeRestChannel channel = new FakeRestChannel(request, true, 1);
 
-        try (NodeClient nodeClient = new NoOpNodeClient(this.getTestName())) {
+        try (var nodeClient = new NoOpNodeClient(this.getTestName())) {
             action.handleRequest(request, channel, nodeClient);
         }
         assertThat(channel.capturedResponse(), notNullValue());

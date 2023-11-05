@@ -22,7 +22,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -99,7 +98,7 @@ public class TransportGetPipelineActionTests extends ESTestCase {
             }
         };
 
-        try (Client client = getMockClient(multiGetResponse)) {
+        try (var client = getMockClient(multiGetResponse)) {
             Loggers.addAppender(logger, mockLogAppender);
             TransportService transportService = MockUtils.setupTransportServiceWithThreadpoolExecutor();
             TransportGetPipelineAction action = new TransportGetPipelineAction(transportService, mock(ActionFilters.class), client);
@@ -151,7 +150,7 @@ public class TransportGetPipelineActionTests extends ESTestCase {
         };
 
         TransportService transportService = MockUtils.setupTransportServiceWithThreadpoolExecutor();
-        try (Client client = getMockClient(searchResponse)) {
+        try (var client = getMockClient(searchResponse)) {
             new TransportGetPipelineAction(transportService, mock(ActionFilters.class), client).doExecute(
                 null,
                 request,
@@ -163,7 +162,7 @@ public class TransportGetPipelineActionTests extends ESTestCase {
     }
 
     public void testMissingIndexHandling() throws Exception {
-        try (Client failureClient = getFailureClient(new IndexNotFoundException("foo"))) {
+        try (var failureClient = getFailureClient(new IndexNotFoundException("foo"))) {
             TransportService transportService = MockUtils.setupTransportServiceWithThreadpoolExecutor();
             final TransportGetPipelineAction action = new TransportGetPipelineAction(
                 transportService,
@@ -178,7 +177,7 @@ public class TransportGetPipelineActionTests extends ESTestCase {
         }
     }
 
-    private Client getMockClient(ActionResponse response) {
+    private NoOpClient getMockClient(ActionResponse response) {
         return new NoOpClient(getTestName()) {
             @Override
             @SuppressWarnings("unchecked")
@@ -192,7 +191,7 @@ public class TransportGetPipelineActionTests extends ESTestCase {
         };
     }
 
-    private Client getFailureClient(Exception e) {
+    private NoOpClient getFailureClient(Exception e) {
         return new NoOpClient(getTestName()) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(

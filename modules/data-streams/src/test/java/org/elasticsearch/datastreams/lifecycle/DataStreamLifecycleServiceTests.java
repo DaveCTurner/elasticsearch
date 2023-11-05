@@ -27,7 +27,6 @@ import org.elasticsearch.action.datastreams.lifecycle.ErrorEntry;
 import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.downsample.DownsampleConfig;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.EmptyClusterInfoService;
@@ -126,7 +125,7 @@ public class DataStreamLifecycleServiceTests extends ESTestCase {
     private ThreadPool threadPool;
     private DataStreamLifecycleService dataStreamLifecycleService;
     private List<TransportRequest> clientSeenRequests;
-    private Client client;
+    private NoOpClient client;
     private DoExecuteDelegate clientDelegate;
     private ClusterService clusterService;
 
@@ -1498,7 +1497,7 @@ public class DataStreamLifecycleServiceTests extends ESTestCase {
      * This method returns a client that keeps track of the requests it has seen in clientSeenRequests. By default it does nothing else
      * (it does not even notify the listener), but tests can provide an implementation of clientDelegate to provide any needed behavior.
      */
-    private Client getTransportRequestsRecordingClient() {
+    private NoOpClient getTransportRequestsRecordingClient() {
         return new NoOpClient(getTestName()) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
