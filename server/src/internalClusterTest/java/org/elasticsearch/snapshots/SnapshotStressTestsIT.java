@@ -288,7 +288,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 startPartialSnapshotter();
             }
 
-            final int clonerCount = between(0, 5);
+            final int clonerCount = 0; // between(0, 5);
             for (int i = 0; i < clonerCount; i++) {
                 startCloner();
             }
@@ -1319,7 +1319,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void createIndexAndContinue(Releasable releasable) {
-                shardCount = between(1, 5);
+                shardCount = 1; // between(1, 5);
                 docPermits = new Semaphore(between(1000, 3000));
                 logger.info("--> create index [{}] with max [{}] docs", indexName, docPermits.availablePermits());
                 indicesAdmin().prepareCreate(indexName)

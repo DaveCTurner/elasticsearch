@@ -1312,6 +1312,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     ShardGeneration writtenGeneration = null;
                     try {
                         if (updatedSnapshots.snapshots().isEmpty()) {
+                            logger.info("--> repo [{}] deleting all shard data for {}[{}]", metadata.name(), indexId, shardId);
                             return new ShardSnapshotMetaDeleteResult(
                                 indexId,
                                 shardId,
@@ -1334,12 +1335,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                             final Set<String> survivingSnapshotUUIDs = survivingSnapshots.stream()
                                 .map(SnapshotId::getUUID)
                                 .collect(Collectors.toSet());
-                            return new ShardSnapshotMetaDeleteResult(
+                            final var blobsToDelete = unusedBlobs(originalShardBlobs, survivingSnapshotUUIDs, updatedSnapshots);
+                            logger.info(
+                                "--> repo [{}] shard {}[{}] wrote new shard gen [{}] during delete and removing gens [{}]",
+                                metadata.name(),
                                 indexId,
                                 shardId,
-                                writtenGeneration,
-                                unusedBlobs(originalShardBlobs, survivingSnapshotUUIDs, updatedSnapshots)
+                                writtenGeneration.toBlobNamePart(),
+                                blobsToDelete.stream().filter(s -> s.startsWith(SNAPSHOT_INDEX_PREFIX)).collect(Collectors.joining(","))
                             );
+                            return new ShardSnapshotMetaDeleteResult(indexId, shardId, writtenGeneration, blobsToDelete);
                         }
                     } catch (IOException e) {
                         throw new RepositoryException(
@@ -3170,6 +3175,13 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         indexGeneration.toBlobNamePart(),
                         compress,
                         serializationParams
+                    );
+                    logger.info(
+                        "--> snapshot [{}:{}] shard {} wrote shard gen [{}]",
+                        metadata.name(),
+                        context.snapshotId(),
+                        shardId,
+                        indexGeneration.toBlobNamePart()
                     );
                     snapshotStatus.addProcessedFiles(filesInShardMetadataCount, filesInShardMetadataSize);
                 } catch (IOException e) {
