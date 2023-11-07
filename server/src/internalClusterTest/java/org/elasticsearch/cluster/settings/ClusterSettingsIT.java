@@ -13,24 +13,32 @@ import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequestBuilder;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.gateway.GatewayService;
+import org.elasticsearch.indices.ShardLimitValidator;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.InternalTestCluster;
 import org.junit.After;
 
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static org.elasticsearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_REROUTE_INTERVAL_SETTING;
 import static org.elasticsearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider.CLUSTER_ROUTING_ALLOCATION_NODE_INITIAL_PRIMARIES_RECOVERIES_SETTING;
+import static org.elasticsearch.gateway.GatewayService.RECOVER_AFTER_DATA_NODES_SETTING;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertBlocked;
 import static org.hamcrest.Matchers.containsString;
@@ -603,5 +611,39 @@ public class ClusterSettingsIT extends ESIntegTestCase {
 
         ClusterStateResponse updatedState = clusterAdmin().prepareState().execute().actionGet();
         assertEquals(updatedValue, getter.apply(updatedState.getState().getMetadata()).get(key));
+    }
+
+    public void testSettingsAppliedOnStateRecovery() throws Exception {
+        // just a convenient setting whose application we can observe directly
+        updateClusterSettings(Settings.builder().put(ShardLimitValidator.SETTING_CLUSTER_MAX_SHARDS_PER_NODE.getKey(), 10));
+
+        final var dataNodeCount = internalCluster().numDataNodes();
+        internalCluster().fullRestart(new InternalTestCluster.RestartCallback() {
+            @Override
+            public Settings onNodeStopped(String nodeName) {
+                // prevent immediate state recovery so we can set up the assertions on the master node first
+                return Settings.builder().put(RECOVER_AFTER_DATA_NODES_SETTING.getKey(), dataNodeCount + 1).build();
+            }
+        });
+
+        final var masterClusterService = internalCluster().getCurrentMasterNodeInstance(ClusterService.class);
+        final var masterShardLimitValidator = internalCluster().getCurrentMasterNodeInstance(ShardLimitValidator.class);
+        final var stateRecoveredLatch = new CountDownLatch(1);
+
+        class ShardLimitValidatorSettingListener implements ClusterStateListener {
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+                if (event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+                    return;
+                }
+                assertEquals(10, masterShardLimitValidator.getShardLimitPerNode());
+                masterClusterService.removeListener(ShardLimitValidatorSettingListener.this);
+                stateRecoveredLatch.countDown();
+            }
+        }
+        masterClusterService.addListener(new ShardLimitValidatorSettingListener());
+
+        internalCluster().startDataOnlyNode(); // trigger state recovery by adding one more node
+        safeAwait(stateRecoveredLatch);
     }
 }
