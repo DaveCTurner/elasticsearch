@@ -1319,7 +1319,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             }
 
             private void createIndexAndContinue(Releasable releasable) {
-                shardCount = 1; // between(1, 5);
+                shardCount = between(1, 5);
                 docPermits = new Semaphore(between(1000, 3000));
                 logger.info("--> create index [{}] with max [{}] docs", indexName, docPermits.availablePermits());
                 indicesAdmin().prepareCreate(indexName)
