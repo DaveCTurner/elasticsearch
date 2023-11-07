@@ -1802,6 +1802,14 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 final String containerPath = shardPath(obsoleteEntry.getKey().index(), obsoleteEntry.getKey().shardId()).buildAsString()
                     .substring(prefixPathLen) + INDEX_FILE_PREFIX;
                 for (ShardGeneration shardGeneration : obsoleteEntry.getValue()) {
+                    logger.info(
+                        "--> finalize [{}] root gen [{}->{}] removing shard {} gen [{}]",
+                        snapshotInfo.snapshot(),
+                        existingRepositoryData.getGenId(),
+                        updatedRepositoryData.getGenId(),
+                        obsoleteEntry.getKey(),
+                        shardGeneration
+                    );
                     toDelete.add(containerPath + shardGeneration);
                 }
             }
