@@ -288,7 +288,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 startPartialSnapshotter();
             }
 
-            final int clonerCount = 0; // between(0, 5);
+            final int clonerCount = between(0, 5);
             for (int i = 0; i < clonerCount; i++) {
                 startCloner();
             }
