@@ -107,10 +107,22 @@ public class IndexVersions {
      * If you revert a commit with an index version change, you MUST ensure there is a NEW index version representing the reverted
      * change. DO NOT let the index version go backwards, it must ALWAYS be incremented.
      *
-     * DETERMINING TRANSPORT VERSIONS FROM GIT HISTORY
+     * DETERMINING INDEX VERSIONS FROM GIT HISTORY
      *
-     * TODO after the release of v8.11.0, copy the instructions about using git to track the history of versions from TransportVersion.java
-     * (the example commands won't make sense until at least 8.11.0 is released)
+     * If your git checkout has the expected minor-version-numbered branches and the expected release-version tags then you can find the
+     * index versions known by a particular release ...
+     *
+     *     git show v8.12.0:server/src/main/java/org/elasticsearch/index/IndexVersions.java | grep '= def'
+     *
+     * ... or by a particular branch ...
+     *
+     *     git show 8.12:server/src/main/java/org/elasticsearch/index/IndexVersions.java | grep '= def'
+     *
+     * ... and you can see which versions were added in between two versions too ...
+     *
+     *     git diff v8.12.0..main -- server/src/main/java/org/elasticsearch/index/IndexVersions.java
+     *
+     * In branches 8.9, 8.10 and 8.11 see server/src/main/java/org/elasticsearch/index/IndexVersion.java for the equivalent definitions.
      */
 
     public static final IndexVersion MINIMUM_COMPATIBLE = V_7_0_0;
