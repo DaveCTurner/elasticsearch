@@ -1812,15 +1812,17 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 @Override
                 protected void doRun() throws Exception {
                     deleteFromContainer(blobContainer(), toDelete.iterator());
-                    for (final var blob : toDelete) {
-                        logger.info(
-                            "--> finalize [{}] root gen [{}->{}] removed [{}]",
-                            snapshotInfo.snapshot(),
-                            existingRepositoryData.getGenId(),
-                            updatedRepositoryData.getGenId(),
-                            blob
-                        );
-                    }
+                    threadPool.generic().execute(() -> {
+                        for (final var blob : toDelete) {
+                            logger.info(
+                                "--> finalize [{}] root gen [{}->{}] removed [{}]",
+                                snapshotInfo.snapshot(),
+                                existingRepositoryData.getGenId(),
+                                updatedRepositoryData.getGenId(),
+                                blob
+                            );
+                        }
+                    });
                 }
 
                 @Override
@@ -3185,13 +3187,16 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                         compress,
                         serializationParams
                     );
-                    logger.info(
-                        "--> snapshot [{}:{}] shard {} wrote shard gen [{}]",
-                        metadata.name(),
-                        context.snapshotId(),
-                        shardId,
-                        indexGeneration.toBlobNamePart()
-                    );
+                    threadPool.generic()
+                        .execute(
+                            () -> logger.info(
+                                "--> snapshot [{}:{}] shard {} wrote shard gen [{}]",
+                                metadata.name(),
+                                context.snapshotId(),
+                                shardId,
+                                indexGeneration.toBlobNamePart()
+                            )
+                        );
                     snapshotStatus.addProcessedFiles(filesInShardMetadataCount, filesInShardMetadataSize);
                 } catch (IOException e) {
                     throw new IndexShardSnapshotFailedException(
