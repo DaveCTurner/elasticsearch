@@ -20,6 +20,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.clone.CloneSnapshotReque
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
@@ -27,6 +28,7 @@ import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateApplier;
@@ -47,8 +49,12 @@ import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
 import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.TestShardRouting;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
+import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
+import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.MasterService;
@@ -274,46 +280,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
                 .<Void>andThen((l, r) -> {
                     logger.info("--> add index");
-                    ts.clusterService.submitUnbatchedStateUpdateTask("create index", new ClusterStateUpdateTask() {
-                        @Override
-                        public ClusterState execute(ClusterState currentState) {
-                            final var indexName = "test-index-2";
-                            final var indexMetadata = IndexMetadata.builder(indexName)
-                                .settings(
-                                    indexSettings(IndexVersion.current(), between(1, 3), 0).put(
-                                        SETTING_CREATION_DATE,
-                                        System.currentTimeMillis()
-                                    ).put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))
-                                )
-                                .build();
-                            final var indexRoutingTable = IndexRoutingTable.builder(indexMetadata.getIndex());
-                            for (int i = 0; i < indexMetadata.getRoutingNumShards(); i++) {
-                                indexRoutingTable.addShard(
-                                    TestShardRouting.newShardRouting(
-                                        new ShardId(indexMetadata.getIndex(), i),
-                                        randomFrom(currentState.nodes().getDataNodes().values()).getId(),
-                                        true,
-                                        ShardRoutingState.STARTED
-                                    )
-                                );
-                            }
-
-                            return ClusterState.builder(currentState)
-                                .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
-                                .routingTable(RoutingTable.builder(currentState.routingTable()).add(indexRoutingTable).build())
-                                .build();
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            l.onFailure(e);
-                        }
-
-                        @Override
-                        public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
-                            l.onResponse(null);
-                        }
-                    });
+                    ts.createIndex("test-index-2", l);
                 })
 
                 .<SnapshotInfo>andThen((l, r) -> {
@@ -350,16 +317,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         );
 
                         runAsync(
-                            refs.acquireListener(),
-                            l -> ts.snapshotsService.cloneSnapshot(
-                                new CloneSnapshotRequest(
-                                    repositoryName,
-                                    randomFrom(snapshotNames),
-                                    randomFrom(snapshotNames),
-                                    new String[] { "*" }
-                                ),
-                                l
-                            )
+                            ActionListener.releaseAfter(ActionTestUtils.assertNoFailureListener(ignored -> {}), refs.acquire()),
+                            ts::unassignRandomShards
+                        );
+
+                        runAsync(
+                            ActionListener.releaseAfter(ActionTestUtils.assertNoFailureListener(ignored -> {}), refs.acquire()),
+                            ts::unassignRandomShards
+                        );
+
+                        this.<Void>runAsync(
+                            ActionListener.releaseAfter(ActionTestUtils.assertNoFailureListener(ignored -> {}), refs.acquire()),
+                            l -> ts.deleteIndex("test-index-2", l)
                         );
                     }
                 })
@@ -439,6 +408,117 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             // TODO also verify no leaked global metadata and snapshot info
             // TODO also verify no leaked index metadata
             logger.info("--> final states: {}", repository.repositoryShardStates);
+        }
+
+        public void createIndex(String indexName, ActionListener<Void> listener) {
+            updateClusterState(new UnaryOperator<>() {
+                @Override
+                public ClusterState apply(ClusterState clusterState) {
+                    final var indexMetadata = IndexMetadata.builder(indexName)
+                        .settings(
+                            indexSettings(IndexVersion.current(), between(1, 3), 0).put(SETTING_CREATION_DATE, System.currentTimeMillis())
+                                .put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))
+                        )
+                        .build();
+                    final var indexRoutingTable = IndexRoutingTable.builder(indexMetadata.getIndex());
+                    for (int i = 0; i < indexMetadata.getRoutingNumShards(); i++) {
+                        indexRoutingTable.addShard(
+                            TestShardRouting.newShardRouting(
+                                new ShardId(indexMetadata.getIndex(), i),
+                                randomFrom(clusterState.nodes().getDataNodes().values()).getId(),
+                                true,
+                                ShardRoutingState.STARTED
+                            )
+                        );
+                    }
+
+                    return ClusterState.builder(clusterState)
+                        .metadata(Metadata.builder(clusterState.metadata()).put(indexMetadata, true))
+                        .routingTable(RoutingTable.builder(clusterState.routingTable()).add(indexRoutingTable).build())
+                        .build();
+                }
+
+                @Override
+                public String toString() {
+                    return "create index [" + indexName + ']';
+                }
+            }, listener);
+        }
+
+        public void deleteIndex(String indexName, ActionListener<Void> listener) {
+            updateClusterState(new UnaryOperator<>() {
+                @Override
+                public ClusterState apply(ClusterState clusterState) {
+                    logger.info("delete index [" + indexName + ']');
+                    return ClusterState.builder(clusterState)
+                        .metadata(Metadata.builder(clusterState.metadata()).remove(indexName))
+                        .routingTable(RoutingTable.builder(clusterState.routingTable()).remove(indexName).build())
+                        .build();
+                }
+
+                @Override
+                public String toString() {
+                    return "delete index [" + indexName + ']';
+                }
+            }, listener);
+        }
+
+        public void unassignRandomShards(ActionListener<Void> listener) {
+            updateClusterState(new UnaryOperator<>() {
+                @Override
+                public ClusterState apply(ClusterState clusterState) {
+                    final var targetShard = randomFrom(
+                        clusterState.routingTable().allShards().filter(ShardRouting::assignedToNode).toList()
+                    );
+
+                    logger.info("--> unassigning [{}]", targetShard);
+
+                    final var routingAllocation = new RoutingAllocation(
+                        new AllocationDeciders(List.of()),
+                        clusterState.mutableRoutingNodes(),
+                        clusterState,
+                        ClusterInfo.EMPTY,
+                        SnapshotShardSizeInfo.EMPTY,
+                        0L
+                    );
+
+                    routingAllocation.routingNodes()
+                        .failShard(
+                            logger,
+                            targetShard,
+                            new UnassignedInfo(UnassignedInfo.Reason.REROUTE_CANCELLED, "test"),
+                            routingAllocation.changes()
+                        );
+
+                    return ClusterState.builder(clusterState)
+                        .routingTable(RoutingTable.of(clusterState.routingTable().version() + 1, routingAllocation.routingNodes()))
+                        .build();
+                }
+
+                @Override
+                public String toString() {
+                    return "unassign random shard";
+                }
+            }, listener);
+        }
+
+        private void updateClusterState(UnaryOperator<ClusterState> operator, ActionListener<Void> listener) {
+            clusterService.submitUnbatchedStateUpdateTask(operator.toString(), new ClusterStateUpdateTask() {
+                @Override
+                public ClusterState execute(ClusterState currentState) {
+                    return operator.apply(currentState);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(e);
+                }
+
+                @Override
+                public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
+                    listener.onResponse(null);
+                }
+            });
         }
 
         @Override
@@ -524,12 +604,15 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     {}
                     RepositoryCleanupInProgress
                     {}
+                    RoutingTable
+                    {}
                     """,
                 newState.version(),
                 newState.term(),
                 Strings.toString(SnapshotsInProgress.get(newState), true, true),
                 Strings.toString(SnapshotDeletionsInProgress.get(newState), true, true),
-                Strings.toString(RepositoryCleanupInProgress.get(newState), true, true)
+                Strings.toString(RepositoryCleanupInProgress.get(newState), true, true),
+                newState.routingTable().toString()
             );
             clusterApplierService.onNewClusterState(
                 clusterStatePublicationEvent.getSummary().toString(),
@@ -545,6 +628,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         masterService.setClusterStateSupplier(clusterApplierService::state);
 
         final var clusterService = new ClusterService(settings, clusterSettings, masterService, clusterApplierService);
+        clusterService.setRerouteService(
+            (reason, priority, listener) -> threadPool.generic().execute(ActionRunnable.run(listener, () -> {}))
+        );
 
         final var repositoriesService = new RepositoriesService(
             settings,
