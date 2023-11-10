@@ -1278,7 +1278,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                         new ActionListener<>() {
                             @Override
                             public void onResponse(RepositoryData repositoryData) {
-                                if (newFinalization) {
+                                if (newFinalization || true) { // TODO reinstate this fix!
                                     finalizeSnapshotEntry(snapshot, metadata, repositoryData);
                                 } else {
                                     runNextQueuedOperation(repositoryData, repoName, false);
@@ -1292,7 +1292,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                         }
                     );
             } else {
-                if (newFinalization) {
+                if (newFinalization || true) { // TODO reinstate this fix!
                     finalizeSnapshotEntry(snapshot, metadata, repositoryData);
                 } else {
                     runNextQueuedOperation(repositoryData, repoName, false);
