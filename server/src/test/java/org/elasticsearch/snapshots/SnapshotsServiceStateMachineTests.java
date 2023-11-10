@@ -261,6 +261,119 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         }
     }
 
+    public void testDoubleFinalization() {
+        final var repositoryName = "repo";
+        try (var ts = createServices(Settings.EMPTY)) {
+            ts.shardSnapshotsMayFail.set(true);
+            final var future = new PlainActionFuture<Void>();
+            SubscribableListener
+
+                .<AcknowledgedResponse>newForked(
+                    l -> ts.repositoriesService.registerRepository(new PutRepositoryRequest(repositoryName).type(REPOSITORY_TYPE), l)
+                )
+
+                .<Void>andThen((l, r) -> {
+                    logger.info("--> add index");
+                    ts.clusterService.submitUnbatchedStateUpdateTask("create index", new ClusterStateUpdateTask() {
+                        @Override
+                        public ClusterState execute(ClusterState currentState) {
+                            final var indexName = "test-index-2";
+                            final var indexMetadata = IndexMetadata.builder(indexName)
+                                .settings(
+                                    indexSettings(IndexVersion.current(), between(1, 3), 0).put(
+                                        SETTING_CREATION_DATE,
+                                        System.currentTimeMillis()
+                                    ).put(SETTING_INDEX_UUID, UUIDs.randomBase64UUID(random()))
+                                )
+                                .build();
+                            final var indexRoutingTable = IndexRoutingTable.builder(indexMetadata.getIndex());
+                            for (int i = 0; i < indexMetadata.getRoutingNumShards(); i++) {
+                                indexRoutingTable.addShard(
+                                    TestShardRouting.newShardRouting(
+                                        new ShardId(indexMetadata.getIndex(), i),
+                                        randomFrom(currentState.nodes().getDataNodes().values()).getId(),
+                                        true,
+                                        ShardRoutingState.STARTED
+                                    )
+                                );
+                            }
+
+                            return ClusterState.builder(currentState)
+                                .metadata(Metadata.builder(currentState.metadata()).put(indexMetadata, true))
+                                .routingTable(RoutingTable.builder(currentState.routingTable()).add(indexRoutingTable).build())
+                                .build();
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            l.onFailure(e);
+                        }
+
+                        @Override
+                        public void clusterStateProcessed(ClusterState initialState, ClusterState newState) {
+                            l.onResponse(null);
+                        }
+                    });
+                })
+
+                .<SnapshotInfo>andThen((l, r) -> {
+                    logger.info("--> create snapshot");
+                    ts.snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l);
+                })
+
+                .<Void>andThen((l0, r) -> {
+                    try (var refs = new RefCountingRunnable(() -> l0.onResponse(null))) {
+                        runAsync(
+                            refs.acquireListener(),
+                            l -> ts.snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l)
+                        );
+
+                        runAsync(
+                            refs.acquireListener(),
+                            l1 -> SubscribableListener
+
+                                .<SnapshotInfo>newForked(
+                                    l -> ts.snapshotsService.executeSnapshot(
+                                        new CreateSnapshotRequest(repositoryName, "snap-2").partial(true),
+                                        l
+                                    )
+                                )
+
+                                .<Void>andThen(
+                                    (l, ignored) -> ts.snapshotsService.deleteSnapshots(
+                                        new DeleteSnapshotRequest(repositoryName, "snap-1"),
+                                        l
+                                    )
+                                )
+
+                                .addListener(l1)
+                        );
+
+                        runAsync(
+                            refs.acquireListener(),
+                            l -> ts.snapshotsService.cloneSnapshot(
+                                new CloneSnapshotRequest(
+                                    repositoryName,
+                                    randomFrom(snapshotNames),
+                                    randomFrom(snapshotNames),
+                                    new String[] { "*" }
+                                ),
+                                l
+                            )
+                        );
+                    }
+                })
+
+                .addListener(future.map(ignored -> null));
+
+            deterministicTaskQueue.runAllTasksInTimeOrder();
+            assertTrue(future.isDone());
+            future.actionGet();
+
+            ts.assertStates();
+        }
+    }
+
     // TODO testRandomActivities
     // TODO node leaves cluster while holding shards (shards may also be ABORTED; may also let an ongoing delete start)
     // TODO index deleted while snapshot running
@@ -291,7 +404,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
     class TestServices implements Releasable {
         final TransportService transportService;
-        final MasterService masterService;
         final ClusterService clusterService;
         final RepositoriesService repositoriesService;
         final SnapshotsService snapshotsService;
@@ -299,14 +411,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         TestServices(
             TransportService transportService,
-            MasterService masterService,
             ClusterService clusterService,
             RepositoriesService repositoriesService,
             SnapshotsService snapshotsService,
             AtomicBoolean shardSnapshotsMayFail
         ) {
             this.transportService = transportService;
-            this.masterService = masterService;
             this.clusterService = clusterService;
             this.repositoriesService = repositoriesService;
             this.snapshotsService = snapshotsService;
@@ -609,7 +719,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
         final var testServices = new TestServices(
             transportService,
-            masterService,
             clusterService,
             repositoriesService,
             snapshotsService,
