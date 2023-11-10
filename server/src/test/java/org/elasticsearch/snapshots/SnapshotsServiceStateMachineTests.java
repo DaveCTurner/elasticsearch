@@ -734,6 +734,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     .<ShardSnapshotStatus>newForked(l -> ActionListener.completeWith(l, () -> {
                         final var repository = (FakeRepository) repositoriesService.repository(snapshotInProgress.repository());
                         final var repositoryShardState = repository.getShardState(ongoingShardSnapshot.repositoryShardId());
+
                         logger.info(
                             "--> doShardSnapshot[{}]: [{}] vs {}",
                             ongoingShardSnapshot.repositoryShardId(),
@@ -743,7 +744,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         assertThat(
                             ongoingShardSnapshot.repositoryShardId().toString(),
                             repositoryShardState.shardGenerations(),
-                            hasItem(originalShardGeneration)
+                            // originalShardGeneration is null if this index has been partially snapshotted, and appears in RepositoryData,
+                            // but this shard has no successful snapshots so its generation in RepositoryData is null - treat this as _new.
+                            hasItem(Objects.requireNonNullElse(originalShardGeneration, ShardGenerations.NEW_SHARD_GEN))
                         );
 
                         final var newShardGeneration = ShardGeneration.newGeneration(random());
