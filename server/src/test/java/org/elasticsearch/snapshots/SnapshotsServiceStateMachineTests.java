@@ -93,6 +93,7 @@ import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.FakeTransport;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.CloseableConnection;
@@ -267,6 +268,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         }
     }
 
+    @TestLogging(
+        reason = "nocommit",
+        value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
+            + ",org.elasticsearch.cluster.service.MasterService:TRACE"
+    )
     public void testDoubleFinalization() {
         final var repositoryName = "repo";
         try (var ts = createServices(Settings.EMPTY)) {
@@ -289,29 +295,29 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 })
 
                 .<Void>andThen((l0, r) -> {
+                    logger.info("--> release the hounds");
                     try (var refs = new RefCountingRunnable(() -> l0.onResponse(null))) {
-                        runAsync(
-                            refs.acquireListener(),
-                            l -> ts.snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l)
-                        );
+                        runAsync(refs.acquireListener(), l -> {
+                            logger.info("--> delete snap-1");
+                            ts.snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-1"), l);
+                        });
 
                         runAsync(
                             refs.acquireListener(),
                             l1 -> SubscribableListener
 
-                                .<SnapshotInfo>newForked(
-                                    l -> ts.snapshotsService.executeSnapshot(
+                                .<Snapshot>newForked(l -> {
+                                    logger.info("--> create snap-2");
+                                    ts.snapshotsService.createSnapshot(
                                         new CreateSnapshotRequest(repositoryName, "snap-2").partial(true),
                                         l
-                                    )
-                                )
+                                    );
+                                })
 
-                                .<Void>andThen(
-                                    (l, ignored) -> ts.snapshotsService.deleteSnapshots(
-                                        new DeleteSnapshotRequest(repositoryName, "snap-1"),
-                                        l
-                                    )
-                                )
+                                .<Void>andThen((l, ignored) -> {
+                                    logger.info("--> delete/abort snap-2");
+                                    ts.snapshotsService.deleteSnapshots(new DeleteSnapshotRequest(repositoryName, "snap-2"), l);
+                                })
 
                                 .addListener(l1)
                         );
@@ -656,6 +662,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             new ActionFilters(Set.of()),
             systemIndices
         );
+        clusterService.addStateApplier(snapshotsService);
 
         final AtomicBoolean shardSnapshotsMayFail = new AtomicBoolean(false);
 
