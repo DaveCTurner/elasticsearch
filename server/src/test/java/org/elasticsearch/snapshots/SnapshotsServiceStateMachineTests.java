@@ -467,9 +467,12 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
             updateClusterState(new UnaryOperator<>() {
                 @Override
                 public ClusterState apply(ClusterState clusterState) {
-                    final var targetShard = randomFrom(
-                        clusterState.routingTable().allShards().filter(ShardRouting::assignedToNode).toList()
-                    );
+                    final var assignedShards = clusterState.routingTable().allShards().filter(ShardRouting::assignedToNode).toList();
+                    if (assignedShards.isEmpty()) {
+                        return clusterState;
+                    }
+
+                    final var targetShard = randomFrom(assignedShards);
 
                     logger.info("--> unassigning [{}]", targetShard);
 
