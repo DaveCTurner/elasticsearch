@@ -621,9 +621,9 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 clusterStatePublicationEvent.getSummary().toString(),
                 clusterStatePublicationEvent::getNewState,
                 publishListener.delegateFailureAndWrap((l, v) -> {
-                    l.onResponse(v);
+                    threadPool.generic().execute(ActionRunnable.supply(l, () -> v));
                     for (final var discoveryNode : newState.nodes()) {
-                        ackListener.onNodeAck(discoveryNode, null);
+                        threadPool.generic().execute(() -> ackListener.onNodeAck(discoveryNode, null));
                     }
                 })
             );
