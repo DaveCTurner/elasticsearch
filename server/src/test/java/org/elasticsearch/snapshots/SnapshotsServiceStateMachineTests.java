@@ -289,6 +289,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     ts.createIndex("test-index-2", l);
                 })
 
+                .<Void>andThen((l, r) -> {
+                    logger.info("--> add index");
+                    ts.createIndex("test-index-3", l);
+                })
+
                 .<SnapshotInfo>andThen((l, r) -> {
                     logger.info("--> create snapshot");
                     ts.snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l);
@@ -309,7 +314,8 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                 .<Snapshot>newForked(l -> {
                                     logger.info("--> create snap-2");
                                     ts.snapshotsService.createSnapshot(
-                                        new CreateSnapshotRequest(repositoryName, "snap-2").partial(true),
+                                        new CreateSnapshotRequest(repositoryName, "snap-2").partial(true)
+                                            .indices("test-index-2", "test-index-3"),
                                         l
                                     );
                                 })
