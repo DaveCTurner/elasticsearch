@@ -762,7 +762,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         if (shardSnapshotsMayFail.get() && rarely()) {
                             boolean createGeneration = randomBoolean();
                             if (createGeneration) {
-                                repositoryShardState.shardGenerations().remove(ShardGenerations.NEW_SHARD_GEN);
                                 repositoryShardState.shardGenerations().add(newShardGeneration);
                                 // TODO might also fail after writing shard gen but without returning?
                             }
@@ -1096,11 +1095,19 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 // compute new repository data
                 .<DeleteResult>andThen(threadPool.generic(), null, (l, currentRepositoryData) -> {
                     assertEquals(repositoryStateId, currentRepositoryData.getGenId());
+
+                    final var indicesToUpdate = new HashSet<IndexId>();
+                    currentRepositoryData.indicesToUpdateAfterRemovingSnapshot(snapshotIds).forEachRemaining(indicesToUpdate::add);
+
                     final var updatedShardGenerations = ShardGenerations.builder();
                     final var currentShardGenerations = currentRepositoryData.shardGenerations();
                     final var cleanups = new ArrayList<Runnable>();
                     for (final var repositoryShardStateEntry : repositoryShardStates.entrySet()) {
                         final var shardId = repositoryShardStateEntry.getKey();
+                        if (indicesToUpdate.contains(shardId.index()) == false) {
+                            cleanups.add(() -> repositoryShardStates.remove(shardId));
+                            continue;
+                        }
                         final var currentShardGeneration = currentShardGenerations.getShardGen(shardId.index(), shardId.shardId());
                         final ShardGeneration updatedShardGeneration;
                         final Set<ShardGeneration> shardGenerationsToRemove;
@@ -1148,9 +1155,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     try (var refs = new RefCountingRunnable(snapshotDeleteListener::onDone)) {
                         for (final var snapshotId : snapshotIds) {
                             threadPool.generic()
-                                .execute(
-                                    ActionRunnable.run(refs.acquireListener(), () -> { assertNotNull(snapshotInfos.remove(snapshotId)); })
-                                );
+                                .execute(ActionRunnable.run(refs.acquireListener(), () -> assertNotNull(snapshotInfos.remove(snapshotId))));
                         }
                         for (final var cleanup : deleteResult.cleanups()) {
                             threadPool.generic().execute(ActionRunnable.run(refs.acquireListener(), cleanup::run));
