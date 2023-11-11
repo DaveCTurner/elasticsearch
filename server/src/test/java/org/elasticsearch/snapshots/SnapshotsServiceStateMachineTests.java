@@ -1109,17 +1109,18 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             continue;
                         }
                         final var currentShardGeneration = currentShardGenerations.getShardGen(shardId.index(), shardId.shardId());
+                        final var shardGenerationsInRepository = repositoryShardStateEntry.getValue().shardGenerations();
                         final ShardGeneration updatedShardGeneration;
                         final Set<ShardGeneration> shardGenerationsToRemove;
                         if (currentShardGeneration == null) {
                             // no successful snapshots of this shard
                             updatedShardGeneration = null;
-                            shardGenerationsToRemove = Set.copyOf(repositoryShardStateEntry.getValue().shardGenerations());
+                            shardGenerationsToRemove = Set.copyOf(shardGenerationsInRepository);
                         } else if (randomBoolean()) {
                             // shard generation is unchanged
                             assertThat(
                                 shardId + " should have gen " + currentShardGeneration,
-                                repositoryShardStateEntry.getValue().shardGenerations(),
+                                shardGenerationsInRepository,
                                 hasItem(currentShardGeneration)
                             );
                             updatedShardGeneration = currentShardGeneration;
@@ -1127,11 +1128,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         } else {
                             // new shard generation created
                             updatedShardGeneration = new ShardGeneration(randomAlphaOfLength(10));
-                            shardGenerationsToRemove = Set.copyOf(repositoryShardStateEntry.getValue().shardGenerations());
-                            assertTrue(repositoryShardStateEntry.getValue().shardGenerations().add(updatedShardGeneration));
+                            shardGenerationsToRemove = Set.copyOf(shardGenerationsInRepository);
+                            assertTrue(shardGenerationsInRepository.add(updatedShardGeneration));
                         }
                         updatedShardGenerations.put(shardId.index(), shardId.shardId(), updatedShardGeneration);
-                        cleanups.add(() -> repositoryShardStateEntry.getValue().shardGenerations().removeAll(shardGenerationsToRemove));
+                        cleanups.add(() -> shardGenerationsInRepository.removeAll(shardGenerationsToRemove));
                     }
 
                     l.onResponse(new DeleteResult(repositoryData.removeSnapshots(snapshotIds, updatedShardGenerations.build()), cleanups));
