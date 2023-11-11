@@ -458,7 +458,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 if (RestoreService.failed(snapshotInfo, indexId.getName())) {
                     throw new SnapshotException(
                         targetSnapshot,
-                        "Can't clone index [" + indexId + "] because its snapshot was not successful."
+                        "Can't clone index [" + indexId + "] from [" + sourceSnapshot + "] because its snapshot was not successful."
                     );
                 }
             }
