@@ -122,6 +122,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -1117,7 +1118,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     for (final var repositoryShardStateEntry : repositoryShardStates.entrySet()) {
                         final var shardId = repositoryShardStateEntry.getKey();
                         if (indicesToUpdate.contains(shardId.index()) == false) {
-                            cleanups.add(() -> repositoryShardStates.remove(shardId));
+                            cleanups.add(() -> {
+                                final var removed = repositoryShardStates.remove(shardId);
+                                logger.info("delete snapshots {} shard {} removed shard state {}", snapshotIds, shardId, removed);
+                            });
                             continue;
                         }
                         final var currentShardGeneration = currentShardGenerations.getShardGen(shardId.index(), shardId.shardId());
@@ -1254,7 +1258,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         final var repositoryShardId = new RepositoryShardId(indexId, i);
                         assertThat(
                             repositoryShardId.toString(),
-                            Objects.requireNonNull(
+                            requireNonNull(
                                 repositoryShardStates.get(repositoryShardId),
                                 () -> repositoryShardId + " should have gen [" + expectedShardGeneration + ']'
                             ).shardGenerations(),
@@ -1263,6 +1267,15 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     }
                 }
             }
+        }
+
+        <T> T requireNonNull(T value, Supplier<String> messageSupplier) {
+            if (value != null) {
+                return value;
+            }
+
+            final var message = messageSupplier.get();
+            return fail(new NullPointerException(message), message);
         }
 
         void assertShardGenerationsUnique() {
