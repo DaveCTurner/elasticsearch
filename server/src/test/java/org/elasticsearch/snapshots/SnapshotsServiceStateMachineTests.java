@@ -145,7 +145,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         threadPool = deterministicTaskQueue.getThreadPool();
     }
 
-    public void testBasicActivities() {
+    public void testBasicActivities() throws Exception {
         final var repositoryName = "repo";
         try (var ts = createServices(Settings.EMPTY)) {
             final var future = new PlainActionFuture<Void>();
@@ -186,13 +186,13 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             deterministicTaskQueue.runAllTasksInTimeOrder();
             assertTrue(future.isDone());
-            future.actionGet();
+            future.get();
 
             ts.assertStates();
         }
     }
 
-    public void testMaybeFailActivities() {
+    public void testMaybeFailActivities() throws Exception {
         final var repositoryName = "repo";
         try (var ts = createServices(Settings.EMPTY)) {
             ts.shardSnapshotsMayFail.set(true);
@@ -252,7 +252,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                                     randomFrom(snapshotNames),
                                     new String[] { "*" }
                                 ),
-                                l
+                                l.delegateResponse((l2, e) -> {
+                                    logger.info("clone attempt failed", e);
+                                    l2.onResponse(null);
+                                })
                             )
                         );
                     }
@@ -262,7 +265,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             deterministicTaskQueue.runAllTasksInTimeOrder();
             assertTrue(future.isDone());
-            future.actionGet();
+            future.get();
 
             ts.assertStates();
         }
@@ -273,7 +276,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
         value = "org.elasticsearch.common.util.concurrent.DeterministicTaskQueue:TRACE"
             + ",org.elasticsearch.cluster.service.MasterService:TRACE"
     )
-    public void testDoubleFinalization() {
+    public void testDoubleFinalization() throws Exception {
         final var repositoryName = "repo";
         try (var ts = createServices(Settings.EMPTY)) {
             ts.shardSnapshotsMayFail.set(true);
@@ -349,7 +352,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
 
             deterministicTaskQueue.runAllTasksInTimeOrder();
             assertTrue(future.isDone());
-            future.actionGet();
+            future.get();
 
             ts.assertStates();
         }
