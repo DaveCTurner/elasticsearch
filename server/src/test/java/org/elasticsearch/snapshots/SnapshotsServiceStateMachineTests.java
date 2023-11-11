@@ -1144,7 +1144,16 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             assertTrue(shardGenerationsInRepository.add(updatedShardGeneration));
                         }
                         updatedShardGenerations.put(shardId.index(), shardId.shardId(), updatedShardGeneration);
-                        cleanups.add(() -> shardGenerationsInRepository.removeAll(shardGenerationsToRemove));
+                        cleanups.add(() -> {
+                            shardGenerationsInRepository.removeAll(shardGenerationsToRemove);
+                            logger.info(
+                                "delete snapshots {} shard {} removed shard gens {} leaving {}",
+                                snapshotIds,
+                                shardId,
+                                shardGenerationsToRemove,
+                                shardGenerationsInRepository
+                            );
+                        });
                     }
 
                     l.onResponse(new DeleteResult(repositoryData.removeSnapshots(snapshotIds, updatedShardGenerations.build()), cleanups));
@@ -1245,7 +1254,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                         final var repositoryShardId = new RepositoryShardId(indexId, i);
                         assertThat(
                             repositoryShardId.toString(),
-                            repositoryShardStates.get(repositoryShardId).shardGenerations(),
+                            Objects.requireNonNull(
+                                repositoryShardStates.get(repositoryShardId),
+                                () -> repositoryShardId + " should have gen [" + expectedShardGeneration + ']'
+                            ).shardGenerations(),
                             hasItem(expectedShardGeneration)
                         );
                     }
