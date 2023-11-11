@@ -284,6 +284,11 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     l -> ts.repositoriesService.registerRepository(new PutRepositoryRequest(repositoryName).type(REPOSITORY_TYPE), l)
                 )
 
+                .<SnapshotInfo>andThen((l, r) -> {
+                    logger.info("--> create snapshot");
+                    ts.snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l);
+                })
+
                 .<Void>andThen((l, r) -> {
                     logger.info("--> add index");
                     ts.createIndex("test-index-2", l);
@@ -292,11 +297,6 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                 .<Void>andThen((l, r) -> {
                     logger.info("--> add index");
                     ts.createIndex("test-index-3", l);
-                })
-
-                .<SnapshotInfo>andThen((l, r) -> {
-                    logger.info("--> create snapshot");
-                    ts.snapshotsService.executeSnapshot(new CreateSnapshotRequest(repositoryName, "snap-1"), l);
                 })
 
                 .<Void>andThen((l0, r) -> {
