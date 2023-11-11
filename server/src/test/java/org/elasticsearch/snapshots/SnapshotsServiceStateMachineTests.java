@@ -332,7 +332,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                             ts::unassignRandomShards
                         );
 
-                        this.<Void>runAsync(
+                        runAsync(
                             ActionListener.releaseAfter(ActionTestUtils.assertNoFailureListener(ignored -> {}), refs.acquire()),
                             l -> ts.deleteIndex("test-index-2", l)
                         );
@@ -373,7 +373,7 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
     // TODO retries in executeConsistentStateUpdate
     // TODO snapshot/clone enqueued behind running deletion
 
-    private <T> void runAsync(ActionListener<T> listener, CheckedConsumer<ActionListener<T>, Exception> consumer) {
+    private void runAsync(ActionListener<Void> listener, CheckedConsumer<ActionListener<Void>, Exception> consumer) {
         threadPool.generic().execute(ActionRunnable.wrap(listener, consumer));
     }
 
