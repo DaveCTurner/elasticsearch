@@ -217,7 +217,10 @@ public class SnapshotsServiceStateMachineTests extends ESTestCase {
                     logger.info("--> clone snapshot");
                     ts.snapshotsService.cloneSnapshot(
                         new CloneSnapshotRequest(repositoryName, "snap-2", "snap-3", new String[] { "*" }),
-                        l
+                        l.delegateResponse((l2, e) -> {
+                            logger.info("clone attempt failed", e);
+                            l2.onResponse(null);
+                        })
                     );
                 })
 
