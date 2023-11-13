@@ -27,7 +27,6 @@ import org.elasticsearch.xpack.searchablesnapshots.action.cache.TransportSearcha
 import org.elasticsearch.xpack.searchablesnapshots.action.cache.TransportSearchableSnapshotsNodeCachesStatsAction.NodesCachesStatsResponse;
 import org.elasticsearch.xpack.searchablesnapshots.action.cache.TransportSearchableSnapshotsNodeCachesStatsAction.NodesRequest;
 
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
@@ -46,7 +45,7 @@ public class NodesCachesStatsIntegTests extends BaseFrozenSearchableSnapshotsInt
         // since this test verifies the cache stats on specific nodes
         ensureStableCluster(nodeNames.length);
 
-        final String index = getTestName().toLowerCase(Locale.ROOT);
+        final String index = randomIdentifier();
         createIndex(index, Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).build());
 
         final int nbDocs = randomIntBetween(1_000, 10_000);
