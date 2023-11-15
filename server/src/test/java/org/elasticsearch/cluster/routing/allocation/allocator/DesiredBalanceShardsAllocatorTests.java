@@ -706,6 +706,6 @@ public class DesiredBalanceShardsAllocatorTests extends ESAllocationTestCase {
     }
 
     private static void rerouteAndWait(AllocationService service, ClusterState clusterState, String reason) {
-        PlainActionFuture.<Void, RuntimeException>get(f -> service.reroute(clusterState, reason, f), 10, TimeUnit.SECONDS);
+        PlainActionFuture.<Void>get(f -> service.reroute(clusterState, reason, f), 10, TimeUnit.SECONDS);
     }
 }

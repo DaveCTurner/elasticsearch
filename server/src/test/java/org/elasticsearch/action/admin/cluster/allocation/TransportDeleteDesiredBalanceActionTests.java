@@ -123,11 +123,7 @@ public class TransportDeleteDesiredBalanceActionTests extends ESAllocationTestCa
             SNAPSHOT_INFO_SERVICE_WITH_NO_SHARD_SIZES
         );
 
-        PlainActionFuture.<Void, RuntimeException>get(
-            f -> allocationService.reroute(clusterState, "inital-allocate", f),
-            10,
-            TimeUnit.SECONDS
-        );
+        PlainActionFuture.<Void>get(f -> allocationService.reroute(clusterState, "inital-allocate", f), 10, TimeUnit.SECONDS);
 
         var balanceBeforeReset = allocator.getDesiredBalance();
         assertThat(balanceBeforeReset.lastConvergedIndex(), greaterThan(DesiredBalance.INITIAL.lastConvergedIndex()));

@@ -148,7 +148,7 @@ public class S3RepositoryThirdPartyTests extends AbstractThirdPartyRepositoryTes
 
                 class TestHarness {
                     boolean tryCompareAndSet(BytesReference expected, BytesReference updated) {
-                        return PlainActionFuture.<Boolean, RuntimeException>get(
+                        return PlainActionFuture.<Boolean>get(
                             future -> blobContainer.compareAndSetRegister(OperationPurpose.SNAPSHOT, "key", expected, updated, future),
                             10,
                             TimeUnit.SECONDS

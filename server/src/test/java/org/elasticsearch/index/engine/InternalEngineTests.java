@@ -3212,7 +3212,7 @@ public class InternalEngineTests extends EngineTestCase {
                     globalCheckpoint.set(engine.getPersistedLocalCheckpoint());
                     expectThrows(
                         IllegalStateException.class,
-                        () -> PlainActionFuture.<Void, RuntimeException>get(
+                        () -> PlainActionFuture.<Void>get(
                             future -> engine.recoverFromTranslog(translogHandler, Long.MAX_VALUE, future),
                             30,
                             TimeUnit.SECONDS

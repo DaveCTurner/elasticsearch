@@ -809,7 +809,7 @@ public class RecoverySourceHandlerTests extends MapperServiceTestCase {
         Thread cancelingThread = new Thread(() -> cancellableThreads.cancel("test"));
         cancelingThread.start();
         try {
-            PlainActionFuture.<Void, RuntimeException>get(
+            PlainActionFuture.<Void>get(
                 future -> RecoverySourceHandler.runUnderPrimaryPermit(
                     listener -> listener.onResponse(null),
                     shard,

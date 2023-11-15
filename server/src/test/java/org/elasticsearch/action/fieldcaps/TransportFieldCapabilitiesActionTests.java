@@ -89,7 +89,7 @@ public class TransportFieldCapabilitiesActionTests extends ESTestCase {
 
             IllegalArgumentException ex = expectThrows(
                 IllegalArgumentException.class,
-                () -> PlainActionFuture.<FieldCapabilitiesResponse, RuntimeException>get(
+                () -> PlainActionFuture.<FieldCapabilitiesResponse>get(
                     future -> action.doExecute(null, fieldCapsRequest, future),
                     10,
                     TimeUnit.SECONDS

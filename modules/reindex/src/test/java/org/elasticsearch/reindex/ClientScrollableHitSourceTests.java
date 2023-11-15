@@ -82,8 +82,7 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
         );
     }
 
-    private void dotestBasicsWithRetry(int retries, int minFailures, int maxFailures, Consumer<Exception> failureHandler)
-        throws InterruptedException {
+    private void dotestBasicsWithRetry(int retries, int minFailures, int maxFailures, Consumer<Exception> failureHandler) {
         BlockingQueue<ScrollableHitSource.AsyncResponse> responses = new ArrayBlockingQueue<>(100);
         MockClient client = new MockClient(threadPool);
         TaskId parentTask = new TaskId("thenode", randomInt());
@@ -115,7 +114,14 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
             client.respond(SearchAction.INSTANCE, searchResponse);
 
             for (int i = 0; i < randomIntBetween(1, 10); ++i) {
-                ScrollableHitSource.AsyncResponse asyncResponse = responses.poll(10, TimeUnit.SECONDS);
+                final ScrollableHitSource.AsyncResponse asyncResponse;
+                try {
+                    asyncResponse = responses.poll(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    ESTestCase.fail(e);
+                    return;
+                }
                 assertNotNull(asyncResponse);
                 assertEquals(responses.size(), 0);
                 assertSameHits(asyncResponse.response().getHits(), searchResponse.getHits().getHits());
@@ -271,9 +277,14 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
             ((ExecuteRequest<Request, Response>) executeRequest).validateRequest(action, validator);
         }
 
-        public synchronized void awaitOperation() throws InterruptedException {
+        public synchronized void awaitOperation() {
             if (executeRequest == null) {
-                wait(10000);
+                try {
+                    wait(10000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    ESTestCase.fail(e);
+                }
                 assertNotNull("Must receive next request within 10s", executeRequest);
             }
         }

@@ -815,7 +815,7 @@ public class NodeJoinExecutorTests extends ESTestCase {
                 )
             );
             assertNull(
-                PlainActionFuture.<Void, RuntimeException>get(
+                PlainActionFuture.<Void>get(
                     future -> clusterService.getMasterService()
                         .createTaskQueue("test", Priority.NORMAL, executor)
                         .submitTask(
@@ -844,7 +844,7 @@ public class NodeJoinExecutorTests extends ESTestCase {
                 )
             );
             assertNull(
-                PlainActionFuture.<Void, RuntimeException>get(
+                PlainActionFuture.<Void>get(
                     future -> clusterService.getMasterService()
                         .createTaskQueue("test", Priority.NORMAL, executor)
                         .submitTask(

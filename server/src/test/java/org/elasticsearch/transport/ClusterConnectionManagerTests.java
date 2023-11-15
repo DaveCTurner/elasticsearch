@@ -433,7 +433,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         assertTrue(pendingConnectionPermits.tryAcquire(10, TimeUnit.SECONDS));
         // ... and then send a connection attempt through the system to ensure that the lagging has started
         Releasables.closeExpectNoException(
-            PlainActionFuture.<Releasable, RuntimeException>get(
+            PlainActionFuture.<Releasable>get(
                 fut -> connectionManager.connectToNode(
                     DiscoveryNodeUtils.create("", new TransportAddress(InetAddress.getLoopbackAddress(), 0)),
                     connectionProfile,

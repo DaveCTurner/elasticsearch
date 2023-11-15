@@ -3361,7 +3361,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         for (int iteration = 1; iteration <= 5; iteration++) {
             assertEquals(
                 responseSize,
-                PlainActionFuture.<Response, Exception>get(
+                PlainActionFuture.<Response>get(
                     f -> submitRequest(
                         serviceA,
                         serviceB.getLocalNode(),

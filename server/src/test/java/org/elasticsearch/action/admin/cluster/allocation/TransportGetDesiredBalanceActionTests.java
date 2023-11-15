@@ -8,6 +8,7 @@
 package org.elasticsearch.action.admin.cluster.allocation;
 
 import org.elasticsearch.ResourceNotFoundException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.cluster.ClusterInfo;
@@ -87,13 +88,16 @@ public class TransportGetDesiredBalanceActionTests extends ESAllocationTestCase 
         );
     }
 
-    private static DesiredBalanceResponse execute(TransportGetDesiredBalanceAction action, ClusterState clusterState) throws Exception {
+    private static DesiredBalanceResponse execute(TransportGetDesiredBalanceAction action, ClusterState clusterState) {
         return PlainActionFuture.get(
-            future -> action.masterOperation(
-                new Task(1, "test", GetDesiredBalanceAction.NAME, "", TaskId.EMPTY_TASK_ID, Map.of()),
-                new DesiredBalanceRequest(),
-                clusterState,
-                future
+            future -> ActionListener.run(
+                future,
+                f -> action.masterOperation(
+                    new Task(1, "test", GetDesiredBalanceAction.NAME, "", TaskId.EMPTY_TASK_ID, Map.of()),
+                    new DesiredBalanceRequest(),
+                    clusterState,
+                    f
+                )
             ),
             10,
             TimeUnit.SECONDS

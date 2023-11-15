@@ -349,11 +349,7 @@ public class TransportBroadcastByNodeActionTests extends ESTestCase {
             "blocked by: [SERVICE_UNAVAILABLE/1/test-block];",
             expectThrows(
                 ClusterBlockException.class,
-                () -> PlainActionFuture.<Response, RuntimeException>get(
-                    listener -> action.doExecute(null, request, listener),
-                    10,
-                    TimeUnit.SECONDS
-                )
+                () -> PlainActionFuture.<Response>get(listener -> action.doExecute(null, request, listener), 10, TimeUnit.SECONDS)
             ).getMessage()
         );
     }
@@ -371,11 +367,7 @@ public class TransportBroadcastByNodeActionTests extends ESTestCase {
             "index [" + TEST_INDEX + "] blocked by: [SERVICE_UNAVAILABLE/1/test-block];",
             expectThrows(
                 ClusterBlockException.class,
-                () -> PlainActionFuture.<Response, RuntimeException>get(
-                    listener -> action.doExecute(null, request, listener),
-                    10,
-                    TimeUnit.SECONDS
-                )
+                () -> PlainActionFuture.<Response>get(listener -> action.doExecute(null, request, listener), 10, TimeUnit.SECONDS)
             ).getMessage()
         );
     }

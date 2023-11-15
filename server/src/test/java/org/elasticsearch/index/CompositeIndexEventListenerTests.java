@@ -77,7 +77,7 @@ public class CompositeIndexEventListenerTests extends IndexShardTestCase {
             );
 
             final CheckedRunnable<Exception> beforeIndexShardRecoveryRunner = () -> assertNull(
-                PlainActionFuture.<Void, Exception>get(
+                PlainActionFuture.<Void>get(
                     fut -> indexEventListener.beforeIndexShardRecovery(shard, shard.indexSettings(), fut),
                     10,
                     TimeUnit.SECONDS
@@ -146,7 +146,7 @@ public class CompositeIndexEventListenerTests extends IndexShardTestCase {
             );
 
             final CheckedRunnable<Exception> afterIndexShardRecoveryRunner = () -> assertNull(
-                PlainActionFuture.<Void, Exception>get(fut -> indexEventListener.afterIndexShardRecovery(shard, fut), 10, TimeUnit.SECONDS)
+                PlainActionFuture.<Void>get(fut -> indexEventListener.afterIndexShardRecovery(shard, fut), 10, TimeUnit.SECONDS)
             );
 
             failAtStep.set(stepCount);

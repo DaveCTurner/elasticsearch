@@ -26,7 +26,7 @@ public class TransportValidateQueryActionTests extends ESSingleNodeTestCase {
     public void testListenerOnlyInvokedOnceWhenIndexDoesNotExist() {
         expectThrows(
             IndexNotFoundException.class,
-            () -> PlainActionFuture.<ValidateQueryResponse, RuntimeException>get(
+            () -> PlainActionFuture.<ValidateQueryResponse>get(
                 future -> client().admin()
                     .indices()
                     .validateQuery(new ValidateQueryRequest("non-existent-index"), ActionListener.assertOnce(future)),

@@ -266,7 +266,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         // connection attempts to node0 block indefinitely
         final CyclicBarrier connectionBarrier = new CyclicBarrier(2);
         try {
-            nodeConnectionBlocks.put(node0, () -> connectionBarrier.await(10, TimeUnit.SECONDS));
+            nodeConnectionBlocks.put(node0, () -> safeAwait(connectionBarrier));
             transportService.disconnectFromNode(node0);
 
             // can still connect to another node without blocking
@@ -287,7 +287,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             assertFalse(future3.isDone());
 
             // once the connection is unblocked we successfully connect to it.
-            connectionBarrier.await(10, TimeUnit.SECONDS);
+            safeAwait(connectionBarrier);
             future3.actionGet(10, TimeUnit.SECONDS);
             assertConnectedExactlyToNodes(nodes01);
 
@@ -300,7 +300,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             service.disconnectFromNodesExcept(nodes1);
             assertThat(PlainActionFuture.get(disconnectFuture1 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture1));
-                connectionBarrier.await(10, TimeUnit.SECONDS);
+                safeAwait(connectionBarrier);
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
 
@@ -314,7 +314,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
             assertThat(PlainActionFuture.get(disconnectFuture2 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture2));
-                connectionBarrier.await(10, TimeUnit.SECONDS);
+                safeAwait(connectionBarrier);
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
             assertTrue(future5.isDone());

@@ -1627,7 +1627,7 @@ public abstract class EngineTestCase extends ESTestCase {
         // This is an adapter between the older synchronous (blocking) code and the newer (async) API. Callers expect exceptions to be
         // thrown directly, so we must undo the layers of wrapping added by future#get and friends.
         try {
-            PlainActionFuture.<Void, RuntimeException>get(
+            PlainActionFuture.<Void>get(
                 future -> engine.recoverFromTranslog(translogRecoveryRunner, recoverUpToSeqNo, future),
                 30,
                 TimeUnit.SECONDS

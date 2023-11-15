@@ -362,9 +362,8 @@ public class TransportBroadcastUnpromotableActionTests extends ESTestCase {
         );
     }
 
-    private ActionResponse brodcastUnpromotableRequest(IndexShardRoutingTable wrongRoutingTable, boolean failShardOnError)
-        throws Exception {
-        return PlainActionFuture.<ActionResponse.Empty, Exception>get(
+    private ActionResponse brodcastUnpromotableRequest(IndexShardRoutingTable wrongRoutingTable, boolean failShardOnError) {
+        return PlainActionFuture.<ActionResponse.Empty>get(
             f -> ActionTestUtils.execute(
                 broadcastUnpromotableAction,
                 null,
@@ -381,7 +380,7 @@ public class TransportBroadcastUnpromotableActionTests extends ESTestCase {
         assertThat(
             expectThrows(
                 NullPointerException.class,
-                () -> PlainActionFuture.<ActionResponse.Empty, Exception>get(
+                () -> PlainActionFuture.<ActionResponse.Empty>get(
                     f -> ActionTestUtils.execute(
                         broadcastUnpromotableAction,
                         null,
