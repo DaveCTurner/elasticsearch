@@ -3263,7 +3263,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             }
         );
 
-        PlainActionFuture.get(
+        runAndAwait(
             f -> submitRequest(
                 serviceA,
                 serviceA.getLocalNode(),
@@ -3274,12 +3274,10 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
                     ignored -> TransportResponse.Empty.INSTANCE,
                     TransportResponseHandler.TRANSPORT_WORKER
                 )
-            ),
-            10,
-            TimeUnit.SECONDS
+            )
         );
 
-        PlainActionFuture.get(
+        runAndAwait(
             f -> submitRequest(
                 serviceA,
                 serviceB.getLocalNode(),
@@ -3290,9 +3288,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
                     ignored -> TransportResponse.Empty.INSTANCE,
                     TransportResponseHandler.TRANSPORT_WORKER
                 )
-            ),
-            10,
-            TimeUnit.SECONDS
+            )
         );
     }
 
@@ -3361,16 +3357,15 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         for (int iteration = 1; iteration <= 5; iteration++) {
             assertEquals(
                 responseSize,
-                PlainActionFuture.<Response>get(
+                runAndAwait(
+                    Response.class,
                     f -> submitRequest(
                         serviceA,
                         serviceB.getLocalNode(),
                         ACTION,
                         new Request(requestSize),
                         new ActionListenerResponseHandler<>(f, Response::new, TransportResponseHandler.TRANSPORT_WORKER)
-                    ),
-                    10,
-                    TimeUnit.SECONDS
+                    )
                 ).refSize
             );
 

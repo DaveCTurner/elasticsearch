@@ -226,7 +226,8 @@ public class ClusterServiceUtils {
     }
 
     public static void awaitNoPendingTasks(ClusterService clusterService) {
-        PlainActionFuture.<Void>get(
+        ESTestCase.runAndAwait(
+            Void.class,
             fut -> clusterService.submitUnbatchedStateUpdateTask(
                 "await-queue-empty",
                 new ClusterStateUpdateTask(Priority.LANGUID, TimeValue.timeValueSeconds(10)) {
@@ -245,9 +246,7 @@ public class ClusterServiceUtils {
                         fut.onResponse(null);
                     }
                 }
-            ),
-            10,
-            TimeUnit.SECONDS
+            )
         );
     }
 

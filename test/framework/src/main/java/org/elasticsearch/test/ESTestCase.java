@@ -39,6 +39,7 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.apache.lucene.tests.util.TimeUnits;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.TransportVersion;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.bootstrap.BootstrapForTesting;
@@ -161,8 +162,10 @@ import java.util.TimeZone;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -2068,7 +2071,31 @@ public abstract class ESTestCase extends LuceneTestCase {
     }
 
     public static <T> T safeAwait(SubscribableListener<T> listener) {
-        return PlainActionFuture.get(listener::addListener, 10, TimeUnit.SECONDS);
+        return runAndAwait(listener::addListener);
+    }
+
+    public static <T> T runAndAwait(Class<T> ignored, Consumer<ActionListener<T>> action) {
+        return runAndAwait(action);
+    }
+
+    public static <T> T runAndAwait(Consumer<ActionListener<T>> action) {
+        final var future = new PlainActionFuture<T>();
+        action.accept(future);
+        try {
+            return future.get(10, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            final var cause = e.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            } else {
+                return fail(cause);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return fail(e);
+        } catch (TimeoutException e) {
+            return fail(e);
+        }
     }
 
     public static void safeSleep(long millis) {

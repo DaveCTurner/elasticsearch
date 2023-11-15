@@ -21,7 +21,6 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.transport.Transport;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class ActionTestUtils {
 
@@ -31,10 +30,8 @@ public class ActionTestUtils {
         TransportAction<Request, Response> action,
         Request request
     ) {
-        return PlainActionFuture.get(
-            future -> action.execute(request.createTask(1L, "direct", action.actionName, TaskId.EMPTY_TASK_ID, Map.of()), request, future),
-            10,
-            TimeUnit.SECONDS
+        return ESTestCase.runAndAwait(
+            future -> action.execute(request.createTask(1L, "direct", action.actionName, TaskId.EMPTY_TASK_ID, Map.of()), request, future)
         );
     }
 
@@ -44,11 +41,7 @@ public class ActionTestUtils {
         TransportAction<Request, Response> action,
         Request request
     ) {
-        return PlainActionFuture.get(
-            future -> taskManager.registerAndExecute("transport", action, request, localConnection, future),
-            10,
-            TimeUnit.SECONDS
-        );
+        return ESTestCase.runAndAwait(future -> taskManager.registerAndExecute("transport", action, request, localConnection, future));
     }
 
     /**
