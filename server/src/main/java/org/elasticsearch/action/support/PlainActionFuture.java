@@ -15,7 +15,6 @@ import org.elasticsearch.cluster.service.ClusterApplierService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
-import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -444,8 +443,8 @@ public class PlainActionFuture<T> implements ActionFuture<T>, ActionListener<T> 
         return fut.actionGet();
     }
 
-    public static <T, E extends Exception> T get(CheckedConsumer<PlainActionFuture<T>, E> e, long timeout, TimeUnit unit) throws E {
-        PlainActionFuture<T> fut = new PlainActionFuture<>();
+    public static <T> T get(Consumer<ActionListener<T>> e, long timeout, TimeUnit unit) {
+        final PlainActionFuture<T> fut = new PlainActionFuture<>();
         e.accept(fut);
         return fut.actionGet(timeout, unit);
     }
