@@ -80,7 +80,7 @@ public class OpenIndexStepTests extends AbstractStepTestCase<OpenIndexStep> {
             return null;
         }).when(indicesClient).open(Mockito.any(), Mockito.any());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -114,10 +114,7 @@ public class OpenIndexStepTests extends AbstractStepTestCase<OpenIndexStep> {
 
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f)))
         );
 
         Mockito.verify(client, Mockito.only()).admin();

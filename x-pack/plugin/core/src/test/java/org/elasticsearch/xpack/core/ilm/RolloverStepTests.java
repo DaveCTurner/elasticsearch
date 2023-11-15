@@ -87,7 +87,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         mockClientRolloverCall(alias);
 
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -109,7 +109,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .metadata(Metadata.builder().put(newInstance(dataStreamName, List.of(indexMetadata.getIndex()))).put(indexMetadata, true))
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -139,7 +139,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
                     .put(newInstance(dataStreamName, List.of(firstGenerationIndex.getIndex(), writeIndex.getIndex())))
             )
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(firstGenerationIndex, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(firstGenerationIndex, clusterState, null, f));
 
         verifyNoMoreInteractions(client);
         verifyNoMoreInteractions(adminClient);
@@ -172,7 +172,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         RolloverStep step = createRandomInstance();
 
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     public void testPerformActionSkipsRolloverForAlreadyRolledIndex() throws Exception {
@@ -193,7 +193,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
 
         RolloverStep step = createRandomInstance();
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(indicesClient, Mockito.never()).rolloverIndex(Mockito.any(), Mockito.any());
     }
@@ -216,10 +216,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f)))
         );
 
         Mockito.verify(client, Mockito.only()).admin();
@@ -239,7 +236,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
         Exception e = expectThrows(
             IllegalArgumentException.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
         assertThat(
             e.getMessage(),
@@ -267,7 +264,7 @@ public class RolloverStepTests extends AbstractStepTestCase<RolloverStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
         Exception e = expectThrows(
             IllegalArgumentException.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
         assertThat(
             e.getMessage(),

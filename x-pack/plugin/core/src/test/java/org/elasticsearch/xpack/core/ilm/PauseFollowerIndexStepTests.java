@@ -55,7 +55,7 @@ public class PauseFollowerIndexStepTests extends AbstractUnfollowIndexStepTestCa
         }).when(client).execute(Mockito.same(PauseFollowAction.INSTANCE), Mockito.any(), Mockito.any());
 
         PauseFollowerIndexStep step = new PauseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     public void testRequestNotAcknowledged() {
@@ -77,7 +77,7 @@ public class PauseFollowerIndexStepTests extends AbstractUnfollowIndexStepTestCa
         PauseFollowerIndexStep step = new PauseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
         Exception e = expectThrows(
             Exception.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
+            () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f))
         );
         assertThat(e.getMessage(), is("pause follow request failed to be acknowledged"));
     }
@@ -104,10 +104,7 @@ public class PauseFollowerIndexStepTests extends AbstractUnfollowIndexStepTestCa
         PauseFollowerIndexStep step = new PauseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
         assertSame(
             error,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f)))
         );
 
         Mockito.verify(client).execute(Mockito.same(PauseFollowAction.INSTANCE), Mockito.any(), Mockito.any());
@@ -134,7 +131,7 @@ public class PauseFollowerIndexStepTests extends AbstractUnfollowIndexStepTestCa
 
         PauseFollowerIndexStep step = newInstance(randomStepKey(), randomStepKey());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verifyNoMoreInteractions(client);
     }
@@ -157,7 +154,7 @@ public class PauseFollowerIndexStepTests extends AbstractUnfollowIndexStepTestCa
             .build();
         PauseFollowerIndexStep step = newInstance(randomStepKey(), randomStepKey());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(managedIndex, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(managedIndex, clusterState, null, f));
 
         Mockito.verifyNoMoreInteractions(client);
     }

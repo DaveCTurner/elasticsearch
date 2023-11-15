@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+import java.util.function.Consumer;
 
 public class PlainActionFuture<T> implements ActionFuture<T>, ActionListener<T> {
 
@@ -437,8 +438,8 @@ public class PlainActionFuture<T> implements ActionFuture<T>, ActionListener<T> 
         return new UncategorizedExecutionException("Failed execution", root);
     }
 
-    public static <T, E extends Exception> T get(CheckedConsumer<PlainActionFuture<T>, E> e) throws E {
-        PlainActionFuture<T> fut = new PlainActionFuture<>();
+    public static <T> T get(Consumer<ActionListener<T>> e) {
+        final PlainActionFuture<T> fut = new PlainActionFuture<>();
         e.accept(fut);
         return fut.actionGet();
     }

@@ -44,7 +44,7 @@ public class CloseFollowerIndexStepTests extends AbstractStepTestCase<CloseFollo
         }).when(indicesClient).close(Mockito.any(), Mockito.any());
 
         CloseFollowerIndexStep step = new CloseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
     }
 
     public void testRequestNotAcknowledged() {
@@ -62,7 +62,7 @@ public class CloseFollowerIndexStepTests extends AbstractStepTestCase<CloseFollo
         CloseFollowerIndexStep step = new CloseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
         Exception e = expectThrows(
             Exception.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
+            () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
         );
         assertThat(e.getMessage(), is("close index request failed to be acknowledged"));
     }
@@ -85,7 +85,7 @@ public class CloseFollowerIndexStepTests extends AbstractStepTestCase<CloseFollo
             error,
             expectThrows(
                 Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
+                () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
             )
         );
         Mockito.verify(indicesClient).close(Mockito.any(), Mockito.any());
@@ -101,7 +101,7 @@ public class CloseFollowerIndexStepTests extends AbstractStepTestCase<CloseFollo
             .numberOfReplicas(0)
             .build();
         CloseFollowerIndexStep step = new CloseFollowerIndexStep(randomStepKey(), randomStepKey(), client);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
         Mockito.verifyNoMoreInteractions(client);
     }
 

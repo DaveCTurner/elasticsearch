@@ -4850,8 +4850,6 @@ public class IndexShardTests extends IndexShardTestCase {
         ShardRouting routing,
         BiConsumer<ReplicationTracker.PrimaryContext, ActionListener<Void>> consumer
     ) {
-        PlainActionFuture.<Void, RuntimeException>get(
-            f -> indexShard.relocated(routing.getTargetRelocatingShard().allocationId().getId(), consumer, f)
-        );
+        PlainActionFuture.<Void>get(f -> indexShard.relocated(routing.getTargetRelocatingShard().allocationId().getId(), consumer, f));
     }
 }

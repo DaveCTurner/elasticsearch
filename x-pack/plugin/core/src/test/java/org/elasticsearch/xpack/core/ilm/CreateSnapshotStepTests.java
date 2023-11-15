@@ -85,7 +85,7 @@ public class CreateSnapshotStepTests extends AbstractStepTestCase<CreateSnapshot
             CreateSnapshotStep createSnapshotStep = createRandomInstance();
             Exception e = expectThrows(
                 IllegalStateException.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> createSnapshotStep.performAction(indexMetadata, clusterState, null, f))
+                () -> PlainActionFuture.<Void>get(f -> createSnapshotStep.performAction(indexMetadata, clusterState, null, f))
             );
             assertThat(e.getMessage(), is("snapshot name was not generated for policy [" + policyName + "] and index [" + indexName + "]"));
         }
@@ -104,7 +104,7 @@ public class CreateSnapshotStepTests extends AbstractStepTestCase<CreateSnapshot
             CreateSnapshotStep createSnapshotStep = createRandomInstance();
             Exception e = expectThrows(
                 IllegalStateException.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> createSnapshotStep.performAction(indexMetadata, clusterState, null, f))
+                () -> PlainActionFuture.<Void>get(f -> createSnapshotStep.performAction(indexMetadata, clusterState, null, f))
             );
             assertThat(
                 e.getMessage(),

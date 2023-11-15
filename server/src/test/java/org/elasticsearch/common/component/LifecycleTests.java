@@ -99,7 +99,7 @@ public class LifecycleTests extends ESTestCase {
 
         void testTransition(BooleanSupplier doTransition) {
             final var transitioned = new AtomicBoolean();
-            PlainActionFuture.<Void, RuntimeException>get(fut -> {
+            PlainActionFuture.<Void>get(fut -> {
                 try (var listeners = new RefCountingListener(fut)) {
                     for (int i = 0; i < threads; i++) {
                         executor.execute(ActionRunnable.run(listeners.acquire(), () -> {

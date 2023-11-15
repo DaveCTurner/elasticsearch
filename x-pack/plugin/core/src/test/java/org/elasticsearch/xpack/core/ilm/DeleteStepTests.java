@@ -82,7 +82,7 @@ public class DeleteStepTests extends AbstractStepTestCase<DeleteStep> {
         ClusterState clusterState = ClusterState.builder(emptyClusterState())
             .metadata(Metadata.builder().put(indexMetadata, true).build())
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -110,10 +110,7 @@ public class DeleteStepTests extends AbstractStepTestCase<DeleteStep> {
             .build();
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f)))
         );
     }
 

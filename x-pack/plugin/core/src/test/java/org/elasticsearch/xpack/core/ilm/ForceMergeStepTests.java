@@ -82,7 +82,7 @@ public class ForceMergeStepTests extends AbstractStepTestCase<ForceMergeStep> {
         }).when(indicesClient).forceMerge(any(), any());
 
         ForceMergeStep step = new ForceMergeStep(stepKey, nextStepKey, client, maxNumSegments);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
     }
 
     public void testPerformActionThrowsException() {
@@ -111,10 +111,7 @@ public class ForceMergeStepTests extends AbstractStepTestCase<ForceMergeStep> {
         ForceMergeStep step = new ForceMergeStep(stepKey, nextStepKey, client, maxNumSegments);
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f)))
         );
     }
 

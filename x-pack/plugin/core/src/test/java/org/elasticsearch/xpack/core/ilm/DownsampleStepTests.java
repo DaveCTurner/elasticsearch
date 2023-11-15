@@ -119,7 +119,7 @@ public class DownsampleStepTests extends AbstractStepTestCase<DownsampleStep> {
         mockClientDownsampleCall(index);
 
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT).metadata(Metadata.builder().put(indexMetadata, true)).build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     public void testPerformActionFailureInvalidExecutionState() {
@@ -170,7 +170,7 @@ public class DownsampleStepTests extends AbstractStepTestCase<DownsampleStep> {
         ClusterState clusterState = ClusterState.builder(ClusterName.DEFAULT)
             .metadata(Metadata.builder().put(newInstance(dataStreamName, List.of(indexMetadata.getIndex()))).put(indexMetadata, true))
             .build();
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, clusterState, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, clusterState, null, f));
     }
 
     /**

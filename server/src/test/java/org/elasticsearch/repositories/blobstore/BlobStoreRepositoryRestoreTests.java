@@ -171,7 +171,7 @@ public class BlobStoreRepositoryRestoreTests extends IndexShardTestCase {
                 new SnapshotId(snapshot.getSnapshotId().getName(), "_uuid2")
             );
             final ShardGenerations shardGenerations = ShardGenerations.builder().put(indexId, 0, shardGen).build();
-            PlainActionFuture.<RepositoryData, Exception>get(
+            PlainActionFuture.<RepositoryData>get(
                 f -> repository.finalizeSnapshot(
                     new FinalizeSnapshotContext(
                         shardGenerations,

@@ -123,7 +123,7 @@ public class ShrinkStepTests extends AbstractStepTestCase<ShrinkStep> {
             return null;
         }).when(indicesClient).resizeIndex(Mockito.any(), Mockito.any());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(sourceIndexMetadata, emptyClusterState(), null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(sourceIndexMetadata, emptyClusterState(), null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -186,7 +186,7 @@ public class ShrinkStepTests extends AbstractStepTestCase<ShrinkStep> {
             return null;
         }).when(indicesClient).resizeIndex(Mockito.any(), Mockito.any());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f));
 
         Mockito.verify(client, Mockito.only()).admin();
         Mockito.verify(adminClient, Mockito.only()).indices();
@@ -216,7 +216,7 @@ public class ShrinkStepTests extends AbstractStepTestCase<ShrinkStep> {
             exception,
             expectThrows(
                 Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
+                () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, emptyClusterState(), null, f))
             )
         );
 

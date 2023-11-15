@@ -316,7 +316,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
     }
 
     private static void writeIndexGen(BlobStoreRepository repository, RepositoryData repositoryData, long generation) throws Exception {
-        PlainActionFuture.<RepositoryData, Exception>get(
+        PlainActionFuture.<RepositoryData>get(
             f -> repository.writeIndexGen(repositoryData, generation, IndexVersion.current(), Function.identity(), f)
         );
     }

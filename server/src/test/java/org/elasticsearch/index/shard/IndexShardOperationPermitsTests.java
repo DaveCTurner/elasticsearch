@@ -534,9 +534,7 @@ public class IndexShardOperationPermitsTests extends ESTestCase {
             rejectingExecutor.execute(threadBlock::actionGet);
             expectThrows(
                 EsRejectedExecutionException.class,
-                () -> PlainActionFuture.<Releasable, RuntimeException>get(
-                    f -> permits.blockOperations(f, 1, TimeUnit.HOURS, rejectingExecutor)
-                )
+                () -> PlainActionFuture.<Releasable>get(f -> permits.blockOperations(f, 1, TimeUnit.HOURS, rejectingExecutor))
             );
 
             // ensure that the exception means no block was put in place
@@ -564,9 +562,7 @@ public class IndexShardOperationPermitsTests extends ESTestCase {
                 "timeout while blocking operations after [0s]",
                 expectThrows(
                     ElasticsearchTimeoutException.class,
-                    () -> PlainActionFuture.<Releasable, RuntimeException>get(
-                        f -> permits.blockOperations(f, 0, TimeUnit.SECONDS, threadPool.generic())
-                    )
+                    () -> PlainActionFuture.<Releasable>get(f -> permits.blockOperations(f, 0, TimeUnit.SECONDS, threadPool.generic()))
                 ).getMessage()
             );
 

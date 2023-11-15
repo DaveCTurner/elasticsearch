@@ -70,7 +70,7 @@ public class CleanupSnapshotStepTests extends AbstractStepTestCase<CleanupSnapsh
                 .build();
 
             CleanupSnapshotStep cleanupSnapshotStep = createRandomInstance();
-            PlainActionFuture.<Void, Exception>get(f -> cleanupSnapshotStep.performAction(indexMetadata, clusterState, null, f));
+            PlainActionFuture.<Void>get(f -> cleanupSnapshotStep.performAction(indexMetadata, clusterState, null, f));
         }
 
         {
@@ -88,7 +88,7 @@ public class CleanupSnapshotStepTests extends AbstractStepTestCase<CleanupSnapsh
                 .build();
 
             CleanupSnapshotStep cleanupSnapshotStep = createRandomInstance();
-            PlainActionFuture.<Void, Exception>get(f -> cleanupSnapshotStep.performAction(indexMetadata, clusterState, null, f));
+            PlainActionFuture.<Void>get(f -> cleanupSnapshotStep.performAction(indexMetadata, clusterState, null, f));
         }
     }
 

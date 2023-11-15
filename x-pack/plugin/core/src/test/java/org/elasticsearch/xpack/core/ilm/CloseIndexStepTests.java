@@ -131,10 +131,7 @@ public class CloseIndexStepTests extends AbstractStepTestCase<CloseIndexStep> {
 
         assertSame(
             exception,
-            expectThrows(
-                Exception.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
-            )
+            expectThrows(Exception.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f)))
         );
 
         Mockito.verify(client, Mockito.only()).admin();

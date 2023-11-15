@@ -46,7 +46,7 @@ public class UnfollowFollowerIndexStepTests extends AbstractUnfollowIndexStepTes
         }).when(client).execute(Mockito.same(UnfollowAction.INSTANCE), Mockito.any(), Mockito.any());
 
         UnfollowFollowerIndexStep step = new UnfollowFollowerIndexStep(randomStepKey(), randomStepKey(), client);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
     }
 
     public void testRequestNotAcknowledged() {
@@ -67,7 +67,7 @@ public class UnfollowFollowerIndexStepTests extends AbstractUnfollowIndexStepTes
         UnfollowFollowerIndexStep step = new UnfollowFollowerIndexStep(randomStepKey(), randomStepKey(), client);
         Exception e = expectThrows(
             Exception.class,
-            () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
+            () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f))
         );
         assertThat(e.getMessage(), is("unfollow request failed to be acknowledged"));
     }
@@ -93,10 +93,7 @@ public class UnfollowFollowerIndexStepTests extends AbstractUnfollowIndexStepTes
         UnfollowFollowerIndexStep step = new UnfollowFollowerIndexStep(randomStepKey(), randomStepKey(), client);
         assertSame(
             error,
-            expectThrows(
-                RuntimeException.class,
-                () -> PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f))
-            )
+            expectThrows(RuntimeException.class, () -> PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f)))
         );
     }
 
@@ -120,6 +117,6 @@ public class UnfollowFollowerIndexStepTests extends AbstractUnfollowIndexStepTes
         }).when(client).execute(Mockito.same(UnfollowAction.INSTANCE), Mockito.any(), Mockito.any());
 
         UnfollowFollowerIndexStep step = new UnfollowFollowerIndexStep(randomStepKey(), randomStepKey(), client);
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
     }
 }

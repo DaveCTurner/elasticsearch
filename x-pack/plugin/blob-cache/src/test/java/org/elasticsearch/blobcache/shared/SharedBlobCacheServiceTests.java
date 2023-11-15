@@ -479,7 +479,7 @@ public class SharedBlobCacheServiceTests extends ESTestCase {
                     for (int j = 0; j < 1000; j++) {
                         final var cacheKey = generateCacheKey();
                         try {
-                            PlainActionFuture.<Void, Exception>get(
+                            PlainActionFuture.<Void>get(
                                 f -> cacheService.maybeFetchFullEntry(
                                     cacheKey,
                                     size,

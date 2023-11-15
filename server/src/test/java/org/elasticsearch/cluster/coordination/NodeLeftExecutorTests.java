@@ -130,7 +130,7 @@ public class NodeLeftExecutorTests extends ESTestCase {
                 )
             );
             assertNull(
-                PlainActionFuture.<Void, RuntimeException>get(
+                PlainActionFuture.<Void>get(
                     future -> clusterService.getMasterService()
                         .createTaskQueue("test", Priority.NORMAL, executor)
                         .submitTask("test", new NodeLeftExecutor.Task(nodeToRemove, "test reason", () -> future.onResponse(null)), null)

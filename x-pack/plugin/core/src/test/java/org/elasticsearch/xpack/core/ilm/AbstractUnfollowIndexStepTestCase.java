@@ -48,7 +48,7 @@ public abstract class AbstractUnfollowIndexStepTestCase<T extends AbstractUnfoll
 
         T step = newInstance(randomStepKey(), randomStepKey());
 
-        PlainActionFuture.<Void, Exception>get(f -> step.performAction(indexMetadata, null, null, f));
+        PlainActionFuture.<Void>get(f -> step.performAction(indexMetadata, null, null, f));
         Mockito.verifyNoMoreInteractions(client);
     }
 
