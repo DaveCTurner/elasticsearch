@@ -13,6 +13,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RequestValidators;
 import org.elasticsearch.action.admin.cluster.repositories.cleanup.CleanupRepositoryAction;
@@ -70,6 +71,7 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.DestructiveOperations;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.WriteRequest;
@@ -179,6 +181,7 @@ import org.elasticsearch.search.SearchService;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.FetchPhase;
 import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesRefRecycler;
@@ -1219,6 +1222,158 @@ public class SnapshotResiliencyTests extends ESTestCase {
             assertEquals(shards, snapshotInfo.successfulShards());
             assertEquals(0, snapshotInfo.failedShards());
         }
+    }
+
+    public void testOutOfOrderFinalization() throws Exception {
+        setupTestCluster(1, 1);
+        final String repoName = "repo";
+        final int indexCount = 4;
+        final int snapshotCount = 4;
+        final var masterClusterService = testClusterNodes.currentMaster(
+            testClusterNodes.nodes.values().iterator().next().clusterService.state()
+        ).clusterService;
+
+        final var future = new PlainActionFuture<Void>();
+
+        createRepoAndIndex(repoName, "index-0", 1)
+
+            .<Void>andThen((l0, createIndexResponse) -> {
+                try (var listeners = new RefCountingListener(l0)) {
+                    for (int i = 1; i < indexCount; i++) {
+                        final var indexName = "index-" + i;
+                        deterministicTaskQueue.scheduleNow(
+                            ActionRunnable.wrap(
+                                listeners.acquire(),
+                                l -> client().admin()
+                                    .indices()
+                                    .create(
+                                        new CreateIndexRequest(indexName).waitForActiveShards(ActiveShardCount.ALL)
+                                            .settings(defaultIndexSettings(1)),
+                                        l.map(ignored -> null)
+                                    )
+                            )
+                        );
+                    }
+                }
+            })
+
+            .<BulkResponse>andThen((l0, v0) -> {
+                final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+                for (int i = 0; i < indexCount; i++) {
+                    bulkRequest.add(new IndexRequest("index-" + i).source(Collections.singletonMap("foo", "bar" + i)));
+                }
+                client().bulk(bulkRequest, l0);
+            })
+
+            .<Void>andThen(
+                (l, v) -> client().admin()
+                    .cluster()
+                    .prepareCreateSnapshot(repoName, "initial-snapshot")
+                    .setPartial(false)
+                    .setWaitForCompletion(true)
+                    .execute(l.map(createSnapshotResponse -> {
+                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
+                        return null;
+                    }))
+            )
+
+            .<Void>andThen((l0, v0) -> {
+                try (var listeners = new RefCountingListener(l0)) {
+                    for (int i = 0; i < snapshotCount; i++) {
+                        final var snapshotName = "snapshot-" + i;
+                        deterministicTaskQueue.scheduleNow(
+                            ActionRunnable.wrap(
+                                listeners.acquire(),
+                                l -> client().admin()
+                                    .cluster()
+                                    .prepareCreateSnapshot(repoName, snapshotName)
+                                    .setIndices(
+                                        randomNonEmptySubsetOf(IntStream.range(0, indexCount).mapToObj(j -> "index-" + j).toList()).toArray(
+                                            String[]::new
+                                        )
+                                    )
+                                    .setPartial(true)
+                                    .setWaitForCompletion(false)
+                                    .execute(l.map(createSnapshotResponse -> null))
+                            )
+                        );
+                    }
+
+                    ClusterServiceUtils
+
+                        .addTemporaryStateListener(
+                            masterClusterService,
+                            s -> SnapshotsInProgress.get(s)
+                                .forRepo(repoName)
+                                .stream()
+                                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-0"))
+                        )
+
+                        .<Void>andThen(
+                            (l1, v1) -> deterministicTaskQueue.scheduleNow(
+                                ActionRunnable.wrap(
+                                    l1,
+                                    l -> client().admin()
+                                        .cluster()
+                                        .prepareDeleteSnapshot(repoName, "snapshot-0")
+                                        .execute(new ActionListener<>() {
+                                            @Override
+                                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                                                l.onResponse(null);
+                                            }
+
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                final var cause = ExceptionsHelper.unwrapCause(e);
+                                                if (cause instanceof SnapshotMissingException) {
+                                                    l.onResponse(null);
+                                                } else {
+                                                    l.onFailure(e);
+                                                }
+                                            }
+                                        })
+                                )
+                            )
+                        )
+
+                        .addListener(listeners.acquire());
+                }
+            })
+
+            .<Void>andThen(
+                (l, v) -> ClusterServiceUtils.addTemporaryStateListener(
+                    masterClusterService,
+                    s -> SnapshotsInProgress.get(s).isEmpty() && SnapshotDeletionsInProgress.get(s).getEntries().isEmpty()
+                ).addListener(l)
+            )
+
+            .<Void>andThen(
+                (l, v) -> client().admin()
+                    .cluster()
+                    .prepareCreateSnapshot(repoName, "final-snapshot")
+                    .setPartial(false)
+                    .setWaitForCompletion(true)
+                    .execute(l.map(createSnapshotResponse -> {
+                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
+                        return null;
+                    }))
+            )
+
+            .<Void>andThen(
+                (l, v) -> client().admin()
+                    .cluster()
+                    .prepareDeleteSnapshot(repoName, "final-snapshot")
+                    .execute(l.map(deleteSnapshotResponse -> {
+                        assertTrue(deleteSnapshotResponse.isAcknowledged());
+                        return null;
+                    }))
+            )
+
+            .addListener(future);
+
+        deterministicTaskQueue.runAllRunnableTasks(); // no time passes
+        assertTrue(future.isDone());
+        future.get();
     }
 
     private RepositoryData getRepositoryData(Repository repository) {
