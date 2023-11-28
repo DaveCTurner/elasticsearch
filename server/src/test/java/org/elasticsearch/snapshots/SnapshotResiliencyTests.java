@@ -1239,7 +1239,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
         setupTestCluster(1, 1);
         final String repoName = "repo";
         final int indexCount = 4;
-        final int snapshotCount = 4;
         final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
         final var masterClusterService = masterNode.clusterService;
         final var masterTransport = masterNode.mockTransport;
@@ -1299,19 +1298,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 );
 
                 try (var listeners = new RefCountingListener(l0)) {
-                    for (int i = 0; i < snapshotCount; i++) {
+                    for (int i = 1; i < indexCount; i++) {
                         final var snapshotName = "snapshot-" + i;
+                        final var indexName = "index-" + i;
                         deterministicTaskQueue.scheduleNow(
                             ActionRunnable.wrap(
                                 listeners.acquire(),
                                 l -> client().admin()
                                     .cluster()
                                     .prepareCreateSnapshot(repoName, snapshotName)
-                                    .setIndices(
-                                        randomNonEmptySubsetOf(IntStream.range(0, indexCount).mapToObj(j -> "index-" + j).toList()).toArray(
-                                            String[]::new
-                                        )
-                                    )
+                                    .setIndices(Set.of("index-0", indexName).toArray(String[]::new))
                                     .setPartial(true)
                                     .setWaitForCompletion(false)
                                     .execute(l.map(createSnapshotResponse -> null))
@@ -1326,7 +1322,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             s -> SnapshotsInProgress.get(s)
                                 .forRepo(repoName)
                                 .stream()
-                                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-0"))
+                                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-1"))
                         )
 
                         .<Void>andThen(
@@ -1335,23 +1331,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                     l1,
                                     l -> client().admin()
                                         .cluster()
-                                        .prepareDeleteSnapshot(repoName, "snapshot-0")
-                                        .execute(new ActionListener<>() {
-                                            @Override
-                                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                                l.onResponse(null);
-                                            }
-
-                                            @Override
-                                            public void onFailure(Exception e) {
-                                                final var cause = ExceptionsHelper.unwrapCause(e);
-                                                if (cause instanceof SnapshotMissingException) {
-                                                    l.onResponse(null);
-                                                } else {
-                                                    l.onFailure(e);
-                                                }
-                                            }
-                                        })
+                                        .prepareDeleteSnapshot(repoName, "snapshot-1")
+                                        .execute(l.map(deleteSnapshotResponse -> {
+                                            assertTrue(deleteSnapshotResponse.isAcknowledged());
+                                            return null;
+                                        }))
                                 )
                             )
                         )
