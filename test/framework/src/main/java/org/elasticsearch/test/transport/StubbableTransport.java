@@ -75,7 +75,10 @@ public class StubbableTransport implements Transport {
         return connectBehaviors.put(transportAddress, connectBehavior) == null;
     }
 
-    <Request extends TransportRequest> void addRequestHandlingBehavior(String actionName, RequestHandlingBehavior<Request> behavior) {
+    public <Request extends TransportRequest> void addRequestHandlingBehavior(
+        String actionName,
+        RequestHandlingBehavior<Request> behavior
+    ) {
         final RequestHandlers requestHandlers = delegate.getRequestHandlers();
         final RequestHandlerRegistry<Request> realRegistry = requestHandlers.getHandler(actionName);
         if (realRegistry == null) {
@@ -90,7 +93,7 @@ public class StubbableTransport implements Transport {
         requestHandlers.forceRegister(newRegistry);
     }
 
-    void clearBehaviors() {
+    public void clearBehaviors() {
         clearOutboundBehaviors();
         clearInboundBehaviors();
     }

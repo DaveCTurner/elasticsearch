@@ -1224,14 +1224,25 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
+    private static UpdateIndexShardSnapshotStatusRequest maybeSimulateShardSnapshotFailure(UpdateIndexShardSnapshotStatusRequest request) {
+        if (request.status().state() != SnapshotsInProgress.ShardState.SUCCESS || randomBoolean() || randomBoolean() || true) {
+            return request;
+        }
+        return new UpdateIndexShardSnapshotStatusRequest(
+            request.snapshot(),
+            request.shardId(),
+            new SnapshotsInProgress.ShardSnapshotStatus(request.status().nodeId(), SnapshotsInProgress.ShardState.FAILED, "simulated", null)
+        );
+    }
+
     public void testOutOfOrderFinalization() throws Exception {
         setupTestCluster(1, 1);
         final String repoName = "repo";
         final int indexCount = 4;
         final int snapshotCount = 4;
-        final var masterClusterService = testClusterNodes.currentMaster(
-            testClusterNodes.nodes.values().iterator().next().clusterService.state()
-        ).clusterService;
+        final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
+        final var masterClusterService = masterNode.clusterService;
+        final var masterTransport = masterNode.mockTransport;
 
         final var future = new PlainActionFuture<Void>();
 
@@ -1257,16 +1268,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 }
             })
 
-            .<BulkResponse>andThen((l0, v0) -> {
+            .<BulkResponse>andThen((l, ignored) -> {
                 final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
                 for (int i = 0; i < indexCount; i++) {
                     bulkRequest.add(new IndexRequest("index-" + i).source(Collections.singletonMap("foo", "bar" + i)));
                 }
-                client().bulk(bulkRequest, l0);
+                client().bulk(bulkRequest, l);
             })
 
             .<Void>andThen(
-                (l, v) -> client().admin()
+                (l, ignored) -> client().admin()
                     .cluster()
                     .prepareCreateSnapshot(repoName, "initial-snapshot")
                     .setPartial(false)
@@ -1277,7 +1288,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     }))
             )
 
-            .<Void>andThen((l0, v0) -> {
+            .<Void>andThen((l0, ignored) -> {
+                masterTransport.addRequestHandlingBehavior(
+                    SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
+                    (handler, rawRequest, channel, task) -> handler.messageReceived(
+                        maybeSimulateShardSnapshotFailure(asInstanceOf(UpdateIndexShardSnapshotStatusRequest.class, rawRequest)),
+                        channel,
+                        task
+                    )
+                );
+
                 try (var listeners = new RefCountingListener(l0)) {
                     for (int i = 0; i < snapshotCount; i++) {
                         final var snapshotName = "snapshot-" + i;
@@ -1346,6 +1366,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     s -> SnapshotsInProgress.get(s).isEmpty() && SnapshotDeletionsInProgress.get(s).getEntries().isEmpty()
                 ).addListener(l)
             )
+
+            .<Void>andThen((l, v) -> ActionRunnable.run(l, masterTransport::clearBehaviors).run())
 
             .<Void>andThen(
                 (l, v) -> client().admin()
