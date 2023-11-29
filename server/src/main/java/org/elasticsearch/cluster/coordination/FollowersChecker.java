@@ -357,6 +357,12 @@ public final class FollowersChecker {
                             return;
                         }
 
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            throw new AssertionError("unexpected", e);
+                        }
+
                         failNode(reason);
                     }
                 }
