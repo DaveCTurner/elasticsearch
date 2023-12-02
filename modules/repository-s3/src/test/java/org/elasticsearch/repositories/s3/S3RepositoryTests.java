@@ -16,6 +16,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.MockBigArrays;
+import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.repositories.RepositoryException;
@@ -46,7 +47,7 @@ public class S3RepositoryTests extends ESTestCase {
     private static class DummyS3Service extends S3Service {
 
         DummyS3Service(Environment environment) {
-            super(environment, Settings.EMPTY, threadPool, SimpleS3StorageClassStrategyProvider.INSTANCE);
+            super(environment, Settings.EMPTY, new DeterministicTaskQueue().getThreadPool(), SimpleS3StorageClassStrategyProvider.INSTANCE);
         }
 
         @Override
