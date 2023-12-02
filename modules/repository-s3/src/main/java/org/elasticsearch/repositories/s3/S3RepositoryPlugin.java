@@ -84,14 +84,21 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
 
     @Override
     public Collection<?> createComponents(PluginServices services) {
-        service.set(s3Service(services.environment(), services.clusterService().getSettings()));
+        service.set(
+            s3Service(
+                services.environment(),
+                services.clusterService().getSettings(),
+                services.pluginsService()
+                    .loadSingletonServiceProvider(S3StorageClassStrategyProvider.class, () -> SimpleS3StorageClassStrategy::new)
+            )
+        );
         this.service.get().refreshAndClearCache(S3ClientSettings.load(settings));
         meterRegistry.set(services.telemetryProvider().getMeterRegistry());
         return List.of(service);
     }
 
-    S3Service s3Service(Environment environment, Settings nodeSettings) {
-        return new S3Service(environment, nodeSettings);
+    S3Service s3Service(Environment environment, Settings nodeSettings, S3StorageClassStrategyProvider storageClassStrategyProvider) {
+        return new S3Service(environment, nodeSettings, storageClassStrategyProvider);
     }
 
     @Override
