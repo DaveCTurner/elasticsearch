@@ -89,7 +89,7 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
                 services.environment(),
                 services.clusterService().getSettings(),
                 services.pluginsService()
-                    .loadSingletonServiceProvider(S3StorageClassStrategyProvider.class, () -> SimpleS3StorageClassStrategy::new)
+                    .loadSingletonServiceProvider(S3StorageClassStrategyProvider.class, () -> SimpleS3StorageClassStrategyProvider.INSTANCE)
             )
         );
         this.service.get().refreshAndClearCache(S3ClientSettings.load(settings));

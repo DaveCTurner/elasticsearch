@@ -14,14 +14,14 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.repositories.s3.S3StorageClassStrategy;
 import org.elasticsearch.repositories.s3.S3StorageClassStrategyProvider;
-import org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategy;
+import org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider;
 
-import static org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategy.STORAGE_CLASS_SETTING;
+import static org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider.STORAGE_CLASS_SETTING;
 
 public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStrategyProvider {
     /**
      * Sets the S3 storage class type for the backup metadata objects. Values may be standard, reduced_redundancy, standard_ia, onezone_ia
-     * and intelligent_tiering. By default, falls back to {@link SimpleS3StorageClassStrategy#STORAGE_CLASS_SETTING}.
+     * and intelligent_tiering. By default, falls back to {@link SimpleS3StorageClassStrategyProvider#STORAGE_CLASS_SETTING}.
      */
     private static final Setting<String> METADATA_STORAGE_CLASS_SETTING = Setting.simpleString(
         "metadata_storage_class",
