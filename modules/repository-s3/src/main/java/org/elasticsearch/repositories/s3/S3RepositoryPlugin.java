@@ -25,6 +25,7 @@ import org.elasticsearch.plugins.ReloadablePlugin;
 import org.elasticsearch.plugins.RepositoryPlugin;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import java.io.IOException;
@@ -88,6 +89,7 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
             s3Service(
                 services.environment(),
                 services.clusterService().getSettings(),
+                services.threadPool(),
                 getStorageClassStrategyProvider(services.pluginsService())
             )
         );
@@ -105,8 +107,8 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
         );
     }
 
-    S3Service s3Service(Environment environment, Settings nodeSettings, S3StorageClassStrategyProvider storageClassStrategyProvider) {
-        return new S3Service(environment, nodeSettings, storageClassStrategyProvider);
+    S3Service s3Service(Environment environment, Settings nodeSettings, ThreadPool threadPool, S3StorageClassStrategyProvider storageClassStrategyProvider) {
+        return new S3Service(environment, nodeSettings, threadPool, storageClassStrategyProvider);
     }
 
     @Override

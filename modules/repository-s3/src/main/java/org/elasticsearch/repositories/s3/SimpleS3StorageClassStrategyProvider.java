@@ -13,6 +13,7 @@ import com.amazonaws.services.s3.model.StorageClass;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public class SimpleS3StorageClassStrategyProvider implements S3StorageClassStrategyProvider {
 
@@ -27,7 +28,7 @@ public class SimpleS3StorageClassStrategyProvider implements S3StorageClassStrat
     public static final Setting<String> STORAGE_CLASS_SETTING = Setting.simpleString("storage_class");
 
     @Override
-    public S3StorageClassStrategy getS3StorageClassStrategy(Settings repositorySettings) {
+    public S3StorageClassStrategy getS3StorageClassStrategy(ThreadPool threadPool, Settings repositorySettings) {
         return new S3StorageClassStrategy() {
             private final StorageClass storageClass = S3StorageClassStrategyProvider.parseStorageClass(
                 STORAGE_CLASS_SETTING.get(repositorySettings)

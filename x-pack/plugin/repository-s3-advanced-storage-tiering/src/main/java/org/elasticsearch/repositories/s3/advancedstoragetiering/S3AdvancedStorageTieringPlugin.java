@@ -7,9 +7,15 @@
 
 package org.elasticsearch.repositories.s3.advancedstoragetiering;
 
+import org.elasticsearch.license.License;
+import org.elasticsearch.license.LicensedFeature;
 import org.elasticsearch.plugins.Plugin;
 
 @SuppressWarnings("unused")
 public class S3AdvancedStorageTieringPlugin extends Plugin {
-    // only exists to supply an AdvancedS3StorageClassStrategyProvider via SPI
+    public static final LicensedFeature.Momentary S3_ADVANCED_STORAGE_TIERING_FEATURE = LicensedFeature.momentary(
+        null,
+        "repository-s3-advanced-storage-tiering",
+        License.OperationMode.ENTERPRISE
+    );
 }

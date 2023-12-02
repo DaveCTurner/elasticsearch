@@ -14,6 +14,7 @@ import com.amazonaws.services.s3.AmazonS3Client;
 
 import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.test.ESTestCase;
 import org.mockito.Mockito;
@@ -182,7 +183,7 @@ public class S3ClientSettingsTests extends ESTestCase {
             S3Service s3Service = new S3Service(
                 Mockito.mock(Environment.class),
                 Settings.EMPTY,
-                SimpleS3StorageClassStrategyProvider.INSTANCE
+                new DeterministicTaskQueue().getThreadPool(), SimpleS3StorageClassStrategyProvider.INSTANCE
             )
         ) {
             AmazonS3Client other = (AmazonS3Client) s3Service.buildClient(settings.get("other"));
