@@ -8,6 +8,8 @@
 
 package org.elasticsearch.repositories.s3;
 
+import com.amazonaws.services.s3.model.StorageClass;
+
 import org.elasticsearch.common.settings.Settings;
 
 /**
@@ -15,4 +17,8 @@ import org.elasticsearch.common.settings.Settings;
  */
 public interface S3StorageClassStrategyProvider {
     S3StorageClassStrategy getS3StorageClassStrategy(Settings repositorySettings);
+
+    static StorageClass parseStorageClass(String storageClassString) {
+        return S3BlobStore.initStorageClass(storageClassString);
+    }
 }

@@ -359,7 +359,8 @@ tasks.named("jar") {
 }
 
 def resolveMainWrapperVersion() {
-  new URL("https://raw.githubusercontent.com/elastic/elasticsearch/main/build-tools-internal/src/main/resources/minimumGradleVersion").text.trim()
+  "8.5"
+  // new URL("https://raw.githubusercontent.com/elastic/elasticsearch/main/build-tools-internal/src/main/resources/minimumGradleVersion").text.trim()
 }
 
 abstract class JacksonAlignmentRule implements ComponentMetadataRule {
