@@ -256,9 +256,15 @@ class S3Repository extends MeteredBlobStoreRepository {
 
         coolDown = COOLDOWN_PERIOD.get(metadata.settings());
 
-        logger.debug("""
-            using bucket [{}], chunk_size [{}], server_side_encryption [{}], buffer_size [{}], cannedACL [{}], \
-            storageClassStrategy [{}]""", bucket, chunkSize, serverSideEncryption, bufferSize, cannedACL, storageClassStrategy);
+        logger.debug(
+            "using bucket [{}], chunk_size [{}], server_side_encryption [{}], buffer_size [{}], cannedACL [{}], storageClass [{}]",
+            bucket,
+            chunkSize,
+            serverSideEncryption,
+            bufferSize,
+            cannedACL,
+            storageClassStrategy
+        );
     }
 
     private static Map<String, String> buildLocation(RepositoryMetadata metadata) {
