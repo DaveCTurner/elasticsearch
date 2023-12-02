@@ -284,6 +284,10 @@ class S3Service implements Closeable {
         webIdentityTokenCredentialsProvider.shutdown();
     }
 
+    public S3StorageClassStrategy getStorageClassStrategy(Settings settings) {
+        return new SimpleS3StorageClassStrategy(settings);
+    }
+
     static class PrivilegedAWSCredentialsProvider implements AWSCredentialsProvider {
         private final AWSCredentialsProvider credentialsProvider;
 
