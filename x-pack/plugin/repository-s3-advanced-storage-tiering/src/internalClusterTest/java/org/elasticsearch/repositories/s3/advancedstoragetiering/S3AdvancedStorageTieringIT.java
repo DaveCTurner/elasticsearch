@@ -13,7 +13,6 @@ import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.repositories.s3.S3StorageClassStrategy;
 import org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import static com.amazonaws.services.s3.model.StorageClass.OneZoneInfrequentAccess;
 import static com.amazonaws.services.s3.model.StorageClass.Standard;
@@ -58,7 +57,6 @@ public class S3AdvancedStorageTieringIT extends ESIntegTestCase {
 
     private static S3StorageClassStrategy getStrategy(Settings.Builder settings) {
         return getStorageClassStrategyProvider(internalCluster().getInstance(PluginsService.class)).getS3StorageClassStrategy(
-            internalCluster().getInstance(ThreadPool.class),
             settings.build()
         );
     }

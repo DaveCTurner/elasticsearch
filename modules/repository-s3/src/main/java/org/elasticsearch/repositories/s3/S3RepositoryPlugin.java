@@ -107,8 +107,13 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
         );
     }
 
-    S3Service s3Service(Environment environment, Settings nodeSettings, ThreadPool threadPool, S3StorageClassStrategyProvider storageClassStrategyProvider) {
-        return new S3Service(environment, nodeSettings, threadPool, storageClassStrategyProvider);
+    S3Service s3Service(
+        Environment environment,
+        Settings nodeSettings,
+        ThreadPool threadPool,
+        S3StorageClassStrategyProvider storageClassStrategyProvider
+    ) {
+        return new S3Service(environment, nodeSettings, storageClassStrategyProvider);
     }
 
     @Override

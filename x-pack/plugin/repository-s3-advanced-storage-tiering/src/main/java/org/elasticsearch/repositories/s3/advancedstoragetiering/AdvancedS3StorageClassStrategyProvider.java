@@ -9,22 +9,20 @@ package org.elasticsearch.repositories.s3.advancedstoragetiering;
 
 import com.amazonaws.services.s3.model.StorageClass;
 
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.blobstore.OperationPurpose;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
 import org.elasticsearch.repositories.s3.S3StorageClassStrategy;
 import org.elasticsearch.repositories.s3.S3StorageClassStrategyProvider;
 import org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider;
-import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xpack.core.XPackPlugin;
 
 import static org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider.STORAGE_CLASS_SETTING;
 import static org.elasticsearch.repositories.s3.advancedstoragetiering.S3AdvancedStorageTieringPlugin.S3_ADVANCED_STORAGE_TIERING_FEATURE;
 
 public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStrategyProvider {
+
     /**
      * Sets the S3 storage class type for the backup metadata objects. Values may be standard, reduced_redundancy, standard_ia, onezone_ia
      * and intelligent_tiering. By default, falls back to {@link SimpleS3StorageClassStrategyProvider#STORAGE_CLASS_SETTING}.
@@ -34,12 +32,9 @@ public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStr
         STORAGE_CLASS_SETTING
     );
 
-    private static final Logger logger = LogManager.getLogger(AdvancedS3StorageClassStrategyProvider.class);
-
     @Override
-    public S3StorageClassStrategy getS3StorageClassStrategy(ThreadPool threadPool, Settings repositorySettings) {
+    public S3StorageClassStrategy getS3StorageClassStrategy(Settings repositorySettings) {
         return new S3StorageClassStrategy() {
-            private static final long WARNING_INTERVAL_MILLIS = TimeValue.timeValueMinutes(10).millis();
 
             private final StorageClass dataStorageClass = S3StorageClassStrategyProvider.parseStorageClass(
                 STORAGE_CLASS_SETTING.get(repositorySettings)
@@ -47,17 +42,6 @@ public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStr
             private final StorageClass metadataStorageClass = S3StorageClassStrategyProvider.parseStorageClass(
                 METADATA_STORAGE_CLASS_SETTING.get(repositorySettings)
             );
-
-            private long lastWarningTimeMillis = threadPool.relativeTimeInMillis() - WARNING_INTERVAL_MILLIS;
-
-            private synchronized boolean needsNotAvailableWarning(long currentTimeMillis) {
-                if (currentTimeMillis - lastWarningTimeMillis <= WARNING_INTERVAL_MILLIS) {
-                    return false;
-                }
-
-                lastWarningTimeMillis = currentTimeMillis;
-                return true;
-            }
 
             @Override
             public StorageClass getStorageClass(OperationPurpose operationPurpose) {
@@ -67,13 +51,15 @@ public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStr
 
                 final var licenseState = XPackPlugin.getSharedLicenseState();
                 if (S3_ADVANCED_STORAGE_TIERING_FEATURE.check(licenseState) == false) {
-                    if (needsNotAvailableWarning(threadPool.relativeTimeInMillis())) {
-                        logger.warn(
-                            "advanced storage tiering is not available with the current license level of [{}]",
-                            licenseState.getOperationMode().description()
-                        );
-                    }
-                    return dataStorageClass;
+                    throw new IllegalArgumentException(
+                        Strings.format(
+                            """
+                                advanced storage tiering is not available with the current license level of [%s]; \
+                                either install an appropriate license or remove the [%s] repository setting""",
+                            licenseState.getOperationMode(),
+                            METADATA_STORAGE_CLASS_SETTING.getKey()
+                        )
+                    );
                 }
 
                 if (operationPurpose == OperationPurpose.INDICES) { // TODO!
@@ -85,7 +71,11 @@ public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStr
 
             @Override
             public String toString() {
-                return "Advanced[data=" + dataStorageClass + ", metadata=" + metadataStorageClass + "]";
+                if (dataStorageClass == metadataStorageClass) {
+                    return dataStorageClass.toString();
+                } else {
+                    return "Advanced[data=" + dataStorageClass + ", metadata=" + metadataStorageClass + "]";
+                }
             }
         };
     }

@@ -80,12 +80,7 @@ public class S3BlobContainerRetriesTests extends AbstractBlobContainerRetriesTes
 
     @Before
     public void setUp() throws Exception {
-        service = new S3Service(
-            Mockito.mock(Environment.class),
-            Settings.EMPTY,
-            new DeterministicTaskQueue().getThreadPool(),
-            SimpleS3StorageClassStrategyProvider.INSTANCE
-        );
+        service = new S3Service(Mockito.mock(Environment.class), Settings.EMPTY, SimpleS3StorageClassStrategyProvider.INSTANCE);
         super.setUp();
     }
 

@@ -183,7 +183,8 @@ public class S3ClientSettingsTests extends ESTestCase {
             S3Service s3Service = new S3Service(
                 Mockito.mock(Environment.class),
                 Settings.EMPTY,
-                new DeterministicTaskQueue().getThreadPool(), SimpleS3StorageClassStrategyProvider.INSTANCE
+                new DeterministicTaskQueue().getThreadPool(),
+                SimpleS3StorageClassStrategyProvider.INSTANCE
             )
         ) {
             AmazonS3Client other = (AmazonS3Client) s3Service.buildClient(settings.get("other"));

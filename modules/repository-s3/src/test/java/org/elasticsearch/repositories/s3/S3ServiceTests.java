@@ -9,7 +9,6 @@ package org.elasticsearch.repositories.s3;
 
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.test.ESTestCase;
 import org.mockito.Mockito;
@@ -22,7 +21,6 @@ public class S3ServiceTests extends ESTestCase {
         final S3Service s3Service = new S3Service(
             Mockito.mock(Environment.class),
             Settings.EMPTY,
-            new DeterministicTaskQueue().getThreadPool(),
             SimpleS3StorageClassStrategyProvider.INSTANCE
         );
         final Settings settings = Settings.builder().put("endpoint", "http://first").build();

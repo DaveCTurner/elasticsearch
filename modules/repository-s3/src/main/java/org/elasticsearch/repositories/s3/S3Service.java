@@ -37,7 +37,6 @@ import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -91,10 +90,9 @@ class S3Service implements Closeable {
     final TimeValue compareAndExchangeTimeToLive;
     final TimeValue compareAndExchangeAntiContentionDelay;
 
-    private final ThreadPool threadPool;
     private final S3StorageClassStrategyProvider storageClassStrategyProvider;
 
-    S3Service(Environment environment, Settings nodeSettings, ThreadPool threadPool, S3StorageClassStrategyProvider storageClassStrategyProvider) {
+    S3Service(Environment environment, Settings nodeSettings, S3StorageClassStrategyProvider storageClassStrategyProvider) {
         webIdentityTokenCredentialsProvider = new CustomWebIdentityTokenCredentialsProvider(
             environment,
             System::getenv,
@@ -103,7 +101,6 @@ class S3Service implements Closeable {
         );
         compareAndExchangeTimeToLive = REPOSITORY_S3_CAS_TTL_SETTING.get(nodeSettings);
         compareAndExchangeAntiContentionDelay = REPOSITORY_S3_CAS_ANTI_CONTENTION_DELAY_SETTING.get(nodeSettings);
-        this.threadPool = threadPool;
         this.storageClassStrategyProvider = storageClassStrategyProvider;
     }
 
@@ -291,7 +288,7 @@ class S3Service implements Closeable {
     }
 
     public S3StorageClassStrategy getStorageClassStrategy(Settings settings) {
-        return storageClassStrategyProvider.getS3StorageClassStrategy(threadPool, settings);
+        return storageClassStrategyProvider.getS3StorageClassStrategy(settings);
     }
 
     static class PrivilegedAWSCredentialsProvider implements AWSCredentialsProvider {

@@ -302,7 +302,7 @@ public class RepositoryCredentialsTests extends ESSingleNodeTestCase {
                 ThreadPool threadPool,
                 S3StorageClassStrategyProvider storageClassStrategyProvider
             ) {
-                super(environment, nodeSettings, threadPool, storageClassStrategyProvider);
+                super(environment, nodeSettings, storageClassStrategyProvider);
             }
 
             @Override
