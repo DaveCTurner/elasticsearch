@@ -8,7 +8,6 @@
 
 package org.elasticsearch.repositories.s3;
 
-import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.util.json.Jackson;
 
 import org.apache.lucene.util.SetOnce;
@@ -21,6 +20,7 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.plugins.ReloadablePlugin;
 import org.elasticsearch.plugins.RepositoryPlugin;
 import org.elasticsearch.repositories.Repository;
@@ -51,7 +51,7 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
                 // TODO: fix that
                 Class.forName("com.amazonaws.ClientConfiguration");
                 // Pre-load region metadata to avoid looking them up dynamically without privileges enabled
-                RegionUtils.initialize();
+                // RegionUtils.initialize(); TODO!
             } catch (final ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -88,13 +88,21 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
             s3Service(
                 services.environment(),
                 services.clusterService().getSettings(),
-                services.pluginsService()
-                    .loadSingletonServiceProvider(S3StorageClassStrategyProvider.class, () -> SimpleS3StorageClassStrategyProvider.INSTANCE)
+                getStorageClassStrategyProvider(services.pluginsService())
             )
         );
         this.service.get().refreshAndClearCache(S3ClientSettings.load(settings));
         meterRegistry.set(services.telemetryProvider().getMeterRegistry());
         return List.of(service);
+    }
+
+    public static S3StorageClassStrategyProvider getStorageClassStrategyProvider(PluginsService pluginsService) {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<S3StorageClassStrategyProvider>) () -> pluginsService.loadSingletonServiceProvider(
+                S3StorageClassStrategyProvider.class,
+                () -> SimpleS3StorageClassStrategyProvider.INSTANCE
+            )
+        );
     }
 
     S3Service s3Service(Environment environment, Settings nodeSettings, S3StorageClassStrategyProvider storageClassStrategyProvider) {

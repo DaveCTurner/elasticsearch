@@ -7,8 +7,57 @@
 
 package org.elasticsearch.repositories.s3.advancedstoragetiering;
 
+import org.elasticsearch.common.blobstore.OperationPurpose;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.plugins.PluginsService;
+import org.elasticsearch.repositories.s3.S3StorageClassStrategyProvider;
+import org.elasticsearch.repositories.s3.SimpleS3StorageClassStrategyProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
+import static com.amazonaws.services.s3.model.StorageClass.OneZoneInfrequentAccess;
+import static com.amazonaws.services.s3.model.StorageClass.Standard;
+import static com.amazonaws.services.s3.model.StorageClass.StandardInfrequentAccess;
+import static org.elasticsearch.repositories.s3.S3RepositoryPlugin.getStorageClassStrategyProvider;
+
 public class S3AdvancedStorageTieringIT extends ESIntegTestCase {
-    // TODO
+    public void testDefaultStrategy() {
+        final var defaultStrategy = getProvider().getS3StorageClassStrategy(Settings.EMPTY);
+        assertEquals("Advanced[data=STANDARD, metadata=STANDARD]", defaultStrategy.toString());
+        for (final var purpose : OperationPurpose.values()) {
+            assertEquals(purpose.toString(), Standard, defaultStrategy.getStorageClass(purpose));
+        }
+    }
+
+    public void testConstantStrategy() {
+        final var constantStrategy = getProvider().getS3StorageClassStrategy(
+            Settings.builder()
+                .put(SimpleS3StorageClassStrategyProvider.STORAGE_CLASS_SETTING.getKey(), OneZoneInfrequentAccess.toString())
+                .build()
+        );
+        assertEquals("Advanced[data=ONEZONE_IA, metadata=ONEZONE_IA]", constantStrategy.toString());
+        for (final var purpose : OperationPurpose.values()) {
+            assertEquals(purpose.toString(), OneZoneInfrequentAccess, constantStrategy.getStorageClass(purpose));
+        }
+    }
+
+    public void testAdvancedStrategy() {
+        final var advancedStrategy = getProvider().getS3StorageClassStrategy(
+            Settings.builder()
+                .put(SimpleS3StorageClassStrategyProvider.STORAGE_CLASS_SETTING.getKey(), OneZoneInfrequentAccess.toString())
+                .put(AdvancedS3StorageClassStrategyProvider.METADATA_STORAGE_CLASS_SETTING.getKey(), StandardInfrequentAccess.toString())
+                .build()
+        );
+        assertEquals("Advanced[data=ONEZONE_IA, metadata=STANDARD_IA]", advancedStrategy.toString());
+        for (final var purpose : OperationPurpose.values()) {
+            assertEquals(
+                purpose.toString(),
+                purpose == OperationPurpose.INDICES ? OneZoneInfrequentAccess : StandardInfrequentAccess,
+                advancedStrategy.getStorageClass(purpose)
+            );
+        }
+    }
+
+    private static S3StorageClassStrategyProvider getProvider() {
+        return getStorageClassStrategyProvider(internalCluster().getInstance(PluginsService.class));
+    }
 }

@@ -23,7 +23,7 @@ public class AdvancedS3StorageClassStrategyProvider implements S3StorageClassStr
      * Sets the S3 storage class type for the backup metadata objects. Values may be standard, reduced_redundancy, standard_ia, onezone_ia
      * and intelligent_tiering. By default, falls back to {@link SimpleS3StorageClassStrategyProvider#STORAGE_CLASS_SETTING}.
      */
-    private static final Setting<String> METADATA_STORAGE_CLASS_SETTING = Setting.simpleString(
+    public static final Setting<String> METADATA_STORAGE_CLASS_SETTING = Setting.simpleString(
         "metadata_storage_class",
         STORAGE_CLASS_SETTING
     );
