@@ -23,7 +23,7 @@ public class S3AdvancedStorageTieringIT extends ESIntegTestCase {
 
     public void testDefaultStrategy() {
         final var defaultStrategy = getStrategy(Settings.builder());
-        assertEquals("Advanced[data=STANDARD, metadata=STANDARD]", defaultStrategy.toString());
+        assertEquals("STANDARD", defaultStrategy.toString());
         for (final var purpose : OperationPurpose.values()) {
             assertEquals(purpose.toString(), Standard, defaultStrategy.getStorageClass(purpose));
         }
@@ -33,7 +33,7 @@ public class S3AdvancedStorageTieringIT extends ESIntegTestCase {
         final var constantStrategy = getStrategy(
             Settings.builder().put(SimpleS3StorageClassStrategyProvider.STORAGE_CLASS_SETTING.getKey(), OneZoneInfrequentAccess.toString())
         );
-        assertEquals("Advanced[data=ONEZONE_IA, metadata=ONEZONE_IA]", constantStrategy.toString());
+        assertEquals("ONEZONE_IA", constantStrategy.toString());
         for (final var purpose : OperationPurpose.values()) {
             assertEquals(purpose.toString(), OneZoneInfrequentAccess, constantStrategy.getStorageClass(purpose));
         }
@@ -56,8 +56,9 @@ public class S3AdvancedStorageTieringIT extends ESIntegTestCase {
     }
 
     private static S3StorageClassStrategy getStrategy(Settings.Builder settings) {
-        return getStorageClassStrategyProvider(internalCluster().getInstance(PluginsService.class)).getS3StorageClassStrategy(
-            settings.build()
-        );
+        return asInstanceOf(
+            AdvancedS3StorageClassStrategyProvider.class,
+            getStorageClassStrategyProvider(internalCluster().getInstance(PluginsService.class))
+        ).getS3StorageClassStrategy(settings.build());
     }
 }
