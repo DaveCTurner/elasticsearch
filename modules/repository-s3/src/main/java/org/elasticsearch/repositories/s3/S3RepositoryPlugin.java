@@ -88,7 +88,6 @@ public class S3RepositoryPlugin extends Plugin implements RepositoryPlugin, Relo
             s3Service(
                 services.environment(),
                 services.clusterService().getSettings(),
-                services.threadPool(),
                 getStorageClassStrategyProvider(services.pluginsService())
             )
         );
