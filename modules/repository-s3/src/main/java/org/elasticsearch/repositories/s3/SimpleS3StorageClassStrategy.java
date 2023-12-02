@@ -11,14 +11,21 @@ package org.elasticsearch.repositories.s3;
 import com.amazonaws.services.s3.model.StorageClass;
 
 import org.elasticsearch.common.blobstore.OperationPurpose;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 
 public class SimpleS3StorageClassStrategy implements S3StorageClassStrategy {
 
+    /**
+     * Sets the S3 storage class type for the backup data objects. Values may be standard, reduced_redundancy,
+     * standard_ia, onezone_ia and intelligent_tiering. Defaults to standard.
+     */
+    public static final Setting<String> STORAGE_CLASS_SETTING = Setting.simpleString("storage_class");
+
     private final StorageClass storageClass;
 
     public SimpleS3StorageClassStrategy(Settings repositorySettings) {
-        storageClass = S3BlobStore.initStorageClass(S3Repository.STORAGE_CLASS_SETTING.get(repositorySettings));
+        storageClass = S3StorageClassStrategyProvider.parseStorageClass(STORAGE_CLASS_SETTING.get(repositorySettings));
     }
 
     @Override
