@@ -301,9 +301,10 @@ include::repository-shared-settings.asciidoc[]
 
 `metadata_storage_class`::
 
-    Sets the S3 storage class for metadata objects written to the repository.
-    Values may be `standard`, `reduced_redundancy`, `standard_ia`, `onezone_ia`
-    and `intelligent_tiering`. If unset, metadata objects use the same storage
+    Sets the S3 storage class for metadata objects written to the repository,
+    if advanced storage tiering is in use. Values may be `standard`,
+    `reduced_redundancy`, `standard_ia`, `onezone_ia` and
+    `intelligent_tiering`. If unset, metadata objects use the same storage
     class as data objects, as set by the `storage_class` setting. See
     <<repository-s3-storage-classes>> for more information.
 
@@ -356,11 +357,12 @@ or more metadata objects, which means that typically the majority of requests
 to a repository will target metadata objects.
 
 You may specify the storage class that {es} uses to store data objects with the
-`storage_class` repository setting, and may also specify a different storage
-class for metadata objects with the `metadata_storage_class` repository
-setting. The `standard` storage class is well-suited to metadata objects since
-they are small and accessed frequently. In contrast, the larger data objects
-are accessed less frequently so a different storage class may be more suitable.
+`storage_class` repository setting. If advanced storage tiering is in use you
+may also specify a different storage class for metadata objects with the
+`metadata_storage_class` repository setting. The `standard` storage class is
+well-suited to metadata objects since they are small and accessed frequently.
+In contrast, the larger data objects are accessed less frequently so a
+different storage class may be more suitable.
 
 Changing the `storage_class` or `metadata_storage_class` setting on an existing
 repository only affects the storage class for newly created objects, resulting
