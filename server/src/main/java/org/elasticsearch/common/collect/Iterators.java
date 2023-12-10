@@ -9,6 +9,8 @@
 package org.elasticsearch.common.collect;
 
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.Releasables;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -266,4 +268,7 @@ public class Iterators {
         return result;
     }
 
+    public static Releasable releasing(Iterator<Releasable> releasables) {
+        return Releasables.wrap(() -> releasables);
+    }
 }

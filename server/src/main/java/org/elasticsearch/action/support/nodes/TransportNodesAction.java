@@ -146,6 +146,7 @@ public abstract class TransportNodesAction<
 
             @Override
             protected void onItemResponse(DiscoveryNode discoveryNode, NodeResponse nodeResponse) {
+                nodeResponse.mustIncRef();
                 synchronized (responses) {
                     responses.add(nodeResponse);
                 }
@@ -162,7 +163,11 @@ public abstract class TransportNodesAction<
             @Override
             protected CheckedConsumer<ActionListener<NodesResponse>, Exception> onCompletion() {
                 // ref releases all happen-before here so no need to be synchronized
-                return l -> newResponseAsync(task, request, responses, exceptions, l);
+                return l -> {
+                    try (var ignored = Iterators.releasing(Iterators.map(responses.iterator(), r -> r::decRef))) {
+                        newResponseAsync(task, request, responses, exceptions, l);
+                    }
+                };
             }
 
             @Override

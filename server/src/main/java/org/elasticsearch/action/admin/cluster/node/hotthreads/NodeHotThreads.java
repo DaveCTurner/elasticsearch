@@ -34,7 +34,8 @@ public class NodeHotThreads extends BaseNodeResponse {
 
     public NodeHotThreads(DiscoveryNode node, ReleasableBytesReference hotThreadsUtf8Bytes) {
         super(node);
-        bytes = hotThreadsUtf8Bytes.retain();
+        assert hotThreadsUtf8Bytes.hasReferences();
+        bytes = hotThreadsUtf8Bytes; // takes ownership of the original ref, no need to .retain()
     }
 
     public String getHotThreads() {
