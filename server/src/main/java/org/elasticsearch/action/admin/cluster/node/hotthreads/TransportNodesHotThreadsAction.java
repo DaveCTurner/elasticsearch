@@ -15,9 +15,11 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -73,16 +75,25 @@ public class TransportNodesHotThreadsAction extends TransportNodesAction<
 
     @Override
     protected NodeHotThreads nodeOperation(NodeRequest request, Task task) {
-        HotThreads hotThreads = new HotThreads().busiestThreads(request.request.threads)
+        final var hotThreads = new HotThreads().busiestThreads(request.request.threads)
             .type(request.request.type)
             .sortOrder(request.request.sortOrder)
             .interval(request.request.interval)
             .threadElementsSnapshotCount(request.request.snapshots)
             .ignoreIdleThreads(request.request.ignoreIdleThreads);
+        final var out = transportService.newNetworkBytesStream();
+        var success = false;
         try {
-            return new NodeHotThreads(clusterService.localNode(), hotThreads.detect());
+            hotThreads.detect(out);
+            final var result = new NodeHotThreads(clusterService.localNode(), new ReleasableBytesReference(out.bytes(), out));
+            success = true;
+            return result;
         } catch (Exception e) {
             throw new ElasticsearchException("failed to detect hot threads", e);
+        } finally {
+            if (success == false) {
+                IOUtils.closeWhileHandlingException(out);
+            }
         }
     }
 

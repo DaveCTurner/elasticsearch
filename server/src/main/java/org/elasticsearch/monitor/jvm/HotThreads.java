@@ -17,9 +17,13 @@ import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.transport.Transports;
 
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -154,12 +158,14 @@ public class HotThreads {
         return this;
     }
 
-    public String detect() throws Exception {
+    public void detect(OutputStream out) throws Exception {
         synchronized (mutex) {
-            return innerDetect(ManagementFactory.getThreadMXBean(), SunThreadInfo.INSTANCE, Thread.currentThread().getId(), (interval) -> {
-                Thread.sleep(interval);
-                return null;
-            });
+            try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+                innerDetect(ManagementFactory.getThreadMXBean(), SunThreadInfo.INSTANCE, Thread.currentThread().getId(), (interval) -> {
+                    Thread.sleep(interval);
+                    return null;
+                }, writer);
+            }
         }
     }
 
@@ -230,8 +236,13 @@ public class HotThreads {
         return (((double) time) / interval.nanos()) * 100;
     }
 
-    String innerDetect(ThreadMXBean threadBean, SunThreadInfo sunThreadInfo, long currentThreadId, SleepFunction<Long, Void> threadSleep)
-        throws Exception {
+    void innerDetect(
+        ThreadMXBean threadBean,
+        SunThreadInfo sunThreadInfo,
+        long currentThreadId,
+        SleepFunction<Long, Void> threadSleep,
+        Writer writer
+    ) throws Exception {
         if (threadBean.isThreadCpuTimeSupported() == false) {
             throw new ElasticsearchException("thread CPU time is not supported on this JDK");
         }
@@ -246,14 +257,14 @@ public class HotThreads {
             throw new ElasticsearchException("thread wait/blocked time accounting is not supported on this JDK");
         }
 
-        StringBuilder sb = new StringBuilder().append("Hot threads at ")
+        writer.append("Hot threads at ")
             .append(DATE_TIME_FORMATTER.format(LocalDateTime.now(Clock.systemUTC())))
             .append(", interval=")
-            .append(interval)
+            .append(interval.toString())
             .append(", busiestThreads=")
-            .append(busiestThreads)
+            .append(Integer.toString(busiestThreads))
             .append(", ignoreIdleThreads=")
-            .append(ignoreIdleThreads)
+            .append(Boolean.toString(ignoreIdleThreads))
             .append(":\n");
 
         // Capture before and after thread state with timings
@@ -303,7 +314,7 @@ public class HotThreads {
             ThreadTimeAccumulator topThread = topThreads.get(t);
 
             switch (type) {
-                case MEM -> sb.append(
+                case MEM -> writer.append(
                     String.format(
                         Locale.ROOT,
                         "%n%s memory allocated by thread '%s'%n",
@@ -318,7 +329,7 @@ public class HotThreads {
                         : getTimeSharePercentage(topThread.getOtherTime());
                     double percentTotal = (Transports.isTransportThread(threadName)) ? percentCpu : percentOther + percentCpu;
                     String otherLabel = (Transports.isTransportThread(threadName)) ? "idle" : "other";
-                    sb.append(
+                    writer.append(
                         String.format(
                             Locale.ROOT,
                             "%n%4.1f%% [cpu=%1.1f%%, %s=%1.1f%%] (%s out of %s) %s usage by thread '%s'%n",
@@ -336,7 +347,7 @@ public class HotThreads {
                 default -> {
                     long time = ThreadTimeAccumulator.valueGetterForReportType(type).applyAsLong(topThread);
                     double percent = getTimeSharePercentage(time);
-                    sb.append(
+                    writer.append(
                         String.format(
                             Locale.ROOT,
                             "%n%4.1f%% (%s out of %s) %s usage by thread '%s'%n",
@@ -377,12 +388,12 @@ public class HotThreads {
                 if (allInfos[i][t] != null) {
                     final StackTraceElement[] show = allInfos[i][t].getStackTrace();
                     if (count == 1) {
-                        sb.append(String.format(Locale.ROOT, "  unique snapshot%n"));
+                        writer.append(String.format(Locale.ROOT, "  unique snapshot%n"));
                         for (StackTraceElement frame : show) {
-                            sb.append(String.format(Locale.ROOT, "    %s%n", frame));
+                            writer.append(String.format(Locale.ROOT, "    %s%n", frame));
                         }
                     } else {
-                        sb.append(
+                        writer.append(
                             String.format(
                                 Locale.ROOT,
                                 "  %d/%d snapshots sharing following %d elements%n",
@@ -392,14 +403,12 @@ public class HotThreads {
                             )
                         );
                         for (int l = show.length - maxSim; l < show.length; l++) {
-                            sb.append(String.format(Locale.ROOT, "    %s%n", show[l]));
+                            writer.append(String.format(Locale.ROOT, "    %s%n", show[l]));
                         }
                     }
                 }
             }
         }
-
-        return sb.toString();
     }
 
     static int similarity(ThreadInfo threadInfo, ThreadInfo threadInfo0) {
