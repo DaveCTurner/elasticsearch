@@ -17,6 +17,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 
 public class NodeHotThreads extends BaseNodeResponse {
@@ -40,6 +42,15 @@ public class NodeHotThreads extends BaseNodeResponse {
 
     public String getHotThreads() {
         return bytes.utf8ToString();
+    }
+
+    public java.io.Reader getHotThreadsReader() {
+        try {
+            return new InputStreamReader(bytes.streamInput(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            assert false : e; // all in-memory, no IO takes place
+            return new StringReader("ERROR:" + e.toString());
+        }
     }
 
     @Override

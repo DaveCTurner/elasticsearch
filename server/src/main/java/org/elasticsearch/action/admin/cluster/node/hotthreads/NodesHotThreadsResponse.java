@@ -19,11 +19,9 @@ import org.elasticsearch.core.CheckedConsumer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 
 public class NodesHotThreadsResponse extends BaseNodesResponse<NodeHotThreads> {
 
@@ -36,7 +34,10 @@ public class NodesHotThreadsResponse extends BaseNodesResponse<NodeHotThreads> {
             getNodes().iterator(),
             node -> Iterators.concat(
                 Iterators.single(writer -> writer.append("::: ").append(node.getNode().toString()).append('\n')),
-                Iterators.map(new LinesIterator(node.getHotThreads()), line -> writer -> writer.append("   ").append(line).append('\n')),
+                Iterators.map(
+                    new LinesIterator(node.getHotThreadsReader()),
+                    line -> writer -> writer.append("   ").append(line).append('\n')
+                ),
                 Iterators.single(writer -> writer.append('\n'))
             )
         );
@@ -56,8 +57,8 @@ public class NodesHotThreadsResponse extends BaseNodesResponse<NodeHotThreads> {
         final BufferedReader reader;
         String nextLine;
 
-        private LinesIterator(String input) {
-            reader = new BufferedReader(new StringReader(Objects.requireNonNull(input)));
+        private LinesIterator(java.io.Reader reader) {
+            this.reader = new BufferedReader(reader);
             advance();
         }
 
