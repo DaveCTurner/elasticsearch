@@ -187,9 +187,11 @@ public abstract class TransportNodesAction<
     }
 
     /**
-     * Create a new {@link NodesResponse} (multi-node response).
+     * Create a new {@link NodesResponse}. This method is executed on {@link #finalExecutor}.
      *
-     * @param request The associated request.
+     * @param request The request whose response we are constructing. {@link TransportNodesAction} may have already released all its
+     *                references to this object before calling this method, so it's up to individual implementations to retain their own
+     *                reference to the request if still needed here.
      * @param responses All successful node-level responses.
      * @param failures All node-level failures.
      * @return Never {@code null}.
@@ -199,7 +201,11 @@ public abstract class TransportNodesAction<
 
     /**
      * Create a new {@link NodesResponse}, possibly asynchronously. The default implementation is synchronous and calls
-     * {@link #newResponse(BaseNodesRequest, List, List)}
+     * {@link #newResponse(BaseNodesRequest, List, List)}. This method is executed on {@link #finalExecutor}.
+     *
+     * @param request The request whose response we are constructing. {@link TransportNodesAction} may have already released all its
+     *                references to this object before calling this method, so it's up to individual implementations to retain their own
+     *                reference to the request if still needed here.
      */
     protected void newResponseAsync(
         Task task,
