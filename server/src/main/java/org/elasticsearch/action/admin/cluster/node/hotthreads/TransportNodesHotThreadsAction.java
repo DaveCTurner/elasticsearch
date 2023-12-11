@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.IOUtils;
@@ -27,6 +28,8 @@ import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class TransportNodesHotThreadsAction extends TransportNodesAction<
@@ -84,7 +87,9 @@ public class TransportNodesHotThreadsAction extends TransportNodesAction<
         final var out = transportService.newNetworkBytesStream();
         var success = false;
         try {
-            hotThreads.detect(out);
+            try (var writer = new OutputStreamWriter(Streams.flushOnCloseStream(out), StandardCharsets.UTF_8)) {
+                hotThreads.detect(writer);
+            }
             final var result = new NodeHotThreads(clusterService.localNode(), new ReleasableBytesReference(out.bytes(), out));
             success = true;
             return result;

@@ -8,9 +8,14 @@
 
 package org.elasticsearch.monitor.jvm;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.ReferenceDocs;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.Maps;
@@ -18,6 +23,8 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.transport.Transports;
 
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.management.ManagementFactory;
@@ -30,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToLongFunction;
@@ -71,6 +77,31 @@ public class HotThreads {
         "process reaper",
         "DestroyJavaVM"
     );
+
+    /**
+     * Capture and log the hot threads on the local node. Useful for capturing stack traces for unexpectedly-slow operations in production.
+     * The resulting log message may be large, and contains significant whitespace, so it is compressed and base64-encoded using {@link
+     * ChunkedLoggingStream}.
+     *
+     * @param logger        The logger to use for the logging
+     * @param level         The log level to use for the logging.
+     * @param prefix        The prefix to emit on each chunk of the logging.
+     * @param referenceDocs A link to the docs describing how to decode the logging.
+     */
+    public static void logLocalHotThreads(Logger logger, Level level, String prefix, ReferenceDocs referenceDocs) {
+        if (logger.isEnabled(level) == false) {
+            return;
+        }
+
+        try (
+            var stream = ChunkedLoggingStream.create(logger, level, prefix, referenceDocs);
+            var writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8)
+        ) {
+            new HotThreads().busiestThreads(500).ignoreIdleThreads(false).detect(writer);
+        } catch (Exception e) {
+            logger.error(() -> org.elasticsearch.common.Strings.format("failed to write local hot threads with prefix [%s]", prefix), e);
+        }
+    }
 
     public enum ReportType {
 
@@ -158,14 +189,12 @@ public class HotThreads {
         return this;
     }
 
-    public void detect(OutputStream out) throws Exception {
+    public void detect(Writer writer) throws Exception {
         synchronized (mutex) {
-            try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-                innerDetect(ManagementFactory.getThreadMXBean(), SunThreadInfo.INSTANCE, Thread.currentThread().getId(), (interval) -> {
+            innerDetect(ManagementFactory.getThreadMXBean(), SunThreadInfo.INSTANCE, Thread.currentThread().getId(), (interval) -> {
                     Thread.sleep(interval);
                     return null;
-                }, writer);
-            }
+            }, writer);
         }
     }
 
@@ -315,8 +344,7 @@ public class HotThreads {
 
             switch (type) {
                 case MEM -> writer.append(
-                    String.format(
-                        Locale.ROOT,
+                    Strings.format(
                         "%n%s memory allocated by thread '%s'%n",
                         ByteSizeValue.ofBytes(topThread.getAllocatedBytes()),
                         threadName
@@ -330,8 +358,7 @@ public class HotThreads {
                     double percentTotal = (Transports.isTransportThread(threadName)) ? percentCpu : percentOther + percentCpu;
                     String otherLabel = (Transports.isTransportThread(threadName)) ? "idle" : "other";
                     writer.append(
-                        String.format(
-                            Locale.ROOT,
+                        Strings.format(
                             "%n%4.1f%% [cpu=%1.1f%%, %s=%1.1f%%] (%s out of %s) %s usage by thread '%s'%n",
                             percentTotal,
                             percentCpu,
@@ -348,8 +375,7 @@ public class HotThreads {
                     long time = ThreadTimeAccumulator.valueGetterForReportType(type).applyAsLong(topThread);
                     double percent = getTimeSharePercentage(time);
                     writer.append(
-                        String.format(
-                            Locale.ROOT,
+                        Strings.format(
                             "%n%4.1f%% (%s out of %s) %s usage by thread '%s'%n",
                             percent,
                             TimeValue.timeValueNanos(time),
@@ -388,22 +414,16 @@ public class HotThreads {
                 if (allInfos[i][t] != null) {
                     final StackTraceElement[] show = allInfos[i][t].getStackTrace();
                     if (count == 1) {
-                        writer.append(String.format(Locale.ROOT, "  unique snapshot%n"));
+                        writer.append(Strings.format("  unique snapshot%n"));
                         for (StackTraceElement frame : show) {
-                            writer.append(String.format(Locale.ROOT, "    %s%n", frame));
+                            writer.append(Strings.format("    %s%n", frame));
                         }
                     } else {
                         writer.append(
-                            String.format(
-                                Locale.ROOT,
-                                "  %d/%d snapshots sharing following %d elements%n",
-                                count,
-                                threadElementsSnapshotCount,
-                                maxSim
-                            )
+                            Strings.format("  %d/%d snapshots sharing following %d elements%n", count, threadElementsSnapshotCount, maxSim)
                         );
                         for (int l = show.length - maxSim; l < show.length; l++) {
-                            writer.append(String.format(Locale.ROOT, "    %s%n", show[l]));
+                            writer.append(Strings.format("    %s%n", show[l]));
                         }
                     }
                 }

@@ -30,7 +30,6 @@ import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.io.FileSystemUtils;
-import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
@@ -954,9 +953,7 @@ public final class NodeEnvironment implements Closeable {
                     return;
                 }
                 nextShardLockHotThreadsNanos = now + TimeUnit.SECONDS.toNanos(60);
-                try (var stream = ChunkedLoggingStream.create(logger, Level.DEBUG, prefix, ReferenceDocs.SHARD_LOCK_TROUBLESHOOTING)) {
-                    new HotThreads().busiestThreads(500).ignoreIdleThreads(false).detect(stream);
-                }
+                HotThreads.logLocalHotThreads(logger, Level.DEBUG, prefix, ReferenceDocs.SHARD_LOCK_TROUBLESHOOTING);
             } catch (Exception e) {
                 logger.error(format("could not obtain %s", prefix), e);
             } finally {

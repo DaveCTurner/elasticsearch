@@ -303,7 +303,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(11)
             .ignoreIdleThreads(false);
 
-        String innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(innerResult, containsString("Hot threads at "));
         assertThat(innerResult, containsString("interval=10ms, busiestThreads=4, ignoreIdleThreads=false:"));
@@ -322,7 +322,7 @@ public class HotThreadsTests extends ESTestCase {
         assertThat(innerResult, containsString("org.elasticsearch.monitor.testOther.methodFinal(Some_File:1)"));
 
         // Let's ask again without progressing the CPU thread counters, e.g. resetting the mocks
-        innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(innerResult, containsString("0.0% [cpu=0.0%, other=0.0%] (0s out of 10ms) cpu usage by thread 'Thread 4'"));
         assertThat(innerResult, containsString("0.0% [cpu=0.0%, other=0.0%] (0s out of 10ms) cpu usage by thread 'Thread 3'"));
@@ -341,7 +341,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(11)
             .ignoreIdleThreads(false);
 
-        innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(innerResult, containsString("Hot threads at "));
         assertThat(innerResult, containsString("interval=10ms, busiestThreads=4, ignoreIdleThreads=false:"));
@@ -378,7 +378,7 @@ public class HotThreadsTests extends ESTestCase {
         List<ThreadInfo> waitOrderedInfos = List.of(allInfos.get(3), allInfos.get(1), allInfos.get(0), allInfos.get(2));
         when(mockedMXBean.getThreadInfo(ArgumentMatchers.any(), anyInt())).thenReturn(waitOrderedInfos.toArray(new ThreadInfo[0]));
 
-        String waitInnerResult = getInnerResult(hotWaitingThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String waitInnerResult = innerDetect(hotWaitingThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(
             waitInnerResult,
@@ -402,7 +402,7 @@ public class HotThreadsTests extends ESTestCase {
         waitOrderedInfos = List.of(allInfos.get(3), allInfos.get(1), allInfos.get(0), allInfos.get(2));
         when(mockedMXBean.getThreadInfo(ArgumentMatchers.any(), anyInt())).thenReturn(waitOrderedInfos.toArray(new ThreadInfo[0]));
 
-        waitInnerResult = getInnerResult(hotWaitingThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        waitInnerResult = innerDetect(hotWaitingThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(
             waitInnerResult,
@@ -432,7 +432,7 @@ public class HotThreadsTests extends ESTestCase {
         List<ThreadInfo> blockOrderedInfos = List.of(allInfos.get(2), allInfos.get(0), allInfos.get(1), allInfos.get(3));
         when(mockedMXBean.getThreadInfo(ArgumentMatchers.any(), anyInt())).thenReturn(blockOrderedInfos.toArray(new ThreadInfo[0]));
 
-        String blockInnerResult = getInnerResult(hotBlockedThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String blockInnerResult = innerDetect(hotBlockedThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(
             blockInnerResult,
@@ -456,7 +456,7 @@ public class HotThreadsTests extends ESTestCase {
         blockOrderedInfos = List.of(allInfos.get(2), allInfos.get(0), allInfos.get(1), allInfos.get(3));
         when(mockedMXBean.getThreadInfo(ArgumentMatchers.any(), anyInt())).thenReturn(blockOrderedInfos.toArray(new ThreadInfo[0]));
 
-        blockInnerResult = getInnerResult(hotBlockedThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        blockInnerResult = innerDetect(hotBlockedThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(
             blockInnerResult,
@@ -491,7 +491,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(1)
             .ignoreIdleThreads(false);
 
-        String memInnerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String memInnerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
         assertThat(memInnerResult, containsString("  unique snapshot"));
         assertThat(
             memInnerResult,
@@ -520,7 +520,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(1)
             .ignoreIdleThreads(false);
 
-        memInnerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        memInnerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
         assertThat(memInnerResult, containsString("  unique snapshot"));
         assertThat(
             memInnerResult,
@@ -552,7 +552,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(1)
             .ignoreIdleThreads(false);
 
-        String singleResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String singleResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(singleResult, containsString("  unique snapshot"));
         assertEquals(5, singleResult.split(" unique snapshot").length);
@@ -582,7 +582,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(11)
             .ignoreIdleThreads(false);
 
-        String innerResult = getInnerResult(hotThreads, mockedMXBean, mock(SunThreadInfo.class), mockCurrentThreadId);
+        String innerResult = innerDetect(hotThreads, mockedMXBean, mock(SunThreadInfo.class), mockCurrentThreadId);
 
         assertEquals(1, innerResult.lines().count());
     }
@@ -812,7 +812,7 @@ public class HotThreadsTests extends ESTestCase {
 
         Exception e = expectThrows(
             ElasticsearchException.class,
-            () -> getInnerResult(hotThreads, mockedMXBean, mock(SunThreadInfo.class), mockCurrentThreadId)
+            () -> innerDetect(hotThreads, mockedMXBean, mock(SunThreadInfo.class), mockCurrentThreadId)
         );
         assertEquals(e.getMessage(), "thread wait/blocked time accounting is not supported on this JDK");
 
@@ -847,7 +847,7 @@ public class HotThreadsTests extends ESTestCase {
 
         ElasticsearchException exception = expectThrows(
             ElasticsearchException.class,
-            () -> getInnerResult(hotThreads0, mockedMXBean, mockedSunThreadInfo, 0L)
+            () -> innerDetect(hotThreads0, mockedMXBean, mockedSunThreadInfo, 0L)
         );
         assertThat(exception.getMessage(), equalTo("thread allocated memory is not supported on this JDK"));
     }
@@ -870,7 +870,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(11)
             .ignoreIdleThreads(false);
 
-        String innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        String innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(innerResult, containsString("Hot threads at "));
         assertThat(innerResult, containsString("interval=10ms, busiestThreads=4, ignoreIdleThreads=false:"));
@@ -889,7 +889,7 @@ public class HotThreadsTests extends ESTestCase {
         assertThat(innerResult, containsString("org.elasticsearch.monitor.testOther.methodFinal(Some_File:1)"));
 
         // Let's ask again without progressing the CPU thread counters, e.g. resetting the mocks
-        innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(
             innerResult,
@@ -920,7 +920,7 @@ public class HotThreadsTests extends ESTestCase {
             .threadElementsSnapshotCount(11)
             .ignoreIdleThreads(false);
 
-        innerResult = getInnerResult(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
+        innerResult = innerDetect(hotThreads, mockedMXBean, mockedSunThreadInfo, mockCurrentThreadId);
 
         assertThat(innerResult, containsString("Hot threads at "));
         assertThat(innerResult, containsString("interval=10ms, busiestThreads=4, ignoreIdleThreads=false:"));
@@ -939,14 +939,14 @@ public class HotThreadsTests extends ESTestCase {
         assertThat(innerResult, containsString("org.elasticsearch.monitor.testOther.methodFinal(Some_File:1)"));
     }
 
-    private static String getInnerResult(
+    private static String innerDetect(
         HotThreads hotThreads,
-        ThreadMXBean threadMXBean,
+        ThreadMXBean mockedMthreadMXBeanBean,
         SunThreadInfo sunThreadInfo,
         long currentThreadId
     ) throws Exception {
         try (var writer = new StringWriter()) {
-            hotThreads.innerDetect(threadMXBean, sunThreadInfo, currentThreadId, (interval) -> null, writer);
+            hotThreads.innerDetect(mockedMthreadMXBeanBean, sunThreadInfo, currentThreadId, (interval) -> null, writer);
             return writer.toString();
         }
     }
