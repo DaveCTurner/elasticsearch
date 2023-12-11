@@ -15,7 +15,9 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.core.RefCounted;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,8 +27,18 @@ import java.util.NoSuchElementException;
 
 public class NodesHotThreadsResponse extends BaseNodesResponse<NodeHotThreads> {
 
+    private final RefCounted refs = AbstractRefCounted.of(() -> {
+        for (NodeHotThreads nodeHotThreads : getNodes()) {
+            nodeHotThreads.decRef();
+            // TODO use Releasables#wrap for proper exception-handling
+        }
+    });
+
     public NodesHotThreadsResponse(ClusterName clusterName, List<NodeHotThreads> nodes, List<FailedNodeException> failures) {
         super(clusterName, nodes, failures);
+        for (NodeHotThreads nodeHotThreads : getNodes()) {
+            nodeHotThreads.mustIncRef();
+        }
     }
 
     public Iterator<CheckedConsumer<java.io.Writer, IOException>> getTextChunks() {
@@ -86,5 +98,25 @@ public class NodesHotThreadsResponse extends BaseNodesResponse<NodeHotThreads> {
                 advance();
             }
         }
+    }
+
+    @Override
+    public void incRef() {
+        refs.incRef();
+    }
+
+    @Override
+    public boolean tryIncRef() {
+        return refs.tryIncRef();
+    }
+
+    @Override
+    public boolean decRef() {
+        return refs.decRef();
+    }
+
+    @Override
+    public boolean hasReferences() {
+        return refs.hasReferences();
     }
 }
