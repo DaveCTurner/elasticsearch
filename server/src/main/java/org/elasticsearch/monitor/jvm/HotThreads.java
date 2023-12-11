@@ -22,9 +22,6 @@ import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.transport.Transports;
 
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.management.ManagementFactory;
@@ -192,8 +189,8 @@ public class HotThreads {
     public void detect(Writer writer) throws Exception {
         synchronized (mutex) {
             innerDetect(ManagementFactory.getThreadMXBean(), SunThreadInfo.INSTANCE, Thread.currentThread().getId(), (interval) -> {
-                    Thread.sleep(interval);
-                    return null;
+                Thread.sleep(interval);
+                return null;
             }, writer);
         }
     }
