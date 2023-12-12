@@ -108,7 +108,6 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         clearShutdownMetadata(clusterService);
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testRemoveNodeDuringSnapshot() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(1);
         final var originalNode = internalCluster().startDataOnlyNode();
@@ -137,7 +136,6 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         clearShutdownMetadata(clusterService);
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testRemoveNodeAndFailoverMasterDuringSnapshot() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(1);
         final var originalNode = internalCluster().startDataOnlyNode();
@@ -240,7 +238,6 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         clearShutdownMetadata(internalCluster().getCurrentMasterNodeInstance(ClusterService.class));
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testRemoveNodeDuringSnapshotWithOtherRunningShardSnapshots() throws Exception {
         // SnapshotInProgressAllocationDecider only considers snapshots having shards in INIT state, so a single-shard snapshot such as the
         // one in testRemoveNodeDuringSnapshot will be ignored when the shard is paused, permitting the shard movement. This test verifies
@@ -307,7 +304,6 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         clearShutdownMetadata(clusterService);
     }
 
-    @AwaitsFix(bugUrl = "TODO")
     public void testStartRemoveNodeButDoNotComplete() throws Exception {
         final var primaryNode = internalCluster().startDataOnlyNode();
         final var indexName = randomIdentifier();
@@ -474,7 +470,7 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         }
         SubscribableListener
 
-            .<Void>newForked(l -> putShutdownMetadata(clusterService, shutdownMetadata, nodeName, listener))
+            .<Void>newForked(l -> putShutdownMetadata(clusterService, shutdownMetadata, nodeName, l))
             .<Void>andThen((l, ignored) -> flushMasterQueue(clusterService, l))
             .addListener(listener);
     }
