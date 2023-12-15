@@ -1290,7 +1290,12 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
                             .<AcknowledgedResponse>andThen((deleteSnapshotStep, ignored1) -> {
                                 if (randomBoolean()) {
-                                    client().admin().cluster().prepareDeleteSnapshot(repoName, snapshotName).execute(deleteSnapshotStep);
+                                    deterministicTaskQueue.scheduleNow(
+                                        () -> client().admin()
+                                            .cluster()
+                                            .prepareDeleteSnapshot(repoName, snapshotName)
+                                            .execute(deleteSnapshotStep)
+                                    );
                                 } else {
                                     deleteSnapshotStep.onResponse(AcknowledgedResponse.TRUE);
                                 }
