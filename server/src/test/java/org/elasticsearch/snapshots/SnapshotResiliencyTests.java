@@ -13,6 +13,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RequestValidators;
 import org.elasticsearch.action.admin.cluster.repositories.cleanup.CleanupRepositoryAction;
@@ -1235,8 +1236,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
         setupTestCluster(1, 1);
 
         final var repoName = "repo";
-        final var indexNames = List.of("index-0", "index-1", "index-2", "index-3");
-        final var snapshotCount = 4;
+        final var indexNames = IntStream.range(0, 5).mapToObj(i -> "index-" + i).toList();
+        final var snapshotNames = IntStream.range(0, 5).mapToObj(i -> "snapshot-" + i).toList();
+        final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
 
         final var testListener = SubscribableListener
 
@@ -1273,12 +1275,11 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             .<Void>andThen((l, ignored0) -> {
                 try (var listeners = new RefCountingListener(l)) {
-                    for (int i = 0; i < snapshotCount; i++) {
-                        final var snapshotName = "snapshot-" + i;
+                    for (final var snapshotName : snapshotNames) {
 
-                        SubscribableListener
-
-                            .<CreateSnapshotResponse>newForked(
+                        deterministicTaskQueue.scheduleNow(
+                            ActionRunnable.<CreateSnapshotResponse>wrap(
+                                listeners.acquire(response -> {}),
                                 createSnapshotStep -> client().admin()
                                     .cluster()
                                     .prepareCreateSnapshot(repoName, snapshotName)
@@ -1287,9 +1288,20 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                     .setIndices(randomNonEmptySubsetOf(indexNames).toArray(Strings.EMPTY_ARRAY))
                                     .execute(createSnapshotStep)
                             )
+                        );
+
+                        ClusterServiceUtils
+
+                            .addTemporaryStateListener(
+                                masterNode.clusterService,
+                                cs -> SnapshotsInProgress.get(cs)
+                                    .forRepo(repoName)
+                                    .stream()
+                                    .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
+                            )
 
                             .<AcknowledgedResponse>andThen((deleteSnapshotStep, ignored1) -> {
-                                if (randomBoolean()) {
+                                if (randomBoolean() && randomBoolean()) {
                                     deterministicTaskQueue.scheduleNow(
                                         () -> client().admin()
                                             .cluster()
@@ -1325,9 +1337,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     }))
             );
 
-        stabilize();
-        assertTrue(testListener.isDone());
-        safeAwait(testListener);
+        runUntil(testListener::isDone, 20000L);
+        safeResult(testListener);
     }
 
     private RepositoryData getRepositoryData(Repository repository) {
