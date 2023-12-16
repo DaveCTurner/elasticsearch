@@ -1235,21 +1235,23 @@ public class SnapshotResiliencyTests extends ESTestCase {
     public void testAbortingSnapshotsWithOutOfOrderFinalization() {
         setupTestCluster(1, 1);
 
-        final var repoName = "repo";
-        final var indexNames = IntStream.range(0, 5).mapToObj(i -> "index-" + i).toList();
-        final var snapshotNames = IntStream.range(0, 5).mapToObj(i -> "snapshot-" + i).toList();
+        final var repoNames = List.of("repo", "repo-2");
+        final var indexNames = IntStream.range(0, 4).mapToObj(i -> "index-" + i).toList();
+        final var snapshotNames = IntStream.range(0, 6).mapToObj(i -> "snapshot-" + i).toList();
         final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
 
         final var testListener = SubscribableListener
 
             .<Void>newForked(l -> {
                 try (var listeners = new RefCountingListener(l)) {
-                    client().admin()
-                        .cluster()
-                        .preparePutRepository(repoName)
-                        .setType(FsRepository.TYPE)
-                        .setSettings(Settings.builder().put("location", randomAlphaOfLength(10)))
-                        .execute(listeners.acquire(response -> {}));
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .preparePutRepository(repoName)
+                            .setType(FsRepository.TYPE)
+                            .setSettings(Settings.builder().put("location", randomAlphaOfLength(10)))
+                            .execute(listeners.acquire(response -> {}));
+                    }
                     for (final var indexName : indexNames) {
                         client().admin()
                             .indices()
@@ -1261,21 +1263,31 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 }
             })
 
-            .<Void>andThen(
-                (l, ignored) -> client().admin()
-                    .cluster()
-                    .prepareCreateSnapshot(repoName, "initial-snapshot")
-                    .setPartial(false)
-                    .setWaitForCompletion(true)
-                    .execute(l.map(createSnapshotResponse -> {
-                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
-                        return null;
-                    }))
-            )
+            .<Void>andThen((l, ignored) -> {
+                try (var listeners = new RefCountingListener(l)) {
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .prepareCreateSnapshot(repoName, "initial-snapshot")
+                            .setPartial(false)
+                            .setWaitForCompletion(true)
+                            .execute(
+                                listeners.acquire(
+                                    createSnapshotResponse -> assertEquals(
+                                        SnapshotState.SUCCESS,
+                                        createSnapshotResponse.getSnapshotInfo().state()
+                                    )
+                                )
+                            );
+                    }
+                }
+            })
 
             .<Void>andThen((l, ignored0) -> {
                 try (var listeners = new RefCountingListener(l)) {
                     for (final var snapshotName : snapshotNames) {
+
+                        final var repoName = randomFrom(repoNames);
 
                         deterministicTaskQueue.scheduleNow(
                             ActionRunnable.<CreateSnapshotResponse>wrap(
@@ -1325,17 +1337,25 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 ).addListener(l)
             )
 
-            .<Void>andThen(
-                (l, ignored) -> client().admin()
-                    .cluster()
-                    .prepareCreateSnapshot(repoName, "final-snapshot")
-                    .setPartial(false)
-                    .setWaitForCompletion(true)
-                    .execute(l.map(createSnapshotResponse -> {
-                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
-                        return null;
-                    }))
-            );
+            .<Void>andThen((l, ignored) -> {
+                try (var listeners = new RefCountingListener(l)) {
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .prepareCreateSnapshot(repoName, "final-snapshot")
+                            .setPartial(false)
+                            .setWaitForCompletion(true)
+                            .execute(
+                                listeners.acquire(
+                                    createSnapshotResponse -> assertEquals(
+                                        SnapshotState.SUCCESS,
+                                        createSnapshotResponse.getSnapshotInfo().state()
+                                    )
+                                )
+                            );
+                    }
+                }
+            });
 
         runUntil(testListener::isDone, 20000L);
         safeResult(testListener);
