@@ -1242,8 +1242,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         final var testListener = SubscribableListener
 
-            .<Void>newForked(l -> {
-                try (var listeners = new RefCountingListener(l)) {
+            .<Void>newForked(l0 -> {
+                try (var listeners = new RefCountingListener(l0)) {
                     for (final var repoName : repoNames) {
                         client().admin()
                             .cluster()
@@ -1253,12 +1253,27 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             .execute(listeners.acquire(response -> {}));
                     }
                     for (final var indexName : indexNames) {
-                        client().admin()
-                            .indices()
-                            .prepareCreate(indexName)
-                            .setSettings(defaultIndexSettings(1))
-                            .setWaitForActiveShards(ActiveShardCount.ALL)
-                            .execute(listeners.acquire(response -> {}));
+                        SubscribableListener
+
+                            .<CreateIndexResponse>newForked(
+                                l -> client().admin()
+                                    .indices()
+                                    .prepareCreate(indexName)
+                                    .setSettings(defaultIndexSettings(1))
+                                    .setWaitForActiveShards(ActiveShardCount.ALL)
+                                    .execute(l)
+                            )
+
+                            .<Void>andThen((l, ignored) -> {
+                                final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+                                bulkRequest.add(new IndexRequest(indexName).source(Collections.singletonMap("foo", "initial-doc")));
+                                client().bulk(bulkRequest, l.map(bulkResponse -> {
+                                    assertFalse(bulkResponse.hasFailures());
+                                    return null;
+                                }));
+                            })
+
+                            .addListener(listeners.acquire());
                     }
                 }
             })
@@ -1283,24 +1298,46 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 }
             })
 
-            .<Void>andThen((l, ignored0) -> {
-                try (var listeners = new RefCountingListener(l)) {
+            .<Void>andThen((l0, ignored0) -> {
+                try (var listeners = new RefCountingListener(l0)) {
                     for (final var snapshotName : snapshotNames) {
 
                         final var repoName = randomFrom(repoNames);
+                        final var indices = randomNonEmptySubsetOf(indexNames).toArray(Strings.EMPTY_ARRAY);
 
-                        deterministicTaskQueue.scheduleNow(
-                            ActionRunnable.<CreateSnapshotResponse>wrap(
-                                listeners.acquire(response -> {}),
-                                createSnapshotStep -> client().admin()
-                                    .cluster()
-                                    .prepareCreateSnapshot(repoName, snapshotName)
-                                    .setPartial(true)
-                                    .setWaitForCompletion(false)
-                                    .setIndices(randomNonEmptySubsetOf(indexNames).toArray(Strings.EMPTY_ARRAY))
-                                    .execute(createSnapshotStep)
-                            )
-                        );
+                        deterministicTaskQueue.scheduleNow(ActionRunnable.<Void>wrap(listeners.acquire(), l -> {
+
+                            SubscribableListener
+
+                                .<Void>newForked(bulkIndexStep -> {
+                                    final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(
+                                        WriteRequest.RefreshPolicy.IMMEDIATE
+                                    );
+                                    for (final var indexName : indices) {
+                                        bulkRequest.add(
+                                            new IndexRequest(indexName).source(
+                                                Collections.singletonMap("foo", randomRealisticUnicodeOfLength(10))
+                                            )
+                                        );
+                                    }
+                                    client().bulk(bulkRequest, bulkIndexStep.map(bulkResponse -> {
+                                        assertFalse(bulkResponse.hasFailures());
+                                        return null;
+                                    }));
+                                })
+
+                                .<Void>andThen(
+                                    (createSnapshotStep, ignored) -> client().admin()
+                                        .cluster()
+                                        .prepareCreateSnapshot(repoName, snapshotName)
+                                        .setPartial(true)
+                                        .setWaitForCompletion(false)
+                                        .setIndices(indices)
+                                        .execute(createSnapshotStep.map(createSnapshotResponse -> null))
+                                )
+
+                                .addListener(l);
+                        }));
 
                         ClusterServiceUtils
 
