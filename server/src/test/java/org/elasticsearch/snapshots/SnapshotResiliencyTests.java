@@ -1334,7 +1334,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                         (createSnapshotStep, ignored) -> client().admin()
                                             .cluster()
                                             .prepareCreateSnapshot(repoName, snapshotName)
-                                            .setPartial(true)
+                                            .setPartial(randomBoolean())
                                             .setWaitForCompletion(false)
                                             .setIndices(indices)
                                             .execute(createSnapshotStep.map(createSnapshotResponse -> null))
