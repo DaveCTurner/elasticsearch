@@ -367,7 +367,7 @@ public class MasterService extends AbstractLifecycleComponent {
             summary,
             executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")),
             Strings.toString(RepositoriesMetadata.get(newClusterState)),
-            Strings.toString(SnapshotsInProgress.get(newClusterState)),
+            Strings.toString(new SnapshotsInProgress.DebugXContent(SnapshotsInProgress.get(newClusterState))),
             Strings.toString(SnapshotDeletionsInProgress.get(newClusterState)),
             Strings.toString(RepositoryCleanupInProgress.get(newClusterState))
         );
