@@ -1376,29 +1376,34 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                                         .setWaitForCompletion(false)
                                                         .setIndices(indices)
                                                         .execute(l.map(createSnapshotResponse -> null))
-                                                )
+                                                ),
+                                            deterministicTaskQueue::scheduleNow,
+                                            null
                                         );
                                     })
 
                                     .addListener(snapshotListeners.acquire());
 
-                                final var snapshotStartedListener = ClusterServiceUtils.addTemporaryStateListener(
-                                    masterNode.clusterService,
-                                    cs -> SnapshotsInProgress.get(cs)
-                                        .forRepo(repoName)
-                                        .stream()
-                                        .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
-                                );
-
                                 if (randomBoolean() && randomBoolean()) {
-                                    snapshotStartedListener.<Void>andThen(
-                                        (deleteSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
-                                            () -> client().admin()
-                                                .cluster()
-                                                .prepareDeleteSnapshot(repoName, snapshotName)
-                                                .execute(deleteSnapshotStep.map(acknowledgedResponse -> null))
+                                    ClusterServiceUtils
+
+                                        .addTemporaryStateListener(
+                                            masterNode.clusterService,
+                                            cs -> SnapshotsInProgress.get(cs)
+                                                .forRepo(repoName)
+                                                .stream()
+                                                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
                                         )
-                                    ).addListener(snapshotListeners.acquire());
+
+                                        .<Void>andThen(
+                                            (deleteSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
+                                                () -> client().admin()
+                                                    .cluster()
+                                                    .prepareDeleteSnapshot(repoName, snapshotName)
+                                                    .execute(deleteSnapshotStep.map(acknowledgedResponse -> null))
+                                            )
+                                        )
+                                        .addListener(snapshotListeners.acquire());
 
                                 }
                             }
