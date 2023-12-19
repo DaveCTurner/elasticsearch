@@ -14,6 +14,8 @@ import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ack.IndicesClusterStateUpdateRequest;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 
+import java.util.Arrays;
+
 /**
  * Cluster state update request that allows to close one or more indices
  */
@@ -51,5 +53,10 @@ public class DeleteIndexClusterStateUpdateRequest extends IndicesClusterStateUpd
     @Override
     public void onAckTimeout() {
         listener.onResponse(AcknowledgedResponse.FALSE);
+    }
+
+    @Override
+    public String toString() {
+        return "delete-indices" + Arrays.toString(indices());
     }
 }
