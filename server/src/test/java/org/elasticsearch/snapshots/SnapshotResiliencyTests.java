@@ -131,7 +131,9 @@ import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
 import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
+import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.TestEnvironment;
@@ -192,6 +194,7 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -1236,9 +1239,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
     public void testAbortingSnapshotsWithOutOfOrderFinalization() {
         setupTestCluster(1, 1);
 
-        final var repoNames = List.of("repo", "repo-2");
+        final var repoNames = List.of("repo");
         final var indexNames = IntStream.range(0, 4).mapToObj(i -> "index-" + i).toList();
-        final var snapshotNames = IntStream.range(0, 30).mapToObj(i -> "snapshot-" + i).toList();
+        final var snapshotNames = IntStream.range(0, 10).mapToObj(i -> "snapshot-" + i).toList();
         final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
         final var taskRunner = new ThrottledTaskRunner(getTestName(), 5, deterministicTaskQueue::scheduleNow);
 
@@ -1302,6 +1305,42 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
             .<Void>andThen((l0, ignored0) -> {
                 try (var listeners = new RefCountingListener(l0)) {
+                    final var indexToDelete = randomFrom(indexNames);
+                    final var indexRecreatedListener = new SubscribableListener<Void>();
+                    indexRecreatedListener.addListener(listeners.acquire());
+                    final var indexToDeleteRefs = AbstractRefCounted.of(
+                        () -> deterministicTaskQueue.scheduleNow(
+                            () -> SubscribableListener
+
+                                .newForked(l -> client().admin().indices().prepareDelete(indexToDelete).execute(l.map(response -> null)))
+
+                                .andThen((l, ignored) -> {
+                                    client().admin()
+                                        .indices()
+                                        .prepareCreate(indexToDelete)
+                                        .setSettings(defaultIndexSettings(1))
+                                        .setWaitForActiveShards(ActiveShardCount.ALL)
+                                        .execute(l.map(response -> null));
+                                })
+
+                                .andThen((l, ignored) -> {
+                                    final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(
+                                        WriteRequest.RefreshPolicy.IMMEDIATE
+                                    );
+                                    bulkRequest.add(
+                                        new IndexRequest(indexToDelete).source(Collections.singletonMap("foo", "recreated-doc"))
+                                    );
+                                    client().bulk(bulkRequest, l.map(bulkResponse -> {
+                                        assertFalse(bulkResponse.hasFailures());
+                                        return null;
+                                    }));
+                                })
+
+                                .addListener(indexRecreatedListener.map(ignored -> null))
+                        )
+                    );
+                    deterministicTaskQueue.scheduleNow(indexToDeleteRefs::decRef);
+
                     for (final var snapshotName : snapshotNames) {
 
                         final var repoName = randomFrom(repoNames);
@@ -1313,32 +1352,33 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
                                 SubscribableListener
 
-                                    .<Void>newForked(bulkIndexStep -> {
-                                        final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(
-                                            WriteRequest.RefreshPolicy.IMMEDIATE
-                                        );
-                                        for (final var indexName : indices) {
-                                            bulkRequest.add(
-                                                new IndexRequest(indexName).source(
-                                                    Collections.singletonMap("foo", randomRealisticUnicodeOfLength(10))
-                                                )
-                                            );
+                                    .<Void>newForked(createSnapshotStep -> {
+                                        final SubscribableListener<Void> readyToCreateSnapshotListener;
+                                        final Releasable releaseRef;
+                                        if (Arrays.asList(indices).contains(indexToDelete) == false) {
+                                            readyToCreateSnapshotListener = SubscribableListener.newSucceeded(null);
+                                            releaseRef = () -> {};
+                                        } else if (indexToDeleteRefs.tryIncRef()) {
+                                            readyToCreateSnapshotListener = SubscribableListener.newSucceeded(null);
+                                            releaseRef = indexToDeleteRefs::decRef;
+                                        } else {
+                                            readyToCreateSnapshotListener = indexRecreatedListener;
+                                            releaseRef = () -> {};
                                         }
-                                        client().bulk(bulkRequest, bulkIndexStep.map(bulkResponse -> {
-                                            assertFalse(bulkResponse.hasFailures());
-                                            return null;
-                                        }));
-                                    })
 
-                                    .<Void>andThen(
-                                        (createSnapshotStep, ignored) -> client().admin()
-                                            .cluster()
-                                            .prepareCreateSnapshot(repoName, snapshotName)
-                                            .setPartial(randomBoolean())
-                                            .setWaitForCompletion(false)
-                                            .setIndices(indices)
-                                            .execute(createSnapshotStep.map(createSnapshotResponse -> null))
-                                    )
+                                        readyToCreateSnapshotListener.addListener(
+                                            ActionListener.releaseAfter(createSnapshotStep, releaseRef)
+                                                .delegateFailureAndWrap(
+                                                    (l, v) -> client().admin()
+                                                        .cluster()
+                                                        .prepareCreateSnapshot(repoName, snapshotName)
+                                                        .setPartial(true)
+                                                        .setWaitForCompletion(false)
+                                                        .setIndices(indices)
+                                                        .execute(l.map(createSnapshotResponse -> null))
+                                                )
+                                        );
+                                    })
 
                                     .addListener(snapshotListeners.acquire());
 
@@ -1360,30 +1400,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                         )
                                     ).addListener(snapshotListeners.acquire());
 
-                                } else if (randomBoolean() && randomBoolean()) {
-                                    snapshotStartedListener
-
-                                        .<Void>andThen(
-                                            (snapshotCompleteStep, ignored1) -> ClusterServiceUtils.addTemporaryStateListener(
-                                                masterNode.clusterService,
-                                                cs -> SnapshotsInProgress.get(cs)
-                                                    .forRepo(repoName)
-                                                    .stream()
-                                                    .noneMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
-                                            ).addListener(snapshotCompleteStep)
-                                        )
-
-                                        .<Void>andThen(
-                                            (cloneSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
-                                                () -> client().admin()
-                                                    .cluster()
-                                                    .prepareCloneSnapshot(repoName, snapshotName, snapshotName + "-clone")
-                                                    .setIndices(indices)
-                                                    .execute(cloneSnapshotStep.map(acknowledgedResponse -> null))
-                                            )
-                                        )
-
-                                        .addListener(snapshotListeners.acquire());
                                 }
                             }
                         }));
