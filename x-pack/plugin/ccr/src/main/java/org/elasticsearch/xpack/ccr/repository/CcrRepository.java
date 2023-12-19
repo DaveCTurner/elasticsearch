@@ -229,7 +229,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
             .actionGet(ccrSettings.getRecoveryActionTimeout());
 
         // Validates whether the leader cluster has been configured properly:
-        PlainActionFuture<String[]> future = PlainActionFuture.newFuture();
+        PlainActionFuture<String[]> future = new PlainActionFuture<>();
         IndexMetadata leaderIndexMetadata = clusterState.getState().metadata().index(leaderIndex);
         CcrLicenseChecker.fetchLeaderHistoryUUIDs(remoteClient, leaderIndexMetadata, future::onFailure, future::onResponse);
         String[] leaderHistoryUUIDs = future.actionGet(ccrSettings.getRecoveryActionTimeout());
@@ -517,7 +517,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
             final ShardRouting shardRouting = shardStats.getShardRouting();
             if (shardRouting.shardId().id() == shardId.getId() && shardRouting.primary() && shardRouting.active()) {
                 // we only care about the shard size here for shard allocation, populate the rest with dummy values
-                final long totalSize = shardStats.getStats().getStore().getSizeInBytes();
+                final long totalSize = shardStats.getStats().getStore().sizeInBytes();
                 return IndexShardSnapshotStatus.newDone(0L, 0L, 1, 1, totalSize, totalSize, DUMMY_GENERATION);
             }
         }

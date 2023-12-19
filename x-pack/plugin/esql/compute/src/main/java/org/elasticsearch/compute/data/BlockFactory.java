@@ -11,6 +11,7 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.breaker.CircuitBreakingException;
 import org.elasticsearch.common.breaker.NoopCircuitBreaker;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.BytesRefArray;
 import org.elasticsearch.compute.data.Block.MvOrdering;
@@ -18,6 +19,14 @@ import org.elasticsearch.compute.data.Block.MvOrdering;
 import java.util.BitSet;
 
 public class BlockFactory {
+    public static final String LOCAL_BREAKER_OVER_RESERVED_SIZE_SETTING = "esql.block_factory.local_breaker.over_reserved";
+    public static final ByteSizeValue LOCAL_BREAKER_OVER_RESERVED_DEFAULT_SIZE = ByteSizeValue.ofKb(4);
+
+    public static final String LOCAL_BREAKER_OVER_RESERVED_MAX_SIZE_SETTING = "esql.block_factory.local_breaker.max_over_reserved";
+    public static final ByteSizeValue LOCAL_BREAKER_OVER_RESERVED_DEFAULT_MAX_SIZE = ByteSizeValue.ofKb(16);
+
+    public static final String MAX_BLOCK_PRIMITIVE_ARRAY_SIZE_SETTING = "esql.block_factory.max_block_primitive_array_size";
+    public static final ByteSizeValue DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE = ByteSizeValue.ofKb(512);
 
     private static final BlockFactory NON_BREAKING = BlockFactory.getInstance(
         new NoopCircuitBreaker("noop-esql-breaker"),
@@ -27,10 +36,22 @@ public class BlockFactory {
     private final CircuitBreaker breaker;
 
     private final BigArrays bigArrays;
+    private final long maxPrimitiveArrayBytes;
+    private final BlockFactory parent;
 
     public BlockFactory(CircuitBreaker breaker, BigArrays bigArrays) {
+        this(breaker, bigArrays, DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE);
+    }
+
+    public BlockFactory(CircuitBreaker breaker, BigArrays bigArrays, ByteSizeValue maxPrimitiveArraySize) {
+        this(breaker, bigArrays, maxPrimitiveArraySize, null);
+    }
+
+    public BlockFactory(CircuitBreaker breaker, BigArrays bigArrays, ByteSizeValue maxPrimitiveArraySize, BlockFactory parent) {
         this.breaker = breaker;
         this.bigArrays = bigArrays;
+        this.parent = parent;
+        this.maxPrimitiveArrayBytes = maxPrimitiveArraySize.getBytes();
     }
 
     /**
@@ -41,7 +62,7 @@ public class BlockFactory {
     }
 
     public static BlockFactory getInstance(CircuitBreaker breaker, BigArrays bigArrays) {
-        return new BlockFactory(breaker, bigArrays);
+        return new BlockFactory(breaker, bigArrays, DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE, null);
     }
 
     // For testing
@@ -52,6 +73,17 @@ public class BlockFactory {
     // For testing
     public BigArrays bigArrays() {
         return bigArrays;
+    }
+
+    protected BlockFactory parent() {
+        return parent != null ? parent : this;
+    }
+
+    public BlockFactory newChildFactory(LocalCircuitBreaker childBreaker) {
+        if (childBreaker.parentBreaker() != breaker) {
+            throw new IllegalStateException("Different parent breaker");
+        }
+        return new BlockFactory(childBreaker, bigArrays, ByteSizeValue.ofBytes(maxPrimitiveArrayBytes), this);
     }
 
     /**
@@ -367,5 +399,12 @@ public class BlockFactory {
         var b = new ConstantNullBlock(positions, this);
         adjustBreaker(b.ramBytesUsed(), true);
         return b;
+    }
+
+    /**
+     * Returns the maximum number of bytes that a Block should be backed by a primitive array before switching to using BigArrays.
+     */
+    public long maxPrimitiveArrayBytes() {
+        return maxPrimitiveArrayBytes;
     }
 }

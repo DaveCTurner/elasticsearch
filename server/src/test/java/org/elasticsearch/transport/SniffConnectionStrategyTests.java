@@ -192,7 +192,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        hasClusterCredentials ? new RemoteClusterCredentialsManager(clientSettings) : RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -204,7 +208,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -262,7 +266,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -275,7 +283,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         Collections.singletonList(seedNodeSupplier)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -336,7 +344,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -348,7 +360,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -424,7 +436,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -436,7 +452,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -486,7 +502,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -498,7 +518,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(incompatibleSeedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
 
                     expectThrows(Exception.class, connectFuture::actionGet);
@@ -549,7 +569,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -561,7 +585,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -617,7 +641,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -629,7 +657,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     final IllegalStateException ise = expectThrows(IllegalStateException.class, connectFuture::actionGet);
                     assertEquals("Unable to open any connections to remote cluster [cluster-alias]", ise.getMessage());
@@ -694,7 +722,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -706,7 +738,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode, otherSeedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -718,7 +750,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
 
                     assertBusy(strategy::assertNoRunningConnections);
 
-                    PlainActionFuture<Void> newConnect = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> newConnect = new PlainActionFuture<>();
                     strategy.connect(newConnect);
                     IllegalStateException ise = expectThrows(IllegalStateException.class, newConnect::actionGet);
                     assertThat(
@@ -783,7 +815,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -799,7 +835,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     assertFalse(connectionManager.nodeConnected(discoverableNode));
                     assertTrue(strategy.assertNoRunningConnections());
 
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -808,7 +844,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     assertTrue(strategy.assertNoRunningConnections());
 
                     // exec again we are already connected
-                    PlainActionFuture<Void> ensureConnectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> ensureConnectFuture = new PlainActionFuture<>();
                     strategy.connect(ensureConnectFuture);
                     ensureConnectFuture.actionGet();
 
@@ -895,7 +931,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -911,7 +951,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     assertFalse(connectionManager.nodeConnected(discoverableNode));
                     assertTrue(strategy.assertNoRunningConnections());
 
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 
@@ -964,7 +1004,11 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                     threadPool.getThreadContext()
                 );
                 try (
-                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(clusterAlias, connectionManager);
+                    RemoteConnectionManager remoteConnectionManager = new RemoteConnectionManager(
+                        clusterAlias,
+                        RemoteClusterCredentialsManager.EMPTY,
+                        connectionManager
+                    );
                     SniffConnectionStrategy strategy = new SniffConnectionStrategy(
                         clusterAlias,
                         localService,
@@ -976,7 +1020,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         seedNodes(seedNode)
                     )
                 ) {
-                    PlainActionFuture<Void> connectFuture = PlainActionFuture.newFuture();
+                    PlainActionFuture<Void> connectFuture = new PlainActionFuture<>();
                     strategy.connect(connectFuture);
                     connectFuture.actionGet();
 

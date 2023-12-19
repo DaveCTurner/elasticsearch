@@ -17,7 +17,7 @@ import org.elasticsearch.core.Releasable;
  */
 public final class IntBigArrayVector extends AbstractVector implements IntVector, Releasable {
 
-    private static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(IntBigArrayVector.class);
+    private static final long BASE_RAM_BYTES_USED = 0; // FIXME
 
     private final IntArray values;
 
@@ -60,6 +60,7 @@ public final class IntBigArrayVector extends AbstractVector implements IntVector
 
     @Override
     public IntVector filter(int... positions) {
+        var blockFactory = blockFactory();
         final IntArray filtered = blockFactory.bigArrays().newIntArray(positions.length, true);
         for (int i = 0; i < positions.length; i++) {
             filtered.set(i, values.get(positions[i]));

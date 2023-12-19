@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.esql;
 
 import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.Randomness;
@@ -215,7 +216,7 @@ public class CsvTests extends ESTestCase {
 
     public final void test() throws Throwable {
         try {
-            assumeTrue("Test " + testName + " is not enabled", isEnabled(testName));
+            assumeTrue("Test " + testName + " is not enabled", isEnabled(testName, Version.CURRENT));
             doTest();
         } catch (Throwable th) {
             throw reworkException(th);
@@ -328,11 +329,19 @@ public class CsvTests extends ESTestCase {
         String sessionId = "csv-test";
         ExchangeSourceHandler exchangeSource = new ExchangeSourceHandler(between(1, 64), threadPool.executor(ESQL_THREAD_POOL_NAME));
         ExchangeSinkHandler exchangeSink = new ExchangeSinkHandler(between(1, 64), threadPool::relativeTimeInMillis);
+        Settings.Builder settings = Settings.builder();
+
+        BlockFactory blockFactory = new BlockFactory(
+            bigArrays.breakerService().getBreaker(CircuitBreaker.REQUEST),
+            bigArrays,
+            ByteSizeValue.ofBytes(randomLongBetween(1, BlockFactory.DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE.getBytes() * 2))
+        );
         LocalExecutionPlanner executionPlanner = new LocalExecutionPlanner(
             sessionId,
             new CancellableTask(1, "transport", "esql", null, TaskId.EMPTY_TASK_ID, Map.of()),
             bigArrays,
-            new BlockFactory(bigArrays.breakerService().getBreaker(CircuitBreaker.REQUEST), bigArrays),
+            blockFactory,
+            randomNodeSettings(),
             configuration,
             exchangeSource,
             exchangeSink,
@@ -407,6 +416,15 @@ public class CsvTests extends ESTestCase {
         }
     }
 
+    private Settings randomNodeSettings() {
+        Settings.Builder builder = Settings.builder();
+        if (randomBoolean()) {
+            builder.put(BlockFactory.LOCAL_BREAKER_OVER_RESERVED_SIZE_SETTING, ByteSizeValue.ofBytes(randomIntBetween(0, 4096)));
+            builder.put(BlockFactory.LOCAL_BREAKER_OVER_RESERVED_MAX_SIZE_SETTING, ByteSizeValue.ofBytes(randomIntBetween(0, 16 * 1024)));
+        }
+        return builder.build();
+    }
+
     private Throwable reworkException(Throwable th) {
         StackTraceElement[] stackTrace = th.getStackTrace();
         StackTraceElement[] redone = new StackTraceElement[stackTrace.length + 1];
@@ -440,6 +458,6 @@ public class CsvTests extends ESTestCase {
                 normalized.add(normW);
             }
         }
-        assertMap(normalized, matchesList(testCase.expectedWarnings));
+        assertMap(normalized, matchesList(testCase.expectedWarnings(true)));
     }
 }

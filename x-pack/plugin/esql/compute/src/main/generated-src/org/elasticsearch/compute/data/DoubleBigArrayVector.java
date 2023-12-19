@@ -17,7 +17,7 @@ import org.elasticsearch.core.Releasable;
  */
 public final class DoubleBigArrayVector extends AbstractVector implements DoubleVector, Releasable {
 
-    private static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(DoubleBigArrayVector.class);
+    private static final long BASE_RAM_BYTES_USED = 0; // FIXME
 
     private final DoubleArray values;
 
@@ -60,6 +60,7 @@ public final class DoubleBigArrayVector extends AbstractVector implements Double
 
     @Override
     public DoubleVector filter(int... positions) {
+        var blockFactory = blockFactory();
         final DoubleArray filtered = blockFactory.bigArrays().newDoubleArray(positions.length, true);
         for (int i = 0; i < positions.length; i++) {
             filtered.set(i, values.get(positions[i]));

@@ -17,7 +17,7 @@ import org.elasticsearch.core.Releasable;
  */
 public final class BooleanBigArrayVector extends AbstractVector implements BooleanVector, Releasable {
 
-    private static final long BASE_RAM_BYTES_USED = RamUsageEstimator.shallowSizeOfInstance(BooleanBigArrayVector.class);
+    private static final long BASE_RAM_BYTES_USED = 0; // FIXME
 
     private final BitArray values;
 
@@ -60,6 +60,7 @@ public final class BooleanBigArrayVector extends AbstractVector implements Boole
 
     @Override
     public BooleanVector filter(int... positions) {
+        var blockFactory = blockFactory();
         final BitArray filtered = new BitArray(positions.length, blockFactory.bigArrays());
         for (int i = 0; i < positions.length; i++) {
             if (values.get(positions[i])) {

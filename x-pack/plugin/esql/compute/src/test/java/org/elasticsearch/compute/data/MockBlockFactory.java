@@ -10,6 +10,7 @@ package org.elasticsearch.compute.data;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.breaker.CircuitBreaker;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.BytesRefArray;
 import org.elasticsearch.compute.data.Block.MvOrdering;
@@ -63,7 +64,23 @@ public class MockBlockFactory extends BlockFactory {
     }
 
     public MockBlockFactory(CircuitBreaker breaker, BigArrays bigArrays) {
-        super(breaker, bigArrays);
+        this(breaker, bigArrays, BlockFactory.DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE);
+    }
+
+    public MockBlockFactory(CircuitBreaker breaker, BigArrays bigArrays, ByteSizeValue maxPrimitiveArraySize) {
+        this(breaker, bigArrays, maxPrimitiveArraySize, null);
+    }
+
+    public MockBlockFactory(CircuitBreaker breaker, BigArrays bigArrays, ByteSizeValue maxPrimitiveArraySize, BlockFactory parent) {
+        super(breaker, bigArrays, maxPrimitiveArraySize, parent);
+    }
+
+    @Override
+    public BlockFactory newChildFactory(LocalCircuitBreaker childBreaker) {
+        if (childBreaker.parentBreaker() != breaker()) {
+            throw new IllegalStateException("Different parent breaker");
+        }
+        return new MockBlockFactory(childBreaker, bigArrays(), ByteSizeValue.ofBytes(maxPrimitiveArrayBytes()), this);
     }
 
     @Override

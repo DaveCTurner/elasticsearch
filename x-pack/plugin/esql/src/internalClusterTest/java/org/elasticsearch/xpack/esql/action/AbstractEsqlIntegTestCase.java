@@ -12,11 +12,14 @@ import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.common.breaker.CircuitBreaker;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.compute.data.BlockFactory;
 import org.elasticsearch.compute.operator.exchange.ExchangeService;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
@@ -29,6 +32,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
 
 @TestLogging(value = "org.elasticsearch.xpack.esql.session:DEBUG", reason = "to better understand planning")
@@ -66,6 +70,21 @@ public abstract class AbstractEsqlIntegTestCase extends ESIntegTestCase {
                     ExchangeService.INACTIVE_SINKS_INTERVAL_SETTING,
                     TimeValue.timeValueSeconds(5),
                     Setting.Property.NodeScope
+                ),
+                Setting.byteSizeSetting(
+                    BlockFactory.LOCAL_BREAKER_OVER_RESERVED_SIZE_SETTING,
+                    ByteSizeValue.ofBytes(randomIntBetween(0, 4096)),
+                    Setting.Property.NodeScope
+                ),
+                Setting.byteSizeSetting(
+                    BlockFactory.LOCAL_BREAKER_OVER_RESERVED_MAX_SIZE_SETTING,
+                    ByteSizeValue.ofBytes(randomIntBetween(0, 16 * 1024)),
+                    Setting.Property.NodeScope
+                ),
+                Setting.byteSizeSetting(
+                    BlockFactory.MAX_BLOCK_PRIMITIVE_ARRAY_SIZE_SETTING,
+                    ByteSizeValue.ofBytes(randomLongBetween(1, BlockFactory.DEFAULT_MAX_BLOCK_PRIMITIVE_ARRAY_SIZE.getBytes())),
+                    Setting.Property.NodeScope
                 )
             );
         }
@@ -74,6 +93,24 @@ public abstract class AbstractEsqlIntegTestCase extends ESIntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.appendToCopy(super.nodePlugins(), EsqlPlugin.class);
+    }
+
+    protected void setRequestCircuitBreakerLimit(ByteSizeValue limit) {
+        if (limit != null) {
+            assertAcked(
+                clusterAdmin().prepareUpdateSettings()
+                    .setPersistentSettings(
+                        Settings.builder().put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), limit).build()
+                    )
+            );
+        } else {
+            assertAcked(
+                clusterAdmin().prepareUpdateSettings()
+                    .setPersistentSettings(
+                        Settings.builder().putNull(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey()).build()
+                    )
+            );
+        }
     }
 
     protected EsqlQueryResponse run(String esqlCommands) {
