@@ -23,6 +23,7 @@ import org.elasticsearch.action.admin.cluster.repositories.put.TransportPutRepos
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.cluster.reroute.TransportClusterRerouteAction;
+import org.elasticsearch.action.admin.cluster.snapshots.clone.TransportCloneSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.TransportCreateSnapshotAction;
@@ -67,6 +68,7 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.DestructiveOperations;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.WriteRequest;
@@ -116,6 +118,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.cluster.service.FakeThreadPoolMasterService;
 import org.elasticsearch.cluster.service.MasterService;
 import org.elasticsearch.cluster.version.CompatibilityVersionsUtils;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.network.NetworkModule;
@@ -127,6 +130,7 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.DeterministicTaskQueue;
 import org.elasticsearch.common.util.concurrent.PrioritizedEsThreadPoolExecutor;
+import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
@@ -176,6 +180,7 @@ import org.elasticsearch.search.SearchService;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.FetchPhase;
 import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesRefRecycler;
@@ -1228,6 +1233,195 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }
     }
 
+    public void testAbortingSnapshotsWithOutOfOrderFinalization() {
+        setupTestCluster(1, 1);
+
+        final var repoNames = List.of("repo", "repo-2");
+        final var indexNames = IntStream.range(0, 4).mapToObj(i -> "index-" + i).toList();
+        final var snapshotNames = IntStream.range(0, 30).mapToObj(i -> "snapshot-" + i).toList();
+        final var masterNode = testClusterNodes.currentMaster(testClusterNodes.nodes.values().iterator().next().clusterService.state());
+        final var taskRunner = new ThrottledTaskRunner(getTestName(), 5, deterministicTaskQueue::scheduleNow);
+
+        final var testListener = SubscribableListener
+
+            .<Void>newForked(l0 -> {
+                try (var listeners = new RefCountingListener(l0)) {
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .preparePutRepository(repoName)
+                            .setType(FsRepository.TYPE)
+                            .setSettings(Settings.builder().put("location", randomAlphaOfLength(10)))
+                            .execute(listeners.acquire(response -> {}));
+                    }
+                    for (final var indexName : indexNames) {
+                        SubscribableListener
+
+                            .<CreateIndexResponse>newForked(
+                                l -> client().admin()
+                                    .indices()
+                                    .prepareCreate(indexName)
+                                    .setSettings(defaultIndexSettings(1))
+                                    .setWaitForActiveShards(ActiveShardCount.ALL)
+                                    .execute(l)
+                            )
+
+                            .<Void>andThen((l, ignored) -> {
+                                final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+                                bulkRequest.add(new IndexRequest(indexName).source(Collections.singletonMap("foo", "initial-doc")));
+                                client().bulk(bulkRequest, l.map(bulkResponse -> {
+                                    assertFalse(bulkResponse.hasFailures());
+                                    return null;
+                                }));
+                            })
+
+                            .addListener(listeners.acquire());
+                    }
+                }
+            })
+
+            .<Void>andThen((l, ignored) -> {
+                try (var listeners = new RefCountingListener(l)) {
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .prepareCreateSnapshot(repoName, "initial-snapshot")
+                            .setPartial(false)
+                            .setWaitForCompletion(true)
+                            .execute(
+                                listeners.acquire(
+                                    createSnapshotResponse -> assertEquals(
+                                        SnapshotState.SUCCESS,
+                                        createSnapshotResponse.getSnapshotInfo().state()
+                                    )
+                                )
+                            );
+                    }
+                }
+            })
+
+            .<Void>andThen((l0, ignored0) -> {
+                try (var listeners = new RefCountingListener(l0)) {
+                    for (final var snapshotName : snapshotNames) {
+
+                        final var repoName = randomFrom(repoNames);
+                        final var indices = randomNonEmptySubsetOf(indexNames).toArray(Strings.EMPTY_ARRAY);
+
+                        taskRunner.enqueueTask(listeners.acquire(ref -> {
+
+                            try (var snapshotListeners = new RefCountingListener(ActionListener.releaseAfter(listeners.acquire(), ref))) {
+
+                                SubscribableListener
+
+                                    .<Void>newForked(bulkIndexStep -> {
+                                        final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(
+                                            WriteRequest.RefreshPolicy.IMMEDIATE
+                                        );
+                                        for (final var indexName : indices) {
+                                            bulkRequest.add(
+                                                new IndexRequest(indexName).source(
+                                                    Collections.singletonMap("foo", randomRealisticUnicodeOfLength(10))
+                                                )
+                                            );
+                                        }
+                                        client().bulk(bulkRequest, bulkIndexStep.map(bulkResponse -> {
+                                            assertFalse(bulkResponse.hasFailures());
+                                            return null;
+                                        }));
+                                    })
+
+                                    .<Void>andThen(
+                                        (createSnapshotStep, ignored) -> client().admin()
+                                            .cluster()
+                                            .prepareCreateSnapshot(repoName, snapshotName)
+                                            .setPartial(randomBoolean())
+                                            .setWaitForCompletion(false)
+                                            .setIndices(indices)
+                                            .execute(createSnapshotStep.map(createSnapshotResponse -> null))
+                                    )
+
+                                    .addListener(snapshotListeners.acquire());
+
+                                final var snapshotStartedListener = ClusterServiceUtils.addTemporaryStateListener(
+                                    masterNode.clusterService,
+                                    cs -> SnapshotsInProgress.get(cs)
+                                        .forRepo(repoName)
+                                        .stream()
+                                        .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
+                                );
+
+                                if (randomBoolean() && randomBoolean()) {
+                                    snapshotStartedListener.<Void>andThen(
+                                        (deleteSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
+                                            () -> client().admin()
+                                                .cluster()
+                                                .prepareDeleteSnapshot(repoName, snapshotName)
+                                                .execute(deleteSnapshotStep.map(acknowledgedResponse -> null))
+                                        )
+                                    ).addListener(snapshotListeners.acquire());
+
+                                } else if (randomBoolean() && randomBoolean()) {
+                                    snapshotStartedListener
+
+                                        .<Void>andThen(
+                                            (snapshotCompleteStep, ignored1) -> ClusterServiceUtils.addTemporaryStateListener(
+                                                masterNode.clusterService,
+                                                cs -> SnapshotsInProgress.get(cs)
+                                                    .forRepo(repoName)
+                                                    .stream()
+                                                    .noneMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
+                                            ).addListener(snapshotCompleteStep)
+                                        )
+
+                                        .<Void>andThen(
+                                            (cloneSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
+                                                () -> client().admin()
+                                                    .cluster()
+                                                    .prepareCloneSnapshot(repoName, snapshotName, snapshotName + "-clone")
+                                                    .setIndices(indices)
+                                                    .execute(cloneSnapshotStep.map(acknowledgedResponse -> null))
+                                            )
+                                        )
+
+                                        .addListener(snapshotListeners.acquire());
+                                }
+                            }
+                        }));
+                    }
+                }
+            })
+
+            .<Void>andThen(
+                (l, ignored) -> ClusterServiceUtils.addTemporaryStateListener(
+                    testClusterNodes.randomMasterNodeSafe().clusterService,
+                    s -> SnapshotsInProgress.get(s).isEmpty() && SnapshotDeletionsInProgress.get(s).getEntries().isEmpty()
+                ).addListener(l)
+            )
+
+            .<Void>andThen((l, ignored) -> {
+                try (var listeners = new RefCountingListener(l)) {
+                    for (final var repoName : repoNames) {
+                        client().admin()
+                            .cluster()
+                            .prepareCreateSnapshot(repoName, "final-snapshot")
+                            .setPartial(false)
+                            .setWaitForCompletion(true)
+                            .execute(
+                                listeners.acquire(
+                                    createSnapshotResponse -> assertEquals(
+                                        SnapshotState.SUCCESS,
+                                        createSnapshotResponse.getSnapshotInfo().state()
+                                    )
+                                )
+                            );
+                    }
+                }
+            });
+
+        runUntil(testListener::isDone, 20000L);
+        safeResult(testListener);
+    }
+
     private RepositoryData getRepositoryData(Repository repository) {
         final PlainActionFuture<RepositoryData> res = new PlainActionFuture<>();
         repository.getRepositoryData(deterministicTaskQueue::scheduleNow, res);
@@ -2069,6 +2263,17 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 actions.put(
                     CreateSnapshotAction.INSTANCE,
                     new TransportCreateSnapshotAction(
+                        transportService,
+                        clusterService,
+                        threadPool,
+                        snapshotsService,
+                        actionFilters,
+                        indexNameExpressionResolver
+                    )
+                );
+                actions.put(
+                    TransportCloneSnapshotAction.TYPE,
+                    new TransportCloneSnapshotAction(
                         transportService,
                         clusterService,
                         threadPool,
