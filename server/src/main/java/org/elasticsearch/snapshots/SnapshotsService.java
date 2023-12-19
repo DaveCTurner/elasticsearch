@@ -11,6 +11,7 @@ package org.elasticsearch.snapshots;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
@@ -1355,15 +1356,24 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         assert currentlyFinalizing.contains(snapshot.getRepository());
         assert repositoryOperations.assertNotQueued(snapshot);
         try {
-            SnapshotsInProgress.Entry entry = SnapshotsInProgress.get(clusterService.state()).snapshot(snapshot);
+            final var clusterState = clusterService.state();
+            SnapshotsInProgress.Entry entry = SnapshotsInProgress.get(clusterState).snapshot(snapshot);
             final String failure = entry.failure();
             logger.trace("[{}] finalizing snapshot in repository, state: [{}], failure[{}]", snapshot, entry.state(), failure);
             final ShardGenerations shardGenerations = buildGenerations(entry, metadata);
             logger.info(
-                "[{}] finalizing snapshot using repo data gen [{}] and shard generations [{}]",
-                snapshot,
-                repositoryData.getGenId(),
-                shardGenerations
+                Strings.format(
+                    """
+                        [%s] finalizing snapshot using repo data gen [%d] and shard generations [%s] \
+                        computed from entry in cluster state [term=%d, version=%d]: %s""",
+                    snapshot,
+                    repositoryData.getGenId(),
+                    shardGenerations,
+                    clusterState.term(),
+                    clusterState.version(),
+                    Strings.toString(entry)
+                ),
+                new ElasticsearchException("stack trace")
             );
             final List<String> finalIndices = shardGenerations.indices().stream().map(IndexId::getName).toList();
             final Set<String> indexNames = new HashSet<>(finalIndices);
