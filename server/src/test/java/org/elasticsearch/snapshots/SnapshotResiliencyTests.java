@@ -1268,7 +1268,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                     .setWaitForActiveShards(ActiveShardCount.ALL)
                                     .execute(l)
                             )
-
                             .<Void>andThen((l, ignored) -> {
                                 final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
                                 bulkRequest.add(new IndexRequest(indexName).source(Collections.singletonMap("foo", "initial-doc")));
@@ -1277,7 +1276,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                     return null;
                                 }));
                             })
-
                             .addListener(listeners.acquire());
                     }
                 }
@@ -1313,7 +1311,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             () -> SubscribableListener
 
                                 .newForked(l -> client().admin().indices().prepareDelete(indexToDelete).execute(l.map(response -> null)))
-
                                 .andThen((l, ignored) -> {
                                     client().admin()
                                         .indices()
@@ -1322,7 +1319,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                         .setWaitForActiveShards(ActiveShardCount.ALL)
                                         .execute(l.map(response -> null));
                                 })
-
                                 .andThen((l, ignored) -> {
                                     final BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(
                                         WriteRequest.RefreshPolicy.IMMEDIATE
@@ -1335,7 +1331,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                         return null;
                                     }));
                                 })
-
                                 .addListener(indexRecreatedListener.map(ignored -> null))
                         )
                     );
@@ -1349,7 +1344,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                         taskRunner.enqueueTask(listeners.acquire(ref -> {
 
                             try (var snapshotListeners = new RefCountingListener(ActionListener.releaseAfter(listeners.acquire(), ref))) {
-
                                 SubscribableListener
 
                                     .<Void>newForked(createSnapshotStep -> {
@@ -1394,7 +1388,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                                 .stream()
                                                 .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
                                         )
-
                                         .<Void>andThen(
                                             (deleteSnapshotStep, ignored1) -> deterministicTaskQueue.scheduleNow(
                                                 () -> client().admin()
@@ -1404,7 +1397,6 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                             )
                                         )
                                         .addListener(snapshotListeners.acquire());
-
                                 }
                             }
                         }));
