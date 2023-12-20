@@ -876,7 +876,7 @@ public final class NodeEnvironment implements Closeable {
      */
     public ShardLock shardLock(final ShardId shardId, final String details, final long lockTimeoutMS)
         throws ShardLockObtainFailedException {
-        logger.trace("acquiring node shardlock on [{}], timeout [{}], details [{}]", shardId, lockTimeoutMS, details);
+        logger.info("acquiring node shardlock on [{}], timeout [{}], details [{}]", shardId, lockTimeoutMS, details);
         final InternalShardLock shardLock;
         final boolean acquired;
         synchronized (shardLocks) {
@@ -1007,20 +1007,28 @@ public final class NodeEnvironment implements Closeable {
 
         void acquire(long timeoutInMillis, final String details) throws ShardLockObtainFailedException {
             try {
+                if (mutex.tryAcquire()) {
+                    setDetails(details);
+                    return;
+                }
+
+                assert timeoutInMillis == 0 : "shard lock for " + shardId + " already held: [" + lockDetails + "]";
+
                 if (mutex.tryAcquire(timeoutInMillis, TimeUnit.MILLISECONDS)) {
                     setDetails(details);
-                } else {
-                    final Tuple<Long, String> lockDetails = this.lockDetails; // single volatile read
-                    final var message = format(
-                        "obtaining shard lock for [%s] timed out after [%dms], lock already held for [%s] with age [%dms]",
-                        details,
-                        timeoutInMillis,
-                        lockDetails.v2(),
-                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lockDetails.v1())
-                    );
-                    maybeLogThreadDump(shardId, message);
-                    throw new ShardLockObtainFailedException(shardId, message);
+                    return;
                 }
+
+                final Tuple<Long, String> lockDetails = this.lockDetails; // single volatile read
+                final var message = format(
+                    "obtaining shard lock for [%s] timed out after [%dms], lock already held for [%s] with age [%dms]",
+                    details,
+                    timeoutInMillis,
+                    lockDetails.v2(),
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lockDetails.v1())
+                );
+                maybeLogThreadDump(shardId, message);
+                throw new ShardLockObtainFailedException(shardId, message);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new ShardLockObtainFailedException(shardId, "thread interrupted while trying to obtain shard lock", e);
