@@ -24,12 +24,14 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.Loggers;
@@ -55,6 +57,7 @@ import org.elasticsearch.rest.RestResponseUtils;
 import org.elasticsearch.rest.action.admin.cluster.RestClusterStateAction;
 import org.elasticsearch.rest.action.admin.cluster.RestGetRepositoriesAction;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.test.InternalTestCluster;
@@ -1204,6 +1207,77 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                     doneListener.onResponse(null);
                 }
             });
+    }
+
+    public void testDeleteIndexWithOutOfOrderFinalization() throws Exception {
+        final var indexToDelete = "index-to-delete";
+        assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
+
+        final var otherIndex = "other-index";
+        assertAcked(prepareCreate(otherIndex, indexSettingsNoReplicas(1)));
+
+        final var repoName = "test-repo";
+        createRepository(repoName, "fs");
+        createFullSnapshot(repoName, "snapshot-0");
+
+        final var masterTransportService = MockTransportService.getInstance(internalCluster().getMasterName());
+        final var completeOtherIndexSnapshotListener = new SubscribableListener<Void>();
+        masterTransportService.<UpdateIndexShardSnapshotStatusRequest>addRequestHandlingBehavior(
+            SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
+            (handler, request, channel, task) -> {
+                if (request.shardId().getIndexName().equals(otherIndex)) {
+                    completeOtherIndexSnapshotListener.addListener(
+                        ActionTestUtils.assertNoFailureListener(ignored -> handler.messageReceived(request, channel, task))
+                    );
+                } else {
+                    handler.messageReceived(request, channel, task);
+                }
+            }
+        );
+
+        final var snapshot1 = "snapshot-1";
+        final var snapshot1Future = new PlainActionFuture<CreateSnapshotResponse>();
+        clusterAdmin().prepareCreateSnapshot(repoName, snapshot1)
+            .setWaitForCompletion(true)
+            .setPartial(true)
+            .setIndices(indexToDelete, otherIndex)
+            .execute(snapshot1Future);
+
+        safeAwait(
+            ClusterServiceUtils.addTemporaryStateListener(
+                internalCluster().getInstance(ClusterService.class),
+                cs -> SnapshotsInProgress.get(cs)
+                    .forRepo(repoName)
+                    .stream()
+                    .anyMatch(
+                        e -> e.snapshot().getSnapshotId().getName().equals(snapshot1)
+                            && e.shards()
+                                .entrySet()
+                                .stream()
+                                .anyMatch(
+                                    se -> se.getKey().getIndexName().equals(indexToDelete)
+                                        && se.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS
+                                )
+                    )
+            )
+        );
+
+        assertAcked(indicesAdmin().prepareDelete(indexToDelete));
+        assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
+
+        PlainActionFuture.<CreateSnapshotResponse, Exception>get(
+            snapshot2Future -> clusterAdmin().prepareCreateSnapshot(repoName, "snapshot-2")
+                .setWaitForCompletion(true)
+                .setPartial(false)
+                .setIndices(indexToDelete)
+                .execute(snapshot2Future)
+        );
+
+        assertFalse(snapshot1Future.isDone());
+        completeOtherIndexSnapshotListener.onResponse(null);
+        snapshot1Future.get(10, TimeUnit.SECONDS);
+
+        createFullSnapshot(repoName, "snapshot-3");
     }
 
     public void testGetReposWithWildcard() {
