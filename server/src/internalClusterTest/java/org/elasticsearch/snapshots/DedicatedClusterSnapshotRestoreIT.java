@@ -1217,7 +1217,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
     public void testDeleteIndexWithOutOfOrderFinalization() throws Exception {
 
         final var indexToDelete = "index-to-delete";
-        final var otherIndexCount = 3;
+        final var otherIndexCount = 5;
         final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(0, otherIndexCount).mapToObj(i -> "index-" + i))
             .toList();
 
@@ -1230,15 +1230,22 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         createFullSnapshot(repoName, "snap-init");
 
         final var masterTransportService = MockTransportService.getInstance(internalCluster().getMasterName());
-        final Map<String, SubscribableListener<Void>> completeIndexSnapshotListeners = indexNames.stream()
+        final Map<String, SubscribableListener<Void>> otherIndexSnapshotListeners = indexNames.stream()
             .collect(Collectors.toMap(k -> k, k -> new SubscribableListener<>()));
-        completeIndexSnapshotListeners.get(indexToDelete).onResponse(null);
+        final Map<String, SubscribableListener<Void>> toDeleteShardSnapshotListeners = indexNames.stream()
+            .collect(Collectors.toMap(k -> "snapshot-" + k, k -> new SubscribableListener<>()));
 
         masterTransportService.<UpdateIndexShardSnapshotStatusRequest>addRequestHandlingBehavior(
             SnapshotsService.UPDATE_SNAPSHOT_STATUS_ACTION_NAME,
             (handler, request, channel, task) -> {
-                final var listener = completeIndexSnapshotListeners.get(request.shardId().getIndexName());
-                assertNotNull(listener);
+                final var indexName = request.shardId().getIndexName();
+                final var snapshotName = request.snapshot().getSnapshotId().getName();
+                final var listener = snapshotName.equals("snapshot-fin")
+                    ? SubscribableListener.newSucceeded(null)
+                    : (indexName.equals(indexToDelete)
+                        ? toDeleteShardSnapshotListeners.get(snapshotName)
+                        : otherIndexSnapshotListeners.get(indexName));
+                assertNotNull(indexName + "/" + snapshotName, listener);
                 listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> handler.messageReceived(request, channel, task)));
             }
         );
@@ -1251,11 +1258,15 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             final var snapshotName = "snapshot-" + extraIndex;
             final var snapshotFuture = new PlainActionFuture<CreateSnapshotResponse>();
             snapshotFutures.put(extraIndex, snapshotFuture);
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
+            final var createSnapshotRequestBuilder = clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
                 .setWaitForCompletion(true)
-                .setPartial(true)
-                .setIndices(indexToDelete, extraIndex)
-                .execute(snapshotFuture);
+                .setPartial(true);
+            if (extraIndex.equals("index-4")) {
+                createSnapshotRequestBuilder.setIndices(extraIndex);
+            } else {
+                createSnapshotRequestBuilder.setIndices(indexToDelete, extraIndex);
+            }
+            createSnapshotRequestBuilder.execute(snapshotFuture);
 
             safeAwait(
                 ClusterServiceUtils.addTemporaryStateListener(
@@ -1263,33 +1274,84 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                     cs -> SnapshotsInProgress.get(cs)
                         .forRepo(repoName)
                         .stream()
-                        .anyMatch(
-                            e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
-                                && e.shards()
-                                    .entrySet()
-                                    .stream()
-                                    .anyMatch(
-                                        se -> se.getKey().getIndexName().equals(indexToDelete)
-                                            && se.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS
-                                    )
-                        )
+                        .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals(snapshotName))
                 )
             );
 
-            if (extraIndex.equals("index-1")) {
-                assertAcked(indicesAdmin().prepareDelete(indexToDelete));
-                assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
+            if (extraIndex.equals("index-3")) {
+                clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
+                safeAwait(
+                    ClusterServiceUtils.addTemporaryStateListener(
+                        internalCluster().getInstance(ClusterService.class),
+                        cs -> SnapshotsInProgress.get(cs)
+                            .forRepo(repoName)
+                            .stream()
+                            .anyMatch(
+                                e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
+                                    && e.shards()
+                                        .entrySet()
+                                        .stream()
+                                        .anyMatch(
+                                            se -> se.getKey().getIndexName().equals(indexToDelete)
+                                                && se.getValue().state() == SnapshotsInProgress.ShardState.ABORTED
+                                        )
+                            )
+                    )
+                );
+            }
+
+            toDeleteShardSnapshotListeners.get(snapshotName).onResponse(null);
+
+            if (extraIndex.equals("index-4") == false) {
+                safeAwait(
+                    ClusterServiceUtils.addTemporaryStateListener(
+                        internalCluster().getInstance(ClusterService.class),
+                        cs -> SnapshotsInProgress.get(cs)
+                            .forRepo(repoName)
+                            .stream()
+                            .anyMatch(
+                                e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
+                                    && e.shards()
+                                        .entrySet()
+                                        .stream()
+                                        .anyMatch(
+                                            se -> se.getKey().getIndexName().equals(indexToDelete)
+                                                && se.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS
+                                        )
+                            )
+                    )
+                );
+            }
+
+            if (extraIndex.equals("index-2")) {
+                clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
             }
         }
 
-        for (final var extraIndex : List.of("index-2", "index-0", "index-1")) {
+        assertAcked(indicesAdmin().prepareDelete(indexToDelete));
+        assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
+
+        for (final var extraIndex : List.of("index-2", "index-0", "index-3", "index-1", "index-4")) {
+            final var otherStuffListener = new SubscribableListener<Void>();
+            if (extraIndex.equals("index-4")) {
+                clusterAdmin().prepareCreateSnapshot(repoName, "snapshot-fin")
+                    .setWaitForCompletion(true)
+                    .execute(otherStuffListener.map(createSnapshotResponse -> {
+                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
+                        return null;
+                    }));
+            } else {
+                otherStuffListener.onResponse(null);
+            }
+
             final var snapshotFuture = snapshotFutures.get(extraIndex);
             assertFalse(snapshotFuture.isDone());
-            completeIndexSnapshotListeners.get(extraIndex).onResponse(null);
+            otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
             snapshotFuture.get(10, TimeUnit.SECONDS);
+            safeAwait(otherStuffListener);
         }
 
-        createFullSnapshot(repoName, "snapshot-fin");
+        masterTransportService.clearAllRules();
 
         fail("boom");
     }
