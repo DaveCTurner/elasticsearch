@@ -1217,7 +1217,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
     public void testDeleteIndexWithOutOfOrderFinalization() throws Exception {
 
         final var indexToDelete = "index-to-delete";
-        final var otherIndexCount = 5;
+        final var otherIndexCount = 6;
         final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(0, otherIndexCount).mapToObj(i -> "index-" + i))
             .toList();
 
@@ -1261,7 +1261,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             final var createSnapshotRequestBuilder = clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
                 .setWaitForCompletion(true)
                 .setPartial(true);
-            if (extraIndex.equals("index-4")) {
+            if (extraIndex.equals("index-5")) {
                 createSnapshotRequestBuilder.setIndices(extraIndex);
             } else {
                 createSnapshotRequestBuilder.setIndices(indexToDelete, extraIndex);
@@ -1278,7 +1278,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 )
             );
 
-            if (extraIndex.equals("index-3")) {
+            if (extraIndex.equals("index-4")) {
                 clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
                 safeAwait(
                     ClusterServiceUtils.addTemporaryStateListener(
@@ -1302,7 +1302,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
             toDeleteShardSnapshotListeners.get(snapshotName).onResponse(null);
 
-            if (extraIndex.equals("index-4") == false) {
+            if (extraIndex.equals("index-5") == false) {
                 safeAwait(
                     ClusterServiceUtils.addTemporaryStateListener(
                         internalCluster().getInstance(ClusterService.class),
@@ -1323,17 +1323,14 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 );
             }
 
-            if (extraIndex.equals("index-2")) {
+            if (extraIndex.equals("index-3")) {
                 clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
             }
         }
 
-        assertAcked(indicesAdmin().prepareDelete(indexToDelete));
-        assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
-
-        for (final var extraIndex : List.of("index-2", "index-0", "index-3", "index-1", "index-4")) {
+        for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2", "index-5")) {
             final var otherStuffListener = new SubscribableListener<Void>();
-            if (extraIndex.equals("index-4")) {
+            if (extraIndex.equals("index-5")) {
                 clusterAdmin().prepareCreateSnapshot(repoName, "snapshot-fin")
                     .setWaitForCompletion(true)
                     .execute(otherStuffListener.map(createSnapshotResponse -> {
@@ -1349,6 +1346,11 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
             snapshotFuture.get(10, TimeUnit.SECONDS);
             safeAwait(otherStuffListener);
+
+            if (extraIndex.equals("index-0")) {
+                assertAcked(indicesAdmin().prepareDelete(indexToDelete));
+                assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
+            }
         }
 
         masterTransportService.clearAllRules();
