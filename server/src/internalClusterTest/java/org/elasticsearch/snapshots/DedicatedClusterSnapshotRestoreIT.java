@@ -1250,6 +1250,25 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             }
         );
 
+        final var masterIndicesClient = internalCluster().masterClient().admin().indices();
+        final var snapshot3CompletedListener = ClusterServiceUtils.addTemporaryStateListener(
+            internalCluster().getInstance(ClusterService.class),
+            cs -> SnapshotsInProgress.get(cs)
+                .forRepo(repoName)
+                .stream()
+                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-index-3") && e.state().completed())
+        );
+        final var indexRecreatedListener = snapshot3CompletedListener
+            // enqueue the index deletion on the master before the snapshot finalization
+            .andThen((l, ignored) -> masterIndicesClient.prepareDelete(indexToDelete).execute(l.map(r -> {
+                assertTrue(r.isAcknowledged());
+                return null;
+            })))
+            .andThen((l, ignored) -> prepareCreate(indexToDelete, indexSettingsNoReplicas(1)).execute(l.map(r -> {
+                assertTrue(r.isAcknowledged());
+                return null;
+            })));
+
         final Map<String, PlainActionFuture<CreateSnapshotResponse>> snapshotFutures = new HashMap<>();
         for (final var extraIndex : indexNames) {
             if (extraIndex.equals(indexToDelete)) {
@@ -1346,12 +1365,9 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
             snapshotFuture.get(10, TimeUnit.SECONDS);
             safeAwait(otherStuffListener);
-
-            if (extraIndex.equals("index-0")) {
-                assertAcked(indicesAdmin().prepareDelete(indexToDelete));
-                assertAcked(prepareCreate(indexToDelete, indexSettingsNoReplicas(1)));
-            }
         }
+
+        safeAwait(indexRecreatedListener);
 
         masterTransportService.clearAllRules();
 
