@@ -93,8 +93,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.elasticsearch.index.seqno.RetentionLeaseActions.RETAIN_ALL;
 import static org.elasticsearch.test.NodeRoles.nonMasterNode;
@@ -1238,11 +1236,9 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             (handler, request, channel, task) -> {
                 final var indexName = request.shardId().getIndexName();
                 final var snapshotName = request.snapshot().getSnapshotId().getName();
-                final var listener = snapshotName.equals("snapshot-fin")
-                    ? SubscribableListener.newSucceeded(null)
-                    : (indexName.equals(indexToDelete)
-                        ? toDeleteShardSnapshotListeners.get(snapshotName)
-                        : otherIndexSnapshotListeners.get(indexName));
+                final var listener = indexName.equals(indexToDelete)
+                    ? toDeleteShardSnapshotListeners.get(snapshotName)
+                    : otherIndexSnapshotListeners.get(indexName);
                 assertNotNull(indexName + "/" + snapshotName, listener);
                 listener.addListener(ActionTestUtils.assertNoFailureListener(ignored -> handler.messageReceived(request, channel, task)));
             }
