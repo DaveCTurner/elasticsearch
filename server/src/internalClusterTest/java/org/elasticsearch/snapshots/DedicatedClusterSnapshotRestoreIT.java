@@ -1228,7 +1228,6 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
         final var repoName = "test-repo";
         createRepository(repoName, "fs");
-        createFullSnapshot(repoName, "snap-init");
 
         final var masterTransportService = MockTransportService.getInstance(internalCluster().getMasterName());
         final Map<String, SubscribableListener<Void>> otherIndexSnapshotListeners = indexNames.stream()
