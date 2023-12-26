@@ -1294,50 +1294,26 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 )
             );
 
-            if (extraIndex.equals("index-4")) {
-                clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
-                safeAwait(
-                    ClusterServiceUtils.addTemporaryStateListener(
-                        internalCluster().getInstance(ClusterService.class),
-                        cs -> SnapshotsInProgress.get(cs)
-                            .forRepo(repoName)
-                            .stream()
-                            .anyMatch(
-                                e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
-                                    && e.shards()
-                                        .entrySet()
-                                        .stream()
-                                        .anyMatch(
-                                            se -> se.getKey().getIndexName().equals(indexToDelete)
-                                                && se.getValue().state() == SnapshotsInProgress.ShardState.ABORTED
-                                        )
-                            )
-                    )
-                );
-            }
-
             toDeleteShardSnapshotListeners.get(snapshotName).onResponse(null);
 
-            if (extraIndex.equals("index-5") == false) {
-                safeAwait(
-                    ClusterServiceUtils.addTemporaryStateListener(
-                        internalCluster().getInstance(ClusterService.class),
-                        cs -> SnapshotsInProgress.get(cs)
-                            .forRepo(repoName)
-                            .stream()
-                            .anyMatch(
-                                e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
-                                    && e.shards()
-                                        .entrySet()
-                                        .stream()
-                                        .anyMatch(
-                                            se -> se.getKey().getIndexName().equals(indexToDelete)
-                                                && se.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS
-                                        )
-                            )
-                    )
-                );
-            }
+            safeAwait(
+                ClusterServiceUtils.addTemporaryStateListener(
+                    internalCluster().getInstance(ClusterService.class),
+                    cs -> SnapshotsInProgress.get(cs)
+                        .forRepo(repoName)
+                        .stream()
+                        .anyMatch(
+                            e -> e.snapshot().getSnapshotId().getName().equals(snapshotName)
+                                && e.shards()
+                                    .entrySet()
+                                    .stream()
+                                    .anyMatch(
+                                        se -> se.getKey().getIndexName().equals(indexToDelete)
+                                            && se.getValue().state() == SnapshotsInProgress.ShardState.SUCCESS
+                                    )
+                        )
+                )
+            );
 
             if (extraIndex.equals("index-3")) {
                 clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
