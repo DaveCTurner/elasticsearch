@@ -1345,23 +1345,10 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         }
 
         for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2")) {
-            final var otherStuffListener = new SubscribableListener<Void>();
-            if (extraIndex.equals("index-5")) {
-                clusterAdmin().prepareCreateSnapshot(repoName, "snapshot-fin")
-                    .setWaitForCompletion(true)
-                    .execute(otherStuffListener.map(createSnapshotResponse -> {
-                        assertEquals(SnapshotState.SUCCESS, createSnapshotResponse.getSnapshotInfo().state());
-                        return null;
-                    }));
-            } else {
-                otherStuffListener.onResponse(null);
-            }
-
             final var snapshotFuture = snapshotFutures.get(extraIndex);
             assertFalse(snapshotFuture.isDone());
             otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
             snapshotFuture.get(10, TimeUnit.SECONDS);
-            safeAwait(otherStuffListener);
         }
 
         safeAwait(indexRecreatedListener);
