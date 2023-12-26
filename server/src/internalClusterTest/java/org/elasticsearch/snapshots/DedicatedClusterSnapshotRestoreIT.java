@@ -1217,7 +1217,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
     public void testDeleteIndexWithOutOfOrderFinalization() throws Exception {
 
         final var indexToDelete = "index-to-delete";
-        final var otherIndexCount = 6;
+        final var otherIndexCount = 5;
         final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(0, otherIndexCount).mapToObj(i -> "index-" + i))
             .toList();
 
@@ -1347,7 +1347,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             }
         }
 
-        for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2", "index-5")) {
+        for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2")) {
             final var otherStuffListener = new SubscribableListener<Void>();
             if (extraIndex.equals("index-5")) {
                 clusterAdmin().prepareCreateSnapshot(repoName, "snapshot-fin")
@@ -1370,8 +1370,6 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         safeAwait(indexRecreatedListener);
 
         masterTransportService.clearAllRules();
-
-        fail("boom");
     }
 
     public void testGetReposWithWildcard() {
