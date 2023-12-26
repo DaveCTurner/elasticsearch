@@ -1218,9 +1218,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
     public void testDeleteIndexWithOutOfOrderFinalization() throws Exception {
 
         final var indexToDelete = "index-to-delete";
-        final var otherIndexCount = 5;
-        final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(2, otherIndexCount).mapToObj(i -> "index-" + i))
-            .toList();
+        final var indexNames = List.of(indexToDelete, "index-0", "index-1", "index-2");
 
         for (final var indexName : indexNames) {
             assertAcked(prepareCreate(indexName, indexSettingsNoReplicas(1)));
@@ -1258,7 +1256,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 cs -> SnapshotsInProgress.get(cs)
                     .forRepo(repoName)
                     .stream()
-                    .anyMatch(e1 -> e1.snapshot().getSnapshotId().getName().equals("snapshot-index-3") && e1.state().completed())
+                    .anyMatch(e1 -> e1.snapshot().getSnapshotId().getName().equals("snapshot-index-1") && e1.state().completed())
             )
             // enqueue the index deletion on the master before the snapshot finalization
             .andThen((l, ignored) -> masterIndicesClient.prepareDelete(indexToDelete).execute(l.map(r -> {
@@ -1316,7 +1314,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             );
         }
 
-        for (final var extraIndex : List.of("index-3", "index-4", "index-2")) {
+        for (final var extraIndex : List.of("index-1", "index-2", "index-0")) {
             final var snapshotFuture = snapshotFutures.get(extraIndex);
             assertFalse(snapshotFuture.isDone());
             otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
