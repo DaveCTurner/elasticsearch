@@ -1252,14 +1252,15 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         );
 
         final var masterIndicesClient = internalCluster().masterClient().admin().indices();
-        final var snapshot3CompletedListener = ClusterServiceUtils.addTemporaryStateListener(
-            internalCluster().getInstance(ClusterService.class),
-            cs -> SnapshotsInProgress.get(cs)
-                .forRepo(repoName)
-                .stream()
-                .anyMatch(e -> e.snapshot().getSnapshotId().getName().equals("snapshot-index-3") && e.state().completed())
-        );
-        final var indexRecreatedListener = snapshot3CompletedListener
+        final var indexRecreatedListener = ClusterServiceUtils
+            // wait until the snapshot has entered finalization
+            .addTemporaryStateListener(
+                internalCluster().getInstance(ClusterService.class),
+                cs -> SnapshotsInProgress.get(cs)
+                    .forRepo(repoName)
+                    .stream()
+                    .anyMatch(e1 -> e1.snapshot().getSnapshotId().getName().equals("snapshot-index-3") && e1.state().completed())
+            )
             // enqueue the index deletion on the master before the snapshot finalization
             .andThen((l, ignored) -> masterIndicesClient.prepareDelete(indexToDelete).execute(l.map(r -> {
                 assertTrue(r.isAcknowledged());
