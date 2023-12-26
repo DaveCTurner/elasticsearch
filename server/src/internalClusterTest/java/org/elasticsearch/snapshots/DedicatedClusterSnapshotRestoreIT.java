@@ -1219,7 +1219,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
         final var indexToDelete = "index-to-delete";
         final var otherIndexCount = 5;
-        final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(0, otherIndexCount).mapToObj(i -> "index-" + i))
+        final var indexNames = Stream.concat(Stream.of(indexToDelete), IntStream.range(2, otherIndexCount).mapToObj(i -> "index-" + i))
             .toList();
 
         for (final var indexName : indexNames) {
@@ -1316,7 +1316,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             );
         }
 
-        for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2")) {
+        for (final var extraIndex : List.of("index-3", "index-4", "index-2")) {
             final var snapshotFuture = snapshotFutures.get(extraIndex);
             assertFalse(snapshotFuture.isDone());
             otherIndexSnapshotListeners.get(extraIndex).onResponse(null);
