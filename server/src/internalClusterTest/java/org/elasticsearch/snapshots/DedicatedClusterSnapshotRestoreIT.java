@@ -1244,7 +1244,6 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 assertFalse(snapshotFuture.isDone());
                 otherIndexSnapshotListeners.get(blockingIndex).onResponse(null);
                 assertEquals(SnapshotState.SUCCESS, snapshotFuture.actionGet(10, TimeUnit.SECONDS).getSnapshotInfo().state());
-                // TODO should be PARTIAL not SUCCESS!
             });
         }
 
