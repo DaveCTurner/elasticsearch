@@ -1314,10 +1314,6 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                         )
                 )
             );
-
-            if (extraIndex.equals("index-3")) {
-                clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
-            }
         }
 
         for (final var extraIndex : List.of("index-0", "index-3", "index-1", "index-4", "index-2")) {
