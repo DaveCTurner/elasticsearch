@@ -1365,13 +1365,14 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 Strings.format(
                     """
                         [%s] finalizing snapshot using repo data gen [%d] and shard generations [%s] \
-                        computed from entry in cluster state [term=%d, version=%d] on thread [%s]: %s
+                        computed from entry in cluster state [term=%d, version=%d] and metadata [version=%d] on thread [%s]: %s
                         %s""",
                     snapshot,
                     repositoryData.getGenId(),
                     shardGenerations,
                     clusterState.term(),
                     clusterState.version(),
+                    metadata.version(),
                     Thread.currentThread().getName(),
                     entry.shardsByRepoShardId(),
                     Strings.toString(entry)

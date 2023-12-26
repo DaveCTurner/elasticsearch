@@ -357,6 +357,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 Source: {}
                 Tasks:
                 {}
+                Metadata version: {}
                 RepositoriesMetadata: {}
                 SnapshotsInProgress: {}
                 SnapshotDeletionsInProgress: {}
@@ -366,6 +367,7 @@ public class MasterService extends AbstractLifecycleComponent {
             newClusterState.term(),
             summary,
             executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")),
+            newClusterState.metadata().version(),
             Strings.toString(RepositoriesMetadata.get(newClusterState)),
             Strings.toString(new SnapshotsInProgress.DebugXContent(SnapshotsInProgress.get(newClusterState))),
             Strings.toString(SnapshotDeletionsInProgress.get(newClusterState)),
