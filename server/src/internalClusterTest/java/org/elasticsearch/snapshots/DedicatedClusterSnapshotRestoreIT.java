@@ -27,6 +27,7 @@ import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.SnapshotDeletionsInProgress;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
@@ -1277,15 +1278,11 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             final var snapshotName = "snapshot-" + extraIndex;
             final var snapshotFuture = new PlainActionFuture<CreateSnapshotResponse>();
             snapshotFutures.put(extraIndex, snapshotFuture);
-            final var createSnapshotRequestBuilder = clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
+            clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
                 .setWaitForCompletion(true)
-                .setPartial(true);
-            if (extraIndex.equals("index-5")) {
-                createSnapshotRequestBuilder.setIndices(extraIndex);
-            } else {
-                createSnapshotRequestBuilder.setIndices(indexToDelete, extraIndex);
-            }
-            createSnapshotRequestBuilder.execute(snapshotFuture);
+                .setPartial(true)
+                .setIndices(indexToDelete, extraIndex)
+                .execute(snapshotFuture);
 
             safeAwait(
                 ClusterServiceUtils.addTemporaryStateListener(
@@ -1370,6 +1367,13 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         safeAwait(indexRecreatedListener);
 
         masterTransportService.clearAllRules();
+
+        safeAwait(
+            ClusterServiceUtils.addTemporaryStateListener(
+                internalCluster().getInstance(ClusterService.class),
+                cs -> SnapshotsInProgress.get(cs).isEmpty() && SnapshotDeletionsInProgress.get(cs).getEntries().isEmpty()
+            )
+        );
     }
 
     public void testGetReposWithWildcard() {
