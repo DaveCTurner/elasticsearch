@@ -1275,6 +1275,12 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
         safeAwait(indexRecreatedListener);
         masterTransportService.clearAllRules();
+
+        // create a full snapshot to verify that the repo is still ok
+        createFullSnapshot(repoName, "final-full-snapshot");
+
+        // delete the full snapshot to clean up the leftover shard-level metadata (which trips repo consistency assertions otherwise)
+        startDeleteSnapshot(repoName, "final-full-snapshot").actionGet(10, TimeUnit.SECONDS);
     }
 
     // create and delete a snapshot of the given name and for the given single index in a loop until the index is removed from the cluster
