@@ -1731,7 +1731,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             final ShardSnapshotStatus shardState = finishedShardEntry.getValue();
                             final RepositoryShardId repositoryShardId = finishedShardEntry.getKey();
                             if (shardState.state() != ShardState.SUCCESS
-                                || previousEntry.shardsByRepoShardId().containsKey(repositoryShardId) == false) {
+                                || previousEntry.shardsByRepoShardId().containsKey(repositoryShardId) == false
+                                || indexExists(removedEntry, state.metadata(), finishedShardEntry.getKey().indexName()) == false) {
                                 continue;
                             }
                             updatedShardAssignments = maybeAddUpdatedAssignment(
@@ -1749,7 +1750,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             final ShardSnapshotStatus shardState = finishedShardEntry.getValue();
                             if (shardState.state() == ShardState.SUCCESS
                                 && previousEntry.shardsByRepoShardId().containsKey(finishedShardEntry.getKey())
-                                && indexExists(previousEntry, state.metadata(), finishedShardEntry.getKey().indexName())) {
+                                && indexExists(removedEntry, state.metadata(), finishedShardEntry.getKey().indexName())) {
                                 updatedShardAssignments = maybeAddUpdatedAssignment(
                                     updatedShardAssignments,
                                     shardState,
