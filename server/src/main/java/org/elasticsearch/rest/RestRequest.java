@@ -542,7 +542,7 @@ public class RestRequest implements ToXContent.Params, Traceable {
     public final void withContentOrSourceParamParserOrNull(CheckedConsumer<XContentParser, IOException> withParser) throws IOException {
         if (hasContentOrSourceParam()) {
             Tuple<XContentType, BytesReference> tuple = contentOrSourceParam();
-            try (XContentParser parser = XContentHelper.createParserNotCompressed(parserConfig, tuple.v2(), tuple.v1())) {
+            try (XContentParser parser = XContentHelper.createParserNotCompressed(contentParserConfig(), tuple.v2(), tuple.v1())) {
                 withParser.accept(parser);
             }
         } else {

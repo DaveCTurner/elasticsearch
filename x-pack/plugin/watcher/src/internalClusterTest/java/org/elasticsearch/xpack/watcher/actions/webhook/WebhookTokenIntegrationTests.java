@@ -100,9 +100,11 @@ public class WebhookTokenIntegrationTests extends AbstractWatcherIntegrationTest
             ksw.save(configPath, "".toCharArray(), false);
         }
         // Reload the keystore to load the new settings
-        NodesReloadSecureSettingsRequest reloadReq = new NodesReloadSecureSettingsRequest(Strings.EMPTY_ARRAY);
+        NodesReloadSecureSettingsRequest reloadReq = new NodesReloadSecureSettingsRequest(
+            Strings.EMPTY_ARRAY,
+            new SecureString(new char[0])
+        );
         try {
-            reloadReq.setSecureStorePassword(new SecureString("".toCharArray()));
             client().execute(TransportNodesReloadSecureSettingsAction.TYPE, reloadReq).get();
         } finally {
             reloadReq.decRef();

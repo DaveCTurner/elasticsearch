@@ -280,9 +280,8 @@ public class ReloadRemoteClusterCredentialsIT extends SecuritySingleNodeTestCase
         final CountDownLatch latch = new CountDownLatch(1);
         final SecureString emptyPassword = randomBoolean() ? new SecureString(new char[0]) : null;
 
-        final var request = new NodesReloadSecureSettingsRequest(Strings.EMPTY_ARRAY);
+        final var request = new NodesReloadSecureSettingsRequest(Strings.EMPTY_ARRAY, emptyPassword);
         try {
-            request.setSecureStorePassword(emptyPassword);
             client().execute(TransportNodesReloadSecureSettingsAction.TYPE, request, new ActionListener<>() {
                 @Override
                 public void onResponse(NodesReloadSecureSettingsResponse nodesReloadResponse) {

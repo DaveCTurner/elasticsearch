@@ -41,16 +41,14 @@ public class NodesReloadSecureSettingsRequest extends BaseNodesRequest<NodesRelo
      * {@code SecureSettings}).
      */
     @Nullable
-    private SecureString secureSettingsPassword;
+    private final SecureString secureSettingsPassword;
 
-    private final RefCounted refs = LeakTracker.wrap(AbstractRefCounted.of(() -> Releasables.close(secureSettingsPassword)));
+    private final RefCounted refs;
 
-    public NodesReloadSecureSettingsRequest(String[] nodeIds) {
+    public NodesReloadSecureSettingsRequest(String[] nodeIds, @Nullable SecureString secureSettingsPassword) {
         super(nodeIds);
-    }
-
-    public void setSecureStorePassword(SecureString secureStorePassword) {
-        this.secureSettingsPassword = secureStorePassword;
+        this.secureSettingsPassword = secureSettingsPassword;
+        this.refs = LeakTracker.wrap(AbstractRefCounted.of(() -> Releasables.close(secureSettingsPassword)));
     }
 
     boolean hasPassword() {
