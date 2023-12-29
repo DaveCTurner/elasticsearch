@@ -8,7 +8,6 @@
 
 package org.elasticsearch.action.admin;
 
-import org.apache.lucene.tests.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.reload.NodesReloadSecureSettingsRequest;
@@ -47,7 +46,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 @ESIntegTestCase.ClusterScope(minNumDataNodes = 2)
-@LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/pull/103734")
 public class ReloadSecureSettingsIT extends ESIntegTestCase {
 
     private static final String VALID_SECURE_SETTING_NAME = "some.setting.that.exists";
@@ -68,8 +66,12 @@ public class ReloadSecureSettingsIT extends ESIntegTestCase {
         ActionListener<NodesReloadSecureSettingsResponse> listener
     ) {
         final var request = new NodesReloadSecureSettingsRequest(nodeIds);
-        request.setSecureStorePassword(password);
-        client().execute(TransportNodesReloadSecureSettingsAction.TYPE, request, listener);
+        try {
+            request.setSecureStorePassword(password);
+            client().execute(TransportNodesReloadSecureSettingsAction.TYPE, request, listener);
+        } finally {
+            request.decRef();
+        }
     }
 
     private static SecureString emptyPassword() {
