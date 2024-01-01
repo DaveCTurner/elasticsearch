@@ -76,6 +76,7 @@ import org.elasticsearch.common.util.concurrent.ThrottledTaskRunner;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.AbstractRefCounted;
+import org.elasticsearch.core.Assertions;
 import org.elasticsearch.core.CheckedConsumer;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.RefCounted;
@@ -123,6 +124,7 @@ import org.elasticsearch.snapshots.SnapshotsService;
 import org.elasticsearch.tasks.TaskCancelledException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentParser;
@@ -154,6 +156,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.core.Strings.format;
@@ -1732,6 +1735,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         ); gen < newRepoGeneration; gen++) {
             toDelete.add(INDEX_FILE_PREFIX + gen);
         }
+        final Iterator<String> toDeleteIterator;
         if (writeShardGenerations) {
             final int prefixPathLen = basePath().buildAsString().length();
             updatedRepositoryData.shardGenerations()
@@ -1740,6 +1744,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     (indexId, gens) -> gens.forEach(
                         (shardId, oldGen) -> toDelete.add(
                             shardPath(indexId, shardId).buildAsString().substring(prefixPathLen) + INDEX_FILE_PREFIX + oldGen
+                                .toBlobNamePart()
                         )
                     )
                 );
@@ -1751,13 +1756,23 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                     toDelete.add(containerPath + shardGeneration);
                 }
             }
+
+            toDeleteIterator = wrapMetadataToDeleteIterator(
+                updatedRepositoryData,
+                clusterService.state(),
+                repositoryShardId -> shardPath(repositoryShardId.index(), repositoryShardId.shardId()).buildAsString()
+                    .substring(prefixPathLen),
+                toDelete.iterator()
+            );
+        } else {
+            toDeleteIterator = toDelete.iterator();
         }
 
         if (toDelete.isEmpty() == false) {
             threadPool.executor(ThreadPool.Names.SNAPSHOT).execute(new AbstractRunnable() {
                 @Override
                 protected void doRun() throws Exception {
-                    deleteFromContainer(OperationPurpose.SNAPSHOT_METADATA, blobContainer(), toDelete.iterator());
+                    deleteFromContainer(OperationPurpose.SNAPSHOT_METADATA, blobContainer(), toDeleteIterator);
                 }
 
                 @Override
@@ -1773,6 +1788,58 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
         } else {
             finalizeSnapshotContext.onDone(snapshotInfo);
         }
+    }
+
+    /**
+     * If assertions are enabled, adds a wrapper around an iterator over blob paths which verifies that none of the blob paths are shard-gen
+     * files that are still referenced by existing snapshots in progress or the current repository data.
+     */
+    private static Iterator<String> wrapMetadataToDeleteIterator(
+        RepositoryData newRepositoryData,
+        ClusterState clusterState,
+        Function<RepositoryShardId, String> shardPathFn,
+        Iterator<String> blobsToDelete
+    ) {
+        if (Assertions.ENABLED == false) {
+            return blobsToDelete;
+        }
+
+        final var repoShardGenerations = newRepositoryData.shardGenerations();
+        final var blobsToKeep = Stream.concat(
+            SnapshotsInProgress.get(clusterState)
+                .asStream()
+                .flatMap(snapshotInProgress -> snapshotInProgress.shardsByRepoShardId().entrySet().stream().map(shardEntry -> {
+                    final var shardGeneration = shardEntry.getValue().generation();
+                    return shardGeneration == null || switch (shardEntry.getValue().state()) {
+                        case FAILED, MISSING -> true;
+                        case INIT, SUCCESS, ABORTED, WAITING, QUEUED -> false;
+                    } ? null : shardPathFn.apply(shardEntry.getKey()) + INDEX_FILE_PREFIX + shardGeneration.toBlobNamePart();
+                })),
+            repoShardGenerations.indices().stream().flatMap(indexId -> {
+                final var indexShardGenerations = repoShardGenerations.getGens(indexId);
+                return IntStream.range(0, indexShardGenerations.size()).mapToObj(shardId -> {
+                    final var shardGeneration = indexShardGenerations.get(shardId);
+                    return shardGeneration == null
+                        ? null
+                        : shardPathFn.apply(new RepositoryShardId(indexId, shardId)) + INDEX_FILE_PREFIX + shardGeneration.toBlobNamePart();
+                });
+            })
+        ).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        return Iterators.map(blobsToDelete, s -> {
+            if (blobsToKeep.contains(s)) {
+                logger.error(
+                    "unexpectedly deleting [{}]\nSnapshotsInProgress: {}\nRepoData: {}",
+                    s,
+                    Strings.toString(SnapshotsInProgress.get(clusterState)),
+                    Strings.toString(
+                        (ToXContentObject) (builder, params) -> newRepositoryData.snapshotsToXContent(builder, IndexVersion.current())
+                    )
+                );
+                throw new AssertionError(s);
+            }
+            return s;
+        });
     }
 
     @Override
