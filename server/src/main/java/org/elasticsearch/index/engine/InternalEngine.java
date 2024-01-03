@@ -2585,11 +2585,6 @@ public class InternalEngine extends Engine {
         }
     }
 
-    /**
-     * Closes the engine without acquiring the write lock. This should only be
-     * called while the write lock is hold or in a disaster condition ie. if the engine
-     * is failed.
-     */
     @Override
     protected final void closeNoLock(String reason, CountDownLatch closedLatch) {
         if (isClosed.compareAndSet(false, true)) {
