@@ -1967,11 +1967,14 @@ public abstract class Engine implements Closeable {
 
     @Override
     public void close() throws IOException {
-        Strings.format(
-            "close(): maybe draining ops [%d] on thread [%s]",
-            System.identityHashCode(Engine.this),
-            Thread.currentThread().getName()
-        ),
+        logger.debug(
+            Strings.format(
+                "close(): maybe draining ops [%d] on thread [%s]",
+                System.identityHashCode(Engine.this),
+                Thread.currentThread().getName()
+            ),
+            new ElasticsearchException("stack trace")
+        );
         if (isClosed.get() == false && drainForClose()) {
             logger.debug("close drained ops");
             closeNoLock("api", closedLatch);
