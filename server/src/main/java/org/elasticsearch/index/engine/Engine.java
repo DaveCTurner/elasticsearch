@@ -29,12 +29,14 @@ import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.service.ClusterApplierService;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.lucene.Lucene;
@@ -1905,7 +1907,11 @@ public abstract class Engine implements Closeable {
             return false;
         }
 
-        logger.debug("drainForClose(): draining ops [{}]", System.identityHashCode(Engine.this));
+        logger.debug(
+            "drainForClose(): draining ops [{}] on thread [{}]",
+            System.identityHashCode(Engine.this),
+            Thread.currentThread().getName()
+        );
         releaseEnsureOpenRef.close();
         final var future = new PlainActionFuture<Void>() {
             @Override
@@ -1934,7 +1940,14 @@ public abstract class Engine implements Closeable {
      * Flush the engine (committing segments to disk and truncating the translog) and close it.
      */
     public void flushAndClose() throws IOException {
-        logger.trace("flushAndClose() maybe draining ops");
+        logger.debug(
+            Strings.format(
+                "flushAndClose(): maybe draining ops [%d] on thread [%s]",
+                System.identityHashCode(Engine.this),
+                Thread.currentThread().getName()
+            ),
+            new ElasticsearchException("stack trace")
+        );
         if (isClosed.get() == false && drainForClose()) {
             logger.trace("flushAndClose drained ops");
             try {
@@ -1954,7 +1967,11 @@ public abstract class Engine implements Closeable {
 
     @Override
     public void close() throws IOException {
-        logger.debug("close(): maybe draining ops [{}]", System.identityHashCode(Engine.this));
+        Strings.format(
+            "close(): maybe draining ops [%d] on thread [%s]",
+            System.identityHashCode(Engine.this),
+            Thread.currentThread().getName()
+        ),
         if (isClosed.get() == false && drainForClose()) {
             logger.debug("close drained ops");
             closeNoLock("api", closedLatch);
