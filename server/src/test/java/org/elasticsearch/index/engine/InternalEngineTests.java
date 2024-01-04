@@ -3691,6 +3691,7 @@ public class InternalEngineTests extends EngineTestCase {
             @Override
             protected void doRun() throws Exception {
                 barrier.await();
+                Thread.sleep(50);
                 myEngine.failEngine("test", new RuntimeException("test"));
             }
         }, "failingThread");
