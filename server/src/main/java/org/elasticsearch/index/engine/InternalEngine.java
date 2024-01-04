@@ -2181,6 +2181,15 @@ public class InternalEngine extends Engine {
     @Override
     protected void flushHoldingLock(boolean force, boolean waitIfOngoing, ActionListener<FlushResult> listener) throws EngineException {
         ensureOpen();
+
+        try {
+            Thread.sleep(100);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+
+        assert isClosed.get() == false;
+
         if (force && waitIfOngoing == false) {
             assert false : "wait_if_ongoing must be true for a force flush: force=" + force + " wait_if_ongoing=" + waitIfOngoing;
             throw new IllegalArgumentException(
