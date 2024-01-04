@@ -1954,7 +1954,7 @@ public abstract class Engine implements Closeable {
 
     @Override
     public void close() throws IOException {
-        logger.debug("close() maybe draining ops");
+        logger.debug("close(): maybe draining ops [{}]", System.identityHashCode(Engine.this));
         if (isClosed.get() == false && drainForClose()) {
             logger.debug("close drained ops");
             closeNoLock("api", closedLatch);

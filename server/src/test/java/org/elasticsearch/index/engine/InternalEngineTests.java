@@ -3680,6 +3680,8 @@ public class InternalEngineTests extends EngineTestCase {
     public void testConcurrentEngineClosed() throws BrokenBarrierException, InterruptedException {
         Thread[] closingThreads = new Thread[3];
         CyclicBarrier barrier = new CyclicBarrier(1 + closingThreads.length + 1);
+        final var myEngine = engine;
+        logger.info("--> myEngine [{}]", System.identityHashCode(myEngine));
         Thread failEngine = new Thread(new AbstractRunnable() {
             @Override
             public void onFailure(Exception e) {
@@ -3689,7 +3691,7 @@ public class InternalEngineTests extends EngineTestCase {
             @Override
             protected void doRun() throws Exception {
                 barrier.await();
-                engine.failEngine("test", new RuntimeException("test"));
+                myEngine.failEngine("test", new RuntimeException("test"));
             }
         }, "failingThread");
         failEngine.start();
@@ -3705,9 +3707,9 @@ public class InternalEngineTests extends EngineTestCase {
                 protected void doRun() throws Exception {
                     barrier.await();
                     if (flushAndClose) {
-                        engine.flushAndClose();
+                        myEngine.flushAndClose();
                     } else {
-                        engine.close();
+                        myEngine.close();
                     }
                     // try to acquire the writer lock - i.e., everything is closed, we need to synchronize
                     // to avoid races between closing threads
