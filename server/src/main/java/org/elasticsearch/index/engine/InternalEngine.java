@@ -2609,6 +2609,14 @@ public class InternalEngine extends Engine {
     @Override
     protected final void closeNoLock(String reason, CountDownLatch closedLatch) {
         if (isClosed.compareAndSet(false, true)) {
+            logger.info(
+                Strings.format(
+                    "closeNoLock() set isClosed on [%d] on thread [%s]",
+                    System.identityHashCode(this),
+                    Thread.currentThread().getName()
+                ),
+                new ElasticsearchException("stack trace")
+            );
             assert isDrainedForClose() || failEngineLock.isHeldByCurrentThread()
                 : "Either all operations must have been drained or the engine must be currently be failing itself";
             try {
