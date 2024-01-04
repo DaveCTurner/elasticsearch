@@ -2182,7 +2182,17 @@ public class InternalEngine extends Engine {
 
     @Override
     protected void flushHoldingLock(boolean force, boolean waitIfOngoing, ActionListener<FlushResult> listener) throws EngineException {
-        assert isClosed.get() == false; // might be closing, but not closed yet
+        if (isClosed.get()) {
+            logger.error(
+                Strings.format(
+                    "flushHoldingLock on closed engine [%d] on thread [%s]",
+                    System.identityHashCode(this),
+                    Thread.currentThread().getName()
+                ),
+                new ElasticsearchException("stack trace")
+            );
+        }
+        assert isClosed.get() == false : Thread.currentThread().getName(); // might be closing, but not closed yet
         ensureOpen();
         if (force && waitIfOngoing == false) {
             assert false : "wait_if_ongoing must be true for a force flush: force=" + force + " wait_if_ongoing=" + waitIfOngoing;
