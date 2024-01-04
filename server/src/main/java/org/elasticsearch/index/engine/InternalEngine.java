@@ -327,7 +327,7 @@ public class InternalEngine extends Engine {
                 }
             }
         }
-        logger.trace("created new InternalEngine");
+        logger.trace("created new InternalEngine: [{}]", System.identityHashCode(this));
     }
 
     private LocalCheckpointTracker createLocalCheckpointTracker(

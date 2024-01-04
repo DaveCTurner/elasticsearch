@@ -131,6 +131,7 @@ import org.elasticsearch.index.translog.TranslogOperationsUtils;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.test.IndexSettingsModule;
 import org.elasticsearch.test.index.IndexVersionUtils;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 import org.hamcrest.MatcherAssert;
@@ -3675,7 +3676,7 @@ public class InternalEngineTests extends EngineTestCase {
     /**
      * Tests that when the close method returns the engine is actually guaranteed to have cleaned up and that resources are closed
      */
-    @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/103861")
+    @TestLogging(reason="nocommit", value="org.elasticsearch.index.engine:TRACE")
     public void testConcurrentEngineClosed() throws BrokenBarrierException, InterruptedException {
         Thread[] closingThreads = new Thread[3];
         CyclicBarrier barrier = new CyclicBarrier(1 + closingThreads.length + 1);
@@ -3690,7 +3691,7 @@ public class InternalEngineTests extends EngineTestCase {
                 barrier.await();
                 engine.failEngine("test", new RuntimeException("test"));
             }
-        });
+        }, "failingThread");
         failEngine.start();
         for (int i = 0; i < closingThreads.length; i++) {
             boolean flushAndClose = randomBoolean();

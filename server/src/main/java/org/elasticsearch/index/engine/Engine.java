@@ -1905,7 +1905,7 @@ public abstract class Engine implements Closeable {
             return false;
         }
 
-        logger.debug("drainForClose(): draining ops");
+        logger.debug("drainForClose(): draining ops [{}]", System.identityHashCode(Engine.this));
         releaseEnsureOpenRef.close();
         final var future = new PlainActionFuture<Void>() {
             @Override
