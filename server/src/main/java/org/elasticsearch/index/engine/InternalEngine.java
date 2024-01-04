@@ -38,12 +38,14 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InfoStream;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.cluster.metadata.DataStream;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.lucene.LoggerInfoStream;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.index.ElasticsearchDirectoryReader;
@@ -327,7 +329,10 @@ public class InternalEngine extends Engine {
                 }
             }
         }
-        logger.trace("created new InternalEngine: [{}]", System.identityHashCode(this));
+        logger.trace(
+            () -> Strings.format("created new InternalEngine: [%d]", System.identityHashCode(this)),
+            new ElasticsearchException("stack trace")
+        );
     }
 
     private LocalCheckpointTracker createLocalCheckpointTracker(
