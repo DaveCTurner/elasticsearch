@@ -2167,7 +2167,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
         mocks.add(TestSeedPlugin.class);
         mocks.add(AssertActionNamePlugin.class);
         mocks.add(MockScriptService.TestPlugin.class);
-        if (addAsyncActionFilter() && randomBoolean()) {
+        if (addAsyncActionFilter() /* TODO && randomBoolean()*/) {
             mocks.add(AsyncActionFilterPlugin.class);
         }
         return Collections.unmodifiableList(mocks);

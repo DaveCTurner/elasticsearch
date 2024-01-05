@@ -104,7 +104,7 @@ public class AsyncActionFilterPlugin extends Plugin implements ActionPlugin {
             ActionListener<Response> listener,
             ActionFilterChain<Request, Response> chain
         ) {
-            if (randomBoolean()) {
+            if (false /* TODO */ && randomBoolean()) {
                 chain.proceed(task, action, request, listener);
             } else {
                 request.mustIncRef();
