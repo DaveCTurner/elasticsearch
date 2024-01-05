@@ -2119,6 +2119,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     /**
+     * Returns whether this test cluster may include an {@link AsyncActionFilterPlugin}, which sometimes executes actions asynchronously
+     * like certain security auth flows.
+     */
+    protected boolean addAsyncActionFilter() {
+        return true;
+    }
+
+    /**
      * Returns a function that allows to wrap / filter all clients that are exposed by the test cluster. This is useful
      * for debugging or request / response pre and post processing. It also allows to intercept all calls done by the test
      * framework. By default this method returns an identity function {@link Function#identity()}.
@@ -2159,6 +2167,9 @@ public abstract class ESIntegTestCase extends ESTestCase {
         mocks.add(TestSeedPlugin.class);
         mocks.add(AssertActionNamePlugin.class);
         mocks.add(MockScriptService.TestPlugin.class);
+        if (addAsyncActionFilter() && randomBoolean()) {
+            mocks.add(AsyncActionFilterPlugin.class);
+        }
         return Collections.unmodifiableList(mocks);
     }
 
