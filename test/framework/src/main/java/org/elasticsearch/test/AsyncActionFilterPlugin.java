@@ -124,6 +124,7 @@ public class AsyncActionFilterPlugin extends Plugin implements ActionPlugin {
                         request.decRef();
                     }
                 });
+                Thread.yield(); // TODO
             }
         }
     }
