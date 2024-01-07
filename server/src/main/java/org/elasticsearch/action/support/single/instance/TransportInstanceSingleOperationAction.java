@@ -261,6 +261,7 @@ public abstract class TransportInstanceSingleOperationAction<
 
         @Override
         public void messageReceived(final Request request, final TransportChannel channel, Task task) throws Exception {
+            // TODO wut?
             threadPool.executor(executor(request.shardId)).execute(new AbstractRunnable() {
                 @Override
                 public void onFailure(Exception e) {

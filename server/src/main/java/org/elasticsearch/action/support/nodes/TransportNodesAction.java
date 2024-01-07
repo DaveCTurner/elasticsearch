@@ -230,7 +230,12 @@ public abstract class TransportNodesAction<
     class NodeTransportHandler implements TransportRequestHandler<NodeRequest> {
         @Override
         public void messageReceived(NodeRequest request, TransportChannel channel, Task task) throws Exception {
-            channel.sendResponse(nodeOperation(request, task));
+            final var response = nodeOperation(request, task);
+            try {
+                channel.sendResponse(response);
+            } finally {
+                response.decRef();
+            }
         }
     }
 
