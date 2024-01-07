@@ -268,6 +268,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
             @Override
             public void sendResponse(final TransportResponse response) {
+                response.mustIncRef();
                 execute(new RebootSensitiveRunnable() {
                     @Override
                     public void ifRebooted() {
@@ -277,15 +278,19 @@ public abstract class DisruptableMockTransport extends MockTransport {
 
                     @Override
                     public void run() {
-                        final ConnectionStatus connectionStatus = destinationTransport.getConnectionStatus(getLocalNode());
-                        switch (connectionStatus) {
-                            case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleResponse(requestId, response);
-                            case BLACK_HOLE, DISCONNECTED -> {
-                                response.decRef();
-                                logger.trace("delaying response to {}: channel is {}", requestDescription, connectionStatus);
-                                onBlackholedDuringSend(requestId, action, destinationTransport);
+                        try {
+                            final ConnectionStatus connectionStatus = destinationTransport.getConnectionStatus(getLocalNode());
+                            switch (connectionStatus) {
+                                case CONNECTED, BLACK_HOLE_REQUESTS_ONLY -> handleResponse(requestId, response);
+                                case BLACK_HOLE, DISCONNECTED -> {
+                                    response.decRef();
+                                    logger.trace("delaying response to {}: channel is {}", requestDescription, connectionStatus);
+                                    onBlackholedDuringSend(requestId, action, destinationTransport);
+                                }
+                                default -> throw new AssertionError("unexpected status: " + connectionStatus);
                             }
-                            default -> throw new AssertionError("unexpected status: " + connectionStatus);
+                        } finally {
+                            response.decRef();
                         }
                     }
 
