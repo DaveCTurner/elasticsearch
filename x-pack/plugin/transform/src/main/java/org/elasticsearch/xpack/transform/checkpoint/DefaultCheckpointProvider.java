@@ -18,6 +18,7 @@ import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.set.Sets;
@@ -143,12 +144,12 @@ class DefaultCheckpointProvider implements CheckpointProvider {
 
             for (Map.Entry<String, List<String>> remoteIndex : resolvedIndexes.getRemoteIndicesPerClusterAlias().entrySet()) {
                 String cluster = remoteIndex.getKey();
-                ParentTaskAssigningClient remoteClient = new ParentTaskAssigningClient(
-                    client.getRemoteClusterClient(cluster, EsExecutors.DIRECT_EXECUTOR_SERVICE),
-                    client.getParentTask()
+                final var remoteClient = new ParentTaskAssigningClient(client, client.getParentTask()).getRemoteClusterClient(
+                    cluster,
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE
                 );
                 getCheckpointsFromOneCluster(
-                    remoteClient,
+                    (ParentTaskAssigningClient) remoteClient, // TODO
                     timeout,
                     transformConfig.getHeaders(),
                     remoteIndex.getValue().toArray(new String[0]),
@@ -218,24 +219,18 @@ class DefaultCheckpointProvider implements CheckpointProvider {
         );
         ActionListener<GetCheckpointAction.Response> checkpointListener;
         if (RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY.equals(cluster)) {
-            checkpointListener = ActionListener.wrap(
-                checkpointResponse -> listener.onResponse(checkpointResponse.getCheckpoints()),
-                listener::onFailure
-            );
+            checkpointListener = listener.map(GetCheckpointAction.Response::getCheckpoints);
         } else {
-            checkpointListener = ActionListener.wrap(
-                checkpointResponse -> listener.onResponse(
-                    checkpointResponse.getCheckpoints()
-                        .entrySet()
-                        .stream()
-                        .collect(
-                            Collectors.toMap(
-                                entry -> cluster + RemoteClusterService.REMOTE_CLUSTER_INDEX_SEPARATOR + entry.getKey(),
-                                entry -> entry.getValue()
-                            )
+            checkpointListener = listener.map(
+                checkpointResponse -> checkpointResponse.getCheckpoints()
+                    .entrySet()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(
+                            entry -> cluster + RemoteClusterService.REMOTE_CLUSTER_INDEX_SEPARATOR + entry.getKey(),
+                            Map.Entry::getValue
                         )
-                ),
-                listener::onFailure
+                    )
             );
         }
 
@@ -260,28 +255,33 @@ class DefaultCheckpointProvider implements CheckpointProvider {
         String cluster,
         ActionListener<Map<String, long[]>> listener
     ) {
-        // 1st get index to see the indexes the user has access to
-        GetIndexRequest getIndexRequest = new GetIndexRequest().indices(indices)
-            .features(new GetIndexRequest.Feature[0])
-            .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN);
 
-        ClientHelper.executeWithHeadersAsync(
-            headers,
-            ClientHelper.TRANSFORM_ORIGIN,
-            client,
-            GetIndexAction.INSTANCE,
-            getIndexRequest,
-            ActionListener.wrap(getIndexResponse -> {
-                Set<String> userIndices = getIndexResponse.getIndices() != null
-                    ? new HashSet<>(Arrays.asList(getIndexResponse.getIndices()))
-                    : Collections.emptySet();
-                // 2nd get stats request
-                ClientHelper.executeAsyncWithOrigin(
+        SubscribableListener
+            // 1st get index to see the indexes the user has access to
+            .<Set<String>>newForked(
+                l -> ClientHelper.executeWithHeadersAsync(
+                    headers,
+                    ClientHelper.TRANSFORM_ORIGIN,
+                    client,
+                    GetIndexAction.INSTANCE,
+                    new GetIndexRequest().indices(indices)
+                        .features(new GetIndexRequest.Feature[0])
+                        .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN),
+                    l.map(
+                        getIndexResponse -> getIndexResponse.getIndices() != null
+                            ? new HashSet<>(Arrays.asList(getIndexResponse.getIndices()))
+                            : Collections.emptySet()
+                    )
+                )
+            )
+            // 2nd get stats request
+            .<Map<String, long[]>>andThen(
+                (l, userIndices) -> ClientHelper.executeAsyncWithOrigin(
                     client,
                     ClientHelper.TRANSFORM_ORIGIN,
                     IndicesStatsAction.INSTANCE,
                     new IndicesStatsRequest().indices(indices).timeout(timeout).clear().indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN),
-                    ActionListener.wrap(response -> {
+                    l.map(response -> {
                         if (response.getFailedShards() != 0) {
                             for (int i = 0; i < response.getShardFailures().length; ++i) {
                                 int shardNo = i;
@@ -294,21 +294,25 @@ class DefaultCheckpointProvider implements CheckpointProvider {
                                     response.getShardFailures()[i]
                                 );
                             }
-                            listener.onFailure(
-                                new CheckpointException(
-                                    "Source has [{}] failed shards, first shard failure: {}",
-                                    response.getShardFailures()[0],
-                                    response.getFailedShards(),
-                                    response.getShardFailures()[0].toString()
-                                )
+                            throw new CheckpointException(
+                                "Source has [{}] failed shards, first shard failure: {}",
+                                response.getShardFailures()[0],
+                                response.getFailedShards(),
+                                response.getShardFailures()[0].toString()
                             );
-                            return;
                         }
-                        listener.onResponse(extractIndexCheckPoints(response.getShards(), userIndices, cluster));
-                    }, e -> listener.onFailure(new CheckpointException("Failed to create checkpoint", e)))
-                );
-            }, e -> listener.onFailure(new CheckpointException("Failed to create checkpoint", e)))
-        );
+                        return extractIndexCheckPoints(response.getShards(), userIndices, cluster);
+                    })
+                )
+            )
+            // finally complete the outer listener
+            .addListener(listener.delegateResponse((l, e) -> {
+                if (e instanceof CheckpointException) {
+                    l.onFailure(e);
+                } else {
+                    l.onFailure(new CheckpointException("Failed to create checkpoint", e));
+                }
+            }));
     }
 
     static Map<String, long[]> extractIndexCheckPoints(ShardStats[] shards, Set<String> userIndices, String cluster) {

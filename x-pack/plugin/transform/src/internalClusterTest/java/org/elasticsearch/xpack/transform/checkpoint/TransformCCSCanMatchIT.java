@@ -20,7 +20,6 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.EngineConfig;
@@ -231,7 +230,7 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
             Set.of("local_old_index", "local_new_index")
         );
         testGetCheckpointAction(
-            client().getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
+            client(), // TODO .getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
             REMOTE_CLUSTER,
             new String[] { "remote_*" },
             QueryBuilders.matchAllQuery(),
@@ -248,7 +247,7 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
             Set.of("local_new_index")
         );
         testGetCheckpointAction(
-            client().getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
+            client(), // TODO .getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
             REMOTE_CLUSTER,
             new String[] { "remote_*" },
             QueryBuilders.rangeQuery("@timestamp").from(timestamp),
@@ -265,7 +264,7 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
             Set.of()
         );
         testGetCheckpointAction(
-            client().getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
+            client(), // TODO .getRemoteClusterClient(REMOTE_CLUSTER, EsExecutors.DIRECT_EXECUTOR_SERVICE),
             REMOTE_CLUSTER,
             new String[] { "remote_*" },
             QueryBuilders.rangeQuery("@timestamp").from(100_000_000),
