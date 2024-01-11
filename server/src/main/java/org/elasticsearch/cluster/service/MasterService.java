@@ -1209,6 +1209,7 @@ public class MasterService extends AbstractLifecycleComponent {
     private final Runnable queuesProcessor = new AbstractRunnable() {
         @Override
         public void doRun() {
+            logger.info("--> executing queuesProcessor");
             assert threadPool.getThreadContext().isSystemContext();
             assert totalQueueSize.get() > 0;
             assert currentlyExecutingBatch == null;
@@ -1261,6 +1262,7 @@ public class MasterService extends AbstractLifecycleComponent {
 
         @Override
         public void onRejection(Exception e) {
+            logger.info("--> rejected queuesProcessor", e);
             assert e instanceof EsRejectedExecutionException esre && esre.isExecutorShutdown() : e;
             drainQueueOnRejection(new FailedToCommitClusterStateException("node closed", e));
         }
@@ -1297,7 +1299,9 @@ public class MasterService extends AbstractLifecycleComponent {
         final var threadContext = threadPool.getThreadContext();
         try (var ignored = threadContext.stashContext()) {
             threadContext.markAsSystemContext();
+            logger.info("--> forking queuesProcessor");
             threadPoolExecutor.execute(queuesProcessor);
+            logger.info("--> forked queuesProcessor");
         }
     }
 
