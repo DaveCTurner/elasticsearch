@@ -475,6 +475,14 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
     }
 
     private void applyChanges(ClusterState previousClusterState, ClusterState newClusterState, String source, Recorder stopWatch) {
+        logger.info(
+            "applying cluster state version [{}] in term [{}] with min node version [{}]; {}",
+            newClusterState.version(),
+            newClusterState.term(),
+            newClusterState.nodes().getMinNodeVersion(),
+            newClusterState.nodes()
+        );
+
         ClusterChangedEvent clusterChangedEvent = new ClusterChangedEvent(source, newClusterState, previousClusterState);
         // new cluster state, notify all listeners
         final DiscoveryNodes.Delta nodesDelta = clusterChangedEvent.nodesDelta();
