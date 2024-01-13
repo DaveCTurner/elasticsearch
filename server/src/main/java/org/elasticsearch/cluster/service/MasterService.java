@@ -296,6 +296,14 @@ public class MasterService extends AbstractLifecycleComponent {
     }
 
     protected void publish(ClusterStatePublicationEvent clusterStatePublicationEvent, TaskOutputs taskOutputs) {
+        logger.info(
+            "publishing cluster state version [{}] in term [{}] with min node version [{}]; {}",
+            clusterStatePublicationEvent.getNewState().version(),
+            clusterStatePublicationEvent.getNewState().term(),
+            clusterStatePublicationEvent.getNewState().nodes().getMinNodeVersion(),
+            clusterStatePublicationEvent.getNewState().nodes()
+        );
+
         final PlainActionFuture<Void> fut = new PlainActionFuture<Void>() {
             @Override
             protected boolean blockingAllowed() {
