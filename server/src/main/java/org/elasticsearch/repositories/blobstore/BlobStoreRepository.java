@@ -22,6 +22,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.RateLimiter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -131,6 +132,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -2171,6 +2173,18 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
             );
             return;
         }
+
+        logger.info(
+            String.format(
+                Locale.ROOT,
+                "[%s] writing repository data on top of expected generation [%d] with uuid [%s] and version [%s]",
+                metadata.name(),
+                expectedGen,
+                repositoryData.getUuid(),
+                version
+            ),
+            new ElasticsearchException("stack trace")
+        );
 
         // Step 1: Set repository generation state to the next possible pending generation
         final StepListener<Long> setPendingStep = new StepListener<>();
