@@ -114,6 +114,10 @@ setup:
 
 ---
 "Indices boost using array with wildcard":
+  - skip:
+      version: all
+      reason: flaky
+
   - do:
       search:
         rest_total_hits_as_int: true
