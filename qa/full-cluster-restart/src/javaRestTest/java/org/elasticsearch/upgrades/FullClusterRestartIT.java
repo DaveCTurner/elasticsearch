@@ -34,6 +34,7 @@ import org.elasticsearch.index.IndexVersion;
 import org.elasticsearch.index.IndexVersions;
 import org.elasticsearch.index.mapper.DateFieldMapper;
 import org.elasticsearch.rest.action.admin.indices.RestPutIndexTemplateAction;
+import org.elasticsearch.tasks.LoggingTaskListener;
 import org.elasticsearch.test.NotEqualMessageBuilder;
 import org.elasticsearch.test.XContentTestUtils;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
@@ -114,6 +115,11 @@ public class FullClusterRestartIT extends ParameterizedFullClusterRestartTestCas
         .setting("xpack.security.enabled", "false")
         // some tests rely on the translog not being flushed
         .setting("indices.memory.shard_inactive_time", "60m")
+        .setting(
+            LoggingTaskListener.LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey(),
+            () -> "false",
+            localNodeSpec -> localNodeSpec.getVersion().onOrAfter("8.13.0")
+        )
         .apply(() -> clusterConfig)
         .feature(FeatureFlag.TIME_SERIES_MODE)
         .feature(FeatureFlag.FAILURE_STORE_ENABLED)
