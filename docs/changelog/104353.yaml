@@ -12,9 +12,7 @@ deprecation:
     information which makes them very hard to use. Moreover, the information it
     reports is also available, and much easier to consume, when using the Task
     Management APIs instead. This logger is deprecated, and will be removed in
-    the next major version. Set `tasks.logging_task_listener.enabled` to
-    `false` on every node to disable this logger and suppress the deprecation
-    warning.
+    the next major version.
   impact: >-
 
     * Use the task management APIs to obtain the status of long-running tasks.
