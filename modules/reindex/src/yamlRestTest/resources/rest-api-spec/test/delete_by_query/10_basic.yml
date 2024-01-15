@@ -38,6 +38,9 @@
 
 ---
 "wait_for_completion=false":
+  - skip:
+      features: allowed_warnings_regex
+
   - do:
       index:
         index:   test
@@ -53,6 +56,8 @@
         body:
           query:
             match_all: {}
+      allowed_warnings_regex:
+        - "Logging the completion of a task using .*LoggingTaskListener.* is deprecated.*"
 
   - match: {task: '/.+:\d+/'}
   - set: {task: task}

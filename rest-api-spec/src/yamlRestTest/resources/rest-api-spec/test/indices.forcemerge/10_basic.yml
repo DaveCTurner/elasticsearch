@@ -33,6 +33,7 @@
 ---
 "Force merge with wait_for_completion parameter":
   - skip:
+      features: allowed_warnings_regex
       version: " - 8.0.99"
       reason: wait_for_completion is introduced since 8.1
 
