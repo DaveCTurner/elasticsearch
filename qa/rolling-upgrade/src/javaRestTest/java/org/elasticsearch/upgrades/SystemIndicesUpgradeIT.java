@@ -59,6 +59,7 @@ public class SystemIndicesUpgradeIT extends ParameterizedRollingUpgradeTestCase 
                   }
                 }""");
             reindex.addParameter("wait_for_completion", "false");
+            reindex.addParameter("log_task_completion", "false");
             Map<String, Object> response = entityAsMap(client().performRequest(reindex));
             String taskId = (String) response.get("task");
 
