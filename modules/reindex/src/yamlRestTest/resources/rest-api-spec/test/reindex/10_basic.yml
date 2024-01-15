@@ -74,7 +74,7 @@
 ---
 "wait_for_completion=false":
   - skip:
-    features: allowed_warnings_regex
+      features: allowed_warnings_regex
   - do:
       index:
         index:   source

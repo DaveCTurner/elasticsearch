@@ -40,8 +40,8 @@ public class LoggingTaskListenerTests extends ESTestCase {
         assertWarnings(Strings.format("""
             Logging the completion of a task using [org.elasticsearch.tasks.LoggingTaskListener] is deprecated and will be removed \
             in a future version. Instead, use the task management API [%s] to monitor long-running tasks for completion. To suppress \
-            this warning and opt-in to the future behaviour now, set [tasks.logging_task_listener.enabled] to [false] on every \
-            node.""", ReferenceDocs.TASK_MANAGEMENT_API));
+            this warning and opt-in to the future behaviour now, set set [?log_task_completion=false] when calling the \
+            affected API.""", ReferenceDocs.TASK_MANAGEMENT_API));
     }
 
     public void testLogSuccess() {
