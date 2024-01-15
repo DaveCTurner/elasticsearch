@@ -14,7 +14,6 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.UpdateForV9;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
@@ -28,9 +27,9 @@ public class LoggingTaskListenerTests extends ESTestCase {
         return new Task(randomNonNegativeLong(), "test", "test:action", "", TaskId.EMPTY_TASK_ID, Map.of());
     }
 
-    private static SubscribableListener<Void> runTask(Task task, Settings empty) {
+    private static SubscribableListener<Void> runTask(Task task, boolean legacyLoggingEnabled) {
         final var listeners = new SubscribableListener<Void>();
-        assertSame(task, LoggingTaskListener.<Void>runWithLoggingTaskListener(empty, l -> {
+        assertSame(task, LoggingTaskListener.<Void>runWithLoggingTaskListener(legacyLoggingEnabled, l -> {
             listeners.addListener(l);
             return task;
         }));
@@ -47,7 +46,7 @@ public class LoggingTaskListenerTests extends ESTestCase {
 
     public void testLogSuccess() {
         final var task = createTask();
-        final var listeners = runTask(task, Settings.EMPTY);
+        final var listeners = runTask(task, true);
 
         assertDeprecationWarning();
         MockLogAppender.assertThatLogger(
@@ -64,7 +63,7 @@ public class LoggingTaskListenerTests extends ESTestCase {
 
     public void testLogFailure() {
         final var task = createTask();
-        final var listeners = runTask(task, Settings.EMPTY);
+        final var listeners = runTask(task, true);
 
         assertDeprecationWarning();
         MockLogAppender.assertThatLogger(
@@ -79,13 +78,9 @@ public class LoggingTaskListenerTests extends ESTestCase {
         );
     }
 
-    private static final Settings NO_LOG_SETTINGS = Settings.builder()
-        .put(LoggingTaskListener.LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey(), false)
-        .build();
-
     public void testNoLogSuccess() {
         final var task = createTask();
-        final var listeners = runTask(task, NO_LOG_SETTINGS);
+        final var listeners = runTask(task, false);
 
         MockLogAppender.assertThatLogger(
             () -> listeners.onResponse(null),
@@ -104,7 +99,7 @@ public class LoggingTaskListenerTests extends ESTestCase {
 
     public void testNoLogFailure() {
         final var task = createTask();
-        final var listeners = runTask(task, NO_LOG_SETTINGS);
+        final var listeners = runTask(task, false);
 
         MockLogAppender.assertThatLogger(
             () -> listeners.onFailure(new ElasticsearchException("simulated")),

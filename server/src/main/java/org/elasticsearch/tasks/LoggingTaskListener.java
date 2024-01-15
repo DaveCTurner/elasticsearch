@@ -15,8 +15,6 @@ import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.logging.DeprecationCategory;
 import org.elasticsearch.common.logging.DeprecationLogger;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.UpdateForV9;
 
 import java.util.function.Function;
@@ -29,13 +27,7 @@ import static org.elasticsearch.core.Strings.format;
  */
 public final class LoggingTaskListener<Response> implements ActionListener<Response> {
 
-    @UpdateForV9 // this setting must still exist but become deprecated for removal in v10
-    public static Setting<Boolean> LOGGING_TASK_LISTENER_ENABLED_SETTING = Setting.boolSetting(
-        "tasks.logging_task_listener.enabled",
-        true,
-        Setting.Property.NodeScope
-    );
-
+    public static final String LOGGING_ENABLED_QUERY_PARAMETER = "log_task_completion";
     private static final Logger logger = LogManager.getLogger(LoggingTaskListener.class);
     private static final DeprecationLogger deprecationLogger = DeprecationLogger.getLogger(LoggingTaskListener.class);
 
@@ -56,8 +48,8 @@ public final class LoggingTaskListener<Response> implements ActionListener<Respo
     }
 
     @UpdateForV9 // always just use noop() in v9
-    public static <Response> Task runWithLoggingTaskListener(Settings settings, Function<ActionListener<Response>, Task> taskSupplier) {
-        if (LOGGING_TASK_LISTENER_ENABLED_SETTING.get(settings) == Boolean.FALSE) {
+    public static <Response> Task runWithLoggingTaskListener(boolean enabled, Function<ActionListener<Response>, Task> taskSupplier) {
+        if (enabled == false) {
             return taskSupplier.apply(ActionListener.noop());
         }
 
@@ -67,10 +59,10 @@ public final class LoggingTaskListener<Response> implements ActionListener<Respo
             """
                 Logging the completion of a task using [{}] is deprecated and will be removed in a future version. Instead, use the task \
                 management API [{}] to monitor long-running tasks for completion. To suppress this warning and opt-in to the future \
-                behaviour now, set [{}] to [false] on every node.""",
+                behaviour now, set [?{}=false] when calling the affected API.""",
             LoggingTaskListener.class.getCanonicalName(),
             ReferenceDocs.TASK_MANAGEMENT_API,
-            LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey()
+            LOGGING_ENABLED_QUERY_PARAMETER
         );
         final var responseListener = new SubscribableListener<Response>();
         final var task = taskSupplier.apply(responseListener);

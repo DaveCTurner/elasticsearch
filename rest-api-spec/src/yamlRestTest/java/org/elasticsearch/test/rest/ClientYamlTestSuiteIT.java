@@ -13,7 +13,6 @@ import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 import com.carrotsearch.randomizedtesting.annotations.TimeoutSuite;
 
 import org.apache.lucene.tests.util.TimeUnits;
-import org.elasticsearch.tasks.LoggingTaskListener;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.FeatureFlag;
 import org.elasticsearch.test.rest.yaml.ClientYamlTestCandidate;
@@ -34,11 +33,6 @@ public class ClientYamlTestSuiteIT extends ESClientYamlSuiteTestCase {
         .module("analysis-common")
         .module("health-shards-availability")
         .feature(FeatureFlag.TIME_SERIES_MODE)
-        .setting(
-            LoggingTaskListener.LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey(),
-            () -> "false",
-            localNodeSpec -> localNodeSpec.getVersion().onOrAfter("8.13.0")
-        )
         .build();
 
     public ClientYamlTestSuiteIT(@Name("yaml") ClientYamlTestCandidate testCandidate) {

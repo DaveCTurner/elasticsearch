@@ -71,7 +71,7 @@ public abstract class AbstractBaseReindexRestHandler<
         return sendTask(
             client.getLocalNodeId(),
             LoggingTaskListener.<BulkByScrollResponse>runWithLoggingTaskListener(
-                client.settings(),
+                request.paramAsBoolean("log_task_completion", true),
                 l -> client.executeLocally(action, internal, l)
             )
         );

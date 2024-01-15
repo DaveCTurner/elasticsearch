@@ -15,7 +15,6 @@ import org.apache.lucene.tests.util.TimeUnits;
 import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.tasks.LoggingTaskListener;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.FeatureFlag;
 import org.elasticsearch.test.rest.yaml.ClientYamlTestCandidate;
@@ -46,11 +45,6 @@ public class CoreWithSecurityClientYamlTestSuiteIT extends ESClientYamlSuiteTest
         .setting("xpack.ml.enabled", "false")
         .setting("xpack.license.self_generated.type", "trial")
         .setting("xpack.security.autoconfiguration.enabled", "false")
-        .setting(
-            LoggingTaskListener.LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey(),
-            () -> "false",
-            localNodeSpec -> localNodeSpec.getVersion().onOrAfter("8.13.0")
-        )
         .user(USER, PASS)
         .feature(FeatureFlag.TIME_SERIES_MODE)
         .build();

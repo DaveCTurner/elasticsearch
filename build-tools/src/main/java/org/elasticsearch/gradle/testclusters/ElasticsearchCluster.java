@@ -438,10 +438,6 @@ public class ElasticsearchCluster implements TestClusterConfiguration, Named {
                 }
             }
 
-            if (node.getVersion().onOrAfter("8.13.0")) {
-                node.defaultConfig.put("tasks.logging_task_listener.enabled", "false");
-            }
-
             // Can only configure master nodes if we have node names defined
             if (nodeNames != null) {
                 assert node.getVersion().onOrAfter("7.0.0") : node.getVersion();

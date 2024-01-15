@@ -17,5 +17,6 @@ deprecation:
 
     * Use the task management APIs to obtain the status of long-running tasks.
 
-    * Set `tasks.logging_task_listener.enabled` to `false` to disable this
-      logger and suppress the deprecation warning
+    * Set the `?log_task_completion=false` query parameter when calling the
+    affected APIs to disable the deprecated logger and suppress the deprecation
+    warning.

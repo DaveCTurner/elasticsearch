@@ -67,7 +67,7 @@ public class RestForceMergeAction extends BaseRestHandler {
             return sendTask(
                 client.getLocalNodeId(),
                 LoggingTaskListener.<ForceMergeResponse>runWithLoggingTaskListener(
-                    client.settings(),
+                    request.paramAsBoolean("log_task_completion", true),
                     l -> client.executeLocally(ForceMergeAction.INSTANCE, mergeRequest, l)
                 )
             );

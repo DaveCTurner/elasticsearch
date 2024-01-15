@@ -16,7 +16,6 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.SuppressForbidden;
 import org.elasticsearch.index.IndexVersion;
-import org.elasticsearch.tasks.LoggingTaskListener;
 import org.elasticsearch.test.cluster.ElasticsearchCluster;
 import org.elasticsearch.test.cluster.FeatureFlag;
 import org.elasticsearch.test.cluster.local.distribution.DistributionType;
@@ -58,11 +57,6 @@ public abstract class ParameterizedRollingUpgradeTestCase extends ESRestTestCase
             }
         })
         .setting("xpack.security.enabled", "false")
-        .setting(
-            LoggingTaskListener.LOGGING_TASK_LISTENER_ENABLED_SETTING.getKey(),
-            () -> "false",
-            localNodeSpec -> localNodeSpec.getVersion().onOrAfter("8.13.0")
-        )
         .feature(FeatureFlag.TIME_SERIES_MODE)
         .build();
 
