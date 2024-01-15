@@ -110,6 +110,9 @@
 
 ---
 "Rethrottle but not unlimited":
+  - skip:
+      features: allowed_warnings_regex
+
   # Throttling happens between each scroll batch so we need to control the size of the batch by using a single shard
   # and a small batch size on the request
   - do:
@@ -139,6 +142,8 @@
         wait_for_completion: false
         index: test
         scroll_size: 1
+      allowed_warnings_regex:
+        - "Logging the completion of a task using .*LoggingTaskListener.* is deprecated.*"
   - match: {task: '/.+:\d+/'}
   - set: {task: task}
 
