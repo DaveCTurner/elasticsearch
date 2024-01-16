@@ -60,7 +60,6 @@ import static org.hamcrest.Matchers.hasSize;
 /**
  * Tests that deprecation message are returned via response headers, and can be indexed into a data stream.
  */
-@LuceneTestCase.AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/101596")
 public class DeprecationHttpIT extends ESRestTestCase {
 
     @Before
