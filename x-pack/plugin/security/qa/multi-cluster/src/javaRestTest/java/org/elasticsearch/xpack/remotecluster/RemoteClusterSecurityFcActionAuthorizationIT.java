@@ -35,6 +35,7 @@ import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.RemoteClusterService;
 import org.elasticsearch.transport.RemoteConnectionInfo;
+import org.elasticsearch.transport.RemoteTransportException;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xpack.ccr.action.repositories.ClearCcrRestoreSessionAction;
 import org.elasticsearch.xpack.ccr.action.repositories.ClearCcrRestoreSessionRequest;
@@ -114,11 +115,16 @@ public class RemoteClusterSecurityFcActionAuthorizationIT extends ESRestTestCase
         try {
             return future.get(10, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
+            if (e.getCause() instanceof RemoteTransportException remoteTransportException
+                && remoteTransportException.getCause() instanceof Exception cause) {
+                throw cause;
+            }
+
             if (e.getCause() instanceof Exception cause) {
                 throw cause;
-            } else {
-                throw new AssertionError(e);
             }
+
+            throw new AssertionError(e);
         } catch (Exception e) {
             throw new AssertionError(e);
         }
