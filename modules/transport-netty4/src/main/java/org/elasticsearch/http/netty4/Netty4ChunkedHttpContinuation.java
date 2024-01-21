@@ -16,10 +16,13 @@ import org.elasticsearch.rest.ChunkedRestResponseBody;
 
 public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse implements Netty4RestResponse {
     private final int sequence;
+    private final ChunkedRestResponseBody body;
 
-    public Netty4ChunkedHttpContinuation(int sequence, HttpVersion version, HttpResponseStatus status) {
+    public Netty4ChunkedHttpContinuation(int sequence, HttpVersion version, HttpResponseStatus status, ChunkedRestResponseBody body) {
+        // TODO shouldn't be a HttpResponse, this is purely body so headers/version/status make no sense here
         super(version, status);
         this.sequence = sequence;
+        this.body = body;
     }
 
     @Override
@@ -28,6 +31,6 @@ public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse imp
     }
 
     public ChunkedRestResponseBody body() {
-        return null;
+        return body;
     }
 }
