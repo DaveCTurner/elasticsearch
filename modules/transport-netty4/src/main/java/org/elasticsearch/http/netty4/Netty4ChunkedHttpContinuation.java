@@ -8,25 +8,26 @@
 
 package org.elasticsearch.http.netty4;
 
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.transport.netty4.Netty4Utils;
+import org.elasticsearch.rest.ChunkedRestResponseBody;
 
-public final class Netty4HttpResponse extends DefaultFullHttpResponse implements Netty4RestResponse {
-
+public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse implements Netty4RestResponse {
     private final int sequence;
 
-    Netty4HttpResponse(int sequence, HttpVersion version, RestStatus status, BytesReference content) {
-        super(version, HttpResponseStatus.valueOf(status.getStatus()), Netty4Utils.toByteBuf(content));
+    public Netty4ChunkedHttpContinuation(int sequence, HttpVersion version, HttpResponseStatus status) {
+        super(version, status);
         this.sequence = sequence;
     }
 
     @Override
     public int getSequence() {
         return sequence;
+    }
+
+    public ChunkedRestResponseBody body() {
+        return null;
     }
 }

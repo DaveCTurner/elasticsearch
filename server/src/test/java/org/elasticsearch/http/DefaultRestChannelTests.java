@@ -535,6 +535,11 @@ public class DefaultRestChannelTests extends ESTestCase {
                 }
 
                 @Override
+                public boolean isEndOfResponse() {
+                    return randomBoolean();
+                }
+
+                @Override
                 public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
                     throw new AssertionError("should not try to serialize response body for HEAD request");
                 }
@@ -737,6 +742,11 @@ public class DefaultRestChannelTests extends ESTestCase {
                     @Override
                     public boolean isDone() {
                         return isDone;
+                    }
+
+                    @Override
+                    public boolean isEndOfResponse() {
+                        return true;
                     }
 
                     @Override

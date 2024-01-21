@@ -468,6 +468,11 @@ public class Netty4HttpPipeliningHandlerTests extends ESTestCase {
             }
 
             @Override
+            public boolean isEndOfResponse() {
+                return true;
+            }
+
+            @Override
             public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
                 assertThat(remaining, greaterThan(0));
                 remaining--;

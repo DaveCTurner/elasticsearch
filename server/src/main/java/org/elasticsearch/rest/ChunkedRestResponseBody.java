@@ -46,6 +46,11 @@ public interface ChunkedRestResponseBody extends Releasable {
     boolean isDone();
 
     /**
+     * @return true if this is the last chunked body in the response.
+     */
+    boolean isEndOfResponse();
+
+    /**
      * Serializes approximately as many bytes of the response as request by {@code sizeHint} to a {@link ReleasableBytesReference} that
      * is created from buffers backed by the given {@code recycler}.
      *
@@ -107,6 +112,11 @@ public interface ChunkedRestResponseBody extends Releasable {
             @Override
             public boolean isDone() {
                 return serialization.hasNext() == false;
+            }
+
+            @Override
+            public boolean isEndOfResponse() {
+                return true;
             }
 
             @Override
@@ -194,6 +204,11 @@ public interface ChunkedRestResponseBody extends Releasable {
             @Override
             public boolean isDone() {
                 return chunkIterator.hasNext() == false;
+            }
+
+            @Override
+            public boolean isEndOfResponse() {
+                return true;
             }
 
             @Override

@@ -31,6 +31,11 @@ public class LoggingChunkedRestResponseBody implements ChunkedRestResponseBody {
     }
 
     @Override
+    public boolean isEndOfResponse() {
+        return inner.isEndOfResponse();
+    }
+
+    @Override
     public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
         var chunk = inner.encodeChunk(sizeHint, recycler);
         try {

@@ -57,7 +57,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private final int maxEventsHeld;
     private final PriorityQueue<Tuple<? extends Netty4RestResponse, ChannelPromise>> outboundHoldingQueue;
 
-    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, Netty4ChunkedHttpResponse response) {}
+    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {}
 
     /**
      * The current {@link ChunkedWrite} if a chunked write is executed at the moment.
@@ -150,6 +150,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     );
                 }
                 // response is not at the current sequence number so we add it to the outbound queue and return
+                assert outboundHoldingQueue.stream().noneMatch(t -> t.v1().getSequence() == writeSequence)
+                    : "duplicate outbound entries for seqno " + writeSequence;
                 outboundHoldingQueue.add(new Tuple<>(restResponse, promise));
                 success = true;
                 return;
@@ -191,10 +193,16 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     private void doWrite(ChannelHandlerContext ctx, Netty4RestResponse readyResponse, ChannelPromise promise) throws IOException {
         assert currentChunkedWrite == null : "unexpected existing write [" + currentChunkedWrite + "]";
-        if (readyResponse instanceof Netty4HttpResponse) {
-            doWrite(ctx, (Netty4HttpResponse) readyResponse, promise);
+        assert readyResponse != null : "cannot write null response";
+        assert readyResponse.getSequence() == writeSequence;
+        if (readyResponse instanceof Netty4HttpResponse fullResponse) {
+            doWrite(ctx, fullResponse, promise);
+        } else if (readyResponse instanceof Netty4ChunkedHttpResponse chunkedResponse) {
+            doWrite(ctx, chunkedResponse, promise);
+        } else if (readyResponse instanceof Netty4ChunkedHttpContinuation chunkedContinuation) {
+            doWrite(ctx, chunkedContinuation, promise);
         } else {
-            doWrite(ctx, (Netty4ChunkedHttpResponse) readyResponse, promise);
+            assert false : "cannot write " + readyResponse.getClass().getCanonicalName() + ": " + readyResponse;
         }
     }
 
@@ -214,12 +222,14 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         final PromiseCombiner combiner = new PromiseCombiner(ctx.executor());
         final ChannelPromise first = ctx.newPromise();
         combiner.add((Future<Void>) first);
-        currentChunkedWrite = new ChunkedWrite(combiner, promise, readyResponse);
+        assert currentChunkedWrite == null;
+        final var responseBody = readyResponse.body();
+        currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
         if (enqueueWrite(ctx, readyResponse, first)) {
             // We were able to write out the first chunk directly, try writing out subsequent chunks until the channel becomes unwritable.
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             while (ctx.channel().isWritable()) {
-                if (writeChunk(ctx, combiner, readyResponse.body())) {
+                if (writeChunk(ctx, combiner, responseBody)) {
                     finishChunkedWrite();
                     return;
                 }
@@ -228,11 +238,28 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     }
 
     private void finishChunkedWrite() {
-        try {
-            currentChunkedWrite.combiner.finish(currentChunkedWrite.onDone);
-        } finally {
-            currentChunkedWrite = null;
+        final var finishingWrite = currentChunkedWrite;
+        assert finishingWrite.responseBody().isDone();
+        currentChunkedWrite = null;
+        if (finishingWrite.responseBody().isEndOfResponse()) {
             writeSequence++;
+        }
+        finishingWrite.combiner.finish(finishingWrite.onDone());
+    }
+
+    private void doWrite(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise) throws IOException {
+        final PromiseCombiner combiner = new PromiseCombiner(ctx.executor());
+        final ChannelPromise first = ctx.newPromise();
+        combiner.add((Future<Void>) first);
+        assert currentChunkedWrite == null;
+        final var responseBody = continuation.body();
+        currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
+        // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
+        while (ctx.channel().isWritable()) {
+            if (writeChunk(ctx, combiner, responseBody)) {
+                finishChunkedWrite();
+                return;
+            }
         }
     }
 
@@ -293,7 +320,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             if (currentWrite == null) {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
-                    if (writeChunk(ctx, currentChunkedWrite.combiner, currentChunkedWrite.response.body())) {
+                    if (writeChunk(ctx, currentChunkedWrite.combiner, currentChunkedWrite.responseBody())) {
                         finishChunkedWrite();
                     }
                     continue;
@@ -318,7 +345,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         assert bytes.length() > 0 : "serialization should not produce empty buffers";
         final ByteBuf content = Netty4Utils.toByteBuf(bytes);
         final boolean done = body.isDone();
-        final ChannelFuture f = ctx.write(done ? new DefaultLastHttpContent(content) : new DefaultHttpContent(content));
+        final boolean lastChunk = done && body.isEndOfResponse();
+        final ChannelFuture f = ctx.write(lastChunk ? new DefaultLastHttpContent(content) : new DefaultHttpContent(content));
         f.addListener(ignored -> bytes.close());
         combiner.add(f);
         return done;

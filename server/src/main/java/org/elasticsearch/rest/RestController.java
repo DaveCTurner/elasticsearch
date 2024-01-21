@@ -868,6 +868,11 @@ public class RestController implements HttpServerTransport.Dispatcher {
         }
 
         @Override
+        public boolean isEndOfResponse() {
+            return delegate.isEndOfResponse();
+        }
+
+        @Override
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
             final ReleasableBytesReference bytesReference = delegate.encodeChunk(sizeHint, recycler);
             encodedLength += bytesReference.length();
