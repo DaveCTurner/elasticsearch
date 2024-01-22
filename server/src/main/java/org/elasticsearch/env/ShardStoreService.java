@@ -56,6 +56,9 @@ class ShardStoreService implements ClusterStateListener {
         private final ShardId shardId;
         private final Queue<ShardStoreUser> waitingUsers = ConcurrentCollections.newQueue();
         private boolean inUse;
+        private ActionListener<RefCounted> currentCleanup;
+
+        // Interesting observation: shards are always either in-use or in the process of cleaning up.
 
         ShardStore(ShardId shardId) {
             this.shardId = shardId;
@@ -77,8 +80,10 @@ class ShardStoreService implements ClusterStateListener {
         }
 
         void startWait(SubscribableListener<RefCounted> listener) {
+            ActionListener<>
             synchronized (ShardStore.this) {
                 if (inUse) {
+                    assert currentCleanup == null;
                     mustIncRef();
                     final var waitingUser = new ShardStoreUser(listener);
                     waitingUsers.add(waitingUser);
@@ -86,6 +91,7 @@ class ShardStoreService implements ClusterStateListener {
                     assert listener.isDone() == false;
                     return;
                 }
+                currentCleanup = null;
                 inUse = true;
             }
             acquired(listener);
@@ -111,6 +117,8 @@ class ShardStoreService implements ClusterStateListener {
                         nextUser = waitingUsers.poll();
                         if (nextUser == null) {
                             inUse = false;
+                            assert currentCleanup == null;
+                            currentCleanup = new ShardStoreCleanup();
                             // TODO start a cleanup process here (outside the mutex tho) which waits/checks for the cleanup conditions
                             // (e.g. shard goes green elsewhere, or index is removed from the cluster). If & when the cleanup conditions are
                             // met then acquire the store to do the cleanup, but ofc cancel the cleanup if the store is acquired by a new
@@ -124,6 +132,9 @@ class ShardStoreService implements ClusterStateListener {
                 acquired(nextUser.listener);
             } finally {
                 decRef();
+                if (currentCleanup != null) {
+                    currentCleanup.run();
+                }
             }
         }
 
@@ -137,6 +148,36 @@ class ShardStoreService implements ClusterStateListener {
             void removeFromQueueAndDecRef() {
                 waitingUsers.remove(ShardStoreUser.this);
                 ShardStore.this.decRef();
+            }
+        }
+
+        private class ShardStoreCleanup implements ActionListener<RefCounted> {
+
+            ShardStoreCleanup() {
+                mustIncRef();
+            }
+
+            private boolean isCurrent() {
+                synchronized (ShardStore.this) {
+                    return currentCleanup == ShardStoreCleanup.this;
+                }
+            }
+
+            @Override
+            public void onResponse(RefCounted refCounted) {
+                try {
+                    if (isCurrent() == false) {
+                        return;
+                    }
+                    currentCleanup = null;
+                } finally {
+                    decRef();
+                }
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                decRef();
             }
         }
     }
