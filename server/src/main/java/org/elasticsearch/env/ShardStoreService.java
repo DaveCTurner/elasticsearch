@@ -51,6 +51,13 @@ class ShardStoreService implements ClusterStateListener {
         }
     }
 
+    // TODO also refcount index store, really just for metadata; writing out index metadata should also hold a ref to the index store
+    // NB shards need non-exclusive access to the index store, but index store cleanup is exclusive so a concurrent shard start must wait
+    // if there's an index-store cleanup in progress
+
+    // TODO also custom data paths which in theory may change; should we try and clean up old custom data paths, or just leave this to the
+    // user
+
     private class ShardStore extends AbstractRefCounted {
 
         private final ShardId shardId;
@@ -125,6 +132,8 @@ class ShardStoreService implements ClusterStateListener {
                             // user instead.
                             //
                             // Do we cancel the cleanup on each new acquire? Or just if "nothing changes" before cleanup is due?
+                            //
+                            // NB actual cleanup activity must hold a ref and count as "in-use" since it needs exclusive access to the shard
                             return;
                         }
                     } while (nextUser.listener.isDone());
