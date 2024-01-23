@@ -536,7 +536,7 @@ public class DefaultRestChannelTests extends ESTestCase {
 
                 @Override
                 public boolean isEndOfResponse() {
-                    return randomBoolean();
+                    throw new AssertionError("should not check for end-of-response for HEAD request");
                 }
 
                 @Override
