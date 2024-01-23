@@ -21,12 +21,16 @@ import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.PromiseCombiner;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.Nullable;
@@ -52,12 +56,36 @@ import java.util.Queue;
  */
 public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
-    private final Logger logger;
+    private static final Logger logger = LogManager.getLogger(Netty4HttpPipeliningHandler.class);
 
     private final int maxEventsHeld;
     private final PriorityQueue<Tuple<? extends Netty4RestResponse, ChannelPromise>> outboundHoldingQueue;
 
-    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {}
+    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {
+        void doFinish() {
+            combiner.finish(onDone);
+        }
+
+        void doContinue(Channel channel, int writeSequence) {
+            assert responseBody.isEndOfResponse() == false;
+            combiner.finish(channel.newPromise()); // TODO want to close the previous body now, but delay the rest of onDone
+            responseBody.getContinuation(new ActionListener<>() {
+                @Override
+                public void onResponse(ChunkedRestResponseBody continuation) {
+                    channel.write(
+                        new Netty4ChunkedHttpContinuation(writeSequence, HttpVersion.HTTP_1_1, HttpResponseStatus.OK, continuation),
+                        onDone // pass the terminal listener/promise along the line
+                    );
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.error("failed to get HTTP response body continuation", e);
+                    channel.close();
+                }
+            });
+        }
+    }
 
     /**
      * The current {@link ChunkedWrite} if a chunked write is executed at the moment.
@@ -91,7 +119,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
      *                      required as events cannot queue up indefinitely
      */
     public Netty4HttpPipeliningHandler(Logger logger, final int maxEventsHeld, final Netty4HttpServerTransport serverTransport) {
-        this.logger = logger;
         this.maxEventsHeld = maxEventsHeld;
         this.outboundHoldingQueue = new PriorityQueue<>(1, Comparator.comparingInt(t -> t.v1().getSequence()));
         this.serverTransport = serverTransport;
@@ -232,22 +259,25 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             while (ctx.channel().isWritable()) {
                 if (writeChunk(ctx, combiner, responseBody)) {
-                    finishChunkedWrite();
+                    finishChunkedWrite(ctx.channel());
                     return;
                 }
             }
         }
     }
 
-    private void finishChunkedWrite() {
+    private void finishChunkedWrite(Channel channel) {
         assert currentChunkedWrite != null;
         assert currentChunkedWrite.responseBody().isDone();
         final var finishingWrite = currentChunkedWrite;
+        final var endOfResponse = finishingWrite.responseBody().isEndOfResponse();
         currentChunkedWrite = null;
-        if (finishingWrite.responseBody().isEndOfResponse()) {
+        if (endOfResponse) {
             writeSequence++;
+            finishingWrite.doFinish();
+        } else {
+            finishingWrite.doContinue(channel, writeSequence);
         }
-        finishingWrite.combiner.finish(finishingWrite.onDone());
     }
 
     private void doWriteChunkedContinuation(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise)
@@ -261,7 +291,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
         while (ctx.channel().isWritable()) {
             if (writeChunk(ctx, combiner, responseBody)) {
-                finishChunkedWrite();
+                finishChunkedWrite(ctx.channel());
                 return;
             }
         }
@@ -325,7 +355,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
                     if (writeChunk(ctx, currentChunkedWrite.combiner, currentChunkedWrite.responseBody())) {
-                        finishChunkedWrite();
+                        finishChunkedWrite(ctx.channel());
                     }
                     continue;
                 }

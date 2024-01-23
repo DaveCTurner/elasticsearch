@@ -8,6 +8,7 @@
 package org.elasticsearch.rest;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
@@ -49,6 +50,16 @@ public interface ChunkedRestResponseBody extends Releasable {
      * @return true if this is the last chunked body in the response.
      */
     boolean isEndOfResponse();
+
+    /**
+     * Asynchronously retrieves the next part of the body. Note that this is called on a transport thread, so implementations must take care
+     * to dispatch any nontrivial work elsewhere.
+     *
+     * @param listener Listener to complete with the next part of the body. By the point this is called we have already started to send
+     *                 the body of the response, so there's no good ways to handle an exception here. Completing the listener exceptionally
+     *                 log an error, abort sending the response, and close the HTTP connection.
+     */
+    void getContinuation(ActionListener<ChunkedRestResponseBody> listener);
 
     /**
      * Serializes approximately as many bytes of the response as request by {@code sizeHint} to a {@link ReleasableBytesReference} that
@@ -117,6 +128,11 @@ public interface ChunkedRestResponseBody extends Releasable {
             @Override
             public boolean isEndOfResponse() {
                 return true;
+            }
+
+            @Override
+            public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+                assert false : "no continuations";
             }
 
             @Override
@@ -209,6 +225,11 @@ public interface ChunkedRestResponseBody extends Releasable {
             @Override
             public boolean isEndOfResponse() {
                 return true;
+            }
+
+            @Override
+            public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+                assert false : "no continuations";
             }
 
             @Override
