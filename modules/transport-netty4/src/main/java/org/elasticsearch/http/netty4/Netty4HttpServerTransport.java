@@ -28,8 +28,6 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpUtil;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -37,7 +35,9 @@ import io.netty.util.AttributeKey;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.network.CloseableChannel;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -234,6 +234,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             serverBootstrap.childOption(ChannelOption.TCP_NODELAY, SETTING_HTTP_TCP_NO_DELAY.get(settings));
             serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, SETTING_HTTP_TCP_KEEP_ALIVE.get(settings));
 
+            serverBootstrap.option(ChannelOption.ALLOW_HALF_CLOSURE, true);
             serverBootstrap.childOption(ChannelOption.ALLOW_HALF_CLOSURE, true);
 
             if (SETTING_HTTP_TCP_KEEP_ALIVE.get(settings)) {
@@ -363,8 +364,16 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         @Override
         protected void initChannel(Channel ch) throws Exception {
             Netty4HttpChannel nettyHttpChannel = new Netty4HttpChannel(ch);
-            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+            ch.closeFuture().addListener(f -> {
+                if (f.isSuccess()) {
+                    logger.info(Strings.format("closeFuture[%s] success", ch), new ElasticsearchException("stack trace"));
+                } else {
+                    logger.info(Strings.format("closeFuture[%s] failure", ch), new ElasticsearchException("stack trace", f.cause()));
+                }
+            });
             ch.attr(HTTP_CHANNEL_KEY).set(nettyHttpChannel);
+            ch.pipeline().addLast(new LogInactiveHandler("first"));
             if (acceptChannelPredicate != null) {
                 ch.pipeline()
                     .addLast(
@@ -385,6 +394,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             if (transport.readTimeoutMillis > 0) {
                 ch.pipeline().addLast("read_timeout", new ReadTimeoutHandler(transport.readTimeoutMillis, TimeUnit.MILLISECONDS));
             }
+            ch.pipeline().addLast(new LogInactiveHandler("middle"));
             final HttpRequestDecoder decoder;
             if (httpValidator != null) {
                 decoder = new HttpRequestDecoder(
@@ -439,7 +449,9 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             if (handlingSettings.compression()) {
                 ch.pipeline().addLast("encoder_compress", new HttpContentCompressor(handlingSettings.compressionLevel()));
             }
+            ch.pipeline().addLast(new LogInactiveHandler("before pipelining"));
             ch.pipeline().addLast("pipelining", new Netty4HttpPipeliningHandler(logger, transport.pipeliningMaxEvents, transport));
+            ch.pipeline().addLast(new LogInactiveHandler("last"));
             transport.serverAcceptedChannel(nettyHttpChannel);
         }
 
@@ -478,8 +490,22 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            logger.info("ClientCloseHandler: channelInactive: {}", ctx.channel());
+            logger.info("ClientCloseHandler: channelInactive: {} (isOpen={})", ctx.channel(), ctx.channel().isOpen());
             onClientClose.run();
+            super.channelInactive(ctx);
+        }
+    }
+
+    private static class LogInactiveHandler extends ChannelInboundHandlerAdapter {
+        private final String name;
+
+        LogInactiveHandler(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            logger.info("LogInactiveHandler[{}]: channelInactive: {} (isOpen={})", name, ctx.channel(), ctx.channel().isOpen());
             super.channelInactive(ctx);
         }
     }

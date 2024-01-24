@@ -302,6 +302,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         logEvent(ctx, "channelInactive");
+        if (ctx.channel().isOpen() == false) {
+            ctx.channel().isOpen();
+        }
         doFlush(ctx);
         super.channelInactive(ctx);
     }

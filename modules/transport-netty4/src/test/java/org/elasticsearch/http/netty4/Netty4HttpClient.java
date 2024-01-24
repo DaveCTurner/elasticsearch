@@ -221,7 +221,7 @@ class Netty4HttpClient implements Closeable {
                     super.channelRead(ctx, msg);
                 }
             });
-            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+//            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             ch.pipeline().addLast(new HttpClientCodec());
             ch.pipeline().addLast(new HttpContentDecompressor());
             ch.pipeline().addLast(new HttpObjectAggregator(maxContentLength));
