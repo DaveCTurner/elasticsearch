@@ -274,6 +274,13 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        logger.info(
+            "{}: channelInactive on [{}], readSequence={}, writeSequence={}",
+            ctx.channel(),
+            Thread.currentThread().getName(),
+            readSequence,
+            writeSequence
+        );
         doFlush(ctx);
         super.channelInactive(ctx);
     }
@@ -287,6 +294,13 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         assert ctx.executor().inEventLoop();
         final Channel channel = ctx.channel();
         if (channel.isActive() == false) {
+            logger.info(
+                "failQueuedWrites: isActive={}, isOpen={}, isRegistered={}, channel=[{}]",
+                channel.isActive(),
+                channel.isOpen(),
+                channel.isRegistered(),
+                channel
+            );
             failQueuedWrites();
             return false;
         }

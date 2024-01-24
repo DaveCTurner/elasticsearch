@@ -25,15 +25,21 @@ import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.common.xcontent.ChunkedToXContent;
+import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -41,6 +47,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestCancellableNodeClient;
+import org.elasticsearch.rest.action.RestChunkedToXContentListener;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -48,12 +55,15 @@ import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -63,9 +73,14 @@ import static org.hamcrest.Matchers.is;
 @ClusterScope(scope = Scope.TEST, supportsDedicatedMasters = false, numDataNodes = 1)
 public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
+    private static final Logger logger = LogManager.getLogger(Netty4PipeliningIT.class);
+
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return CollectionUtils.concatLists(List.of(CountDown3Plugin.class, AwaitsCancelPlugin.class), super.nodePlugins());
+        return CollectionUtils.concatLists(
+            List.of(CountDown3Plugin.class, AwaitsCancelPlugin.class, StreamUntilCancelledPlugin.class),
+            super.nodePlugins()
+        );
     }
 
     @Override
@@ -89,10 +104,25 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         try (var client = new Netty4HttpClient() {
             @Override
             protected void onRequestsSent(Channel channel) {
+                Thread.yield();
+                logger.info("--> calling shutdownOutput()");
                 assertTrue(asInstanceOf(NioSocketChannel.class, channel).shutdownOutput().awaitUninterruptibly(10, TimeUnit.SECONDS));
             }
         }) {
             runPipeliningTest(client, AwaitsCancelPlugin.ROUTE, AwaitsCancelPlugin.ROUTE);
+        }
+    }
+
+    public void testChunkedResponsesCompleteOnHalfClose() throws Exception {
+        try (var client = new Netty4HttpClient() {
+            @Override
+            protected void onRequestsSent(Channel channel) {
+                Thread.yield();
+                logger.info("--> calling shutdownOutput()");
+                assertTrue(asInstanceOf(NioSocketChannel.class, channel).shutdownOutput().awaitUninterruptibly(10, TimeUnit.SECONDS));
+            }
+        }) {
+            runPipeliningTest(client, StreamUntilCancelledPlugin.ROUTE, StreamUntilCancelledPlugin.ROUTE);
         }
     }
 
@@ -119,6 +149,125 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     private static final ToXContentObject EMPTY_RESPONSE = (builder, params) -> builder.startObject().endObject();
 
+    /**
+     * Adds a HTTP route that sends a chunked-encoded response that keeps on yielding chunks until the corresponding task is cancelled.
+     */
+    public static class StreamUntilCancelledPlugin extends Plugin implements ActionPlugin {
+        static final String ROUTE = "/_test/stream_until_cancelled";
+
+        private static final ActionType<Response> TYPE = ActionType.localOnly("test:stream_until_cancelled");
+
+        @Override
+        public Collection<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+            return List.of(new ActionHandler<>(TYPE, TransportStreamUntilCancelledAction.class));
+        }
+
+        public static class Request extends ActionRequest {
+            @Override
+            public ActionRequestValidationException validate() {
+                return null;
+            }
+
+            @Override
+            public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
+                return new CancellableTask(id, type, action, "", parentTaskId, headers);
+            }
+        }
+
+        public static class Response extends ActionResponse implements ChunkedToXContent {
+            private final BooleanSupplier isCancelledSupplier;
+
+            public Response(BooleanSupplier isCancelledSupplier) {
+                this.isCancelledSupplier = isCancelledSupplier;
+            }
+
+            @Override
+            public void writeTo(StreamOutput out) {
+                TransportAction.localOnly();
+            }
+
+            @Override
+            public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
+                return Iterators.concat(
+                    ChunkedToXContentHelper.startObject(),
+                    ChunkedToXContentHelper.startArray("test"),
+                    new Iterator<ToXContentObject>() {
+                        long counter = 0L;
+
+                        @Override
+                        public boolean hasNext() {
+                            final var hasNext = isCancelledSupplier.getAsBoolean() == false;
+                            logger.info("--> hasNext returning {}", hasNext);
+                            return hasNext;
+                        }
+
+                        @Override
+                        public ToXContentObject next() {
+                            final var chunkCounter = counter++;
+                            logger.info("--> next() returning chunk [{}]", chunkCounter);
+                            return (builder, params) -> {
+                                for (int i = 0; i < 16 * 1024; i++) {
+                                    builder.value(Strings.format("%08x-%04x", chunkCounter, i));
+                                }
+                                return builder;
+                            };
+                        }
+                    },
+                    ChunkedToXContentHelper.endArray(),
+                    ChunkedToXContentHelper.endObject()
+                );
+            }
+        }
+
+        public static class TransportStreamUntilCancelledAction extends TransportAction<Request, Response> {
+            @Inject
+            public TransportStreamUntilCancelledAction(ActionFilters actionFilters, TransportService transportService) {
+                super(TYPE.name(), actionFilters, transportService.getTaskManager());
+            }
+
+            @Override
+            protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
+                listener.onResponse(new Response(asInstanceOf(CancellableTask.class, task)::isCancelled));
+            }
+        }
+
+        @Override
+        public Collection<RestHandler> getRestHandlers(
+            Settings settings,
+            NamedWriteableRegistry namedWriteableRegistry,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings,
+            SettingsFilter settingsFilter,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster
+        ) {
+            return List.of(new BaseRestHandler() {
+                @Override
+                public String getName() {
+                    return ROUTE;
+                }
+
+                @Override
+                public List<Route> routes() {
+                    return List.of(new Route(GET, ROUTE));
+                }
+
+                @Override
+                protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+                    return channel -> new RestCancellableNodeClient(client, channel.request().getHttpChannel()).execute(
+                        TYPE,
+                        new Request(),
+                        new RestChunkedToXContentListener<>(channel)
+                    );
+                }
+            });
+        }
+    }
+
+    /**
+     * Adds a HTTP route that responds (successfully) only when the corresponding task is cancelled.
+     */
     public static class AwaitsCancelPlugin extends Plugin implements ActionPlugin {
         static final String ROUTE = "/_test/await_cancel";
 
@@ -149,7 +298,10 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
             @Override
             protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
-                asInstanceOf(CancellableTask.class, task).addListener(() -> listener.onResponse(ActionResponse.Empty.INSTANCE));
+                asInstanceOf(CancellableTask.class, task).addListener(() -> {
+                    Netty4PipeliningIT.logger.info("task cancelled: {} on thread [{}]", task, Thread.currentThread().getName());
+                    listener.onResponse(ActionResponse.Empty.INSTANCE);
+                });
             }
         }
 

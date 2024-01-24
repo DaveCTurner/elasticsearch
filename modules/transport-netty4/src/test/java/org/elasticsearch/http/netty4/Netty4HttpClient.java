@@ -32,9 +32,14 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
@@ -59,6 +64,8 @@ import static org.junit.Assert.assertTrue;
  * Tiny helper to send http requests over netty.
  */
 class Netty4HttpClient implements Closeable {
+
+    private static final Logger logger = LogManager.getLogger(Netty4HttpClient.class);
 
     static Collection<String> returnHttpResponseBodies(Collection<FullHttpResponse> responses) {
         List<String> list = new ArrayList<>(responses.size());
@@ -140,6 +147,8 @@ class Netty4HttpClient implements Closeable {
         final CountDownLatch latch = new CountDownLatch(requests.size());
         final List<FullHttpResponse> content = Collections.synchronizedList(new ArrayList<>(requests.size()));
 
+        logger.info("--> sending requests...");
+
         clientBootstrap.handler(new CountDownLatchHandler(latch, content) {
             @Override
             protected void onResponseReceived(FullHttpResponse response) {
@@ -205,6 +214,7 @@ class Netty4HttpClient implements Closeable {
         @Override
         protected void initChannel(SocketChannel ch) {
             final int maxContentLength = new ByteSizeValue(100, ByteSizeUnit.MB).bytesAsInt();
+            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             ch.pipeline().addLast(new HttpClientCodec());
             ch.pipeline().addLast(new HttpContentDecompressor());
             ch.pipeline().addLast(new HttpObjectAggregator(maxContentLength));
