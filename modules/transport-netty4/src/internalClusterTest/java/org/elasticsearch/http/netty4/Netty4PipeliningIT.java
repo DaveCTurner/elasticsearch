@@ -13,6 +13,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.ReferenceCounted;
 
 import org.elasticsearch.ESNetty4IntegTestCase;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
@@ -170,7 +171,15 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
             @Override
             public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
-                return new CancellableTask(id, type, action, "", parentTaskId, headers);
+                return new CancellableTask(id, type, action, "", parentTaskId, headers) {
+                    @Override
+                    protected void onCancelled() {
+                        logger.info(
+                            Strings.format("--> task cancelled [%s]", Thread.currentThread().getName()),
+                            new ElasticsearchException("stack trace")
+                        );
+                    }
+                };
             }
         }
 

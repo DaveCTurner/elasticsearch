@@ -27,6 +27,7 @@ import io.netty.util.concurrent.PromiseCombiner;
 
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.Nullable;
@@ -258,6 +259,32 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         combiner.finish(promise);
     }
 
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        logEvent(ctx, "channelUnregistered");
+        super.channelUnregistered(ctx);
+    }
+
+    private void logEvent(ChannelHandlerContext ctx, String event) {
+        logger.info(
+            "{}, isOpen={}, isActive={}, isRegistered={}: {} on [{}], readSequence={}, writeSequence={}",
+            ctx.channel(),
+            ctx.channel().isOpen(),
+            ctx.channel().isActive(),
+            ctx.channel().isRegistered(),
+            event,
+            Thread.currentThread().getName(),
+            readSequence,
+            writeSequence
+        );
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        logEvent(ctx, "channelReadComplete");
+        super.channelReadComplete(ctx);
+    }
+
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws IOException {
         if (ctx.channel().isWritable()) {
             doFlush(ctx);
@@ -274,13 +301,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        logger.info(
-            "{}: channelInactive on [{}], readSequence={}, writeSequence={}",
-            ctx.channel(),
-            Thread.currentThread().getName(),
-            readSequence,
-            writeSequence
-        );
+        logEvent(ctx, "channelInactive");
         doFlush(ctx);
         super.channelInactive(ctx);
     }
@@ -293,13 +314,14 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private boolean doFlush(ChannelHandlerContext ctx) throws IOException {
         assert ctx.executor().inEventLoop();
         final Channel channel = ctx.channel();
-        if (channel.isActive() == false) {
-            logger.info(
-                "failQueuedWrites: isActive={}, isOpen={}, isRegistered={}, channel=[{}]",
-                channel.isActive(),
-                channel.isOpen(),
-                channel.isRegistered(),
-                channel
+        if (channel.isRegistered() == false) {
+            logEvent(
+                ctx,
+                Strings.format(
+                    "unregistered at start of doFlush, [%d] queued writes, currentChunkedWrite=[%s]",
+                    queuedWrites.size(),
+                    currentChunkedWrite
+                )
             );
             failQueuedWrites();
             return false;
@@ -327,7 +349,15 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             ctx.write(currentWrite.msg, currentWrite.promise);
         }
         ctx.flush();
-        if (channel.isActive() == false) {
+        if (channel.isRegistered() == false) {
+            logEvent(
+                ctx,
+                Strings.format(
+                    "unregistered at end of doFlush, [%d] queued writes, currentChunkedWrite=[%s]",
+                    queuedWrites.size(),
+                    currentChunkedWrite
+                )
+            );
             failQueuedWrites();
         }
         return true;

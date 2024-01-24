@@ -10,6 +10,8 @@ package org.elasticsearch.http.netty4;
 
 import io.netty.channel.Channel;
 
+import io.netty.channel.socket.nio.NioSocketChannel;
+
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.http.HttpChannel;
@@ -69,6 +71,10 @@ public class Netty4HttpChannel implements HttpChannel {
 
     public Channel getNettyChannel() {
         return channel;
+    }
+
+    public void onClientClose() {
+        closeContext.onResponse(null);
     }
 
     @Override

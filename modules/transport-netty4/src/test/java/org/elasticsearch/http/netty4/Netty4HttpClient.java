@@ -14,6 +14,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -31,7 +32,6 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
-
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
@@ -214,13 +214,34 @@ class Netty4HttpClient implements Closeable {
         @Override
         protected void initChannel(SocketChannel ch) {
             final int maxContentLength = new ByteSizeValue(100, ByteSizeUnit.MB).bytesAsInt();
+            ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                @Override
+                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                    Thread.sleep(100);
+                    super.channelRead(ctx, msg);
+                }
+            });
             ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             ch.pipeline().addLast(new HttpClientCodec());
             ch.pipeline().addLast(new HttpContentDecompressor());
             ch.pipeline().addLast(new HttpObjectAggregator(maxContentLength));
             ch.pipeline().addLast(new SimpleChannelInboundHandler<HttpObject>() {
+
+                @Override
+                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    logger.info("--> client channel inactive");
+                    super.channelInactive(ctx);
+                }
+
+                @Override
+                public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+                    logger.info("--> client channel unregistered");
+                    super.channelUnregistered(ctx);
+                }
+
                 @Override
                 protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
+                    logger.info("--> got full response");
                     final FullHttpResponse response = (FullHttpResponse) msg;
                     // We copy the buffer manually to avoid a huge allocation on a pooled allocator. We have
                     // a test that tracks huge allocations, so we want to avoid them in this test code.

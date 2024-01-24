@@ -234,6 +234,8 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             serverBootstrap.childOption(ChannelOption.TCP_NODELAY, SETTING_HTTP_TCP_NO_DELAY.get(settings));
             serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, SETTING_HTTP_TCP_KEEP_ALIVE.get(settings));
 
+            serverBootstrap.childOption(ChannelOption.ALLOW_HALF_CLOSURE, true);
+
             if (SETTING_HTTP_TCP_KEEP_ALIVE.get(settings)) {
                 // Netty logs a warning if it can't set the option, so try this only on supported platforms
                 if (IOUtils.LINUX || IOUtils.MAC_OS_X) {
@@ -371,7 +373,11 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
                     );
             }
             if (tlsConfig.isTLSEnabled()) {
-                ch.pipeline().addLast("ssl", new SslHandler(tlsConfig.createServerSSLEngine()));
+                final var sslHandler = new SslHandler(tlsConfig.createServerSSLEngine());
+                ch.pipeline().addLast("ssl", sslHandler);
+                sslHandler.sslCloseFuture().addListener(future -> nettyHttpChannel.onClientClose());
+            } else {
+                ch.pipeline().addLast("client_close", new ClientCloseHandler(nettyHttpChannel::onClientClose));
             }
             ch.pipeline()
                 .addLast("chunked_writer", new Netty4WriteThrottlingHandler(transport.getThreadPool().getThreadContext()))
@@ -460,6 +466,21 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             } else {
                 AbstractHttpServerTransport.onServerException(httpServerChannel, (Exception) cause);
             }
+        }
+    }
+
+    private static class ClientCloseHandler extends ChannelInboundHandlerAdapter {
+        private final Runnable onClientClose;
+
+        ClientCloseHandler(Runnable onClientClose) {
+            this.onClientClose = onClientClose;
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            logger.info("ClientCloseHandler: channelInactive: {}", ctx.channel());
+            onClientClose.run();
+            super.channelInactive(ctx);
         }
     }
 }
