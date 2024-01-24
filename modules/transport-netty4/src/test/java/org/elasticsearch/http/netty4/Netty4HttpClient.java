@@ -11,6 +11,7 @@ package org.elasticsearch.http.netty4;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -35,6 +36,7 @@ import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.Closeable;
@@ -49,7 +51,9 @@ import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.junit.Assert.fail;
+import static org.elasticsearch.test.ESTestCase.randomBoolean;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tiny helper to send http requests over netty.
@@ -125,25 +129,50 @@ class Netty4HttpClient implements Closeable {
         return sendRequests(remoteAddress, requests);
     }
 
+    protected void onRequestsSent(Channel channel) {}
+
+    protected void onResponseReceived(FullHttpResponse response) {
+        assertEquals(200, response.status().code());
+    }
+
     private synchronized List<FullHttpResponse> sendRequests(final SocketAddress remoteAddress, final Collection<HttpRequest> requests)
         throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(requests.size());
         final List<FullHttpResponse> content = Collections.synchronizedList(new ArrayList<>(requests.size()));
 
-        clientBootstrap.handler(new CountDownLatchHandler(latch, content));
+        clientBootstrap.handler(new CountDownLatchHandler(latch, content) {
+            @Override
+            protected void onResponseReceived(FullHttpResponse response) {
+                Netty4HttpClient.this.onResponseReceived(response);
+            }
+        });
 
         ChannelFuture channelFuture = null;
         try {
             channelFuture = clientBootstrap.connect(remoteAddress);
-            channelFuture.sync();
+            assertTrue(channelFuture.awaitUninterruptibly(10, TimeUnit.SECONDS));
 
+            final var channel = channelFuture.channel();
+            var needsFinalFlush = false;
             for (HttpRequest request : requests) {
-                channelFuture.channel().writeAndFlush(request);
-            }
-            if (latch.await(30L, TimeUnit.SECONDS) == false) {
-                fail("Failed to get all expected responses.");
+                if (randomBoolean()) {
+                    channel.write(request);
+                    needsFinalFlush = randomBoolean();
+                    if (needsFinalFlush == false) {
+                        channel.flush();
+                    }
+                } else {
+                    channel.writeAndFlush(request);
+                    needsFinalFlush = false;
+                }
             }
 
+            if (needsFinalFlush || randomBoolean()) {
+                channel.flush();
+            }
+
+            onRequestsSent(channel);
+            ESTestCase.safeAwait(latch);
         } finally {
             if (channelFuture != null) {
                 channelFuture.channel().close().sync();
@@ -161,7 +190,7 @@ class Netty4HttpClient implements Closeable {
     /**
      * helper factory which adds returned data to a list and uses a count down latch to decide when done
      */
-    private static class CountDownLatchHandler extends ChannelInitializer<SocketChannel> {
+    private abstract static class CountDownLatchHandler extends ChannelInitializer<SocketChannel> {
 
         private final CountDownLatch latch;
         private final Collection<FullHttpResponse> content;
@@ -170,6 +199,8 @@ class Netty4HttpClient implements Closeable {
             this.latch = latch;
             this.content = content;
         }
+
+        protected abstract void onResponseReceived(FullHttpResponse response);
 
         @Override
         protected void initChannel(SocketChannel ch) {
@@ -184,7 +215,9 @@ class Netty4HttpClient implements Closeable {
                     // We copy the buffer manually to avoid a huge allocation on a pooled allocator. We have
                     // a test that tracks huge allocations, so we want to avoid them in this test code.
                     ByteBuf newContent = Unpooled.copiedBuffer(((FullHttpResponse) msg).content());
-                    content.add(response.replace(newContent));
+                    final var copiedResponse = response.replace(newContent);
+                    onResponseReceived(copiedResponse);
+                    content.add(copiedResponse);
                     latch.countDown();
                 }
 

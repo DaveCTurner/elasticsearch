@@ -8,18 +8,55 @@
 
 package org.elasticsearch.http.netty4;
 
-import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.channel.Channel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.ReferenceCounted;
 
 import org.elasticsearch.ESNetty4IntegTestCase;
-import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.CountDownActionListener;
+import org.elasticsearch.action.support.SubscribableListener;
+import org.elasticsearch.action.support.TransportAction;
+import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.settings.ClusterSettings;
+import org.elasticsearch.common.settings.IndexScopedSettings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.action.RestCancellableNodeClient;
+import org.elasticsearch.rest.action.RestToXContentListener;
+import org.elasticsearch.tasks.CancellableTask;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
+import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 
@@ -27,27 +64,47 @@ import static org.hamcrest.Matchers.is;
 public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     @Override
+    protected Collection<Class<? extends Plugin>> nodePlugins() {
+        return CollectionUtils.concatLists(List.of(CountDown3Plugin.class, AwaitsCancelPlugin.class), super.nodePlugins());
+    }
+
+    @Override
     protected boolean addMockHttpTransport() {
         return false; // enable http
     }
 
     public void testThatNettyHttpServerSupportsPipelining() throws Exception {
-        String[] requests = new String[] { "/", "/_nodes/stats", "/", "/_cluster/state", "/" };
+        try (var client = new Netty4HttpClient()) {
+            runPipeliningTest(client, "/", "/_nodes/stats", "/", "/_cluster/state", "/");
+        }
+    }
 
-        HttpServerTransport httpServerTransport = internalCluster().getInstance(HttpServerTransport.class);
-        TransportAddress[] boundAddresses = httpServerTransport.boundAddress().boundAddresses();
-        TransportAddress transportAddress = randomFrom(boundAddresses);
+    public void testPipelinedRequestsRunInParallel() throws Exception {
+        try (var client = new Netty4HttpClient()) {
+            runPipeliningTest(client, CountDown3Plugin.ROUTE, CountDown3Plugin.ROUTE, CountDown3Plugin.ROUTE);
+        }
+    }
 
-        try (Netty4HttpClient nettyHttpClient = new Netty4HttpClient()) {
-            Collection<FullHttpResponse> responses = nettyHttpClient.get(transportAddress.address(), requests);
-            try {
-                assertThat(responses, hasSize(5));
-
-                Collection<String> opaqueIds = Netty4HttpClient.returnOpaqueIds(responses);
-                assertOpaqueIdsInOrder(opaqueIds);
-            } finally {
-                responses.forEach(ReferenceCounted::release);
+    public void testPipelinedRequestsAreCancelledOnHalfClose() throws Exception {
+        try (var client = new Netty4HttpClient() {
+            @Override
+            protected void onRequestsSent(Channel channel) {
+                assertTrue(asInstanceOf(NioSocketChannel.class, channel).shutdownOutput().awaitUninterruptibly(10, TimeUnit.SECONDS));
             }
+        }) {
+            runPipeliningTest(client, AwaitsCancelPlugin.ROUTE, AwaitsCancelPlugin.ROUTE);
+        }
+    }
+
+    private void runPipeliningTest(Netty4HttpClient client, String... routes) throws InterruptedException {
+        final var transportAddress = randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses());
+        var responses = client.get(transportAddress.address(), routes);
+        try {
+            assertThat(responses, hasSize(routes.length));
+            assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
+            assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
+        } finally {
+            responses.forEach(ReferenceCounted::release);
         }
     }
 
@@ -60,4 +117,121 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         }
     }
 
+    private static final ToXContentObject EMPTY_RESPONSE = (builder, params) -> builder.startObject().endObject();
+
+    public static class AwaitsCancelPlugin extends Plugin implements ActionPlugin {
+        static final String ROUTE = "/_test/await_cancel";
+
+        private static final ActionType<ActionResponse.Empty> TYPE = ActionType.localOnly("test:await_cancel");
+
+        @Override
+        public Collection<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+            return List.of(new ActionHandler<>(TYPE, TransportAwaitsCancelAction.class));
+        }
+
+        public static class Request extends ActionRequest {
+            @Override
+            public ActionRequestValidationException validate() {
+                return null;
+            }
+
+            @Override
+            public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
+                return new CancellableTask(id, type, action, "", parentTaskId, headers);
+            }
+        }
+
+        public static class TransportAwaitsCancelAction extends TransportAction<Request, ActionResponse.Empty> {
+            @Inject
+            public TransportAwaitsCancelAction(ActionFilters actionFilters, TransportService transportService) {
+                super(TYPE.name(), actionFilters, transportService.getTaskManager());
+            }
+
+            @Override
+            protected void doExecute(Task task, Request request, ActionListener<ActionResponse.Empty> listener) {
+                asInstanceOf(CancellableTask.class, task).addListener(() -> listener.onResponse(ActionResponse.Empty.INSTANCE));
+            }
+        }
+
+        @Override
+        public Collection<RestHandler> getRestHandlers(
+            Settings settings,
+            NamedWriteableRegistry namedWriteableRegistry,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings,
+            SettingsFilter settingsFilter,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster
+        ) {
+            return List.of(new BaseRestHandler() {
+                @Override
+                public String getName() {
+                    return ROUTE;
+                }
+
+                @Override
+                public List<Route> routes() {
+                    return List.of(new Route(GET, ROUTE));
+                }
+
+                @Override
+                protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+                    return channel -> new RestCancellableNodeClient(client, channel.request().getHttpChannel()).execute(
+                        TYPE,
+                        new Request(),
+                        new RestToXContentListener<>(channel).map(v -> EMPTY_RESPONSE)
+                    );
+                }
+            });
+        }
+    }
+
+    /**
+     * Adds an HTTP route that waits for 3 concurrent executions before returning any of them
+     */
+    public static class CountDown3Plugin extends Plugin implements ActionPlugin {
+
+        static final String ROUTE = "/_test/countdown_3";
+
+        @Override
+        public Collection<RestHandler> getRestHandlers(
+            Settings settings,
+            NamedWriteableRegistry namedWriteableRegistry,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings,
+            SettingsFilter settingsFilter,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster
+        ) {
+            return List.of(new BaseRestHandler() {
+                private final SubscribableListener<ToXContentObject> subscribableListener = new SubscribableListener<>();
+                private final CountDownActionListener countDownActionListener = new CountDownActionListener(
+                    3,
+                    subscribableListener.map(v -> EMPTY_RESPONSE)
+                );
+
+                private void addListener(ActionListener<ToXContentObject> listener) {
+                    subscribableListener.addListener(listener);
+                    countDownActionListener.onResponse(null);
+                }
+
+                @Override
+                public String getName() {
+                    return ROUTE;
+                }
+
+                @Override
+                public List<Route> routes() {
+                    return List.of(new Route(GET, ROUTE));
+                }
+
+                @Override
+                protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+                    return channel -> addListener(new RestToXContentListener<>(channel));
+                }
+            });
+        }
+    }
 }
