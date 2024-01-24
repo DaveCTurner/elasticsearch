@@ -10,8 +10,8 @@ package org.elasticsearch.http.netty4;
 
 import io.netty.channel.Channel;
 
-import io.netty.channel.socket.nio.NioSocketChannel;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.http.HttpChannel;
@@ -23,12 +23,17 @@ import java.net.SocketAddress;
 
 public class Netty4HttpChannel implements HttpChannel {
 
+    private static final Logger logger = LogManager.getLogger(Netty4HttpChannel.class);
+
     private final Channel channel;
     private final ListenableFuture<Void> closeContext = new ListenableFuture<>();
 
     Netty4HttpChannel(Channel channel) {
         this.channel = channel;
         Netty4TcpChannel.addListener(this.channel.closeFuture(), closeContext);
+        closeContext.addListener(
+            ActionListener.running(() -> logger.info("--> closing channel [{}] on thread [{}]", channel, Thread.currentThread().getName()))
+        );
     }
 
     @Override

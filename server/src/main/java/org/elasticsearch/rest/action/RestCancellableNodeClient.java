@@ -8,6 +8,7 @@
 
 package org.elasticsearch.rest.action;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -17,6 +18,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.FilterClient;
 import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -78,25 +80,11 @@ public class RestCancellableNodeClient extends FilterClient {
     ) {
         CloseListener closeListener = httpChannels.computeIfAbsent(httpChannel, channel -> new CloseListener());
         TaskHolder taskHolder = new TaskHolder();
-        Task task = client.executeLocally(action, request, new ActionListener<>() {
-            @Override
-            public void onResponse(Response response) {
-                try {
-                    closeListener.unregisterTask(taskHolder);
-                } finally {
-                    listener.onResponse(response);
-                }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                try {
-                    closeListener.unregisterTask(taskHolder);
-                } finally {
-                    listener.onFailure(e);
-                }
-            }
-        });
+        Task task = client.executeLocally(
+            action,
+            request,
+            ActionListener.runAfter(listener, () -> closeListener.unregisterTask(taskHolder))
+        );
         assert task instanceof CancellableTask : action.name() + " is not cancellable";
         final TaskId taskId = new TaskId(client.getLocalNodeId(), task.getId());
         closeListener.registerTask(taskHolder, taskId);
@@ -104,6 +92,7 @@ public class RestCancellableNodeClient extends FilterClient {
     }
 
     private void cancelTask(TaskId taskId) {
+        logger.info("--> cancelTask[{}]", taskId);
         CancelTasksRequest req = new CancelTasksRequest().setTargetTaskId(taskId).setReason("http channel [" + httpChannel + "] closed");
         // force the origin to execute the cancellation as a system user
         new OriginSettingClient(client, TASKS_ORIGIN).admin().cluster().cancelTasks(req, ActionListener.noop());
@@ -120,7 +109,9 @@ public class RestCancellableNodeClient extends FilterClient {
         }
 
         void maybeRegisterChannel(HttpChannel httpChannel) {
+            logger.info("--> maybeRegisterChannel[{}]", httpChannel);
             if (channel.compareAndSet(null, httpChannel)) {
+                logger.info("--> maybeRegisterChannel[{}] adding close listener", httpChannel);
                 // In case the channel is already closed when we register the listener, the listener will be immediately executed which will
                 // remove the channel from the map straight-away. That is why we first create the CloseListener and later we associate it
                 // with the channel. This guarantees that the close listener is already in the map when it gets registered to its
@@ -134,6 +125,10 @@ public class RestCancellableNodeClient extends FilterClient {
             if (taskHolder.completed == false) {
                 this.tasks.add(taskId);
             }
+            logger.info(
+                Strings.format("--> task [%s] (completed=%s) registered with [%s]", taskHolder.taskId, taskHolder.completed, httpChannel),
+                new ElasticsearchException("stack trace")
+            );
         }
 
         synchronized void unregisterTask(TaskHolder taskHolder) {
@@ -141,10 +136,15 @@ public class RestCancellableNodeClient extends FilterClient {
                 this.tasks.remove(taskHolder.taskId);
             }
             taskHolder.completed = true;
+            logger.info(
+                Strings.format("--> task [%s] unregistered from [%s]", taskHolder.taskId, httpChannel),
+                new ElasticsearchException("stack trace")
+            );
         }
 
         @Override
         public void onResponse(Void aVoid) {
+            logger.info("--> close listener onResponse called", httpChannel);
             final HttpChannel httpChannel = channel.get();
             assert httpChannel != null : "channel not registered";
             // when the channel gets closed it won't be reused: we can remove it from the map and forget about it.
@@ -155,6 +155,7 @@ public class RestCancellableNodeClient extends FilterClient {
                 toCancel = new ArrayList<>(tasks);
                 tasks.clear();
             }
+            logger.info("--> close listener cancelling tasks {} for channel [{}]", toCancel, httpChannel);
             for (TaskId taskId : toCancel) {
                 cancelTask(taskId);
             }

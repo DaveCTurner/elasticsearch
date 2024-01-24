@@ -19,6 +19,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -181,7 +182,7 @@ class Netty4HttpClient implements Closeable {
             }
 
             onRequestsSent(channel);
-            ESTestCase.safeAwait(latch);
+            assertTrue(latch.await(30, TimeUnit.SECONDS));
         } finally {
             if (channelFuture != null) {
                 channelFuture.channel().close().sync();
@@ -226,7 +227,6 @@ class Netty4HttpClient implements Closeable {
             ch.pipeline().addLast(new HttpContentDecompressor());
             ch.pipeline().addLast(new HttpObjectAggregator(maxContentLength));
             ch.pipeline().addLast(new SimpleChannelInboundHandler<HttpObject>() {
-
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                     logger.info("--> client channel inactive");

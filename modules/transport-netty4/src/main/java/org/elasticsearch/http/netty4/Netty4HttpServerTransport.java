@@ -18,6 +18,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.RecvByteBufAllocator;
+import io.netty.channel.socket.ChannelInputShutdownEvent;
+import io.netty.channel.socket.ChannelInputShutdownReadComplete;
 import io.netty.channel.socket.nio.NioChannelOption;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.HttpContentCompressor;
@@ -28,6 +30,8 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -234,7 +238,6 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
             serverBootstrap.childOption(ChannelOption.TCP_NODELAY, SETTING_HTTP_TCP_NO_DELAY.get(settings));
             serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, SETTING_HTTP_TCP_KEEP_ALIVE.get(settings));
 
-            serverBootstrap.option(ChannelOption.ALLOW_HALF_CLOSURE, true);
             serverBootstrap.childOption(ChannelOption.ALLOW_HALF_CLOSURE, true);
 
             if (SETTING_HTTP_TCP_KEEP_ALIVE.get(settings)) {
@@ -364,7 +367,7 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         @Override
         protected void initChannel(Channel ch) throws Exception {
             Netty4HttpChannel nettyHttpChannel = new Netty4HttpChannel(ch);
-            // ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
+//            ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO));
             ch.closeFuture().addListener(f -> {
                 if (f.isSuccess()) {
                     logger.info(Strings.format("closeFuture[%s] success", ch), new ElasticsearchException("stack trace"));
@@ -489,6 +492,19 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
         }
 
         @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt == ChannelInputShutdownReadComplete.INSTANCE) {
+                logger.info(
+                    "ClientCloseHandler: channel input shutdown and read-complete: {} (isOpen={})",
+                    ctx.channel(),
+                    ctx.channel().isOpen()
+                );
+            }
+            onClientClose.run();
+            super.userEventTriggered(ctx, evt);
+        }
+
+        @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             logger.info("ClientCloseHandler: channelInactive: {} (isOpen={})", ctx.channel(), ctx.channel().isOpen());
             onClientClose.run();
@@ -501,6 +517,14 @@ public class Netty4HttpServerTransport extends AbstractHttpServerTransport {
 
         LogInactiveHandler(String name) {
             this.name = name;
+        }
+
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt == ChannelInputShutdownEvent.INSTANCE) {
+                logger.info("LogInactiveHandler[{}]: channel input shutdown: {} (isOpen={})", name, ctx.channel(), ctx.channel().isOpen());
+            }
+            super.userEventTriggered(ctx, evt);
         }
 
         @Override

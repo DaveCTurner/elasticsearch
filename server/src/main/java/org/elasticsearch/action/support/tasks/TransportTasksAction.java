@@ -85,6 +85,8 @@ public abstract class TransportTasksAction<
 
     @Override
     protected void doExecute(Task task, TasksRequest request, ActionListener<TasksResponse> listener) {
+        logger.info("--> running [{}]: {}", actionName, request);
+
         final var discoveryNodes = clusterService.state().nodes();
         final String[] nodeIds = resolveNodes(request, discoveryNodes);
 

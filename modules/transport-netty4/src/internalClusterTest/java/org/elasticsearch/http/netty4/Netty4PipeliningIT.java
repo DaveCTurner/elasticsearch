@@ -18,6 +18,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.CountDownActionListener;
@@ -35,9 +36,11 @@ import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentHelper;
 import org.elasticsearch.core.Strings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.logging.LogManager;
 import org.elasticsearch.logging.Logger;
@@ -55,6 +58,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -71,7 +75,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 
-@ClusterScope(scope = Scope.TEST, supportsDedicatedMasters = false, numDataNodes = 1)
+@ClusterScope(scope = Scope.TEST, supportsDedicatedMasters = false, numDataNodes = 0)
 public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     private static final Logger logger = LogManager.getLogger(Netty4PipeliningIT.class);
@@ -115,6 +119,8 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     }
 
     public void testChunkedResponsesCompleteOnHalfClose() throws Exception {
+        internalCluster().startNode();
+        logger.info("--> node started");
         try (var client = new Netty4HttpClient() {
             @Override
             protected void onRequestsSent(Channel channel) {
@@ -229,14 +235,21 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         }
 
         public static class TransportStreamUntilCancelledAction extends TransportAction<Request, Response> {
+            private final ThreadPool threadPool;
+
             @Inject
             public TransportStreamUntilCancelledAction(ActionFilters actionFilters, TransportService transportService) {
                 super(TYPE.name(), actionFilters, transportService.getTaskManager());
+                threadPool = transportService.getThreadPool();
             }
 
             @Override
             protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-                listener.onResponse(new Response(asInstanceOf(CancellableTask.class, task)::isCancelled));
+                threadPool.schedule(
+                    ActionRunnable.supply(listener, () -> new Response(asInstanceOf(CancellableTask.class, task)::isCancelled)),
+                    TimeValue.timeValueSeconds(1),
+                    EsExecutors.DIRECT_EXECUTOR_SERVICE
+                );
             }
         }
 
