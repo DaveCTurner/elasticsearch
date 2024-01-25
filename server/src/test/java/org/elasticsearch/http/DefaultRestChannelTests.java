@@ -540,6 +540,11 @@ public class DefaultRestChannelTests extends ESTestCase {
                 }
 
                 @Override
+                public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+                    throw new AssertionError("should not get any continuations for HEAD request");
+                }
+
+                @Override
                 public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
                     throw new AssertionError("should not try to serialize response body for HEAD request");
                 }
@@ -747,6 +752,11 @@ public class DefaultRestChannelTests extends ESTestCase {
                     @Override
                     public boolean isEndOfResponse() {
                         return true;
+                    }
+
+                    @Override
+                    public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+                        throw new AssertionError("should not get any continuations (yet - TODO)");
                     }
 
                     @Override

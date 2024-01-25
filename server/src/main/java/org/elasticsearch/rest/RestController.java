@@ -873,6 +873,11 @@ public class RestController implements HttpServerTransport.Dispatcher {
         }
 
         @Override
+        public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+            delegate.getContinuation(listener); // TODO should continue to track length too
+        }
+
+        @Override
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
             final ReleasableBytesReference bytesReference = delegate.encodeChunk(sizeHint, recycler);
             encodedLength += bytesReference.length();
