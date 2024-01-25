@@ -8,6 +8,9 @@
 
 package org.elasticsearch.common.recycler;
 
+import org.elasticsearch.core.Nullable;
+
+import java.lang.ref.WeakReference;
 import java.util.Deque;
 
 /**
@@ -15,10 +18,10 @@ import java.util.Deque;
  */
 public class DequeRecycler<T> extends AbstractRecycler<T> {
 
-    final Deque<T> deque;
+    final Deque<WeakReference<T>> deque;
     final int maxSize;
 
-    public DequeRecycler(C<T> c, Deque<T> queue, int maxSize) {
+    public DequeRecycler(C<T> c, Deque<WeakReference<T>> queue, int maxSize) {
         super(c);
         this.deque = queue;
         this.maxSize = maxSize;
@@ -26,11 +29,16 @@ public class DequeRecycler<T> extends AbstractRecycler<T> {
 
     @Override
     public V<T> obtain() {
-        final T v = deque.pollFirst();
-        if (v == null) {
-            return new DV(c.newInstance(), false);
+        while (true) {
+            final WeakReference<T> vRef = deque.pollFirst();
+            if (vRef == null) {
+                return new DV(null, c.newInstance(), false);
+            }
+            final T v = vRef.get();
+            if (v != null) {
+                return new DV(vRef, v, true);
+            }
         }
-        return new DV(v, true);
     }
 
     /** Called before releasing an object, returns true if the object should be recycled and false otherwise. */
@@ -45,10 +53,13 @@ public class DequeRecycler<T> extends AbstractRecycler<T> {
 
     private class DV implements Recycler.V<T> {
 
+        @Nullable // if freshly created: we only make the weak ref when we recycle it
+        final WeakReference<T> ref;
         T value;
         final boolean recycled;
 
-        DV(T value, boolean recycled) {
+        DV(WeakReference<T> ref, T value, boolean recycled) {
+            this.ref = ref;
             this.value = value;
             this.recycled = recycled;
         }
@@ -66,14 +77,13 @@ public class DequeRecycler<T> extends AbstractRecycler<T> {
         @Override
         public void close() {
             if (value == null) {
+                assert permitDoubleReleases;
                 throw new IllegalStateException("recycler entry already released...");
             }
             final boolean recycle = beforeRelease();
             if (recycle) {
                 c.recycle(value);
-                deque.addFirst(value);
-            } else {
-                c.destroy(value);
+                deque.addFirst(ref == null ? new WeakReference<>(value) : ref);
             }
             value = null;
             afterRelease(recycle);

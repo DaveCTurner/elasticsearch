@@ -10,6 +10,9 @@ package org.elasticsearch.common.recycler;
 
 abstract class AbstractRecycler<T> implements Recycler<T> {
 
+    // flag to disable temporarily assertions so we can test the production behaviour of releasing a page twice
+    protected static boolean permitDoubleReleases;
+
     protected final Recycler.C<T> c;
 
     protected AbstractRecycler(Recycler.C<T> c) {

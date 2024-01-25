@@ -37,12 +37,6 @@ public abstract class AbstractRecyclerTestCase extends ESTestCase {
             Arrays.fill(value, RECYCLED);
         }
 
-        @Override
-        public void destroy(byte[] value) {
-            // we cannot really free the internals of a byte[], so mark it for verification
-            Arrays.fill(value, DEAD);
-        }
-
     };
 
     protected void assertFresh(byte[] data) {
@@ -102,19 +96,25 @@ public abstract class AbstractRecyclerTestCase extends ESTestCase {
     }
 
     public void testDoubleRelease() {
-        final Recycler<byte[]> r = newRecycler(limit);
-        final Recycler.V<byte[]> v1 = r.obtain();
-        v1.close();
         try {
+            AbstractRecycler.permitDoubleReleases = true;
+
+            final Recycler<byte[]> r = newRecycler(limit);
+            final Recycler.V<byte[]> v1 = r.obtain();
             v1.close();
-        } catch (IllegalStateException e) {
-            // impl has protection against double release: ok
-            return;
+            try {
+                v1.close();
+            } catch (IllegalStateException e) {
+                // impl has protection against double release: ok
+                return;
+            }
+            // otherwise ensure that the impl may not be returned twice
+            final Recycler.V<byte[]> v2 = r.obtain();
+            final Recycler.V<byte[]> v3 = r.obtain();
+            assertNotSame(v2.v(), v3.v());
+        } finally {
+            AbstractRecycler.permitDoubleReleases = false;
         }
-        // otherwise ensure that the impl may not be returned twice
-        final Recycler.V<byte[]> v2 = r.obtain();
-        final Recycler.V<byte[]> v3 = r.obtain();
-        assertNotSame(v2.v(), v3.v());
     }
 
     public void testDestroyWhenOverCapacity() {
@@ -135,7 +135,8 @@ public abstract class AbstractRecyclerTestCase extends ESTestCase {
             v.close();
         }
 
-        // release first ref, verify for destruction
+        // release first ref, verify it was not recycled
+        Arrays.fill(o.v(), DEAD);
         o.close();
         assertDead(data);
     }

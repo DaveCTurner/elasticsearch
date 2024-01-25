@@ -27,9 +27,6 @@ public interface Recycler<T> {
 
         /** Recycle the data. This operation is called when the data structure is released. */
         void recycle(T value);
-
-        /** Destroy the data. This operation allows the data structure to release any internal resources before GC. */
-        void destroy(T value);
     }
 
     interface V<T> extends Releasable {
