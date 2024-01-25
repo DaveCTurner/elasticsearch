@@ -282,8 +282,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private void doWriteChunkedContinuation(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise)
         throws IOException {
         final PromiseCombiner combiner = continuation.combiner();
-        final ChannelPromise first = ctx.newPromise();
-        combiner.add((Future<Void>) first);
         assert currentChunkedWrite == null;
         final var responseBody = continuation.body();
         currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
@@ -353,7 +351,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             if (currentWrite == null) {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
-                    if (writeChunk(ctx, currentChunkedWrite.combiner, currentChunkedWrite.responseBody())) {
+                    if (writeChunk(ctx, currentChunkedWrite.combiner(), currentChunkedWrite.responseBody())) {
                         finishChunkedWrite(ctx.channel());
                     }
                     continue;

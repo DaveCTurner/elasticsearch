@@ -72,7 +72,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return CollectionUtils.concatLists(List.of(YieldsContinuationsPlugin.class), super.nodePlugins());
+        return CollectionUtils.appendToCopy(super.nodePlugins(), YieldsContinuationsPlugin.class);
     }
 
     @Override
@@ -102,9 +102,6 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             """, body);
     }
 
-    /**
-     * Adds a HTTP route that sends a chunked-encoded response that keeps on yielding chunks until the corresponding task is cancelled.
-     */
     public static class YieldsContinuationsPlugin extends Plugin implements ActionPlugin {
         static final String ROUTE = "/_test/yields_continuations";
 
@@ -234,8 +231,14 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
                     return channel -> client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
                         @Override
-                        protected void processResponse(Response response) throws Exception {
-                            channel.sendResponse(RestResponse.chunked(RestStatus.OK, response.getChunkedBody(), null));
+                        protected void processResponse(Response response) {
+                            channel.sendResponse(
+                                RestResponse.chunked(
+                                    RestStatus.OK,
+                                    response.getChunkedBody(),
+                                    () -> logger.info("--> response closed") // TODO test lifecycle
+                                )
+                            );
                         }
                     });
                 }
