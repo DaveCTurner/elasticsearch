@@ -21,8 +21,6 @@ import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.PromiseCombiner;
@@ -73,7 +71,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 @Override
                 public void onResponse(ChunkedRestResponseBody continuation) {
                     channel.write(
-                        new Netty4ChunkedHttpContinuation(writeSequence, HttpVersion.HTTP_1_1, HttpResponseStatus.OK, continuation),
+                        new Netty4ChunkedHttpContinuation(writeSequence, continuation),
                         onDone // pass the terminal listener/promise along the line
                     );
                 }

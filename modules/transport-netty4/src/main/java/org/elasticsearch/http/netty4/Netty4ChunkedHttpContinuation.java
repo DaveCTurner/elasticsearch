@@ -8,19 +8,13 @@
 
 package org.elasticsearch.http.netty4;
 
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-
 import org.elasticsearch.rest.ChunkedRestResponseBody;
 
-public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse implements Netty4HttpResponse {
+public final class Netty4ChunkedHttpContinuation implements Netty4HttpResponse {
     private final int sequence;
     private final ChunkedRestResponseBody body;
 
-    public Netty4ChunkedHttpContinuation(int sequence, HttpVersion version, HttpResponseStatus status, ChunkedRestResponseBody body) {
-        // TODO shouldn't be a HttpResponse, this is purely body so headers/version/status make no sense here
-        super(version, status);
+    public Netty4ChunkedHttpContinuation(int sequence, ChunkedRestResponseBody body) {
         this.sequence = sequence;
         this.body = body;
     }
