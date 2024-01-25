@@ -35,14 +35,15 @@ import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.CollectionUtils;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
+import org.elasticsearch.core.AbstractRefCounted;
+import org.elasticsearch.core.RefCounted;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.ChunkedRestResponseBody;
+import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -50,7 +51,6 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestActionListener;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -61,6 +61,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -68,8 +71,6 @@ import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 import static org.hamcrest.Matchers.containsString;
 
 public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
-    private static final Logger logger = LogManager.getLogger(Netty4ChunkedContinuationsIT.class);
-
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.appendToCopy(super.nodePlugins(), YieldsContinuationsPlugin.class);
@@ -81,31 +82,53 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     }
 
     public void testBasic() throws IOException {
-        final var response = getRestClient().performRequest(new Request("GET", YieldsContinuationsPlugin.ROUTE));
-        assertEquals(200, response.getStatusLine().getStatusCode());
-        assertThat(response.getEntity().getContentType().toString(), containsString(TEXT_CONTENT_TYPE));
-        assertTrue(response.getEntity().isChunked());
-        String body;
-        try (var reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
-            body = Streams.copyToString(reader);
+        try (var ignored = withRequestTracker()) {
+            final var response = getRestClient().performRequest(new Request("GET", YieldsContinuationsPlugin.ROUTE));
+            assertEquals(200, response.getStatusLine().getStatusCode());
+            assertThat(response.getEntity().getContentType().toString(), containsString(TEXT_CONTENT_TYPE));
+            assertTrue(response.getEntity().isChunked());
+            String body;
+            try (var reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
+                body = Streams.copyToString(reader);
+            }
+            assertEquals("""
+                batch-0-chunk-0
+                batch-0-chunk-1
+                batch-0-chunk-2
+                batch-1-chunk-0
+                batch-1-chunk-1
+                batch-1-chunk-2
+                batch-2-chunk-0
+                batch-2-chunk-1
+                batch-2-chunk-2
+                """, body);
         }
-        assertEquals("""
-            batch-0-chunk-0
-            batch-0-chunk-1
-            batch-0-chunk-2
-            batch-1-chunk-0
-            batch-1-chunk-1
-            batch-1-chunk-2
-            batch-2-chunk-0
-            batch-2-chunk-1
-            batch-2-chunk-2
-            """, body);
+    }
+
+    private static Releasable withRequestTracker() {
+        final var latch = new CountDownLatch(1);
+        final var refCounted = AbstractRefCounted.of(latch::countDown);
+        setPluginRequestRefs(refCounted);
+        return () -> {
+            setPluginRequestRefs(RefCounted.ALWAYS_REFERENCED);
+            refCounted.decRef();
+            safeAwait(latch);
+        };
+    }
+
+    private static void setPluginRequestRefs(RefCounted refCounted) {
+        Iterators.flatMap(
+            internalCluster().getInstances(PluginsService.class).iterator(),
+            pluginsService -> pluginsService.filterPlugins(YieldsContinuationsPlugin.class).iterator()
+        ).forEachRemaining(p -> p.requestRefs = refCounted);
     }
 
     public static class YieldsContinuationsPlugin extends Plugin implements ActionPlugin {
         static final String ROUTE = "/_test/yields_continuations";
 
         private static final ActionType<YieldsContinuationsPlugin.Response> TYPE = new ActionType<>("test:yields_continuations");
+
+        RefCounted requestRefs = RefCounted.ALWAYS_REFERENCED;
 
         @Override
         public Collection<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
@@ -120,10 +143,10 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         }
 
         public static class Response extends ActionResponse {
-            private final Scheduler scheduler;
+            private final Executor executor;
 
-            public Response(Scheduler scheduler) {
-                this.scheduler = scheduler;
+            public Response(Executor executor) {
+                this.executor = executor;
             }
 
             @Override
@@ -152,16 +175,12 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
                     @Override
                     public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-                        scheduler.schedule(
-                            ActionRunnable.supply(listener, () -> getChunkBatch(batchIndex + 1)),
-                            TimeValue.timeValueSeconds(1),
-                            EsExecutors.DIRECT_EXECUTOR_SERVICE
-                        );
+                        executor.execute(ActionRunnable.supply(listener, () -> getChunkBatch(batchIndex + 1)));
                     }
 
                     @Override
                     public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                        assert lines.hasNext();
+                        assertTrue(lines.hasNext());
                         final var output = new RecyclerBytesStreamOutput(recycler);
                         boolean success = false;
                         try {
@@ -180,6 +199,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
                     @Override
                     public String getResponseContentTypeString() {
+                        assertEquals(0, batchIndex);
                         return TEXT_CONTENT_TYPE;
                     }
                 };
@@ -187,21 +207,17 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         }
 
         public static class TransportYieldsContinuationsAction extends TransportAction<Request, Response> {
-            private final ThreadPool threadPool;
+            private final ExecutorService executor;
 
             @Inject
             public TransportYieldsContinuationsAction(ActionFilters actionFilters, TransportService transportService) {
                 super(TYPE.name(), actionFilters, transportService.getTaskManager());
-                threadPool = transportService.getThreadPool();
+                executor = transportService.getThreadPool().executor(ThreadPool.Names.GENERIC);
             }
 
             @Override
             protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-                threadPool.schedule(
-                    ActionRunnable.supply(listener, () -> new Response(threadPool)),
-                    TimeValue.timeValueSeconds(1),
-                    EsExecutors.DIRECT_EXECUTOR_SERVICE
-                );
+                executor.execute(ActionRunnable.supply(listener, () -> new Response(executor)));
             }
         }
 
@@ -229,18 +245,28 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
                 @Override
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
-                    return channel -> client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
+                    final var localRequestRefs = requestRefs;
+                    localRequestRefs.mustIncRef();
+                    return new RestChannelConsumer() {
+
                         @Override
-                        protected void processResponse(Response response) {
-                            channel.sendResponse(
-                                RestResponse.chunked(
-                                    RestStatus.OK,
-                                    response.getChunkedBody(),
-                                    () -> logger.info("--> response closed") // TODO test lifecycle
-                                )
-                            );
+                        public void close() {
+                            localRequestRefs.decRef();
                         }
-                    });
+
+                        @Override
+                        public void accept(RestChannel channel) {
+                            localRequestRefs.mustIncRef();
+                            client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
+                                @Override
+                                protected void processResponse(Response response) {
+                                    channel.sendResponse(
+                                        RestResponse.chunked(RestStatus.OK, response.getChunkedBody(), localRequestRefs::decRef)
+                                    );
+                                }
+                            });
+                        }
+                    };
                 }
             });
         }
