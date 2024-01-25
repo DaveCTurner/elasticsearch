@@ -185,14 +185,7 @@ public class DefaultRestChannel extends AbstractRestChannel {
             }
 
             try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                httpChannel.sendResponse(
-                    httpResponse,
-                    /* TODO on completion, check to see if it's a nonterminal chunked body and, if so, get the next batch of chunks
-                     *  and keep going until we reach the terminal batch before closing everything in toClose. But NB we should still close
-                     *  chunkedContent when _this_ write completes.
-                     */
-                    listener
-                );
+                httpChannel.sendResponse(httpResponse, listener);
             }
             success = true;
         } finally {

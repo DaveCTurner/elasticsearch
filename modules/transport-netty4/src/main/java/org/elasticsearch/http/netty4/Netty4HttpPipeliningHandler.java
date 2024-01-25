@@ -66,12 +66,11 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
         void doContinue(Channel channel, int writeSequence) {
             assert responseBody.isEndOfResponse() == false;
-            combiner.finish(channel.newPromise()); // TODO want to close the previous body now, but delay the rest of onDone
             responseBody.getContinuation(new ActionListener<>() {
                 @Override
                 public void onResponse(ChunkedRestResponseBody continuation) {
                     channel.write(
-                        new Netty4ChunkedHttpContinuation(writeSequence, continuation),
+                        new Netty4ChunkedHttpContinuation(writeSequence, continuation, combiner),
                         onDone // pass the terminal listener/promise along the line
                     );
                 }
@@ -79,6 +78,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 @Override
                 public void onFailure(Exception e) {
                     logger.error("failed to get HTTP response body continuation", e);
+                    combiner.add(channel.newFailedFuture(e));
+                    combiner.finish(onDone);
                     channel.close();
                 }
             });
@@ -280,7 +281,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     private void doWriteChunkedContinuation(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise)
         throws IOException {
-        final PromiseCombiner combiner = new PromiseCombiner(ctx.executor());
+        final PromiseCombiner combiner = continuation.combiner();
         final ChannelPromise first = ctx.newPromise();
         combiner.add((Future<Void>) first);
         assert currentChunkedWrite == null;

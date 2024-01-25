@@ -8,15 +8,19 @@
 
 package org.elasticsearch.http.netty4;
 
+import io.netty.util.concurrent.PromiseCombiner;
+
 import org.elasticsearch.rest.ChunkedRestResponseBody;
 
 public final class Netty4ChunkedHttpContinuation implements Netty4HttpResponse {
     private final int sequence;
     private final ChunkedRestResponseBody body;
+    private final PromiseCombiner combiner;
 
-    public Netty4ChunkedHttpContinuation(int sequence, ChunkedRestResponseBody body) {
+    public Netty4ChunkedHttpContinuation(int sequence, ChunkedRestResponseBody body, PromiseCombiner combiner) {
         this.sequence = sequence;
         this.body = body;
+        this.combiner = combiner;
     }
 
     @Override
@@ -26,5 +30,9 @@ public final class Netty4ChunkedHttpContinuation implements Netty4HttpResponse {
 
     public ChunkedRestResponseBody body() {
         return body;
+    }
+
+    public PromiseCombiner combiner() {
+        return combiner;
     }
 }
