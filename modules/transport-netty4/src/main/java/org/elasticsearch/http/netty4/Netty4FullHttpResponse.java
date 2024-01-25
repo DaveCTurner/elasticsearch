@@ -17,7 +17,7 @@ import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.transport.netty4.Netty4Utils;
 
-public final class Netty4FullHttpResponse extends DefaultFullHttpResponse implements Netty4RestResponse, HttpResponse {
+public final class Netty4FullHttpResponse extends DefaultFullHttpResponse implements Netty4HttpResponse, HttpResponse {
 
     private final int sequence;
 

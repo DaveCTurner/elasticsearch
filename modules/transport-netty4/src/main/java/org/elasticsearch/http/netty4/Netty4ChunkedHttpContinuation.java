@@ -14,7 +14,7 @@ import io.netty.handler.codec.http.HttpVersion;
 
 import org.elasticsearch.rest.ChunkedRestResponseBody;
 
-public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse implements Netty4RestResponse {
+public final class Netty4ChunkedHttpContinuation extends DefaultHttpResponse implements Netty4HttpResponse {
     private final int sequence;
     private final ChunkedRestResponseBody body;
 
