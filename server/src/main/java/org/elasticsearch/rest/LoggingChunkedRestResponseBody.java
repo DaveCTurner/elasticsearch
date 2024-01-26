@@ -38,7 +38,7 @@ public class LoggingChunkedRestResponseBody implements ChunkedRestResponseBody {
 
     @Override
     public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-        inner.getContinuation(listener); // TODO should continue to log too
+        inner.getContinuation(listener.map(continuation -> new LoggingChunkedRestResponseBody(continuation, loggerStream)));
     }
 
     @Override

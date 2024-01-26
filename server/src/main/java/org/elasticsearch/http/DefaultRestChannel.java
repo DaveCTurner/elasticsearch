@@ -123,7 +123,6 @@ public class DefaultRestChannel extends AbstractRestChannel {
                             assert false : e; // nothing much to go wrong here
                         }
                     });
-                    // TODO NB we must use the same loggerStream for subsequent batches of body chunks too
                     chunkedContent = new LoggingChunkedRestResponseBody(chunkedContent, loggerStream);
                 }
 

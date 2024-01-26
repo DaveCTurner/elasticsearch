@@ -8,6 +8,9 @@
 
 package org.elasticsearch.http.netty4;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.action.ActionListener;
@@ -17,11 +20,13 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.inject.Inject;
@@ -29,6 +34,8 @@ import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.logging.ChunkedLoggingStreamTestUtils;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
@@ -51,6 +58,8 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestActionListener;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.test.MockLogAppender;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -64,6 +73,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -71,6 +81,7 @@ import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 import static org.hamcrest.Matchers.containsString;
 
 public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
+
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.concatLists(List.of(YieldsContinuationsPlugin.class), super.nodePlugins());
@@ -80,6 +91,18 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     protected boolean addMockHttpTransport() {
         return false; // enable http
     }
+
+    private static final String expectedBody = """
+        batch-0-chunk-0
+        batch-0-chunk-1
+        batch-0-chunk-2
+        batch-1-chunk-0
+        batch-1-chunk-1
+        batch-1-chunk-2
+        batch-2-chunk-0
+        batch-2-chunk-1
+        batch-2-chunk-2
+        """;
 
     public void testBasic() throws IOException {
         try (var ignored = withRequestTracker()) {
@@ -91,17 +114,55 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             try (var reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
                 body = Streams.copyToString(reader);
             }
-            assertEquals("""
-                batch-0-chunk-0
-                batch-0-chunk-1
-                batch-0-chunk-2
-                batch-1-chunk-0
-                batch-1-chunk-1
-                batch-1-chunk-2
-                batch-2-chunk-0
-                batch-2-chunk-1
-                batch-2-chunk-2
-                """, body);
+            assertEquals(expectedBody, body);
+        }
+    }
+
+    @TestLogging(
+        reason = "testing TRACE logging",
+        value = "org.elasticsearch.http.HttpTracer:TRACE,org.elasticsearch.http.HttpBodyTracer:TRACE"
+    )
+    public void testTraceLogging() throws Exception {
+
+        // slightly tricky test, we can't use ChunkedLoggingStreamTestUtils.getDecodedLoggedBody directly because it asserts that we _only_
+        // log one thing and we can't easily separate the request body from the response body logging, so instead we capture the body log
+        // message and then log it again in isolation.
+
+        var loggedResponseMessageFuture = new PlainActionFuture<String>();
+        var mockLogAppender = new MockLogAppender();
+        mockLogAppender.addExpectation(new MockLogAppender.LoggingExpectation() {
+            @Override
+            public void match(LogEvent event) {
+                final var formattedMessage = event.getMessage().getFormattedMessage();
+                if (formattedMessage.contains("response body")) {
+                    assertFalse(loggedResponseMessageFuture.isDone());
+                    loggedResponseMessageFuture.onResponse(formattedMessage);
+                }
+            }
+
+            @Override
+            public void assertMatched() {}
+        });
+        mockLogAppender.start();
+        final var bodyTracerLogger = LogManager.getLogger("org.elasticsearch.http.HttpBodyTracer");
+        Loggers.addAppender(bodyTracerLogger, mockLogAppender);
+
+        try (var ignored = withRequestTracker()) {
+            getRestClient().performRequest(new Request("GET", YieldsContinuationsPlugin.ROUTE));
+            final var loggedResponseMessage = loggedResponseMessageFuture.get(10, TimeUnit.SECONDS);
+            final var prefix = loggedResponseMessage.substring(0, loggedResponseMessage.indexOf('(') - 1);
+            final var loggedBody = ChunkedLoggingStreamTestUtils.getDecodedLoggedBody(
+                logger,
+                Level.INFO,
+                prefix,
+                ReferenceDocs.HTTP_TRACER,
+                () -> logger.info(loggedResponseMessage)
+            );
+            mockLogAppender.assertAllExpectationsMatched();
+            assertEquals(expectedBody, loggedBody.utf8ToString());
+        } finally {
+            Loggers.removeAppender(bodyTracerLogger, mockLogAppender);
+            mockLogAppender.stop();
         }
     }
 
