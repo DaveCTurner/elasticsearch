@@ -45,6 +45,8 @@ import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.AbstractRefCounted;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.http.HttpRouteStats;
+import org.elasticsearch.http.HttpRouteStatsTracker;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
@@ -164,6 +166,32 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             Loggers.removeAppender(bodyTracerLogger, mockLogAppender);
             mockLogAppender.stop();
         }
+    }
+
+    public void testResponseBodySizeStats() throws IOException {
+        try (var ignored = withRequestTracker()) {
+            final var totalResponseSizeBefore = getTotalResponseSize();
+            getRestClient().performRequest(new Request("GET", YieldsContinuationsPlugin.ROUTE));
+            final var totalResponseSizeAfter = getTotalResponseSize();
+            assertEquals(expectedBody.length(), totalResponseSizeAfter - totalResponseSizeBefore);
+        }
+    }
+
+    final HttpRouteStats EMPTY_ROUTE_STATS = new HttpRouteStatsTracker().getStats();
+
+    private long getTotalResponseSize() {
+        return client().admin()
+            .cluster()
+            .prepareNodesStats()
+            .clear()
+            .setHttp(true)
+            .get()
+            .getNodes()
+            .stream()
+            .mapToLong(
+                ns -> ns.getHttp().httpRouteStats().getOrDefault(YieldsContinuationsPlugin.ROUTE, EMPTY_ROUTE_STATS).totalResponseSize()
+            )
+            .sum();
     }
 
     private static Releasable withRequestTracker() {
