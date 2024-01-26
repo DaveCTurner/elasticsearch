@@ -410,7 +410,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
                             zipOutputStream.putNextEntry(firstEntry);
 
-                            try (var writer = new OutputStreamWriter(zipOutputStream) {
+                            try (var writer = new OutputStreamWriter(zipOutputStream, StandardCharsets.UTF_8) {
                                 @Override
                                 public void close() throws IOException {
                                     flush();
@@ -490,7 +490,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                                 entry.setTimeLocal(LocalDateTime.now(Clock.systemUTC()));
                                 zipOutputStream.putNextEntry(entry);
 
-                                try (var writer = new OutputStreamWriter(zipOutputStream) {
+                                try (var writer = new OutputStreamWriter(zipOutputStream, StandardCharsets.UTF_8) {
                                     @Override
                                     public void close() throws IOException {
                                         flush();
