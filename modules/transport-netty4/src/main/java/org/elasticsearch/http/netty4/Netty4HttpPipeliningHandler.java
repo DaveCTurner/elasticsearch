@@ -59,29 +59,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     private final int maxEventsHeld;
     private final PriorityQueue<Tuple<? extends Netty4HttpResponse, ChannelPromise>> outboundHoldingQueue;
 
-    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {
-        void doContinue(int writeSequence) {
-            assert responseBody.isEndOfResponse() == false;
-            final var channel = onDone.channel();
-            responseBody.getContinuation(new ActionListener<>() {
-                @Override
-                public void onResponse(ChunkedRestResponseBody continuation) {
-                    channel.writeAndFlush(
-                        new Netty4ChunkedHttpContinuation(writeSequence, continuation, combiner),
-                        onDone // pass the terminal listener/promise along the line
-                    );
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    logger.error("failed to get HTTP response body continuation", e);
-                    combiner.add(channel.newFailedFuture(e));
-                    combiner.finish(onDone);
-                    channel.close();
-                }
-            });
-        }
-    }
+    private record ChunkedWrite(PromiseCombiner combiner, ChannelPromise onDone, ChunkedRestResponseBody responseBody) {}
 
     /**
      * The current {@link ChunkedWrite} if a chunked write is executed at the moment.
@@ -271,7 +249,24 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             writeSequence++;
             finishingWrite.combiner.finish(finishingWrite.onDone());
         } else {
-            finishingWrite.doContinue(writeSequence);
+            final var channel = finishingWrite.onDone.channel();
+            finishingWrite.responseBody().getContinuation(new ActionListener<>() {
+                @Override
+                public void onResponse(ChunkedRestResponseBody continuation) {
+                    channel.writeAndFlush(
+                        new Netty4ChunkedHttpContinuation(writeSequence, continuation, finishingWrite.combiner()),
+                        finishingWrite.onDone // pass the terminal listener/promise along the line
+                    );
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    logger.error("failed to get HTTP response body continuation", e);
+                    finishingWrite.combiner().add(channel.newFailedFuture(e));
+                    finishingWrite.combiner().finish(finishingWrite.onDone());
+                    channel.close();
+                }
+            });
         }
     }
 
