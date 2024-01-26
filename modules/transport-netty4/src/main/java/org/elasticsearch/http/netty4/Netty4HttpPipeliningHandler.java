@@ -116,7 +116,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
      * @param maxEventsHeld the maximum number of channel events that will be retained prior to aborting the channel connection; this is
      *                      required as events cannot queue up indefinitely
      */
-    public Netty4HttpPipeliningHandler(Logger logger, final int maxEventsHeld, final Netty4HttpServerTransport serverTransport) {
+    public Netty4HttpPipeliningHandler(final int maxEventsHeld, final Netty4HttpServerTransport serverTransport) {
         this.maxEventsHeld = maxEventsHeld;
         this.outboundHoldingQueue = new PriorityQueue<>(1, Comparator.comparingInt(t -> t.v1().getSequence()));
         this.serverTransport = serverTransport;
