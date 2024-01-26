@@ -113,7 +113,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     /**
      * Construct a new pipelining handler; this handler should be used downstream of HTTP decoding/aggregation.
      *
-     * @param logger        for logging unexpected errors
      * @param maxEventsHeld the maximum number of channel events that will be retained prior to aborting the channel connection; this is
      *                      required as events cannot queue up indefinitely
      */
