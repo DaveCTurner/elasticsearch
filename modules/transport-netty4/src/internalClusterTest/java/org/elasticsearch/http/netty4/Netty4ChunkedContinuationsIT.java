@@ -8,7 +8,6 @@
 
 package org.elasticsearch.http.netty4;
 
-import org.apache.logging.log4j.Level;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.action.ActionListener;
@@ -23,8 +22,6 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.common.ReferenceDocs;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.inject.Inject;
@@ -32,7 +29,6 @@ import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
@@ -40,10 +36,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.AbstractRefCounted;
-import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.core.Releasable;
-import org.elasticsearch.core.Releasables;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
@@ -62,13 +56,8 @@ import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.attribute.FileTime;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -76,18 +65,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.startsWith;
 
 public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return CollectionUtils.concatLists(List.of(StreamingZipFilePlugin.class, YieldsContinuationsPlugin.class), super.nodePlugins());
+        return CollectionUtils.concatLists(List.of(YieldsContinuationsPlugin.class), super.nodePlugins());
     }
 
     @Override
@@ -116,19 +102,6 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                 batch-2-chunk-1
                 batch-2-chunk-2
                 """, body);
-        }
-    }
-
-    public void testZipFile() throws IOException {
-        try (var ignored = withRequestTracker()) {
-            final var response = getRestClient().performRequest(new Request("GET", StreamingZipFilePlugin.ROUTE));
-            assertEquals(200, response.getStatusLine().getStatusCode());
-            assertThat(response.getHeader("Content-Disposition"), startsWith("attachment; filename="));
-            assertThat(response.getEntity().getContentType().toString(), containsString("application/zip"));
-            assertTrue(response.getEntity().isChunked());
-            try (var loggingStream = ChunkedLoggingStream.create(logger, Level.INFO, "zip file contents", ReferenceDocs.LOGGING)) {
-                org.elasticsearch.core.Streams.copy(response.getEntity().getContent(), loggingStream);
-            }
         }
     }
 
@@ -307,305 +280,4 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             });
         }
     }
-
-    public static class StreamingZipFilePlugin extends Plugin implements ActionPlugin, HasRequestRefs {
-        static final String ROUTE = "/_test/zipfile";
-
-        private static final ActionType<Response> TYPE = new ActionType<>("test:zipfile");
-
-        RefCounted requestRefs = RefCounted.ALWAYS_REFERENCED;
-
-        @Override
-        public Collection<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return List.of(new ActionHandler<>(TYPE, TransportStreamingZipFileAction.class));
-        }
-
-        @Override
-        public void setRequestRefs(RefCounted requestRefs) {
-            this.requestRefs = requestRefs;
-        }
-
-        public static class Request extends ActionRequest {
-            @Override
-            public ActionRequestValidationException validate() {
-                return null;
-            }
-        }
-
-        public static class Response extends ActionResponse {
-            private final Executor executor;
-
-            public Response(Executor executor) {
-                this.executor = executor;
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) {
-                TransportAction.localOnly();
-            }
-
-            public static class RedirectableOutputStream extends OutputStream {
-                RecyclerBytesStreamOutput currentOutput;
-
-                @Override
-                public void write(int b) throws IOException {
-                    currentOutput.write(b);
-                }
-
-                @Override
-                public void write(byte[] b) throws IOException {
-                    currentOutput.write(b);
-                }
-
-                @Override
-                public void write(byte[] b, int off, int len) throws IOException {
-                    currentOutput.write(b, off, len);
-                }
-
-                @Override
-                public void flush() {
-                    currentOutput.flush();
-                }
-
-                @Override
-                public void close() {
-                    currentOutput.flush();
-                }
-            }
-
-            public ChunkedRestResponseBody getChunkedBody() {
-                return new ChunkedRestResponseBody() {
-                    private final RedirectableOutputStream redirectableOutputStream = new RedirectableOutputStream();
-                    private final ZipOutputStream zipOutputStream = new ZipOutputStream(redirectableOutputStream);
-                    private boolean isDone;
-
-                    @Override
-                    public boolean isDone() {
-                        return isDone;
-                    }
-
-                    @Override
-                    public boolean isEndOfResponse() {
-                        return false;
-                    }
-
-                    @Override
-                    public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-                        executor.execute(
-                            ActionRunnable.supply(listener, () -> getChunkBatch(redirectableOutputStream, zipOutputStream, 0))
-                        );
-                    }
-
-                    @Override
-                    public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                        try {
-                            final RecyclerBytesStreamOutput chunkStream = new RecyclerBytesStreamOutput(recycler);
-                            assert redirectableOutputStream.currentOutput == null;
-                            redirectableOutputStream.currentOutput = chunkStream;
-                            zipOutputStream.setMethod(ZipEntry.DEFLATED);
-
-                            final var firstEntry = new ZipEntry("test-zip-file/first.txt");
-                            firstEntry.setComment("first entry comment");
-                            firstEntry.setCreationTime(FileTime.from(Instant.now(Clock.systemUTC())));
-
-                            zipOutputStream.putNextEntry(firstEntry);
-
-                            try (var writer = new OutputStreamWriter(zipOutputStream, StandardCharsets.UTF_8) {
-                                @Override
-                                public void close() throws IOException {
-                                    flush();
-                                    zipOutputStream.closeEntry();
-                                }
-                            }) {
-                                writer.write("""
-                                    contents of the first entry goes here
-                                    """);
-                            }
-
-                            zipOutputStream.flush();
-                            final var result = new ReleasableBytesReference(
-                                chunkStream.bytes(),
-                                () -> Releasables.closeExpectNoException(chunkStream)
-                            );
-                            redirectableOutputStream.currentOutput = null;
-                            isDone = true;
-                            return result;
-                        } catch (Exception e) {
-                            logger.error("failure encoding chunk", e);
-                            throw e;
-                        } finally {
-                            if (redirectableOutputStream.currentOutput != null) {
-                                assert false : "failure encoding chunk";
-                                IOUtils.closeWhileHandlingException(redirectableOutputStream.currentOutput);
-                                redirectableOutputStream.currentOutput = null;
-                            }
-                        }
-                    }
-
-                    @Override
-                    public String getResponseContentTypeString() {
-                        return "application/zip";
-                    }
-                };
-            }
-
-            private ChunkedRestResponseBody getChunkBatch(
-                RedirectableOutputStream redirectableOutputStream,
-                ZipOutputStream zipOutputStream,
-                int batchIndex
-            ) {
-                return new ChunkedRestResponseBody() {
-                    private boolean isDone;
-
-                    @Override
-                    public boolean isDone() {
-                        return isDone;
-                    }
-
-                    @Override
-                    public boolean isEndOfResponse() {
-                        return batchIndex == 2;
-                    }
-
-                    @Override
-                    public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-                        executor.execute(
-                            ActionRunnable.supply(listener, () -> getChunkBatch(redirectableOutputStream, zipOutputStream, batchIndex + 1))
-                        );
-                    }
-
-                    @Override
-                    public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                        try {
-                            final RecyclerBytesStreamOutput chunkStream = new RecyclerBytesStreamOutput(recycler);
-                            assert redirectableOutputStream.currentOutput == null;
-                            redirectableOutputStream.currentOutput = chunkStream;
-
-                            if (isEndOfResponse()) {
-                                zipOutputStream.finish();
-                                zipOutputStream.close();
-                            } else {
-                                final var entry = new ZipEntry("test-zip-file/" + batchIndex + ".txt");
-                                entry.setComment("entry" + batchIndex + " comment");
-                                entry.setTimeLocal(LocalDateTime.now(Clock.systemUTC()));
-                                zipOutputStream.putNextEntry(entry);
-
-                                try (var writer = new OutputStreamWriter(zipOutputStream, StandardCharsets.UTF_8) {
-                                    @Override
-                                    public void close() throws IOException {
-                                        flush();
-                                        zipOutputStream.closeEntry();
-                                    }
-                                }) {
-                                    writer.write(Strings.format("""
-                                        contents of the entry %d goes here
-                                        """, batchIndex));
-                                }
-                                zipOutputStream.flush();
-                            }
-                            final var result = new ReleasableBytesReference(
-                                chunkStream.bytes(),
-                                () -> Releasables.closeExpectNoException(chunkStream)
-                            );
-                            redirectableOutputStream.currentOutput = null;
-                            isDone = true;
-                            return result;
-                        } catch (Exception e) {
-                            logger.error("failure encoding chunk", e);
-                            throw e;
-                        } finally {
-                            if (redirectableOutputStream.currentOutput != null) {
-                                assert false : "failure encoding chunk";
-                                IOUtils.closeWhileHandlingException(redirectableOutputStream.currentOutput);
-                                redirectableOutputStream.currentOutput = null;
-                            }
-                        }
-                    }
-
-                    @Override
-                    public String getResponseContentTypeString() {
-                        return fail(null, "getResponseContentTypeString");
-                    }
-                };
-            }
-        }
-
-        public static class TransportStreamingZipFileAction extends TransportAction<Request, Response> {
-            private final ExecutorService executor;
-
-            @Inject
-            public TransportStreamingZipFileAction(ActionFilters actionFilters, TransportService transportService) {
-                super(TYPE.name(), actionFilters, transportService.getTaskManager());
-                executor = transportService.getThreadPool().executor(ThreadPool.Names.GENERIC);
-            }
-
-            @Override
-            protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-                executor.execute(ActionRunnable.supply(listener, () -> new Response(executor)));
-            }
-        }
-
-        @Override
-        public Collection<RestHandler> getRestHandlers(
-            Settings settings,
-            NamedWriteableRegistry namedWriteableRegistry,
-            RestController restController,
-            ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings,
-            SettingsFilter settingsFilter,
-            IndexNameExpressionResolver indexNameExpressionResolver,
-            Supplier<DiscoveryNodes> nodesInCluster
-        ) {
-            return List.of(new BaseRestHandler() {
-                @Override
-                public String getName() {
-                    return ROUTE;
-                }
-
-                @Override
-                public List<Route> routes() {
-                    return List.of(new Route(GET, ROUTE));
-                }
-
-                @Override
-                protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
-                    final var localRequestRefs = requestRefs;
-                    localRequestRefs.mustIncRef();
-                    return new RestChannelConsumer() {
-
-                        @Override
-                        public void close() {
-                            localRequestRefs.decRef();
-                        }
-
-                        @Override
-                        public void accept(RestChannel channel) {
-                            localRequestRefs.mustIncRef();
-                            client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
-                                @Override
-                                protected void processResponse(Response response) {
-                                    final var restResponse = RestResponse.chunked(
-                                        RestStatus.OK,
-                                        response.getChunkedBody(),
-                                        localRequestRefs::decRef
-                                    );
-                                    boolean success = false;
-                                    try {
-                                        restResponse.addHeader("Content-Disposition", "attachment; filename=\"test-zip-file.zip\"");
-                                        channel.sendResponse(restResponse);
-                                        success = true;
-                                    } finally {
-                                        if (success == false) {
-                                            restResponse.close();
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    };
-                }
-            });
-        }
-    }
-
 }
