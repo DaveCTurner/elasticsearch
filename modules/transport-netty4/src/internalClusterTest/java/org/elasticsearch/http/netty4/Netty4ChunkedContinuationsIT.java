@@ -66,6 +66,9 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.FileTime;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -79,6 +82,7 @@ import java.util.zip.ZipOutputStream;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 
 public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     @Override
@@ -119,6 +123,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         try (var ignored = withRequestTracker()) {
             final var response = getRestClient().performRequest(new Request("GET", StreamingZipFilePlugin.ROUTE));
             assertEquals(200, response.getStatusLine().getStatusCode());
+            assertThat(response.getHeader("Content-Disposition"), startsWith("attachment; filename="));
             assertThat(response.getEntity().getContentType().toString(), containsString("application/zip"));
             assertTrue(response.getEntity().isChunked());
             try (var loggingStream = ChunkedLoggingStream.create(logger, Level.INFO, "zip file contents", ReferenceDocs.LOGGING)) {
@@ -401,20 +406,20 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
 
                             final var firstEntry = new ZipEntry("test-zip-file/first.txt");
                             firstEntry.setComment("first entry comment");
-                            firstEntry.setCreationTime(FileTime.fromMillis(System.currentTimeMillis()));
+                            firstEntry.setCreationTime(FileTime.from(Instant.now(Clock.systemUTC())));
 
                             zipOutputStream.putNextEntry(firstEntry);
 
                             try (var writer = new OutputStreamWriter(zipOutputStream) {
                                 @Override
                                 public void close() throws IOException {
+                                    flush();
                                     zipOutputStream.closeEntry();
                                 }
                             }) {
                                 writer.write("""
                                     contents of the first entry goes here
                                     """);
-                                writer.flush();
                             }
 
                             zipOutputStream.flush();
@@ -476,28 +481,26 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                             assert redirectableOutputStream.currentOutput == null;
                             redirectableOutputStream.currentOutput = chunkStream;
 
-                            final var entry = new ZipEntry("test-zip-file/" + batchIndex + ".txt");
-                            entry.setComment("entry" + batchIndex + " comment");
-                            entry.setCreationTime(FileTime.fromMillis(System.currentTimeMillis()));
-
-                            zipOutputStream.putNextEntry(entry);
-
-                            try (var writer = new OutputStreamWriter(zipOutputStream) {
-                                @Override
-                                public void close() throws IOException {
-                                    zipOutputStream.closeEntry();
-                                }
-                            }) {
-                                writer.write(Strings.format("""
-                                    contents of the entry %d goes here
-                                    """, batchIndex));
-                                writer.flush();
-                            }
-
                             if (isEndOfResponse()) {
                                 zipOutputStream.finish();
                                 zipOutputStream.close();
                             } else {
+                                final var entry = new ZipEntry("test-zip-file/" + batchIndex + ".txt");
+                                entry.setComment("entry" + batchIndex + " comment");
+                                entry.setTimeLocal(LocalDateTime.now(Clock.systemUTC()));
+                                zipOutputStream.putNextEntry(entry);
+
+                                try (var writer = new OutputStreamWriter(zipOutputStream) {
+                                    @Override
+                                    public void close() throws IOException {
+                                        flush();
+                                        zipOutputStream.closeEntry();
+                                    }
+                                }) {
+                                    writer.write(Strings.format("""
+                                        contents of the entry %d goes here
+                                        """, batchIndex));
+                                }
                                 zipOutputStream.flush();
                             }
                             final var result = new ReleasableBytesReference(
@@ -581,9 +584,21 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                             client.execute(TYPE, new Request(), new RestActionListener<>(channel) {
                                 @Override
                                 protected void processResponse(Response response) {
-                                    channel.sendResponse(
-                                        RestResponse.chunked(RestStatus.OK, response.getChunkedBody(), localRequestRefs::decRef)
+                                    final var restResponse = RestResponse.chunked(
+                                        RestStatus.OK,
+                                        response.getChunkedBody(),
+                                        localRequestRefs::decRef
                                     );
+                                    boolean success = false;
+                                    try {
+                                        restResponse.addHeader("Content-Disposition", "attachment; filename=\"test-zip-file.zip\"");
+                                        channel.sendResponse(restResponse);
+                                        success = true;
+                                    } finally {
+                                        if (success == false) {
+                                            restResponse.close();
+                                        }
+                                    }
                                 }
                             });
                         }
