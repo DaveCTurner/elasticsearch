@@ -399,7 +399,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                             redirectableOutputStream.currentOutput = chunkStream;
                             zipOutputStream.setMethod(ZipEntry.DEFLATED);
 
-                            final var firstEntry = new ZipEntry("first.txt");
+                            final var firstEntry = new ZipEntry("test-zip-file/first.txt");
                             firstEntry.setComment("first entry comment");
                             firstEntry.setCreationTime(FileTime.fromMillis(System.currentTimeMillis()));
 
@@ -476,7 +476,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
                             assert redirectableOutputStream.currentOutput == null;
                             redirectableOutputStream.currentOutput = chunkStream;
 
-                            final var entry = new ZipEntry(batchIndex + ".txt");
+                            final var entry = new ZipEntry("test-zip-file/" + batchIndex + ".txt");
                             entry.setComment("entry" + batchIndex + " comment");
                             entry.setCreationTime(FileTime.fromMillis(System.currentTimeMillis()));
 
