@@ -26,10 +26,8 @@ import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.path.PathTrie;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.util.Maps;
-import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
-import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.RestApiVersion;
 import org.elasticsearch.core.Streams;
@@ -60,6 +58,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.indices.SystemIndices.EXTERNAL_SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY;
@@ -826,9 +825,14 @@ public class RestController implements HttpServerTransport.Dispatcher {
                 if (response.isChunked() == false) {
                     methodHandlers.addResponseStats(response.content().length());
                 } else {
-                    final var wrapped = new EncodedLengthTrackingChunkedRestResponseBody(response.chunkedContent(), methodHandlers);
+                    final var lengthTracker = new AtomicLong();
+                    final var wrapped = new EncodedLengthTrackingChunkedRestResponseBody(response.chunkedContent(), lengthTracker);
                     final var headers = response.getHeaders();
-                    response = RestResponse.chunked(response.status(), wrapped, Releasables.wrap(wrapped, response));
+                    response = RestResponse.chunked(
+                        response.status(),
+                        wrapped,
+                        Releasables.wrap(Releasables.releaseOnce(() -> methodHandlers.addResponseStats(lengthTracker.get())), response)
+                    );
                     for (final var header : headers.entrySet()) {
                         for (final var value : header.getValue()) {
                             response.addHeader(header.getKey(), value);
@@ -857,15 +861,14 @@ public class RestController implements HttpServerTransport.Dispatcher {
         }
     }
 
-    private static class EncodedLengthTrackingChunkedRestResponseBody implements ChunkedRestResponseBody, Releasable {
+    private static class EncodedLengthTrackingChunkedRestResponseBody implements ChunkedRestResponseBody {
 
         private final ChunkedRestResponseBody delegate;
-        private final RunOnce onCompletion;
-        private long encodedLength = 0;
+        private final AtomicLong lengthTracker;
 
-        private EncodedLengthTrackingChunkedRestResponseBody(ChunkedRestResponseBody delegate, MethodHandlers methodHandlers) {
+        private EncodedLengthTrackingChunkedRestResponseBody(ChunkedRestResponseBody delegate, AtomicLong lengthTracker) {
             this.delegate = delegate;
-            this.onCompletion = new RunOnce(() -> methodHandlers.addResponseStats(encodedLength));
+            this.lengthTracker = lengthTracker;
         }
 
         @Override
@@ -880,29 +883,21 @@ public class RestController implements HttpServerTransport.Dispatcher {
 
         @Override
         public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-            delegate.getContinuation(listener); // TODO should continue to track length too
+            delegate.getContinuation(
+                listener.map(continuation -> new EncodedLengthTrackingChunkedRestResponseBody(continuation, lengthTracker))
+            );
         }
 
         @Override
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
             final ReleasableBytesReference bytesReference = delegate.encodeChunk(sizeHint, recycler);
-            encodedLength += bytesReference.length();
-            if (isDone()) {
-                onCompletion.run();
-            }
+            lengthTracker.addAndGet(bytesReference.length());
             return bytesReference;
         }
 
         @Override
         public String getResponseContentTypeString() {
             return delegate.getResponseContentTypeString();
-        }
-
-        @Override
-        public void close() {
-            // the client might close the connection before we send the last chunk, in which case we won't have recorded the response in the
-            // stats yet, so we do it now:
-            onCompletion.run();
         }
     }
 
