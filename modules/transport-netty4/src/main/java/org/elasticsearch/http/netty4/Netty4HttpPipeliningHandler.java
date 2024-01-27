@@ -29,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.Nullable;
@@ -276,7 +277,11 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
                 @Override
                 public void onFailure(Exception e) {
-                    logger.error("failed to get HTTP response body continuation", e);
+                    // TODO tests of this case
+                    logger.error(
+                        Strings.format("failed to get continuation of HTTP response body for [%s], closing connection", channel),
+                        e
+                    );
                     finishingWrite.combiner().add(channel.newFailedFuture(e));
                     finishingWrite.combiner().finish(finishingWrite.onDone());
                     channel.close();
