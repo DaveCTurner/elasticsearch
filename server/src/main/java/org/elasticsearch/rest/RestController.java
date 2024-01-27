@@ -831,7 +831,10 @@ public class RestController implements HttpServerTransport.Dispatcher {
                     response = RestResponse.chunked(
                         response.status(),
                         wrapped,
-                        Releasables.wrap(Releasables.releaseOnce(() -> methodHandlers.addResponseStats(lengthTracker.get())), response)
+                        Releasables.wrap(
+                            Releasables.assertOnce(() -> methodHandlers.addResponseStats(lengthTracker.getAndSet(0L))),
+                            response
+                        )
                     );
                     for (final var header : headers.entrySet()) {
                         for (final var value : header.getValue()) {

@@ -239,6 +239,21 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         }
     }
 
+    private void doWriteChunkedContinuation(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise)
+        throws IOException {
+        final PromiseCombiner combiner = continuation.combiner();
+        assert currentChunkedWrite == null;
+        final var responseBody = continuation.body();
+        currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
+        // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
+        while (ctx.channel().isWritable()) {
+            if (writeChunk(ctx, combiner, responseBody)) {
+                finishChunkedWrite();
+                return;
+            }
+        }
+    }
+
     private void finishChunkedWrite() {
         assert currentChunkedWrite != null;
         assert currentChunkedWrite.responseBody().isDone();
@@ -255,7 +270,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 public void onResponse(ChunkedRestResponseBody continuation) {
                     channel.writeAndFlush(
                         new Netty4ChunkedHttpContinuation(writeSequence, continuation, finishingWrite.combiner()),
-                        finishingWrite.onDone // pass the terminal listener/promise along the line
+                        finishingWrite.onDone() // pass the terminal listener/promise along the line
                     );
                 }
 
@@ -267,21 +282,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     channel.close();
                 }
             });
-        }
-    }
-
-    private void doWriteChunkedContinuation(ChannelHandlerContext ctx, Netty4ChunkedHttpContinuation continuation, ChannelPromise promise)
-        throws IOException {
-        final PromiseCombiner combiner = continuation.combiner();
-        assert currentChunkedWrite == null;
-        final var responseBody = continuation.body();
-        currentChunkedWrite = new ChunkedWrite(combiner, promise, responseBody);
-        // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
-        while (ctx.channel().isWritable()) {
-            if (writeChunk(ctx, combiner, responseBody)) {
-                finishChunkedWrite();
-                return;
-            }
         }
     }
 
