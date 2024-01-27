@@ -865,6 +865,9 @@ public class RestController implements HttpServerTransport.Dispatcher {
 
         @Override
         public void close() {
+            // closed just before sending the last chunk, and also when the whole RestResponse is closed since the client might abort the
+            // connection before we send the last chunk, in which case we won't have recorded the response in the
+            // stats yet; thus we need run-once semantics here:
             final var methodHandlers = getAndSet(null);
             if (methodHandlers != null) {
                 // if we started sending chunks then we're closed on the transport worker, no need for sync
