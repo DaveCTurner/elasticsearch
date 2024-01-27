@@ -369,7 +369,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             Netty4WriteThrottlingHandler.MAX_BYTES_PER_WRITE,
             serverTransport.recycler()
         );
-        assert bytes.length() > 0 : "serialization should not produce empty buffers";
+        assert bytes.length() > 0 : "serialization should not produce empty buffers"; // TODO we should be able to permit this
         final ByteBuf content = Netty4Utils.toByteBuf(bytes);
         final boolean done = body.isDone();
         final boolean lastChunk = done && body.isEndOfResponse();
