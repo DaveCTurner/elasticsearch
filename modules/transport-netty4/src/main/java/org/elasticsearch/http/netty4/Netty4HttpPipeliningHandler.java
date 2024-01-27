@@ -265,8 +265,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             writeSequence++;
             finishingWrite.combiner.finish(finishingWrite.onDone());
         } else {
-            final var channel = finishingWrite.onDone.channel();
-            finishingWrite.responseBody().getContinuation(new ActionListener<>() {
+            final var channel = finishingWrite.onDone().channel();
+            ActionListener.run(ActionListener.assertOnce(new ActionListener<>() {
                 @Override
                 public void onResponse(ChunkedRestResponseBody continuation) {
                     channel.writeAndFlush(
@@ -286,7 +286,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     finishingWrite.combiner().finish(finishingWrite.onDone());
                     channel.close();
                 }
-            });
+            }), finishingWrite.responseBody()::getContinuation);
         }
     }
 
