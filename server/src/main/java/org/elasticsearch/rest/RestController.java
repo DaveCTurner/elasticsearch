@@ -40,6 +40,7 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.rest.RestHandler.Route;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.transport.Transports;
 import org.elasticsearch.usage.SearchUsageHolder;
 import org.elasticsearch.usage.UsageService;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -827,17 +828,11 @@ public class RestController implements HttpServerTransport.Dispatcher {
                     methodHandlers.addResponseStats(response.content().length());
                 } else {
                     final var responseLengthRecorder = new ResponseLengthRecorder(methodHandlers);
-                    final var headers = response.getHeaders();
                     response = RestResponse.chunked(
                         response.status(),
                         new EncodedLengthTrackingChunkedRestResponseBody(response.chunkedContent(), responseLengthRecorder),
                         Releasables.wrap(responseLengthRecorder, response)
                     );
-                    for (final var header : headers.entrySet()) {
-                        for (final var value : header.getValue()) {
-                            response.addHeader(header.getKey(), value);
-                        }
-                    }
                 }
                 delegate.sendResponse(response);
                 success = true;
@@ -872,12 +867,15 @@ public class RestController implements HttpServerTransport.Dispatcher {
         public void close() {
             final var methodHandlers = getAndSet(null);
             if (methodHandlers != null) {
+                // if we started sending chunks then we're closed on the transport worker, no need for sync
+                assert responseLength == 0L || Transports.assertTransportThread();
                 methodHandlers.addResponseStats(responseLength);
             }
         }
 
         void addChunkLength(long chunkLength) {
-            assert get() != null : "already closed";
+            assert chunkLength >= 0L : chunkLength;
+            assert Transports.assertTransportThread(); // always called on the transport worker, no need for sync
             responseLength += chunkLength;
         }
     }
