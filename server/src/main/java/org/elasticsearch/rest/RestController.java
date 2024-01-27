@@ -28,6 +28,7 @@ import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.util.Maps;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.core.RestApiVersion;
 import org.elasticsearch.core.Streams;
@@ -58,7 +59,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.elasticsearch.indices.SystemIndices.EXTERNAL_SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY;
@@ -825,16 +826,12 @@ public class RestController implements HttpServerTransport.Dispatcher {
                 if (response.isChunked() == false) {
                     methodHandlers.addResponseStats(response.content().length());
                 } else {
-                    final var lengthTracker = new AtomicLong();
-                    final var wrapped = new EncodedLengthTrackingChunkedRestResponseBody(response.chunkedContent(), lengthTracker);
+                    final var responseLengthRecorder = new ResponseLengthRecorder(methodHandlers);
                     final var headers = response.getHeaders();
                     response = RestResponse.chunked(
                         response.status(),
-                        wrapped,
-                        Releasables.wrap(
-                            Releasables.assertOnce(() -> methodHandlers.addResponseStats(lengthTracker.getAndSet(0L))),
-                            response
-                        )
+                        new EncodedLengthTrackingChunkedRestResponseBody(response.chunkedContent(), responseLengthRecorder),
+                        Releasables.wrap(responseLengthRecorder, response)
                     );
                     for (final var header : headers.entrySet()) {
                         for (final var value : header.getValue()) {
@@ -864,14 +861,38 @@ public class RestController implements HttpServerTransport.Dispatcher {
         }
     }
 
+    private static class ResponseLengthRecorder extends AtomicReference<MethodHandlers> implements Releasable {
+        private long responseLength;
+
+        private ResponseLengthRecorder(MethodHandlers methodHandlers) {
+            super(methodHandlers);
+        }
+
+        @Override
+        public void close() {
+            final var methodHandlers = getAndSet(null);
+            if (methodHandlers != null) {
+                methodHandlers.addResponseStats(responseLength);
+            }
+        }
+
+        void addChunkLength(long chunkLength) {
+            assert get() != null : "already closed";
+            responseLength += chunkLength;
+        }
+    }
+
     private static class EncodedLengthTrackingChunkedRestResponseBody implements ChunkedRestResponseBody {
 
         private final ChunkedRestResponseBody delegate;
-        private final AtomicLong lengthTracker;
+        private final ResponseLengthRecorder responseLengthRecorder;
 
-        private EncodedLengthTrackingChunkedRestResponseBody(ChunkedRestResponseBody delegate, AtomicLong lengthTracker) {
+        private EncodedLengthTrackingChunkedRestResponseBody(
+            ChunkedRestResponseBody delegate,
+            ResponseLengthRecorder responseLengthRecorder
+        ) {
             this.delegate = delegate;
-            this.lengthTracker = lengthTracker;
+            this.responseLengthRecorder = responseLengthRecorder;
         }
 
         @Override
@@ -887,14 +908,17 @@ public class RestController implements HttpServerTransport.Dispatcher {
         @Override
         public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
             delegate.getContinuation(
-                listener.map(continuation -> new EncodedLengthTrackingChunkedRestResponseBody(continuation, lengthTracker))
+                listener.map(continuation -> new EncodedLengthTrackingChunkedRestResponseBody(continuation, responseLengthRecorder))
             );
         }
 
         @Override
         public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
             final ReleasableBytesReference bytesReference = delegate.encodeChunk(sizeHint, recycler);
-            lengthTracker.addAndGet(bytesReference.length());
+            responseLengthRecorder.addChunkLength(bytesReference.length());
+            if (isDone() && isEndOfResponse()) {
+                responseLengthRecorder.close();
+            }
             return bytesReference;
         }
 
