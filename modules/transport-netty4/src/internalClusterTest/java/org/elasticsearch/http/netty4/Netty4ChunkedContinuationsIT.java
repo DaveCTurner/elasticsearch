@@ -112,7 +112,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
             assertEquals(200, response.getStatusLine().getStatusCode());
             assertThat(response.getEntity().getContentType().toString(), containsString(TEXT_CONTENT_TYPE));
             assertTrue(response.getEntity().isChunked());
-            String body;
+            final String body;
             try (var reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
                 body = Streams.copyToString(reader);
             }
@@ -126,7 +126,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
     )
     public void testTraceLogging() throws Exception {
 
-        // slightly tricky test, we can't use ChunkedLoggingStreamTestUtils.getDecodedLoggedBody directly because it asserts that we _only_
+        // slightly awkward test, we can't use ChunkedLoggingStreamTestUtils.getDecodedLoggedBody directly because it asserts that we _only_
         // log one thing and we can't easily separate the request body from the response body logging, so instead we capture the body log
         // message and then log it again in isolation.
 
@@ -177,7 +177,7 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         }
     }
 
-    final HttpRouteStats EMPTY_ROUTE_STATS = new HttpRouteStatsTracker().getStats();
+    private static final HttpRouteStats EMPTY_ROUTE_STATS = new HttpRouteStatsTracker().getStats();
 
     private long getTotalResponseSize() {
         return client().admin()
