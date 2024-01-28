@@ -21,7 +21,6 @@ import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
-import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.logging.ChunkedLoggingStreamTestUtils;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.Settings;
@@ -682,7 +681,7 @@ public class DefaultRestChannelTests extends ESTestCase {
         reason = "testing trace logging",
         value = HttpTracerTests.HTTP_TRACER_LOGGER + ":TRACE," + HttpTracerTests.HTTP_BODY_TRACER_LOGGER + ":TRACE"
     )
-    public void testResponseBodyTracing() throws IOException {
+    public void testResponseBodyTracing() {
         doAnswer(invocationOnMock -> {
             ActionListener<?> listener = invocationOnMock.getArgument(1);
             listener.onResponse(null);
@@ -782,10 +781,6 @@ public class DefaultRestChannelTests extends ESTestCase {
             public String getResponseContentTypeString() {
                 return RestResponse.TEXT_CONTENT_TYPE;
             }
-        }
-
-        try (var expectedOut = ChunkedLoggingStream.create(logger, Level.INFO, "expect output", ReferenceDocs.HTTP_TRACER)) {
-            responseBody.writeTo(expectedOut);
         }
 
         final var isClosed = new AtomicBoolean();
