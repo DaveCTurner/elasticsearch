@@ -77,6 +77,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestResponse.TEXT_CONTENT_TYPE;
@@ -131,14 +132,19 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         // message and then log it again in isolation.
 
         var loggedResponseMessageFuture = new PlainActionFuture<String>();
+        var requestIdFuture = new PlainActionFuture<Integer>();
         var mockLogAppender = new MockLogAppender();
         mockLogAppender.addExpectation(new MockLogAppender.LoggingExpectation() {
+            final Pattern messagePattern = Pattern.compile("^\\[([1-9][0-9]*)] response body.*");
+
             @Override
             public void match(LogEvent event) {
                 final var formattedMessage = event.getMessage().getFormattedMessage();
-                if (formattedMessage.contains("response body")) {
+                final var matcher = messagePattern.matcher(formattedMessage);
+                if (matcher.matches()) {
                     assertFalse(loggedResponseMessageFuture.isDone());
                     loggedResponseMessageFuture.onResponse(formattedMessage);
+                    requestIdFuture.onResponse(Integer.valueOf(matcher.group(1)));
                 }
             }
 
@@ -152,11 +158,10 @@ public class Netty4ChunkedContinuationsIT extends ESNetty4IntegTestCase {
         try (var ignored = withRequestTracker()) {
             getRestClient().performRequest(new Request("GET", YieldsContinuationsPlugin.ROUTE));
             final var loggedResponseMessage = loggedResponseMessageFuture.get(10, TimeUnit.SECONDS);
-            final var prefix = loggedResponseMessage.substring(0, loggedResponseMessage.indexOf('(') - 1);
             final var loggedBody = ChunkedLoggingStreamTestUtils.getDecodedLoggedBody(
                 logger,
                 Level.INFO,
-                prefix,
+                "[" + requestIdFuture.get(10, TimeUnit.SECONDS) + "] response body",
                 ReferenceDocs.HTTP_TRACER,
                 () -> logger.info(loggedResponseMessage)
             );
