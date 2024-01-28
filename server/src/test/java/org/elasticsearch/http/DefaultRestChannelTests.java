@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -20,6 +21,7 @@ import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.RecyclerBytesStreamOutput;
+import org.elasticsearch.common.logging.ChunkedLoggingStream;
 import org.elasticsearch.common.logging.ChunkedLoggingStreamTestUtils;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.Settings;
@@ -51,6 +53,7 @@ import org.junit.Before;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
@@ -679,7 +682,7 @@ public class DefaultRestChannelTests extends ESTestCase {
         reason = "testing trace logging",
         value = HttpTracerTests.HTTP_TRACER_LOGGER + ":TRACE," + HttpTracerTests.HTTP_BODY_TRACER_LOGGER + ":TRACE"
     )
-    public void testResponseBodyTracing() {
+    public void testResponseBodyTracing() throws IOException {
         doAnswer(invocationOnMock -> {
             ActionListener<?> listener = invocationOnMock.getArgument(1);
             listener.onResponse(null);
@@ -690,15 +693,23 @@ public class DefaultRestChannelTests extends ESTestCase {
             @Override
             public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBody content) {
                 try (var bso = new BytesStreamOutput()) {
-                    while (content.isDone() == false) {
-                        try (var bytes = content.encodeChunk(1 << 14, BytesRefRecycler.NON_RECYCLING_INSTANCE)) {
-                            bytes.writeTo(bso);
-                        }
-                    }
+                    writeContent(bso, content);
                     return new TestHttpResponse(status, bso.bytes());
                 } catch (IOException e) {
                     return fail(e);
                 }
+            }
+
+            private static void writeContent(OutputStream bso, ChunkedRestResponseBody content) throws IOException {
+                while (content.isDone() == false) {
+                    try (var bytes = content.encodeChunk(1 << 14, BytesRefRecycler.NON_RECYCLING_INSTANCE)) {
+                        bytes.writeTo(bso);
+                    }
+                }
+                if (content.isEndOfResponse()) {
+                    return;
+                }
+                writeContent(bso, PlainActionFuture.get(content::getContinuation));
             }
         };
 
@@ -727,6 +738,56 @@ public class DefaultRestChannelTests extends ESTestCase {
             )
         );
 
+        class TestBody implements ChunkedRestResponseBody {
+            boolean isDone;
+            final BytesReference thisChunk;
+            final BytesReference remainingChunks;
+            final int remainingContinuations;
+
+            TestBody(BytesReference content, int remainingContinuations) {
+                if (remainingContinuations == 0) {
+                    thisChunk = content;
+                    remainingChunks = BytesArray.EMPTY;
+                } else {
+                    var splitAt = between(0, content.length());
+                    thisChunk = content.slice(0, splitAt);
+                    remainingChunks = content.slice(splitAt, content.length() - splitAt);
+                }
+                this.remainingContinuations = remainingContinuations;
+            }
+
+            @Override
+            public boolean isDone() {
+                return isDone;
+            }
+
+            @Override
+            public boolean isEndOfResponse() {
+                return remainingContinuations == 0;
+            }
+
+            @Override
+            public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
+                listener.onResponse(new TestBody(remainingChunks, remainingContinuations - 1));
+            }
+
+            @Override
+            public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
+                assertFalse(isDone);
+                isDone = true;
+                return ReleasableBytesReference.wrap(thisChunk);
+            }
+
+            @Override
+            public String getResponseContentTypeString() {
+                return RestResponse.TEXT_CONTENT_TYPE;
+            }
+        }
+
+        try (var expectedOut = ChunkedLoggingStream.create(logger, Level.INFO, "expect output", ReferenceDocs.HTTP_TRACER)) {
+            responseBody.writeTo(expectedOut);
+        }
+
         final var isClosed = new AtomicBoolean();
         assertEquals(
             responseBody,
@@ -735,37 +796,13 @@ public class DefaultRestChannelTests extends ESTestCase {
                 Level.TRACE,
                 "[" + request.getRequestId() + "] response body",
                 ReferenceDocs.HTTP_TRACER,
-                () -> channel.sendResponse(RestResponse.chunked(RestStatus.OK, new ChunkedRestResponseBody() {
-
-                    boolean isDone;
-
-                    @Override
-                    public boolean isDone() {
-                        return isDone;
-                    }
-
-                    @Override
-                    public boolean isEndOfResponse() {
-                        return true;
-                    }
-
-                    @Override
-                    public void getContinuation(ActionListener<ChunkedRestResponseBody> listener) {
-                        throw new AssertionError("should not get any continuations (yet - TODO)");
-                    }
-
-                    @Override
-                    public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) {
-                        assertFalse(isDone);
-                        isDone = true;
-                        return ReleasableBytesReference.wrap(responseBody);
-                    }
-
-                    @Override
-                    public String getResponseContentTypeString() {
-                        return RestResponse.TEXT_CONTENT_TYPE;
-                    }
-                }, () -> assertTrue(isClosed.compareAndSet(false, true))))
+                () -> channel.sendResponse(
+                    RestResponse.chunked(
+                        RestStatus.OK,
+                        new TestBody(responseBody, between(0, 3)),
+                        () -> assertTrue(isClosed.compareAndSet(false, true))
+                    )
+                )
             )
         );
 
