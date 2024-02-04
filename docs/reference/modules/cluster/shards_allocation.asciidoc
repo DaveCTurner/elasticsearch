@@ -24,26 +24,43 @@ one of the active allocation ids in the cluster state.
 
 `cluster.routing.allocation.node_concurrent_incoming_recoveries`::
      (<<dynamic-cluster-setting,Dynamic>>)
-     How many concurrent incoming shard recoveries are allowed to happen on a node. Incoming recoveries are the recoveries
-     where the target shard (most likely the replica unless a shard is relocating) is allocated on the node. Defaults to `2`.
+     How many concurrent incoming shard recoveries are allowed to happen on a
+     node. Incoming recoveries are the recoveries where the target shard (most
+     likely the replica unless a shard is relocating) is allocated on the node.
+     Defaults to `2`. Increasing this setting may cause shard movements to have
+     a performance impact on other activity in your cluster, but may not make
+     shard movements complete noticeably quicker. We do not recommend adjusting
+     this setting from its default of `2`.
 
 `cluster.routing.allocation.node_concurrent_outgoing_recoveries`::
      (<<dynamic-cluster-setting,Dynamic>>)
-     How many concurrent outgoing shard recoveries are allowed to happen on a node. Outgoing recoveries are the recoveries
-     where the source shard (most likely the primary unless a shard is relocating) is allocated on the node. Defaults to `2`.
+     How many concurrent outgoing shard recoveries are allowed to happen on a
+     node. Outgoing recoveries are the recoveries where the source shard (most
+     likely the primary unless a shard is relocating) is allocated on the node.
+     Defaults to `2`. Increasing this setting may cause shard movements to have
+     a performance impact on other activity in your cluster, but may not make
+     shard movements complete noticeably quicker. We do not recommend adjusting
+     this setting from its default of `2`.
 
 `cluster.routing.allocation.node_concurrent_recoveries`::
      (<<dynamic-cluster-setting,Dynamic>>)
-     A shortcut to set both `cluster.routing.allocation.node_concurrent_incoming_recoveries` and
-     `cluster.routing.allocation.node_concurrent_outgoing_recoveries`. Defaults to 2.
-
+     A shortcut to set both
+     `cluster.routing.allocation.node_concurrent_incoming_recoveries` and
+     `cluster.routing.allocation.node_concurrent_outgoing_recoveries`. Defaults
+     to `2`. Increasing this setting may cause shard movements to have a
+     performance impact on other activity in your cluster, but may not make
+     shard movements complete noticeably quicker. We do not recommend adjusting
+     this setting from its default of `2`.
 
 `cluster.routing.allocation.node_initial_primaries_recoveries`::
-    (<<dynamic-cluster-setting,Dynamic>>)
-    While the recovery of replicas happens over the network, the recovery of
-    an unassigned primary after node restart uses data from the local disk.
-    These should be fast so more initial primary recoveries can happen in
-    parallel on the same node. Defaults to `4`.
+     (<<dynamic-cluster-setting,Dynamic>>) While the recovery of replicas
+     happens over the network, the recovery of an unassigned primary after node
+     restart uses data from the local disk. These should be fast so more
+     initial primary recoveries can happen in parallel on each node. Defaults
+     to `4`. Increasing this setting may cause shard recoveries to have a
+     performance impact on other activity in your cluster, but may not make
+     shard recoveries complete noticeably quicker. We do not recommend
+     adjusting this setting from its default of `4`.
 
 [[cluster-routing-allocation-same-shard-host]]
 `cluster.routing.allocation.same_shard.host`::
@@ -83,6 +100,10 @@ Enable or disable rebalancing for specific kinds of shards:
 * `primaries` -   Allows shard balancing only for primary shards.
 * `replicas` -    Allows shard balancing only for replica shards.
 * `none` -        No shard balancing of any kind are allowed for any indices.
+
+Rebalancing is important to ensure the cluster returns to a healthy and fully
+resilient state after a disruption. If you adjust this setting, remember to set
+it back to `all` as soon as possible.
 --
 
 `cluster.routing.allocation.allow_rebalance`::
@@ -101,10 +122,12 @@ Specify when shard rebalancing is allowed:
 (<<dynamic-cluster-setting,Dynamic>>)
 Defines the number of concurrent shard rebalances are allowed across the whole
 cluster. Defaults to `2`. Note that this setting only controls the number of
-concurrent shard relocations due to imbalances in the cluster. This setting does
-not limit shard relocations due to
+concurrent shard relocations due to imbalances in the cluster. This setting
+does not limit shard relocations due to
 <<cluster-shard-allocation-filtering,allocation filtering>> or
-<<forced-awareness,forced awareness>>.
+<<forced-awareness,forced awareness>>. Increasing this setting may cause the
+cluster to use additional resources moving shards between nodes, so we
+generally do not recommend adjusting this setting from its default of `2`.
 
 `cluster.routing.allocation.type`::
 +
@@ -185,11 +208,24 @@ shards sooner, leaving the cluster in a more unbalanced state.
 
 [NOTE]
 ====
-* It is not recommended to adjust the values of the heuristics settings. The
-default values are generally good, and although different values may improve
-the current balance, it is possible that they create problems in the future
-if the cluster or workload changes.
+* It is not recommended to adjust the values of the heuristic weight factor
+settings. The default values are chosen carefully to work well in all
+reasonable clusters. Although different values may improve the current balance,
+it is possible that they will create unexpected problems in the future,
+especially if the cluster or workload changes, or the cluster experiences some
+unexpected disruption.
+
+* If you have a large cluster, you may find it unnecessary for it to remain in
+a perfectly balanced state at all times. It is less resource-intensive for the
+cluster to operate in a somewhat unbalanced state rather than to perform all
+the shard movements needed to achieve the perfect balance. If so, increase the
+value of `cluster.routing.allocation.balance.threshold` to define the
+acceptable imbalance between nodes. For instance, if you have an average of 500
+shards per node and can accept a difference of 5% (25 shards) between nodes,
+set `cluster.routing.allocation.balance.threshold` to `25`.
+
 * Regardless of the result of the balancing algorithm, rebalancing might
 not be allowed due to allocation rules such as forced awareness and allocation
-filtering.
+filtering. When in doubt, use the <<cluster-allocation-explain>> API to explain
+the current allocation of shards.
 ====
