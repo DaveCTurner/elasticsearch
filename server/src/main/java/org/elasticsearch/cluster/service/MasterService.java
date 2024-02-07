@@ -23,6 +23,7 @@ import org.elasticsearch.cluster.ClusterStateTaskExecutor;
 import org.elasticsearch.cluster.ClusterStateTaskListener;
 import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.NotMasterException;
+import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.coordination.ClusterStatePublisher;
 import org.elasticsearch.cluster.coordination.FailedToCommitClusterStateException;
 import org.elasticsearch.cluster.metadata.ProcessClusterEventTimeoutException;
@@ -70,6 +71,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.daemonThreadFactory;
@@ -233,6 +235,14 @@ public class MasterService extends AbstractLifecycleComponent {
         );
         final TimeValue computationTime = getTimeSince(computationStartTime);
         logExecutionTime(computationTime, "compute cluster state update", summary);
+
+        logger.info(
+            "--> executing cluster state update to version [{}]: {}\n{}\nSnapshotsInProgress: {}",
+            newClusterState.version(),
+            summary.toString(),
+            executionResults.stream().map(r -> r.getTask().toString()).collect(Collectors.joining("\n")),
+            Strings.toString(SnapshotsInProgress.get(newClusterState))
+        );
 
         if (previousClusterState == newClusterState) {
             final long notificationStartTime = threadPool.rawRelativeTimeInMillis();
