@@ -3408,6 +3408,12 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                     shardRouting = indexRouting.shard(repoShardId.shardId()).primaryShard();
                 }
                 final ShardSnapshotStatus shardSnapshotStatus = initShardSnapshotStatus(generation, shardRouting, nodeIdRemovalPredicate);
+                if (shardSnapshotStatus.isActive() == false) {
+                    logger.info(
+                        () -> Strings.format("--> startShardSnapshot[%s]: got inactive %s", repoShardId, shardSnapshotStatus),
+                        new ElasticsearchException("stack trace")
+                    );
+                }
                 final ShardId routingShardId = shardRouting != null ? shardRouting.shardId() : new ShardId(index, repoShardId.shardId());
                 if (shardSnapshotStatus.isActive()) {
                     startShardOperation(shardsBuilder(), routingShardId, shardSnapshotStatus);
