@@ -579,7 +579,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
 
                 @Override
                 public String toString() {
-                    return Strings.format("start snapshot clone [%s] from [%s]", updatedEntry.snapshot(), updatedEntry.source());
+                    return Strings.format("start snapshot clone [%s] from [%s]", cloneEntry.snapshot(), cloneEntry.source());
                 }
             }, "start snapshot clone", onFailure), onFailure)
         );
