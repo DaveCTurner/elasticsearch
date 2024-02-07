@@ -1308,6 +1308,8 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      * @param entry snapshot
      */
     private void endSnapshot(SnapshotsInProgress.Entry entry, Metadata metadata, @Nullable RepositoryData repositoryData) {
+        logger.info(() -> Strings.format("endSnapshot[%s]", entry.snapshot()), new ElasticsearchException("stack trace"));
+
         final Snapshot snapshot = entry.snapshot();
         final boolean newFinalization = endingSnapshots.add(snapshot);
         if (entry.isClone() && entry.state() == State.FAILED) {
