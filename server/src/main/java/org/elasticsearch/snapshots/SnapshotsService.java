@@ -584,7 +584,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
 
                 @Override
                 public String toString() {
-                    return Strings.format("start snapshot clone [%s] from [%s]", cloneEntry.snapshot(), cloneEntry.source());
+                    return Strings.format("start snapshot clone [%s] from [%s]", updatedEntry.snapshot(), updatedEntry.source());
                 }
             }, "start snapshot clone", onFailure), onFailure)
         );
@@ -1312,8 +1312,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      * @param entry snapshot
      */
     private void endSnapshot(SnapshotsInProgress.Entry entry, Metadata metadata, @Nullable RepositoryData repositoryData) {
-        logger.info(() -> Strings.format("endSnapshot[%s]", entry.snapshot()), new ElasticsearchException("stack trace"));
-
         final Snapshot snapshot = entry.snapshot();
         final boolean newFinalization = endingSnapshots.add(snapshot);
         if (entry.isClone() && entry.state() == State.FAILED) {
@@ -1648,7 +1646,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      * TODO: optimize this to execute in a single CS update together with finalizing the latest snapshot
      */
     private void runReadyDeletions(RepositoryData repositoryData, String repository) {
-        logger.info("--> runReadyDeletions", new ElasticsearchException("stack trace"));
         submitUnbatchedTask("Run ready deletions", new ClusterStateUpdateTask() {
 
             private SnapshotDeletionsInProgress.Entry deletionToRun;
@@ -2418,11 +2415,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             executeConsistentStateUpdate(repository, createUpdateTask, source, onFailure);
                         }
                     }
-
-                    @Override
-                    public String toString() {
-                        return updateTask.toString();
-                    }
                 });
             }, onFailure)
         );
@@ -3142,10 +3134,10 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
         // updates that were used to update an existing in-progress shard snapshot
         private final Set<ShardSnapshotUpdate> executedUpdates = new HashSet<>();
 
-        // enqueues a reroute because some shard snapshots finished
+        // handles the completion of some shard-snapshot updates, performing the next possible actions
         private final ShardSnapshotUpdateCompletionHandler completionHandler;
 
-        // whether to execute rerouteRunnable
+        // whether to execute a reroute on completion
         private boolean needsReroute;
 
         // entries that became complete due to this batch of updates
@@ -3431,12 +3423,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                     shardRouting = indexRouting.shard(repoShardId.shardId()).primaryShard();
                 }
                 final ShardSnapshotStatus shardSnapshotStatus = initShardSnapshotStatus(generation, shardRouting, nodeIdRemovalPredicate);
-                if (shardSnapshotStatus.isActive() == false) {
-                    logger.info(
-                        () -> Strings.format("--> startShardSnapshot[%s]: got inactive %s", repoShardId, shardSnapshotStatus),
-                        new ElasticsearchException("stack trace")
-                    );
-                }
                 final ShardId routingShardId = shardRouting != null ? shardRouting.shardId() : new ShardId(index, repoShardId.shardId());
                 if (shardSnapshotStatus.isActive()) {
                     startShardOperation(shardsBuilder(), routingShardId, shardSnapshotStatus);
@@ -3444,7 +3430,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                     // update to queued snapshot did not result in an actual update execution so we just record it but keep applying
                     // the update to e.g. fail all snapshots for a given shard if the primary for the shard went away
                     shardsBuilder().put(routingShardId, shardSnapshotStatus);
-                    // NOCOMMIT do something here
                 }
             }
 
@@ -3788,7 +3773,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 latestKnownMetaData = null;
             }
             assert assertConsistent();
-            logger.info("--> pollFinalization returning [{}]; snapshotsToFinalize={}", nextEntry, snapshotsToFinalize);
             return res;
         }
 
@@ -3804,7 +3788,6 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             snapshotsToFinalize.computeIfAbsent(snapshot.getRepository(), k -> new LinkedList<>()).add(snapshot);
             this.latestKnownMetaData = metadata;
             assertConsistent();
-            logger.info("--> addFinalization[{}]; snapshotsToFinalize={}", snapshot, snapshotsToFinalize);
         }
 
         /**
