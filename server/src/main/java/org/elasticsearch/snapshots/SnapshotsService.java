@@ -2410,6 +2410,11 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                             executeConsistentStateUpdate(repository, createUpdateTask, source, onFailure);
                         }
                     }
+
+                    @Override
+                    public String toString() {
+                        return updateTask.toString();
+                    }
                 });
             }, onFailure)
         );
