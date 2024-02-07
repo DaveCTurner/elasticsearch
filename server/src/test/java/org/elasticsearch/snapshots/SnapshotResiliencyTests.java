@@ -1368,6 +1368,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
         }));
 
         deterministicTaskQueue.runAllRunnableTasks();
+        logger.info("--> NOCOMMIT executed all runnable tasks");
         assertTrue(
             "executed all runnable tasks but test steps are still incomplete: "
                 + Strings.toString(SnapshotsInProgress.get(masterClusterService.state()), true, true),
