@@ -11,6 +11,7 @@ package org.elasticsearch.snapshots;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
@@ -1641,6 +1642,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
      * TODO: optimize this to execute in a single CS update together with finalizing the latest snapshot
      */
     private void runReadyDeletions(RepositoryData repositoryData, String repository) {
+        logger.info("--> runReadyDeletions", new ElasticsearchException("stack trace"));
         submitUnbatchedTask("Run ready deletions", new ClusterStateUpdateTask() {
 
             private SnapshotDeletionsInProgress.Entry deletionToRun;
@@ -3733,6 +3735,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
                 latestKnownMetaData = null;
             }
             assert assertConsistent();
+            logger.info("--> pollFinalization returning [{}]; snapshotsToFinalize={}", nextEntry, snapshotsToFinalize);
             return res;
         }
 
@@ -3748,6 +3751,7 @@ public final class SnapshotsService extends AbstractLifecycleComponent implement
             snapshotsToFinalize.computeIfAbsent(snapshot.getRepository(), k -> new LinkedList<>()).add(snapshot);
             this.latestKnownMetaData = metadata;
             assertConsistent();
+            logger.info("--> addFinalization[{}]; snapshotsToFinalize={}", snapshot, snapshotsToFinalize);
         }
 
         /**
