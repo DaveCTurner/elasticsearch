@@ -664,8 +664,11 @@ public class EsExecutorsTests extends ESTestCase {
                 assertTrue(rejected.compareAndSet(false, true));
             }
         };
-        assertTrue(expectThrows(EsRejectedExecutionException.class, () -> executor.execute(shouldBeRejected::doRun)).isExecutorShutdown());
+        assertTrue(
+            executor.toString(),
+            expectThrows(EsRejectedExecutionException.class, () -> executor.execute(shouldBeRejected::doRun)).isExecutorShutdown()
+        );
         executor.execute(shouldBeRejected);
-        assertTrue(rejected.get());
+        assertTrue(executor.toString(), rejected.get());
     }
 }
