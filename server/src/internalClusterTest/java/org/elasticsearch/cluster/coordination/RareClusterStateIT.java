@@ -8,7 +8,6 @@
 
 package org.elasticsearch.cluster.coordination;
 
-import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
@@ -18,7 +17,6 @@ import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.TestShardRoutingRoleStrategies;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -28,9 +26,7 @@ import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CollectionUtils;
-import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.DocumentMapper;
-import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ClusterServiceUtils;
@@ -41,7 +37,6 @@ import org.elasticsearch.transport.TransportSettings;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.emptySet;
@@ -238,6 +233,9 @@ public class RareClusterStateIT extends ESIntegTestCase {
             }
         }
 
+        final var indexService = internalCluster().getInstance(IndicesService.class, master)
+            .indexServiceSafe(state.metadata().index("index").getIndex());
+
         // Block cluster state processing where our shard is
         final var primaryNodeTransportService = MockTransportService.getInstance(otherNode);
         primaryNodeTransportService.addRequestHandlingBehavior(
@@ -252,18 +250,9 @@ public class RareClusterStateIT extends ESIntegTestCase {
 
             // ...and check mappings are available on master
             {
-                MappingMetadata typeMappings = internalCluster().clusterService(master).state().metadata().index("index").mapping();
-                assertNotNull(typeMappings);
-                Object properties;
-                try {
-                    properties = typeMappings.getSourceAsMap().get("properties");
-                } catch (ElasticsearchParseException e) {
-                    throw new AssertionError(e);
-                }
-                assertNotNull(properties);
-                @SuppressWarnings("unchecked")
-                Object fieldMapping = ((Map<String, Object>) properties).get("field");
-                assertNotNull(fieldMapping);
+                DocumentMapper mapper = indexService.mapperService().documentMapper();
+                assertNotNull(mapper);
+                assertNotNull(mapper.mappers().getMapper("field"));
             }
 
             // this request does not change the cluster state, because the mapping is already created
@@ -332,6 +321,9 @@ public class RareClusterStateIT extends ESIntegTestCase {
             }
         }
 
+        final var indexService = internalCluster().getInstance(IndicesService.class, master)
+            .indexServiceSafe(state.metadata().index("index").getIndex());
+
         // Block cluster state processing on the replica
         final var replicaNodeTransportService = MockTransportService.getInstance(otherNode);
         replicaNodeTransportService.addRequestHandlingBehavior(
@@ -346,17 +338,15 @@ public class RareClusterStateIT extends ESIntegTestCase {
 
             // ...and check mappings are available on master
             {
-                final IndicesService indicesService = internalCluster().getInstance(IndicesService.class, master);
-                final IndexService indexService = indicesService.indexServiceSafe(state.metadata().index("index").getIndex());
-                assertNotNull(indexService);
-                final MapperService mapperService = indexService.mapperService();
-                DocumentMapper mapper = mapperService.documentMapper();
+                DocumentMapper mapper = indexService.mapperService().documentMapper();
                 assertNotNull(mapper);
                 assertNotNull(mapper.mappers().getMapper("field"));
             }
 
+            // this request does not change the cluster state, because the mapping is already created
             docIndexResponseFuture = prepareIndex("index").setId("1").setSource("field", 42).execute();
 
+            // wait for it to be indexed on the primary (it won't be on the replica yet because of the blocked mapping update)
             assertBusy(() -> assertTrue(client().prepareGet("index", "1").get().isExists()));
 
             // index another document, this time using dynamic mappings.
@@ -365,15 +355,11 @@ public class RareClusterStateIT extends ESIntegTestCase {
             dynamicMappingsFuture = prepareIndex("index").setId("2").setSource("field2", 42).execute();
 
             // ...and wait for second mapping to be available on master
-            {
-                final IndicesService indicesService = internalCluster().getInstance(IndicesService.class, master);
-                final IndexService indexService = indicesService.indexServiceSafe(state.metadata().index("index").getIndex());
-                assertNotNull(indexService);
-                final MapperService mapperService = indexService.mapperService();
-                DocumentMapper mapper = mapperService.documentMapper();
+            assertBusy(() -> {
+                DocumentMapper mapper = indexService.mapperService().documentMapper();
                 assertNotNull(mapper);
                 assertNotNull(mapper.mappers().getMapper("field2"));
-            }
+            });
 
             assertBusy(() -> assertTrue(client().prepareGet("index", "2").get().isExists()));
 
