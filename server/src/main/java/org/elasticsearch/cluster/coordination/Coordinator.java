@@ -1817,7 +1817,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                 final CoordinatorPublication publication = currentPublication.get();
                 if (publication.isCommitted()) {
                     publication.cancel("cancelCommittedPublication");
-                    logger.debug("Cancelled publication of [{}].", publication);
+                    logger.info("Cancelled publication of [{}].", publication);
                     return true;
                 }
             }

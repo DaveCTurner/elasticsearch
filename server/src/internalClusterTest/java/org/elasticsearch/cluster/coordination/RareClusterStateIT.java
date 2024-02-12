@@ -142,12 +142,15 @@ public class RareClusterStateIT extends ESIntegTestCase {
 
         // cancel the first cluster state update produced by the request above
         assertBusy(() -> assertTrue(masterCoordinator.cancelCommittedPublication()));
+        logger.info("--> cancelled first publication");
         // await and cancel any other forked cluster state updates that might be produced by the request
         var task = ensureNoPendingMasterTasks();
         while (task.isDone() == false) {
             masterCoordinator.cancelCommittedPublication();
             Thread.onSpinWait();
         }
+        assertTrue(task.isDone());
+        logger.info("--> finished cancelling resulting publications");
         task.actionGet(TimeValue.timeValueSeconds(30));
 
         return future;
