@@ -41,6 +41,7 @@ import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.disruption.BlockClusterStateProcessing;
+import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.transport.TransportSettings;
 
 import java.util.List;
@@ -178,6 +179,7 @@ public class RareClusterStateIT extends ESIntegTestCase {
         return future;
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service:TRACE")
     public void testDeleteCreateInOneBulk() throws Exception {
         internalCluster().startMasterOnlyNode();
         String dataNode = internalCluster().startDataOnlyNode();
