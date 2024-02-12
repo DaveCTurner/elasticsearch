@@ -33,7 +33,6 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.TransportSettings;
 
@@ -129,7 +128,6 @@ public class RareClusterStateIT extends ESIntegTestCase {
         });
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.service:TRACE")
     public void testDeleteCreateInOneBulk() throws Exception {
         internalCluster().startMasterOnlyNode();
         String dataNode = internalCluster().startDataOnlyNode();
@@ -235,7 +233,6 @@ public class RareClusterStateIT extends ESIntegTestCase {
                 fail(); // only primaries
             }
         }
-
 
         // Block cluster state processing where our shard is
         final var primaryNodeTransportService = MockTransportService.getInstance(otherNode);
