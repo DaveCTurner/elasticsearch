@@ -8,6 +8,7 @@
 
 package org.elasticsearch.cluster.coordination;
 
+import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
@@ -17,6 +18,7 @@ import org.elasticsearch.cluster.ClusterStateUpdateTask;
 import org.elasticsearch.cluster.TestShardRoutingRoleStrategies;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -37,6 +39,7 @@ import org.elasticsearch.transport.TransportSettings;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.emptySet;
@@ -233,8 +236,6 @@ public class RareClusterStateIT extends ESIntegTestCase {
             }
         }
 
-        final var indexService = internalCluster().getInstance(IndicesService.class, master)
-            .indexServiceSafe(state.metadata().index("index").getIndex());
 
         // Block cluster state processing where our shard is
         final var primaryNodeTransportService = MockTransportService.getInstance(otherNode);
@@ -250,9 +251,18 @@ public class RareClusterStateIT extends ESIntegTestCase {
 
             // ...and check mappings are available on master
             {
-                DocumentMapper mapper = indexService.mapperService().documentMapper();
-                assertNotNull(mapper);
-                assertNotNull(mapper.mappers().getMapper("field"));
+                MappingMetadata typeMappings = internalCluster().clusterService(master).state().metadata().index("index").mapping();
+                assertNotNull(typeMappings);
+                Object properties;
+                try {
+                    properties = typeMappings.getSourceAsMap().get("properties");
+                } catch (ElasticsearchParseException e) {
+                    throw new AssertionError(e);
+                }
+                assertNotNull(properties);
+                @SuppressWarnings("unchecked")
+                Object fieldMapping = ((Map<String, Object>) properties).get("field");
+                assertNotNull(fieldMapping);
             }
 
             // this request does not change the cluster state, because the mapping is already created
