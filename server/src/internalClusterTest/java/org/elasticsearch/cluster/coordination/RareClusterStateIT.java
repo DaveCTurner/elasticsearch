@@ -33,17 +33,22 @@ import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.ClusterServiceUtils;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.disruption.BlockClusterStateProcessing;
 import org.elasticsearch.test.junit.annotations.TestLogging;
+import org.elasticsearch.test.transport.MockTransportService;
 import org.elasticsearch.transport.TransportSettings;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -53,6 +58,7 @@ import static org.elasticsearch.action.DocWriteResponse.Result.CREATED;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
@@ -68,6 +74,11 @@ public class RareClusterStateIT extends ESIntegTestCase {
     @Override
     protected int numberOfReplicas() {
         return 0;
+    }
+
+    @Override
+    protected Collection<Class<? extends Plugin>> nodePlugins() {
+        return CollectionUtils.appendToCopy(super.nodePlugins(), MockTransportService.TestPlugin.class);
     }
 
     public void testAssignmentWithJustAddedNodes() {
@@ -190,34 +201,57 @@ public class RareClusterStateIT extends ESIntegTestCase {
         prepareCreate("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)).get();
         ensureGreen("test");
 
-        // block none master node.
-        BlockClusterStateProcessing disruption = new BlockClusterStateProcessing(dataNode, random());
-        internalCluster().setDisruptionScheme(disruption);
+        final var masterClusterService = internalCluster().clusterService(internalCluster().getMasterName());
+        final var dataNodeClusterService = internalCluster().clusterService(dataNode);
+
+        final var originalIndexUuid = masterClusterService.state().metadata().index("test").getIndexUUID();
+        final var uuidChangedListener = ClusterServiceUtils.addTemporaryStateListener(dataNodeClusterService, cs -> {
+            // NB throws a NPE which fails the test if the data node sees the intermediate state with the index deleted
+            return originalIndexUuid.equals(cs.metadata().index("test").getIndexUUID()) == false
+                && cs.routingTable().index("test").allShardsActive();
+        });
+
         logger.info("--> indexing a doc");
         indexDoc("test", "1");
         refresh();
-        disruption.startDisrupting();
+
+        // block publications received by non-master node.
+        final var dataNodeTransportService = MockTransportService.getInstance(dataNode);
+        dataNodeTransportService.addRequestHandlingBehavior(
+            PublicationTransportHandler.PUBLISH_STATE_ACTION_NAME,
+            (handler, request, channel, task) -> channel.sendResponse(new IllegalStateException("cluster state updates blocked"))
+        );
+
         logger.info("--> delete index");
-        executeAndCancelCommittedPublication(indicesAdmin().prepareDelete("test").setTimeout("0s")).get(30, TimeUnit.SECONDS);
+        assertFalse(indicesAdmin().prepareDelete("test").setTimeout("0s").get().isAcknowledged());
         logger.info("--> and recreate it");
-        executeAndCancelCommittedPublication(
+        assertFalse(
             prepareCreate("test").setSettings(
                 Settings.builder()
                     .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
                     .put(IndexMetadata.SETTING_WAIT_FOR_ACTIVE_SHARDS.getKey(), "0")
-            ).setTimeout("0s")
-        ).get(30, TimeUnit.SECONDS);
+            ).setTimeout("0s").get().isAcknowledged()
+        );
 
+        // unblock publications & do a trivial cluster state update to bring data node up to date
         logger.info("--> letting cluster proceed");
+        dataNodeTransportService.clearAllRules();
+        masterClusterService.submitUnbatchedStateUpdateTask("refreshing publication", new ClusterStateUpdateTask() {
+            @Override
+            public ClusterState execute(ClusterState currentState) {
+                return ClusterState.builder(currentState).build();
+            }
 
-        disruption.stopDisrupting();
-        ensureGreen(TimeValue.timeValueMinutes(30), "test");
-        // due to publish_timeout of 0, wait for data node to have cluster state fully applied
-        assertBusy(() -> {
-            long masterClusterStateVersion = internalCluster().clusterService(internalCluster().getMasterName()).state().version();
-            long dataClusterStateVersion = internalCluster().clusterService(dataNode).state().version();
-            assertThat(masterClusterStateVersion, equalTo(dataClusterStateVersion));
+            @Override
+            public void onFailure(Exception e) {
+                fail(e);
+            }
         });
+
+        safeAwait(uuidChangedListener);
+        ensureGreen("test");
+        final var finalClusterStateVersion = masterClusterService.state().version();
+        assertBusy(() -> assertThat(dataNodeClusterService.state().version(), greaterThanOrEqualTo(finalClusterStateVersion)));
         assertHitCount(prepareSearch("test"), 0);
     }
 
