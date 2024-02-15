@@ -28,6 +28,7 @@ import io.netty.util.concurrent.PromiseCombiner;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.Nullable;
@@ -100,6 +101,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         assert msg instanceof FullHttpRequest : "Should have fully aggregated message already but saw [" + msg + "]";
         final FullHttpRequest fullHttpRequest = (FullHttpRequest) msg;
+        logger.info("--> channelRead: got [{}]", fullHttpRequest.uri());
         final Netty4HttpRequest netty4HttpRequest;
         if (fullHttpRequest.decoderResult().isFailure()) {
             final Throwable cause = fullHttpRequest.decoderResult().cause();
@@ -166,7 +168,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             ctx.channel().close();
         } finally {
             if (success == false) {
-                promise.setFailure(new ClosedChannelException());
+                if (promise.isDone() == false) {
+                    promise.tryFailure(new ClosedChannelException());
+                }
             }
         }
     }
@@ -229,7 +233,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             while (ctx.channel().isWritable()) {
                 if (writeChunk(ctx, currentChunkedWrite)) {
-                    finishChunkedWrite();
+                    if (currentChunkedWrite != null) {
+                        finishChunkedWrite();
+                    }
                     return;
                 }
             }
@@ -303,7 +309,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
                     if (writeChunk(ctx, currentChunkedWrite)) {
-                        finishChunkedWrite();
+                        if (currentChunkedWrite != null) {
+                            finishChunkedWrite();
+                        }
                     }
                     continue;
                 }
@@ -326,10 +334,12 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         try {
             bytes = body.encodeChunk(Netty4WriteThrottlingHandler.MAX_BYTES_PER_WRITE, serverTransport.recycler());
         } catch (Exception e) {
-            logger.error("caught exception while encoding response chunk, closing connection {}", ctx.channel());
-            combiner.add(ctx.newFailedFuture(e));
-            combiner.add(ctx.close());
-            combiner.finish(chunkedWrite.onDone());
+            logger.error(Strings.format("caught exception while encoding response chunk, closing connection %s", ctx.channel()), e);
+            assert currentChunkedWrite != null;
+            final var onDone = chunkedWrite.onDone();
+            currentChunkedWrite = null;
+            combiner.add(ctx.channel().close());
+            combiner.finish(onDone);
             return true;
         }
         final ByteBuf content = Netty4Utils.toByteBuf(bytes);

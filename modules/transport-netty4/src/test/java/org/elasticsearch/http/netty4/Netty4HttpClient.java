@@ -189,12 +189,22 @@ class Netty4HttpClient implements Closeable {
                 public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
                     if (cause instanceof PrematureChannelClosureException) {
                         // no more requests coming, so fast-forward the latch
-                        while (latch.getCount() > 0) {
-                            latch.countDown();
-                        }
+                        fastForward();
                     } else {
                         ExceptionsHelper.maybeDieOnAnotherThread(new AssertionError(cause));
                     }
+                }
+
+                private void fastForward() {
+                    while (latch.getCount() > 0) {
+                        latch.countDown();
+                    }
+                }
+
+                @Override
+                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    fastForward();
+                    super.channelInactive(ctx);
                 }
             });
         }

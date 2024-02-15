@@ -9,6 +9,7 @@ package org.elasticsearch.rest;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -175,6 +176,10 @@ public abstract class AbstractRestChannel implements RestChannel {
      */
     @Override
     public final BytesStream bytesOutput() {
+        logger.info(
+            Strings.format("[%s] %d#bytesOutput(): bytesOut=%s", Thread.currentThread().getName(), System.identityHashCode(this), bytesOut),
+            new ElasticsearchException("stack trace")
+        );
         if (bytesOut != null) {
             // fallback in case of encountering a bug, release the existing buffer if any (to avoid leaking memory) and acquire a new one
             // to send out an error response
@@ -188,6 +193,15 @@ public abstract class AbstractRestChannel implements RestChannel {
 
     @Override
     public final void releaseOutputBuffer() {
+        logger.info(
+            Strings.format(
+                "[%s] %d#releaseOutputBuffer(): bytesOut=%s",
+                Thread.currentThread().getName(),
+                System.identityHashCode(this),
+                bytesOut
+            ),
+            new ElasticsearchException("stack trace")
+        );
         if (bytesOut != null) {
             try {
                 bytesOut.close();

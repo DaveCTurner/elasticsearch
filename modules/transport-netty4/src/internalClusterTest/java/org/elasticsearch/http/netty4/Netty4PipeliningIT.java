@@ -41,6 +41,8 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.junit.annotations.TestLogging;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.io.IOException;
@@ -80,6 +82,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     }
 
     // @AwaitsFix(bugUrl = "")
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
     public void testChunkingFailureYieldsNoFurtherResponses() throws Exception {
         runPipeliningTest(
             CountDown3Plugin.ROUTE,
@@ -90,7 +93,16 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         );
     }
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
+    public void testChunkingFailure() throws Exception {
+        runPipeliningTest(0, ChunkAndFailPlugin.ROUTE, "/_cluster/state");
+    }
+
     private void runPipeliningTest(String... routes) throws InterruptedException {
+        runPipeliningTest(routes.length, routes);
+    }
+
+    private void runPipeliningTest(int length, String... routes) throws InterruptedException {
         try (var client = new Netty4HttpClient()) {
             final var responses = client.get(
                 randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses()).address(),
@@ -98,7 +110,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
             );
             try {
                 logger.info("response codes: {}", responses.stream().mapToInt(r -> r.status().code()).toArray());
-                assertThat(responses, hasSize(routes.length));
+                assertThat(responses, hasSize(length));
                 assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
                 assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
             } finally {
@@ -199,28 +211,34 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
                 @Override
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
-                    return channel -> channel.sendResponse(RestResponse.chunked(RestStatus.OK, new ChunkedRestResponseBody() {
-                        int chunkIndex = 0;
+                    return channel -> client.threadPool()
+                        .executor(randomFrom(ThreadPool.Names.SAME, ThreadPool.Names.GENERIC))
+                        .execute(() -> channel.sendResponse(RestResponse.chunked(RestStatus.OK, new ChunkedRestResponseBody() {
+                            int chunkIndex = 0;
 
-                        @Override
-                        public boolean isDone() {
-                            return false;
-                        }
-
-                        @Override
-                        public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                            if (chunkIndex++ == 0) {
-                                return ReleasableBytesReference.wrap(new BytesArray("test"));
-                            } else {
-                                throw new IOException("simulated");
+                            @Override
+                            public boolean isDone() {
+                                return false;
                             }
-                        }
 
-                        @Override
-                        public String getResponseContentTypeString() {
-                            return RestResponse.TEXT_CONTENT_TYPE;
-                        }
-                    }, null));
+                            @Override
+                            public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
+                                try {
+                                    if (chunkIndex == 0) {
+                                        return ReleasableBytesReference.wrap(new BytesArray("test"));
+                                    } else {
+                                        throw new IOException("simulated failure at chunk " + chunkIndex);
+                                    }
+                                } finally {
+                                    chunkIndex += 1;
+                                }
+                            }
+
+                            @Override
+                            public String getResponseContentTypeString() {
+                                return RestResponse.TEXT_CONTENT_TYPE;
+                            }
+                        }, null)));
                 }
             });
         }
