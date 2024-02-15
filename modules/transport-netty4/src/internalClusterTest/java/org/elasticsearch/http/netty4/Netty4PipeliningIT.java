@@ -60,25 +60,26 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     public void testThatNettyHttpServerSupportsPipelining() throws Exception {
         try (var client = new Netty4HttpClient()) {
-            runPipeliningTest(client, "/", "/_nodes/stats", "/", "/_cluster/state", "/");
-        }
-    }
-
-    public void testPipelinedRequestsRunInParallel() throws Exception {
-        try (var client = new Netty4HttpClient()) {
-            runPipeliningTest(client, CountDown3Plugin.ROUTE, CountDown3Plugin.ROUTE, CountDown3Plugin.ROUTE);
-        }
-    }
-
-    private void runPipeliningTest(Netty4HttpClient client, String... routes) throws InterruptedException {
-        final var transportAddress = randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses());
-        var responses = client.get(transportAddress.address(), routes);
-        try {
-            assertThat(responses, hasSize(routes.length));
-            assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
-            assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
-        } finally {
-            responses.forEach(ReferenceCounted::release);
+            String[] routes = new String[] {
+                CountDown3Plugin.ROUTE,
+                "/_nodes",
+                "/_nodes/stats",
+                CountDown3Plugin.ROUTE,
+                "/_cluster/health",
+                "/_cluster/state",
+                CountDown3Plugin.ROUTE,
+                "/_cat/shards" };
+            final var transportAddress = randomFrom(
+                internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses()
+            );
+            final var responses = client.get(transportAddress.address(), routes);
+            try {
+                assertThat(responses, hasSize(routes.length));
+                assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
+                assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
+            } finally {
+                responses.forEach(ReferenceCounted::release);
+            }
         }
     }
 
