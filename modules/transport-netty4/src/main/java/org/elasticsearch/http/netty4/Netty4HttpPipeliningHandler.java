@@ -228,7 +228,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             // We were able to write out the first chunk directly, try writing out subsequent chunks until the channel becomes unwritable.
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             while (ctx.channel().isWritable()) {
-                if (writeChunk(ctx, combiner, responseBody)) {
+                if (writeChunk(ctx, currentChunkedWrite)) {
                     finishChunkedWrite();
                     return;
                 }
@@ -242,7 +242,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         final var finishingWrite = currentChunkedWrite;
         currentChunkedWrite = null;
         writeSequence++;
-        finishingWrite.combiner.finish(finishingWrite.onDone());
+        finishingWrite.combiner().finish(finishingWrite.onDone());
     }
 
     private void splitAndWrite(ChannelHandlerContext ctx, Netty4FullHttpResponse msg, ChannelPromise promise) {
@@ -302,7 +302,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             if (currentWrite == null) {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
-                    if (writeChunk(ctx, currentChunkedWrite.combiner, currentChunkedWrite.responseBody())) {
+                    if (writeChunk(ctx, currentChunkedWrite)) {
                         finishChunkedWrite();
                     }
                     continue;
@@ -318,12 +318,20 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         return true;
     }
 
-    private boolean writeChunk(ChannelHandlerContext ctx, PromiseCombiner combiner, ChunkedRestResponseBody body) throws IOException {
+    private boolean writeChunk(ChannelHandlerContext ctx, ChunkedWrite chunkedWrite) throws IOException {
+        final var body = chunkedWrite.responseBody();
+        final var combiner = chunkedWrite.combiner();
         assert body.isDone() == false : "should not continue to try and serialize once done";
-        final ReleasableBytesReference bytes = body.encodeChunk(
-            Netty4WriteThrottlingHandler.MAX_BYTES_PER_WRITE,
-            serverTransport.recycler()
-        );
+        final ReleasableBytesReference bytes;
+        try {
+            bytes = body.encodeChunk(Netty4WriteThrottlingHandler.MAX_BYTES_PER_WRITE, serverTransport.recycler());
+        } catch (Exception e) {
+            logger.error("caught exception while encoding response chunk, closing connection {}", ctx.channel());
+            combiner.add(ctx.newFailedFuture(e));
+            combiner.add(ctx.close());
+            combiner.finish(chunkedWrite.onDone());
+            return true;
+        }
         final ByteBuf content = Netty4Utils.toByteBuf(bytes);
         final boolean done = body.isDone();
         final ChannelFuture f = ctx.write(done ? new DefaultLastHttpContent(content) : new DefaultHttpContent(content));

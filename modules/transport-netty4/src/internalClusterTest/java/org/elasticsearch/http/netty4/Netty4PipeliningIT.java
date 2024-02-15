@@ -10,6 +10,7 @@ package org.elasticsearch.http.netty4;
 
 import io.netty.util.ReferenceCounted;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ESNetty4IntegTestCase;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.CountDownActionListener;
@@ -17,7 +18,10 @@ import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -29,13 +33,17 @@ import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestResponse;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.xcontent.ToXContentObject;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
@@ -50,7 +58,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
-        return CollectionUtils.appendToCopy(super.nodePlugins(), CountDown3Plugin.class);
+        return CollectionUtils.concatLists(List.of(CountDown3Plugin.class, ChunkAndFailPlugin.class), super.nodePlugins());
     }
 
     @Override
@@ -59,21 +67,37 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     }
 
     public void testThatNettyHttpServerSupportsPipelining() throws Exception {
+        runPipeliningTest(
+            CountDown3Plugin.ROUTE,
+            "/_nodes",
+            "/_nodes/stats",
+            CountDown3Plugin.ROUTE,
+            "/_cluster/health",
+            "/_cluster/state",
+            CountDown3Plugin.ROUTE,
+            "/_cat/shards"
+        );
+    }
+
+    // @AwaitsFix(bugUrl = "")
+    public void testChunkingFailureYieldsNoFurtherResponses() throws Exception {
+        runPipeliningTest(
+            CountDown3Plugin.ROUTE,
+            CountDown3Plugin.ROUTE,
+            ChunkAndFailPlugin.ROUTE,
+            "/_cluster/state",
+            CountDown3Plugin.ROUTE
+        );
+    }
+
+    private void runPipeliningTest(String... routes) throws InterruptedException {
         try (var client = new Netty4HttpClient()) {
-            String[] routes = new String[] {
-                CountDown3Plugin.ROUTE,
-                "/_nodes",
-                "/_nodes/stats",
-                CountDown3Plugin.ROUTE,
-                "/_cluster/health",
-                "/_cluster/state",
-                CountDown3Plugin.ROUTE,
-                "/_cat/shards" };
-            final var transportAddress = randomFrom(
-                internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses()
+            final var responses = client.get(
+                randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses()).address(),
+                routes
             );
-            final var responses = client.get(transportAddress.address(), routes);
             try {
+                logger.info("response codes: {}", responses.stream().mapToInt(r -> r.status().code()).toArray());
                 assertThat(responses, hasSize(routes.length));
                 assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
                 assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
@@ -142,4 +166,64 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
             });
         }
     }
+
+    /**
+     * Adds an HTTP route that waits for 3 concurrent executions before returning any of them
+     */
+    public static class ChunkAndFailPlugin extends Plugin implements ActionPlugin {
+
+        static final String ROUTE = "/_test/chunk_and_fail";
+
+        @Override
+        public Collection<RestHandler> getRestHandlers(
+            Settings settings,
+            NamedWriteableRegistry namedWriteableRegistry,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings,
+            SettingsFilter settingsFilter,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster,
+            Predicate<NodeFeature> clusterSupportsFeature
+        ) {
+            return List.of(new BaseRestHandler() {
+                @Override
+                public String getName() {
+                    return ROUTE;
+                }
+
+                @Override
+                public List<Route> routes() {
+                    return List.of(new Route(GET, ROUTE));
+                }
+
+                @Override
+                protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+                    return channel -> channel.sendResponse(RestResponse.chunked(RestStatus.OK, new ChunkedRestResponseBody() {
+                        int chunkIndex = 0;
+
+                        @Override
+                        public boolean isDone() {
+                            return false;
+                        }
+
+                        @Override
+                        public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
+                            if (chunkIndex++ == 0) {
+                                return ReleasableBytesReference.wrap(new BytesArray("test"));
+                            } else {
+                                throw new IOException("simulated");
+                            }
+                        }
+
+                        @Override
+                        public String getResponseContentTypeString() {
+                            return RestResponse.TEXT_CONTENT_TYPE;
+                        }
+                    }, null));
+                }
+            });
+        }
+    }
+
 }
