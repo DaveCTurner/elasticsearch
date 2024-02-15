@@ -18,6 +18,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.PrematureChannelClosureException;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -31,10 +32,12 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.Closeable;
@@ -45,11 +48,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.junit.Assert.fail;
 
 /**
  * Tiny helper to send http requests over netty.
@@ -136,14 +137,10 @@ class Netty4HttpClient implements Closeable {
         try {
             channelFuture = clientBootstrap.connect(remoteAddress);
             channelFuture.sync();
-
             for (HttpRequest request : requests) {
                 channelFuture.channel().writeAndFlush(request);
             }
-            if (latch.await(30L, TimeUnit.SECONDS) == false) {
-                fail("Failed to get all expected responses.");
-            }
-
+            ESTestCase.safeAwait(latch);
         } finally {
             if (channelFuture != null) {
                 channelFuture.channel().close().sync();
@@ -189,9 +186,15 @@ class Netty4HttpClient implements Closeable {
                 }
 
                 @Override
-                public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                    super.exceptionCaught(ctx, cause);
-                    latch.countDown();
+                public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                    if (cause instanceof PrematureChannelClosureException) {
+                        // no more requests coming, so fast-forward the latch
+                        while (latch.getCount() > 0) {
+                            latch.countDown();
+                        }
+                    } else {
+                        ExceptionsHelper.maybeDieOnAnotherThread(new AssertionError(cause));
+                    }
                 }
             });
         }
