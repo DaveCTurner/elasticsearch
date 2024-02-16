@@ -11,6 +11,7 @@ package org.elasticsearch.rest.action;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.tasks.TaskCancelledException;
@@ -21,9 +22,7 @@ import org.elasticsearch.tasks.TaskCancelledException;
  */
 public abstract class RestActionListener<Response> implements ActionListener<Response> {
 
-    // we use static here so we won't have to pass the actual logger each time for a very rare case of logging
-    // where the settings don't matter that much
-    private static final Logger logger = LogManager.getLogger(RestResponseListener.class);
+    private static final Logger logger = LogManager.getLogger(RestActionListener.class);
 
     protected final RestChannel channel;
 
@@ -34,9 +33,12 @@ public abstract class RestActionListener<Response> implements ActionListener<Res
     @Override
     public final void onResponse(Response response) {
         try {
+            logger.info("--> onResponse [{}]", response);
             ensureOpen();
+            logger.info("--> ensureOpen passed for [{}]", response);
             processResponse(response);
         } catch (Exception e) {
+            logger.info(Strings.format("--> onResponse failed for [%s]", response), e);
             onFailure(e);
         }
     }
@@ -45,6 +47,7 @@ public abstract class RestActionListener<Response> implements ActionListener<Res
 
     protected void ensureOpen() {
         if (channel.request().getHttpChannel().isOpen() == false) {
+            logger.info("--> ensureOpen failing");
             throw new TaskCancelledException("response channel [" + channel.request().getHttpChannel() + "] closed");
         }
     }

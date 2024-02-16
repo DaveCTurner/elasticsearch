@@ -20,6 +20,8 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.Releasables;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 import org.elasticsearch.rest.AbstractRestChannel;
 import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.LoggingChunkedRestResponseBody;
@@ -39,6 +41,8 @@ import static org.elasticsearch.tasks.Task.X_OPAQUE_ID_HTTP_HEADER;
  * response. It will set necessary headers nad ensure that bytes are released after the response is sent.
  */
 public class DefaultRestChannel extends AbstractRestChannel {
+
+    private static final Logger logger = LogManager.getLogger(DefaultRestChannel.class);
 
     static final String CLOSE = "close";
     static final String CONNECTION = "connection";
@@ -114,6 +118,7 @@ public class DefaultRestChannel extends AbstractRestChannel {
             final HttpResponse httpResponse;
             if (isHeadRequest == false && restResponse.isChunked()) {
                 ChunkedRestResponseBody chunkedContent = restResponse.chunkedContent();
+                logger.info("--> chunked response, not registering releaseOutputBuffer on close");
                 if (httpLogger != null && httpLogger.isBodyTracerEnabled()) {
                     final var loggerStream = httpLogger.openResponseBodyLoggingStream(request.getRequestId());
                     toClose.add(() -> {
@@ -132,6 +137,7 @@ public class DefaultRestChannel extends AbstractRestChannel {
                 if (content instanceof Releasable releasable) {
                     toClose.add(releasable);
                 }
+                logger.info("--> head or nonchunked response, register releaseOutputBuffer on close of [{}]", restResponse);
                 toClose.add(this::releaseOutputBuffer);
 
                 BytesReference finalContent = isHeadRequest ? BytesArray.EMPTY : content;
@@ -184,6 +190,7 @@ public class DefaultRestChannel extends AbstractRestChannel {
             }
 
             try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
+                logger.info("--> sending response for [{}]", restResponse);
                 httpChannel.sendResponse(httpResponse, listener);
             }
             success = true;
