@@ -558,16 +558,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             if (verbose) {
-                snapshots(
-                    snapshotsInProgress,
-                    repo,
-                    toResolve.stream().map(Snapshot::getSnapshotId).toList(),
-                    ignoreUnavailable,
-                    cancellableTask,
-                    predicates,
-                    indices,
-                    listener
-                );
+                snapshots(repo, toResolve.stream().map(Snapshot::getSnapshotId).toList(), listener);
             } else {
                 assert predicates.isMatchAll() : "filtering is not supported in non-verbose mode";
                 final SnapshotsInRepo snapshotInfos;
@@ -585,23 +576,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         /**
          * Returns a list of snapshots from repository sorted by snapshot creation date
          *
-         * @param snapshotsInProgress snapshots in progress in the cluster state
          * @param repositoryName      repository name
          * @param snapshotIds         snapshots for which to fetch snapshot information
-         * @param ignoreUnavailable   if true, snapshots that could not be read will only be logged with a warning,
-         * @param indices             if false, drop the list of indices from each result
          */
-        private void snapshots(
-            SnapshotsInProgress snapshotsInProgress,
-            String repositoryName,
-            Collection<SnapshotId> snapshotIds,
-            boolean ignoreUnavailable,
-            CancellableTask task,
-            SnapshotPredicates predicate,
-            boolean indices,
-            ActionListener<SnapshotsInRepo> listener
-        ) {
-            if (task.notifyIfCancelled(listener)) {
+        private void snapshots(String repositoryName, Collection<SnapshotId> snapshotIds, ActionListener<SnapshotsInRepo> listener) {
+            if (cancellableTask.notifyIfCancelled(listener)) {
                 return;
             }
             final Set<SnapshotInfo> snapshotSet = new HashSet<>();
@@ -615,7 +594,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             for (SnapshotsInProgress.Entry entry : entries) {
                 if (snapshotIdsToIterate.remove(entry.snapshot().getSnapshotId())) {
                     final SnapshotInfo snapshotInfo = SnapshotInfo.inProgress(entry);
-                    if (predicate.test(snapshotInfo)) {
+                    if (predicates.test(snapshotInfo)) {
                         snapshotSet.add(snapshotInfo.maybeWithoutIndices(indices));
                     }
                 }
@@ -644,11 +623,17 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 return;
             }
             repository.getSnapshotInfo(
-                new GetSnapshotInfoContext(snapshotIdsToIterate, ignoreUnavailable == false, task::isCancelled, (context, snapshotInfo) -> {
-                    if (predicate.test(snapshotInfo)) {
-                        snapshotInfos.add(snapshotInfo.maybeWithoutIndices(indices));
-                    }
-                }, allDoneListener)
+                new GetSnapshotInfoContext(
+                    snapshotIdsToIterate,
+                    ignoreUnavailable == false,
+                    cancellableTask::isCancelled,
+                    (context, snapshotInfo) -> {
+                        if (predicates.test(snapshotInfo)) {
+                            snapshotInfos.add(snapshotInfo.maybeWithoutIndices(indices));
+                        }
+                    },
+                    allDoneListener
+                )
             );
         }
 
