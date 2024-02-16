@@ -85,6 +85,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     private final Netty4HttpServerTransport serverTransport;
 
+    private boolean channelInactiveCalled = false;
+
     /**
      * Construct a new pipelining handler; this handler should be used downstream of HTTP decoding/aggregation.
      *
@@ -138,9 +140,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     @Override
     public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) throws IOException {
         final var msgDescription = msg.toString();
-        logger.info("--> write({}); writeSequence={}", msgDescription, writeSequence);
+        logger.info("--> write({}); writeSequence={} channelInactiveCalled={}", msgDescription, writeSequence, channelInactiveCalled);
         promise.addListener(ignored -> logger.info("--> write({}) complete", msgDescription));
-        assert ctx.channel().isActive() : "write on inactive channel?? " + msgDescription;
+        assert channelInactiveCalled == false : "write after channelInactive?? " + msgDescription;
         assert msg instanceof Netty4HttpResponse : "Invalid message type: " + msg.getClass();
         boolean success = false;
         try {
@@ -284,6 +286,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         logger.info("channelInactive: {}", ctx.channel());
+        channelInactiveCalled = true;
         doFlush(ctx);
         super.channelInactive(ctx);
     }
