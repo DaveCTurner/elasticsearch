@@ -409,7 +409,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 this.includeCurrent = false;
                 this.includeOnlyCurrent = false;
             } else if (snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0])) {
-                this.exactNames = Set.of();
+                this.exactNames = null;
                 this.firstPattern = null;
                 this.includePatterns = null;
                 this.excludePatterns = null;
@@ -558,10 +558,10 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             if (isMatchAll) {
                 toResolve.addAll(allSnapshotIds.values());
             } else {
-                final var exactNamesToMatch = ignoreUnavailable ? null : new HashSet<>(exactNames);
+                final var exactNamesToMatch = ignoreUnavailable || includeOnlyCurrent ? null : new HashSet<>(exactNames);
                 for (Map.Entry<String, Snapshot> entry : allSnapshotIds.entrySet()) {
                     final Snapshot snapshot = entry.getValue();
-                    if (ignoreUnavailable == false
+                    if (exactNamesToMatch != null
                         && exactNamesToMatch.remove(entry.getKey())
                         && Regex.simpleMatch(excludePatterns, entry.getKey()) == false) {
                         toResolve.add(snapshot);
