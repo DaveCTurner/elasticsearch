@@ -26,7 +26,6 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
-import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.repositories.GetSnapshotInfoContext;
 import org.elasticsearch.repositories.IndexId;
@@ -428,18 +427,39 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                                 continue;
                             }
                             final var repoName = repository.name();
-                            getSingleRepoSnapshotInfo(repoName, listeners.acquire((SnapshotsInRepo snapshotsInRepo) -> {
-                                allSnapshotInfos.add(snapshotsInRepo.snapshotInfos());
-                                remaining.addAndGet(snapshotsInRepo.remaining());
-                                totalCount.addAndGet(snapshotsInRepo.totalCount());
-                            }).delegateResponse((l, e) -> {
-                                if (isMultiRepoRequest && e instanceof ElasticsearchException elasticsearchException) {
-                                    failuresByRepository.put(repoName, elasticsearchException);
-                                    l.onResponse(SnapshotsInRepo.EMPTY);
-                                } else {
-                                    l.onFailure(e);
-                                }
-                            }));
+
+                            final Map<String, Snapshot> allSnapshotIds = new HashMap<>();
+                            final List<SnapshotInfo> currentSnapshots = new ArrayList<>();
+                            for (final var snapshotInProgressEntry : snapshotsInProgress.forRepo(repoName)) {
+                                final var snapshot = snapshotInProgressEntry.snapshot();
+                                allSnapshotIds.put(snapshot.getSnapshotId().getName(), snapshot);
+                                currentSnapshots.add(SnapshotInfo.inProgress(snapshotInProgressEntry).maybeWithoutIndices(indices));
+                            }
+
+                            SubscribableListener
+                                // only load the RepositoryData if we care about non-current snapshots
+                                .<RepositoryData>newForked(l -> {
+                                    if (isCurrentSnapshotsOnly()) {
+                                        l.onResponse(null);
+                                    } else {
+                                        repositoriesService.getRepositoryData(repoName, l);
+                                    }
+                                })
+                                .<SnapshotsInRepo>andThen(
+                                    (l, repoData) -> loadSnapshotInfos(repoName, allSnapshotIds, currentSnapshots, repoData, l)
+                                )
+                                .addListener(listeners.acquire((SnapshotsInRepo snapshotsInRepo) -> {
+                                    allSnapshotInfos.add(snapshotsInRepo.snapshotInfos());
+                                    remaining.addAndGet(snapshotsInRepo.remaining());
+                                    totalCount.addAndGet(snapshotsInRepo.totalCount());
+                                }).delegateResponse((l, e) -> {
+                                    if (isMultiRepoRequest && e instanceof ElasticsearchException elasticsearchException) {
+                                        failuresByRepository.put(repoName, elasticsearchException);
+                                        l.onResponse(SnapshotsInRepo.EMPTY);
+                                    } else {
+                                        l.onFailure(e);
+                                    }
+                                }));
                         }
                     }
                 })
@@ -467,49 +487,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 })
 
                 .addListener(listener);
-        }
-
-        private void getSingleRepoSnapshotInfo(String repo, ActionListener<SnapshotsInRepo> listener) {
-            final Map<String, Snapshot> allSnapshotIds = new HashMap<>();
-            final List<SnapshotInfo> currentSnapshots = new ArrayList<>();
-            for (SnapshotInfo snapshotInfo : currentSnapshots(snapshotsInProgress, repo)) {
-                Snapshot snapshot = snapshotInfo.snapshot();
-                allSnapshotIds.put(snapshot.getSnapshotId().getName(), snapshot);
-                currentSnapshots.add(snapshotInfo.maybeWithoutIndices(indices));
-            }
-
-            final ListenableFuture<RepositoryData> repositoryDataListener = new ListenableFuture<>();
-            if (isCurrentSnapshotsOnly(snapshots)) {
-                repositoryDataListener.onResponse(null);
-            } else {
-                repositoriesService.getRepositoryData(repo, repositoryDataListener);
-            }
-
-            repositoryDataListener.addListener(
-                listener.delegateFailureAndWrap(
-                    (l, repositoryData) -> loadSnapshotInfos(repo, allSnapshotIds, currentSnapshots, repositoryData, l)
-                )
-            );
-        }
-
-        /**
-         * Returns a list of currently running snapshots from repository sorted by snapshot creation date
-         *
-         * @param snapshotsInProgress snapshots in progress in the cluster state
-         * @param repositoryName repository name
-         * @return list of snapshots
-         */
-        private static List<SnapshotInfo> currentSnapshots(SnapshotsInProgress snapshotsInProgress, String repositoryName) {
-            List<SnapshotInfo> snapshotList = new ArrayList<>();
-            List<SnapshotsInProgress.Entry> entries = SnapshotsService.currentSnapshots(
-                snapshotsInProgress,
-                repositoryName,
-                Collections.emptyList()
-            );
-            for (SnapshotsInProgress.Entry entry : entries) {
-                snapshotList.add(SnapshotInfo.inProgress(entry));
-            }
-            return snapshotList;
         }
 
         private void loadSnapshotInfos(
@@ -575,7 +552,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                         }
                     }
                 }
-                if (toResolve.isEmpty() && ignoreUnavailable == false && isCurrentSnapshotsOnly(snapshots) == false) {
+                if (toResolve.isEmpty() && ignoreUnavailable == false && isCurrentSnapshotsOnly() == false) {
                     throw new SnapshotMissingException(repo, snapshots[0]);
                 }
             }
@@ -675,8 +652,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             );
         }
 
-        private static boolean isCurrentSnapshotsOnly(String[] snapshots) {
-            return (snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0]));
+        private boolean isCurrentSnapshotsOnly() {
+            return snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0]);
         }
 
         private SnapshotsInRepo buildSimpleSnapshotInfos(
