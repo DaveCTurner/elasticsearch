@@ -409,7 +409,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 this.includeCurrent = false;
                 this.includeOnlyCurrent = false;
             } else if (snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0])) {
-                this.exactNames = null;
+                this.exactNames = Set.of();
                 this.firstPattern = null;
                 this.includePatterns = null;
                 this.excludePatterns = null;
