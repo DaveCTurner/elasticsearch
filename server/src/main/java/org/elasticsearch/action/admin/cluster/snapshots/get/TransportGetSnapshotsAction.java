@@ -124,9 +124,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             request.order(),
             request.fromSortValue(),
             SnapshotPredicates.fromRequest(request),
-            request.includeIndexNames(),
-            listener
-        ).start();
+            request.includeIndexNames()
+        ).start(listener);
     }
 
     /**
@@ -359,7 +358,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         final String fromSortValue;
         final SnapshotPredicates predicates;
         final boolean indices;
-        final ActionListener<GetSnapshotsResponse> listener;
         final Map<String, ElasticsearchException> failuresByRepository;
 
         final Queue<List<SnapshotInfo>> allSnapshotInfos = ConcurrentCollections.newQueue();
@@ -381,8 +379,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             SortOrder order,
             String fromSortValue,
             SnapshotPredicates predicates,
-            boolean indices,
-            ActionListener<GetSnapshotsResponse> listener
+            boolean indices
         ) {
             this.isMultiRepoRequest = isMultiRepoRequest;
             this.snapshotsInProgress = snapshotsInProgress;
@@ -398,7 +395,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.fromSortValue = fromSortValue;
             this.predicates = predicates;
             this.indices = indices;
-            this.listener = listener;
 
             this.failuresByRepository = ConcurrentCollections.newConcurrentMap();
             for (String missingRepo : repositoriesResult.missing()) {
@@ -408,7 +404,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.repositories = maybeFilterRepositories(repositoriesResult.metadata(), sortBy, order, fromSortValue);
         }
 
-        void start() {
+        void start(ActionListener<GetSnapshotsResponse> listener) {
             try (var listeners = new RefCountingListener(listener.map(ignored -> {
                 cancellableTask.ensureNotCancelled();
                 final var sortedSnapshotsInRepos = sortSnapshots(
