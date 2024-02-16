@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.repositories.get.TransportGetRepositoriesAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.SnapshotsInProgress;
@@ -109,23 +110,23 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     ) {
         assert task instanceof CancellableTask : task + " not cancellable";
 
+        final var repositoriesResult = TransportGetRepositoriesAction.getRepositories(state, request.repositories());
+
         new GetSnapshotsOperation(
-            request.isSingleRepositoryRequest() == false,
-            SnapshotsInProgress.get(state),
-            TransportGetRepositoriesAction.getRepositories(state, request.repositories()),
+            (CancellableTask) task,
             request.snapshots(),
             request.ignoreUnavailable(),
-            request.verbose(),
-            (CancellableTask) task,
+            SnapshotPredicates.fromRequest(request),
             request.sort(),
+            request.order(),
+            request.fromSortValue(),
             request.after(),
             request.offset(),
             request.size(),
-            request.order(),
-            request.fromSortValue(),
-            SnapshotPredicates.fromRequest(request),
-            request.includeIndexNames()
-        ).start(listener);
+            request.verbose(),
+            request.includeIndexNames(),
+            SnapshotsInProgress.get(state)
+        ).start(repositoriesResult.metadata(), repositoriesResult.missing(), request.isSingleRepositoryRequest() == false, listener);
     }
 
     /**
@@ -340,48 +341,45 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     }
 
     /**
-     * A single invocation of this action
+     * A single invocation of the TransportGetSnapshotsAction
      */
     private class GetSnapshotsOperation {
-        final boolean isMultiRepoRequest;
-        final SnapshotsInProgress snapshotsInProgress;
-        final List<RepositoryMetadata> repositories;
+        final CancellableTask cancellableTask;
         final String[] snapshots;
         final boolean ignoreUnavailable;
-        final boolean verbose;
-        final CancellableTask cancellableTask;
+        final SnapshotPredicates predicates;
         final GetSnapshotsRequest.SortBy sortBy;
+        final SortOrder order;
+        @Nullable
+        final String fromSortValue;
         final GetSnapshotsRequest.After after;
         final int offset;
         final int size;
-        final SortOrder order;
-        final String fromSortValue;
-        final SnapshotPredicates predicates;
+        final boolean verbose;
         final boolean indices;
-        final Map<String, ElasticsearchException> failuresByRepository;
+        final SnapshotsInProgress snapshotsInProgress;
 
+        // Results
+        final Map<String, ElasticsearchException> failuresByRepository = ConcurrentCollections.newConcurrentMap();
         final Queue<List<SnapshotInfo>> allSnapshotInfos = ConcurrentCollections.newQueue();
         final AtomicInteger remaining = new AtomicInteger();
         final AtomicInteger totalCount = new AtomicInteger();
 
         private GetSnapshotsOperation(
-            boolean isMultiRepoRequest,
-            SnapshotsInProgress snapshotsInProgress,
-            TransportGetRepositoriesAction.RepositoriesResult repositoriesResult,
+            CancellableTask cancellableTask,
             String[] snapshots,
             boolean ignoreUnavailable,
-            boolean verbose,
-            CancellableTask cancellableTask,
+            SnapshotPredicates predicates,
             GetSnapshotsRequest.SortBy sortBy,
+            SortOrder order,
+            String fromSortValue,
             GetSnapshotsRequest.After after,
             int offset,
             int size,
-            SortOrder order,
-            String fromSortValue,
-            SnapshotPredicates predicates,
-            boolean indices
+            boolean verbose,
+            boolean indices,
+            SnapshotsInProgress snapshotsInProgress
         ) {
-            this.isMultiRepoRequest = isMultiRepoRequest;
             this.snapshotsInProgress = snapshotsInProgress;
             this.snapshots = snapshots;
             this.ignoreUnavailable = ignoreUnavailable;
@@ -395,76 +393,83 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.fromSortValue = fromSortValue;
             this.predicates = predicates;
             this.indices = indices;
+        }
 
-            this.failuresByRepository = ConcurrentCollections.newConcurrentMap();
-            for (String missingRepo : repositoriesResult.missing()) {
+        void start(
+            List<RepositoryMetadata> repositories,
+            List<String> missingRepositories,
+            boolean isMultiRepoRequest,
+            ActionListener<GetSnapshotsResponse> listener
+        ) {
+            for (final var missingRepo : missingRepositories) {
                 failuresByRepository.put(missingRepo, new RepositoryMissingException(missingRepo));
             }
 
-            this.repositories = maybeFilterRepositories(repositoriesResult.metadata(), sortBy, order, fromSortValue);
-        }
-
-        void start(ActionListener<GetSnapshotsResponse> listener) {
-            try (var listeners = new RefCountingListener(listener.map(ignored -> {
-                cancellableTask.ensureNotCancelled();
-                final var sortedSnapshotsInRepos = sortSnapshots(
-                    allSnapshotInfos.stream().flatMap(Collection::stream),
-                    totalCount.get(),
-                    sortBy,
-                    after,
-                    offset,
-                    size,
-                    order
-                );
-                final var snapshotInfos = sortedSnapshotsInRepos.snapshotInfos();
-                assert this.indices || snapshotInfos.stream().allMatch(snapshotInfo -> snapshotInfo.indices().isEmpty());
-                final int finalRemaining = sortedSnapshotsInRepos.remaining() + remaining.get();
-                return new GetSnapshotsResponse(
-                    snapshotInfos,
-                    failuresByRepository,
-                    finalRemaining > 0
-                        ? GetSnapshotsRequest.After.from(snapshotInfos.get(snapshotInfos.size() - 1), this.sortBy).asQueryParam()
-                        : null,
-                    totalCount.get(),
-                    finalRemaining
-                );
-            }))) {
-                for (final RepositoryMetadata repository : repositories) {
-                    final String repoName = repository.name();
-                    getSingleRepoSnapshotInfo(repoName, listeners.acquire((SnapshotsInRepo snapshotsInRepo) -> {
-                        allSnapshotInfos.add(snapshotsInRepo.snapshotInfos());
-                        remaining.addAndGet(snapshotsInRepo.remaining());
-                        totalCount.addAndGet(snapshotsInRepo.totalCount());
-                    }).delegateResponse((l, e) -> {
-                        if (isMultiRepoRequest && e instanceof ElasticsearchException elasticsearchException) {
-                            failuresByRepository.put(repoName, elasticsearchException);
-                            l.onResponse(SnapshotsInRepo.EMPTY);
-                        } else {
-                            l.onFailure(e);
-                        }
-                    }));
-                }
-            }
-        }
-
-        /**
-         * Filters the list of repositories that a request will fetch snapshots from in the special case of sorting by repository
-         * name and having a non-null value for {@link GetSnapshotsRequest#fromSortValue()} on the request to exclude repositories outside
-         * the sort value range if possible.
-         */
-        private static List<RepositoryMetadata> maybeFilterRepositories(
-            List<RepositoryMetadata> repositories,
-            GetSnapshotsRequest.SortBy sortBy,
-            SortOrder order,
-            @Nullable String fromSortValue
-        ) {
+            /*
+             * Filters the list of repositories from which a request will fetch snapshots in the special case of sorting by repository
+             * name and having a non-null value for {@link GetSnapshotsRequest#fromSortValue()} on the request to exclude repositories
+             * outside the sort value range if possible.
+             */
+            final Predicate<RepositoryMetadata> repositoryPredicate;
             if (sortBy != GetSnapshotsRequest.SortBy.REPOSITORY || fromSortValue == null) {
-                return repositories;
+                repositoryPredicate = repositoryMetadata -> true;
+            } else {
+                repositoryPredicate = order == SortOrder.ASC
+                    ? repositoryMetadata -> fromSortValue.compareTo(repositoryMetadata.name()) <= 0
+                    : repositoryMetadata -> fromSortValue.compareTo(repositoryMetadata.name()) >= 0;
             }
-            final Predicate<RepositoryMetadata> predicate = order == SortOrder.ASC
-                ? repositoryMetadata -> fromSortValue.compareTo(repositoryMetadata.name()) <= 0
-                : repositoryMetadata -> fromSortValue.compareTo(repositoryMetadata.name()) >= 0;
-            return repositories.stream().filter(predicate).toList();
+
+            SubscribableListener
+
+                .<Void>newForked(allRepositoriesDoneListener -> {
+                    try (var listeners = new RefCountingListener(allRepositoriesDoneListener)) {
+                        for (final var repository : repositories) {
+                            if (repositoryPredicate.test(repository) == false) {
+                                continue;
+                            }
+                            final var repoName = repository.name();
+                            getSingleRepoSnapshotInfo(repoName, listeners.acquire((SnapshotsInRepo snapshotsInRepo) -> {
+                                allSnapshotInfos.add(snapshotsInRepo.snapshotInfos());
+                                remaining.addAndGet(snapshotsInRepo.remaining());
+                                totalCount.addAndGet(snapshotsInRepo.totalCount());
+                            }).delegateResponse((l, e) -> {
+                                if (isMultiRepoRequest && e instanceof ElasticsearchException elasticsearchException) {
+                                    failuresByRepository.put(repoName, elasticsearchException);
+                                    l.onResponse(SnapshotsInRepo.EMPTY);
+                                } else {
+                                    l.onFailure(e);
+                                }
+                            }));
+                        }
+                    }
+                })
+
+                .andThenApply(ignored -> {
+                    cancellableTask.ensureNotCancelled();
+                    final var sortedSnapshotsInRepos = sortSnapshots(
+                        allSnapshotInfos.stream().flatMap(Collection::stream),
+                        totalCount.get(),
+                        sortBy,
+                        after,
+                        offset,
+                        size,
+                        order
+                    );
+                    final var snapshotInfos = sortedSnapshotsInRepos.snapshotInfos();
+                    assert indices || snapshotInfos.stream().allMatch(snapshotInfo -> snapshotInfo.indices().isEmpty());
+                    final int finalRemaining = sortedSnapshotsInRepos.remaining() + remaining.get();
+                    return new GetSnapshotsResponse(
+                        snapshotInfos,
+                        failuresByRepository,
+                        finalRemaining > 0
+                            ? GetSnapshotsRequest.After.from(snapshotInfos.get(snapshotInfos.size() - 1), this.sortBy).asQueryParam()
+                            : null,
+                        totalCount.get(),
+                        finalRemaining
+                    );
+                })
+
+                .addListener(listener);
         }
 
         private void getSingleRepoSnapshotInfo(String repo, ActionListener<SnapshotsInRepo> listener) {
