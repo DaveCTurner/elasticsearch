@@ -449,11 +449,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     final var sortedSnapshotsInRepos = sortSnapshots(
                         allSnapshotInfos.stream().flatMap(Collection::stream),
                         totalCount.get(),
-                        sortBy,
-                        after,
                         offset,
-                        size,
-                        order
+                        size
                     );
                     final var snapshotInfos = sortedSnapshotsInRepos.snapshotInfos();
                     assert indices || snapshotInfos.stream().allMatch(snapshotInfo -> snapshotInfo.indices().isEmpty());
@@ -616,9 +613,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     toResolve.stream().map(Snapshot::getSnapshotId).toList(),
                     ignoreUnavailable,
                     task,
-                    sortBy,
-                    after,
-                    order,
                     predicates,
                     indices,
                     listener
@@ -628,25 +622,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                 final SnapshotsInRepo snapshotInfos;
                 if (repositoryData != null) {
                     // want non-current snapshots as well, which are found in the repository data
-                    snapshotInfos = buildSimpleSnapshotInfos(
-                        toResolve,
-                        repo,
-                        repositoryData,
-                        currentSnapshots,
-                        sortBy,
-                        after,
-                        order,
-                        indices
-                    );
+                    snapshotInfos = buildSimpleSnapshotInfos(toResolve, repo, repositoryData, currentSnapshots, indices);
                 } else {
                     // only want current snapshots
                     snapshotInfos = sortSnapshots(
                         currentSnapshots.stream().map(SnapshotInfo::basic).toList(),
-                        sortBy,
-                        after,
                         0,
-                        GetSnapshotsRequest.NO_LIMIT,
-                        order
+                        GetSnapshotsRequest.NO_LIMIT
                     );
                 }
                 listener.onResponse(snapshotInfos);
@@ -668,9 +650,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             Collection<SnapshotId> snapshotIds,
             boolean ignoreUnavailable,
             CancellableTask task,
-            GetSnapshotsRequest.SortBy sortBy,
-            @Nullable GetSnapshotsRequest.After after,
-            SortOrder order,
             SnapshotPredicates predicate,
             boolean indices,
             ActionListener<SnapshotsInRepo> listener
@@ -704,7 +683,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final ActionListener<Void> allDoneListener = listener.safeMap(v -> {
                 final ArrayList<SnapshotInfo> snapshotList = new ArrayList<>(snapshotInfos);
                 snapshotList.addAll(snapshotSet);
-                return sortSnapshots(snapshotList, sortBy, after, 0, GetSnapshotsRequest.NO_LIMIT, order);
+                return sortSnapshots(snapshotList, 0, GetSnapshotsRequest.NO_LIMIT);
             });
             if (snapshotIdsToIterate.isEmpty()) {
                 allDoneListener.onResponse(null);
@@ -730,14 +709,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             return (snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0]));
         }
 
-        private static SnapshotsInRepo buildSimpleSnapshotInfos(
+        private SnapshotsInRepo buildSimpleSnapshotInfos(
             final Set<Snapshot> toResolve,
             final String repoName,
             final RepositoryData repositoryData,
             final List<SnapshotInfo> currentSnapshots,
-            final GetSnapshotsRequest.SortBy sortBy,
-            @Nullable final GetSnapshotsRequest.After after,
-            final SortOrder order,
             boolean indices
         ) {
             List<SnapshotInfo> snapshotInfos = new ArrayList<>();
@@ -767,7 +743,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     )
                 );
             }
-            return sortSnapshots(snapshotInfos, sortBy, after, 0, GetSnapshotsRequest.NO_LIMIT, order);
+            return sortSnapshots(snapshotInfos, 0, GetSnapshotsRequest.NO_LIMIT);
         }
 
         private static final Comparator<SnapshotInfo> BY_START_TIME = Comparator.comparingLong(SnapshotInfo::startTime)
@@ -791,26 +767,11 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private static final Comparator<SnapshotInfo> BY_REPOSITORY = Comparator.comparing(SnapshotInfo::repository)
             .thenComparing(SnapshotInfo::snapshotId);
 
-        private static SnapshotsInRepo sortSnapshots(
-            List<SnapshotInfo> snapshotInfos,
-            GetSnapshotsRequest.SortBy sortBy,
-            @Nullable GetSnapshotsRequest.After after,
-            int offset,
-            int size,
-            SortOrder order
-        ) {
-            return sortSnapshots(snapshotInfos.stream(), snapshotInfos.size(), sortBy, after, offset, size, order);
+        private SnapshotsInRepo sortSnapshots(List<SnapshotInfo> snapshotInfos, int offset, int size) {
+            return sortSnapshots(snapshotInfos.stream(), snapshotInfos.size(), offset, size);
         }
 
-        private static SnapshotsInRepo sortSnapshots(
-            Stream<SnapshotInfo> infos,
-            int totalCount,
-            GetSnapshotsRequest.SortBy sortBy,
-            @Nullable GetSnapshotsRequest.After after,
-            int offset,
-            int size,
-            SortOrder order
-        ) {
+        private SnapshotsInRepo sortSnapshots(Stream<SnapshotInfo> infos, int totalCount, int offset, int size) {
             final Comparator<SnapshotInfo> comparator = switch (sortBy) {
                 case START_TIME -> BY_START_TIME;
                 case NAME -> BY_NAME;
