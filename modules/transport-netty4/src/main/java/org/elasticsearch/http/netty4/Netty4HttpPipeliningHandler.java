@@ -287,7 +287,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         assert ctx.executor().inEventLoop();
         final Channel channel = ctx.channel();
         if (channel.isActive() == false) {
-            failQueuedWrites();
+            failQueuedWrites(ctx);
             return false;
         }
         while (channel.isWritable()) {
@@ -314,7 +314,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         }
         ctx.flush();
         if (channel.isActive() == false) {
-            failQueuedWrites();
+            failQueuedWrites(ctx);
         }
         return true;
     }
@@ -332,6 +332,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             final var onDone = chunkedWrite.onDone();
             currentChunkedWrite = null;
             combiner.add(ctx.channel().close());
+            combiner.add(ctx.newFailedFuture(e));
             combiner.finish(onDone);
             return true;
         }
@@ -343,26 +344,20 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         return done;
     }
 
-    private void failQueuedWrites() {
+    private void failQueuedWrites(ChannelHandlerContext ctx) {
         WriteOperation queuedWrite;
         while ((queuedWrite = queuedWrites.poll()) != null) {
             queuedWrite.failAsClosedChannel();
         }
         if (currentChunkedWrite != null) {
-            safeFailPromise(currentChunkedWrite.onDone(), new ClosedChannelException());
+            final var chunkedWrite = currentChunkedWrite;
             currentChunkedWrite = null;
+            chunkedWrite.combiner().add(ctx.newFailedFuture(new ClosedChannelException()));
+            chunkedWrite.combiner().finish(chunkedWrite.onDone());
         }
         Tuple<? extends Netty4HttpResponse, ChannelPromise> pipelinedWrite;
         while ((pipelinedWrite = outboundHoldingQueue.poll()) != null) {
             pipelinedWrite.v2().tryFailure(new ClosedChannelException());
-        }
-    }
-
-    private void safeFailPromise(ChannelPromise promise, Exception ex) {
-        try {
-            promise.setFailure(ex);
-        } catch (RuntimeException e) {
-            logger.error("unexpected error while releasing pipelined http responses", e);
         }
     }
 
