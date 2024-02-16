@@ -47,9 +47,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.HOST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.junit.Assert.fail;
 
 /**
  * Tiny helper to send http requests over netty.
@@ -136,10 +138,14 @@ class Netty4HttpClient implements Closeable {
         try {
             channelFuture = clientBootstrap.connect(remoteAddress);
             channelFuture.sync();
+
             for (HttpRequest request : requests) {
                 channelFuture.channel().writeAndFlush(request);
             }
-            ESTestCase.safeAwait(latch);
+            if (latch.await(30L, TimeUnit.SECONDS) == false) {
+                fail("Failed to get all expected responses.");
+            }
+
         } finally {
             if (channelFuture != null) {
                 channelFuture.channel().close().sync();
