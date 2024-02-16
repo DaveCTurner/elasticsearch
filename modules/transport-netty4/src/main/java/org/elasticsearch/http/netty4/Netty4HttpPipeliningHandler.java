@@ -85,8 +85,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     private final Netty4HttpServerTransport serverTransport;
 
-    private boolean channelInactiveCalled = false;
-
     /**
      * Construct a new pipelining handler; this handler should be used downstream of HTTP decoding/aggregation.
      *
@@ -103,7 +101,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         assert msg instanceof FullHttpRequest : "Should have fully aggregated message already but saw [" + msg + "]";
         final FullHttpRequest fullHttpRequest = (FullHttpRequest) msg;
-        logger.info("--> channelRead: got [{}]", fullHttpRequest.uri());
         final Netty4HttpRequest netty4HttpRequest;
         if (fullHttpRequest.decoderResult().isFailure()) {
             final Throwable cause = fullHttpRequest.decoderResult().cause();
@@ -139,17 +136,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) throws IOException {
-        final var msgDescription = msg.toString();
-        logger.info(
-            "--> write({}); writeSequence={} channelInactiveCalled={} maxEventsHeld={} outboundHoldingQueue={}",
-            msgDescription,
-            writeSequence,
-            channelInactiveCalled,
-            maxEventsHeld,
-            outboundHoldingQueue.size()
-        );
-        promise.addListener(ignored -> logger.info("--> write({}) complete", msgDescription));
-        assert channelInactiveCalled == false : "write after channelInactive?? " + msgDescription;
         assert msg instanceof Netty4HttpResponse : "Invalid message type: " + msg.getClass();
         boolean success = false;
         try {
@@ -159,7 +145,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     : "response sequence [" + restResponse.getSequence() + "] we below write sequence [" + writeSequence + "]";
                 if (outboundHoldingQueue.size() >= maxEventsHeld) {
                     int eventCount = outboundHoldingQueue.size() + 1;
-                    logger.info("Too many pipelined events [" + eventCount + "]. Max events allowed [" + maxEventsHeld + "].");
                     throw new IllegalStateException(
                         "Too many pipelined events [" + eventCount + "]. Max events allowed [" + maxEventsHeld + "]."
                     );
@@ -234,8 +219,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         writeSequence++;
     }
 
-    private void doWriteChunkedResponse(ChannelHandlerContext ctx, Netty4ChunkedHttpResponse readyResponse, ChannelPromise promise)
-        throws IOException {
+    private void doWriteChunkedResponse(ChannelHandlerContext ctx, Netty4ChunkedHttpResponse readyResponse, ChannelPromise promise) {
         final PromiseCombiner combiner = new PromiseCombiner(ctx.executor());
         final ChannelPromise first = ctx.newPromise();
         combiner.add((Future<Void>) first);
@@ -247,9 +231,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             // NB "writable" means there's space in the downstream ChannelOutboundBuffer, we aren't trying to saturate the physical channel.
             while (ctx.channel().isWritable()) {
                 if (writeChunk(ctx, currentChunkedWrite)) {
-                    if (currentChunkedWrite != null) {
-                        finishChunkedWrite();
-                    }
+                    finishChunkedWrite();
                     return;
                 }
             }
@@ -257,7 +239,10 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     }
 
     private void finishChunkedWrite() {
-        assert currentChunkedWrite != null;
+        if (currentChunkedWrite == null) {
+            // failure during chunked response serialization, we're closing the channel
+            return;
+        }
         assert currentChunkedWrite.responseBody().isDone();
         final var finishingWrite = currentChunkedWrite;
         currentChunkedWrite = null;
@@ -293,8 +278,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        logger.info("channelInactive: {}", ctx.channel());
-        channelInactiveCalled = true;
         doFlush(ctx);
         super.channelInactive(ctx);
     }
@@ -325,9 +308,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                 // no bytes were found queued, check if a chunked message might have become writable
                 if (currentChunkedWrite != null) {
                     if (writeChunk(ctx, currentChunkedWrite)) {
-                        if (currentChunkedWrite != null) {
-                            finishChunkedWrite();
-                        }
+                        finishChunkedWrite();
                     }
                     continue;
                 }
@@ -342,7 +323,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         return true;
     }
 
-    private boolean writeChunk(ChannelHandlerContext ctx, ChunkedWrite chunkedWrite) throws IOException {
+    private boolean writeChunk(ChannelHandlerContext ctx, ChunkedWrite chunkedWrite) {
         final var body = chunkedWrite.responseBody();
         final var combiner = chunkedWrite.combiner();
         assert body.isDone() == false : "should not continue to try and serialize once done";
@@ -417,12 +398,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         } else {
             serverTransport.onException(channel, (Exception) cause);
         }
-    }
-
-    private List<Tuple<? extends Netty4HttpResponse, ChannelPromise>> removeAllInflightResponses() {
-        ArrayList<Tuple<? extends Netty4HttpResponse, ChannelPromise>> responses = new ArrayList<>(outboundHoldingQueue);
-        outboundHoldingQueue.clear();
-        return responses;
     }
 
     private record WriteOperation(HttpObject msg, ChannelPromise promise) {

@@ -40,9 +40,4 @@ public final class Netty4FullHttpResponse extends DefaultFullHttpResponse implem
     public boolean containsHeader(String name) {
         return headers().contains(name);
     }
-
-    @Override
-    public String toString() {
-        return super.toString() + " sequence=" + sequence + " hc=" + System.identityHashCode(this);
-    }
 }

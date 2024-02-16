@@ -142,7 +142,6 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
                 responses.forEach(ReferenceCounted::release);
             }
         }
-        System.gc();
     }
 
     private void assertOpaqueIdsInOrder(Collection<String> opaqueIds) {
@@ -278,5 +277,4 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
             });
         }
     }
-
 }
