@@ -137,6 +137,9 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) throws IOException {
+        final var msgDescription = msg.toString();
+        logger.info("--> write({}); writeSequence={}", msgDescription, writeSequence);
+        promise.addListener(ignored -> logger.info("--> write({}) complete", msgDescription));
         assert msg instanceof Netty4HttpResponse : "Invalid message type: " + msg.getClass();
         boolean success = false;
         try {
@@ -279,6 +282,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        logger.info("channelInactive: {}", ctx.channel());
         doFlush(ctx);
         super.channelInactive(ctx);
     }
@@ -358,6 +362,10 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         if (currentChunkedWrite != null) {
             safeFailPromise(currentChunkedWrite.onDone, new ClosedChannelException());
             currentChunkedWrite = null;
+        }
+        Tuple<? extends Netty4HttpResponse, ChannelPromise> pipelinedWrite;
+        while ((pipelinedWrite = outboundHoldingQueue.poll()) != null) {
+            pipelinedWrite.v2().tryFailure(new ClosedChannelException());
         }
     }
 

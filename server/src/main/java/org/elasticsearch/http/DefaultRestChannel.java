@@ -190,7 +190,7 @@ public class DefaultRestChannel extends AbstractRestChannel {
             }
 
             try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
-                logger.info("--> sending response for [{}]", restResponse);
+                logger.info("--> sending response for [{}]: [{}]", restResponse, httpResponse);
                 httpChannel.sendResponse(httpResponse, listener);
             }
             success = true;

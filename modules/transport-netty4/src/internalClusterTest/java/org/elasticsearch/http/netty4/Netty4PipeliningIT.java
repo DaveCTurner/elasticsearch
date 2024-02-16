@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static org.elasticsearch.http.HttpTransportSettings.SETTING_PIPELINING_MAX_EVENTS;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -62,6 +63,14 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
         return CollectionUtils.concatLists(List.of(CountDown3Plugin.class, ChunkAndFailPlugin.class), super.nodePlugins());
+    }
+
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal, Settings otherSettings) {
+        return Settings.builder()
+            .put(super.nodeSettings(nodeOrdinal, otherSettings))
+            .put(SETTING_PIPELINING_MAX_EVENTS.getKey(), 10)
+            .build();
     }
 
     @Override
@@ -91,6 +100,8 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
             CountDown3Plugin.ROUTE,
             ChunkAndFailPlugin.randomRequestUri(),
             "/_cluster/state",
+            "/_cluster/health",
+            "/_nodes",
             CountDown3Plugin.ROUTE
         );
     }
