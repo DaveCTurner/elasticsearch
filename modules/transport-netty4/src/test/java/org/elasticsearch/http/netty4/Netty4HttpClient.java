@@ -36,7 +36,6 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.transport.netty4.NettyAllocator;
 
 import java.io.Closeable;
