@@ -487,23 +487,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
             repositoryDataListener.addListener(
                 listener.delegateFailureAndWrap(
-                    (l, repositoryData) -> loadSnapshotInfos(
-                        snapshotsInProgress,
-                        repo,
-                        snapshots,
-                        ignoreUnavailable,
-                        verbose,
-                        allSnapshotIds,
-                        currentSnapshots,
-                        repositoryData,
-                        cancellableTask,
-                        sortBy,
-                        after,
-                        order,
-                        predicates,
-                        indices,
-                        l
-                    )
+                    (l, repositoryData) -> loadSnapshotInfos(repo, allSnapshotIds, currentSnapshots, repositoryData, l)
                 )
             );
         }
@@ -529,23 +513,13 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private void loadSnapshotInfos(
-            SnapshotsInProgress snapshotsInProgress,
             String repo,
-            String[] snapshots,
-            boolean ignoreUnavailable,
-            boolean verbose,
             Map<String, Snapshot> allSnapshotIds,
             List<SnapshotInfo> currentSnapshots,
             @Nullable RepositoryData repositoryData,
-            CancellableTask task,
-            GetSnapshotsRequest.SortBy sortBy,
-            @Nullable final GetSnapshotsRequest.After after,
-            SortOrder order,
-            SnapshotPredicates predicates,
-            boolean indices,
             ActionListener<SnapshotsInRepo> listener
         ) {
-            if (task.notifyIfCancelled(listener)) {
+            if (cancellableTask.notifyIfCancelled(listener)) {
                 return;
             }
 
@@ -612,7 +586,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     repo,
                     toResolve.stream().map(Snapshot::getSnapshotId).toList(),
                     ignoreUnavailable,
-                    task,
+                    cancellableTask,
                     predicates,
                     indices,
                     listener
@@ -625,11 +599,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     snapshotInfos = buildSimpleSnapshotInfos(toResolve, repo, repositoryData, currentSnapshots, indices);
                 } else {
                     // only want current snapshots
-                    snapshotInfos = sortSnapshots(
-                        currentSnapshots.stream().map(SnapshotInfo::basic).toList(),
-                        0,
-                        GetSnapshotsRequest.NO_LIMIT
-                    );
+                    snapshotInfos = sortSnapshots(currentSnapshots.stream().map(SnapshotInfo::basic).toList());
                 }
                 listener.onResponse(snapshotInfos);
             }
@@ -683,7 +653,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             final ActionListener<Void> allDoneListener = listener.safeMap(v -> {
                 final ArrayList<SnapshotInfo> snapshotList = new ArrayList<>(snapshotInfos);
                 snapshotList.addAll(snapshotSet);
-                return sortSnapshots(snapshotList, 0, GetSnapshotsRequest.NO_LIMIT);
+                return sortSnapshots(snapshotList);
             });
             if (snapshotIdsToIterate.isEmpty()) {
                 allDoneListener.onResponse(null);
@@ -743,7 +713,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     )
                 );
             }
-            return sortSnapshots(snapshotInfos, 0, GetSnapshotsRequest.NO_LIMIT);
+            return sortSnapshots(snapshotInfos);
         }
 
         private static final Comparator<SnapshotInfo> BY_START_TIME = Comparator.comparingLong(SnapshotInfo::startTime)
@@ -767,8 +737,8 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         private static final Comparator<SnapshotInfo> BY_REPOSITORY = Comparator.comparing(SnapshotInfo::repository)
             .thenComparing(SnapshotInfo::snapshotId);
 
-        private SnapshotsInRepo sortSnapshots(List<SnapshotInfo> snapshotInfos, int offset, int size) {
-            return sortSnapshots(snapshotInfos.stream(), snapshotInfos.size(), offset, size);
+        private SnapshotsInRepo sortSnapshots(List<SnapshotInfo> snapshotInfos) {
+            return sortSnapshots(snapshotInfos.stream(), snapshotInfos.size(), 0, GetSnapshotsRequest.NO_LIMIT);
         }
 
         private SnapshotsInRepo sortSnapshots(Stream<SnapshotInfo> infos, int totalCount, int offset, int size) {
