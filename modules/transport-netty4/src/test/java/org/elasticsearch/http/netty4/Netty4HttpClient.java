@@ -34,7 +34,6 @@ import io.netty.handler.codec.http.HttpVersion;
 
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.test.ESTestCase;
@@ -170,10 +169,9 @@ class Netty4HttpClient implements Closeable {
 
         @Override
         protected void initChannel(SocketChannel ch) {
-            final int maxContentLength = new ByteSizeValue(100, ByteSizeUnit.MB).bytesAsInt();
             ch.pipeline().addLast(new HttpClientCodec());
             ch.pipeline().addLast(new HttpContentDecompressor());
-            ch.pipeline().addLast(new HttpObjectAggregator(maxContentLength));
+            ch.pipeline().addLast(new HttpObjectAggregator(ByteSizeUnit.MB.toIntBytes(100)));
             ch.pipeline().addLast(new SimpleChannelInboundHandler<HttpObject>() {
                 @Override
                 protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) {
