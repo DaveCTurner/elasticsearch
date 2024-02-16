@@ -344,7 +344,15 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
      */
     private class GetSnapshotsOperation {
         final CancellableTask cancellableTask;
-        final String[] snapshots;
+
+        final boolean isMatchAll;
+        final String firstPattern;
+        final Set<String> exactNames;
+        final String[] includePatterns;
+        final String[] excludePatterns;
+        final boolean includeCurrent;
+        final boolean includeOnlyCurrent;
+
         final boolean ignoreUnavailable;
         final SnapshotPredicates predicates;
         final GetSnapshotsRequest.SortBy sortBy;
@@ -380,7 +388,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             SnapshotsInProgress snapshotsInProgress
         ) {
             this.snapshotsInProgress = snapshotsInProgress;
-            this.snapshots = snapshots;
             this.ignoreUnavailable = ignoreUnavailable;
             this.verbose = verbose;
             this.cancellableTask = cancellableTask;
@@ -392,6 +399,50 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.fromSortValue = fromSortValue;
             this.predicates = predicates;
             this.indices = indices;
+
+            this.isMatchAll = TransportGetRepositoriesAction.isMatchAll(snapshots);
+            if (isMatchAll) {
+                this.exactNames = null;
+                this.firstPattern = null;
+                this.includePatterns = null;
+                this.excludePatterns = null;
+                this.includeCurrent = false;
+                this.includeOnlyCurrent = false;
+            } else if (snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0])) {
+                this.exactNames = null;
+                this.firstPattern = null;
+                this.includePatterns = null;
+                this.excludePatterns = null;
+                this.includeCurrent = true;
+                this.includeOnlyCurrent = true;
+            } else {
+                final var exactNamesBuilder = new HashSet<String>();
+                final var includePatternsList = new ArrayList<String>(snapshots.length);
+                final var excludePatternsList = new ArrayList<String>(snapshots.length);
+                boolean hasCurrent = false;
+                boolean seenWildcard = false;
+                for (final var snapshotOrPattern : snapshots) {
+                    if (seenWildcard && snapshotOrPattern.length() > 1 && snapshotOrPattern.startsWith("-")) {
+                        excludePatternsList.add(snapshotOrPattern.substring(1));
+                    } else {
+                        if (Regex.isSimpleMatchPattern(snapshotOrPattern)) {
+                            seenWildcard = true;
+                            includePatternsList.add(snapshotOrPattern);
+                        } else if (GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshotOrPattern)) {
+                            hasCurrent = true;
+                            seenWildcard = true;
+                        } else {
+                            exactNamesBuilder.add(snapshotOrPattern);
+                        }
+                    }
+                }
+                this.firstPattern = snapshots[0];
+                this.exactNames = Collections.unmodifiableSet(exactNamesBuilder);
+                this.includePatterns = includePatternsList.toArray(Strings.EMPTY_ARRAY);
+                this.excludePatterns = excludePatternsList.toArray(Strings.EMPTY_ARRAY);
+                this.includeCurrent = hasCurrent;
+                this.includeOnlyCurrent = false;
+            }
         }
 
         void start(
@@ -469,36 +520,30 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         }
 
         private void processRepository(String repoName, ActionListener<SnapshotsInRepo> listener) {
-            final Map<String, Snapshot> allSnapshotIds = new HashMap<>();
-            final List<SnapshotInfo> currentSnapshots = new ArrayList<>();
-            for (final var snapshotInProgressEntry : snapshotsInProgress.forRepo(repoName)) {
-                final var snapshot = snapshotInProgressEntry.snapshot();
-                allSnapshotIds.put(snapshot.getSnapshotId().getName(), snapshot);
-                currentSnapshots.add(SnapshotInfo.inProgress(snapshotInProgressEntry).maybeWithoutIndices(indices));
-            }
-
             SubscribableListener
                 // only load the RepositoryData if we care about non-current snapshots
                 .<RepositoryData>newForked(l -> {
-                    if (isCurrentSnapshotsOnly()) {
+                    if (includeOnlyCurrent) {
                         l.onResponse(null);
                     } else {
                         repositoriesService.getRepositoryData(repoName, l);
                     }
                 })
-                .<SnapshotsInRepo>andThen((l, repoData) -> loadSnapshotInfos(repoName, allSnapshotIds, currentSnapshots, repoData, l))
+                .<SnapshotsInRepo>andThen((l, repoData) -> loadSnapshotInfos(repoName, repoData, l))
                 .addListener(listener);
         }
 
-        private void loadSnapshotInfos(
-            String repo,
-            Map<String, Snapshot> allSnapshotIds,
-            List<SnapshotInfo> currentSnapshots,
-            @Nullable RepositoryData repositoryData,
-            ActionListener<SnapshotsInRepo> listener
-        ) {
+        private void loadSnapshotInfos(String repo, @Nullable RepositoryData repositoryData, ActionListener<SnapshotsInRepo> listener) {
             if (cancellableTask.notifyIfCancelled(listener)) {
                 return;
+            }
+
+            final Map<String, Snapshot> allSnapshotIds = new HashMap<>();
+            final List<SnapshotInfo> currentSnapshots = new ArrayList<>();
+            for (final var snapshotInProgressEntry : snapshotsInProgress.forRepo(repo)) {
+                final var snapshot = snapshotInProgressEntry.snapshot();
+                allSnapshotIds.put(snapshot.getSnapshotId().getName(), snapshot);
+                currentSnapshots.add(SnapshotInfo.inProgress(snapshotInProgressEntry).maybeWithoutIndices(indices));
             }
 
             if (repositoryData != null) {
@@ -510,51 +555,35 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             final Set<Snapshot> toResolve = new HashSet<>();
-            if (TransportGetRepositoriesAction.isMatchAll(snapshots)) {
+            if (isMatchAll) {
                 toResolve.addAll(allSnapshotIds.values());
             } else {
-                final List<String> includePatterns = new ArrayList<>();
-                final List<String> excludePatterns = new ArrayList<>();
-                boolean hasCurrent = false;
-                boolean seenWildcard = false;
-                for (String snapshotOrPattern : snapshots) {
-                    if (seenWildcard && snapshotOrPattern.length() > 1 && snapshotOrPattern.startsWith("-")) {
-                        excludePatterns.add(snapshotOrPattern.substring(1));
-                    } else {
-                        if (Regex.isSimpleMatchPattern(snapshotOrPattern)) {
-                            seenWildcard = true;
-                            includePatterns.add(snapshotOrPattern);
-                        } else if (GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshotOrPattern)) {
-                            hasCurrent = true;
-                            seenWildcard = true;
-                        } else {
-                            if (ignoreUnavailable == false && allSnapshotIds.containsKey(snapshotOrPattern) == false) {
-                                throw new SnapshotMissingException(repo, snapshotOrPattern);
-                            }
-                            includePatterns.add(snapshotOrPattern);
-                        }
-                    }
-                }
-                final String[] includes = includePatterns.toArray(Strings.EMPTY_ARRAY);
-                final String[] excludes = excludePatterns.toArray(Strings.EMPTY_ARRAY);
+                final var exactNamesToMatch = ignoreUnavailable ? null : new HashSet<>(exactNames);
                 for (Map.Entry<String, Snapshot> entry : allSnapshotIds.entrySet()) {
                     final Snapshot snapshot = entry.getValue();
-                    if (toResolve.contains(snapshot) == false
-                        && Regex.simpleMatch(includes, entry.getKey())
-                        && Regex.simpleMatch(excludes, entry.getKey()) == false) {
+                    if (ignoreUnavailable == false
+                        && exactNamesToMatch.remove(entry.getKey())
+                        && Regex.simpleMatch(excludePatterns, entry.getKey()) == false) {
                         toResolve.add(snapshot);
-                    }
+                    } else if (toResolve.contains(snapshot) == false
+                        && (exactNames.contains(entry.getKey()) || Regex.simpleMatch(includePatterns, entry.getKey()))
+                        && Regex.simpleMatch(excludePatterns, entry.getKey()) == false) {
+                            toResolve.add(snapshot);
+                        }
                 }
-                if (hasCurrent) {
+                if (includeCurrent) {
                     for (SnapshotInfo snapshotInfo : currentSnapshots) {
                         final Snapshot snapshot = snapshotInfo.snapshot();
-                        if (Regex.simpleMatch(excludes, snapshot.getSnapshotId().getName()) == false) {
+                        if (Regex.simpleMatch(excludePatterns, snapshot.getSnapshotId().getName()) == false) {
                             toResolve.add(snapshot);
                         }
                     }
                 }
-                if (toResolve.isEmpty() && ignoreUnavailable == false && isCurrentSnapshotsOnly() == false) {
-                    throw new SnapshotMissingException(repo, snapshots[0]);
+                if (toResolve.isEmpty() && ignoreUnavailable == false && includeCurrent == false) {
+                    throw new SnapshotMissingException(repo, firstPattern);
+                }
+                if (ignoreUnavailable == false && exactNamesToMatch.isEmpty() == false) {
+                    throw new SnapshotMissingException(repo, exactNamesToMatch.iterator().next());
                 }
             }
 
@@ -636,10 +665,6 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
                     allDoneListener
                 )
             );
-        }
-
-        private boolean isCurrentSnapshotsOnly() {
-            return snapshots.length == 1 && GetSnapshotsRequest.CURRENT_SNAPSHOT.equalsIgnoreCase(snapshots[0]);
         }
 
         private SnapshotsInRepo buildSimpleSnapshotInfos(
