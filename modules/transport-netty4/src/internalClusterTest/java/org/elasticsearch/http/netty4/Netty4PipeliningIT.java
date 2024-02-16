@@ -18,14 +18,15 @@ import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
+import org.elasticsearch.common.bytes.ZeroBytesReference;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.core.Strings;
 import org.elasticsearch.features.NodeFeature;
@@ -85,9 +86,10 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
     public void testChunkingFailureYieldsNoFurtherResponses() throws Exception {
         runPipeliningTest(
+            2,
             CountDown3Plugin.ROUTE,
             CountDown3Plugin.ROUTE,
-            ChunkAndFailPlugin.ROUTE,
+            ChunkAndFailPlugin.randomRequestUri(),
             "/_cluster/state",
             CountDown3Plugin.ROUTE
         );
@@ -95,7 +97,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
     @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
     public void testChunkingFailure() throws Exception {
-        runPipeliningTest(0, ChunkAndFailPlugin.ROUTE, "/_cluster/state");
+        runPipeliningTest(0, ChunkAndFailPlugin.randomRequestUri(), "/_cluster/state");
     }
 
     private void runPipeliningTest(String... routes) throws InterruptedException {
@@ -117,6 +119,7 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
                 responses.forEach(ReferenceCounted::release);
             }
         }
+        System.gc();
     }
 
     private void assertOpaqueIdsInOrder(Collection<String> opaqueIds) {
@@ -185,6 +188,11 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     public static class ChunkAndFailPlugin extends Plugin implements ActionPlugin {
 
         static final String ROUTE = "/_test/chunk_and_fail";
+        static final String FAIL_AFTER_BYTES_PARAM = "fail_after_bytes";
+
+        static String randomRequestUri() {
+            return ROUTE + '?' + FAIL_AFTER_BYTES_PARAM + '=' + between(0, ByteSizeUnit.MB.toIntBytes(2));
+        }
 
         @Override
         public Collection<RestHandler> getRestHandlers(
@@ -211,10 +219,14 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
                 @Override
                 protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
+                    final var failAfterBytes = request.paramAsInt(FAIL_AFTER_BYTES_PARAM, -1);
+                    if (failAfterBytes < 0) {
+                        throw new IllegalArgumentException("[" + FAIL_AFTER_BYTES_PARAM + "] must be present and non-negative");
+                    }
                     return channel -> client.threadPool()
                         .executor(randomFrom(ThreadPool.Names.SAME, ThreadPool.Names.GENERIC))
                         .execute(() -> channel.sendResponse(RestResponse.chunked(RestStatus.OK, new ChunkedRestResponseBody() {
-                            int chunkIndex = 0;
+                            int bytesRemaining = failAfterBytes;
 
                             @Override
                             public boolean isDone() {
@@ -223,14 +235,14 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
 
                             @Override
                             public ReleasableBytesReference encodeChunk(int sizeHint, Recycler<BytesRef> recycler) throws IOException {
-                                try {
-                                    if (chunkIndex == 0) {
-                                        return ReleasableBytesReference.wrap(new BytesArray("test"));
-                                    } else {
-                                        throw new IOException("simulated failure at chunk " + chunkIndex);
-                                    }
-                                } finally {
-                                    chunkIndex += 1;
+                                assert bytesRemaining >= 0 : "already failed";
+                                if (bytesRemaining == 0) {
+                                    bytesRemaining = -1;
+                                    throw new IOException("simulated failure");
+                                } else {
+                                    final var bytesToSend = between(1, bytesRemaining);
+                                    bytesRemaining -= bytesToSend;
+                                    return ReleasableBytesReference.wrap(new ZeroBytesReference(bytesToSend));
                                 }
                             }
 
