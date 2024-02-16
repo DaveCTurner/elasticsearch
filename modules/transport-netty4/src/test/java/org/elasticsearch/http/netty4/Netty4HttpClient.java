@@ -193,16 +193,16 @@ class Netty4HttpClient implements Closeable {
                     }
                 }
 
-                private void fastForward() {
-                    while (latch.getCount() > 0) {
-                        latch.countDown();
-                    }
-                }
-
                 @Override
                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                     fastForward();
                     super.channelInactive(ctx);
+                }
+
+                private void fastForward() {
+                    while (latch.getCount() > 0) {
+                        latch.countDown();
+                    }
                 }
             });
         }

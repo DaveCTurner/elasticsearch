@@ -42,9 +42,7 @@ import org.elasticsearch.transport.netty4.NettyAllocator;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -166,10 +164,8 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         } catch (IllegalStateException e) {
             ctx.channel().close();
         } finally {
-            if (success == false) {
-                if (promise.isDone() == false) {
-                    promise.tryFailure(new ClosedChannelException());
-                }
+            if (success == false && promise.isDone() == false) {
+                promise.tryFailure(new ClosedChannelException());
             }
         }
     }
@@ -353,7 +349,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
             queuedWrite.failAsClosedChannel();
         }
         if (currentChunkedWrite != null) {
-            safeFailPromise(currentChunkedWrite.onDone, new ClosedChannelException());
+            safeFailPromise(currentChunkedWrite.onDone(), new ClosedChannelException());
             currentChunkedWrite = null;
         }
         Tuple<? extends Netty4HttpResponse, ChannelPromise> pipelinedWrite;
