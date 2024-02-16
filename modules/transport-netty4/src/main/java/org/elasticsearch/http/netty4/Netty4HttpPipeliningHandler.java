@@ -140,6 +140,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         final var msgDescription = msg.toString();
         logger.info("--> write({}); writeSequence={}", msgDescription, writeSequence);
         promise.addListener(ignored -> logger.info("--> write({}) complete", msgDescription));
+        assert ctx.channel().isActive() : "write on inactive channel?? " + msgDescription;
         assert msg instanceof Netty4HttpResponse : "Invalid message type: " + msg.getClass();
         boolean success = false;
         try {
