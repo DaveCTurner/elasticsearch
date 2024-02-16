@@ -108,9 +108,15 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
     }
 
     public void testPipelineOverflow() throws Exception {
-        final var routes = new String[MAX_PIPELINE_EVENTS + between(1, 5)];
+        // need at least 2 requests more than MAX_PIPELINE_EVENTS: an extra one at the start which never returns so that the other responses
+        // pile up in the queue, and an extra one at the end to cause the overflow
+        final var routes = new String[1 // the first request which never returns a response so doesn't consume a spot in the queue
+            + MAX_PIPELINE_EVENTS // the responses which fill up the queue
+            + 1 // to cause the overflow
+            + between(0, 5) // for good measure, to e.g. make sure we don't leak these responses
+        ];
         Arrays.fill(routes, "/_cluster/health");
-        routes[0] = CountDown3Plugin.ROUTE;
+        routes[0] = CountDown3Plugin.ROUTE; // never returns
         runPipeliningTest(0, routes);
     }
 
