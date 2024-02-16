@@ -140,7 +140,14 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
     @Override
     public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) throws IOException {
         final var msgDescription = msg.toString();
-        logger.info("--> write({}); writeSequence={} channelInactiveCalled={}", msgDescription, writeSequence, channelInactiveCalled);
+        logger.info(
+            "--> write({}); writeSequence={} channelInactiveCalled={} maxEventsHeld={} outboundHoldingQueue={}",
+            msgDescription,
+            writeSequence,
+            channelInactiveCalled,
+            maxEventsHeld,
+            outboundHoldingQueue.size()
+        );
         promise.addListener(ignored -> logger.info("--> write({}) complete", msgDescription));
         assert channelInactiveCalled == false : "write after channelInactive?? " + msgDescription;
         assert msg instanceof Netty4HttpResponse : "Invalid message type: " + msg.getClass();
@@ -152,6 +159,7 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
                     : "response sequence [" + restResponse.getSequence() + "] we below write sequence [" + writeSequence + "]";
                 if (outboundHoldingQueue.size() >= maxEventsHeld) {
                     int eventCount = outboundHoldingQueue.size() + 1;
+                    logger.info("Too many pipelined events [" + eventCount + "]. Max events allowed [" + maxEventsHeld + "].");
                     throw new IllegalStateException(
                         "Too many pipelined events [" + eventCount + "]. Max events allowed [" + maxEventsHeld + "]."
                     );
@@ -371,23 +379,6 @@ public class Netty4HttpPipeliningHandler extends ChannelDuplexHandler {
         while ((pipelinedWrite = outboundHoldingQueue.poll()) != null) {
             pipelinedWrite.v2().tryFailure(new ClosedChannelException());
         }
-    }
-
-    @Override
-    public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
-        if (currentChunkedWrite != null) {
-            safeFailPromise(currentChunkedWrite.onDone, new ClosedChannelException());
-            currentChunkedWrite = null;
-        }
-        List<Tuple<? extends Netty4HttpResponse, ChannelPromise>> inflightResponses = removeAllInflightResponses();
-
-        if (inflightResponses.isEmpty() == false) {
-            ClosedChannelException closedChannelException = new ClosedChannelException();
-            for (Tuple<? extends Netty4HttpResponse, ChannelPromise> inflightResponse : inflightResponses) {
-                safeFailPromise(inflightResponse.v2(), closedChannelException);
-            }
-        }
-        ctx.close(promise);
     }
 
     private void safeFailPromise(ChannelPromise promise, Exception ex) {

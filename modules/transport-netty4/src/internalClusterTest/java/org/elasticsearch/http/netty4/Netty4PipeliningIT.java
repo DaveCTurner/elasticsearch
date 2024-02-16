@@ -42,11 +42,11 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.ToXContentObject;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
@@ -56,6 +56,7 @@ import static org.elasticsearch.http.HttpTransportSettings.SETTING_PIPELINING_MA
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
 public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
@@ -65,11 +66,13 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         return CollectionUtils.concatLists(List.of(CountDown3Plugin.class, ChunkAndFailPlugin.class), super.nodePlugins());
     }
 
+    private static final int MAX_PIPELINE_EVENTS = 10;
+
     @Override
     protected Settings nodeSettings(int nodeOrdinal, Settings otherSettings) {
         return Settings.builder()
             .put(super.nodeSettings(nodeOrdinal, otherSettings))
-            .put(SETTING_PIPELINING_MAX_EVENTS.getKey(), 10)
+            .put(SETTING_PIPELINING_MAX_EVENTS.getKey(), MAX_PIPELINE_EVENTS)
             .build();
     }
 
@@ -91,31 +94,31 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
         );
     }
 
-    // @AwaitsFix(bugUrl = "")
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
-    public void testChunkingFailureYieldsNoFurtherResponses() throws Exception {
+    public void testChunkingFailures() throws Exception {
+        runPipeliningTest(0, ChunkAndFailPlugin.randomRequestUri());
+        runPipeliningTest(0, ChunkAndFailPlugin.randomRequestUri(), "/_cluster/state");
         runPipeliningTest(
-            2,
+            -1,
             CountDown3Plugin.ROUTE,
             CountDown3Plugin.ROUTE,
             ChunkAndFailPlugin.randomRequestUri(),
-            "/_cluster/state",
             "/_cluster/health",
-            "/_nodes",
             CountDown3Plugin.ROUTE
         );
     }
 
-    @TestLogging(reason = "nocommit", value = "org.elasticsearch.http.HttpTracer:TRACE")
-    public void testChunkingFailure() throws Exception {
-        runPipeliningTest(0, ChunkAndFailPlugin.randomRequestUri(), "/_cluster/state");
+    public void testPipelineOverflow() throws Exception {
+        final var routes = new String[MAX_PIPELINE_EVENTS + between(1, 5)];
+        Arrays.fill(routes, "/_cluster/health");
+        routes[0] = CountDown3Plugin.ROUTE;
+        runPipeliningTest(0, routes);
     }
 
     private void runPipeliningTest(String... routes) throws InterruptedException {
         runPipeliningTest(routes.length, routes);
     }
 
-    private void runPipeliningTest(int length, String... routes) throws InterruptedException {
+    private void runPipeliningTest(int expectedResponseCount, String... routes) throws InterruptedException {
         try (var client = new Netty4HttpClient()) {
             final var responses = client.get(
                 randomFrom(internalCluster().getInstance(HttpServerTransport.class).boundAddress().boundAddresses()).address(),
@@ -123,7 +126,10 @@ public class Netty4PipeliningIT extends ESNetty4IntegTestCase {
             );
             try {
                 logger.info("response codes: {}", responses.stream().mapToInt(r -> r.status().code()).toArray());
-//                assertThat(responses, hasSize(length));
+                if (expectedResponseCount >= 0) {
+                    assertThat(responses, hasSize(expectedResponseCount));
+                }
+                assertThat(responses.size(), lessThanOrEqualTo(routes.length));
                 assertTrue(responses.stream().allMatch(r -> r.status().code() == 200));
                 assertOpaqueIdsInOrder(Netty4HttpClient.returnOpaqueIds(responses));
             } finally {
