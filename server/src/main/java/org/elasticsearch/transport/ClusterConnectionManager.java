@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -334,7 +335,9 @@ public class ClusterConnectionManager implements ConnectionManager {
             connectingRefCounter.decRef();
             if (waitForPendingConnections) {
                 try {
-                    closeLatch.await();
+                    if (closeLatch.await(10, TimeUnit.SECONDS) == false) {
+                        throw new AssertionError("timed out waiting for close");
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException(e);
