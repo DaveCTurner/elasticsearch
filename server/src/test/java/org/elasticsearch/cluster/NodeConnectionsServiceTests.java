@@ -318,6 +318,9 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
             assertTrue(future5.isDone());
+        } catch (Throwable t) {
+            logger.error("FAILED!", t);
+            throw t;
         } finally {
             nodeConnectionBlocks.clear();
             connectionBarrier.reset();
