@@ -8,7 +8,10 @@
 
 package org.elasticsearch.cluster;
 
+import com.carrotsearch.randomizedtesting.annotations.TimeoutSuite;
+
 import org.apache.logging.log4j.Level;
+import org.apache.lucene.tests.util.TimeUnits;
 import org.elasticsearch.Build;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.Version;
@@ -67,6 +70,7 @@ import static org.elasticsearch.cluster.NodeConnectionsService.CLUSTER_NODE_RECO
 import static org.elasticsearch.common.util.concurrent.ConcurrentCollections.newConcurrentMap;
 import static org.hamcrest.Matchers.equalTo;
 
+@TimeoutSuite(millis = 30 * TimeUnits.SECOND)
 public class NodeConnectionsServiceTests extends ESTestCase {
 
     private ThreadPool threadPool;
