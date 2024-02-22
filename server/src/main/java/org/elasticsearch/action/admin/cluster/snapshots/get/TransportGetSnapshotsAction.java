@@ -33,6 +33,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryMissingException;
+import org.elasticsearch.repositories.ResolvedRepositories;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotId;
@@ -112,7 +113,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
         getMultipleReposSnapshotInfo(
             request.isSingleRepositoryRequest() == false,
             SnapshotsInProgress.get(state),
-            TransportGetRepositoriesAction.getRepositories(state, request.repositories()),
+            ResolvedRepositories.resolve(state, request.repositories()),
             request.snapshots(),
             request.ignoreUnavailable(),
             request.verbose(),
@@ -152,7 +153,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
     private void getMultipleReposSnapshotInfo(
         boolean isMultiRepoRequest,
         SnapshotsInProgress snapshotsInProgress,
-        TransportGetRepositoriesAction.RepositoriesResult repositoriesResult,
+        ResolvedRepositories repositoriesResult,
         String[] snapshots,
         boolean ignoreUnavailable,
         boolean verbose,
