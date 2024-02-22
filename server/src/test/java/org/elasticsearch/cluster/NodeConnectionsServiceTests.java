@@ -10,6 +10,7 @@ package org.elasticsearch.cluster;
 
 import org.apache.logging.log4j.Level;
 import org.elasticsearch.Build;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -19,6 +20,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.cluster.node.DiscoveryNodeUtils;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.component.LifecycleListener;
@@ -59,6 +61,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -243,6 +246,8 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         assertConnectedExactlyToNodes(transportService, targetNodes);
     }
 
+    private static final AtomicLong idGenerator = new AtomicLong();
+
     public void testOnlyBlocksOnConnectionsToNewNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
@@ -266,7 +271,15 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         // connection attempts to node0 block indefinitely
         final CyclicBarrier connectionBarrier = new CyclicBarrier(2);
         try {
-            nodeConnectionBlocks.put(node0, () -> connectionBarrier.await(10, TimeUnit.SECONDS));
+            nodeConnectionBlocks.put(node0, () -> {
+                final var blockId = idGenerator.incrementAndGet();
+                logger.info(
+                    Strings.format("--> [%s] entering node connection block [%d]", Thread.currentThread().getName(), blockId),
+                    new ElasticsearchException("stack trace for block [" + blockId + "]")
+                );
+                connectionBarrier.await(10, TimeUnit.SECONDS);
+                logger.info(Strings.format("--> [%s] leaving node connection block [%d]", Thread.currentThread().getName(), blockId));
+            });
             transportService.disconnectFromNode(node0);
 
             // can still connect to another node without blocking
@@ -287,7 +300,17 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             assertFalse(future3.isDone());
 
             // once the connection is unblocked we successfully connect to it.
-            connectionBarrier.await(10, TimeUnit.SECONDS);
+            {
+                final var blockId = idGenerator.incrementAndGet();
+                logger.info(
+                    Strings.format("--> [%s] releasing first node connection block [%d]", Thread.currentThread().getName(), blockId),
+                    new ElasticsearchException("stack trace for first block release [" + blockId + "]")
+                );
+                connectionBarrier.await(10, TimeUnit.SECONDS);
+                logger.info(
+                    Strings.format("--> [%s] released first node connection block [%d]", Thread.currentThread().getName(), blockId)
+                );
+            }
             future3.actionGet(10, TimeUnit.SECONDS);
             assertConnectedExactlyToNodes(nodes01);
 
@@ -300,7 +323,15 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             service.disconnectFromNodesExcept(nodes1);
             assertThat(PlainActionFuture.get(disconnectFuture1 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture1));
+                final var blockId = idGenerator.incrementAndGet();
+                logger.info(
+                    Strings.format("--> [%s] releasing second node connection block [%d]", Thread.currentThread().getName(), blockId),
+                    new ElasticsearchException("stack trace for second block release [" + blockId + "]")
+                );
                 connectionBarrier.await(10, TimeUnit.SECONDS);
+                logger.info(
+                    Strings.format("--> [%s] released second node connection block [%d]", Thread.currentThread().getName(), blockId)
+                );
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
 
@@ -314,14 +345,24 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
             assertThat(PlainActionFuture.get(disconnectFuture2 -> {
                 assertTrue(disconnectListenerRef.compareAndSet(null, disconnectFuture2));
+                final var blockId = idGenerator.incrementAndGet();
+                logger.info(
+                    Strings.format("--> [%s] releasing third node connection block [%d]", Thread.currentThread().getName(), blockId),
+                    new ElasticsearchException("stack trace for third block release [" + blockId + "]")
+                );
                 connectionBarrier.await(10, TimeUnit.SECONDS);
+                logger.info(
+                    Strings.format("--> [%s] finished third node connection block [%d]", Thread.currentThread().getName(), blockId)
+                );
             }, 10, TimeUnit.SECONDS), equalTo(node0)); // node0 connects briefly, must wait here
             assertConnectedExactlyToNodes(nodes1);
             assertTrue(future5.isDone());
+            logger.info("--> test succeeded");
         } catch (Throwable t) {
             logger.error("FAILED!", t);
             throw t;
         } finally {
+            logger.info("--> test finished, cleaning up");
             nodeConnectionBlocks.clear();
             connectionBarrier.reset();
         }
