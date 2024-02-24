@@ -248,6 +248,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
 
     private static final AtomicLong idGenerator = new AtomicLong();
 
+    @TestLogging(reason = "nocommit", value = "org.elasticsearch.cluster.NodeConnectionsService:TRACE")
     public void testOnlyBlocksOnConnectionsToNewNodes() throws Exception {
         final NodeConnectionsService service = new NodeConnectionsService(Settings.EMPTY, threadPool, transportService);
 
@@ -656,7 +657,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> outerListener) {
             final var connectionId = idGenerator.incrementAndGet();
             logger.info(
-                Strings.format("--> [%s] openConnection[%d]", Thread.currentThread().getName(), connectionId),
+                Strings.format("--> [%s] openConnection[%d] to {}", Thread.currentThread().getName(), connectionId, node),
                 new ElasticsearchException("stack trace for connection [" + connectionId + "]")
             );
             final var listener = ActionListener.runBefore(
