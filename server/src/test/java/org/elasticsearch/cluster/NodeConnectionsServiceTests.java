@@ -653,7 +653,16 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         }
 
         @Override
-        public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
+        public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> outerListener) {
+            final var connectionId = idGenerator.incrementAndGet();
+            logger.info(
+                Strings.format("--> [%s] openConnection[%d]", Thread.currentThread().getName(), connectionId),
+                new ElasticsearchException("stack trace for connection [" + connectionId + "]")
+            );
+            final var listener = ActionListener.runBefore(
+                outerListener,
+                () -> logger.info(Strings.format("--> [%s] openConnection[%d] complete", Thread.currentThread().getName(), connectionId))
+            );
             final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
                 threadPool.generic().execute(() -> {
