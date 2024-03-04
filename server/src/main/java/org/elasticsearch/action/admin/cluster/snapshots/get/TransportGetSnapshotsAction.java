@@ -10,7 +10,6 @@ package org.elasticsearch.action.admin.cluster.snapshots.get;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.cluster.repositories.get.TransportGetRepositoriesAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -32,6 +31,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryMissingException;
+import org.elasticsearch.repositories.ResolvedRepositories;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotId;
@@ -110,7 +110,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         new GetSnapshotsOperation(
             (CancellableTask) task,
-            TransportGetRepositoriesAction.getRepositories(state, request.repositories()),
+            ResolvedRepositories.resolve(state, request.repositories()),
             request.isSingleRepositoryRequest() == false,
             request.snapshots(),
             request.ignoreUnavailable(),
@@ -171,7 +171,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
 
         GetSnapshotsOperation(
             CancellableTask cancellableTask,
-            TransportGetRepositoriesAction.RepositoriesResult repositoriesResult,
+            ResolvedRepositories resolvedRepositories,
             boolean isMultiRepoRequest,
             String[] snapshots,
             boolean ignoreUnavailable,
@@ -187,7 +187,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             boolean indices
         ) {
             this.cancellableTask = cancellableTask;
-            this.repositories = repositoriesResult.metadata();
+            this.repositories = resolvedRepositories.repositoryMetadata();
             this.isMultiRepoRequest = isMultiRepoRequest;
             this.snapshots = snapshots;
             this.ignoreUnavailable = ignoreUnavailable;
@@ -202,7 +202,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             this.verbose = verbose;
             this.indices = indices;
 
-            for (final var missingRepo : repositoriesResult.missing()) {
+            for (final var missingRepo : resolvedRepositories.missing()) {
                 failuresByRepository.put(missingRepo, new RepositoryMissingException(missingRepo));
             }
         }
@@ -325,7 +325,7 @@ public class TransportGetSnapshotsAction extends TransportMasterNodeAction<GetSn
             }
 
             final Set<Snapshot> toResolve = new HashSet<>();
-            if (TransportGetRepositoriesAction.isMatchAll(snapshots)) {
+            if (ResolvedRepositories.isMatchAll(snapshots)) {
                 toResolve.addAll(allSnapshotIds.values());
             } else {
                 final List<String> includePatterns = new ArrayList<>();
