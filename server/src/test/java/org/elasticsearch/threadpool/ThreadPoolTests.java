@@ -13,7 +13,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -23,7 +22,6 @@ import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.TaskExecutionTimeTrackingEsThreadPoolExecutor;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
 
@@ -32,7 +30,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig.DEFAULT;
 import static org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig.DO_NOT_TRACK;
@@ -470,37 +467,23 @@ public class ThreadPoolTests extends ESTestCase {
 
     public void testScheduledFixedDelayRejection() {
         final var name = "fixed-bounded";
-        final var poolSize = between(1, 5);
-        final var queueSize = between(1, 5);
         final var threadPool = new TestThreadPool(
             getTestName(),
-            new FixedExecutorBuilder(Settings.EMPTY, name, poolSize, queueSize, randomFrom(DEFAULT, DO_NOT_TRACK))
+            new FixedExecutorBuilder(Settings.EMPTY, name, between(1, 5), between(1, 5), randomFrom(DEFAULT, DO_NOT_TRACK))
         );
-        logger.info("--> created threadpool with size [{}], queue [{}]", poolSize, queueSize);
 
         final var future = new PlainActionFuture<Void>();
         final var latch = new CountDownLatch(1);
         try {
-            final var scheduledTaskExecutedOnceLatch = new CountDownLatch(1);
-            final var scheduledDelayMillis = between(1, 100);
-            threadPool.scheduleWithFixedDelay(ActionRunnable.wrap(future, ignored -> {
-                logger.info("--> executing scheduled task on thread [{}]", Thread.currentThread().getName());
-                scheduledTaskExecutedOnceLatch.countDown();
-                Thread.yield();
-            }), TimeValue.timeValueMillis(scheduledDelayMillis), threadPool.executor(name));
-            logger.info("--> submitted repeating task with delay [{}ms]", scheduledDelayMillis);
+            blockExecution(threadPool.executor(name), latch);
+            threadPool.scheduleWithFixedDelay(
+                ActionRunnable.wrap(future, ignored -> fail("should not execute")),
+                TimeValue.timeValueMillis(between(1, 100)),
+                threadPool.executor(name)
+            );
 
-            safeAwait(scheduledTaskExecutedOnceLatch);
-
-            while (future.isDone() == false) {
-                // might not block all threads the first time round if the scheduled runnable is running, so must keep trying
-                blockExecution(threadPool.executor(name), latch);
-                safeSleep(between(1, 200));
-            }
-            logger.info("--> future done");
-            expectThrows(EsRejectedExecutionException.class, () -> FutureUtils.get(future));
+            expectThrows(EsRejectedExecutionException.class, () -> FutureUtils.get(future, 10, TimeUnit.SECONDS));
         } finally {
-            HotThreads.logLocalHotThreads(LogManager.getLogger(ThreadPoolTests.class), Level.INFO, "", ReferenceDocs.LOGGING);
             latch.countDown();
             assertTrue(terminate(threadPool));
         }
@@ -563,26 +546,11 @@ public class ThreadPoolTests extends ESTestCase {
         };
     }
 
-    private static final org.elasticsearch.logging.Logger logger = org.elasticsearch.logging.LogManager.getLogger(ThreadPoolTests.class);
-
-    private static final AtomicLong BLOCK_ID_GENERATOR = new AtomicLong();
-
     private static void blockExecution(ExecutorService executor, CountDownLatch latch) {
         while (true) {
-            final var blockId = BLOCK_ID_GENERATOR.incrementAndGet();
-            // logger.info("--> trying block [{}]", blockId);
             try {
-                executor.execute(() -> {
-                    logger.info("--> executing block [{}] on thread [{}]", blockId, Thread.currentThread().getName());
-                    try {
-                        safeAwait(latch);
-                    } finally {
-                        logger.info("--> block [{}] released", blockId);
-                    }
-                });
-                logger.info("--> submitted block [{}]", blockId);
+                executor.execute(() -> safeAwait(latch));
             } catch (EsRejectedExecutionException e) {
-                logger.info("--> rejected block [{}] from [{}]", blockId, executor);
                 break;
             }
         }
