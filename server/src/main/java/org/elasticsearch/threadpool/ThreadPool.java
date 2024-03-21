@@ -746,6 +746,7 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
             try {
                 executor.execute(runnable);
             } catch (EsRejectedExecutionException e) {
+                logger.info("--> failed to dispatch execution of [{}] to [{}]", runnable, executor, e);
                 if (e.isExecutorShutdown()) {
                     logger.debug(
                         () -> format("could not schedule execution of [%s] on [%s] as executor is shut down", runnable, executor),
