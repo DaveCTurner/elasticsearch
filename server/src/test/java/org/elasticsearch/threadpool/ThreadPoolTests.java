@@ -576,7 +576,7 @@ public class ThreadPoolTests extends ESTestCase {
                 });
                 logger.info("--> submitted block [{}]", blockId);
             } catch (EsRejectedExecutionException e) {
-                logger.info("--> rejected block [{}]", blockId);
+                logger.info("--> rejected block [{}] from [{}]", blockId, executor);
                 break;
             }
         }
