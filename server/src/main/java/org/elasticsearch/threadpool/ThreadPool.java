@@ -50,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -573,7 +574,9 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
         } else {
             toSchedule = contextPreservingRunnable;
         }
-        return new ScheduledCancellableAdapter(scheduler.schedule(toSchedule, delay.millis(), TimeUnit.MILLISECONDS));
+        final ScheduledFuture<?> scheduledFuture = scheduler.schedule(toSchedule, delay.millis(), TimeUnit.MILLISECONDS);
+        logger.info("--> scheduled [{}] on scheduler [{}]", toSchedule, scheduler);
+        return new ScheduledCancellableAdapter(scheduledFuture);
     }
 
     public void scheduleUnlessShuttingDown(TimeValue delay, Executor executor, Runnable command) {
@@ -739,6 +742,7 @@ public class ThreadPool implements ReportingService<ThreadPoolInfo>, Scheduler {
 
         @Override
         public void run() {
+            logger.info("--> dispatching execution of [{}] to [{}]", runnable, executor);
             try {
                 executor.execute(runnable);
             } catch (EsRejectedExecutionException e) {

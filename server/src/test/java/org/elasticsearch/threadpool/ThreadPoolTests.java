@@ -574,8 +574,11 @@ public class ThreadPoolTests extends ESTestCase {
             try {
                 executor.execute(() -> {
                     logger.info("--> executing block [{}] on thread [{}]", blockId, Thread.currentThread().getName());
-                    safeAwait(latch);
-                    logger.info("--> block [{}] released", blockId);
+                    try {
+                        safeAwait(latch);
+                    } finally {
+                        logger.info("--> block [{}] released", blockId);
+                    }
                 });
                 logger.info("--> submitted block [{}]", blockId);
             } catch (EsRejectedExecutionException e) {
