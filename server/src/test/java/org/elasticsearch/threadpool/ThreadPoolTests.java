@@ -489,6 +489,7 @@ public class ThreadPoolTests extends ESTestCase {
                 logger.info("--> future not done, blocking execution");
                 // might not block all threads the first time round if the scheduled runnable is running, so must keep trying
                 blockExecution(threadPool.executor(name), latch);
+                Thread.yield();
             }
             logger.info("--> future done");
             expectThrows(EsRejectedExecutionException.class, () -> FutureUtils.get(future));
