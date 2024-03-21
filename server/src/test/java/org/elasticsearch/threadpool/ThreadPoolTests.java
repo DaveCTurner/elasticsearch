@@ -500,6 +500,7 @@ public class ThreadPoolTests extends ESTestCase {
             logger.info("--> future done");
             expectThrows(EsRejectedExecutionException.class, () -> FutureUtils.get(future));
         } finally {
+            HotThreads.logLocalHotThreads(LogManager.getLogger(ThreadPoolTests.class), Level.INFO, "", ReferenceDocs.LOGGING);
             latch.countDown();
             assertTrue(terminate(threadPool));
         }
@@ -528,7 +529,6 @@ public class ThreadPoolTests extends ESTestCase {
             latch.countDown();
             FutureUtils.get(future, 10, TimeUnit.SECONDS); // shouldn't throw
         } finally {
-            HotThreads.logLocalHotThreads(LogManager.getLogger(ThreadPoolTests.class), Level.INFO, "", ReferenceDocs.LOGGING);
             latch.countDown();
             assertTrue(terminate(threadPool));
         }
