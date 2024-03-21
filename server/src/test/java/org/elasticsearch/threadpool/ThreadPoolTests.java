@@ -482,7 +482,7 @@ public class ThreadPoolTests extends ESTestCase {
             final var scheduledTaskExecutedOnceLatch = new CountDownLatch(1);
             final var scheduledDelayMillis = between(1, 100);
             threadPool.scheduleWithFixedDelay(ActionRunnable.wrap(future, ignored -> {
-                logger.info("--> executing scheduled task");
+                logger.info("--> executing scheduled task on thread [{}]", Thread.currentThread().getName());
                 scheduledTaskExecutedOnceLatch.countDown();
                 Thread.yield();
             }), TimeValue.timeValueMillis(scheduledDelayMillis), threadPool.executor(name));
@@ -570,9 +570,9 @@ public class ThreadPoolTests extends ESTestCase {
             // logger.info("--> trying block [{}]", blockId);
             try {
                 executor.execute(() -> {
-                    // logger.info("--> executing block [{}]", blockId);
+                    logger.info("--> executing block [{}] on thread [{}]", blockId, Thread.currentThread().getName());
                     safeAwait(latch);
-                    // logger.info("--> block [{}] released", blockId);
+                    logger.info("--> block [{}] released", blockId);
                 });
                 logger.info("--> submitted block [{}]", blockId);
             } catch (EsRejectedExecutionException e) {
