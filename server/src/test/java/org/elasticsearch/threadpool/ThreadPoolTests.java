@@ -562,7 +562,7 @@ public class ThreadPoolTests extends ESTestCase {
     private static void blockExecution(ExecutorService executor, CountDownLatch latch) {
         while (true) {
             final var blockId = BLOCK_ID_GENERATOR.incrementAndGet();
-            logger.info("--> trying block [{}]", blockId);
+//            logger.info("--> trying block [{}]", blockId);
             try {
                 executor.execute(() -> {
 //                    logger.info("--> executing block [{}]", blockId);
