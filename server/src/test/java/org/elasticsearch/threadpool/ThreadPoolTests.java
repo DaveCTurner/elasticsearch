@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig.DEFAULT;
 import static org.elasticsearch.common.util.concurrent.EsExecutors.TaskTrackingConfig.DO_NOT_TRACK;
@@ -476,15 +477,20 @@ public class ThreadPoolTests extends ESTestCase {
         final var latch = new CountDownLatch(1);
         try {
             threadPool.scheduleWithFixedDelay(
-                ActionRunnable.wrap(future, ignored -> Thread.yield()),
+                ActionRunnable.wrap(future, ignored -> {
+                    logger.info("executing scheduled task");
+                    Thread.yield();
+                }),
                 TimeValue.timeValueMillis(between(1, 100)),
                 threadPool.executor(name)
             );
 
             while (future.isDone() == false) {
+                logger.info("--> future not done, blocking execution");
                 // might not block all threads the first time round if the scheduled runnable is running, so must keep trying
                 blockExecution(threadPool.executor(name), latch);
             }
+            logger.info("--> future done");
             expectThrows(EsRejectedExecutionException.class, () -> FutureUtils.get(future));
         } finally {
             latch.countDown();
@@ -549,11 +555,23 @@ public class ThreadPoolTests extends ESTestCase {
         };
     }
 
+    private static final org.elasticsearch.logging.Logger logger = org.elasticsearch.logging.LogManager.getLogger(ThreadPoolTests.class);
+
+    private static final AtomicLong BLOCK_ID_GENERATOR = new AtomicLong();
+
     private static void blockExecution(ExecutorService executor, CountDownLatch latch) {
         while (true) {
+            final var blockId = BLOCK_ID_GENERATOR.incrementAndGet();
+            logger.info("--> trying block [{}]", blockId);
             try {
-                executor.execute(() -> safeAwait(latch));
+                executor.execute(() -> {
+                    logger.info("--> executing block [{}]", blockId);
+                    safeAwait(latch);
+                    logger.info("--> block [{}] released", blockId);
+                });
+                logger.info("--> submitted block [{}]", blockId);
             } catch (EsRejectedExecutionException e) {
+                logger.info("--> rejected block [{}]", blockId);
                 break;
             }
         }
