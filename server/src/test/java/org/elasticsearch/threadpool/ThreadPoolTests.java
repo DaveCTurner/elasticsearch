@@ -479,12 +479,16 @@ public class ThreadPoolTests extends ESTestCase {
         final var future = new PlainActionFuture<Void>();
         final var latch = new CountDownLatch(1);
         try {
+            final var scheduledTaskExecutedOnceLatch = new CountDownLatch(1);
             final var scheduledDelayMillis = between(1, 100);
             threadPool.scheduleWithFixedDelay(ActionRunnable.wrap(future, ignored -> {
                 logger.info("--> executing scheduled task");
+                scheduledTaskExecutedOnceLatch.countDown();
                 Thread.yield();
             }), TimeValue.timeValueMillis(scheduledDelayMillis), threadPool.executor(name));
             logger.info("--> submitted repeating task with delay [{}ms]", scheduledDelayMillis);
+
+            safeAwait(scheduledTaskExecutedOnceLatch);
 
             while (future.isDone() == false) {
                 // might not block all threads the first time round if the scheduled runnable is running, so must keep trying
