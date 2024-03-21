@@ -468,25 +468,25 @@ public class ThreadPoolTests extends ESTestCase {
 
     public void testScheduledFixedDelayRejection() {
         final var name = "fixed-bounded";
+        final var poolSize = between(1, 5);
+        final var queueSize = between(1, 5);
         final var threadPool = new TestThreadPool(
             getTestName(),
-            new FixedExecutorBuilder(Settings.EMPTY, name, between(1, 5), between(1, 5), randomFrom(DEFAULT, DO_NOT_TRACK))
+            new FixedExecutorBuilder(Settings.EMPTY, name, poolSize, queueSize, randomFrom(DEFAULT, DO_NOT_TRACK))
         );
+        logger.info("--> created threadpool with size [{}], queue [{}]", poolSize, queueSize);
 
         final var future = new PlainActionFuture<Void>();
         final var latch = new CountDownLatch(1);
         try {
-            threadPool.scheduleWithFixedDelay(
-                ActionRunnable.wrap(future, ignored -> {
-                    logger.info("executing scheduled task");
-                    Thread.yield();
-                }),
-                TimeValue.timeValueMillis(between(1, 100)),
-                threadPool.executor(name)
-            );
+            final var scheduledDelayMillis = between(1, 100);
+            threadPool.scheduleWithFixedDelay(ActionRunnable.wrap(future, ignored -> {
+                logger.info("--> executing scheduled task");
+                Thread.yield();
+            }), TimeValue.timeValueMillis(scheduledDelayMillis), threadPool.executor(name));
+            logger.info("--> submitted repeating task with delay [{}ms]", scheduledDelayMillis);
 
             while (future.isDone() == false) {
-                logger.info("--> future not done, blocking execution");
                 // might not block all threads the first time round if the scheduled runnable is running, so must keep trying
                 blockExecution(threadPool.executor(name), latch);
                 Thread.yield();
@@ -563,12 +563,12 @@ public class ThreadPoolTests extends ESTestCase {
     private static void blockExecution(ExecutorService executor, CountDownLatch latch) {
         while (true) {
             final var blockId = BLOCK_ID_GENERATOR.incrementAndGet();
-//            logger.info("--> trying block [{}]", blockId);
+            // logger.info("--> trying block [{}]", blockId);
             try {
                 executor.execute(() -> {
-//                    logger.info("--> executing block [{}]", blockId);
+                    // logger.info("--> executing block [{}]", blockId);
                     safeAwait(latch);
-//                    logger.info("--> block [{}] released", blockId);
+                    // logger.info("--> block [{}] released", blockId);
                 });
                 logger.info("--> submitted block [{}]", blockId);
             } catch (EsRejectedExecutionException e) {
