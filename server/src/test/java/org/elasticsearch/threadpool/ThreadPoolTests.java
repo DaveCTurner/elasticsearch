@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -22,6 +23,7 @@ import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.TaskExecutionTimeTrackingEsThreadPoolExecutor;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.monitor.jvm.HotThreads;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
 
@@ -526,6 +528,7 @@ public class ThreadPoolTests extends ESTestCase {
             latch.countDown();
             FutureUtils.get(future, 10, TimeUnit.SECONDS); // shouldn't throw
         } finally {
+            HotThreads.logLocalHotThreads(LogManager.getLogger(ThreadPoolTests.class), Level.INFO, "", ReferenceDocs.LOGGING);
             latch.countDown();
             assertTrue(terminate(threadPool));
         }
