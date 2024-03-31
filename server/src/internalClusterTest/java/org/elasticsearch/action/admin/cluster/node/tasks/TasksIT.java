@@ -546,7 +546,7 @@ public class TasksIT extends ESIntegTestCase {
                 var executor = threadPool.executor(ThreadPool.Names.MANAGEMENT);
                 var waitForManagementToCompleteAllTasks = new CyclicBarrier(max + 1);
                 for (int i = 0; i < max; i++) {
-                    executor.submit(() -> safeAwait(waitForManagementToCompleteAllTasks));
+                    executor.execute(() -> safeAwait(waitForManagementToCompleteAllTasks));
                 }
                 safeAwait(waitForManagementToCompleteAllTasks);
             }

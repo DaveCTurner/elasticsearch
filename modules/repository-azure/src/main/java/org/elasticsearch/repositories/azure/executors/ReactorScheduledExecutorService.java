@@ -41,7 +41,7 @@ public class ReactorScheduledExecutorService extends AbstractExecutorService imp
 
     public ReactorScheduledExecutorService(ThreadPool threadPool, String executorName) {
         this.threadPool = threadPool;
-        this.delegate = threadPool.executor(executorName);
+        this.delegate = (ExecutorService) threadPool.executor(executorName);
     }
 
     @Override

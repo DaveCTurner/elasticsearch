@@ -47,7 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -114,7 +114,7 @@ public final class DocumentSubsetBitsetCache implements IndexReader.ClosedListen
      */
     private final ReleasableLock cacheEvictionLock;
     private final ReleasableLock cacheModificationLock;
-    private final ExecutorService cleanupExecutor;
+    private final Executor cleanupExecutor;
 
     private final long maxWeightBytes;
     private final Cache<BitsetCacheKey, BitSet> bitsetCache;
@@ -130,7 +130,7 @@ public final class DocumentSubsetBitsetCache implements IndexReader.ClosedListen
      * @param cleanupExecutor An executor on which the cache cleanup tasks can be run. Due to the way the cache is structured internally,
      *                        it is sometimes necessary to run an asynchronous task to synchronize the internal state.
      */
-    protected DocumentSubsetBitsetCache(Settings settings, ExecutorService cleanupExecutor) {
+    protected DocumentSubsetBitsetCache(Settings settings, Executor cleanupExecutor) {
         final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.cacheEvictionLock = new ReleasableLock(readWriteLock.writeLock());
         this.cacheModificationLock = new ReleasableLock(readWriteLock.readLock());
@@ -173,7 +173,7 @@ public final class DocumentSubsetBitsetCache implements IndexReader.ClosedListen
         // simpler - this callback is likely to take place on a thread that is actively adding something to the cache, and is therefore
         // holding the read ("update") side of the lock. It is not possible to upgrade a read lock to a write ("eviction") lock, but we
         // need to acquire that lock here.
-        cleanupExecutor.submit(() -> {
+        cleanupExecutor.execute(() -> {
             try (ReleasableLock ignored = cacheEvictionLock.acquire()) {
                 // it's possible for the key to be back in the cache if it was immediately repopulated after it was evicted, so check
                 if (bitsetCache.get(bitsetKey) == null) {

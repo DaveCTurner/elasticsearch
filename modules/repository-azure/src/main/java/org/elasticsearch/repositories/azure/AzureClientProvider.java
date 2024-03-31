@@ -48,7 +48,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.time.Duration;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
@@ -119,7 +119,7 @@ class AzureClientProvider extends AbstractLifecycleComponent {
     }
 
     static AzureClientProvider create(ThreadPool threadPool, Settings settings) {
-        final ExecutorService eventLoopExecutor = threadPool.executor(NETTY_EVENT_LOOP_THREAD_POOL_NAME);
+        final Executor eventLoopExecutor = threadPool.executor(NETTY_EVENT_LOOP_THREAD_POOL_NAME);
         // Most of the code that needs special permissions (i.e. jackson serializers generation) is executed
         // in the event loop executor. That's the reason why we should provide an executor that allows the
         // execution of privileged code

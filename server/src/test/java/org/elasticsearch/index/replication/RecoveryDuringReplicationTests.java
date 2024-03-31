@@ -428,7 +428,7 @@ public class RecoveryDuringReplicationTests extends ESIndexLevelReplicationTestC
             CountDownLatch pendingDocsDone = new CountDownLatch(pendingDocs);
             for (int i = 0; i < pendingDocs; i++) {
                 final String id = "pending_" + i;
-                threadPool.generic().submit(() -> {
+                threadPool.generic().execute(() -> {
                     try {
                         shards.index(new IndexRequest(index.getName()).id(id).source("{}", XContentType.JSON));
                     } catch (Exception e) {
@@ -519,7 +519,7 @@ public class RecoveryDuringReplicationTests extends ESIndexLevelReplicationTestC
                     ) {
                         // index a doc which is not part of the snapshot, but also does not complete on replica
                         replicaEngineFactory.latchIndexers(1);
-                        threadPool.generic().submit(() -> {
+                        threadPool.generic().execute(() -> {
                             try {
                                 shards.index(new IndexRequest(index.getName()).id("pending").source("{}", XContentType.JSON));
                             } catch (final Exception e) {

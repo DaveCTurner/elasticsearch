@@ -26,7 +26,7 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.MockLogAppender;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -227,12 +227,14 @@ public class ThreadPoolTests extends ESTestCase {
         }
     }
 
-    int factorialForked(int n, ExecutorService executor) {
+    int factorialForked(int n, Executor executor) {
         assertCurrentMethodIsNotCalledRecursively();
         if (n <= 1) {
             return 1;
         }
-        return n * FutureUtils.get(executor.submit(() -> factorialForked(n - 1, executor)));
+        return n * PlainActionFuture.<Integer, RuntimeException>get(
+            future -> executor.execute(ActionRunnable.supply(future, () -> factorialForked(n - 1, executor)))
+        );
     }
 
     public void testAssertCurrentMethodIsNotCalledRecursively() {
@@ -401,7 +403,7 @@ public class ThreadPoolTests extends ESTestCase {
             Settings.builder().put(EsExecutors.NODE_PROCESSORS_SETTING.getKey(), allocatedProcessors).build()
         );
         try {
-            ExecutorService executor = threadPool.executor(ThreadPool.Names.SEARCH_WORKER);
+            Executor executor = threadPool.executor(ThreadPool.Names.SEARCH_WORKER);
             assertThat(executor, instanceOf(ThreadPoolExecutor.class));
             ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) executor;
             int expectedPoolSize = allocatedProcessors * 3 / 2 + 1;
@@ -546,7 +548,7 @@ public class ThreadPoolTests extends ESTestCase {
         };
     }
 
-    private static void blockExecution(ExecutorService executor, CountDownLatch latch) {
+    private static void blockExecution(Executor executor, CountDownLatch latch) {
         while (true) {
             try {
                 executor.execute(() -> safeAwait(latch));

@@ -249,6 +249,6 @@ public class CancellableRateLimitedFluxIteratorTests extends ESTestCase {
     }
 
     public void runOnNewThread(Runnable runnable) {
-        threadPool.executor(ThreadPool.Names.GENERIC).submit(runnable);
+        threadPool.executor(ThreadPool.Names.GENERIC).execute(runnable);
     }
 }

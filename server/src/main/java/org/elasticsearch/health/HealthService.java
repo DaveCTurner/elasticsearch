@@ -118,7 +118,7 @@ public class HealthService {
                     );
 
                     try {
-                        threadPool.executor(ThreadPool.Names.MANAGEMENT).submit(calculateFilteredIndicatorsRunnable);
+                        threadPool.executor(ThreadPool.Names.MANAGEMENT).execute(calculateFilteredIndicatorsRunnable);
                     } catch (EsRejectedExecutionException e) {
                         calculateFilteredIndicatorsRunnable.onRejection(e);
                     }
@@ -135,7 +135,7 @@ public class HealthService {
                         listener
                     );
                     try {
-                        threadPool.executor(ThreadPool.Names.MANAGEMENT).submit(calculateFilteredIndicatorsRunnable);
+                        threadPool.executor(ThreadPool.Names.MANAGEMENT).execute(calculateFilteredIndicatorsRunnable);
                     } catch (EsRejectedExecutionException esRejectedExecutionException) {
                         calculateFilteredIndicatorsRunnable.onRejection(esRejectedExecutionException);
                     }

@@ -36,7 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -271,7 +270,7 @@ public class TransportServiceLifecycleTests extends ESTestCase {
                 )
             ) {
                 @Override
-                public ExecutorService executor(String name) {
+                public Executor executor(String name) {
                     // yielding here is enough to expose the race that #85131 fixes with reasonable probability
                     Thread.yield();
                     return super.executor(name);

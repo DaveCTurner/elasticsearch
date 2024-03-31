@@ -19,6 +19,8 @@ import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 
+import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.netty4.internal.HttpValidator;
@@ -29,7 +31,7 @@ import org.elasticsearch.transport.Transports;
 import org.junit.After;
 
 import java.net.SocketAddress;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -145,28 +147,26 @@ public class Netty4HttpHeaderThreadContextTests extends ESTestCase {
         sendRequestThrough(isValidationSuccessful.get(), validationDone);
     }
 
-    private HttpValidator getValidator(ExecutorService executorService, AtomicBoolean success, Semaphore validationDone) {
-        return (httpRequest, channel, listener) -> {
-            executorService.submit(() -> {
-                if (randomBoolean()) {
-                    threadPool.getThreadContext().putHeader(randomAlphaOfLength(16), "tampered thread context");
-                } else {
-                    threadPool.getThreadContext().putTransient(randomAlphaOfLength(16), "tampered thread context");
-                }
-                if (success.get()) {
-                    listener.onResponse(null);
-                } else {
-                    listener.onFailure(new Exception("Validation failure"));
-                }
-                if (validationDone != null) {
-                    validationDone.release();
-                }
-            });
-        };
+    private HttpValidator getValidator(Executor executor, AtomicBoolean success, Semaphore validationDone) {
+        return (httpRequest, channel, listener) -> executor.execute(() -> {
+            if (randomBoolean()) {
+                threadPool.getThreadContext().putHeader(randomAlphaOfLength(16), "tampered thread context");
+            } else {
+                threadPool.getThreadContext().putTransient(randomAlphaOfLength(16), "tampered thread context");
+            }
+            if (success.get()) {
+                listener.onResponse(null);
+            } else {
+                listener.onFailure(new Exception("Validation failure"));
+            }
+            if (validationDone != null) {
+                validationDone.release();
+            }
+        });
     };
 
-    private void sendRequestThrough(boolean success, Semaphore validationDone) throws Exception {
-        threadPool.generic().submit(() -> {
+    private void sendRequestThrough(boolean success, Semaphore validationDone) {
+        PlainActionFuture.get(future -> threadPool.generic().execute(ActionRunnable.run(future, () -> {
             DefaultHttpRequest request1 = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/uri");
             channel.writeInbound(request1);
             DefaultHttpContent content1 = randomBoolean() ? new DefaultHttpContent(Unpooled.buffer(4)) : null;
@@ -191,7 +191,7 @@ public class Netty4HttpHeaderThreadContextTests extends ESTestCase {
                 assertThat(channel.readInbound(), sameInstance(lastContent1));
             }
             assertThat(channel.readInbound(), nullValue());
-        }).get(20, TimeUnit.SECONDS);
+        })), 20, TimeUnit.SECONDS);
     }
 
     private static ChannelDuplexHandler defaultContextAssertingChannelHandler(ThreadContext threadContext) {

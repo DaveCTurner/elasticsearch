@@ -37,7 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -284,8 +284,8 @@ public abstract class RemoteConnectionStrategy implements TransportConnectionLis
             return;
         }
         if (runConnect) {
-            ExecutorService executor = transportService.getThreadPool().executor(ThreadPool.Names.MANAGEMENT);
-            executor.submit(new AbstractRunnable() {
+            Executor executor = transportService.getThreadPool().executor(ThreadPool.Names.MANAGEMENT);
+            executor.execute(new AbstractRunnable() {
                 @Override
                 public void onFailure(Exception e) {
                     ActionListener.onFailure(getAndClearListeners(), e);

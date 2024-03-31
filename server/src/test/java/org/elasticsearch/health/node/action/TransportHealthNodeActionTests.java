@@ -349,7 +349,7 @@ public class TransportHealthNodeActionTests extends ESTestCase {
         CountDownLatch countDownLatch = new CountDownLatch(1);
 
         threadPool.executor(ThreadPool.Names.MANAGEMENT)
-            .submit(
+            .execute(
                 () -> ActionTestUtils.execute(
                     new WaitForSignalAction("internal:testAction", transportService, clusterService, threadPool, countDownLatch),
                     task,

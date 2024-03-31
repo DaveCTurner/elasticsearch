@@ -61,6 +61,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -1344,7 +1345,8 @@ public class TransportService extends AbstractLifecycleComponent
 
         // Callback that an exception happened, but on a different thread since we don't want handlers to worry about stack overflows.
         final var executor = threadPool.generic();
-        assert executor.isShutdown() == false : "connections should all be closed before threadpool shuts down";
+        assert executor instanceof ExecutorService executorService && executorService.isShutdown() == false
+            : "connections should all be closed before threadpool shuts down";
         executor.execute(new AbstractRunnable() {
             @Override
             public void doRun() {

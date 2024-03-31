@@ -15,7 +15,7 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +35,7 @@ public class TestThreadPool extends ThreadPool implements Releasable {
     }
 
     @Override
-    public ExecutorService executor(String name) {
+    public Executor executor(String name) {
         if (returnRejectingExecutor) {
             return rejectingExecutor;
         } else {

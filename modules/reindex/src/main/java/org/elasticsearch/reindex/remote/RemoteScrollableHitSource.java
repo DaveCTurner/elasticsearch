@@ -142,7 +142,7 @@ public class RemoteScrollableHitSource extends ScrollableHitSource {
         /* This is called on the RestClient's thread pool and attempting to close the client on its
          * own threadpool causes it to fail to close. So we always shutdown the RestClient
          * asynchronously on a thread in Elasticsearch's generic thread pool. */
-        threadPool.generic().submit(() -> {
+        threadPool.generic().execute(() -> {
             try {
                 client.close();
                 logger.debug("Shut down remote connection");

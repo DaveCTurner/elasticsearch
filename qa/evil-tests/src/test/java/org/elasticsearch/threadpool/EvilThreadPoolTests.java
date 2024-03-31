@@ -22,7 +22,6 @@ import org.junit.Before;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -283,7 +282,7 @@ public class EvilThreadPoolTests extends ESTestCase {
         });
     }
 
-    Consumer<Runnable> getExecuteRunner(ExecutorService executor) {
+    Consumer<Runnable> getExecuteRunner(Executor executor) {
         return new Consumer<Runnable>() {
             @Override
             public void accept(Runnable runnable) {
@@ -297,11 +296,11 @@ public class EvilThreadPoolTests extends ESTestCase {
         };
     }
 
-    Consumer<Runnable> getSubmitRunner(ExecutorService executor) {
+    Consumer<Runnable> getSubmitRunner(Executor executor) {
         return new Consumer<Runnable>() {
             @Override
             public void accept(Runnable runnable) {
-                executor.submit(runnable);
+                executor.execute(runnable);
             }
 
             @Override

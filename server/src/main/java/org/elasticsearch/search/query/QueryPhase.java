@@ -45,7 +45,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import static org.elasticsearch.search.internal.SearchContext.TRACK_TOTAL_HITS_DISABLED;
 
@@ -217,7 +217,7 @@ public class QueryPhase {
             if (searchContext.terminateAfter() != SearchContext.DEFAULT_TERMINATE_AFTER) {
                 queryResult.terminatedEarly(queryPhaseResult.terminatedAfter());
             }
-            ExecutorService executor = searchContext.indexShard().getThreadPool().executor(ThreadPool.Names.SEARCH);
+            Executor executor = searchContext.indexShard().getThreadPool().executor(ThreadPool.Names.SEARCH);
             assert executor instanceof TaskExecutionTimeTrackingEsThreadPoolExecutor
                 || (executor instanceof EsThreadPoolExecutor == false /* in case thread pool is mocked out in tests */)
                 : "SEARCH threadpool should have an executor that exposes EWMA metrics, but is of type " + executor.getClass();

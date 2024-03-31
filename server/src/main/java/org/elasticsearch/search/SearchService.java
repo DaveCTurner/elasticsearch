@@ -138,7 +138,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1090,7 +1089,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                 reader.indexShard().shardId(),
                 request.getClusterAlias()
             );
-            ExecutorService executor = this.enableSearchWorkerThreads ? threadPool.executor(Names.SEARCH_WORKER) : null;
+            Executor executor = this.enableSearchWorkerThreads ? threadPool.executor(Names.SEARCH_WORKER) : null;
             searchContext = new DefaultSearchContext(
                 reader,
                 request,

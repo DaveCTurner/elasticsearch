@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -24,8 +25,8 @@ public class StoppableExecutorServiceWrapper implements ExecutorService {
 
     private final ExecutorService delegate;
 
-    public StoppableExecutorServiceWrapper(ExecutorService delegate) {
-        this.delegate = delegate;
+    public StoppableExecutorServiceWrapper(Executor delegate) {
+        this.delegate = (ExecutorService) delegate;
     }
 
     @Override

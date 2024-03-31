@@ -67,6 +67,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -661,7 +662,8 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     @Override
     protected final void doStop() {
         assert Transports.assertNotTransportThread("Must not block transport thread that might be needed for closing channels below");
-        assert threadPool.generic().isShutdown() == false : "Must stop transport before terminating underlying threadpool";
+        assert threadPool.generic() instanceof ExecutorService executorService && executorService.isShutdown() == false
+            : "Must stop transport before terminating underlying threadpool";
         closeLock.writeLock().lock();
         try {
             keepAlive.close();

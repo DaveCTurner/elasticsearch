@@ -543,7 +543,7 @@ final class BulkOperation extends ActionRunnable<BulkResponse> {
             }
 
             private void dispatchRetry() {
-                threadPool.executor(executorName).submit(operation);
+                threadPool.executor(executorName).execute(operation);
             }
         });
     }

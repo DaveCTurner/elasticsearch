@@ -797,7 +797,7 @@ public class RequestDispatcherTests extends ESAllocationTestCase {
 
         @SuppressWarnings("unchecked")
         <T extends TransportResponse> void sendResponse(TransportResponseHandler<T> handler, TransportResponse resp) {
-            threadPool.executor(ThreadPool.Names.SEARCH_COORDINATION).submit(new AbstractRunnable() {
+            threadPool.executor(ThreadPool.Names.SEARCH_COORDINATION).execute(new AbstractRunnable() {
                 @Override
                 public void onFailure(Exception e) {
                     throw new AssertionError(e);

@@ -76,7 +76,7 @@ public class RestCancellableNodeClientTests extends ESTestCase {
             for (int j = 0; j < numTasks; j++) {
                 PlainActionFuture<SearchResponse> actionFuture = new PlainActionFuture<>();
                 RestCancellableNodeClient client = new RestCancellableNodeClient(testClient, channel);
-                threadPool.generic().submit(() -> client.execute(TransportSearchAction.TYPE, new SearchRequest(), actionFuture));
+                threadPool.generic().execute(() -> client.execute(TransportSearchAction.TYPE, new SearchRequest(), actionFuture));
                 futures.add(actionFuture);
             }
         }
@@ -185,7 +185,7 @@ public class RestCancellableNodeClientTests extends ESTestCase {
                             // make sure that search is sometimes also called from the same thread before the task is returned
                             listener.onResponse(null);
                         } else {
-                            threadPool().generic().submit(() -> listener.onResponse(null));
+                            threadPool().generic().execute(() -> listener.onResponse(null));
                         }
                     }
                     return searchTask;
@@ -228,7 +228,7 @@ public class RestCancellableNodeClientTests extends ESTestCase {
             ActionListener<Void> listener = closeListener.get();
             if (listener != null) {
                 boolean failure = randomBoolean();
-                threadPool.generic().submit(() -> {
+                threadPool.generic().execute(() -> {
                     if (failure) {
                         listener.onFailure(new IllegalStateException());
                     } else {
