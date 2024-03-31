@@ -43,7 +43,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -516,8 +516,8 @@ public class SharedBlobCacheServiceTests extends ESTestCase {
         AtomicInteger bulkTaskCount = new AtomicInteger(0);
         ThreadPool threadPool = new TestThreadPool("test") {
             @Override
-            public ExecutorService executor(String name) {
-                ExecutorService generic = super.executor(Names.GENERIC);
+            public Executor executor(String name) {
+                Executor generic = super.executor(Names.GENERIC);
                 if (Objects.equals(name, "bulk")) {
                     return new StoppableExecutorServiceWrapper(generic) {
                         @Override
@@ -583,8 +583,8 @@ public class SharedBlobCacheServiceTests extends ESTestCase {
 
         ThreadPool threadPool = new TestThreadPool("test") {
             @Override
-            public ExecutorService executor(String name) {
-                ExecutorService generic = super.executor(Names.GENERIC);
+            public Executor executor(String name) {
+                Executor generic = super.executor(Names.GENERIC);
                 if (Objects.equals(name, "bulk")) {
                     return new StoppableExecutorServiceWrapper(generic);
                 }
@@ -930,8 +930,8 @@ public class SharedBlobCacheServiceTests extends ESTestCase {
         AtomicInteger bulkTaskCount = new AtomicInteger(0);
         ThreadPool threadPool = new TestThreadPool("test") {
             @Override
-            public ExecutorService executor(String name) {
-                ExecutorService generic = super.executor(Names.GENERIC);
+            public Executor executor(String name) {
+                Executor generic = super.executor(Names.GENERIC);
                 if (Objects.equals(name, "bulk")) {
                     return new StoppableExecutorServiceWrapper(generic) {
                         @Override

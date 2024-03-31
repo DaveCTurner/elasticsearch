@@ -74,7 +74,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -107,7 +107,7 @@ public class ExecutionService {
     private final ClusterService clusterService;
     private final Client client;
     private final WatchExecutor executor;
-    private final ExecutorService genericExecutor;
+    private final Executor genericExecutor;
 
     private AtomicReference<CurrentExecutions> currentExecutions = new AtomicReference<>();
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -121,7 +121,7 @@ public class ExecutionService {
         WatchParser parser,
         ClusterService clusterService,
         Client client,
-        ExecutorService genericExecutor
+        Executor genericExecutor
     ) {
         this.historyStore = historyStore;
         this.triggeredWatchStore = triggeredWatchStore;
