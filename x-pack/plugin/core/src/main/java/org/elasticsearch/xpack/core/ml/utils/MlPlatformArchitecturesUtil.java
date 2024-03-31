@@ -31,11 +31,7 @@ import static org.elasticsearch.xpack.core.ClientHelper.executeAsyncWithOrigin;
 
 public class MlPlatformArchitecturesUtil {
 
-    public static void getMlNodesArchitecturesSet(
-        ActionListener<Set<String>> architecturesListener,
-        Client client,
-        ExecutorService executor
-    ) {
+    public static void getMlNodesArchitecturesSet(ActionListener<Set<String>> architecturesListener, Client client, Executor executor) {
         ActionListener<NodesInfoResponse> listener = MlPlatformArchitecturesUtil.getArchitecturesSetFromNodesInfoResponseListener(
             executor,
             architecturesListener

@@ -139,7 +139,7 @@ public class TransportProfileHasPrivilegesActionTests extends ESTestCase {
             ActionListener<AuthorizationEngine.PrivilegesCheckResult> listener = (ActionListener<
                 AuthorizationEngine.PrivilegesCheckResult>) invocation.getArguments()[3];
             // run this asynchronously to test concurrency
-            threadPool.generic().submit(() -> {
+            threadPool.generic().execute(() -> {
                 if (errorProfileUids.contains(subject.getUser().principal().substring("user_for_profile_".length()))) {
                     listener.onFailure(new ElasticsearchException("failed to verify privileges for " + subject));
                 } else if (noPrivilegesProfileUids.contains(subject.getUser().principal().substring("user_for_profile_".length()))) {

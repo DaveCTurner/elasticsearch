@@ -26,6 +26,7 @@ import java.util.Queue;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -105,7 +106,7 @@ public class CapacityResponseCacheTests extends AutoscalingTestCase {
         Consumer<Runnable> maybeSpawn = (runnable) -> {
             // by randomly not spawning, we check that it is non-blocking.
             if (randomBoolean()) {
-                spawned.add(threadPool.generic().submit(runnable));
+                spawned.add(((ExecutorService) threadPool.generic()).submit(runnable));
             } else {
                 runnable.run();
             }
