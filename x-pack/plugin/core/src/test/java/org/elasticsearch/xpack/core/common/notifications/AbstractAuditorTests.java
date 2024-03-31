@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.Matchers.allOf;
@@ -211,8 +212,9 @@ public class AbstractAuditorTests extends ESTestCase {
             }
         };
 
-        Future<?> future1 = threadPool.generic().submit(messageWrites);
-        Future<?> future2 = threadPool.generic().submit(messageWrites);
+        final var executorService = (ExecutorService) threadPool.generic();
+        Future<?> future1 = executorService.submit(messageWrites);
+        Future<?> future2 = executorService.submit(messageWrites);
         future1.get();
         future2.get();
 
@@ -259,7 +261,7 @@ public class AbstractAuditorTests extends ESTestCase {
                 listener.onResponse(AcknowledgedResponse.TRUE);
             };
 
-            threadPool.generic().submit(onPutTemplate);
+            threadPool.generic().execute(onPutTemplate);
 
             return null;
         }).when(client).execute(eq(TransportPutComposableIndexTemplateAction.TYPE), any(), any());

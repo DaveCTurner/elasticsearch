@@ -96,7 +96,7 @@ public final class InactiveApiKeysRemover extends AbstractRunnable {
     void maybeSubmit(ThreadPool threadPool) {
         if (threadPool.relativeTimeInMillis() - lastRunMs > deleteIntervalInMs.get()) {
             if (inProgress.compareAndSet(false, true)) {
-                threadPool.executor(Names.GENERIC).submit(this);
+                threadPool.executor(Names.GENERIC).execute(this);
             }
             lastRunMs = client.threadPool().relativeTimeInMillis();
         }

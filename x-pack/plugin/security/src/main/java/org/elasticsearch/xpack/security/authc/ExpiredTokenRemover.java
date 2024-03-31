@@ -110,7 +110,7 @@ final class ExpiredTokenRemover extends AbstractRunnable {
 
     void submit(ThreadPool threadPool) {
         if (inProgress.compareAndSet(false, true)) {
-            threadPool.executor(Names.GENERIC).submit(this);
+            threadPool.executor(Names.GENERIC).execute(this);
         }
     }
 

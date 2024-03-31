@@ -2116,7 +2116,7 @@ public class TokenService {
              * request(s) that require a key computation will be delayed and there will be
              * some additional latency.
              */
-            client.threadPool().executor(THREAD_POOL_NAME).submit(new KeyComputingRunnable(decodedSalt, keyAndCache, listener));
+            client.threadPool().executor(THREAD_POOL_NAME).execute(new KeyComputingRunnable(decodedSalt, keyAndCache, listener));
         }
     }
 
