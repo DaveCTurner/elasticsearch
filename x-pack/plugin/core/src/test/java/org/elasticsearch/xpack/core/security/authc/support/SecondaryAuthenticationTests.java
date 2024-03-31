@@ -21,6 +21,7 @@ import org.elasticsearch.xpack.core.security.user.User;
 import org.junit.After;
 import org.junit.Before;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -121,7 +122,7 @@ public class SecondaryAuthenticationTests extends ESTestCase {
 
             assertThat(securityContext.getUser().principal(), equalTo("u1"));
             final Semaphore semaphore = new Semaphore(0);
-            final Future<?> future = threadPool.generic().submit(secondaryAuth.wrap(() -> {
+            final Future<?> future = ((ExecutorService) threadPool.generic()).submit(secondaryAuth.wrap(() -> {
                 try {
                     assertThat(securityContext.getUser().principal(), equalTo("u2"));
                     semaphore.acquire();

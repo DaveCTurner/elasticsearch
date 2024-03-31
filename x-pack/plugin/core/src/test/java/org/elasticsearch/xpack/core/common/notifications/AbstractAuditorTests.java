@@ -91,7 +91,6 @@ public class AbstractAuditorTests extends ESTestCase {
 
     @After
     public void shutdownThreadPool() {
-        threadPool.generic().shutdownNow();
         terminate(threadPool);
     }
 
