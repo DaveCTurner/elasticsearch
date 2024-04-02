@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,7 +54,7 @@ public class ChunkedTrainedModelRestorerIT extends MlSingleNodeTestCase {
         ChunkedTrainedModelRestorer restorer = new ChunkedTrainedModelRestorer(
             modelId,
             client(),
-            client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             xContentRegistry()
         );
         restorer.setSearchSize(5);
@@ -89,7 +90,7 @@ public class ChunkedTrainedModelRestorerIT extends MlSingleNodeTestCase {
         ChunkedTrainedModelRestorer restorer = new ChunkedTrainedModelRestorer(
             modelId,
             client(),
-            client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             xContentRegistry()
         );
         restorer.setSearchSize(5);
@@ -152,7 +153,7 @@ public class ChunkedTrainedModelRestorerIT extends MlSingleNodeTestCase {
         ChunkedTrainedModelRestorer restorer = new ChunkedTrainedModelRestorer(
             modelId,
             client(),
-            client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             xContentRegistry()
         );
         restorer.setSearchSize(10);

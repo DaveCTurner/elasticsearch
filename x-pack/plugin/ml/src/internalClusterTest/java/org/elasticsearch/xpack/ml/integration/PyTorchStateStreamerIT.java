@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PyTorchStateStreamerIT extends MlSingleNodeTestCase {
@@ -51,7 +52,7 @@ public class PyTorchStateStreamerIT extends MlSingleNodeTestCase {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(modelSize);
         PyTorchStateStreamer stateStreamer = new PyTorchStateStreamer(
             client(),
-            client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client().threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             xContentRegistry()
         );
 
