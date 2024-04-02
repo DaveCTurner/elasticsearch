@@ -23,11 +23,15 @@ import io.netty.util.AsciiString;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchWrapperException;
+import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.ssl.SslClientAuthenticationMode;
+import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.CheckedRunnable;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.TestEnvironment;
 import org.elasticsearch.http.AbstractHttpServerTransportTestCase;
@@ -60,6 +64,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -335,7 +341,7 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 }
             }
             // STEP 0: send a "wrapped" request
-            var writeFuture = testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 ch.writeInbound(
                     HttpHeadersAuthenticatorUtils.wrapAsMessageWithAuthenticationContext(
                         new DefaultHttpRequest(HTTP_1_1, HttpMethod.GET, "/wrapped_request")
@@ -344,7 +350,6 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ch.writeInbound(new DefaultLastHttpContent());
                 ch.flushInbound();
             });
-            writeFuture.get();
             // STEP 3: assert the wrapped context
             var storedAuthnContext = HttpHeadersAuthenticatorUtils.extractAuthenticationContext(dispatchedHttpRequestReference.get());
             assertThat(storedAuthnContext, notNullValue());
@@ -392,11 +397,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
             }
             // this tests a request that cannot be authenticated, but somehow passed authentication
             // this is the case of an erroneous internal state
-            var writeFuture = testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 ch.writeInbound(new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/unauthenticable_request"));
                 ch.flushInbound();
             });
-            writeFuture.get();
             ch.flushOutbound();
             Netty4FullHttpResponse response = ch.readOutbound();
             assertThat(response.status(), is(HttpResponseStatus.INTERNAL_SERVER_ERROR));
@@ -406,7 +410,7 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 containsString("\"type\":\"security_exception\",\"reason\":\"Request is not authenticated\"")
             );
             // this tests a request that CAN be authenticated, but that, somehow, has not been
-            writeFuture = testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 ch.writeInbound(
                     HttpHeadersAuthenticatorUtils.wrapAsMessageWithAuthenticationContext(
                         new DefaultHttpRequest(HTTP_1_1, HttpMethod.GET, "/_request")
@@ -415,7 +419,6 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ch.writeInbound(new DefaultLastHttpContent());
                 ch.flushInbound();
             });
-            writeFuture.get();
             ch.flushOutbound();
             response = ch.readOutbound();
             assertThat(response.status(), is(HttpResponseStatus.INTERNAL_SERVER_ERROR));
@@ -426,7 +429,7 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
             );
             // this tests the case where authentication passed and the request is to be dispatched, BUT that the authentication context
             // cannot be instated before dispatching the request
-            writeFuture = testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 HttpMessage authenticableMessage = HttpHeadersAuthenticatorUtils.wrapAsMessageWithAuthenticationContext(
                     new DefaultHttpRequest(HTTP_1_1, HttpMethod.GET, "/unauthenticated_request")
                 );
@@ -437,7 +440,6 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ch.writeInbound(new DefaultLastHttpContent());
                 ch.flushInbound();
             });
-            writeFuture.get();
             ch.flushOutbound();
             response = ch.readOutbound();
             assertThat(response.status(), is(HttpResponseStatus.INTERNAL_SERVER_ERROR));
@@ -496,10 +498,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 }
             }
             // tests requests that are not wrapped by the "decoder" and so cannot be authenticated
-            testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 ch.writeInbound(new DefaultFullHttpRequest(HTTP_1_1, HttpMethod.GET, "/unwrapped_full_request"));
                 ch.flushInbound();
-            }).get();
+            });
             ch.flushOutbound();
             Netty4FullHttpResponse response = ch.readOutbound();
             assertThat(response.status(), is(HttpResponseStatus.INTERNAL_SERVER_ERROR));
@@ -508,10 +510,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 responseContentString,
                 containsString("\"type\":\"illegal_state_exception\",\"reason\":\"Cannot authenticate unwrapped requests\"")
             );
-            testThreadPool.generic().submit(() -> {
+            executeAndWait(testThreadPool.generic(), () -> {
                 ch.writeInbound(new DefaultHttpRequest(HTTP_1_1, HttpMethod.GET, "/unwrapped_request"));
                 ch.flushInbound();
-            }).get();
+            });
             ch.flushOutbound();
             response = ch.readOutbound();
             assertThat(response.status(), is(HttpResponseStatus.INTERNAL_SERVER_ERROR));
@@ -581,11 +583,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ByteBufUtil.copy(AsciiString.of("This is not a valid HTTP line"), buf);
                 buf.writeByte(HttpConstants.LF);
                 buf.writeByte(HttpConstants.LF);
-                var writeFuture = testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
                 });
-                writeFuture.get();
                 assertThat(dispatchThrowableReference.get().toString(), containsString("NOT A VALID HTTP LINE"));
                 assertThat(badDispatchInvocationCount.get(), is(1));
                 assertThat(authnInvocationCount.get(), is(0));
@@ -597,11 +598,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ByteBufUtil.copy(AsciiString.of("GET /this/is/a/valid/but/too/long/initial/line HTTP/1.1"), buf);
                 buf.writeByte(HttpConstants.LF);
                 buf.writeByte(HttpConstants.LF);
-                var writeFuture = testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
                 });
-                writeFuture.get();
                 assertThat(dispatchThrowableReference.get().toString(), containsString("HTTP line is larger than"));
                 assertThat(badDispatchInvocationCount.get(), is(2));
                 assertThat(authnInvocationCount.get(), is(0));
@@ -615,11 +615,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ByteBufUtil.copy(AsciiString.of("Host"), buf);
                 buf.writeByte(HttpConstants.LF);
                 buf.writeByte(HttpConstants.LF);
-                var writeFuture = testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
                 });
-                writeFuture.get();
                 assertThat(dispatchThrowableReference.get().toString(), containsString("No colon found"));
                 assertThat(badDispatchInvocationCount.get(), is(3));
                 assertThat(authnInvocationCount.get(), is(0));
@@ -633,11 +632,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 ByteBufUtil.copy(AsciiString.of("Host: this.looks.like.a.good.url.but.is.longer.than.permitted"), buf);
                 buf.writeByte(HttpConstants.LF);
                 buf.writeByte(HttpConstants.LF);
-                var writeFuture = testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
                 });
-                writeFuture.get();
                 assertThat(dispatchThrowableReference.get().toString(), containsString("HTTP header is larger than"));
                 assertThat(badDispatchInvocationCount.get(), is(4));
                 assertThat(authnInvocationCount.get(), is(0));
@@ -652,11 +650,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 buf.writeByte(0x01);
                 buf.writeByte(HttpConstants.LF);
                 buf.writeByte(HttpConstants.LF);
-                var writeFuture = testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
                 });
-                writeFuture.get();
                 assertThat(dispatchThrowableReference.get().toString(), containsString("Validation failed for header 'Host'"));
                 assertThat(badDispatchInvocationCount.get(), is(5));
                 assertThat(authnInvocationCount.get(), is(0));
@@ -669,11 +666,11 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 buf.writeByte(HttpConstants.LF);
                 ByteBufUtil.copy(AsciiString.of("Host: localhost"), buf);
                 buf.writeByte(HttpConstants.LF);
-                testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
-                }).get();
-                testThreadPool.generic().submit(() -> ch.close().get()).get();
+                });
+                executeAndWait(testThreadPool.generic(), () -> ch.close().get());
                 assertThat(authnInvocationCount.get(), is(0));
             }
         } finally {
@@ -751,10 +748,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 buf.writeByte(HttpConstants.LF);
                 ByteBufUtil.copy(AsciiString.of(content), buf);
                 // write everything in one single chunk
-                testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
-                }).get();
+                });
                 ch.runPendingTasks();
                 Throwable badRequestCause = badRequestCauseReference.get();
                 assertThat(badRequestCause, instanceOf(HttpHeadersValidationException.class));
@@ -806,10 +803,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                     buf.writeByte(HttpConstants.CR);
                     buf.writeByte(HttpConstants.LF);
                 }
-                testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf);
                     ch.flushInbound();
-                }).get();
+                });
                 // append some more chunks as well
                 ByteBuf buf2 = ch.alloc().buffer();
                 contentParts = randomArray(1, 4, String[]::new, () -> randomAlphaOfLengthBetween(1, 64));
@@ -827,10 +824,10 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
                 buf2.writeByte(HttpConstants.LF);
                 buf2.writeByte(HttpConstants.CR);
                 buf2.writeByte(HttpConstants.LF);
-                testThreadPool.generic().submit(() -> {
+                executeAndWait(testThreadPool.generic(), () -> {
                     ch.writeInbound(buf2);
                     ch.flushInbound();
-                }).get();
+                });
                 ch.runPendingTasks();
                 Throwable badRequestCause = badRequestCauseReference.get();
                 assertThat(badRequestCause, instanceOf(HttpHeadersValidationException.class));
@@ -846,4 +843,9 @@ public class SecurityNetty4HttpServerTransportTests extends AbstractHttpServerTr
         }
     }
 
+    private static void executeAndWait(Executor executor, CheckedRunnable<Exception> task) {
+        final var future = new PlainActionFuture<>();
+        executor.execute(ActionRunnable.run(future, task));
+        FutureUtils.get(future, 10, TimeUnit.SECONDS);
+    }
 }

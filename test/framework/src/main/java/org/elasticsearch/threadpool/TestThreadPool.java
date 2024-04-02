@@ -16,6 +16,8 @@ import org.elasticsearch.telemetry.metric.MeterRegistry;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -105,5 +107,11 @@ public class TestThreadPool extends ThreadPool implements Releasable {
     @Override
     public void close() {
         ThreadPool.terminate(this, 10, TimeUnit.SECONDS);
+    }
+
+    public static Future<?> submit(Executor executor, Runnable task) {
+        final var futureTask = new FutureTask<>(task, null);
+        executor.execute(futureTask);
+        return futureTask;
     }
 }
