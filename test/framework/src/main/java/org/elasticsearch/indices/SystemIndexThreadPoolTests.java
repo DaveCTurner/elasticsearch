@@ -55,7 +55,7 @@ public abstract class SystemIndexThreadPoolTests extends ESIntegTestCase {
                 ThreadPool.Info info = threadPool.info(threadPoolName);
                 phaser.bulkRegister(info.getMax());
                 for (int i = 0; i < info.getMax(); i++) {
-                    threadPool.executor(threadPoolName).submit(waitAction);
+                    threadPool.executor(threadPoolName).execute(waitAction);
                 }
             }
         }
@@ -101,7 +101,7 @@ public abstract class SystemIndexThreadPoolTests extends ESIntegTestCase {
 
                 // fill up the queue
                 for (int i = 0; i < info.getQueueSize().singles(); i++) {
-                    threadPool.executor(threadPoolName).submit(() -> {});
+                    threadPool.executor(threadPoolName).execute(() -> {});
                 }
             }
         }
