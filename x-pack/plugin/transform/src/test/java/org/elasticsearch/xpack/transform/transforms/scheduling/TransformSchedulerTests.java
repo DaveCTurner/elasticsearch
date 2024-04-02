@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -257,7 +258,7 @@ public class TransformSchedulerTests extends ESTestCase {
                 return null;
             });
         }
-        List<Future<Void>> futures = threadPool.generic().invokeAll(concurrentProcessingTasks);
+        List<Future<Void>> futures = ((ExecutorService) threadPool.generic()).invokeAll(concurrentProcessingTasks);
         for (Future<Void> future : futures) {
             future.get();
         }

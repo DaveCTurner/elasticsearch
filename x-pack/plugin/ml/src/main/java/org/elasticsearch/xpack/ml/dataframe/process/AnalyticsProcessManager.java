@@ -77,7 +77,7 @@ public class AnalyticsProcessManager {
             settings,
             client,
             (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
-            (ExecutorService)threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME),
+            (ExecutorService) threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME),
             analyticsProcessFactory,
             auditor,
             trainedModelProvider,

@@ -77,6 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.elasticsearch.xpack.core.ClientHelper.ML_ORIGIN;
@@ -365,7 +366,7 @@ public class TransportPutTrainedModelAction extends TransportMasterNodeAction<Re
         MlPlatformArchitecturesUtil.verifyMlNodesAndModelArchitectures(
             failureListener,
             client,
-            threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             configToReturn
         );
     }

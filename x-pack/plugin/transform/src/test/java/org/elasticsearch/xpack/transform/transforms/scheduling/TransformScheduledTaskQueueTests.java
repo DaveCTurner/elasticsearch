@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -77,7 +78,7 @@ public class TransformScheduledTaskQueueTests extends ESTestCase {
                 TransformScheduledTask task = createTask("task-" + i, randomLong());
                 concurrentQueueAddTasks.add(() -> queue.add(task));
             }
-            List<Future<Boolean>> futures = threadPool.generic().invokeAll(concurrentQueueAddTasks);
+            List<Future<Boolean>> futures = ((ExecutorService) threadPool.generic()).invokeAll(concurrentQueueAddTasks);
             for (Future<Boolean> future : futures) {
                 Boolean taskAdded = future.get();
                 // Verify that the added task ids were unique
@@ -94,7 +95,7 @@ public class TransformScheduledTaskQueueTests extends ESTestCase {
                 String taskId = "task-" + i;
                 concurrentQueueRemoveTasks.add(() -> queue.remove(taskId));
             }
-            List<Future<TransformScheduledTask>> futures = threadPool.generic().invokeAll(concurrentQueueRemoveTasks);
+            List<Future<TransformScheduledTask>> futures = ((ExecutorService) threadPool.generic()).invokeAll(concurrentQueueRemoveTasks);
             for (Future<TransformScheduledTask> future : futures) {
                 removedTaskIds.add(future.get().getTransformId());
             }

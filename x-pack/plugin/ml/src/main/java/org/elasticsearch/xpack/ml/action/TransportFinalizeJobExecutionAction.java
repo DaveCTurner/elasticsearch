@@ -35,6 +35,7 @@ import org.elasticsearch.xpack.ml.utils.VoidChainTaskExecutor;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import static org.elasticsearch.xpack.core.ClientHelper.ML_ORIGIN;
 import static org.elasticsearch.xpack.core.ClientHelper.executeAsyncWithOrigin;
@@ -78,7 +79,7 @@ public class TransportFinalizeJobExecutionAction extends AcknowledgedTransportMa
         logger.debug("finalizing jobs [{}]", jobIdString);
 
         VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(
-            threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             true
         );
 
