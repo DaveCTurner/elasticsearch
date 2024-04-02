@@ -106,5 +106,4 @@ public class TestThreadPool extends ThreadPool implements Releasable {
     public void close() {
         ThreadPool.terminate(this, 10, TimeUnit.SECONDS);
     }
-
 }
