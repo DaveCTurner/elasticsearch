@@ -114,7 +114,7 @@ public class DriverContextTests extends ESTestCase {
     }
 
     public void testMultiThreaded() throws Exception {
-        ExecutorService executor = threadPool.executor(ESQL_TEST_EXECUTOR);
+        ExecutorService executor = (ExecutorService) threadPool.executor(ESQL_TEST_EXECUTOR);
 
         int tasks = randomIntBetween(4, 32);
         List<TestDriver> testDrivers = IntStream.range(0, tasks).mapToObj(DriverContextTests::newTestDriver).toList();

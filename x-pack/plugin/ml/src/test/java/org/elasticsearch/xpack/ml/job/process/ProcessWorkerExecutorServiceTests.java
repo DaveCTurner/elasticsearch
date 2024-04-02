@@ -16,6 +16,7 @@ import org.junit.After;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -75,7 +76,7 @@ public class ProcessWorkerExecutorServiceTests extends ESTestCase {
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        Future<?> executorFinished = threadPool.generic().submit(executor::start);
+        Future<?> executorFinished = ((ExecutorService) threadPool.generic()).submit(executor::start);
 
         // run a task that will block while the others are queued up
         executor.execute(() -> {

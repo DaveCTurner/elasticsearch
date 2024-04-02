@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -211,7 +212,7 @@ public class TransformUpdateIT extends TransformRestTestCase {
         }
 
         // Gather the results.
-        List<Future<Response>> futures = threadPool.generic().invokeAll(concurrentUpdates);
+        List<Future<Response>> futures = ((ExecutorService) threadPool.generic()).invokeAll(concurrentUpdates);
         for (Future<Response> future : futures) {
             try {  // The update may succeed...
                 future.get();

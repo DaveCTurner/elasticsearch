@@ -16,6 +16,7 @@ import org.junit.After;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -124,7 +125,7 @@ public class PriorityProcessWorkerExecutorServiceTests extends ESTestCase {
     }
 
     private void runExecutorAndAssertTermination(PriorityProcessWorkerExecutorService executor) {
-        Future<?> executorTermination = threadPool.generic().submit(() -> {
+        Future<?> executorTermination = ((ExecutorService) threadPool.generic()).submit(() -> {
             try {
                 executor.shutdown();
                 executor.awaitTermination(1, TimeUnit.MINUTES);

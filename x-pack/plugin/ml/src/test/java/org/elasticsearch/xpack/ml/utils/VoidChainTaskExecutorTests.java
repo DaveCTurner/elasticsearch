@@ -15,6 +15,7 @@ import org.junit.After;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.contains;
@@ -38,7 +39,7 @@ public class VoidChainTaskExecutorTests extends ESTestCase {
     public void testExecute() throws InterruptedException {
         final List<String> strings = new ArrayList<>();
         ActionListener<List<Void>> finalListener = createBlockingListener(() -> strings.add("last"), e -> fail());
-        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(threadPool.generic(), false);
+        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor((ExecutorService) threadPool.generic(), false);
         voidChainTaskExecutor.add(listener -> {
             strings.add("first");
             listener.onResponse(null);
@@ -61,7 +62,7 @@ public class VoidChainTaskExecutorTests extends ESTestCase {
             () -> fail(),
             e -> assertThat(e.getMessage(), equalTo("some error"))
         );
-        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(threadPool.generic(), true);
+        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor((ExecutorService) threadPool.generic(), true);
         voidChainTaskExecutor.add(listener -> {
             strings.add("before");
             listener.onResponse(null);
@@ -85,7 +86,7 @@ public class VoidChainTaskExecutorTests extends ESTestCase {
             () -> fail(),
             e -> assertThat(e.getMessage(), equalTo("some error 1"))
         );
-        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(threadPool.generic(), true);
+        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor((ExecutorService) threadPool.generic(), true);
         voidChainTaskExecutor.add(listener -> {
             strings.add("before");
             listener.onResponse(null);
@@ -103,7 +104,7 @@ public class VoidChainTaskExecutorTests extends ESTestCase {
     public void testExecute_GivenFailureAndNoShortCircuit() throws InterruptedException {
         final List<String> strings = new ArrayList<>();
         ActionListener<List<Void>> finalListener = createBlockingListener(() -> strings.add("last"), e -> fail());
-        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(threadPool.generic(), false);
+        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor((ExecutorService) threadPool.generic(), false);
         voidChainTaskExecutor.add(listener -> {
             strings.add("before");
             listener.onResponse(null);
@@ -124,7 +125,7 @@ public class VoidChainTaskExecutorTests extends ESTestCase {
     public void testExecute_GivenNoTasksAdded() throws InterruptedException {
         final List<String> strings = new ArrayList<>();
         ActionListener<List<Void>> finalListener = createBlockingListener(() -> strings.add("last"), e -> fail());
-        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(threadPool.generic(), false);
+        VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor((ExecutorService) threadPool.generic(), false);
 
         voidChainTaskExecutor.execute(finalListener);
 
