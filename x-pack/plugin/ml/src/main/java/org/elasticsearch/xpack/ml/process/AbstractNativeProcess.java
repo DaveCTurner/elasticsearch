@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -85,14 +86,14 @@ public abstract class AbstractNativeProcess implements NativeProcess {
      * Connects the Java side of an ML process to the named pipes that connect it to the C++ side,
      * and starts tailing the C++ logs.  Stores references to all the streams except the state
      * persistence stream.
-     * @param executorService the executor service to run on
+     * @param executor the executor to run on
      */
-    public void start(ExecutorService executorService) throws IOException {
+    public void start(Executor executor) throws IOException {
 
         processPipes.connectLogStream();
         cppLogHandler.set(processPipes.getLogStreamHandler());
 
-        logTailFuture = executorService.submit(() -> {
+        logTailFuture = ((ExecutorService) executor).submit(() -> {
             try (CppLogMessageHandler h = cppLogHandler.get()) {
                 h.tailStream();
             } catch (IOException e) {

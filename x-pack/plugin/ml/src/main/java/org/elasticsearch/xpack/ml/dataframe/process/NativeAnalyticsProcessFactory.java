@@ -31,7 +31,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -79,7 +79,7 @@ public class NativeAnalyticsProcessFactory implements AnalyticsProcessFactory<An
         DataFrameAnalyticsConfig config,
         AnalyticsProcessConfig analyticsProcessConfig,
         boolean hasState,
-        ExecutorService executorService,
+        Executor executor,
         Consumer<String> onProcessCrash
     ) {
         String jobId = config.getId();
@@ -118,7 +118,7 @@ public class NativeAnalyticsProcessFactory implements AnalyticsProcessFactory<An
         );
 
         try {
-            startProcess(config, executorService, analyticsProcess);
+            startProcess(config, executor, analyticsProcess);
             return analyticsProcess;
         } catch (IOException | EsRejectedExecutionException e) {
             String msg = "Failed to connect to data frame analytics process for job " + jobId;
@@ -132,13 +132,12 @@ public class NativeAnalyticsProcessFactory implements AnalyticsProcessFactory<An
         }
     }
 
-    private void startProcess(DataFrameAnalyticsConfig config, ExecutorService executorService, NativeAnalyticsProcess process)
-        throws IOException {
+    private void startProcess(DataFrameAnalyticsConfig config, Executor executor, NativeAnalyticsProcess process) throws IOException {
         if (config.getAnalysis().persistsState()) {
             IndexingStateProcessor stateProcessor = new IndexingStateProcessor(config.getId(), resultsPersisterService, auditor);
-            process.start(executorService, stateProcessor);
+            process.start(executor, stateProcessor);
         } else {
-            process.start(executorService);
+            process.start(executor);
         }
     }
 

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -202,7 +203,7 @@ public class AdjustableCapacityBlockingQueueTests extends ESTestCase {
 
         var waitForOfferCallLatch = new CountDownLatch(1);
 
-        Future<Integer> pollFuture = threadPool.generic().submit(() -> {
+        Future<Integer> pollFuture = ((ExecutorService) threadPool.generic()).submit(() -> {
             try {
                 waitForOfferCallLatch.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS);
                 return queue.poll(TIMEOUT.getSeconds(), TimeUnit.SECONDS);

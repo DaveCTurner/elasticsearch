@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -331,7 +332,7 @@ public class RequestExecutorServiceTests extends ESTestCase {
             new SingleRequestManager(mock(RetryingHttpSender.class))
         );
 
-        Future<?> executorTermination = threadPool.generic().submit(() -> {
+        Future<?> executorTermination = ((ExecutorService) threadPool.generic()).submit(() -> {
             try {
                 service.start();
             } catch (Exception e) {
@@ -508,7 +509,7 @@ public class RequestExecutorServiceTests extends ESTestCase {
         CountDownLatch waitToReturnFromSend,
         RequestExecutorService service
     ) {
-        return threadPool.generic().submit(() -> {
+        return ((ExecutorService) threadPool.generic()).submit(() -> {
             try {
                 // wait for a task to be added to be executed before beginning shutdown
                 waitToShutdown.await(TIMEOUT.getSeconds(), TimeUnit.SECONDS);

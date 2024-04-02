@@ -42,7 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import static org.elasticsearch.core.Strings.format;
@@ -54,8 +54,8 @@ public class AnalyticsProcessManager {
 
     private final Settings settings;
     private final Client client;
-    private final ExecutorService executorServiceForJob;
-    private final ExecutorService executorServiceForProcess;
+    private final Executor executorServiceForJob;
+    private final Executor executorServiceForProcess;
     private final AnalyticsProcessFactory<AnalyticsResult> processFactory;
     private final ConcurrentMap<Long, ProcessContext> processContextByAllocation = new ConcurrentHashMap<>();
     private final DataFrameAnalyticsAuditor auditor;
@@ -90,8 +90,8 @@ public class AnalyticsProcessManager {
     public AnalyticsProcessManager(
         Settings settings,
         Client client,
-        ExecutorService executorServiceForJob,
-        ExecutorService executorServiceForProcess,
+        Executor executorServiceForJob,
+        Executor executorServiceForProcess,
         AnalyticsProcessFactory<AnalyticsResult> analyticsProcessFactory,
         DataFrameAnalyticsAuditor auditor,
         TrainedModelProvider trainedModelProvider,
