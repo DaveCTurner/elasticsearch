@@ -27,7 +27,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -62,7 +62,7 @@ public class NativeMemoryUsageEstimationProcessFactory implements AnalyticsProce
         DataFrameAnalyticsConfig config,
         AnalyticsProcessConfig analyticsProcessConfig,
         boolean hasState,
-        Executor executor,
+        ExecutorService executorService,
         Consumer<String> onProcessCrash
     ) {
         List<Path> filesToDelete = new ArrayList<>();
@@ -95,7 +95,7 @@ public class NativeMemoryUsageEstimationProcessFactory implements AnalyticsProce
         );
 
         try {
-            process.start(executor);
+            process.start(executorService);
             return process;
         } catch (IOException | EsRejectedExecutionException e) {
             String msg = "Failed to connect to data frame analytics memory usage estimation process for job " + config.getId();

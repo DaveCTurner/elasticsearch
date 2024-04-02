@@ -19,7 +19,7 @@ public interface AnalyticsProcessFactory<ProcessResult> {
      * @param config                 The data frame analytics config
      * @param analyticsProcessConfig The process configuration
      * @param hasState               Whether there is state to restore from
-     * @param executorService               Executor service used to start the async tasks a job needs to operate the analytical process
+     * @param executorService        Executor service used to start the async tasks a job needs to operate the analytical process
      * @param onProcessCrash         Callback to execute if the process stops unexpectedly
      * @return The process
      */

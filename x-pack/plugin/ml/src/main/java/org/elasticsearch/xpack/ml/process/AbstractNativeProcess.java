@@ -86,14 +86,14 @@ public abstract class AbstractNativeProcess implements NativeProcess {
      * Connects the Java side of an ML process to the named pipes that connect it to the C++ side,
      * and starts tailing the C++ logs.  Stores references to all the streams except the state
      * persistence stream.
-     * @param executor the executor to run on
+     * @param executorService the executor service to run on
      */
-    public void start(Executor executor) throws IOException {
+    public void start(ExecutorService executorService) throws IOException {
 
         processPipes.connectLogStream();
         cppLogHandler.set(processPipes.getLogStreamHandler());
 
-        logTailFuture = ((ExecutorService) executor).submit(() -> {
+        logTailFuture = executorService.submit(() -> {
             try (CppLogMessageHandler h = cppLogHandler.get()) {
                 h.tailStream();
             } catch (IOException e) {
