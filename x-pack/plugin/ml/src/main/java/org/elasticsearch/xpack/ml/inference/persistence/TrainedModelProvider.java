@@ -104,6 +104,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -563,7 +564,7 @@ public class TrainedModelProvider {
         ChunkedTrainedModelRestorer modelRestorer = new ChunkedTrainedModelRestorer(
             modelId,
             client,
-            client.threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client.threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             xContentRegistry
         );
 

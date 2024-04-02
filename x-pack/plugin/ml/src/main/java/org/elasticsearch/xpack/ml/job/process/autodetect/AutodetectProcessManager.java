@@ -762,7 +762,7 @@ public class AutodetectProcessManager implements ClusterStateListener {
         }
 
         // A TP with no queue, so that we fail immediately if there are no threads available
-        ExecutorService autodetectExecutorService = threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME);
+        ExecutorService autodetectExecutorService = (ExecutorService) threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME);
         DataCountsReporter dataCountsReporter = new DataCountsReporter(job, autodetectParams.dataCounts(), jobDataCountsPersister);
         ScoresUpdater scoresUpdater = new ScoresUpdater(
             job,
@@ -770,7 +770,7 @@ public class AutodetectProcessManager implements ClusterStateListener {
             new JobRenormalizedResultsPersister(job.getId(), client),
             normalizerFactory
         );
-        ExecutorService renormalizerExecutorService = threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME);
+        ExecutorService renormalizerExecutorService = (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME);
         Renormalizer renormalizer = new ShortCircuitingRenormalizer(jobId, scoresUpdater, renormalizerExecutorService);
 
         AutodetectProcess process = autodetectProcessFactory.createAutodetectProcess(

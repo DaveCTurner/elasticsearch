@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.security.authc;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
@@ -18,6 +19,7 @@ import org.elasticsearch.action.admin.indices.refresh.RefreshRequestBuilder;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.TransportGetAction;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.Request;
@@ -30,7 +32,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
-import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
@@ -112,8 +113,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -1808,12 +1808,12 @@ public class ApiKeyIntegTests extends SecurityIntegTestCase {
             .collect(Collectors.toList());
         assertEquals(1, nodeInfos.size());
 
-        final ExecutorService executorService = threadPool.executor(SECURITY_CRYPTO_THREAD_POOL_NAME);
+        final Executor executor = threadPool.executor(SECURITY_CRYPTO_THREAD_POOL_NAME);
         final int numberOfThreads = (allocatedProcessors + 1) / 2;
         final CountDownLatch blockingLatch = new CountDownLatch(1);
         final CountDownLatch readyLatch = new CountDownLatch(numberOfThreads);
         for (int i = 0; i < numberOfThreads; i++) {
-            executorService.submit(() -> {
+            executor.execute(() -> {
                 readyLatch.countDown();
                 try {
                     blockingLatch.await();
@@ -1825,14 +1825,11 @@ public class ApiKeyIntegTests extends SecurityIntegTestCase {
         // Make sure above tasks are running
         readyLatch.await();
         // Then fill the whole queue for the crypto thread pool
-        Future<?> lastTaskFuture = null;
-        int i = 0;
-        try {
-            for (i = 0; i < CRYPTO_THREAD_POOL_QUEUE_SIZE; i++) {
-                lastTaskFuture = executorService.submit(() -> {});
+        final var tasksCompletedLatch = new CountDownLatch(1);
+        try (var refs = new RefCountingRunnable(tasksCompletedLatch::countDown)) {
+            for (int i = 0; i < CRYPTO_THREAD_POOL_QUEUE_SIZE; i++) {
+                executor.execute(ActionRunnable.run(refs.acquireListener(), () -> {}));
             }
-        } catch (EsRejectedExecutionException e) {
-            logger.info("Attempted to push {} tasks but only pushed {}", CRYPTO_THREAD_POOL_QUEUE_SIZE, i + 1);
         }
 
         try (RestClient restClient = createRestClient(nodeInfos, null, "http")) {
@@ -1859,9 +1856,7 @@ public class ApiKeyIntegTests extends SecurityIntegTestCase {
             assertThat(e2.getResponse().getStatusLine().getStatusCode(), is(429));
         } finally {
             blockingLatch.countDown();
-            if (lastTaskFuture != null) {
-                lastTaskFuture.get();
-            }
+            safeAwait(tasksCompletedLatch);
         }
     }
 

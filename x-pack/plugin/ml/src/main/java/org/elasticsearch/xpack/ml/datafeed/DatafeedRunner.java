@@ -47,6 +47,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -232,7 +233,7 @@ public class DatafeedRunner {
     // the DatafeedTask without stopping datafeed, which causes the datafeed to keep on running.
     private void innerRun(Holder holder, long startTime, Long endTime) {
         holder.cancellable = Scheduler.wrapAsCancellable(
-            threadPool.executor(MachineLearning.DATAFEED_THREAD_POOL_NAME).submit(new AbstractRunnable() {
+            ((ExecutorService) threadPool.executor(MachineLearning.DATAFEED_THREAD_POOL_NAME)).submit(new AbstractRunnable() {
 
                 @Override
                 public void onFailure(Exception e) {

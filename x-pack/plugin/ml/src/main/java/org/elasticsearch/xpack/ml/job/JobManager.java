@@ -68,6 +68,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -460,7 +461,7 @@ public class JobManager {
 
     private void validate(Job job, JobUpdate jobUpdate, ActionListener<Void> handler) {
         VoidChainTaskExecutor voidChainTaskExecutor = new VoidChainTaskExecutor(
-            client.threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) client.threadPool().executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             true
         );
         validateModelSnapshotIdUpdate(job, jobUpdate.getModelSnapshotId(), voidChainTaskExecutor);

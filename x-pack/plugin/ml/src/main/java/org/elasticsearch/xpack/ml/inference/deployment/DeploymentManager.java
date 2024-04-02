@@ -103,8 +103,8 @@ public class DeploymentManager {
         this.pyTorchProcessFactory = Objects.requireNonNull(pyTorchProcessFactory);
         this.threadPool = Objects.requireNonNull(threadPool);
         this.inferenceAuditor = Objects.requireNonNull(inferenceAuditor);
-        this.executorServiceForDeployment = threadPool.executor(UTILITY_THREAD_POOL_NAME);
-        this.executorServiceForProcess = threadPool.executor(MachineLearning.NATIVE_INFERENCE_COMMS_THREAD_POOL_NAME);
+        this.executorServiceForDeployment = (ExecutorService) threadPool.executor(UTILITY_THREAD_POOL_NAME);
+        this.executorServiceForProcess = (ExecutorService) threadPool.executor(MachineLearning.NATIVE_INFERENCE_COMMS_THREAD_POOL_NAME);
         this.maxProcesses = maxProcesses;
     }
 
@@ -293,7 +293,7 @@ public class DeploymentManager {
         MlPlatformArchitecturesUtil.verifyMlNodesAndModelArchitectures(
             configToReturnListener,
             client,
-            threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME),
             configToReturn
         );
     }

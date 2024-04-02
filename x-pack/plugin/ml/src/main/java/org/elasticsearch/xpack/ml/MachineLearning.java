@@ -467,6 +467,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -1077,7 +1078,7 @@ public class MachineLearning extends Plugin
         }
         NormalizerFactory normalizerFactory = new NormalizerFactory(
             normalizerProcessFactory,
-            threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME)
+            (ExecutorService) threadPool.executor(MachineLearning.UTILITY_THREAD_POOL_NAME)
         );
         AutodetectProcessManager autodetectProcessManager = new AutodetectProcessManager(
             settings,
@@ -1173,8 +1174,8 @@ public class MachineLearning extends Plugin
             EsExecutors.allocatedProcessors(settings)
         );
         MemoryUsageEstimationProcessManager memoryEstimationProcessManager = new MemoryUsageEstimationProcessManager(
-            threadPool.generic(),
-            threadPool.executor(UTILITY_THREAD_POOL_NAME),
+            (ExecutorService) threadPool.generic(),
+            (ExecutorService) threadPool.executor(UTILITY_THREAD_POOL_NAME),
             memoryEstimationProcessFactory
         );
         DataFrameAnalyticsConfigProvider dataFrameAnalyticsConfigProvider = new DataFrameAnalyticsConfigProvider(

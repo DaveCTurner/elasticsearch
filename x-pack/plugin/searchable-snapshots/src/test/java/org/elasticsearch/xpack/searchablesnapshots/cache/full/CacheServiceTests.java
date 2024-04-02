@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
@@ -301,7 +302,7 @@ public class CacheServiceTests extends AbstractSearchableSnapshotsTestCase {
         cacheService.markShardAsEvictedInCache(shard.snapshotUUID(), shard.snapshotIndexName(), shard.shardId());
 
         final Map<CacheFile, Boolean> afterShardRecoveryCacheFiles = ConcurrentCollections.newConcurrentMap();
-        final Future<?> waitForShardEvictionFuture = threadPool.generic().submit(() -> {
+        final Future<?> waitForShardEvictionFuture = ((ExecutorService) threadPool.generic()).submit(() -> {
             cacheService.waitForCacheFilesEvictionIfNeeded(shard.snapshotUUID(), shard.snapshotIndexName(), shard.shardId());
             for (CacheFile cacheFile : cacheFilesAssociatedWithShard) {
                 afterShardRecoveryCacheFiles.put(cacheFile, Files.exists(cacheFile.getFile()));

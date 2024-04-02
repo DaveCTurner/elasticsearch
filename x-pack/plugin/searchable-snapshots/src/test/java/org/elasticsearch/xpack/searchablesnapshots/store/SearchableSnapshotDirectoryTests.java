@@ -620,7 +620,7 @@ public class SearchableSnapshotDirectoryTests extends AbstractSearchableSnapshot
                 final IndexId indexId = new IndexId(indexSettings.getIndex().getName(), UUIDs.randomBase64UUID(random()));
 
                 final PlainActionFuture<ShardSnapshotResult> future = new PlainActionFuture<>();
-                threadPool.generic().submit(() -> {
+                threadPool.generic().execute(() -> {
                     IndexShardSnapshotStatus snapshotStatus = IndexShardSnapshotStatus.newInitializing(null);
                     repository.snapshotShard(
                         new SnapshotShardContext(

@@ -108,7 +108,7 @@ public final class JobModelSnapshotUpgrader {
         }
 
         // A TP with no queue, so that we fail immediately if there are no threads available
-        ExecutorService autodetectExecutorService = threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME);
+        ExecutorService autodetectExecutorService = (ExecutorService) threadPool.executor(MachineLearning.JOB_COMMS_THREAD_POOL_NAME);
 
         process = autodetectProcessFactory.createAutodetectProcess(
             jobId + "-" + snapshotId,
