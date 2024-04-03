@@ -507,7 +507,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     logger.info("[{}] job has running datafeed task; resetting as no snapshot exists", jobTask.getJobId());
                     ResetJobAction.Request request = new ResetJobAction.Request(jobTask.getJobId());
                     request.setSkipJobStateValidation(true);
-                    request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     request.timeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
