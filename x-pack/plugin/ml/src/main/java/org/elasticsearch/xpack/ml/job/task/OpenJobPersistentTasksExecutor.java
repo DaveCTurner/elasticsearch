@@ -460,7 +460,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                 })
             );
         }, error -> listener.onFailure(ExceptionsHelper.serverError("[{}] error getting job", error, jobId)));
-        GetJobsAction.Request request = new GetJobsAction.Request(jobId).masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+        GetJobsAction.Request request = new GetJobsAction.Request(jobId).masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
         executeAsyncWithOrigin(client, ML_ORIGIN, GetJobsAction.INSTANCE, request, jobListener);
     }
 

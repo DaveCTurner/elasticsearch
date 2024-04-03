@@ -103,7 +103,7 @@ public final class MlIndexAndAlias {
         IndexNameExpressionResolver resolver,
         String indexPatternPrefix,
         String alias,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // OK
         ActionListener<Boolean> finalListener
     ) {
 
@@ -181,7 +181,7 @@ public final class MlIndexAndAlias {
         Client client,
         ClusterState clusterState,
         SystemIndexDescriptor descriptor,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // OK
         ActionListener<Boolean> finalListener
     ) {
 
@@ -222,7 +222,12 @@ public final class MlIndexAndAlias {
         );
     }
 
-    private static void waitForShardsReady(Client client, String index, TimeValue masterNodeTimeout, ActionListener<Boolean> listener) {
+    private static void waitForShardsReady(
+        Client client,
+        String index,
+        TimeValue masterNodeTimeout /* OK */,
+        ActionListener<Boolean> listener
+    ) {
         ClusterHealthRequest healthRequest = new ClusterHealthRequest(index).waitForYellowStatus()
             .waitForNoRelocatingShards(true)
             .waitForNoInitializingShards(true)

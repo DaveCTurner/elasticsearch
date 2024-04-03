@@ -190,7 +190,7 @@ public class DataFrameAnalyticsManager {
     private void createStatsIndexAndUpdateMappingsIfNecessary(
         Client clientToUse,
         ClusterState clusterState,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // ok
         ActionListener<Boolean> listener
     ) {
         MlStatsIndex.createStatsIndexAndAliasIfNecessary(
@@ -199,7 +199,7 @@ public class DataFrameAnalyticsManager {
             expressionResolver,
             masterNodeTimeout,
             listener.delegateFailureAndWrap(
-                (l, aBoolean) -> ElasticsearchMappings.addDocMappingIfMissingOK(
+                (l, aBoolean) -> ElasticsearchMappings.addDocMappingIfMissing(
                     MlStatsIndex.writeAlias(),
                     MlStatsIndex::wrappedMapping,
                     clientToUse,
