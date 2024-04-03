@@ -67,7 +67,7 @@ public class AnnotationIndex {
     public static void createAnnotationsIndexIfNecessaryAndWaitForYellow(
         Client client,
         ClusterState state,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // ok
         final ActionListener<Boolean> finalListener
     ) {
 

@@ -156,7 +156,7 @@ public class TransportRevertModelSnapshotAction extends TransportMasterNodeActio
             r -> AnnotationIndex.createAnnotationsIndexIfNecessaryAndWaitForYellow(
                 client,
                 state,
-                request.masterNodeTimeoutTODO(),
+                request.masterNodeTimeoutTODO(), // ok
                 annotationsIndexUpdateListener
             ),
             listener::onFailure
@@ -169,7 +169,7 @@ public class TransportRevertModelSnapshotAction extends TransportMasterNodeActio
                 MlConfigIndex::mapping,
                 client,
                 state,
-                request.masterNodeTimeoutTODO(),
+                request.masterNodeTimeoutTODO(), // ok
                 configMappingUpdateListener,
                 MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
             ),
