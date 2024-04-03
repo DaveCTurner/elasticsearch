@@ -524,7 +524,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     );
                     request.setForce(true);
                     request.setDeleteInterveningResults(true);
-                    request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     request.timeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
@@ -539,7 +539,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
             // We need to refetch the job in order to learn what is its current model snapshot
             // as the one that exists in the task params is outdated.
             GetJobsAction.Request request = new GetJobsAction.Request(jobTask.getJobId());
-            request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+            request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
             executeAsyncWithOrigin(client, ML_ORIGIN, GetJobsAction.INSTANCE, request, jobListener);
         }
 
@@ -570,7 +570,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     );
                 } else if (shouldFinalizeJob) {
                     FinalizeJobExecutionAction.Request finalizeRequest = new FinalizeJobExecutionAction.Request(new String[] { jobId });
-                    finalizeRequest.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    finalizeRequest.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
                         ML_ORIGIN,

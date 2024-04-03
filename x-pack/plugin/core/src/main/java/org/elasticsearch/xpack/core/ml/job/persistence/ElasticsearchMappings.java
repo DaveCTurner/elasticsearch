@@ -152,6 +152,18 @@ public class ElasticsearchMappings {
         return indicesToUpdate.toArray(new String[indicesToUpdate.size()]);
     }
 
+    public static void addDocMappingIfMissingOK(
+        String alias,
+        CheckedSupplier<String, IOException> mappingSupplier,
+        Client client,
+        ClusterState state,
+        TimeValue masterNodeTimeout,
+        ActionListener<Boolean> listener,
+        int minVersion
+    ) {
+        addDocMappingIfMissing(alias, mappingSupplier, client, state, masterNodeTimeout, listener, minVersion);
+    }
+
     public static void addDocMappingIfMissing(
         String alias,
         CheckedSupplier<String, IOException> mappingSupplier,

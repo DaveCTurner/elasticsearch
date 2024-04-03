@@ -292,7 +292,7 @@ public class TransportOpenJobAction extends TransportMasterNodeAction<OpenJobAct
         NodeAcknowledgedResponse response,
         ClusterState clusterState,
         String jobId,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // OK
         ActionListener<NodeAcknowledgedResponse> listener
     ) {
         final JobUpdate update = new JobUpdate.Builder(jobId).setClearFinishTime(true).build();

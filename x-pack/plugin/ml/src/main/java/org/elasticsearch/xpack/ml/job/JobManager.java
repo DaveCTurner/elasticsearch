@@ -274,7 +274,7 @@ public class JobManager {
                 MlConfigIndex::mapping,
                 client,
                 state,
-                request.masterNodeTimeoutTODO(),
+                request.masterNodeTimeout(),
                 l,
                 MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
             )
@@ -345,7 +345,7 @@ public class JobManager {
             MlConfigIndex::mapping,
             client,
             clusterService.state(),
-            request.masterNodeTimeoutTODO(),
+            request.masterNodeTimeout(),
             ActionListener.wrap(bool -> doUpdate.run(), actionListener::onFailure),
             MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
         );

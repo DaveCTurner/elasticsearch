@@ -105,7 +105,7 @@ public class TransportUpdateDataFrameAnalyticsAction extends TransportMasterNode
 
         // Obviously if we're updating a job it's impossible that the config index has no mappings at
         // all, but if we rewrite the job config we may add new fields that require the latest mappings
-        ElasticsearchMappings.addDocMappingIfMissing(
+        ElasticsearchMappings.addDocMappingIfMissingOK(
             MlConfigIndex.indexName(),
             MlConfigIndex::mapping,
             client,

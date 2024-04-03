@@ -226,7 +226,7 @@ public final class DatafeedManager {
 
         // Obviously if we're updating a datafeed it's impossible that the config index has no mappings at
         // all, but if we rewrite the datafeed config we may add new fields that require the latest mappings
-        ElasticsearchMappings.addDocMappingIfMissing(
+        ElasticsearchMappings.addDocMappingIfMissingOK(
             MlConfigIndex.indexName(),
             MlConfigIndex::mapping,
             client,
@@ -319,7 +319,7 @@ public final class DatafeedManager {
                 mappingsUpdated.accept(false);
                 return;
             }
-            ElasticsearchMappings.addDocMappingIfMissing(
+            ElasticsearchMappings.addDocMappingIfMissingOK(
                 MlConfigIndex.indexName(),
                 MlConfigIndex::mapping,
                 client,

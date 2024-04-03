@@ -199,7 +199,7 @@ public class DataFrameAnalyticsManager {
             expressionResolver,
             masterNodeTimeout,
             listener.delegateFailureAndWrap(
-                (l, aBoolean) -> ElasticsearchMappings.addDocMappingIfMissing(
+                (l, aBoolean) -> ElasticsearchMappings.addDocMappingIfMissingOK(
                     MlStatsIndex.writeAlias(),
                     MlStatsIndex::wrappedMapping,
                     clientToUse,

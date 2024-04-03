@@ -171,7 +171,7 @@ public class TransportUpgradeJobModelSnapshotAction extends TransportMasterNodeA
 
         // Update config index if necessary
         ActionListener<Long> memoryRequirementRefreshListener = ActionListener.wrap(
-            mem -> ElasticsearchMappings.addDocMappingIfMissing(
+            mem -> ElasticsearchMappings.addDocMappingIfMissingOK(
                 MlConfigIndex.indexName(),
                 MlConfigIndex::mapping,
                 client,

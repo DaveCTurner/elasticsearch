@@ -142,7 +142,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
             config.getDest().getIndex(),
             null,
             SourceDestValidations.ALL_VALIDATIONS,
-            listener.delegateFailureAndWrap((l, aBoolean) -> putValidatedConfig(config, request.masterNodeTimeoutTODO(), l))
+            listener.delegateFailureAndWrap((l, aBoolean) -> putValidatedConfig(config, request.masterNodeTimeout(), l))
         );
     }
 
@@ -208,14 +208,14 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
         String username,
         DataFrameAnalyticsConfig memoryCappedConfig,
         HasPrivilegesResponse response,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeoutTODO,
         ActionListener<PutDataFrameAnalyticsAction.Response> listener
     ) throws IOException {
         if (response.isCompleteMatch()) {
             updateDocMappingAndPutConfig(
                 memoryCappedConfig,
                 threadPool.getThreadContext().getHeaders(),
-                masterNodeTimeout,
+                masterNodeTimeoutTODO,
                 listener.delegateFailureAndWrap((l, finalConfig) -> l.onResponse(new PutDataFrameAnalyticsAction.Response(finalConfig)))
             );
         } else {
@@ -241,7 +241,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
     private void updateDocMappingAndPutConfig(
         DataFrameAnalyticsConfig config,
         Map<String, String> headers,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeoutTODO,
         ActionListener<DataFrameAnalyticsConfig> listener
     ) {
         ActionListener<DataFrameAnalyticsConfig> auditingListener = listener.delegateFailureAndWrap((delegate, finalConfig) -> {
@@ -255,16 +255,16 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
         ClusterState clusterState = clusterService.state();
         if (clusterState == null) {
             logger.warn("Cannot update doc mapping because clusterState == null");
-            configProvider.put(config, headers, masterNodeTimeout, auditingListener);
+            configProvider.put(config, headers, masterNodeTimeoutTODO, auditingListener);
             return;
         }
-        ElasticsearchMappings.addDocMappingIfMissing(
+        ElasticsearchMappings.addDocMappingIfMissingOK(
             MlConfigIndex.indexName(),
             MlConfigIndex::mapping,
             client,
             clusterState,
-            masterNodeTimeout,
-            auditingListener.delegateFailureAndWrap((l, unused) -> configProvider.put(config, headers, masterNodeTimeout, l)),
+            masterNodeTimeoutTODO,
+            auditingListener.delegateFailureAndWrap((l, unused) -> configProvider.put(config, headers, masterNodeTimeoutTODO, l)),
             MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
         );
     }

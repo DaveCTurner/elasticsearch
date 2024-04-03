@@ -164,7 +164,7 @@ public class TransportRevertModelSnapshotAction extends TransportMasterNodeActio
 
         // 3. Ensure the config index mappings are up to date
         ActionListener<Boolean> jobExistsListener = ActionListener.wrap(
-            r -> ElasticsearchMappings.addDocMappingIfMissing(
+            r -> ElasticsearchMappings.addDocMappingIfMissingOK(
                 MlConfigIndex.indexName(),
                 MlConfigIndex::mapping,
                 client,
