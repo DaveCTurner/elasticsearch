@@ -208,14 +208,14 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
         String username,
         DataFrameAnalyticsConfig memoryCappedConfig,
         HasPrivilegesResponse response,
-        TimeValue masterNodeTimeoutTODO,
+        TimeValue masterNodeTimeout, // ok
         ActionListener<PutDataFrameAnalyticsAction.Response> listener
     ) throws IOException {
         if (response.isCompleteMatch()) {
             updateDocMappingAndPutConfig(
                 memoryCappedConfig,
                 threadPool.getThreadContext().getHeaders(),
-                masterNodeTimeoutTODO,
+                masterNodeTimeout,
                 listener.delegateFailureAndWrap((l, finalConfig) -> l.onResponse(new PutDataFrameAnalyticsAction.Response(finalConfig)))
             );
         } else {
@@ -241,7 +241,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
     private void updateDocMappingAndPutConfig(
         DataFrameAnalyticsConfig config,
         Map<String, String> headers,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // ok
         ActionListener<DataFrameAnalyticsConfig> listener
     ) {
         ActionListener<DataFrameAnalyticsConfig> auditingListener = listener.delegateFailureAndWrap((delegate, finalConfig) -> {
