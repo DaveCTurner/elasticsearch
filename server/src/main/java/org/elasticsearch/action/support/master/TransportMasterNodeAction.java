@@ -285,6 +285,7 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
 
         private void retry(long currentStateVersion, final Throwable failure, final Predicate<ClusterState> statePredicate) {
             if (observer == null) {
+                // need to handle -1 here
                 final long remainingTimeoutMS = request.masterNodeTimeout().millis() - (threadPool.relativeTimeInMillis() - startTime);
                 if (remainingTimeoutMS <= 0) {
                     logger.debug(() -> "timed out before retrying [" + actionName + "] after failure", failure);

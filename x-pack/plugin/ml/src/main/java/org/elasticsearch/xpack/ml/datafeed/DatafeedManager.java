@@ -231,7 +231,7 @@ public final class DatafeedManager {
             MlConfigIndex::mapping,
             client,
             state,
-            request.masterNodeTimeout(),
+            request.masterNodeTimeoutTODO(),
             ActionListener.wrap(bool -> doUpdate.run(), listener::onFailure),
             MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
         );
@@ -324,7 +324,7 @@ public final class DatafeedManager {
                 MlConfigIndex::mapping,
                 client,
                 clusterState,
-                request.masterNodeTimeout(),
+                request.masterNodeTimeoutTODO(),
                 ActionListener.wrap(mappingsUpdated, listener::onFailure),
                 MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
             );

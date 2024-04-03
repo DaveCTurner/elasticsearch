@@ -521,7 +521,7 @@ public class TransportRolloverAction extends TransportMasterNodeAction<RolloverR
                         clusterService,
                         new String[] { rolloverIndexName },
                         rolloverRequest.getCreateIndexRequest().waitForActiveShards(),
-                        rolloverRequest.masterNodeTimeout(),
+                        rolloverRequest.masterNodeTimeout(), // ack timeout?
                         allocationActionMultiListener.delay(rolloverTask.listener())
                             .map(
                                 isShardsAcknowledged -> new RolloverResponse(

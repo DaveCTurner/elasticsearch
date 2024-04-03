@@ -36,7 +36,7 @@ public abstract class ClusterStateUpdateTask implements ClusterStateTaskListener
 
     public ClusterStateUpdateTask(Priority priority, TimeValue timeout) {
         this.priority = priority;
-        this.timeout = timeout;
+        this.timeout = timeout; // from MasterNodeRequest#masterNodeTimeout()
     }
 
     /**

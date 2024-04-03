@@ -176,7 +176,7 @@ public class TransportUpgradeJobModelSnapshotAction extends TransportMasterNodeA
                 MlConfigIndex::mapping,
                 client,
                 state,
-                request.masterNodeTimeout(),
+                request.masterNodeTimeoutTODO(),
                 configIndexMappingUpdaterListener,
                 MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
             ),

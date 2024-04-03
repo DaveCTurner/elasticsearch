@@ -47,11 +47,25 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
         return (Request) this;
     }
 
+    @SuppressWarnings("unchecked")
+    public final Request masterNodeTimeoutOK(TimeValue timeout) {
+        this.masterNodeTimeout = timeout;
+        return (Request) this;
+    }
+
     /**
      * A timeout value in case the master has not been discovered yet or disconnected.
      */
     public final Request masterNodeTimeout(String timeout) {
-        return masterNodeTimeout(TimeValue.parseTimeValue(timeout, null, getClass().getSimpleName() + ".masterNodeTimeout"));
+        return masterNodeTimeoutOK(TimeValue.parseTimeValue(timeout, null, getClass().getSimpleName() + ".masterNodeTimeout"));
+    }
+
+    public final Request masterNodeTimeoutOK(String timeout) {
+        return masterNodeTimeoutOK(TimeValue.parseTimeValue(timeout, null, getClass().getSimpleName() + ".masterNodeTimeout"));
+    }
+
+    public final TimeValue masterNodeTimeoutTODO() {
+        return this.masterNodeTimeout;
     }
 
     public final TimeValue masterNodeTimeout() {

@@ -460,7 +460,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                 })
             );
         }, error -> listener.onFailure(ExceptionsHelper.serverError("[{}] error getting job", error, jobId)));
-        GetJobsAction.Request request = new GetJobsAction.Request(jobId).masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+        GetJobsAction.Request request = new GetJobsAction.Request(jobId).masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
         executeAsyncWithOrigin(client, ML_ORIGIN, GetJobsAction.INSTANCE, request, jobListener);
     }
 
@@ -507,7 +507,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     logger.info("[{}] job has running datafeed task; resetting as no snapshot exists", jobTask.getJobId());
                     ResetJobAction.Request request = new ResetJobAction.Request(jobTask.getJobId());
                     request.setSkipJobStateValidation(true);
-                    request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     request.timeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
@@ -524,7 +524,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     );
                     request.setForce(true);
                     request.setDeleteInterveningResults(true);
-                    request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     request.timeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
@@ -539,7 +539,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
             // We need to refetch the job in order to learn what is its current model snapshot
             // as the one that exists in the task params is outdated.
             GetJobsAction.Request request = new GetJobsAction.Request(jobTask.getJobId());
-            request.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+            request.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
             executeAsyncWithOrigin(client, ML_ORIGIN, GetJobsAction.INSTANCE, request, jobListener);
         }
 
@@ -570,7 +570,7 @@ public class OpenJobPersistentTasksExecutor extends AbstractJobPersistentTasksEx
                     );
                 } else if (shouldFinalizeJob) {
                     FinalizeJobExecutionAction.Request finalizeRequest = new FinalizeJobExecutionAction.Request(new String[] { jobId });
-                    finalizeRequest.masterNodeTimeout(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
+                    finalizeRequest.masterNodeTimeoutOK(PERSISTENT_TASK_MASTER_NODE_TIMEOUT);
                     executeAsyncWithOrigin(
                         client,
                         ML_ORIGIN,

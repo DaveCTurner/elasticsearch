@@ -142,7 +142,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
             config.getDest().getIndex(),
             null,
             SourceDestValidations.ALL_VALIDATIONS,
-            listener.delegateFailureAndWrap((l, aBoolean) -> putValidatedConfig(config, request.masterNodeTimeout(), l))
+            listener.delegateFailureAndWrap((l, aBoolean) -> putValidatedConfig(config, request.masterNodeTimeoutTODO(), l))
         );
     }
 

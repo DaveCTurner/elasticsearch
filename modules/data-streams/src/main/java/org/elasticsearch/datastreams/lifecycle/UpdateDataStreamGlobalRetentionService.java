@@ -83,7 +83,7 @@ public class UpdateDataStreamGlobalRetentionService {
     ) {
         taskQueue.submitTask(
             "remove-data-stream-global-retention",
-            new UpsertGlobalDataStreamMetadataTask(null, affectedDataStreams, listener, request.masterNodeTimeout()),
+            new UpsertGlobalDataStreamMetadataTask(null, affectedDataStreams, listener, request.masterNodeTimeout()), // becomes ack timeout
             request.masterNodeTimeout()
         );
     }
