@@ -40,7 +40,6 @@ public abstract class ClusterStateUpdateRequest<T extends ClusterStateUpdateRequ
      * Returns the maximum time interval to wait for the request to
      * be completed on the master node
      */
-    // TODO where does this go?
     @Override
     public TimeValue masterNodeTimeout() {
         return masterNodeTimeout;
