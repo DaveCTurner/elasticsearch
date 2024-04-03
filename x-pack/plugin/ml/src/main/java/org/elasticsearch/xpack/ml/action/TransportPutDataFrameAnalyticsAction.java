@@ -265,7 +265,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
             clusterState,
             masterNodeTimeout,
             auditingListener.delegateFailureAndWrap(
-                (l, unused) -> configProvider.put(config, headers, masterNodeTimeout/* must handle -1 here */, l)
+                (l, unused) -> configProvider.put(config, headers, masterNodeTimeout /* must handle -1 here */, l)
             ),
             MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
         );
