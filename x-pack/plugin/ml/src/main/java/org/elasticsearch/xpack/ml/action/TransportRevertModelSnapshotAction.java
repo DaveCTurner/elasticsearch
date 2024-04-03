@@ -187,7 +187,7 @@ public class TransportRevertModelSnapshotAction extends TransportMasterNodeActio
             client,
             state,
             indexNameExpressionResolver,
-            request.masterNodeTimeoutTODO(),
+            request.masterNodeTimeoutTODO(), // ok
             createStateIndexListener
         );
     }

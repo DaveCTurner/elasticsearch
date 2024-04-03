@@ -81,7 +81,7 @@ public final class AnomalyDetectorsIndex {
         Client client,
         ClusterState state,
         IndexNameExpressionResolver resolver,
-        TimeValue masterNodeTimeout,
+        TimeValue masterNodeTimeout, // ok
         final ActionListener<Boolean> finalListener
     ) {
         MlIndexAndAlias.createIndexAndAliasIfNecessary(
