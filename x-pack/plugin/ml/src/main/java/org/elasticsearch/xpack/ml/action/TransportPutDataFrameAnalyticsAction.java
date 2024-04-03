@@ -241,7 +241,7 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
     private void updateDocMappingAndPutConfig(
         DataFrameAnalyticsConfig config,
         Map<String, String> headers,
-        TimeValue masterNodeTimeoutTODO,
+        TimeValue masterNodeTimeout,
         ActionListener<DataFrameAnalyticsConfig> listener
     ) {
         ActionListener<DataFrameAnalyticsConfig> auditingListener = listener.delegateFailureAndWrap((delegate, finalConfig) -> {
@@ -255,16 +255,18 @@ public class TransportPutDataFrameAnalyticsAction extends TransportMasterNodeAct
         ClusterState clusterState = clusterService.state();
         if (clusterState == null) {
             logger.warn("Cannot update doc mapping because clusterState == null");
-            configProvider.put(config, headers, masterNodeTimeoutTODO, auditingListener);
+            configProvider.put(config, headers, masterNodeTimeout /* must handle -1 here */, auditingListener);
             return;
         }
-        ElasticsearchMappings.addDocMappingIfMissingOK(
+        ElasticsearchMappings.addDocMappingIfMissing(
             MlConfigIndex.indexName(),
             MlConfigIndex::mapping,
             client,
             clusterState,
-            masterNodeTimeoutTODO,
-            auditingListener.delegateFailureAndWrap((l, unused) -> configProvider.put(config, headers, masterNodeTimeoutTODO, l)),
+            masterNodeTimeout,
+            auditingListener.delegateFailureAndWrap(
+                (l, unused) -> configProvider.put(config, headers, masterNodeTimeout/* must handle -1 here */, l)
+            ),
             MlConfigIndex.CONFIG_INDEX_MAPPINGS_VERSION
         );
     }
