@@ -64,6 +64,6 @@ public class UpdateDataFrameAnalyticsActionRequestTests extends AbstractXContent
     }
 
     public void testDefaultTimeout() {
-        assertThat(createTestInstance().timeout(), is(notNullValue()));
+        assertThat(createTestInstance().ackTimeout(), is(notNullValue()));
     }
 }

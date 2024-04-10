@@ -21,7 +21,7 @@ public class DeleteDataFrameAnalyticsActionRequestTests extends AbstractWireSeri
         Request request = new Request(randomAlphaOfLength(10));
         request.setForce(randomBoolean());
         if (randomBoolean()) {
-            request.timeout(TimeValue.parseTimeValue(randomTimeValue(), "test"));
+            request.ackTimeout(TimeValue.parseTimeValue(randomTimeValue(), "test"));
         }
         return request;
     }
@@ -37,6 +37,6 @@ public class DeleteDataFrameAnalyticsActionRequestTests extends AbstractWireSeri
     }
 
     public void testDefaultTimeout() {
-        assertThat(createTestInstance().timeout(), is(notNullValue()));
+        assertThat(createTestInstance().ackTimeout(), is(notNullValue()));
     }
 }

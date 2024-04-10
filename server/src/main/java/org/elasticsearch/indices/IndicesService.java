@@ -884,7 +884,7 @@ public class IndicesService extends AbstractLifecycleComponent
                 new PutMappingRequest().setConcreteIndex(shardRouting.index())
                     .setConcreteIndex(shardRouting.index()) // concrete index - no name clash, it uses uuid
                     .source(mapping.source().string(), XContentType.JSON)
-                    .timeout(TimeValue.MAX_VALUE)
+                    .ackTimeout(TimeValue.MAX_VALUE)
                     .masterNodeTimeout(TimeValue.MAX_VALUE),
                 new RefCountAwareThreadedActionListener<>(threadPool.generic(), listener.map(ignored -> null))
             );

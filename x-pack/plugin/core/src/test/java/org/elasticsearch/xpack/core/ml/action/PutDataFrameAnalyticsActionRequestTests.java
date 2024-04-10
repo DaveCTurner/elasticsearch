@@ -121,6 +121,6 @@ public class PutDataFrameAnalyticsActionRequestTests extends AbstractXContentSer
     }
 
     public void testDefaultTimeout() {
-        assertThat(createTestInstance().timeout(), is(notNullValue()));
+        assertThat(createTestInstance().ackTimeout(), is(notNullValue()));
     }
 }

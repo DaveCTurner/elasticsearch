@@ -27,29 +27,29 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
 
     public static final TimeValue DEFAULT_ACK_TIMEOUT = timeValueSeconds(30);
 
-    protected TimeValue timeout;
+    protected TimeValue ackTimeout;
 
     protected AcknowledgedRequest() {
         this(DEFAULT_ACK_TIMEOUT);
     }
 
-    protected AcknowledgedRequest(TimeValue timeout) {
-        this.timeout = timeout;
+    protected AcknowledgedRequest(TimeValue ackTimeout) {
+        this.ackTimeout = ackTimeout;
     }
 
     protected AcknowledgedRequest(StreamInput in) throws IOException {
         super(in);
-        this.timeout = in.readTimeValue();
+        this.ackTimeout = in.readTimeValue();
     }
 
     /**
      * Allows to set the timeout
-     * @param timeout timeout as a string (e.g. 1s)
+     * @param ackTimeout timeout as a string (e.g. 1s)
      * @return the request itself
      */
     @SuppressWarnings("unchecked")
-    public final Request timeout(String timeout) {
-        this.timeout = TimeValue.parseTimeValue(timeout, this.timeout, getClass().getSimpleName() + ".timeout");
+    public final Request ackTimeout(String ackTimeout) {
+        this.ackTimeout = TimeValue.parseTimeValue(ackTimeout, this.ackTimeout, getClass().getSimpleName() + ".ackTimeout");
         return (Request) this;
     }
 
@@ -59,28 +59,20 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
      * @return the request itself
      */
     @SuppressWarnings("unchecked")
-    public final Request timeout(TimeValue timeout) {
-        this.timeout = timeout;
+    public final Request ackTimeout(TimeValue timeout) {
+        this.ackTimeout = timeout;
         return (Request) this;
     }
 
-    /**
-     * Returns the current timeout
-     * @return the current timeout as a {@link TimeValue}
-     */
-    public final TimeValue timeout() {
-        return timeout;
-    }
-
     @Override
-    public TimeValue ackTimeout() {
-        return timeout;
+    public final TimeValue ackTimeout() {
+        return ackTimeout;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeTimeValue(timeout);
+        out.writeTimeValue(ackTimeout);
     }
 
     @Override
