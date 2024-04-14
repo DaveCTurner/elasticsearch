@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -73,13 +74,18 @@ public class ClusterConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Transport.Connection> listener) {
+    public void openConnection(
+        ConnectionProfile connectionProfile,
+        DiscoveryNode node,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
         ConnectionProfile resolvedProfile = ConnectionProfile.resolveConnectionProfile(connectionProfile, defaultProfile);
         if (acquireConnectingRef()) {
             var success = false;
             final var release = new RunOnce(connectingRefCounter::decRef);
             try {
-                internalOpenConnection(node, resolvedProfile, ActionListener.runBefore(listener, release::run));
+                internalOpenConnection(node, resolvedProfile, ActionListener.runBefore(listener, release::run), executor);
                 success = true;
             } finally {
                 if (success == false) {
@@ -96,16 +102,18 @@ public class ClusterConnectionManager implements ConnectionManager {
      *
      * @param connectionProfile   the profile to use if opening a new connection. Only used in tests, this is {@code null} in production.
      * @param connectionValidator a callback to validate the connection before it is exposed (e.g. to {@link #nodeConnected}).
+     * @param executor
      * @param listener            completed on the calling thread or by the {@link ConnectionValidator}; in production the
      *                            {@link ConnectionValidator} will complete the listener on the generic thread pool (see
      *                            {@link TransportService#connectionValidator}). If successful, completed with a {@link Releasable} which
      *                            will release this connection (and close it if no other references to it are held).
      */
     @Override
-    public void connectToNode(
+    public void connecttonode(
         DiscoveryNode node,
         @Nullable ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
+        Executor executor,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
         connectToNodeOrRetry(
@@ -264,7 +272,8 @@ public class ClusterConnectionManager implements ConnectionManager {
                     assert Transports.assertNotTransportThread("internalOpenConnection failure");
                     failConnectionListener(node, releaseOnce, e, currentListener);
                 }
-            )
+            ),
+            executor
         );
     }
 
@@ -274,7 +283,7 @@ public class ClusterConnectionManager implements ConnectionManager {
      * maintained by this connection manager
      *
      * @throws NodeNotConnectedException if the node is not connected
-     * @see #connectToNode(DiscoveryNode, ConnectionProfile, ConnectionValidator, ActionListener)
+     * @see ConnectionManager#connecttonode(DiscoveryNode, ConnectionProfile, ConnectionValidator, Executor, ActionListener)
      */
     @Override
     public Transport.Connection getConnection(DiscoveryNode node) {
@@ -359,7 +368,8 @@ public class ClusterConnectionManager implements ConnectionManager {
     private void internalOpenConnection(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
-        ActionListener<Transport.Connection> listener
+        ActionListener<Transport.Connection> listener,
+        Executor executor
     ) {
         transport.openConnection(node, connectionProfile, executor, listener.map(connection -> {
             assert Transports.assertNotTransportThread("internalOpenConnection success");

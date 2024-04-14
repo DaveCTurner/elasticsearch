@@ -20,6 +20,7 @@ import org.elasticsearch.transport.TransportConnectionListener;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
 
 public class StubbableConnectionManager implements ConnectionManager {
 
@@ -59,8 +60,13 @@ public class StubbableConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Transport.Connection> listener) {
-        delegate.openConnection(node, connectionProfile, listener);
+    public void openConnection(
+        ConnectionProfile connectionProfile,
+        DiscoveryNode node,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
+        delegate.openConnection(connectionProfile, node, executor, listener);
     }
 
     @Override
@@ -86,13 +92,14 @@ public class StubbableConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void connectToNode(
+    public void connecttonode(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
+        Executor executor,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
-        delegate.connectToNode(node, connectionProfile, connectionValidator, listener);
+        delegate.connecttonode(node, connectionProfile, connectionValidator, executor, listener);
     }
 
     @Override

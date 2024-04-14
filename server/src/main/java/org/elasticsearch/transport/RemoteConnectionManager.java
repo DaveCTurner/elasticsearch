@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.transport.RemoteClusterService.REMOTE_CLUSTER_HANDSHAKE_ACTION_NAME;
@@ -62,10 +63,11 @@ public class RemoteConnectionManager implements ConnectionManager {
      * instead of this method.
      */
     @Override
-    public final void connectToNode(
+    public final void connecttonode(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
+        Executor executor,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
         // it's a mistake to call this expecting a useful Releasable back, we never release remote cluster connections today.
@@ -75,7 +77,7 @@ public class RemoteConnectionManager implements ConnectionManager {
 
     public void connectToRemoteClusterNode(DiscoveryNode node, ConnectionValidator connectionValidator, ActionListener<Void> listener)
         throws ConnectTransportException {
-        delegate.connectToNode(node, null, connectionValidator, listener.map(connectionReleasable -> {
+        delegate.connecttonode(node, null, connectionValidator, executor, listener.map(connectionReleasable -> {
             // We drop the connectionReleasable here but it's not really a leak: we never close individual connections to a remote cluster
             // ourselves - instead we close the whole connection manager if the remote cluster is removed, which bypasses any refcounting
             // and just closes the underlying channels.
@@ -94,12 +96,18 @@ public class RemoteConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, @Nullable ConnectionProfile profile, ActionListener<Transport.Connection> listener) {
+    public void openConnection(
+        @Nullable ConnectionProfile profile,
+        DiscoveryNode node,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
         assert profile == null || profile.getTransportProfile().equals(getConnectionProfile().getTransportProfile())
             : "A single remote connection manager can only ever handle a single transport profile";
         delegate.openConnection(
-            node,
             profile,
+            node,
+            executor,
             listener.delegateFailureAndWrap(
                 (l, connection) -> l.onResponse(wrapConnectionWithRemoteClusterInfo(connection, clusterAlias, credentialsManager))
             )

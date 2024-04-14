@@ -249,7 +249,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
             logger.trace("[{}] opening transient connection to seed node: [{}]", clusterAlias, seedNode);
             final ListenableFuture<Transport.Connection> openConnectionStep = new ListenableFuture<>();
             try {
-                connectionManager.openConnection(seedNode, null, openConnectionStep);
+                connectionManager.openConnection(null, seedNode, executor, openConnectionStep);
             } catch (Exception e) {
                 onFailure.accept(e);
             }

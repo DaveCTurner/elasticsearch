@@ -494,7 +494,7 @@ public class TransportService extends AbstractLifecycleComponent
             listener.onResponse(null);
             return;
         }
-        connectionManager.connectToNode(node, connectionProfile, connectionValidator(node), listener);
+        connectionManager.connecttonode(node, connectionProfile, connectionValidator(node), executor, listener);
     }
 
     public ConnectionManager.ConnectionValidator connectionValidator(DiscoveryNode node) {
@@ -526,7 +526,7 @@ public class TransportService extends AbstractLifecycleComponent
         if (isLocalNode(node)) {
             listener.onResponse(localNodeConnection);
         } else {
-            connectionManager.openConnection(node, connectionProfile, listener);
+            connectionManager.openConnection(connectionProfile, node, executor, listener);
         }
     }
 
