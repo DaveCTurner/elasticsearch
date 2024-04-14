@@ -285,7 +285,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
             // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something else
             // has opened a fresh connection to the node. Therefore we always call connectToNode() and update connectionRef.
-            transportService.connectToNode(discoveryNode, ActionListener.runAfter(new ActionListener<>() {
+            transportService.connectToNode(discoveryNode, executor, ActionListener.runAfter(new ActionListener<>() {
                 @Override
                 public void onResponse(Releasable connectionReleasable) {
                     if (alreadyConnected) {
@@ -331,7 +331,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                         return "ensure connection to " + discoveryNode;
                     }
                 });
-            }), executor);
+            }));
         }
 
         void disconnect() {

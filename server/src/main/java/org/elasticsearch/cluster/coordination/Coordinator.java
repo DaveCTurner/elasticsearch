@@ -653,7 +653,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
             return;
         }
 
-        transportService.connectToNode(joinRequest.getSourceNode(), new ActionListener<>() {
+        transportService.connectToNode(joinRequest.getSourceNode(), clusterCoordinationExecutor, new ActionListener<>() {
             @Override
             public void onResponse(Releasable response) {
                 validateJoinRequest(
@@ -688,7 +688,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     )
                 );
             }
-        }, executor);
+        });
     }
 
     /**

@@ -471,10 +471,10 @@ public class TransportService extends AbstractLifecycleComponent
      * The ActionListener will be called on the calling thread or the supplied executor.
      *
      * @param node     the node to connect to
+     * @param executor executor to use to complete the listener if not completed on the calling thread
      * @param listener the action listener to notify
-     * @param executor          executor to use to complete the listener if not completed on the calling thread
      */
-    public void connectToNode(DiscoveryNode node, ActionListener<Releasable> listener, Executor executor) throws ConnectTransportException {
+    public void connectToNode(DiscoveryNode node, Executor executor, ActionListener<Releasable> listener) throws ConnectTransportException {
         connectToNode(node, null, executor, listener);
     }
 

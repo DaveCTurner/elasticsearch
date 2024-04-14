@@ -143,7 +143,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                                             )
                                         );
                                     } else {
-                                        transportService.connectToNode(remoteNode, new ActionListener<>() {
+                                        transportService.connectToNode(remoteNode, executor, new ActionListener<>() {
                                             @Override
                                             public void onResponse(Releasable connectionReleasable) {
                                                 logger.trace("[{}] completed full connection with [{}]", transportAddress, remoteNode);
@@ -168,7 +168,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                                                 );
                                                 listener.onFailure(e);
                                             }
-                                        }, executor);
+                                        });
                                     }
                                 } catch (Exception e) {
                                     listener.onFailure(e);

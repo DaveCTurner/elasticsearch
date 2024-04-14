@@ -126,6 +126,7 @@ public class MasterHistoryService {
         transportService.connectToNode(
             // Note: This connection must be explicitly closed below
             node,
+            executor,
             new ActionListener<>() {
                 @Override
                 public void onResponse(Releasable releasable) {
@@ -166,8 +167,7 @@ public class MasterHistoryService {
                     logger.warn("Exception connecting to master node", e);
                     remoteHistoryOrException = new RemoteHistoryOrException(e, currentTimeMillisSupplier.getAsLong());
                 }
-            },
-            executor
+            }
         );
     }
 

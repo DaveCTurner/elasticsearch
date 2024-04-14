@@ -287,7 +287,7 @@ public class JoinHelper {
             pendingJoinInfo.message = PENDING_JOIN_CONNECTING;
             // Typically we're already connected to the destination at this point, the PeerFinder holds a reference to this connection to
             // keep it open, but we need to acquire our own reference to keep the connection alive through the joining process.
-            transportService.connectToNode(destination, new ActionListener<>() {
+            transportService.connectToNode(destination, executor, new ActionListener<>() {
                 @Override
                 public void onResponse(Releasable connectionReference) {
                     logger.trace("acquired connection for joining join {} with {}", destination, joinRequest);
@@ -367,7 +367,7 @@ public class JoinHelper {
                     attempt.logNow();
                     lastFailedJoinAttempt.set(attempt);
                 }
-            }, executor);
+            });
 
         } else {
             logger.debug("already attempting to join {} with request {}, not sending request", destination, joinRequest);

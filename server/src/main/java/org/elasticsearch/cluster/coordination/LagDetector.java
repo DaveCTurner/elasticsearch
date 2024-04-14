@@ -265,7 +265,7 @@ public class LagDetector {
                 };
 
                 // we're removing the node from the cluster so we need to keep the connection open for the hot threads request
-                transportService.connectToNode(discoveryNode, new ActionListener<>() {
+                transportService.connectToNode(discoveryNode, executor, new ActionListener<>() {
                     @Override
                     public void onResponse(Releasable releasable) {
                         boolean success = false;
@@ -289,7 +289,7 @@ public class LagDetector {
                     public void onFailure(Exception e) {
                         debugListener.onFailure(e);
                     }
-                }, executor);
+                });
             } finally {
                 // call delegate after transportService#connectToNode to keep existing connection open
                 delegate.onLagDetected(discoveryNode, appliedVersion, expectedVersion);
