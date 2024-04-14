@@ -171,7 +171,7 @@ public class JoinValidationServiceTests extends ESTestCase {
             for (int i = 0; i < otherNodes.length; i++) {
                 otherNodes[i] = DiscoveryNodeUtils.create("other-" + i);
                 final var connectionListener = new PlainActionFuture<Releasable>();
-                transportService.connectToNode(otherNodes[i], executor, connectionListener);
+                transportService.connectToNode(otherNodes[i], transportService.getThreadPool().generic(), connectionListener);
                 releasables.add(connectionListener.get(10, TimeUnit.SECONDS));
             }
 

@@ -75,8 +75,12 @@ public class RemoteConnectionManager implements ConnectionManager {
         listener.onFailure(new UnsupportedOperationException("use connectToRemoteClusterNode instead"));
     }
 
-    public void connectToRemoteClusterNode(DiscoveryNode node, ConnectionValidator connectionValidator, ActionListener<Void> listener)
-        throws ConnectTransportException {
+    public void connectToRemoteClusterNode(
+        DiscoveryNode node,
+        ConnectionValidator connectionValidator,
+        Executor executor,
+        ActionListener<Void> listener
+    ) throws ConnectTransportException {
         delegate.connectToNode(node, null, connectionValidator, executor, listener.map(connectionReleasable -> {
             // We drop the connectionReleasable here but it's not really a leak: we never close individual connections to a remote cluster
             // ourselves - instead we close the whole connection manager if the remote cluster is removed, which bypasses any refcounting

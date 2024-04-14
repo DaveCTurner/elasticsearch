@@ -131,7 +131,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
 
         handshakingTransportAddressConnector.connectToRemoteMasterNode(
             discoveryAddress,
-            executor,
+            threadPool.generic(),
             ActionTestUtils.assertNoFailureListener(connectResult -> {
                 receivedNode.set(connectResult.getDiscoveryNode());
                 completionLatch.countDown();
@@ -170,7 +170,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
             )
         );
         try (var ignored = mockAppender.capturing(HandshakingTransportAddressConnector.class)) {
-            handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, executor, failureListener);
+            handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, threadPool.generic(), failureListener);
             assertThat(failureListener.getFailureMessage(), containsString("simulated"));
             mockAppender.assertAllExpectationsMatched();
         }
@@ -182,7 +182,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
         remoteClusterName = "local-cluster";
 
         FailureListener failureListener = new FailureListener();
-        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, executor, failureListener);
+        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, threadPool.generic(), failureListener);
         assertThat(
             failureListener.getFailureMessage(),
             allOf(
@@ -201,7 +201,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
         remoteClusterName = "local-cluster";
 
         FailureListener failureListener = new FailureListener();
-        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, executor, failureListener);
+        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, threadPool.generic(), failureListener);
         assertThat(failureListener.getFailureMessage(), containsString("successfully discovered local node"));
     }
 
@@ -211,7 +211,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
         remoteClusterName = "another-cluster";
 
         FailureListener failureListener = new FailureListener();
-        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, executor, failureListener);
+        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, threadPool.generic(), failureListener);
         assertThat(
             failureListener.getFailureMessage(),
             containsString("remote cluster name [another-cluster] does not match local cluster name [local-cluster]")
@@ -230,7 +230,7 @@ public class HandshakingTransportAddressConnectorTests extends ESTestCase {
         dropHandshake = true;
 
         FailureListener failureListener = new FailureListener();
-        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, executor, failureListener);
+        handshakingTransportAddressConnector.connectToRemoteMasterNode(discoveryAddress, threadPool.generic(), failureListener);
         assertThat(failureListener.getFailureMessage(), containsString("timed out"));
     }
 

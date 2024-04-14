@@ -61,22 +61,21 @@ public class RemoteConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestRemoteConnection((DiscoveryNode) invocationOnMock.getArguments()[0]));
             return null;
-        }).when(transport)
-            .openConnection(any(DiscoveryNode.class), any(ConnectionProfile.class), threadPool.generic(), any(ActionListener.class));
+        }).when(transport).openConnection(any(DiscoveryNode.class), any(ConnectionProfile.class), any(), any(ActionListener.class));
     }
 
     public void testGetConnection() {
         DiscoveryNode node1 = DiscoveryNodeUtils.create("node-1", address);
         PlainActionFuture<Void> future1 = new PlainActionFuture<>();
-        remoteConnectionManager.connectToRemoteClusterNode(node1, validator, future1);
+        remoteConnectionManager.connectToRemoteClusterNode(node1, validator, r -> fail("not called"), future1);
         assertTrue(future1.isDone());
 
         // Add duplicate connect attempt to ensure that we do not get duplicate connections in the round robin
-        remoteConnectionManager.connectToRemoteClusterNode(node1, validator, new PlainActionFuture<>());
+        remoteConnectionManager.connectToRemoteClusterNode(node1, validator, r -> fail("not called"), new PlainActionFuture<>());
 
         DiscoveryNode node2 = DiscoveryNodeUtils.create("node-2", address);
         PlainActionFuture<Void> future2 = new PlainActionFuture<>();
-        remoteConnectionManager.connectToRemoteClusterNode(node2, validator, future2);
+        remoteConnectionManager.connectToRemoteClusterNode(node2, validator, r -> fail("not called"), future2);
         assertTrue(future2.isDone());
 
         assertEquals(node1, remoteConnectionManager.getConnection(node1).getNode());
@@ -105,7 +104,7 @@ public class RemoteConnectionManagerTests extends ESTestCase {
     public void testResolveRemoteClusterAlias() throws ExecutionException, InterruptedException {
         DiscoveryNode remoteNode1 = DiscoveryNodeUtils.create("remote-node-1", address);
         PlainActionFuture<Void> future = new PlainActionFuture<>();
-        remoteConnectionManager.connectToRemoteClusterNode(remoteNode1, validator, future);
+        remoteConnectionManager.connectToRemoteClusterNode(remoteNode1, validator, r -> fail("not called"), future);
         assertTrue(future.isDone());
 
         Transport.Connection remoteConnection = remoteConnectionManager.getConnection(remoteNode1);
@@ -120,7 +119,7 @@ public class RemoteConnectionManagerTests extends ESTestCase {
         assertThat(RemoteConnectionManager.resolveRemoteClusterAlias(proxyConnection).get(), equalTo("remote-cluster"));
 
         PlainActionFuture<Transport.Connection> future2 = new PlainActionFuture<>();
-        remoteConnectionManager.openConnection(remoteNode1, null, executor, future2);
+        remoteConnectionManager.openConnection(remoteNode1, null, r -> fail("not called"), future2);
         assertThat(RemoteConnectionManager.resolveRemoteClusterAlias(future2.get()).get(), equalTo("remote-cluster"));
     }
 

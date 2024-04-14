@@ -121,14 +121,7 @@ public class ProxyConnectionStrategyTests extends ESTestCase {
                     assertEquals(clusterAlias, optionalClusterAlias.get());
                     invocation.callRealMethod();
                     return null;
-                }).when(localService).handshake(any(), any(), any(), doAnswer(invocation -> {
-                    final var connection = (Transport.Connection) invocation.getArgument(0);
-                    final Optional<String> optionalClusterAlias = RemoteConnectionManager.resolveRemoteClusterAlias(connection);
-                    assertTrue(optionalClusterAlias.isPresent());
-                    assertEquals(clusterAlias, optionalClusterAlias.get());
-                    invocation.callRealMethod();
-                    return null;
-                }).when(localService).threadPool.generic(), any());
+                }).when(localService).handshake(any(), any(), any(), any());
 
                 final ClusterConnectionManager connectionManager = new ClusterConnectionManager(
                     profile,

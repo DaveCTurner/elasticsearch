@@ -914,14 +914,14 @@ public class SniffConnectionStrategyTests extends ESTestCase {
 
                 StubbableTransport transport = new StubbableTransport(localService.transport);
                 AtomicReference<TransportAddress> discoverableNodeAddress = new AtomicReference<>();
-                transport.setDefaultConnectBehavior((delegate, node, profile, listener) -> {
+                transport.setDefaultConnectBehavior((delegate, node, profile, executor, listener) -> {
                     if (node.equals(discoverableNode)) {
                         // Do not actually try to connect because the node will not respond. Just capture the
                         // address for later assertion
                         discoverableNodeAddress.set(node.getAddress());
                         listener.onFailure(new ConnectTransportException(node, "general failure"));
                     } else {
-                        delegate.openConnection(node, profile, threadPool.generic(), listener);
+                        delegate.openConnection(node, profile, executor, listener);
                     }
                 });
 

@@ -553,7 +553,7 @@ public class TransportService extends AbstractLifecycleComponent
     public void handshake(
         final Transport.Connection connection,
         final TimeValue handshakeTimeout,
-        Executor executor,
+        final Executor executor,
         final ActionListener<DiscoveryNode> listener
     ) {
         handshake(

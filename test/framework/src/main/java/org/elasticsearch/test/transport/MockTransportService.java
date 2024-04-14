@@ -365,7 +365,7 @@ public class MockTransportService extends TransportService {
     public void addFailToSendNoConnectRule(TransportAddress transportAddress) {
         transport().addConnectBehavior(
             transportAddress,
-            (transport, discoveryNode, profile, listener) -> listener.onFailure(
+            (transport, discoveryNode, profile, executor, listener) -> listener.onFailure(
                 new ConnectTransportException(discoveryNode, "DISCONNECT: simulated")
             )
         );
@@ -423,7 +423,7 @@ public class MockTransportService extends TransportService {
     public void addUnresponsiveRule(TransportAddress transportAddress) {
         transport().addConnectBehavior(
             transportAddress,
-            (transport, discoveryNode, profile, listener) -> listener.onFailure(
+            (transport, discoveryNode, profile, executor, listener) -> listener.onFailure(
                 new ConnectTransportException(discoveryNode, "UNRESPONSIVE: simulated")
             )
         );
@@ -490,11 +490,12 @@ public class MockTransportService extends TransportService {
                 Transport transport,
                 DiscoveryNode discoveryNode,
                 ConnectionProfile profile,
+                Executor executor,
                 ActionListener<Transport.Connection> listener
             ) {
                 TimeValue delay = delaySupplier.get();
                 if (delay.millis() <= 0) {
-                    original.openConnection(discoveryNode, profile, original.getThreadPool().generic(), listener);
+                    original.openConnection(discoveryNode, profile, executor, listener);
                     return;
                 }
 
@@ -503,7 +504,7 @@ public class MockTransportService extends TransportService {
                 try {
                     if (delay.millis() < connectingTimeout.millis()) {
                         stopLatch.await(delay.millis(), TimeUnit.MILLISECONDS);
-                        original.openConnection(discoveryNode, profile, original.getThreadPool().generic(), listener);
+                        original.openConnection(discoveryNode, profile, executor, listener);
                     } else {
                         stopLatch.await(connectingTimeout.millis(), TimeUnit.MILLISECONDS);
                         listener.onFailure(new ConnectTransportException(discoveryNode, "UNRESPONSIVE: simulated"));

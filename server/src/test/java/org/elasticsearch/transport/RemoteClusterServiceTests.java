@@ -1368,14 +1368,14 @@ public class RemoteClusterServiceTests extends ESTestCase {
                 )
             ) {
                 // remote cluster_1 has a credentials and uses the _remote_cluster transport profile
-                transportService.addConnectBehavior(c1Node.getAddress(), (transport, discoveryNode, profile, listener) -> {
+                transportService.addConnectBehavior(c1Node.getAddress(), (transport, discoveryNode, profile, executor, listener) -> {
                     assertThat(profile.getTransportProfile(), equalTo("_remote_cluster"));
-                    transport.openConnection(discoveryNode, profile, threadPool.generic(), listener);
+                    transport.openConnection(discoveryNode, profile, executor, listener);
                 });
                 // remote cluster_2 has no credentials and uses legacy model
-                transportService.addConnectBehavior(c2Node.getAddress(), (transport, discoveryNode, profile, listener) -> {
+                transportService.addConnectBehavior(c2Node.getAddress(), (transport, discoveryNode, profile, executor, listener) -> {
                     assertThat(profile.getTransportProfile(), equalTo("default"));
-                    transport.openConnection(discoveryNode, profile, threadPool.generic(), listener);
+                    transport.openConnection(discoveryNode, profile, executor, listener);
                 });
                 transportService.start();
                 transportService.acceptIncomingRequests();
@@ -1529,7 +1529,7 @@ public class RemoteClusterServiceTests extends ESTestCase {
                 )
             ) {
                 // fail on connection attempt
-                transportService.addConnectBehavior(c2DiscoNode.getAddress(), (transport, discoveryNode, profile, listener) -> {
+                transportService.addConnectBehavior(c2DiscoNode.getAddress(), (transport, discoveryNode, profile, executor, listener) -> {
                     throw new RuntimeException("bad cluster");
                 });
 

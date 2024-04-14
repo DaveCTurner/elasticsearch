@@ -249,7 +249,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
             logger.trace("[{}] opening transient connection to seed node: [{}]", clusterAlias, seedNode);
             final ListenableFuture<Transport.Connection> openConnectionStep = new ListenableFuture<>();
             try {
-                connectionManager.openConnection(seedNode, null, executor, openConnectionStep);
+                connectionManager.openConnection(seedNode, null, transportService.getThreadPool().generic(), openConnectionStep);
             } catch (Exception e) {
                 onFailure.accept(e);
             }
@@ -281,6 +281,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                     connectionManager.connectToRemoteClusterNode(
                         handshakeNodeWithProxy,
                         getConnectionValidator(handshakeNodeWithProxy),
+                        transportService.getThreadPool().generic(),
                         fullConnectionStep
                     );
                 } else {
@@ -432,26 +433,34 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                 if (nodePredicate.test(node) && shouldOpenMoreConnections()) {
                     logger.trace("[{}] opening managed connection to node: [{}] proxy address: [{}]", clusterAlias, node, proxyAddress);
                     final DiscoveryNode nodeWithProxy = maybeAddProxyAddress(proxyAddress, node);
-                    connectionManager.connectToRemoteClusterNode(nodeWithProxy, getConnectionValidator(node), new ActionListener<>() {
-                        @Override
-                        public void onResponse(Void aVoid) {
-                            handleNodes(nodesIter);
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            if (e instanceof ConnectTransportException || e instanceof IllegalStateException) {
-                                // ISE if we fail the handshake with an version incompatible node
-                                // fair enough we can't connect just move on
-                                logger.debug(() -> format("[%s] failed to open managed connection to node [%s]", clusterAlias, node), e);
+                    connectionManager.connectToRemoteClusterNode(
+                        nodeWithProxy,
+                        getConnectionValidator(node),
+                        transportService.getThreadPool().generic(),
+                        new ActionListener<>() {
+                            @Override
+                            public void onResponse(Void aVoid) {
                                 handleNodes(nodesIter);
-                            } else {
-                                logger.warn(() -> format("[%s] failed to open managed connection to node [%s]", clusterAlias, node), e);
-                                IOUtils.closeWhileHandlingException(connection);
-                                collectRemoteNodes(seedNodes, listener);
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                if (e instanceof ConnectTransportException || e instanceof IllegalStateException) {
+                                    // ISE if we fail the handshake with an version incompatible node
+                                    // fair enough we can't connect just move on
+                                    logger.debug(
+                                        () -> format("[%s] failed to open managed connection to node [%s]", clusterAlias, node),
+                                        e
+                                    );
+                                    handleNodes(nodesIter);
+                                } else {
+                                    logger.warn(() -> format("[%s] failed to open managed connection to node [%s]", clusterAlias, node), e);
+                                    IOUtils.closeWhileHandlingException(connection);
+                                    collectRemoteNodes(seedNodes, listener);
+                                }
                             }
                         }
-                    });
+                    );
                     return;
                 }
             }

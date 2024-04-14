@@ -77,7 +77,7 @@ public class TransportServiceDeserializationFailureTests extends ESTestCase {
         transportService.acceptIncomingRequests();
 
         final PlainActionFuture<Releasable> connectionFuture = new PlainActionFuture<>();
-        transportService.connectToNode(otherNode, executor, connectionFuture);
+        transportService.connectToNode(otherNode, r -> fail("not called"), connectionFuture);
         assertTrue(connectionFuture.isDone());
 
         {

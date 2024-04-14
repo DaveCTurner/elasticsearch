@@ -25,6 +25,7 @@ import org.elasticsearch.test.disruption.NetworkDisruption;
 import org.elasticsearch.test.disruption.ServiceDisruptionScheme;
 import org.elasticsearch.test.disruption.SlowClusterStateProcessing;
 import org.elasticsearch.test.transport.MockTransportService;
+import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.HashSet;
@@ -82,15 +83,7 @@ public class DiscoveryDisruptionIT extends AbstractDisruptionTestCase {
             connection.sendRequest(requestId, action, request, options);
         });
 
-        nonMasterTransportService.addConnectBehavior(
-            masterTransportService,
-            (transport, node, profile, listener) -> transport.openConnection(
-                node,
-                profile,
-                nonMasterTransportService.getThreadPool().generic(),
-                listener
-            )
-        );
+        nonMasterTransportService.addConnectBehavior(masterTransportService, Transport::openConnection);
 
         countDownLatch.await();
 

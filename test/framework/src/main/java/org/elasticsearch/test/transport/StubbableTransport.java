@@ -178,7 +178,7 @@ public class StubbableTransport implements Transport {
         if (behavior == null) {
             delegate.openConnection(node, profile, executor, wrappedListener);
         } else {
-            behavior.openConnection(delegate, node, profile, wrappedListener);
+            behavior.openConnection(delegate, node, profile, executor, wrappedListener);
         }
     }
 
@@ -324,6 +324,7 @@ public class StubbableTransport implements Transport {
             Transport transport,
             DiscoveryNode discoveryNode,
             ConnectionProfile profile,
+            Executor executor,
             ActionListener<Connection> listener
         );
 

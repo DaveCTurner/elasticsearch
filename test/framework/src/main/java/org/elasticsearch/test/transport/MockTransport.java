@@ -82,7 +82,7 @@ public class MockTransport extends StubbableTransport {
     public MockTransport() {
         super(new FakeTransport());
         setDefaultConnectBehavior(
-            (transport, discoveryNode, profile, actionListener) -> actionListener.onResponse(createConnection(discoveryNode))
+            (transport, discoveryNode, profile, executor, actionListener) -> actionListener.onResponse(createConnection(discoveryNode))
         );
     }
 

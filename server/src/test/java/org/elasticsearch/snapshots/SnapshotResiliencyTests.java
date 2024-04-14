@@ -1711,7 +1711,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .forEach(
                         n -> n.transportService.connectToNode(
                             node.node,
-                            executor,
+                            n.transportService.getThreadPool().generic(),
                             ActionTestUtils.assertNoFailureListener(c -> logger.info("--> Connected [{}] to [{}]", n.node, node.node))
                         )
                     )
@@ -1940,7 +1940,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             n -> n.transportService.openConnection(
                                 node,
                                 null,
-                                executor,
+                                n.transportService.getThreadPool().generic(),
                                 ActionTestUtils.assertNoFailureListener(c -> logger.debug("--> Connected [{}] to [{}]", n.node, node))
                             )
                         );

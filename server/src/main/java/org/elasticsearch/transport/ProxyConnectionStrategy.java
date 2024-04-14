@@ -308,13 +308,18 @@ public class ProxyConnectionStrategy extends RemoteConnectionStrategy {
                     )
                 );
 
-                connectionManager.connectToRemoteClusterNode(node, clusterNameValidator, compositeListener.delegateResponse((l, e) -> {
-                    logger.debug(
-                        () -> format("failed to open remote connection [remote cluster: %s, address: %s]", clusterAlias, resolved),
-                        e
-                    );
-                    l.onFailure(e);
-                }));
+                connectionManager.connectToRemoteClusterNode(
+                    node,
+                    clusterNameValidator,
+                    transportService.getThreadPool().generic(),
+                    compositeListener.delegateResponse((l, e) -> {
+                        logger.debug(
+                            () -> format("failed to open remote connection [remote cluster: %s, address: %s]", clusterAlias, resolved),
+                            e
+                        );
+                        l.onFailure(e);
+                    })
+                );
             }
         } else {
             logger.debug(
