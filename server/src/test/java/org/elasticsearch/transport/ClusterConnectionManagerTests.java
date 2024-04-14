@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -222,7 +223,8 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         DiscoveryNode node = DiscoveryNodeUtils.create("", new TransportAddress(InetAddress.getLoopbackAddress(), 0));
         doAnswer(invocationOnMock -> {
             @SuppressWarnings("unchecked")
-            ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
+            ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[3];
+            final var executor = asInstanceOf(Executor.class, invocationOnMock.getArgument(2));
 
             boolean success = randomBoolean();
             if (success) {
@@ -231,26 +233,26 @@ public class ClusterConnectionManagerTests extends ESTestCase {
                 if (randomBoolean()) {
                     listener.onResponse(connection);
                 } else {
-                    threadPool.generic().execute(() -> listener.onResponse(connection));
+                    executor.execute(() -> listener.onResponse(connection));
                 }
             } else {
-                threadPool.generic().execute(() -> listener.onFailure(new IllegalStateException("dummy exception")));
+                executor.execute(() -> listener.onFailure(new IllegalStateException("dummy exception")));
             }
             return null;
-        }).when(transport).openConnection(eq(node), eq(connectionProfile), threadPool.generic(), anyActionListener());
+        }).when(transport).openConnection(eq(node), eq(connectionProfile), any(), anyActionListener());
 
         assertFalse(connectionManager.nodeConnected(node));
 
-        ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> {
+        ConnectionManager.ConnectionValidator validator = (c, p, executor, l) -> {
             boolean success = randomBoolean();
             if (success) {
                 if (randomBoolean()) {
                     l.onResponse(null);
                 } else {
-                    threadPool.generic().execute(() -> l.onResponse(null));
+                    executor.execute(() -> l.onResponse(null));
                 }
             } else {
-                threadPool.generic().execute(() -> l.onFailure(new IllegalStateException("dummy exception")));
+                executor.execute(() -> l.onFailure(new IllegalStateException("dummy exception")));
             }
         };
 
@@ -275,6 +277,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
                 try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                     final String contextValue = randomAlphaOfLength(10);
                     threadContext.putHeader(contextHeader, contextValue);
+                    // TODO NOCOMMIT verify that the listener is completed using the expected executor
                     connectionManager.connectToNode(node, connectionProfile, validator, threadPool.generic(), ActionListener.wrap(c -> {
                         assert connectionManager.nodeConnected(node);
                         assertThat(threadContext.getHeader(contextHeader), equalTo(contextValue));
