@@ -421,7 +421,6 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             channel.addConnectListener(channelsConnectedListener);
         }
 
-        TimeValue connectTimeout = connectionProfile.getConnectTimeout();
         threadPool.schedule(new AbstractRunnable() {
             @Override
             protected void doRun() {
@@ -445,7 +444,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
                 assert false : e;
                 channelsConnectedListener.onFailure(e);
             }
-        }, connectTimeout, executor);
+        }, connectionProfile.getConnectTimeout(), executor);
     }
 
     @Override
