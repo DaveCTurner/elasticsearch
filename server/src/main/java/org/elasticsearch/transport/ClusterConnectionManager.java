@@ -109,7 +109,7 @@ public class ClusterConnectionManager implements ConnectionManager {
      *                            will release this connection (and close it if no other references to it are held).
      */
     @Override
-    public void connecttonode(
+    public void connectToNode(
         DiscoveryNode node,
         @Nullable ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
@@ -283,7 +283,7 @@ public class ClusterConnectionManager implements ConnectionManager {
      * maintained by this connection manager
      *
      * @throws NodeNotConnectedException if the node is not connected
-     * @see ConnectionManager#connecttonode(DiscoveryNode, ConnectionProfile, ConnectionValidator, Executor, ActionListener)
+     * @see ConnectionManager#connectToNode(DiscoveryNode, ConnectionProfile, ConnectionValidator, Executor, ActionListener)
      */
     @Override
     public Transport.Connection getConnection(DiscoveryNode node) {

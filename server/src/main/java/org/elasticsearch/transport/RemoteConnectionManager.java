@@ -63,7 +63,7 @@ public class RemoteConnectionManager implements ConnectionManager {
      * instead of this method.
      */
     @Override
-    public final void connecttonode(
+    public final void connectToNode(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
@@ -77,7 +77,7 @@ public class RemoteConnectionManager implements ConnectionManager {
 
     public void connectToRemoteClusterNode(DiscoveryNode node, ConnectionValidator connectionValidator, ActionListener<Void> listener)
         throws ConnectTransportException {
-        delegate.connecttonode(node, null, connectionValidator, executor, listener.map(connectionReleasable -> {
+        delegate.connectToNode(node, null, connectionValidator, executor, listener.map(connectionReleasable -> {
             // We drop the connectionReleasable here but it's not really a leak: we never close individual connections to a remote cluster
             // ourselves - instead we close the whole connection manager if the remote cluster is removed, which bypasses any refcounting
             // and just closes the underlying channels.

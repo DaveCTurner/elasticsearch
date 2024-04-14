@@ -494,7 +494,7 @@ public class TransportService extends AbstractLifecycleComponent
             listener.onResponse(null);
             return;
         }
-        connectionManager.connecttonode(node, connectionProfile, connectionValidator(node), executor, listener);
+        connectionManager.connectToNode(node, connectionProfile, connectionValidator(node), executor, listener);
     }
 
     public ConnectionManager.ConnectionValidator connectionValidator(DiscoveryNode node) {

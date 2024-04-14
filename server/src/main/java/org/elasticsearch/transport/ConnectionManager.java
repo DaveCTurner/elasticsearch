@@ -31,7 +31,7 @@ public interface ConnectionManager extends Closeable {
         ActionListener<Transport.Connection> listener
     );
 
-    void connecttonode(
+    void connectToNode(
         DiscoveryNode node,
         @Nullable ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,

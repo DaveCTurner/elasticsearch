@@ -92,14 +92,14 @@ public class StubbableConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void connecttonode(
+    public void connectToNode(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
         Executor executor,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
-        delegate.connecttonode(node, connectionProfile, connectionValidator, executor, listener);
+        delegate.connectToNode(node, connectionProfile, connectionValidator, executor, listener);
     }
 
     @Override
