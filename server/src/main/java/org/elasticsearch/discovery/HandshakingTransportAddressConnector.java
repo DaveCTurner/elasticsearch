@@ -30,6 +30,7 @@ import org.elasticsearch.transport.TransportRequestOptions.Type;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.Locale;
+import java.util.concurrent.Executor;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -71,7 +72,11 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
     }
 
     @Override
-    public void connectToRemoteMasterNode(TransportAddress transportAddress, ActionListener<ProbeConnectionResult> listener) {
+    public void connectToRemoteMasterNode(
+        TransportAddress transportAddress,
+        Executor executor,
+        ActionListener<ProbeConnectionResult> listener
+    ) {
         try {
 
             // We could skip this if the transportService were already connected to the given address, but the savings would be minimal so
@@ -133,9 +138,9 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                                                 String.format(
                                                     Locale.ROOT,
                                                     """
-                                                        successfully discovered master-ineligible node %s at [%s]; to suppress this message, \
-                                                        remove address [%s] from your discovery configuration or ensure that traffic to this \
-                                                        address is routed only to master-eligible nodes""",
+                                                        successfully discovered master-ineligible node %s at [%s]; to suppress this \
+                                                        message, remove address [%s] from your discovery configuration or ensure that \
+                                                        traffic to this address is routed only to master-eligible nodes""",
                                                     remoteNode.descriptionWithoutAttributes(),
                                                     transportAddress,
                                                     transportAddress

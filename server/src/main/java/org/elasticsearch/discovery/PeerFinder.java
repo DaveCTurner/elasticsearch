@@ -413,7 +413,7 @@ public abstract class PeerFinder {
                 - activatedAtMillis > verbosityIncreaseTimeout.millis();
 
             logger.trace("{} attempting connection", this);
-            transportAddressConnector.connectToRemoteMasterNode(transportAddress, new ActionListener<ProbeConnectionResult>() {
+            transportAddressConnector.connectToRemoteMasterNode(transportAddress, clusterCoordinationExecutor, new ActionListener<>() {
                 @Override
                 public void onResponse(ProbeConnectionResult connectResult) {
                     assert holdsLock() == false : "PeerFinder mutex is held in error";

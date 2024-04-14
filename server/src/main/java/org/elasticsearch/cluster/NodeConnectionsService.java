@@ -285,53 +285,61 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
 
             // It's possible that connectionRef is a reference to an older connection that closed out from under us, but that something else
             // has opened a fresh connection to the node. Therefore we always call connectToNode() and update connectionRef.
-            transportService.connectToNode(discoveryNode, executor, ActionListener.runAfter(new ActionListener<>() {
-                @Override
-                public void onResponse(Releasable connectionReleasable) {
-                    if (alreadyConnected) {
-                        logger.trace("refreshed connection to {}", discoveryNode);
-                    } else {
-                        logger.debug("connected to {}", discoveryNode);
-                    }
-                    consecutiveFailureCount.set(0);
-                    setConnectionRef(connectionReleasable);
+            transportService.connectToNode(
+                discoveryNode,
+                transportService.getThreadPool().generic(),
+                ActionListener.runAfter(new ActionListener<>() {
+                    @Override
+                    public void onResponse(Releasable connectionReleasable) {
+                        if (alreadyConnected) {
+                            logger.trace("refreshed connection to {}", discoveryNode);
+                        } else {
+                            logger.debug("connected to {}", discoveryNode);
+                        }
+                        consecutiveFailureCount.set(0);
+                        setConnectionRef(connectionReleasable);
 
-                    final boolean isActive;
-                    synchronized (mutex) {
-                        isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
+                        final boolean isActive;
+                        synchronized (mutex) {
+                            isActive = targetsByNode.get(discoveryNode) == ConnectionTarget.this;
+                        }
+                        if (isActive == false) {
+                            logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
+                            setConnectionRef(null);
+                        }
+                        Releasables.closeExpectNoException(refs);
                     }
-                    if (isActive == false) {
-                        logger.debug("connected to stale {} - releasing stale connection", discoveryNode);
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
+                        // Only warn every 6th failure. We work around this log while stopping integ test clusters in
+                        // InternalTestCluster#close by temporarily raising the log level to ERROR. If the nature of this log changes in the
+                        // future, that workaround might need to be adjusted.
+                        final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
+                        logger.log(
+                            level,
+                            () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount),
+                            e
+                        );
                         setConnectionRef(null);
+                        Releasables.closeExpectNoException(refs);
                     }
-                    Releasables.closeExpectNoException(refs);
-                }
+                }, () -> {
+                    releaseListener();
+                    threadPool.generic().execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            ConnectionTarget.this.doConnect();
+                        }
 
-                @Override
-                public void onFailure(Exception e) {
-                    final int currentFailureCount = consecutiveFailureCount.incrementAndGet();
-                    // Only warn every 6th failure. We work around this log while stopping integ test clusters in InternalTestCluster#close
-                    // by temporarily raising the log level to ERROR. If the nature of this log changes in the future, that workaround might
-                    // need to be adjusted.
-                    final Level level = currentFailureCount % 6 == 1 ? Level.WARN : Level.DEBUG;
-                    logger.log(level, () -> format("failed to connect to %s (tried [%s] times)", discoveryNode, currentFailureCount), e);
-                    setConnectionRef(null);
-                    Releasables.closeExpectNoException(refs);
-                }
-            }, () -> {
-                releaseListener();
-                threadPool.generic().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        ConnectionTarget.this.doConnect();
-                    }
-
-                    @Override
-                    public String toString() {
-                        return "ensure connection to " + discoveryNode;
-                    }
-                });
-            }));
+                        @Override
+                        public String toString() {
+                            return "ensure connection to " + discoveryNode;
+                        }
+                    });
+                })
+            );
         }
 
         void disconnect() {

@@ -100,7 +100,11 @@ public class PeerFinderTests extends ESTestCase {
         }
 
         @Override
-        public void connectToRemoteMasterNode(TransportAddress transportAddress, ActionListener<ProbeConnectionResult> listener) {
+        public void connectToRemoteMasterNode(
+            TransportAddress transportAddress,
+            Executor executor,
+            ActionListener<ProbeConnectionResult> listener
+        ) {
             assert localNode.getAddress().equals(transportAddress) == false : "should not probe local node";
 
             final boolean isNotInFlight = inFlightConnectionAttempts.add(transportAddress);
