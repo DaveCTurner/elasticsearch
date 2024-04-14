@@ -82,7 +82,12 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ExecutorService executor, ActionListener<Connection> listener) {
+    public void openConnection(
+        DiscoveryNode node,
+        ConnectionProfile profile,
+        ExecutorService executor,
+        ActionListener<Connection> listener
+    ) {
         final Optional<DisruptableMockTransport> optionalMatchingTransport = getDisruptableMockTransport(node.getAddress());
         if (optionalMatchingTransport.isPresent()) {
             final DisruptableMockTransport matchingTransport = optionalMatchingTransport.get();

@@ -82,7 +82,10 @@ public class DiscoveryDisruptionIT extends AbstractDisruptionTestCase {
             connection.sendRequest(requestId, action, request, options);
         });
 
-        nonMasterTransportService.addConnectBehavior(masterTransportService, (transport, node, profile, listener) -> transport.openConnection(node, profile, transport.getThreadPool().generic(), listener));
+        nonMasterTransportService.addConnectBehavior(
+            masterTransportService,
+            (transport, node, profile, listener) -> transport.openConnection(node, profile, transport.getThreadPool().generic(), listener)
+        );
 
         countDownLatch.await();
 

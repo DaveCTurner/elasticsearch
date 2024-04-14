@@ -169,7 +169,12 @@ public class StubbableTransport implements Transport {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ExecutorService executor, ActionListener<Connection> listener) {
+    public void openConnection(
+        DiscoveryNode node,
+        ConnectionProfile profile,
+        ExecutorService executor,
+        ActionListener<Connection> listener
+    ) {
         TransportAddress address = node.getAddress();
         OpenConnectionBehavior behavior = connectBehaviors.getOrDefault(address, defaultConnectBehavior);
 

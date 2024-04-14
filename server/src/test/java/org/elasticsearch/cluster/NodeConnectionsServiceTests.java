@@ -610,7 +610,12 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         }
 
         @Override
-        public void openConnection(DiscoveryNode node, ConnectionProfile profile, ExecutorService executor, ActionListener<Connection> listener) {
+        public void openConnection(
+            DiscoveryNode node,
+            ConnectionProfile profile,
+            ExecutorService executor,
+            ActionListener<Connection> listener
+        ) {
             final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
                 threadPool.generic().execute(() -> {
