@@ -39,9 +39,11 @@ import org.elasticsearch.common.transport.PortsRange;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.PageCacheRecycler;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.CountDown;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.monitor.jvm.JvmInfo;
@@ -420,7 +422,30 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         }
 
         TimeValue connectTimeout = connectionProfile.getConnectTimeout();
-        threadPool.schedule(channelsConnectedListener::onTimeout, connectTimeout, executor);
+        threadPool.schedule(new AbstractRunnable() {
+            @Override
+            protected void doRun() {
+                channelsConnectedListener.onTimeout();
+            }
+
+            @Override
+            public boolean isForceExecution() {
+                return true;
+            }
+
+            @Override
+            public void onRejection(Exception e) {
+                assert e instanceof EsRejectedExecutionException esre && esre.isExecutorShutdown();
+                // shutting down, so cannot fork elsewhere; hopefully we're complete anyway
+                channelsConnectedListener.onTimeout();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                assert false : e;
+                channelsConnectedListener.onFailure(e);
+            }
+        }, connectTimeout, executor);
     }
 
     @Override
