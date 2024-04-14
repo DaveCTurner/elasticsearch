@@ -67,6 +67,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -354,7 +356,12 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Transport.Connection> listener) {
+    public void openConnection(
+        DiscoveryNode node,
+        ConnectionProfile profile,
+        ExecutorService executor,
+        ActionListener<Connection> listener
+    ) {
         ActionListener.run(listener, l -> {
             Objects.requireNonNull(profile, "connection profile cannot be null");
             if (node == null) {
@@ -368,14 +375,19 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             }
             try {
                 ensureOpen();
-                initiateConnection(node, finalProfile, l);
+                initiateConnection(node, finalProfile, executor, l);
             } finally {
                 closeLock.readLock().unlock();
             }
         });
     }
 
-    private void initiateConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Connection> listener) {
+    private void initiateConnection(
+        DiscoveryNode node,
+        ConnectionProfile connectionProfile,
+        Executor executor,
+        ActionListener<Connection> listener
+    ) {
         int numConnections = connectionProfile.getNumConnections();
         assert numConnections > 0 : "A connection profile must be configured with at least one connection";
 
@@ -403,7 +415,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             node,
             connectionProfile,
             channels,
-            new ThreadedActionListener<>(threadPool.generic(), listener)
+            new ThreadedActionListener<>(executor, listener)
         );
 
         for (TcpChannel channel : channels) {
@@ -411,7 +423,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         }
 
         TimeValue connectTimeout = connectionProfile.getConnectTimeout();
-        threadPool.schedule(channelsConnectedListener::onTimeout, connectTimeout, threadPool.generic());
+        threadPool.schedule(channelsConnectedListener::onTimeout, connectTimeout, executor);
     }
 
     @Override

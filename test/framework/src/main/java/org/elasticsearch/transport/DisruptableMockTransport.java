@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import static org.elasticsearch.core.Strings.format;
@@ -81,7 +82,7 @@ public abstract class DisruptableMockTransport extends MockTransport {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Connection> listener) {
+    public void openConnection(DiscoveryNode node, ConnectionProfile profile, ExecutorService executor, ActionListener<Connection> listener) {
         final Optional<DisruptableMockTransport> optionalMatchingTransport = getDisruptableMockTransport(node.getAddress());
         if (optionalMatchingTransport.isPresent()) {
             final DisruptableMockTransport matchingTransport = optionalMatchingTransport.get();

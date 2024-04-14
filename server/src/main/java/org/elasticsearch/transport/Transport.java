@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
@@ -83,7 +84,7 @@ public interface Transport extends LifecycleComponent {
      * Opens a new connection to the given node. When the connection is fully connected, the listener is called.
      * The ActionListener will be called on the calling thread or the generic thread pool.
      */
-    void openConnection(DiscoveryNode node, ConnectionProfile profile, ActionListener<Transport.Connection> listener);
+    void openConnection(DiscoveryNode node, ConnectionProfile profile, ExecutorService executor, ActionListener<Connection> listener);
 
     TransportStats getStats();
 

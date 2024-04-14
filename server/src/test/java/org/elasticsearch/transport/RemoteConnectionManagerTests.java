@@ -61,7 +61,7 @@ public class RemoteConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestRemoteConnection((DiscoveryNode) invocationOnMock.getArguments()[0]));
             return null;
-        }).when(transport).openConnection(any(DiscoveryNode.class), any(ConnectionProfile.class), any(ActionListener.class));
+        }).when(transport).openConnection(any(DiscoveryNode.class), any(ConnectionProfile.class), threadPool.generic(), any(ActionListener.class));
     }
 
     public void testGetConnection() {

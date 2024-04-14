@@ -110,7 +110,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(connection);
             return null;
-        }).when(transport).openConnection(eq(node), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(eq(node), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         assertFalse(connectionManager.nodeConnected(node));
 
@@ -161,7 +161,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             final DiscoveryNode discoveryNode = (DiscoveryNode) invocationOnMock.getArguments()[0];
             listener.onResponse(new TestConnect(discoveryNode));
             return null;
-        }).when(transport).openConnection(any(), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(any(), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         final ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
         final AtomicReference<Releasable> toClose = new AtomicReference<>();
@@ -229,7 +229,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
                 threadPool.generic().execute(() -> listener.onFailure(new IllegalStateException("dummy exception")));
             }
             return null;
-        }).when(transport).openConnection(eq(node), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(eq(node), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         assertFalse(connectionManager.nodeConnected(node));
 
@@ -356,7 +356,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             pendingConnections.add(() -> listener.onResponse(new TestConnect(targetNode)));
             pendingConnectionPermits.release();
             return null;
-        }).when(transport).openConnection(any(), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(any(), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         final ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
 
@@ -463,7 +463,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestConnect(node));
             return null;
-        }).when(transport).openConnection(eq(node), any(), anyActionListener());
+        }).when(transport).openConnection(eq(node), any(), threadPool.generic(), anyActionListener());
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 
@@ -541,7 +541,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestConnect(node));
             return null;
-        }).when(transport).openConnection(eq(node), any(), anyActionListener());
+        }).when(transport).openConnection(eq(node), any(), threadPool.generic(), anyActionListener());
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 
@@ -664,7 +664,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(connection);
             return null;
-        }).when(transport).openConnection(eq(node), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(eq(node), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         assertFalse(connectionManager.nodeConnected(node));
 
@@ -703,7 +703,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onFailure(new ConnectTransportException(node, ""));
             return null;
-        }).when(transport).openConnection(eq(node), eq(connectionProfile), anyActionListener());
+        }).when(transport).openConnection(eq(node), eq(connectionProfile), threadPool.generic(), anyActionListener());
 
         assertFalse(connectionManager.nodeConnected(node));
 

@@ -493,7 +493,7 @@ public class MockTransportService extends TransportService {
             ) {
                 TimeValue delay = delaySupplier.get();
                 if (delay.millis() <= 0) {
-                    original.openConnection(discoveryNode, profile, listener);
+                    original.openConnection(discoveryNode, profile, original.getThreadPool().generic(), listener);
                     return;
                 }
 
@@ -502,7 +502,7 @@ public class MockTransportService extends TransportService {
                 try {
                     if (delay.millis() < connectingTimeout.millis()) {
                         stopLatch.await(delay.millis(), TimeUnit.MILLISECONDS);
-                        original.openConnection(discoveryNode, profile, listener);
+                        original.openConnection(discoveryNode, profile, original.getThreadPool().generic(), listener);
                     } else {
                         stopLatch.await(connectingTimeout.millis(), TimeUnit.MILLISECONDS);
                         listener.onFailure(new ConnectTransportException(discoveryNode, "UNRESPONSIVE: simulated"));

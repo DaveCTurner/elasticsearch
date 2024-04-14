@@ -886,13 +886,13 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         final var transportA = serviceA.getOriginalTransport();
 
         final var nullProfileFuture = new PlainActionFuture<Transport.Connection>();
-        transportA.openConnection(nodeB, null, nullProfileFuture);
+        transportA.openConnection(nodeB, null, threadPool.generic(), nullProfileFuture);
         assertTrue(nullProfileFuture.isDone());
         expectThrows(ExecutionException.class, NullPointerException.class, nullProfileFuture::get);
 
         final var profile = ConnectionProfile.buildDefaultConnectionProfile(Settings.EMPTY);
         final var nullNodeFuture = new PlainActionFuture<Transport.Connection>();
-        transportA.openConnection(null, profile, nullNodeFuture);
+        transportA.openConnection(null, profile, threadPool.generic(), nullNodeFuture);
         assertTrue(nullNodeFuture.isDone());
         expectThrows(ExecutionException.class, ConnectTransportException.class, nullNodeFuture::get);
 
@@ -902,7 +902,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         assertEquals(Lifecycle.State.CLOSED, transportA.lifecycleState());
 
         final var closedTransportFuture = new PlainActionFuture<Transport.Connection>();
-        transportA.openConnection(nodeB, profile, closedTransportFuture);
+        transportA.openConnection(nodeB, profile, threadPool.generic(), closedTransportFuture);
         assertTrue(closedTransportFuture.isDone());
         expectThrows(ExecutionException.class, IllegalStateException.class, closedTransportFuture::get);
     }
@@ -2403,7 +2403,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
                 .roles(emptySet())
                 .version(version0)
                 .build();
-            originalTransport.openConnection(node, connectionProfile, future);
+            originalTransport.openConnection(node, connectionProfile, threadPool.generic(), future);
             try (Transport.Connection connection = future.actionGet()) {
                 assertBusy(() -> { assertTrue(originalTransport.getKeepAlive().successfulPingCount() > 30); });
                 assertEquals(0, originalTransport.getKeepAlive().failedPingCount());
@@ -2422,7 +2422,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
                 .version(version0)
                 .build();
             PlainActionFuture<Transport.Connection> future = new PlainActionFuture<>();
-            serviceA.getOriginalTransport().openConnection(node, connectionProfile, future);
+            serviceA.getOriginalTransport().openConnection(node, connectionProfile, threadPool.generic(), future);
             try (Transport.Connection connection = future.actionGet()) {
                 assertEquals(TransportVersion.current(), connection.getTransportVersion());
             }

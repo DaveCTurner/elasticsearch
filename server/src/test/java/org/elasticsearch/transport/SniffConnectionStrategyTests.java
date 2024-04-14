@@ -921,7 +921,7 @@ public class SniffConnectionStrategyTests extends ESTestCase {
                         discoverableNodeAddress.set(node.getAddress());
                         listener.onFailure(new ConnectTransportException(node, "general failure"));
                     } else {
-                        delegate.openConnection(node, profile, listener);
+                        delegate.openConnection(node, profile, threadPool.generic(), listener);
                     }
                 });
 
