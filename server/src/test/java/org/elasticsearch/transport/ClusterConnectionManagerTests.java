@@ -364,7 +364,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             pendingConnections.add(() -> listener.onResponse(new TestConnect(targetNode)));
             pendingConnectionPermits.release();
             return null;
-        }).when(transport).openConnection(any(), eq(connectionProfile), threadPool.generic(), anyActionListener());
+        }).when(transport).openConnection(any(), eq(connectionProfile), any(), anyActionListener());
 
         final ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
 
@@ -472,7 +472,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestConnect(node));
             return null;
-        }).when(transport).openConnection(eq(node), any(), threadPool.generic(), anyActionListener());
+        }).when(transport).openConnection(eq(node), any(), any(), anyActionListener());
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 
@@ -550,7 +550,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             ActionListener<Transport.Connection> listener = (ActionListener<Transport.Connection>) invocationOnMock.getArguments()[2];
             listener.onResponse(new TestConnect(node));
             return null;
-        }).when(transport).openConnection(eq(node), any(), threadPool.generic(), anyActionListener());
+        }).when(transport).openConnection(eq(node), any(), any(), anyActionListener());
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 

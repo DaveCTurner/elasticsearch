@@ -109,7 +109,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                     transportService.handshake(
                         connection,
                         probeHandshakeTimeout,
-                        transportService.getThreadPool().generic(),
+                        executor,
                         ActionListener.notifyOnce(new ActionListener<>() {
 
                             @Override

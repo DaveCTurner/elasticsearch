@@ -503,6 +503,7 @@ public class TransportService extends AbstractLifecycleComponent
     public ConnectionManager.ConnectionValidator connectionValidator(DiscoveryNode node) {
         return (newConnection, actualProfile, listener) -> {
             // We don't validate cluster names to allow for CCS connections.
+            // NOCOMMIT
             handshake(newConnection, actualProfile.getHandshakeTimeout(), Predicates.always(), threadPool.generic(), listener.map(resp -> {
                 final DiscoveryNode remote = resp.discoveryNode;
                 if (node.equals(remote) == false) {
@@ -516,11 +517,11 @@ public class TransportService extends AbstractLifecycleComponent
     /**
      * Establishes a new connection to the given node. The connection is NOT maintained by this service, it's the callers
      * responsibility to close the connection once it goes out of scope.
-     * The ActionListener will be called on the calling thread or the generic thread pool.
+     * The ActionListener will be called on the calling thread or the provided executor.
      *
      * @param node              the node to connect to
      * @param connectionProfile the connection profile to use
-     * @param executor
+     * @param executor          executor to use to complete the listener if not completed on the calling thread
      * @param listener          the action listener to notify
      */
     public void openConnection(
@@ -541,11 +542,11 @@ public class TransportService extends AbstractLifecycleComponent
      * and returns the discovery node of the node the connection
      * was established with. The handshake will fail if the cluster
      * name on the target node mismatches the local cluster name.
-     * The ActionListener will be called on the calling thread or the supplied executor..
+     * The ActionListener will be called on the calling thread or the supplied executor.
      *
      * @param connection       the connection to a specific node
      * @param handshakeTimeout handshake timeout
-     * @param executor             executor to use to complete the listener if not completed on the calling thread
+     * @param executor         executor to use to complete the listener if not completed on the calling thread
      * @param listener         action listener to notify
      * @throws ConnectTransportException if the connection failed
      * @throws IllegalStateException     if the handshake failed
