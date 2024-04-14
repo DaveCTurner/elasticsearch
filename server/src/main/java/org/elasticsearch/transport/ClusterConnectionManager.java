@@ -85,7 +85,7 @@ public class ClusterConnectionManager implements ConnectionManager {
             var success = false;
             final var release = new RunOnce(connectingRefCounter::decRef);
             try {
-                internalOpenConnection(node, resolvedProfile, ActionListener.runBefore(listener, release::run), executor);
+                internalOpenConnection(node, resolvedProfile, executor, ActionListener.runBefore(listener, release::run));
                 success = true;
             } finally {
                 if (success == false) {
@@ -220,6 +220,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         internalOpenConnection(
             node,
             resolvedProfile,
+            executor,
             ActionListener.wrap(
                 conn -> connectionValidator.validate(conn, resolvedProfile, ActionListener.runAfter(ActionListener.wrap(ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
@@ -272,8 +273,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                     assert Transports.assertNotTransportThread("internalOpenConnection failure");
                     failConnectionListener(node, releaseOnce, e, currentListener);
                 }
-            ),
-            executor
+            )
         );
     }
 
@@ -368,8 +368,8 @@ public class ClusterConnectionManager implements ConnectionManager {
     private void internalOpenConnection(
         DiscoveryNode node,
         ConnectionProfile connectionProfile,
-        ActionListener<Transport.Connection> listener,
-        Executor executor
+        Executor executor,
+        ActionListener<Transport.Connection> listener
     ) {
         transport.openConnection(node, connectionProfile, executor, listener.map(connection -> {
             assert Transports.assertNotTransportThread("internalOpenConnection success");
