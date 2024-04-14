@@ -223,53 +223,61 @@ public class ClusterConnectionManager implements ConnectionManager {
             resolvedProfile,
             executor,
             ActionListener.wrap(
-                conn -> connectionValidator.validate(conn, resolvedProfile, ActionListener.runAfter(ActionListener.wrap(ignored -> {
-                    assert Transports.assertNotTransportThread("connection validator success");
-                    final var managerRefs = AbstractRefCounted.of(conn::onRemoved);
-                    try {
-                        if (connectedNodes.putIfAbsent(node, conn) != null) {
-                            assert false : "redundant connection to " + node;
-                            logger.warn("existing connection to node [{}], closing new redundant connection", node);
-                            IOUtils.closeWhileHandlingException(conn);
-                        } else {
-                            logger.debug("connected to node [{}]", node);
-                            managerRefs.mustIncRef();
-                            try {
-                                connectionListener.onNodeConnected(node, conn);
-                            } finally {
-                                conn.addCloseListener(ActionListener.running(() -> {
-                                    connectedNodes.remove(node, conn);
-                                    connectionListener.onNodeDisconnected(node, conn);
-                                    managerRefs.decRef();
-                                }));
+                conn -> connectionValidator.validate(
+                    conn,
+                    resolvedProfile,
+                    executor,
+                    ActionListener.runAfter(ActionListener.wrap(ignored -> {
+                        assert Transports.assertNotTransportThread("connection validator success");
+                        final var managerRefs = AbstractRefCounted.of(conn::onRemoved);
+                        try {
+                            if (connectedNodes.putIfAbsent(node, conn) != null) {
+                                assert false : "redundant connection to " + node;
+                                logger.warn("existing connection to node [{}], closing new redundant connection", node);
+                                IOUtils.closeWhileHandlingException(conn);
+                            } else {
+                                logger.debug("connected to node [{}]", node);
+                                managerRefs.mustIncRef();
+                                try {
+                                    connectionListener.onNodeConnected(node, conn);
+                                } finally {
+                                    conn.addCloseListener(ActionListener.running(() -> {
+                                        connectedNodes.remove(node, conn);
+                                        connectionListener.onNodeDisconnected(node, conn);
+                                        managerRefs.decRef();
+                                    }));
 
-                                conn.addCloseListener(ActionListener.running(() -> {
-                                    if (connectingRefCounter.hasReferences() == false) {
-                                        logger.trace("connection manager shut down, closing transport connection to [{}]", node);
-                                    } else if (conn.hasReferences()) {
-                                        logger.info("transport connection to [{}] closed by remote", node.descriptionWithoutAttributes());
-                                        // In production code we only close connections via ref-counting, so this message confirms that a
-                                        // 'node-left ... reason: disconnected' event was caused by external factors. Put differently, if a
-                                        // node leaves the cluster with "reason: disconnected" but without this message being logged then
-                                        // that's a bug.
-                                    } else {
-                                        logger.debug("closing unused transport connection to [{}]", node);
-                                    }
-                                }));
+                                    conn.addCloseListener(ActionListener.running(() -> {
+                                        if (connectingRefCounter.hasReferences() == false) {
+                                            logger.trace("connection manager shut down, closing transport connection to [{}]", node);
+                                        } else if (conn.hasReferences()) {
+                                            logger.info(
+                                                "transport connection to [{}] closed by remote",
+                                                node.descriptionWithoutAttributes()
+                                            );
+                                            // In production code we only close connections via ref-counting, so this message confirms that
+                                            // a 'node-left ... reason: disconnected' event was caused by external factors. Put differently,
+                                            // if a node leaves the cluster with "reason: disconnected" but without this message being
+                                            // logged then that's a bug.
+                                        } else {
+                                            logger.debug("closing unused transport connection to [{}]", node);
+                                        }
+                                    }));
+                                }
                             }
+                        } finally {
+                            ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
+                            assert future == currentListener : "Listener in pending map is different than the expected listener";
+                            managerRefs.decRef();
+                            releaseOnce.run();
+                            future.onResponse(conn);
                         }
-                    } finally {
-                        ListenableFuture<Transport.Connection> future = pendingConnections.remove(node);
-                        assert future == currentListener : "Listener in pending map is different than the expected listener";
-                        managerRefs.decRef();
-                        releaseOnce.run();
-                        future.onResponse(conn);
-                    }
-                }, e -> {
-                    assert Transports.assertNotTransportThread("connection validator failure");
-                    IOUtils.closeWhileHandlingException(conn);
-                    failConnectionListener(node, releaseOnce, e, currentListener);
-                }), conn::decRef)),
+                    }, e -> {
+                        assert Transports.assertNotTransportThread("connection validator failure");
+                        IOUtils.closeWhileHandlingException(conn);
+                        failConnectionListener(node, releaseOnce, e, currentListener);
+                    }), conn::decRef)
+                ),
                 e -> {
                     assert Transports.assertNotTransportThread("internalOpenConnection failure");
                     failConnectionListener(node, releaseOnce, e, currentListener);

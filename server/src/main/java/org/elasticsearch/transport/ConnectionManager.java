@@ -58,7 +58,7 @@ public interface ConnectionManager extends Closeable {
 
     @FunctionalInterface
     interface ConnectionValidator {
-        void validate(Transport.Connection connection, ConnectionProfile profile, ActionListener<Void> listener);
+        void validate(Transport.Connection connection, ConnectionProfile profile, Executor executor, ActionListener<Void> listener);
     }
 
     final class DelegatingNodeConnectionListener implements TransportConnectionListener {

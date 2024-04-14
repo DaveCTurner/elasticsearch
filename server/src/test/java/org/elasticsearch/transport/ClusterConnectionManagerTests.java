@@ -115,7 +115,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         assertFalse(connectionManager.nodeConnected(node));
 
         final var validatedConnectionRef = new AtomicReference<Transport.Connection>();
-        ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
+        ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> {
             validatedConnectionRef.set(c);
             l.onResponse(null);
         };
@@ -165,7 +165,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             return null;
         }).when(transport).openConnection(any(), eq(connectionProfile), any(), anyActionListener());
 
-        final ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
+        final ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> l.onResponse(null);
         final AtomicReference<Releasable> toClose = new AtomicReference<>();
 
         PlainActionFuture.get(
@@ -241,7 +241,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
 
         assertFalse(connectionManager.nodeConnected(node));
 
-        ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
+        ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> {
             boolean success = randomBoolean();
             if (success) {
                 if (randomBoolean()) {
@@ -366,7 +366,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
             return null;
         }).when(transport).openConnection(any(), eq(connectionProfile), any(), anyActionListener());
 
-        final ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
+        final ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> l.onResponse(null);
 
         // Once we start to see connections being rejected, we give back the stolen permit so that the last connection can complete
         final var onConnectException = new RunOnce(pendingConnectionPermits::release);
@@ -476,7 +476,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 
-        final ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
+        final ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> {
             assertTrue(validatorPermits.tryAcquire());
             randomExecutor(threadPool).execute(() -> {
                 try {
@@ -554,7 +554,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
 
         final Semaphore validatorPermits = new Semaphore(Integer.MAX_VALUE);
 
-        final ConnectionManager.ConnectionValidator validator = (c, p, l) -> {
+        final ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> {
             assertTrue(validatorPermits.tryAcquire());
             randomExecutor(threadPool).execute(() -> {
                 try {
@@ -678,7 +678,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
 
         assertFalse(connectionManager.nodeConnected(node));
 
-        ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onFailure(new ConnectTransportException(node, ""));
+        ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> l.onFailure(new ConnectTransportException(node, ""));
 
         PlainActionFuture<Releasable> fut = new PlainActionFuture<>();
         connectionManager.connectToNode(node, connectionProfile, validator, threadPool.generic(), fut);
@@ -717,7 +717,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
 
         assertFalse(connectionManager.nodeConnected(node));
 
-        ConnectionManager.ConnectionValidator validator = (c, p, l) -> l.onResponse(null);
+        ConnectionManager.ConnectionValidator validator = (c, p, x, l) -> l.onResponse(null);
 
         PlainActionFuture<Releasable> fut = new PlainActionFuture<>();
         connectionManager.connectToNode(node, connectionProfile, validator, threadPool.generic(), fut);
@@ -746,7 +746,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         connectionManager.connectToNode(
             node,
             connectionProfile,
-            (c, p, l) -> fail("should not be called"),
+            (c, p, x, l) -> fail("should not be called"),
             threadPool.generic(),
             connectToNodeFuture
         );

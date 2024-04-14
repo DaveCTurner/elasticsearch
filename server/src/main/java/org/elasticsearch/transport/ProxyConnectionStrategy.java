@@ -173,7 +173,7 @@ public class ProxyConnectionStrategy extends RemoteConnectionStrategy {
         this.configuredServerName = configuredServerName;
         assert Strings.isEmpty(configuredAddress) == false : "Cannot use proxy connection strategy with no configured addresses";
         this.address = address;
-        this.clusterNameValidator = (newConnection, actualProfile, listener) -> {
+        this.clusterNameValidator = (newConnection, actualProfile, executor, listener) -> {
             assert actualProfile.getTransportProfile().equals(connectionManager.getConnectionProfile().getTransportProfile())
                 : "transport profile must be consistent between the connection manager and the actual profile";
             transportService.handshake(
@@ -184,7 +184,7 @@ public class ProxyConnectionStrategy extends RemoteConnectionStrategy {
                 ),
                 actualProfile.getHandshakeTimeout(),
                 Predicates.always(),
-                transportService.threadPool.generic(),
+                executor,
                 listener.map(resp -> {
                     ClusterName remote = resp.getClusterName();
                     if (remoteClusterName.compareAndSet(null, remote)) {

@@ -43,7 +43,7 @@ public class RemoteConnectionManagerTests extends ESTestCase {
 
     private Transport transport;
     private RemoteConnectionManager remoteConnectionManager;
-    private ConnectionManager.ConnectionValidator validator = (connection, profile, listener) -> listener.onResponse(null);
+    private ConnectionManager.ConnectionValidator validator = (connection, profile, executor, listener) -> listener.onResponse(null);
     private TransportAddress address = new TransportAddress(InetAddress.getLoopbackAddress(), 1000);
 
     @SuppressWarnings("unchecked")
