@@ -558,6 +558,7 @@ public class NodeConnectionsServiceTests extends ESTestCase {
             Transport.Connection connection,
             TimeValue timeout,
             Predicate<ClusterName> clusterNamePredicate,
+            Executor executor,
             ActionListener<HandshakeResponse> listener
         ) {
             listener.onResponse(new HandshakeResponse(Version.CURRENT, Build.current().hash(), connection.getNode(), new ClusterName("")));

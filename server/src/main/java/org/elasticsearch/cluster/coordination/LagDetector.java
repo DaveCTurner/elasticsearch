@@ -289,7 +289,7 @@ public class LagDetector {
                     public void onFailure(Exception e) {
                         debugListener.onFailure(e);
                     }
-                });
+                }, executor);
             } finally {
                 // call delegate after transportService#connectToNode to keep existing connection open
                 delegate.onLagDetected(discoveryNode, appliedVersion, expectedVersion);

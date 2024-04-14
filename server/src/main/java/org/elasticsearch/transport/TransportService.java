@@ -468,26 +468,29 @@ public class TransportService extends AbstractLifecycleComponent
 
     /**
      * Connect to the specified node with the given connection profile.
-     * The ActionListener will be called on the calling thread or the generic thread pool.
+     * The ActionListener will be called on the calling thread or the supplied executor.
      *
-     * @param node the node to connect to
+     * @param node     the node to connect to
      * @param listener the action listener to notify
+     * @param executor          executor to use to complete the listener if not completed on the calling thread
      */
-    public void connectToNode(DiscoveryNode node, ActionListener<Releasable> listener) throws ConnectTransportException {
-        connectToNode(node, null, listener);
+    public void connectToNode(DiscoveryNode node, ActionListener<Releasable> listener, Executor executor) throws ConnectTransportException {
+        connectToNode(node, null, executor, listener);
     }
 
     /**
      * Connect to the specified node with the given connection profile.
-     * The ActionListener will be called on the calling thread or the generic thread pool.
+     * The ActionListener will be called on the calling thread or the supplied executor.
      *
-     * @param node the node to connect to
+     * @param node              the node to connect to
      * @param connectionProfile the connection profile to use when connecting to this node
-     * @param listener the action listener to notify
+     * @param executor          executor to use to complete the listener if not completed on the calling thread
+     * @param listener          the action listener to notify
      */
     public void connectToNode(
         final DiscoveryNode node,
         @Nullable ConnectionProfile connectionProfile,
+        Executor executor,
         ActionListener<Releasable> listener
     ) {
         if (isLocalNode(node)) {
@@ -500,7 +503,7 @@ public class TransportService extends AbstractLifecycleComponent
     public ConnectionManager.ConnectionValidator connectionValidator(DiscoveryNode node) {
         return (newConnection, actualProfile, listener) -> {
             // We don't validate cluster names to allow for CCS connections.
-            handshake(newConnection, actualProfile.getHandshakeTimeout(), Predicates.always(), listener.map(resp -> {
+            handshake(newConnection, actualProfile.getHandshakeTimeout(), Predicates.always(), threadPool.generic(), listener.map(resp -> {
                 final DiscoveryNode remote = resp.discoveryNode;
                 if (node.equals(remote) == false) {
                     throw new ConnectTransportException(node, "handshake failed. unexpected remote node " + remote);
@@ -514,13 +517,16 @@ public class TransportService extends AbstractLifecycleComponent
      * Establishes a new connection to the given node. The connection is NOT maintained by this service, it's the callers
      * responsibility to close the connection once it goes out of scope.
      * The ActionListener will be called on the calling thread or the generic thread pool.
-     * @param node the node to connect to
+     *
+     * @param node              the node to connect to
      * @param connectionProfile the connection profile to use
-     * @param listener the action listener to notify
+     * @param executor
+     * @param listener          the action listener to notify
      */
     public void openConnection(
         final DiscoveryNode node,
         ConnectionProfile connectionProfile,
+        Executor executor,
         ActionListener<Transport.Connection> listener
     ) {
         if (isLocalNode(node)) {
@@ -535,20 +541,28 @@ public class TransportService extends AbstractLifecycleComponent
      * and returns the discovery node of the node the connection
      * was established with. The handshake will fail if the cluster
      * name on the target node mismatches the local cluster name.
-     * The ActionListener will be called on the calling thread or the generic thread pool.
+     * The ActionListener will be called on the calling thread or the supplied executor..
      *
      * @param connection       the connection to a specific node
      * @param handshakeTimeout handshake timeout
+     * @param executor             executor to use to complete the listener if not completed on the calling thread
      * @param listener         action listener to notify
      * @throws ConnectTransportException if the connection failed
-     * @throws IllegalStateException if the handshake failed
+     * @throws IllegalStateException     if the handshake failed
      */
     public void handshake(
         final Transport.Connection connection,
         final TimeValue handshakeTimeout,
+        Executor executor,
         final ActionListener<DiscoveryNode> listener
     ) {
-        handshake(connection, handshakeTimeout, clusterName.getEqualityPredicate(), listener.map(HandshakeResponse::getDiscoveryNode));
+        handshake(
+            connection,
+            handshakeTimeout,
+            clusterName.getEqualityPredicate(),
+            executor,
+            listener.map(HandshakeResponse::getDiscoveryNode)
+        );
     }
 
     /**
@@ -556,20 +570,23 @@ public class TransportService extends AbstractLifecycleComponent
      * and returns the discovery node of the node the connection
      * was established with. The handshake will fail if the cluster
      * name on the target node doesn't match the local cluster name.
-     * The ActionListener will be called on the calling thread or the generic thread pool.
+     * The ActionListener will be called on the calling thread or the supplied executor.
      *
-     * @param connection       the connection to a specific node
-     * @param handshakeTimeout handshake timeout
+     * @param connection           the connection to a specific node
+     * @param handshakeTimeout     handshake timeout
      * @param clusterNamePredicate cluster name validation predicate
-     * @param listener         action listener to notify
+     * @param executor             executor to use to complete the listener if not completed on the calling thread
+     * @param listener             action listener to notify
      * @throws IllegalStateException if the handshake failed
      */
     public void handshake(
         final Transport.Connection connection,
         final TimeValue handshakeTimeout,
-        Predicate<ClusterName> clusterNamePredicate,
+        final Predicate<ClusterName> clusterNamePredicate,
+        final Executor executor,
         final ActionListener<HandshakeResponse> listener
     ) {
+        assert executor != EsExecutors.DIRECT_EXECUTOR_SERVICE;
         final DiscoveryNode node = connection.getNode();
         sendRequest(
             connection,
@@ -603,7 +620,7 @@ public class TransportService extends AbstractLifecycleComponent
                 } else {
                     l.onResponse(response);
                 }
-            }), HandshakeResponse::new, threadPool.generic())
+            }), HandshakeResponse::new, executor)
         );
     }
 

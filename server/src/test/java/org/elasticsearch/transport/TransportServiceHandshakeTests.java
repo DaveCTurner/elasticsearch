@@ -146,7 +146,9 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                 TestProfiles.LIGHT_PROFILE
             )
         ) {
-            DiscoveryNode connectedNode = PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut));
+            DiscoveryNode connectedNode = PlainActionFuture.get(
+                fut -> transportServiceA.handshake(connection, timeout, transportServiceA.threadPool.generic(), fut)
+            );
             assertNotNull(connectedNode);
             // the name and version should be updated
             assertEquals(connectedNode.getName(), "TS_B");
@@ -184,7 +186,9 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                PlainActionFuture.get(
+                    fut -> transportServiceA.handshake(connection, timeout, transportServiceA.threadPool.generic(), fut.map(x -> null))
+                );
             }
         });
         assertThat(
@@ -227,7 +231,9 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                PlainActionFuture.get(
+                    fut -> transportServiceA.handshake(connection, timeout, transportServiceA.threadPool.generic(), fut.map(x -> null))
+                );
             }
         });
         assertThat(
@@ -274,7 +280,9 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                PlainActionFuture.get(
+                    fut -> transportServiceA.handshake(connection, timeout, transportServiceA.threadPool.generic(), fut.map(x -> null))
+                );
             }
         });
         // the error is exposed as a general connection exception, the actual message is in the logs
@@ -346,7 +354,9 @@ public class TransportServiceHandshakeTests extends ESTestCase {
                     TestProfiles.LIGHT_PROFILE
                 )
             ) {
-                PlainActionFuture.get(fut -> transportServiceA.handshake(connection, timeout, fut.map(x -> null)));
+                PlainActionFuture.get(
+                    fut -> transportServiceA.handshake(connection, timeout, transportServiceA.threadPool.generic(), fut.map(x -> null))
+                );
             }
         });
         assertThat(

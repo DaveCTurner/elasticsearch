@@ -159,9 +159,9 @@ public class DisruptableMockTransportTests extends ESTestCase {
         service2.start();
 
         final PlainActionFuture<Releasable> fut1 = new PlainActionFuture<>();
-        service1.connectToNode(node2, fut1);
+        service1.connectToNode(node2, fut1, executor);
         final PlainActionFuture<Releasable> fut2 = new PlainActionFuture<>();
-        service2.connectToNode(node1, fut2);
+        service2.connectToNode(node1, fut2, executor);
         deterministicTaskQueue.runAllTasksInTimeOrder();
         assertTrue(fut1.isDone());
         assertTrue(fut2.isDone());

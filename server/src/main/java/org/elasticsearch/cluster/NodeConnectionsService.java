@@ -331,7 +331,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                         return "ensure connection to " + discoveryNode;
                     }
                 });
-            }));
+            }), executor);
         }
 
         void disconnect() {

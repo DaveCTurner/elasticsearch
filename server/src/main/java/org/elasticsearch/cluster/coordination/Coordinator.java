@@ -688,7 +688,7 @@ public class Coordinator extends AbstractLifecycleComponent implements ClusterSt
                     )
                 );
             }
-        });
+        }, executor);
     }
 
     /**

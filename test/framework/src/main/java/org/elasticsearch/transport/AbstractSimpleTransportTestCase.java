@@ -3397,6 +3397,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             serviceC.connectToNode(
                 serviceA.getLocalDiscoNode(),
                 ConnectionProfile.buildDefaultConnectionProfile(Settings.EMPTY),
+                executor,
                 new ActionListener<>() {
                     @Override
                     public void onResponse(final Releasable ignored) {
@@ -3472,7 +3473,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
      * @param connectionProfile the connection profile to use when connecting to this node
      */
     public static void connectToNode(TransportService service, DiscoveryNode node, ConnectionProfile connectionProfile) {
-        PlainActionFuture.get(fut -> service.connectToNode(node, connectionProfile, fut.map(x -> null)));
+        PlainActionFuture.get(fut -> service.connectToNode(node, connectionProfile, executor, fut.map(x -> null)));
     }
 
     /**
@@ -3483,7 +3484,7 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
      * @param connectionProfile the connection profile to use
      */
     public static Transport.Connection openConnection(TransportService service, DiscoveryNode node, ConnectionProfile connectionProfile) {
-        return PlainActionFuture.get(fut -> service.openConnection(node, connectionProfile, fut));
+        return PlainActionFuture.get(fut -> service.openConnection(node, connectionProfile, executor, fut));
     }
 
     public static <T extends TransportResponse> Future<T> submitRequest(

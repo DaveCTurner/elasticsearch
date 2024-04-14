@@ -71,6 +71,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -722,8 +723,13 @@ public class MockTransportService extends TransportService {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Transport.Connection> listener) {
-        super.openConnection(node, connectionProfile, listener.safeMap(connection -> {
+    public void openConnection(
+        DiscoveryNode node,
+        ConnectionProfile connectionProfile,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
+        super.openConnection(node, connectionProfile, executor, listener.safeMap(connection -> {
             synchronized (openConnections) {
                 openConnections.computeIfAbsent(node, n -> new CopyOnWriteArrayList<>()).add(connection);
                 connection.addCloseListener(ActionListener.running(() -> {

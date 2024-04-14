@@ -367,7 +367,7 @@ public class JoinHelper {
                     attempt.logNow();
                     lastFailedJoinAttempt.set(attempt);
                 }
-            });
+            }, executor);
 
         } else {
             logger.debug("already attempting to join {} with request {}, not sending request", destination, joinRequest);

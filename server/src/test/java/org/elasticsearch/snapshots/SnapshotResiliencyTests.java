@@ -1711,7 +1711,8 @@ public class SnapshotResiliencyTests extends ESTestCase {
                     .forEach(
                         n -> n.transportService.connectToNode(
                             node.node,
-                            ActionTestUtils.assertNoFailureListener(c -> logger.info("--> Connected [{}] to [{}]", n.node, node.node))
+                            ActionTestUtils.assertNoFailureListener(c -> logger.info("--> Connected [{}] to [{}]", n.node, node.node)),
+                            executor
                         )
                     )
             );
@@ -1939,6 +1940,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                             n -> n.transportService.openConnection(
                                 node,
                                 null,
+                                executor,
                                 ActionTestUtils.assertNoFailureListener(c -> logger.debug("--> Connected [{}] to [{}]", n.node, node))
                             )
                         );

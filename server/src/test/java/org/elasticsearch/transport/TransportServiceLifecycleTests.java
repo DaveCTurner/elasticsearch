@@ -59,7 +59,7 @@ public class TransportServiceLifecycleTests extends ESTestCase {
             try (var nodeB = new TestNode("node-B")) {
 
                 final var connectFuture = new PlainActionFuture<Releasable>();
-                nodeB.transportService.connectToNode(nodeA.transportService.getLocalNode(), connectFuture);
+                nodeB.transportService.connectToNode(nodeA.transportService.getLocalNode(), connectFuture, executor);
                 connectFuture.get(10, TimeUnit.SECONDS);
 
                 final var startBarrier = new CyclicBarrier(threads.length + 1);

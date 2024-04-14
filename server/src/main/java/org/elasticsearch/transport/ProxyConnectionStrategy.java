@@ -184,6 +184,7 @@ public class ProxyConnectionStrategy extends RemoteConnectionStrategy {
                 ),
                 actualProfile.getHandshakeTimeout(),
                 Predicates.always(),
+                transportService.threadPool.generic(),
                 listener.map(resp -> {
                     ClusterName remote = resp.getClusterName();
                     if (remoteClusterName.compareAndSet(null, remote)) {

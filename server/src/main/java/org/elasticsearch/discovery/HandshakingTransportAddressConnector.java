@@ -95,92 +95,98 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                     )
                 ),
                 handshakeConnectionProfile,
+                executor,
                 listener.delegateFailure((l, connection) -> {
                     logger.trace("[{}] opened probe connection", transportAddress);
                     final var probeHandshakeTimeout = handshakeConnectionProfile.getHandshakeTimeout();
                     // use NotifyOnceListener to make sure the following line does not result in onFailure being called when
                     // the connection is closed in the onResponse handler
-                    transportService.handshake(connection, probeHandshakeTimeout, ActionListener.notifyOnce(new ActionListener<>() {
+                    transportService.handshake(
+                        connection,
+                        probeHandshakeTimeout,
+                        transportService.getThreadPool().generic(),
+                        ActionListener.notifyOnce(new ActionListener<>() {
 
-                        @Override
-                        public void onResponse(DiscoveryNode remoteNode) {
-                            try {
-                                // success means (amongst other things) that the cluster names match
-                                logger.trace("[{}] handshake successful: {}", transportAddress, remoteNode);
-                                IOUtils.closeWhileHandlingException(connection);
+                            @Override
+                            public void onResponse(DiscoveryNode remoteNode) {
+                                try {
+                                    // success means (amongst other things) that the cluster names match
+                                    logger.trace("[{}] handshake successful: {}", transportAddress, remoteNode);
+                                    IOUtils.closeWhileHandlingException(connection);
 
-                                if (remoteNode.equals(transportService.getLocalNode())) {
-                                    listener.onFailure(
-                                        new ConnectTransportException(
-                                            remoteNode,
-                                            String.format(
-                                                Locale.ROOT,
-                                                "successfully discovered local node %s at [%s]",
-                                                remoteNode.descriptionWithoutAttributes(),
-                                                transportAddress
+                                    if (remoteNode.equals(transportService.getLocalNode())) {
+                                        listener.onFailure(
+                                            new ConnectTransportException(
+                                                remoteNode,
+                                                String.format(
+                                                    Locale.ROOT,
+                                                    "successfully discovered local node %s at [%s]",
+                                                    remoteNode.descriptionWithoutAttributes(),
+                                                    transportAddress
+                                                )
                                             )
-                                        )
-                                    );
-                                } else if (remoteNode.isMasterNode() == false) {
-                                    listener.onFailure(
-                                        new ConnectTransportException(
-                                            remoteNode,
-                                            String.format(
-                                                Locale.ROOT,
-                                                """
-                                                    successfully discovered master-ineligible node %s at [%s]; to suppress this message, \
-                                                    remove address [%s] from your discovery configuration or ensure that traffic to this \
-                                                    address is routed only to master-eligible nodes""",
-                                                remoteNode.descriptionWithoutAttributes(),
-                                                transportAddress,
-                                                transportAddress
-                                            )
-                                        )
-                                    );
-                                } else {
-                                    transportService.connectToNode(remoteNode, new ActionListener<>() {
-                                        @Override
-                                        public void onResponse(Releasable connectionReleasable) {
-                                            logger.trace("[{}] completed full connection with [{}]", transportAddress, remoteNode);
-                                            listener.onResponse(new ProbeConnectionResult(remoteNode, connectionReleasable));
-                                        }
-
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            // we opened a connection and successfully performed a handshake, so we're definitely
-                                            // talking to a master-eligible node with a matching cluster name and a good version, but
-                                            // the attempt to open a full connection to its publish address failed; a common reason is
-                                            // that the remote node is listening on 0.0.0.0 but has made an inappropriate choice for its
-                                            // publish address.
-                                            logger.warn(
-                                                () -> format(
-                                                    "completed handshake with [%s] at [%s] but followup connection to [%s] failed",
+                                        );
+                                    } else if (remoteNode.isMasterNode() == false) {
+                                        listener.onFailure(
+                                            new ConnectTransportException(
+                                                remoteNode,
+                                                String.format(
+                                                    Locale.ROOT,
+                                                    """
+                                                        successfully discovered master-ineligible node %s at [%s]; to suppress this message, \
+                                                        remove address [%s] from your discovery configuration or ensure that traffic to this \
+                                                        address is routed only to master-eligible nodes""",
                                                     remoteNode.descriptionWithoutAttributes(),
                                                     transportAddress,
-                                                    remoteNode.getAddress()
-                                                ),
-                                                e
-                                            );
-                                            listener.onFailure(e);
-                                        }
-                                    });
+                                                    transportAddress
+                                                )
+                                            )
+                                        );
+                                    } else {
+                                        transportService.connectToNode(remoteNode, new ActionListener<>() {
+                                            @Override
+                                            public void onResponse(Releasable connectionReleasable) {
+                                                logger.trace("[{}] completed full connection with [{}]", transportAddress, remoteNode);
+                                                listener.onResponse(new ProbeConnectionResult(remoteNode, connectionReleasable));
+                                            }
+
+                                            @Override
+                                            public void onFailure(Exception e) {
+                                                // we opened a connection and successfully performed a handshake, so we're definitely
+                                                // talking to a master-eligible node with a matching cluster name and a good version, but
+                                                // the attempt to open a full connection to its publish address failed; a common reason is
+                                                // that the remote node is listening on 0.0.0.0 but has made an inappropriate choice for its
+                                                // publish address.
+                                                logger.warn(
+                                                    () -> format(
+                                                        "completed handshake with [%s] at [%s] but followup connection to [%s] failed",
+                                                        remoteNode.descriptionWithoutAttributes(),
+                                                        transportAddress,
+                                                        remoteNode.getAddress()
+                                                    ),
+                                                    e
+                                                );
+                                                listener.onFailure(e);
+                                            }
+                                        }, executor);
+                                    }
+                                } catch (Exception e) {
+                                    listener.onFailure(e);
                                 }
-                            } catch (Exception e) {
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                // we opened a connection and successfully performed a low-level handshake, so we were definitely
+                                // talking to an Elasticsearch node, but the high-level handshake failed indicating some kind of
+                                // mismatched configurations (e.g. cluster name) that the user should address
+                                logger.warn(() -> "handshake to [" + transportAddress + "] failed", e);
+                                IOUtils.closeWhileHandlingException(connection);
                                 listener.onFailure(e);
                             }
-                        }
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            // we opened a connection and successfully performed a low-level handshake, so we were definitely
-                            // talking to an Elasticsearch node, but the high-level handshake failed indicating some kind of
-                            // mismatched configurations (e.g. cluster name) that the user should address
-                            logger.warn(() -> "handshake to [" + transportAddress + "] failed", e);
-                            IOUtils.closeWhileHandlingException(connection);
-                            listener.onFailure(e);
-                        }
-
-                    }));
+                        })
+                    );
 
                 })
             );

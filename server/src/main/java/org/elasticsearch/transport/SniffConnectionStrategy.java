@@ -261,6 +261,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                     connection,
                     connectionProfile.getHandshakeTimeout(),
                     getRemoteClusterNamePredicate(),
+                    transportService.threadPool.generic(),
                     handshakeStep
                 );
             }, onFailure));
