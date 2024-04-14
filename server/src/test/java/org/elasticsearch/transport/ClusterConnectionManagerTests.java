@@ -277,7 +277,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
                 try (ThreadContext.StoredContext ignored = threadContext.stashContext()) {
                     final String contextValue = randomAlphaOfLength(10);
                     threadContext.putHeader(contextHeader, contextValue);
-                    // TODO NOCOMMIT verify that the listener is completed using the expected executor
+                    // TODO verify that the listener is completed using the expected executor
                     connectionManager.connectToNode(node, connectionProfile, validator, threadPool.generic(), ActionListener.wrap(c -> {
                         assert connectionManager.nodeConnected(node);
                         assertThat(threadContext.getHeader(contextHeader), equalTo(contextValue));
