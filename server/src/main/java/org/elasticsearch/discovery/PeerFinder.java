@@ -413,86 +413,90 @@ public abstract class PeerFinder {
                 - activatedAtMillis > verbosityIncreaseTimeout.millis();
 
             logger.trace("{} attempting connection", this);
-            transportAddressConnector.connectToRemoteMasterNode(transportAddress, clusterCoordinationExecutor, new ActionListener<>() {
-                @Override
-                public void onResponse(ProbeConnectionResult connectResult) {
-                    assert holdsLock() == false : "PeerFinder mutex is held in error";
-                    final DiscoveryNode remoteNode = connectResult.getDiscoveryNode();
-                    assert remoteNode.isMasterNode() : remoteNode + " is not master-eligible";
-                    assert remoteNode.equals(getLocalNode()) == false : remoteNode + " is the local node";
-                    boolean retainConnection = false;
-                    try {
-                        synchronized (mutex) {
-                            if (isActive() == false) {
-                                logger.trace("Peer#establishConnection inactive: {}", Peer.this);
-                                return;
+            transportAddressConnector.connectToRemoteMasterNode(
+                transportAddress,
+                transportService.getThreadPool().generic(),
+                new ActionListener<>() {
+                    @Override
+                    public void onResponse(ProbeConnectionResult connectResult) {
+                        assert holdsLock() == false : "PeerFinder mutex is held in error";
+                        final DiscoveryNode remoteNode = connectResult.getDiscoveryNode();
+                        assert remoteNode.isMasterNode() : remoteNode + " is not master-eligible";
+                        assert remoteNode.equals(getLocalNode()) == false : remoteNode + " is the local node";
+                        boolean retainConnection = false;
+                        try {
+                            synchronized (mutex) {
+                                if (isActive() == false) {
+                                    logger.trace("Peer#establishConnection inactive: {}", Peer.this);
+                                    return;
+                                }
+
+                                assert probeConnectionResult.get() == null
+                                    : "connection result unexpectedly already set to " + probeConnectionResult.get();
+                                probeConnectionResult.set(connectResult);
+
+                                requestPeers();
                             }
 
-                            assert probeConnectionResult.get() == null
-                                : "connection result unexpectedly already set to " + probeConnectionResult.get();
-                            probeConnectionResult.set(connectResult);
+                            onFoundPeersUpdated();
 
-                            requestPeers();
-                        }
-
-                        onFoundPeersUpdated();
-
-                        retainConnection = true;
-                    } finally {
-                        if (retainConnection == false) {
-                            Releasables.close(connectResult);
+                            retainConnection = true;
+                        } finally {
+                            if (retainConnection == false) {
+                                Releasables.close(connectResult);
+                            }
                         }
                     }
-                }
 
-                @Override
-                public void onFailure(Exception e) {
-                    if (verboseFailureLogging) {
+                    @Override
+                    public void onFailure(Exception e) {
+                        if (verboseFailureLogging) {
 
-                        final String believedMasterBy;
-                        synchronized (mutex) {
-                            believedMasterBy = peersByAddress.values()
-                                .stream()
-                                .filter(p -> p.lastKnownMasterNode.map(DiscoveryNode::getAddress).equals(Optional.of(transportAddress)))
-                                .findFirst()
-                                .map(p -> " [current master according to " + p.getDiscoveryNode().descriptionWithoutAttributes() + "]")
-                                .orElse("");
-                        }
+                            final String believedMasterBy;
+                            synchronized (mutex) {
+                                believedMasterBy = peersByAddress.values()
+                                    .stream()
+                                    .filter(p -> p.lastKnownMasterNode.map(DiscoveryNode::getAddress).equals(Optional.of(transportAddress)))
+                                    .findFirst()
+                                    .map(p -> " [current master according to " + p.getDiscoveryNode().descriptionWithoutAttributes() + "]")
+                                    .orElse("");
+                            }
 
-                        if (logger.isDebugEnabled()) {
-                            // log message at level WARN, but since DEBUG logging is enabled we include the full stack trace
-                            logger.warn(() -> format("%s%s discovery result", Peer.this, believedMasterBy), e);
+                            if (logger.isDebugEnabled()) {
+                                // log message at level WARN, but since DEBUG logging is enabled we include the full stack trace
+                                logger.warn(() -> format("%s%s discovery result", Peer.this, believedMasterBy), e);
+                            } else {
+                                final StringBuilder messageBuilder = new StringBuilder();
+                                Throwable cause = e;
+                                while (cause != null && messageBuilder.length() <= 1024) {
+                                    messageBuilder.append(": ").append(cause.getMessage());
+                                    cause = cause.getCause();
+                                }
+                                final String message = messageBuilder.length() < 1024
+                                    ? messageBuilder.toString()
+                                    : (messageBuilder.substring(0, 1023) + "...");
+                                logger.warn(
+                                    "{}{} discovery result{}; for summary, see logs from {}; for troubleshooting guidance, see {}",
+                                    Peer.this,
+                                    believedMasterBy,
+                                    message,
+                                    ClusterFormationFailureHelper.class.getCanonicalName(),
+                                    ReferenceDocs.DISCOVERY_TROUBLESHOOTING
+                                );
+                            }
                         } else {
-                            final StringBuilder messageBuilder = new StringBuilder();
-                            Throwable cause = e;
-                            while (cause != null && messageBuilder.length() <= 1024) {
-                                messageBuilder.append(": ").append(cause.getMessage());
-                                cause = cause.getCause();
-                            }
-                            final String message = messageBuilder.length() < 1024
-                                ? messageBuilder.toString()
-                                : (messageBuilder.substring(0, 1023) + "...");
-                            logger.warn(
-                                "{}{} discovery result{}; for summary, see logs from {}; for troubleshooting guidance, see {}",
-                                Peer.this,
-                                believedMasterBy,
-                                message,
-                                ClusterFormationFailureHelper.class.getCanonicalName(),
-                                ReferenceDocs.DISCOVERY_TROUBLESHOOTING
-                            );
+                            logger.debug(() -> format("%s discovery result", Peer.this), e);
                         }
-                    } else {
-                        logger.debug(() -> format("%s discovery result", Peer.this), e);
-                    }
-                    synchronized (mutex) {
-                        assert probeConnectionResult.get() == null
-                            : "discoveryNode unexpectedly already set to " + probeConnectionResult.get();
-                        if (isActive()) {
-                            peersByAddress.remove(transportAddress);
-                        } // else this Peer has been superseded by a different instance which should be left in place
+                        synchronized (mutex) {
+                            assert probeConnectionResult.get() == null
+                                : "discoveryNode unexpectedly already set to " + probeConnectionResult.get();
+                            if (isActive()) {
+                                peersByAddress.remove(transportAddress);
+                            } // else this Peer has been superseded by a different instance which should be left in place
+                        }
                     }
                 }
-            });
+            );
         }
 
         private void requestPeers() {

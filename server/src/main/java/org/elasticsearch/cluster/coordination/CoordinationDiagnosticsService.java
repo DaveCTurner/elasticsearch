@@ -1162,7 +1162,7 @@ public class CoordinationDiagnosticsService implements ClusterStateListener {
                         transportService.connectToNode(
                             // Note: This connection must be explicitly closed in the connectionListener
                             masterEligibleNode,
-                            clusterCoordinationExecutor,
+                            transportService.getThreadPool().generic(),
                             connectionListener
                         );
                     }

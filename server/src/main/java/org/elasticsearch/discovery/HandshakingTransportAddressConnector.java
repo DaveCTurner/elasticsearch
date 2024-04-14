@@ -100,6 +100,7 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                     )
                 ),
                 handshakeConnectionProfile,
+                // TODO does it make sense to fork on success if we're just going to handshake?
                 executor,
                 listener.delegateFailure((l, connection) -> {
                     logger.trace("[{}] opened probe connection", transportAddress);
