@@ -102,11 +102,9 @@ public class ClusterConnectionManager implements ConnectionManager {
      *
      * @param connectionProfile   the profile to use if opening a new connection. Only used in tests, this is {@code null} in production.
      * @param connectionValidator a callback to validate the connection before it is exposed (e.g. to {@link #nodeConnected}).
-     * @param executor
-     * @param listener            completed on the calling thread or by the {@link ConnectionValidator}; in production the
-     *                            {@link ConnectionValidator} will complete the listener on the generic thread pool (see
-     *                            {@link TransportService#connectionValidator}). If successful, completed with a {@link Releasable} which
-     *                            will release this connection (and close it if no other references to it are held).
+     * @param executor            executor to use to complete the listener.
+     * @param listener            completed on the calling thread or by the {@code executor}. If successful, completed with a {@link
+     *                            Releasable} which will release this connection (and close it if no other references to it are held).
      */
     @Override
     public void connectToNode(
