@@ -25,7 +25,7 @@ import org.elasticsearch.transport.TransportStats;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 /**
  * A transport that does nothing. Normally wrapped by {@link StubbableTransport}.
@@ -73,7 +73,7 @@ public class FakeTransport extends AbstractLifecycleComponent implements Transpo
     public void openConnection(
         DiscoveryNode node,
         ConnectionProfile profile,
-        ExecutorService executor,
+        Executor executor,
         ActionListener<Connection> actionListener
     ) {
         actionListener.onResponse(new CloseableConnection() {

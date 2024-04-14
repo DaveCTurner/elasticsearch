@@ -56,7 +56,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -610,20 +610,15 @@ public class NodeConnectionsServiceTests extends ESTestCase {
         }
 
         @Override
-        public void openConnection(
-            DiscoveryNode node,
-            ConnectionProfile profile,
-            ExecutorService executor,
-            ActionListener<Connection> listener
-        ) {
+        public void openConnection(DiscoveryNode node, ConnectionProfile profile, Executor executor, ActionListener<Connection> listener) {
             final CheckedRunnable<Exception> connectionBlock = nodeConnectionBlocks.get(node);
             if (profile == null && randomConnectionExceptions && randomBoolean()) {
-                threadPool.generic().execute(() -> {
+                executor.execute(() -> {
                     runConnectionBlock(connectionBlock);
                     listener.onFailure(new ConnectTransportException(node, "simulated"));
                 });
             } else {
-                threadPool.generic().execute(() -> {
+                executor.execute(() -> {
                     runConnectionBlock(connectionBlock);
                     listener.onResponse(new Connection() {
                         private final SubscribableListener<Void> closeListener = new SubscribableListener<>();

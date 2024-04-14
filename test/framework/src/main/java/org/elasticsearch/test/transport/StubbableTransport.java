@@ -38,7 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import static junit.framework.TestCase.assertTrue;
 
@@ -169,12 +169,7 @@ public class StubbableTransport implements Transport {
     }
 
     @Override
-    public void openConnection(
-        DiscoveryNode node,
-        ConnectionProfile profile,
-        ExecutorService executor,
-        ActionListener<Connection> listener
-    ) {
+    public void openConnection(DiscoveryNode node, ConnectionProfile profile, Executor executor, ActionListener<Connection> listener) {
         TransportAddress address = node.getAddress();
         OpenConnectionBehavior behavior = connectBehaviors.getOrDefault(address, defaultConnectBehavior);
 

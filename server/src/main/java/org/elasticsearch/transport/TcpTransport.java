@@ -41,6 +41,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.CountDown;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.monitor.jvm.JvmInfo;
@@ -68,7 +69,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -356,12 +356,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
     }
 
     @Override
-    public void openConnection(
-        DiscoveryNode node,
-        ConnectionProfile profile,
-        ExecutorService executor,
-        ActionListener<Connection> listener
-    ) {
+    public void openConnection(DiscoveryNode node, ConnectionProfile profile, Executor executor, ActionListener<Connection> listener) {
         ActionListener.run(listener, l -> {
             Objects.requireNonNull(profile, "connection profile cannot be null");
             if (node == null) {
@@ -388,6 +383,8 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
         Executor executor,
         ActionListener<Connection> listener
     ) {
+        assert executor != EsExecutors.DIRECT_EXECUTOR_SERVICE;
+
         int numConnections = connectionProfile.getNumConnections();
         assert numConnections > 0 : "A connection profile must be configured with at least one connection";
 
