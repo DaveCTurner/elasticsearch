@@ -75,8 +75,8 @@ public class ClusterConnectionManager implements ConnectionManager {
 
     @Override
     public void openConnection(
-        ConnectionProfile connectionProfile,
         DiscoveryNode node,
+        ConnectionProfile connectionProfile,
         Executor executor,
         ActionListener<Transport.Connection> listener
     ) {

@@ -25,8 +25,8 @@ public interface ConnectionManager extends Closeable {
     void removeListener(TransportConnectionListener listener);
 
     void openConnection(
-        ConnectionProfile connectionProfile,
         DiscoveryNode node,
+        ConnectionProfile connectionProfile,
         Executor executor,
         ActionListener<Transport.Connection> listener
     );

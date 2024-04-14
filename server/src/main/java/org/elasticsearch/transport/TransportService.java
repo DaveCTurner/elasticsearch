@@ -526,7 +526,7 @@ public class TransportService extends AbstractLifecycleComponent
         if (isLocalNode(node)) {
             listener.onResponse(localNodeConnection);
         } else {
-            connectionManager.openConnection(connectionProfile, node, executor, listener);
+            connectionManager.openConnection(node, connectionProfile, executor, listener);
         }
     }
 

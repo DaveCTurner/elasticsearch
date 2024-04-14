@@ -403,7 +403,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
                 if (useConnectToNode) {
                     connectionManager.connectToNode(discoveryNode, connectionProfile, validator, executor, listener);
                 } else {
-                    connectionManager.openConnection(connectionProfile, discoveryNode, executor, listener.map(c -> c::close));
+                    connectionManager.openConnection(discoveryNode, connectionProfile, executor, listener.map(c -> c::close));
                 }
             }
         }
@@ -731,7 +731,7 @@ public class ClusterConnectionManagerTests extends ESTestCase {
         final var node = DiscoveryNodeUtils.create("", new TransportAddress(InetAddress.getLoopbackAddress(), 0));
 
         final var openConnectionFuture = new PlainActionFuture<Transport.Connection>();
-        connectionManager.openConnection(connectionProfile, node, executor, openConnectionFuture);
+        connectionManager.openConnection(node, connectionProfile, executor, openConnectionFuture);
         assertTrue(openConnectionFuture.isDone());
         assertThat(
             expectThrows(ExecutionException.class, ConnectTransportException.class, openConnectionFuture::get).getMessage(),

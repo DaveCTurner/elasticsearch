@@ -61,12 +61,12 @@ public class StubbableConnectionManager implements ConnectionManager {
 
     @Override
     public void openConnection(
-        ConnectionProfile connectionProfile,
         DiscoveryNode node,
+        ConnectionProfile connectionProfile,
         Executor executor,
         ActionListener<Transport.Connection> listener
     ) {
-        delegate.openConnection(connectionProfile, node, executor, listener);
+        delegate.openConnection(node, connectionProfile, executor, listener);
     }
 
     @Override

@@ -97,16 +97,16 @@ public class RemoteConnectionManager implements ConnectionManager {
 
     @Override
     public void openConnection(
-        @Nullable ConnectionProfile profile,
         DiscoveryNode node,
+        @Nullable ConnectionProfile profile,
         Executor executor,
         ActionListener<Transport.Connection> listener
     ) {
         assert profile == null || profile.getTransportProfile().equals(getConnectionProfile().getTransportProfile())
             : "A single remote connection manager can only ever handle a single transport profile";
         delegate.openConnection(
-            profile,
             node,
+            profile,
             executor,
             listener.delegateFailureAndWrap(
                 (l, connection) -> l.onResponse(wrapConnectionWithRemoteClusterInfo(connection, clusterAlias, credentialsManager))
