@@ -119,6 +119,7 @@ public class ClusterConnectionManager implements ConnectionManager {
             connectionProfile,
             connectionValidator,
             0,
+            executor,
             ContextPreservingActionListener.wrapPreservingContext(listener, threadContext)
         );
     }
@@ -133,6 +134,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         @Nullable ConnectionProfile connectionProfile,
         ConnectionValidator connectionValidator,
         int previousFailureCount,
+        Executor executor,
         ActionListener<Releasable> listener
     ) throws ConnectTransportException {
 
@@ -165,6 +167,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                             connectionProfile,
                             connectionValidator,
                             failureCount,
+                            executor,
                             retryDelegate
                         )
                     )
