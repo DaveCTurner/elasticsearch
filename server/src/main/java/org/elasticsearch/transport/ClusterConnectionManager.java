@@ -196,7 +196,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         if (existingListener != null) {
             try {
                 // wait on previous entry to complete connection attempt
-                existingListener.addListener(acquiringListener);
+                existingListener.addListener(acquiringListener, executor, null);
             } finally {
                 connectingRefCounter.decRef();
             }
