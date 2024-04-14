@@ -412,7 +412,7 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             node,
             connectionProfile,
             channels,
-            new ThreadedActionListener<>(executor, listener)
+            new ThreadedActionListener<>(executor, true, listener)
         );
 
         for (TcpChannel channel : channels) {
