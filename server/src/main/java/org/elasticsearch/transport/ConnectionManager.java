@@ -16,6 +16,7 @@ import org.elasticsearch.core.Releasable;
 import java.io.Closeable;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 
 public interface ConnectionManager extends Closeable {
 
@@ -23,7 +24,7 @@ public interface ConnectionManager extends Closeable {
 
     void removeListener(TransportConnectionListener listener);
 
-    void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Transport.Connection> listener);
+    void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, Executor executor, ActionListener<Transport.Connection> listener);
 
     void connectToNode(
         DiscoveryNode node,

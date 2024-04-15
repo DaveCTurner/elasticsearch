@@ -119,7 +119,7 @@ public class RemoteConnectionManagerTests extends ESTestCase {
         assertThat(RemoteConnectionManager.resolveRemoteClusterAlias(proxyConnection).get(), equalTo("remote-cluster"));
 
         PlainActionFuture<Transport.Connection> future2 = new PlainActionFuture<>();
-        remoteConnectionManager.openConnection(remoteNode1, null, future2);
+        remoteConnectionManager.openConnection(remoteNode1, null, executor, future2);
         assertThat(RemoteConnectionManager.resolveRemoteClusterAlias(future2.get()).get(), equalTo("remote-cluster"));
     }
 

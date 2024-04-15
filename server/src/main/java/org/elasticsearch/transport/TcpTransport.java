@@ -14,7 +14,6 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.breaker.CircuitBreaker;
@@ -41,6 +40,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.common.util.concurrent.CountDown;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.monitor.jvm.JvmInfo;
@@ -399,19 +399,14 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
             }
         }
 
-        ChannelsConnectedListener channelsConnectedListener = new ChannelsConnectedListener(
-            node,
-            connectionProfile,
-            channels,
-            new ThreadedActionListener<>(threadPool.generic(), listener)
-        );
+        final var channelsConnectedListener = new ChannelsConnectedListener(node, connectionProfile, channels, listener);
 
         for (TcpChannel channel : channels) {
             channel.addConnectListener(channelsConnectedListener);
         }
 
         TimeValue connectTimeout = connectionProfile.getConnectTimeout();
-        threadPool.schedule(channelsConnectedListener::onTimeout, connectTimeout, threadPool.generic());
+        threadPool.schedule(channelsConnectedListener::onTimeout, connectTimeout, EsExecutors.DIRECT_EXECUTOR_SERVICE);
     }
 
     @Override

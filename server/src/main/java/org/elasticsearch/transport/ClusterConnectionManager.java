@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
+import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -73,13 +75,23 @@ public class ClusterConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, ConnectionProfile connectionProfile, ActionListener<Transport.Connection> listener) {
+    public void openConnection(
+        DiscoveryNode node,
+        ConnectionProfile connectionProfile,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
         ConnectionProfile resolvedProfile = ConnectionProfile.resolveConnectionProfile(connectionProfile, defaultProfile);
         if (acquireConnectingRef()) {
             var success = false;
             final var release = new RunOnce(connectingRefCounter::decRef);
             try {
-                internalOpenConnection(node, resolvedProfile, ActionListener.runBefore(listener, release::run));
+                internalOpenConnection(
+                    node,
+                    resolvedProfile,
+                    // TODO think about force-execution?
+                    ActionListener.runBefore(new ThreadedActionListener<>(executor, listener), release::run)
+                );
                 success = true;
             } finally {
                 if (success == false) {
@@ -209,6 +221,7 @@ public class ClusterConnectionManager implements ConnectionManager {
         }
 
         final RunOnce releaseOnce = new RunOnce(connectingRefCounter::decRef);
+        // TODO forking listener?
         internalOpenConnection(
             node,
             resolvedProfile,

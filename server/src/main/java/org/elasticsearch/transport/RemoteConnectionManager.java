@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.transport.RemoteClusterService.REMOTE_CLUSTER_HANDSHAKE_ACTION_NAME;
@@ -94,13 +95,20 @@ public class RemoteConnectionManager implements ConnectionManager {
     }
 
     @Override
-    public void openConnection(DiscoveryNode node, @Nullable ConnectionProfile profile, ActionListener<Transport.Connection> listener) {
+    public void openConnection(
+        DiscoveryNode node,
+        @Nullable ConnectionProfile profile,
+        Executor executor,
+        ActionListener<Transport.Connection> listener
+    ) {
         assert profile == null || profile.getTransportProfile().equals(getConnectionProfile().getTransportProfile())
             : "A single remote connection manager can only ever handle a single transport profile";
         delegate.openConnection(
             node,
             profile,
+            executor,
             listener.delegateFailureAndWrap(
+                // NB moved onto transport pool
                 (l, connection) -> l.onResponse(wrapConnectionWithRemoteClusterInfo(connection, clusterAlias, credentialsManager))
             )
         );
