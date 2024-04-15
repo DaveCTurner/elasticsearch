@@ -24,7 +24,6 @@ import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.RunnableFuture;
@@ -459,50 +458,6 @@ public class EsExecutors {
         public double getEwmaAlpha() {
             return ewmaAlpha;
         }
-    }
-
-    public static Executor forcingExecution(Executor executor) {
-        if (executor == DIRECT_EXECUTOR_SERVICE) {
-            return DIRECT_EXECUTOR_SERVICE;
-        }
-        return r -> {
-            if (r instanceof AbstractRunnable abstractRunnable) {
-                executor.execute(new AbstractRunnable() {
-                    @Override
-                    public boolean isForceExecution() {
-                        return true;
-                    }
-
-                    @Override
-                    public void onAfter() {
-                        abstractRunnable.onAfter();
-                    }
-
-                    @Override
-                    public void onRejection(Exception e) {
-                        abstractRunnable.onRejection(e);
-                    }
-
-                    @Override
-                    public String toString() {
-                        return abstractRunnable.toString();
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        abstractRunnable.onFailure(e);
-                    }
-
-                    @Override
-                    protected void doRun() throws Exception {
-                        abstractRunnable.doRun();
-                    }
-                });
-            } else {
-                assert false : "forcingExecutor requires AbstractRunnable tasks, but got " + r;
-                executor.execute(r); // eh, better than nothing, just hope it's not rejected
-            }
-        };
     }
 
 }
