@@ -11,10 +11,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
-import org.elasticsearch.action.support.ThreadedActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.util.concurrent.RunOnce;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -89,8 +90,7 @@ public class ClusterConnectionManager implements ConnectionManager {
                 internalOpenConnection(
                     node,
                     resolvedProfile,
-                    // TODO think about force-execution?
-                    ActionListener.runBefore(new ThreadedActionListener<>(executor, listener), release::run)
+                    ActionListener.runBefore(new OpenConnectionListener(executor, listener), release::run)
                 );
                 success = true;
             } finally {
@@ -100,6 +100,92 @@ public class ClusterConnectionManager implements ConnectionManager {
             }
         } else {
             listener.onFailure(new ConnectTransportException(node, "connection manager is closed"));
+        }
+    }
+
+    // TODO needs tests
+    static class OpenConnectionListener implements ActionListener<Transport.Connection> {
+
+        private final Executor executor;
+        private final ActionListener<Transport.Connection> delegate;
+
+        OpenConnectionListener(Executor executor, ActionListener<Transport.Connection> delegate) {
+            this.executor = executor;
+            this.delegate = ActionListener.assertOnce(delegate);
+        }
+
+        @Override
+        public void onResponse(Transport.Connection connection) {
+            executor.execute(new AbstractRunnable() {
+                @Override
+                protected void doRun() {
+                    delegate.onResponse(connection);
+                }
+
+                @Override
+                public void onRejection(Exception e) {
+                    // not forcing execution so we may be rejected on queue full; close the connection on the calling (transport) thread and
+                    // dispatch the rejection exception
+                    try {
+                        connection.close();
+                    } finally {
+                        innerOnFailure(e);
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    try {
+                        connection.close();
+                        // not much more can be done here
+                    } finally {
+                        logger.error("failure completing connection listener", e);
+                        assert false : e;
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            innerOnFailure(e);
+        }
+
+        private void innerOnFailure(Exception e) {
+            executor.execute(new AbstractRunnable() {
+                @Override
+                protected void doRun() {
+                    delegate.onFailure(e);
+                }
+
+                @Override
+                public boolean isForceExecution() {
+                    return true; // always complete failures
+                }
+
+                @Override
+                public void onRejection(Exception e2) {
+                    suppressOriginalException(e2);
+                    assert e2 instanceof EsRejectedExecutionException esre && esre.isExecutorShutdown() : e2;
+                    // shutting down, cannot fork this failure elsewhere, so prefer to complete it on the calling thread
+                    // rather than leaking it
+                    delegate.onFailure(e2);
+                }
+
+                @Override
+                public void onFailure(Exception e2) {
+                    suppressOriginalException(e2);
+                    logger.error("failure completing connection listener exceptionally", e2);
+                    assert false : e2;
+                    // not much more can be done here
+                }
+
+                private void suppressOriginalException(Exception e2) {
+                    if (e2 != e) {
+                        e2.addSuppressed(e);
+                    }
+                }
+            });
         }
     }
 
