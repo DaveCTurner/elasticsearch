@@ -10,6 +10,8 @@ package org.elasticsearch.action.support;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
+import org.elasticsearch.logging.LogManager;
+import org.elasticsearch.logging.Logger;
 
 import java.util.concurrent.Executor;
 
@@ -17,6 +19,8 @@ import java.util.concurrent.Executor;
  * An action listener that wraps another action listener and dispatches its completion to an executor.
  */
 public final class ThreadedActionListener<Response> extends AbstractThreadedActionListener<Response> {
+
+    private static final Logger logger = LogManager.getLogger(ThreadedActionListener.class);
 
     public ThreadedActionListener(Executor executor, ActionListener<Response> delegate) {
         this(executor, false, delegate);
@@ -37,6 +41,18 @@ public final class ThreadedActionListener<Response> extends AbstractThreadedActi
             @Override
             protected void doRun() {
                 listener.onResponse(response);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                logger.error("failed to complete threaded listener", e);
+                assert false : e;
+                // not much more can be done now
+            }
+
+            @Override
+            public void onRejection(Exception e) {
+                handleRejection(e);
             }
 
             @Override
