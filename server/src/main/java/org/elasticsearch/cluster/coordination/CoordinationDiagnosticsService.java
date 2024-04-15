@@ -1102,6 +1102,7 @@ public class CoordinationDiagnosticsService implements ClusterStateListener {
         ListenableFuture<Releasable> connectionListener = new ListenableFuture<>();
         ListenableFuture<R> fetchRemoteResultListener = new ListenableFuture<>();
         long startTimeMillis = transportService.getThreadPool().relativeTimeInMillis();
+        // TODO make this a SubscribableListenerChain so that lightweight intermediate steps need not fork
         connectionListener.addListener(ActionListener.wrap(releasable -> {
             if (masterEligibleNode == null) {
                 Releasables.close(releasable);
