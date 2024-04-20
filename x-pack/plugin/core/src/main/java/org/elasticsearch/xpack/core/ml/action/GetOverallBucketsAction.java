@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.time.DateMathParser;
@@ -50,7 +50,7 @@ import static org.elasticsearch.xpack.core.ml.MachineLearningField.DEPRECATED_AL
  * the interval.
  * </p>
  */
-public class GetOverallBucketsAction extends ActionType<GetOverallBucketsAction.Response> {
+public class GetOverallBucketsAction extends UnnecessaryActionTypeSubclass<GetOverallBucketsAction.Response> {
 
     public static final GetOverallBucketsAction INSTANCE = new GetOverallBucketsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/job/results/overall_buckets/get";

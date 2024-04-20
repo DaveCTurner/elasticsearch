@@ -9,7 +9,7 @@
 package org.elasticsearch.action.support.master;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 
 /**
@@ -21,7 +21,7 @@ public abstract class MasterNodeReadOperationRequestBuilder<
     RequestBuilder extends MasterNodeReadOperationRequestBuilder<Request, Response, RequestBuilder>> extends
     MasterNodeOperationRequestBuilder<Request, Response, RequestBuilder> {
 
-    protected MasterNodeReadOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
+    protected MasterNodeReadOperationRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
         super(client, action, request);
     }
 

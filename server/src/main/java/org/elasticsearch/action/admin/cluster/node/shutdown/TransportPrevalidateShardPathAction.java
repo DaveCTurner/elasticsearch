@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.cluster.node.shutdown;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
@@ -46,7 +46,7 @@ public class TransportPrevalidateShardPathAction extends TransportNodesAction<
     NodePrevalidateShardPathResponse> {
 
     public static final String ACTION_NAME = "internal:admin/indices/prevalidate_shard_path";
-    public static final ActionType<PrevalidateShardPathResponse> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<PrevalidateShardPathResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
     private static final Logger logger = LogManager.getLogger(TransportPrevalidateShardPathAction.class);
 
     private final TransportService transportService;

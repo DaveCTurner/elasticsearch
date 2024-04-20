@@ -11,7 +11,7 @@ package org.elasticsearch.analysis.common;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.support.AbstractClient;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -99,7 +99,7 @@ public class PredicateTokenScriptFilterTests extends ESTokenStreamTestCase {
 
         @Override
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {}

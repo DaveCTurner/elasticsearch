@@ -9,7 +9,7 @@
 package org.elasticsearch.action.support.nodes;
 
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.core.TimeValue;
 
@@ -20,7 +20,7 @@ public abstract class NodesOperationRequestBuilder<
         Request,
         Response> {
 
-    protected NodesOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
+    protected NodesOperationRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
         super(client, action, request);
     }
 

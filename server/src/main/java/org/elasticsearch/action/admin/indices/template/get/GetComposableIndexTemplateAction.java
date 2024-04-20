@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.template.get;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.rollover.RolloverConfiguration;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetComposableIndexTemplateAction extends ActionType<GetComposableIndexTemplateAction.Response> {
+public class GetComposableIndexTemplateAction extends UnnecessaryActionTypeSubclass<GetComposableIndexTemplateAction.Response> {
 
     public static final GetComposableIndexTemplateAction INSTANCE = new GetComposableIndexTemplateAction();
     public static final String NAME = "indices:admin/index_template/get";

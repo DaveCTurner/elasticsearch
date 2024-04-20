@@ -7,13 +7,13 @@
 
 package org.elasticsearch.xpack.application.connector.secrets.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 public class DeleteConnectorSecretAction {
 
     public static final String NAME = "cluster:admin/xpack/connector/secret/delete";
 
-    public static final ActionType<DeleteConnectorSecretResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<DeleteConnectorSecretResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private DeleteConnectorSecretAction() {/* no instances */}
 }

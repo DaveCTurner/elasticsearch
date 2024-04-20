@@ -10,7 +10,7 @@ package org.elasticsearch.plugins;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RequestValidators;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -93,18 +93,18 @@ public interface ActionPlugin {
     }
 
     final class ActionHandler<Request extends ActionRequest, Response extends ActionResponse> {
-        private final ActionType<Response> action;
+        private final UnnecessaryActionTypeSubclass<Response> action;
         private final Class<? extends TransportAction<Request, Response>> transportAction;
 
         /**
          * Create a record of an action, the {@linkplain TransportAction} that handles it.
          */
-        public ActionHandler(ActionType<Response> action, Class<? extends TransportAction<Request, Response>> transportAction) {
+        public ActionHandler(UnnecessaryActionTypeSubclass<Response> action, Class<? extends TransportAction<Request, Response>> transportAction) {
             this.action = action;
             this.transportAction = transportAction;
         }
 
-        public ActionType<Response> getAction() {
+        public UnnecessaryActionTypeSubclass<Response> getAction() {
             return action;
         }
 

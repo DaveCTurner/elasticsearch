@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.deprecation.logging;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -29,7 +29,7 @@ import java.util.Objects;
 /**
     Resets deprecation indexing rate limiting cache on each node.
  */
-public class DeprecationCacheResetAction extends ActionType<DeprecationCacheResetAction.Response> {
+public class DeprecationCacheResetAction extends UnnecessaryActionTypeSubclass<DeprecationCacheResetAction.Response> {
     public static final DeprecationCacheResetAction INSTANCE = new DeprecationCacheResetAction();
     public static final String NAME = "cluster:admin/deprecation/cache/reset";
 

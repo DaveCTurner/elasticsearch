@@ -12,7 +12,7 @@ import org.apache.lucene.search.TotalHits;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -200,27 +200,27 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
     }
 
     private static class ExecuteRequest<Request extends ActionRequest, Response extends ActionResponse> {
-        private final ActionType<Response> action;
+        private final UnnecessaryActionTypeSubclass<Response> action;
         private final Request request;
         private final ActionListener<Response> listener;
 
-        ExecuteRequest(ActionType<Response> action, Request request, ActionListener<Response> listener) {
+        ExecuteRequest(UnnecessaryActionTypeSubclass<Response> action, Request request, ActionListener<Response> listener) {
             this.action = action;
             this.request = request;
             this.listener = listener;
         }
 
-        public void respond(ActionType<Response> actionType, Function<Request, Response> response) {
+        public void respond(UnnecessaryActionTypeSubclass<Response> actionType, Function<Request, Response> response) {
             assertEquals(actionType, this.action);
             listener.onResponse(response.apply(request));
         }
 
-        public void fail(ActionType<Response> actionType, Exception response) {
+        public void fail(UnnecessaryActionTypeSubclass<Response> actionType, Exception response) {
             assertEquals(actionType, this.action);
             listener.onFailure(response);
         }
 
-        public void validateRequest(ActionType<Response> actionType, Consumer<? super Request> validator) {
+        public void validateRequest(UnnecessaryActionTypeSubclass<Response> actionType, Consumer<? super Request> validator) {
             assertEquals(actionType, this.action);
             validator.accept(request);
         }
@@ -235,7 +235,7 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
 
         @Override
         protected synchronized <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -246,7 +246,7 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
 
         @SuppressWarnings("unchecked")
         public <Request extends ActionRequest, Response extends ActionResponse> void respondx(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Function<Request, Response> response
         ) {
             ExecuteRequest<?, ?> executeRequestCopy;
@@ -257,12 +257,12 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
             ((ExecuteRequest<Request, Response>) executeRequestCopy).respond(action, response);
         }
 
-        public <Response extends ActionResponse> void respond(ActionType<Response> action, Response response) {
+        public <Response extends ActionResponse> void respond(UnnecessaryActionTypeSubclass<Response> action, Response response) {
             respondx(action, req -> response);
         }
 
         @SuppressWarnings("unchecked")
-        public <Response extends ActionResponse> void fail(ActionType<Response> action, Exception response) {
+        public <Response extends ActionResponse> void fail(UnnecessaryActionTypeSubclass<Response> action, Exception response) {
             ExecuteRequest<?, ?> executeRequestCopy;
             synchronized (this) {
                 executeRequestCopy = this.executeRequest;
@@ -273,7 +273,7 @@ public class ClientScrollableHitSourceTests extends ESTestCase {
 
         @SuppressWarnings("unchecked")
         public <Request extends ActionRequest, Response extends ActionResponse> void validateRequest(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Consumer<? super Request> validator
         ) {
             ((ExecuteRequest<Request, Response>) executeRequest).validateRequest(action, validator);

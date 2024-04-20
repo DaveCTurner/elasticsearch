@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.application.analytics.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
@@ -29,7 +29,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class DeleteAnalyticsCollectionAction {
 
     public static final String NAME = "cluster:admin/xpack/application/analytics/delete";
-    public static final ActionType<AcknowledgedResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private DeleteAnalyticsCollectionAction() {/* no instances */}
 

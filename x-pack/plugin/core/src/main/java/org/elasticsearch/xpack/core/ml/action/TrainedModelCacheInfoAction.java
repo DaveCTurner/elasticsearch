@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class TrainedModelCacheInfoAction extends ActionType<TrainedModelCacheInfoAction.Response> {
+public class TrainedModelCacheInfoAction extends UnnecessaryActionTypeSubclass<TrainedModelCacheInfoAction.Response> {
 
     public static final TrainedModelCacheInfoAction INSTANCE = new TrainedModelCacheInfoAction();
     public static final String NAME = "cluster:internal/xpack/ml/trained_models/cache/info";

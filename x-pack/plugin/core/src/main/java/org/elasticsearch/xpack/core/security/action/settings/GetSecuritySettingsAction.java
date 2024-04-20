@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.security.action.settings;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -23,7 +23,7 @@ import static org.elasticsearch.xpack.core.security.action.settings.UpdateSecuri
 import static org.elasticsearch.xpack.core.security.action.settings.UpdateSecuritySettingsAction.PROFILES_INDEX_NAME;
 import static org.elasticsearch.xpack.core.security.action.settings.UpdateSecuritySettingsAction.TOKENS_INDEX_NAME;
 
-public class GetSecuritySettingsAction extends ActionType<GetSecuritySettingsAction.Response> {
+public class GetSecuritySettingsAction extends UnnecessaryActionTypeSubclass<GetSecuritySettingsAction.Response> {
 
     public static final GetSecuritySettingsAction INSTANCE = new GetSecuritySettingsAction();
     public static final String NAME = "cluster:admin/xpack/security/settings/get";

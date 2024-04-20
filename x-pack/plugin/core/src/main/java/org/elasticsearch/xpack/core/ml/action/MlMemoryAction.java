@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class MlMemoryAction extends ActionType<MlMemoryAction.Response> {
+public class MlMemoryAction extends UnnecessaryActionTypeSubclass<MlMemoryAction.Response> {
 
     public static final MlMemoryAction INSTANCE = new MlMemoryAction();
     public static final String NAME = "cluster:monitor/xpack/ml/memory/stats/get";

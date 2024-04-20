@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.application.connector.syncjob.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -29,7 +29,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class CheckInConnectorSyncJobAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/sync_job/check_in";
-    public static final ActionType<ConnectorUpdateActionResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<ConnectorUpdateActionResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private CheckInConnectorSyncJobAction() {/* no instances */}
 

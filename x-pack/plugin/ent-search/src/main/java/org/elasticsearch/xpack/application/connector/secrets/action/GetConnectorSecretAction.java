@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.application.connector.secrets.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 public class GetConnectorSecretAction {
 
     public static final String NAME = "cluster:admin/xpack/connector/secret/get";
-    public static final ActionType<GetConnectorSecretResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<GetConnectorSecretResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private GetConnectorSecretAction() {/* no instances */}
 }

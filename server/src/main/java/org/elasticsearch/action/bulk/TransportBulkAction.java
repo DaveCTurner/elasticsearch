@@ -14,7 +14,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteRequest.OpType;
 import org.elasticsearch.action.admin.indices.create.AutoCreateAction;
@@ -85,11 +85,11 @@ import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 public class TransportBulkAction extends HandledTransportAction<BulkRequest, BulkResponse> {
 
     public static final String NAME = "indices:data/write/bulk";
-    public static final ActionType<BulkResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<BulkResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     private static final Logger logger = LogManager.getLogger(TransportBulkAction.class);
     public static final String LAZY_ROLLOVER_ORIGIN = "lazy_rollover";
 
-    private final ActionType<BulkResponse> bulkAction;
+    private final UnnecessaryActionTypeSubclass<BulkResponse> bulkAction;
     private final ThreadPool threadPool;
     private final ClusterService clusterService;
     private final IngestService ingestService;
@@ -164,7 +164,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
     }
 
     TransportBulkAction(
-        ActionType<BulkResponse> bulkAction,
+        UnnecessaryActionTypeSubclass<BulkResponse> bulkAction,
         Writeable.Reader<BulkRequest> requestReader,
         ThreadPool threadPool,
         TransportService transportService,

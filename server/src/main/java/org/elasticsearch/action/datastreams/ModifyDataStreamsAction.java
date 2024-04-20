@@ -9,7 +9,7 @@
 package org.elasticsearch.action.datastreams;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -30,7 +30,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
+public class ModifyDataStreamsAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final ModifyDataStreamsAction INSTANCE = new ModifyDataStreamsAction();
     public static final String NAME = "indices:admin/data_stream/modify";

@@ -10,7 +10,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -25,7 +25,7 @@ import java.util.Collection;
  * Action to obtain information about X.509 (SSL/TLS) certificates that are being used by X-Pack.
  * The primary use case is for tracking the expiry dates of certificates.
  */
-public class GetCertificateInfoAction extends ActionType<GetCertificateInfoAction.Response> {
+public class GetCertificateInfoAction extends UnnecessaryActionTypeSubclass<GetCertificateInfoAction.Response> {
 
     public static final GetCertificateInfoAction INSTANCE = new GetCertificateInfoAction();
     public static final String NAME = "cluster:monitor/xpack/ssl/certificates/get";

@@ -10,7 +10,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -41,7 +41,7 @@ import static org.elasticsearch.xpack.core.ml.action.StartDatafeedAction.Datafee
 import static org.elasticsearch.xpack.core.ml.action.StartDatafeedAction.END_TIME;
 import static org.elasticsearch.xpack.core.ml.action.StartDatafeedAction.START_TIME;
 
-public class PreviewDatafeedAction extends ActionType<PreviewDatafeedAction.Response> {
+public class PreviewDatafeedAction extends UnnecessaryActionTypeSubclass<PreviewDatafeedAction.Response> {
 
     public static final PreviewDatafeedAction INSTANCE = new PreviewDatafeedAction();
     public static final String NAME = "cluster:admin/xpack/ml/datafeeds/preview";

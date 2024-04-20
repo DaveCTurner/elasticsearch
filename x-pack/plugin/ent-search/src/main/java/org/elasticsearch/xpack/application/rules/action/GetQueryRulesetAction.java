@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.rules.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -32,7 +32,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class GetQueryRulesetAction {
 
     public static final String NAME = "cluster:admin/xpack/query_rules/get";
-    public static final ActionType<GetQueryRulesetAction.Response> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private GetQueryRulesetAction() {/* no instances */}
 

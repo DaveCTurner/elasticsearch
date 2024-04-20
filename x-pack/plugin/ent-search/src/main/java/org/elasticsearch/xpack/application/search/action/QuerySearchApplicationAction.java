@@ -7,13 +7,13 @@
 
 package org.elasticsearch.xpack.application.search.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.search.SearchResponse;
 
 public class QuerySearchApplicationAction {
 
     public static final String NAME = "indices:data/read/xpack/application/search_application/search";
-    public static final ActionType<SearchResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<SearchResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private QuerySearchApplicationAction() {/* no instances */}
 }

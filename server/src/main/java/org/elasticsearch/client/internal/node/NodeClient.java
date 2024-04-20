@@ -11,7 +11,7 @@ package org.elasticsearch.client.internal.node;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.RemoteClusterClient;
@@ -35,13 +35,13 @@ import java.util.function.Supplier;
  */
 public class NodeClient extends AbstractClient {
 
-    private Map<ActionType<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions;
+    private Map<UnnecessaryActionTypeSubclass<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions;
 
     private TaskManager taskManager;
 
     /**
      * The id of the local {@link DiscoveryNode}. Useful for generating task ids from tasks returned by
-     * {@link #executeLocally(ActionType, ActionRequest, ActionListener)}.
+     * {@link #executeLocally(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)}.
      */
     private Supplier<String> localNodeId;
     private Transport.Connection localConnection;
@@ -52,7 +52,7 @@ public class NodeClient extends AbstractClient {
     }
 
     public void initialize(
-        Map<ActionType<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions,
+        Map<UnnecessaryActionTypeSubclass<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions,
         TaskManager taskManager,
         Supplier<String> localNodeId,
         Transport.Connection localConnection,
@@ -69,12 +69,12 @@ public class NodeClient extends AbstractClient {
      * Return the names of all available actions registered with this client.
      */
     public List<String> getActionNames() {
-        return actions.keySet().stream().map(ActionType::name).toList();
+        return actions.keySet().stream().map(UnnecessaryActionTypeSubclass::name).toList();
     }
 
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -91,14 +91,14 @@ public class NodeClient extends AbstractClient {
     }
 
     /**
-     * Execute an {@link ActionType} locally, returning that {@link Task} used to track it, and linking an {@link ActionListener}.
+     * Execute an {@link UnnecessaryActionTypeSubclass} locally, returning that {@link Task} used to track it, and linking an {@link ActionListener}.
      * Prefer this method if you don't need access to the task when listening for the response. This is the method used to
      * implement the {@link Client} interface.
      *
      * @throws TaskCancelledException if the request's parent task has been cancelled already
      */
     public <Request extends ActionRequest, Response extends ActionResponse> Task executeLocally(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -113,17 +113,17 @@ public class NodeClient extends AbstractClient {
 
     /**
      * The id of the local {@link DiscoveryNode}. Useful for generating task ids from tasks returned by
-     * {@link #executeLocally(ActionType, ActionRequest, ActionListener)}.
+     * {@link #executeLocally(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)}.
      */
     public String getLocalNodeId() {
         return localNodeId.get();
     }
 
     /**
-     * Get the {@link TransportAction} for an {@link ActionType}, throwing exceptions if the action isn't available.
+     * Get the {@link TransportAction} for an {@link UnnecessaryActionTypeSubclass}, throwing exceptions if the action isn't available.
      */
     private <Request extends ActionRequest, Response extends ActionResponse> TransportAction<Request, Response> transportAction(
-        ActionType<Response> action
+        UnnecessaryActionTypeSubclass<Response> action
     ) {
         if (actions == null) {
             throw new IllegalStateException("NodeClient has not been initialized");

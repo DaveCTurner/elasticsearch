@@ -9,7 +9,7 @@
 package org.elasticsearch.rest.action.ingest;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -64,11 +64,11 @@ public class RestPutPipelineActionTests extends RestActionTestCase {
             .withParams(params)
             .build();
 
-        var verifier = new BiFunction<ActionType<AcknowledgedResponse>, ActionRequest, AcknowledgedResponse>() {
+        var verifier = new BiFunction<UnnecessaryActionTypeSubclass<AcknowledgedResponse>, ActionRequest, AcknowledgedResponse>() {
             boolean wasInvoked = false;
 
             @Override
-            public AcknowledgedResponse apply(ActionType<AcknowledgedResponse> actionType, ActionRequest actionRequest) {
+            public AcknowledgedResponse apply(UnnecessaryActionTypeSubclass<AcknowledgedResponse> actionType, ActionRequest actionRequest) {
                 wasInvoked = true;
                 assertThat(actionRequest.getClass(), equalTo(PutPipelineRequest.class));
                 PutPipelineRequest req = (PutPipelineRequest) actionRequest;
@@ -98,11 +98,11 @@ public class RestPutPipelineActionTests extends RestActionTestCase {
             .withParams(params)
             .build();
 
-        var verifier = new BiFunction<ActionType<AcknowledgedResponse>, ActionRequest, AcknowledgedResponse>() {
+        var verifier = new BiFunction<UnnecessaryActionTypeSubclass<AcknowledgedResponse>, ActionRequest, AcknowledgedResponse>() {
             boolean wasInvoked = false;
 
             @Override
-            public AcknowledgedResponse apply(ActionType<AcknowledgedResponse> actionType, ActionRequest actionRequest) {
+            public AcknowledgedResponse apply(UnnecessaryActionTypeSubclass<AcknowledgedResponse> actionType, ActionRequest actionRequest) {
                 wasInvoked = true;
                 assertThat(actionRequest.getClass(), equalTo(PutPipelineRequest.class));
                 PutPipelineRequest req = (PutPipelineRequest) actionRequest;

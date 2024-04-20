@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.connector.action;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.common.Strings;
@@ -37,7 +37,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstr
 public class PutConnectorAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/put";
-    public static final ActionType<PutConnectorAction.Response> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private PutConnectorAction() {/* no instances */}
 

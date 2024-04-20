@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.autoscaling.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -20,7 +20,7 @@ import org.elasticsearch.xpack.autoscaling.policy.AutoscalingPolicy;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetAutoscalingPolicyAction extends ActionType<GetAutoscalingPolicyAction.Response> {
+public class GetAutoscalingPolicyAction extends UnnecessaryActionTypeSubclass<GetAutoscalingPolicyAction.Response> {
 
     public static final GetAutoscalingPolicyAction INSTANCE = new GetAutoscalingPolicyAction();
     public static final String NAME = "cluster:admin/autoscaling/get_autoscaling_policy";

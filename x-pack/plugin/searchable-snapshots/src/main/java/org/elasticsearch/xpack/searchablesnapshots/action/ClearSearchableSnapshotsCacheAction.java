@@ -6,10 +6,10 @@
  */
 package org.elasticsearch.xpack.searchablesnapshots.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 
-public class ClearSearchableSnapshotsCacheAction extends ActionType<BroadcastResponse> {
+public class ClearSearchableSnapshotsCacheAction extends UnnecessaryActionTypeSubclass<BroadcastResponse> {
 
     public static final ClearSearchableSnapshotsCacheAction INSTANCE = new ClearSearchableSnapshotsCacheAction();
     static final String NAME = "cluster:admin/xpack/searchable_snapshots/cache/clear";

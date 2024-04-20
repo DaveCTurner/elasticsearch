@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -17,7 +17,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 
 import java.io.IOException;
 
-public class DeleteForecastAction extends ActionType<AcknowledgedResponse> {
+public class DeleteForecastAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final DeleteForecastAction INSTANCE = new DeleteForecastAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/forecast/delete";

@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.indices.alias.get;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
@@ -22,7 +22,7 @@ public abstract class BaseAliasesRequestBuilder<
         Response,
         Builder> {
 
-    public BaseAliasesRequestBuilder(ElasticsearchClient client, ActionType<Response> action, String... aliases) {
+    public BaseAliasesRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, String... aliases) {
         super(client, action, new GetAliasesRequest(aliases));
     }
 

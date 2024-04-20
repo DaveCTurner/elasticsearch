@@ -18,7 +18,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.index.RandomIndexWriter;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
@@ -87,7 +87,7 @@ public class TextExpansionQueryBuilderTests extends AbstractQueryTestCase<TextEx
 
     @Override
     protected boolean canSimulateMethod(Method method, Object[] args) throws NoSuchMethodException {
-        return method.equals(Client.class.getMethod("execute", ActionType.class, ActionRequest.class, ActionListener.class))
+        return method.equals(Client.class.getMethod("execute", UnnecessaryActionTypeSubclass.class, ActionRequest.class, ActionListener.class))
             && (args[0] instanceof CoordinatedInferenceAction);
     }
 

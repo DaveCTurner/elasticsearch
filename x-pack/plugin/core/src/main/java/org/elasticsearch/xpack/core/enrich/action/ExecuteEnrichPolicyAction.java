@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.enrich.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -19,7 +19,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import java.io.IOException;
 import java.util.Objects;
 
-public class ExecuteEnrichPolicyAction extends ActionType<ExecuteEnrichPolicyAction.Response> {
+public class ExecuteEnrichPolicyAction extends UnnecessaryActionTypeSubclass<ExecuteEnrichPolicyAction.Response> {
 
     public static final ExecuteEnrichPolicyAction INSTANCE = new ExecuteEnrichPolicyAction();
     public static final String NAME = "cluster:admin/xpack/enrich/execute";

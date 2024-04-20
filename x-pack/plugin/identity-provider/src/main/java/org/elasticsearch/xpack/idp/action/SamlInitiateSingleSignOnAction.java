@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.idp.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType to create a SAML Response in the context of IDP initiated SSO for a given SP
  */
-public class SamlInitiateSingleSignOnAction extends ActionType<SamlInitiateSingleSignOnResponse> {
+public class SamlInitiateSingleSignOnAction extends UnnecessaryActionTypeSubclass<SamlInitiateSingleSignOnResponse> {
 
     public static final String NAME = "cluster:admin/idp/saml/init";
     public static final SamlInitiateSingleSignOnAction INSTANCE = new SamlInitiateSingleSignOnAction();

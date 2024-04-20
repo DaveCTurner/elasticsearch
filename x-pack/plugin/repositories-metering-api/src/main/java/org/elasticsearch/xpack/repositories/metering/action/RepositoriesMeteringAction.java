@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.repositories.metering.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public final class RepositoriesMeteringAction extends ActionType<RepositoriesMeteringResponse> {
+public final class RepositoriesMeteringAction extends UnnecessaryActionTypeSubclass<RepositoriesMeteringResponse> {
     public static final RepositoriesMeteringAction INSTANCE = new RepositoriesMeteringAction();
 
     static final String NAME = "cluster:monitor/xpack/repositories_metering/get_metrics";

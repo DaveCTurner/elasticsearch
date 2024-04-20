@@ -12,7 +12,7 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.TransportAction;
@@ -100,8 +100,8 @@ public class XPackUsageRestCancellationIT extends ESIntegTestCase {
     }
 
     public static class BlockingUsageActionXPackPlugin extends LocalStateCompositeXPackPlugin {
-        public static final ActionType<XPackUsageFeatureResponse> BLOCKING_XPACK_USAGE = xpackUsageFeatureAction("blocking_xpack_usage");
-        public static final ActionType<XPackUsageFeatureResponse> NON_BLOCKING_XPACK_USAGE = xpackUsageFeatureAction("regular_xpack_usage");
+        public static final UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse> BLOCKING_XPACK_USAGE = xpackUsageFeatureAction("blocking_xpack_usage");
+        public static final UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse> NON_BLOCKING_XPACK_USAGE = xpackUsageFeatureAction("regular_xpack_usage");
 
         public BlockingUsageActionXPackPlugin(Settings settings, Path configPath) {
             super(settings, configPath);
@@ -135,7 +135,7 @@ public class XPackUsageRestCancellationIT extends ESIntegTestCase {
         }
 
         @Override
-        protected List<ActionType<XPackUsageFeatureResponse>> usageActions() {
+        protected List<UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse>> usageActions() {
             return List.of(BlockingUsageActionXPackPlugin.BLOCKING_XPACK_USAGE, BlockingUsageActionXPackPlugin.NON_BLOCKING_XPACK_USAGE);
         }
     }

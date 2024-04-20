@@ -8,7 +8,7 @@
 package org.elasticsearch.action.datastreams;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -21,7 +21,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 import java.util.Objects;
 
-public class MigrateToDataStreamAction extends ActionType<AcknowledgedResponse> {
+public class MigrateToDataStreamAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final MigrateToDataStreamAction INSTANCE = new MigrateToDataStreamAction();
     public static final String NAME = "indices:admin/data_stream/migrate";

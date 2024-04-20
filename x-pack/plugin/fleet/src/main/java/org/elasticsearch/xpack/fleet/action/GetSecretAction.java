@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.fleet.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetSecretAction extends ActionType<GetSecretResponse> {
+public class GetSecretAction extends UnnecessaryActionTypeSubclass<GetSecretResponse> {
 
     public static final String NAME = "cluster:admin/fleet/secrets/get";
 

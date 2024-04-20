@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.desirednodes;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class UpdateDesiredNodesAction extends ActionType<UpdateDesiredNodesResponse> {
+public class UpdateDesiredNodesAction extends UnnecessaryActionTypeSubclass<UpdateDesiredNodesResponse> {
     public static final UpdateDesiredNodesAction INSTANCE = new UpdateDesiredNodesAction();
     public static final String NAME = "cluster:admin/desired_nodes/update";
 

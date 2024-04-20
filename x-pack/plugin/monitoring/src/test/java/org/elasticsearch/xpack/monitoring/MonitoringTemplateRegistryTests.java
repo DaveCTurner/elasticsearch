@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.monitoring;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutIndexTemplateAction;
@@ -313,7 +313,7 @@ public class MonitoringTemplateRegistryTests extends ESTestCase {
      */
     public static class VerifyingClient extends NoOpClient {
 
-        private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+        private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
             fail("verifier not set");
             return null;
         };
@@ -325,7 +325,7 @@ public class MonitoringTemplateRegistryTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -336,7 +336,7 @@ public class MonitoringTemplateRegistryTests extends ESTestCase {
             }
         }
 
-        public VerifyingClient setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        public VerifyingClient setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             this.verifier = verifier;
             return this;
         }
@@ -344,7 +344,7 @@ public class MonitoringTemplateRegistryTests extends ESTestCase {
 
     private ActionResponse verifyComposableTemplateInstalled(
         AtomicInteger calledTimes,
-        ActionType<?> action,
+        UnnecessaryActionTypeSubclass<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

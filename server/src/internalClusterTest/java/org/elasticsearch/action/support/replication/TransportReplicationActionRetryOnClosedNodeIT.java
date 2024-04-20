@@ -11,7 +11,7 @@ package org.elasticsearch.action.support.replication;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.cluster.action.shard.ShardStateAction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -82,7 +82,7 @@ public class TransportReplicationActionRetryOnClosedNodeIT extends ESIntegTestCa
 
     public static class TestAction extends TransportReplicationAction<Request, Request, Response> {
         private static final String ACTION_NAME = "internal:test-replication-action";
-        private static final ActionType<Response> TYPE = new ActionType<>(ACTION_NAME);
+        private static final UnnecessaryActionTypeSubclass<Response> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
 
         @Inject
         public TestAction(

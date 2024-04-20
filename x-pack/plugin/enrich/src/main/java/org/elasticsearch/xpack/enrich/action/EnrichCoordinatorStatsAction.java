@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.enrich.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -35,7 +35,7 @@ import java.util.List;
  * This is an internal action that gather coordinator stats from each node with an ingest role in the cluster.
  * This action is only used via the {@link EnrichStatsAction}.
  */
-public class EnrichCoordinatorStatsAction extends ActionType<EnrichCoordinatorStatsAction.Response> {
+public class EnrichCoordinatorStatsAction extends UnnecessaryActionTypeSubclass<EnrichCoordinatorStatsAction.Response> {
 
     public static final EnrichCoordinatorStatsAction INSTANCE = new EnrichCoordinatorStatsAction();
     public static final String NAME = "cluster:monitor/xpack/enrich/coordinator_stats";

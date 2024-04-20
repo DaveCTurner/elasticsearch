@@ -8,7 +8,7 @@
 
 package org.elasticsearch.action.index;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.TransportBulkAction;
 import org.elasticsearch.action.bulk.TransportSingleItemBulkWriteAction;
@@ -32,7 +32,7 @@ import org.elasticsearch.transport.TransportService;
 public class TransportIndexAction extends TransportSingleItemBulkWriteAction<IndexRequest, DocWriteResponse> {
 
     public static final String NAME = "indices:data/write/index";
-    public static final ActionType<DocWriteResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<DocWriteResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     @Inject
     public TransportIndexAction(ActionFilters actionFilters, TransportService transportService, TransportBulkAction bulkAction) {

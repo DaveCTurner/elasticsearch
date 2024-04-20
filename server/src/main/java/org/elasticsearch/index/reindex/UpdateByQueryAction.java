@@ -8,9 +8,9 @@
 
 package org.elasticsearch.index.reindex;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class UpdateByQueryAction extends ActionType<BulkByScrollResponse> {
+public class UpdateByQueryAction extends UnnecessaryActionTypeSubclass<BulkByScrollResponse> {
     public static final UpdateByQueryAction INSTANCE = new UpdateByQueryAction();
     public static final String NAME = "indices:data/write/update/byquery";
 

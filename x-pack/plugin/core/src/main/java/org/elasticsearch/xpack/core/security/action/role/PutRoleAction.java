@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.role;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for adding a role to the security index
  */
-public class PutRoleAction extends ActionType<PutRoleResponse> {
+public class PutRoleAction extends UnnecessaryActionTypeSubclass<PutRoleResponse> {
 
     public static final PutRoleAction INSTANCE = new PutRoleAction();
     public static final String NAME = "cluster:admin/xpack/security/role/put";

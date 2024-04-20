@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ilm.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class RemoveIndexLifecyclePolicyAction extends ActionType<RemoveIndexLifecyclePolicyAction.Response> {
+public class RemoveIndexLifecyclePolicyAction extends UnnecessaryActionTypeSubclass<RemoveIndexLifecyclePolicyAction.Response> {
     public static final RemoveIndexLifecyclePolicyAction INSTANCE = new RemoveIndexLifecyclePolicyAction();
     public static final String NAME = "indices:admin/ilm/remove_policy";
 

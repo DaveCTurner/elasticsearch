@@ -7,13 +7,13 @@
 
 package org.elasticsearch.xpack.enrich.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 
 /**
  * This class exists only to support {@link TransportEnrichReindexAction}.
  */
-public class EnrichReindexAction extends ActionType<BulkByScrollResponse> {
+public class EnrichReindexAction extends UnnecessaryActionTypeSubclass<BulkByScrollResponse> {
 
     public static final String NAME = "cluster:admin/xpack/enrich/reindex";
     public static final EnrichReindexAction INSTANCE = new EnrichReindexAction();

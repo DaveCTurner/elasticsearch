@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.repositories.metering.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public final class ClearRepositoriesMeteringArchiveAction extends ActionType<RepositoriesMeteringResponse> {
+public final class ClearRepositoriesMeteringArchiveAction extends UnnecessaryActionTypeSubclass<RepositoriesMeteringResponse> {
     public static final ClearRepositoriesMeteringArchiveAction INSTANCE = new ClearRepositoriesMeteringArchiveAction();
 
     static final String NAME = "cluster:monitor/xpack/repositories_metering/clear_metering_archive";

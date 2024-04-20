@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
@@ -62,7 +62,7 @@ public class TransportNodesListGatewayStartedShards extends TransportNodesAction
     private static final Logger logger = LogManager.getLogger(TransportNodesListGatewayStartedShards.class);
 
     public static final String ACTION_NAME = "internal:gateway/local/started_shards";
-    public static final ActionType<NodesGatewayStartedShards> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<NodesGatewayStartedShards> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
 
     private final Settings settings;
     private final NodeEnvironment nodeEnv;

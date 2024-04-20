@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.token;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for creating a new token
  */
-public final class CreateTokenAction extends ActionType<CreateTokenResponse> {
+public final class CreateTokenAction extends UnnecessaryActionTypeSubclass<CreateTokenResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/token/create";
     public static final CreateTokenAction INSTANCE = new CreateTokenAction();

@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.refresh;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 
-public class RefreshAction extends ActionType<BroadcastResponse> {
+public class RefreshAction extends UnnecessaryActionTypeSubclass<BroadcastResponse> {
 
     public static final RefreshAction INSTANCE = new RefreshAction();
     public static final String NAME = "indices:admin/refresh";

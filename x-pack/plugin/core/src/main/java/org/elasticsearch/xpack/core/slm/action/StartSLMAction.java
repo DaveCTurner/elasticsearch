@@ -7,14 +7,14 @@
 
 package org.elasticsearch.xpack.core.slm.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 
 import java.io.IOException;
 
-public class StartSLMAction extends ActionType<AcknowledgedResponse> {
+public class StartSLMAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
     public static final StartSLMAction INSTANCE = new StartSLMAction();
     public static final String NAME = "cluster:admin/slm/start";
 

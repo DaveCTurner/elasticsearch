@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.user;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for retrieving a user from the security index
  */
-public class GetUsersAction extends ActionType<GetUsersResponse> {
+public class GetUsersAction extends UnnecessaryActionTypeSubclass<GetUsersResponse> {
 
     public static final GetUsersAction INSTANCE = new GetUsersAction();
     public static final String NAME = "cluster:admin/xpack/security/user/get";

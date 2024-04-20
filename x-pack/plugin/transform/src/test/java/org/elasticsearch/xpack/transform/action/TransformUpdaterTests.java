@@ -11,7 +11,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.LatchedActionListener;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -91,7 +91,7 @@ public class TransformUpdaterTests extends ESTestCase {
         @SuppressWarnings("unchecked")
         @Override
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

@@ -94,7 +94,7 @@ public class ActionModuleTests extends ESTestCase {
             @Override
             protected void doExecute(Task task, FakeRequest request, ActionListener<ActionResponse> listener) {}
         }
-        final var action = new ActionType<>("fake");
+        final var action = new UnnecessaryActionTypeSubclass<>("fake");
         ActionPlugin registersFakeAction = new ActionPlugin() {
             @Override
             public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {

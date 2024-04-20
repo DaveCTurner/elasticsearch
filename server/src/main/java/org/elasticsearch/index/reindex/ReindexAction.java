@@ -8,9 +8,9 @@
 
 package org.elasticsearch.index.reindex;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class ReindexAction extends ActionType<BulkByScrollResponse> {
+public class ReindexAction extends UnnecessaryActionTypeSubclass<BulkByScrollResponse> {
     public static final ReindexAction INSTANCE = new ReindexAction();
     public static final String NAME = "indices:data/write/reindex";
 

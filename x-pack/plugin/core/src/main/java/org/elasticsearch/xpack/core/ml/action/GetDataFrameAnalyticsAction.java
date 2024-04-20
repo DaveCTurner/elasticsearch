@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xpack.core.action.AbstractGetResourcesRequest;
@@ -18,7 +18,7 @@ import java.io.IOException;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetDataFrameAnalyticsAction extends ActionType<GetDataFrameAnalyticsAction.Response> {
+public class GetDataFrameAnalyticsAction extends UnnecessaryActionTypeSubclass<GetDataFrameAnalyticsAction.Response> {
 
     public static final GetDataFrameAnalyticsAction INSTANCE = new GetDataFrameAnalyticsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/data_frame/analytics/get";

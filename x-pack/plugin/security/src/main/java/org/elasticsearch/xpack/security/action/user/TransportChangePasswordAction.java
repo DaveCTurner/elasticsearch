@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.security.action.user;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
@@ -26,7 +26,7 @@ import java.util.Locale;
 
 public class TransportChangePasswordAction extends HandledTransportAction<ChangePasswordRequest, ActionResponse.Empty> {
 
-    public static final ActionType<ActionResponse.Empty> TYPE = new ActionType<>("cluster:admin/xpack/security/user/change_password");
+    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/xpack/security/user/change_password");
     private final Settings settings;
     private final NativeUsersStore nativeUsersStore;
 

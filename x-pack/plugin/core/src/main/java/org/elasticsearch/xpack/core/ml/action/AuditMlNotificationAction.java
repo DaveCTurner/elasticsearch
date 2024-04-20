@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -24,7 +24,7 @@ import java.util.Objects;
  * exposed via a REST endpoint. Within the ml plugin the Audit
  * classes should be used directly.
  */
-public class AuditMlNotificationAction extends ActionType<AcknowledgedResponse> {
+public class AuditMlNotificationAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final AuditMlNotificationAction INSTANCE = new AuditMlNotificationAction();
     public static final String NAME = "cluster:internal/xpack/ml/notification";

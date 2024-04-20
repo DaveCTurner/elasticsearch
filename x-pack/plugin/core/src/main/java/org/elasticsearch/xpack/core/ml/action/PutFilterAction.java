@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -23,7 +23,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PutFilterAction extends ActionType<PutFilterAction.Response> {
+public class PutFilterAction extends UnnecessaryActionTypeSubclass<PutFilterAction.Response> {
 
     public static final PutFilterAction INSTANCE = new PutFilterAction();
     public static final String NAME = "cluster:admin/xpack/ml/filters/put";

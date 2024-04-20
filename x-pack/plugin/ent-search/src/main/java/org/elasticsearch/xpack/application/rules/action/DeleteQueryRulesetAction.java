@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.application.rules.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -29,7 +29,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class DeleteQueryRulesetAction {
 
     public static final String NAME = "cluster:admin/xpack/query_rules/delete";
-    public static final ActionType<AcknowledgedResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private DeleteQueryRulesetAction() {/* no instances */}
 

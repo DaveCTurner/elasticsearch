@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.rollup.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.common.Strings;
@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetRollupIndexCapsAction extends ActionType<GetRollupIndexCapsAction.Response> {
+public class GetRollupIndexCapsAction extends UnnecessaryActionTypeSubclass<GetRollupIndexCapsAction.Response> {
 
     public static final GetRollupIndexCapsAction INSTANCE = new GetRollupIndexCapsAction();
     public static final String NAME = "indices:data/read/xpack/rollup/get/index/caps";

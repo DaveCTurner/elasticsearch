@@ -15,7 +15,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.NoShardAvailableActionException;
 import org.elasticsearch.action.admin.indices.refresh.TransportShardRefreshAction;
 import org.elasticsearch.action.support.ActionFilters;
@@ -54,7 +54,7 @@ import java.util.concurrent.Executor;
  */
 public class TransportGetAction extends TransportSingleShardAction<GetRequest, GetResponse> {
 
-    public static final ActionType<GetResponse> TYPE = new ActionType<>("indices:data/read/get");
+    public static final UnnecessaryActionTypeSubclass<GetResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:data/read/get");
     private static final Logger logger = LogManager.getLogger(TransportGetAction.class);
 
     private final IndicesService indicesService;

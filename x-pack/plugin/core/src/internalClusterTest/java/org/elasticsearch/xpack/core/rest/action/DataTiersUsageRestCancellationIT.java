@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.rest.action;
 
 import org.apache.http.client.methods.HttpGet;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.ActionTestUtils;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -131,7 +131,7 @@ public class DataTiersUsageRestCancellationIT extends ESIntegTestCase {
         }
 
         @Override
-        protected List<ActionType<XPackUsageFeatureResponse>> usageActions() {
+        protected List<UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse>> usageActions() {
             return List.of(XPackUsageFeatureAction.DATA_TIERS);
         }
     }

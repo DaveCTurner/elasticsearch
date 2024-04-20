@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.termvectors;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class TermVectorsAction extends ActionType<TermVectorsResponse> {
+public class TermVectorsAction extends UnnecessaryActionTypeSubclass<TermVectorsResponse> {
 
     public static final TermVectorsAction INSTANCE = new TermVectorsAction();
     public static final String NAME = "indices:data/read/tv";

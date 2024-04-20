@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xpack.core.action.AbstractGetResourcesRequest;
@@ -18,7 +18,7 @@ import java.io.IOException;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetFiltersAction extends ActionType<GetFiltersAction.Response> {
+public class GetFiltersAction extends UnnecessaryActionTypeSubclass<GetFiltersAction.Response> {
 
     public static final GetFiltersAction INSTANCE = new GetFiltersAction();
     public static final String NAME = "cluster:admin/xpack/ml/filters/get";

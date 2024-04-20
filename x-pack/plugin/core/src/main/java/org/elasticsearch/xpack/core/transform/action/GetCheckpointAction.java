@@ -11,7 +11,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -35,7 +35,7 @@ import static org.elasticsearch.core.Strings.format;
 /**
  * Transform internal API (no REST layer) to retrieve index checkpoints.
  */
-public class GetCheckpointAction extends ActionType<GetCheckpointAction.Response> {
+public class GetCheckpointAction extends UnnecessaryActionTypeSubclass<GetCheckpointAction.Response> {
 
     public static final GetCheckpointAction INSTANCE = new GetCheckpointAction();
 

@@ -9,7 +9,7 @@ package org.elasticsearch.action.downsample;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class DownsampleAction extends ActionType<AcknowledgedResponse> {
+public class DownsampleAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
     public static final DownsampleAction INSTANCE = new DownsampleAction();
     public static final String NAME = "indices:admin/xpack/downsample";
     public static final TimeValue DEFAULT_WAIT_TIMEOUT = new TimeValue(1, TimeUnit.DAYS);

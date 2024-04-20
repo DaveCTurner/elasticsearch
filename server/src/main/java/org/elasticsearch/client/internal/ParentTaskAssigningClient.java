@@ -11,7 +11,7 @@ package org.elasticsearch.client.internal;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.tasks.Task;
@@ -56,7 +56,7 @@ public class ParentTaskAssigningClient extends FilterClient {
 
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

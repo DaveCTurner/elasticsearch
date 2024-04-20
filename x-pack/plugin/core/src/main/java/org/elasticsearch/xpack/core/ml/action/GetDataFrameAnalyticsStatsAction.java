@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
@@ -43,7 +43,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetDataFrameAnalyticsStatsAction extends ActionType<GetDataFrameAnalyticsStatsAction.Response> {
+public class GetDataFrameAnalyticsStatsAction extends UnnecessaryActionTypeSubclass<GetDataFrameAnalyticsStatsAction.Response> {
 
     public static final GetDataFrameAnalyticsStatsAction INSTANCE = new GetDataFrameAnalyticsStatsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/data_frame/analytics/stats/get";

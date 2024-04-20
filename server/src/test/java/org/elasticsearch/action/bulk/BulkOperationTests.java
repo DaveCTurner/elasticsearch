@@ -11,7 +11,7 @@ package org.elasticsearch.action.bulk;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -739,7 +739,7 @@ public class BulkOperationTests extends ESTestCase {
             @Override
             @SuppressWarnings("unchecked")
             public <Request extends ActionRequest, Response extends ActionResponse> Task executeLocally(
-                ActionType<Response> action,
+                UnnecessaryActionTypeSubclass<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.shutdown;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.Strings;
@@ -17,7 +17,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 
 import java.io.IOException;
 
-public class DeleteShutdownNodeAction extends ActionType<AcknowledgedResponse> {
+public class DeleteShutdownNodeAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final DeleteShutdownNodeAction INSTANCE = new DeleteShutdownNodeAction();
     public static final String NAME = "cluster:admin/shutdown/delete";

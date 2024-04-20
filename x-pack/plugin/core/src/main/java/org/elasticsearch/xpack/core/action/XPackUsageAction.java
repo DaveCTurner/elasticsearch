@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 public class XPackUsageAction {
 
     public static final String NAME = "cluster:monitor/xpack/usage";
-    public static final ActionType<XPackUsageResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<XPackUsageResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private XPackUsageAction() {/* no instances */}
 }

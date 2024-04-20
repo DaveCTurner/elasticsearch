@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.user;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class ProfileHasPrivilegesAction extends ActionType<ProfileHasPrivilegesResponse> {
+public class ProfileHasPrivilegesAction extends UnnecessaryActionTypeSubclass<ProfileHasPrivilegesResponse> {
 
     public static final ProfileHasPrivilegesAction INSTANCE = new ProfileHasPrivilegesAction();
     public static final String NAME = "cluster:admin/xpack/security/profile/has_privileges";

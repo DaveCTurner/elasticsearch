@@ -11,7 +11,7 @@ package org.elasticsearch.action.explain;
 import org.apache.lucene.search.Explanation;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ResolvedIndices;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.single.shard.TransportSingleShardAction;
@@ -51,7 +51,7 @@ import java.util.function.LongSupplier;
 // TODO: AggregatedDfs. Currently the idf can be different then when executing a normal search with explain.
 public class TransportExplainAction extends TransportSingleShardAction<ExplainRequest, ExplainResponse> {
 
-    public static final ActionType<ExplainResponse> TYPE = new ActionType<>("indices:data/read/explain");
+    public static final UnnecessaryActionTypeSubclass<ExplainResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:data/read/explain");
     private final SearchService searchService;
     private final RemoteClusterService remoteClusterService;
 

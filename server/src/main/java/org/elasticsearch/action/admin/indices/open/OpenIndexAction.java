@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.open;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class OpenIndexAction extends ActionType<OpenIndexResponse> {
+public class OpenIndexAction extends UnnecessaryActionTypeSubclass<OpenIndexResponse> {
 
     public static final OpenIndexAction INSTANCE = new OpenIndexAction();
     public static final String NAME = "indices:admin/open";

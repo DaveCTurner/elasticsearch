@@ -10,7 +10,7 @@ package org.elasticsearch.action.synonyms;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class PutSynonymsAction extends ActionType<SynonymUpdateResponse> {
+public class PutSynonymsAction extends UnnecessaryActionTypeSubclass<SynonymUpdateResponse> {
 
     public static final PutSynonymsAction INSTANCE = new PutSynonymsAction();
     public static final String NAME = "cluster:admin/synonyms/put";

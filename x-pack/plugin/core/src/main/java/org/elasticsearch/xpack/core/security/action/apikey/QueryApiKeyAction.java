@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public final class QueryApiKeyAction extends ActionType<QueryApiKeyResponse> {
+public final class QueryApiKeyAction extends UnnecessaryActionTypeSubclass<QueryApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/api_key/query";
     public static final QueryApiKeyAction INSTANCE = new QueryApiKeyAction();

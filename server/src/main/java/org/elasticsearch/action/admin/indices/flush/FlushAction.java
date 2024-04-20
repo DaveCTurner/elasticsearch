@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.flush;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 
-public class FlushAction extends ActionType<BroadcastResponse> {
+public class FlushAction extends UnnecessaryActionTypeSubclass<BroadcastResponse> {
 
     public static final FlushAction INSTANCE = new FlushAction();
     public static final String NAME = "indices:admin/flush";

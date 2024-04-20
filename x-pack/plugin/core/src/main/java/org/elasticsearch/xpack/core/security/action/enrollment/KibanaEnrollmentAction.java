@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.enrollment;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public final class KibanaEnrollmentAction extends ActionType<KibanaEnrollmentResponse> {
+public final class KibanaEnrollmentAction extends UnnecessaryActionTypeSubclass<KibanaEnrollmentResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/enroll/kibana";
     public static final KibanaEnrollmentAction INSTANCE = new KibanaEnrollmentAction();

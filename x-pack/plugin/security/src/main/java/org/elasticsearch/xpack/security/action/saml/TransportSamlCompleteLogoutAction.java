@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.security.action.saml;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
@@ -30,7 +30,7 @@ import static org.elasticsearch.xpack.security.authc.saml.SamlRealm.findSamlReal
  */
 public final class TransportSamlCompleteLogoutAction extends HandledTransportAction<SamlCompleteLogoutRequest, ActionResponse.Empty> {
 
-    public static final ActionType<ActionResponse.Empty> TYPE = new ActionType<>("cluster:admin/xpack/security/saml/complete_logout");
+    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/xpack/security/saml/complete_logout");
     private final Realms realms;
 
     @Inject

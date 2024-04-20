@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.searchablesnapshots.action.cache;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
@@ -51,7 +51,7 @@ public class TransportSearchableSnapshotsNodeCachesStatsAction extends Transport
 
     public static final String ACTION_NAME = "cluster:admin/xpack/searchable_snapshots/cache/stats";
 
-    public static final ActionType<NodesCachesStatsResponse> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<NodesCachesStatsResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
 
     private final Supplier<SharedBlobCacheService<CacheKey>> frozenCacheService;
     private final XPackLicenseState licenseState;

@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-public class UpdateFilterAction extends ActionType<PutFilterAction.Response> {
+public class UpdateFilterAction extends UnnecessaryActionTypeSubclass<PutFilterAction.Response> {
 
     public static final UpdateFilterAction INSTANCE = new UpdateFilterAction();
     public static final String NAME = "cluster:admin/xpack/ml/filters/update";

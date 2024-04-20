@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.search.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -35,7 +35,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstr
 public class ListSearchApplicationAction {
 
     public static final String NAME = "cluster:admin/xpack/application/search_application/list";
-    public static final ActionType<ListSearchApplicationAction.Response> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private ListSearchApplicationAction() {/* no instances */}
 

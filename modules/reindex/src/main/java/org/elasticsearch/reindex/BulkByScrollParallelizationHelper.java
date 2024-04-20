@@ -9,7 +9,7 @@
 package org.elasticsearch.reindex;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -56,7 +56,7 @@ class BulkByScrollParallelizationHelper {
     static <Request extends AbstractBulkByScrollRequest<Request>> void startSlicedAction(
         Request request,
         BulkByScrollTask task,
-        ActionType<BulkByScrollResponse> action,
+        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
         ActionListener<BulkByScrollResponse> listener,
         Client client,
         DiscoveryNode node,
@@ -83,7 +83,7 @@ class BulkByScrollParallelizationHelper {
     static <Request extends AbstractBulkByScrollRequest<Request>> void executeSlicedAction(
         BulkByScrollTask task,
         Request request,
-        ActionType<BulkByScrollResponse> action,
+        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
         ActionListener<BulkByScrollResponse> listener,
         Client client,
         DiscoveryNode node,
@@ -150,7 +150,7 @@ class BulkByScrollParallelizationHelper {
 
     private static <Request extends AbstractBulkByScrollRequest<Request>> void sendSubRequests(
         Client client,
-        ActionType<BulkByScrollResponse> action,
+        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
         String localNodeId,
         BulkByScrollTask task,
         Request request,

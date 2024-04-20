@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.settings.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetSettingsAction extends ActionType<GetSettingsResponse> {
+public class GetSettingsAction extends UnnecessaryActionTypeSubclass<GetSettingsResponse> {
 
     public static final GetSettingsAction INSTANCE = new GetSettingsAction();
     public static final String NAME = "indices:monitor/settings/get";

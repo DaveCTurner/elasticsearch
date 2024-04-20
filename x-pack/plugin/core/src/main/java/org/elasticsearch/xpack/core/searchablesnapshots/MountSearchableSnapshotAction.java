@@ -7,10 +7,10 @@
 
 package org.elasticsearch.xpack.core.searchablesnapshots;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 
-public class MountSearchableSnapshotAction extends ActionType<RestoreSnapshotResponse> {
+public class MountSearchableSnapshotAction extends UnnecessaryActionTypeSubclass<RestoreSnapshotResponse> {
 
     public static final MountSearchableSnapshotAction INSTANCE = new MountSearchableSnapshotAction();
     public static final String NAME = "cluster:admin/snapshot/mount";

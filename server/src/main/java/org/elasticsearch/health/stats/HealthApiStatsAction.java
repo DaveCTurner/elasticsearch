@@ -8,7 +8,7 @@
 
 package org.elasticsearch.health.stats;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -29,7 +29,7 @@ import java.util.Objects;
 /**
  * This class collects the stats of the health API from every node
  */
-public class HealthApiStatsAction extends ActionType<HealthApiStatsAction.Response> {
+public class HealthApiStatsAction extends UnnecessaryActionTypeSubclass<HealthApiStatsAction.Response> {
 
     public static final HealthApiStatsAction INSTANCE = new HealthApiStatsAction();
     public static final String NAME = "cluster:monitor/health_api/stats";

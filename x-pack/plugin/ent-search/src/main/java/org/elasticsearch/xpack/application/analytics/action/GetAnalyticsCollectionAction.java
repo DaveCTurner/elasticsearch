@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.application.analytics.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -31,7 +31,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class GetAnalyticsCollectionAction {
 
     public static final String NAME = "cluster:admin/xpack/application/analytics/get";
-    public static final ActionType<GetAnalyticsCollectionAction.Response> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private GetAnalyticsCollectionAction() {/* no instances */}
 

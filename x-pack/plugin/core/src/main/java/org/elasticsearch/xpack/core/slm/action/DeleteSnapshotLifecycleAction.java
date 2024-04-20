@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.slm.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -16,7 +16,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 import java.util.Objects;
 
-public class DeleteSnapshotLifecycleAction extends ActionType<AcknowledgedResponse> {
+public class DeleteSnapshotLifecycleAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
     public static final DeleteSnapshotLifecycleAction INSTANCE = new DeleteSnapshotLifecycleAction();
     public static final String NAME = "cluster:admin/slm/delete";
 

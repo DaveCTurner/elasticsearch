@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.template.put;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.indices.template.reservedstate.ReservedComposableIndexTemplateAction;
 import org.elasticsearch.action.support.ActionFilters;
@@ -52,7 +52,7 @@ import static org.elasticsearch.core.Strings.format;
 public class TransportPutComposableIndexTemplateAction extends AcknowledgedTransportMasterNodeAction<
     TransportPutComposableIndexTemplateAction.Request> {
 
-    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:admin/index_template/put");
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/index_template/put");
     private final MetadataIndexTemplateService indexTemplateService;
 
     @Inject

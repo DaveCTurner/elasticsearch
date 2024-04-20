@@ -15,7 +15,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.support.ActionFilters;
@@ -56,7 +56,7 @@ public class TransportResolveClusterAction extends HandledTransportAction<Resolv
     private static final String TRANSPORT_VERSION_ERROR_MESSAGE = "ResolveClusterAction requires at least Transport Version";
 
     public static final String NAME = "indices:admin/resolve/cluster";
-    public static final ActionType<ResolveClusterActionResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<ResolveClusterActionResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     public static final RemoteClusterActionType<ResolveClusterActionResponse> REMOTE_TYPE = new RemoteClusterActionType<>(
         NAME,
         ResolveClusterActionResponse::new

@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.rollover;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class RolloverAction extends ActionType<RolloverResponse> {
+public class RolloverAction extends UnnecessaryActionTypeSubclass<RolloverResponse> {
 
     public static final RolloverAction INSTANCE = new RolloverAction();
     public static final String NAME = "indices:admin/rollover";

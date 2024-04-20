@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.node.hotthreads;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
@@ -39,7 +39,7 @@ public class TransportNodesHotThreadsAction extends TransportNodesAction<
     TransportNodesHotThreadsAction.NodeRequest,
     NodeHotThreads> {
 
-    public static final ActionType<NodesHotThreadsResponse> TYPE = new ActionType<>("cluster:monitor/nodes/hot_threads");
+    public static final UnnecessaryActionTypeSubclass<NodesHotThreadsResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/nodes/hot_threads");
 
     @Inject
     public TransportNodesHotThreadsAction(

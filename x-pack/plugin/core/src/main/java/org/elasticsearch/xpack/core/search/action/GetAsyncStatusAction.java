@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.search.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetAsyncStatusAction extends ActionType<AsyncStatusResponse> {
+public class GetAsyncStatusAction extends UnnecessaryActionTypeSubclass<AsyncStatusResponse> {
     public static final GetAsyncStatusAction INSTANCE = new GetAsyncStatusAction();
     public static final String NAME = "cluster:monitor/async_search/status";
 

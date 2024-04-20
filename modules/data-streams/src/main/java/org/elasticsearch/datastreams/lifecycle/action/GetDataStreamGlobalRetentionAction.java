@@ -12,7 +12,7 @@ import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
@@ -40,7 +40,7 @@ import java.util.Objects;
  */
 public class GetDataStreamGlobalRetentionAction {
 
-    public static final ActionType<Response> INSTANCE = new ActionType<>("cluster:monitor/data_stream/global_retention/get");
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/data_stream/global_retention/get");
 
     private GetDataStreamGlobalRetentionAction() {/* no instances */}
 

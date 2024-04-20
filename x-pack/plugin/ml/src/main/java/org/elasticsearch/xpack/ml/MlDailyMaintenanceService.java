@@ -10,7 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.TransportListTasksAction;
@@ -322,7 +322,7 @@ public class MlDailyMaintenanceService implements Releasable {
         Predicate<Job> jobFilter,
         String taskActionName,
         Function<TaskInfo, String> jobIdExtractor,
-        ActionType<AcknowledgedResponse> actionType,
+        UnnecessaryActionTypeSubclass<AcknowledgedResponse> actionType,
         Function<String, AcknowledgedRequest<?>> requestCreator,
         ActionListener<AcknowledgedResponse> finalListener
     ) {

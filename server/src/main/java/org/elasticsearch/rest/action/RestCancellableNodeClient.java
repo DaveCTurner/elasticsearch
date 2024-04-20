@@ -11,7 +11,7 @@ package org.elasticsearch.rest.action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.FilterClient;
@@ -72,7 +72,7 @@ public class RestCancellableNodeClient extends FilterClient {
 
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

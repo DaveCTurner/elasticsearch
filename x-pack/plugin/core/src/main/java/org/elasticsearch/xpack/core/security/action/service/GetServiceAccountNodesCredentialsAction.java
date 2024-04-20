@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.service;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetServiceAccountNodesCredentialsAction extends ActionType<GetServiceAccountCredentialsNodesResponse> {
+public class GetServiceAccountNodesCredentialsAction extends UnnecessaryActionTypeSubclass<GetServiceAccountCredentialsNodesResponse> {
 
     public static final String NAME = GetServiceAccountCredentialsAction.NAME + "[n]";
     public static final GetServiceAccountNodesCredentialsAction INSTANCE = new GetServiceAccountNodesCredentialsAction();

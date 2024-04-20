@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.textstructure.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -30,7 +30,7 @@ import java.util.Objects;
 
 public class TestGrokPatternAction {
 
-    public static final ActionType<TestGrokPatternAction.Response> INSTANCE = new ActionType<>(
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(
         "cluster:monitor/text_structure/test_grok_pattern"
     );
 

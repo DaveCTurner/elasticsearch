@@ -8,7 +8,7 @@
 
 package org.elasticsearch.action.datastreams.lifecycle;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -39,7 +39,7 @@ import static org.elasticsearch.cluster.metadata.DataStreamLifecycle.ENABLED_FIE
  */
 public class PutDataStreamLifecycleAction {
 
-    public static final ActionType<AcknowledgedResponse> INSTANCE = new ActionType<>("indices:admin/data_stream/lifecycle/put");
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>("indices:admin/data_stream/lifecycle/put");
 
     private PutDataStreamLifecycleAction() {/* no instances */}
 

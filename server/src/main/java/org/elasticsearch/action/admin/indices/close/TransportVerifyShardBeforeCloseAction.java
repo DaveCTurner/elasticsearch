@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.close;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
@@ -42,7 +42,7 @@ public class TransportVerifyShardBeforeCloseAction extends TransportReplicationA
     ReplicationResponse> {
 
     public static final String NAME = TransportCloseIndexAction.NAME + "[s]";
-    public static final ActionType<ReplicationResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<ReplicationResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     private static final Logger logger = LogManager.getLogger(TransportVerifyShardBeforeCloseAction.class);
 
     @Inject

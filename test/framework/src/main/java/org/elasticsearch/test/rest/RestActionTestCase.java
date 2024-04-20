@@ -11,7 +11,7 @@ package org.elasticsearch.test.rest;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Releasables;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
@@ -82,8 +82,8 @@ public abstract class RestActionTestCase extends ESTestCase {
      * {@link #setExecuteVerifier} or {@link #setExecuteLocallyVerifier}.
      */
     public static final class VerifyingClient extends NoOpNodeClient {
-        AtomicReference<BiFunction<ActionType<?>, ActionRequest, ActionResponse>> executeVerifier = new AtomicReference<>();
-        AtomicReference<BiFunction<ActionType<?>, ActionRequest, ActionResponse>> executeLocallyVerifier = new AtomicReference<>();
+        AtomicReference<BiFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionResponse>> executeVerifier = new AtomicReference<>();
+        AtomicReference<BiFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionResponse>> executeLocallyVerifier = new AtomicReference<>();
 
         public VerifyingClient(ThreadPool threadPool) {
             super(threadPool);
@@ -106,11 +106,11 @@ public abstract class RestActionTestCase extends ESTestCase {
         }
 
         /**
-         * Sets the function that will be called when {@link #doExecute(ActionType, ActionRequest, ActionListener)} is called. The given
+         * Sets the function that will be called when {@link #doExecute(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)} is called. The given
          * function should return a subclass of {@link ActionResponse} that is appropriate for the action.
-         * @param verifier A function which is called in place of {@link #doExecute(ActionType, ActionRequest, ActionListener)}
+         * @param verifier A function which is called in place of {@link #doExecute(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)}
          */
-        public <R extends ActionResponse> void setExecuteVerifier(BiFunction<ActionType<R>, ActionRequest, R> verifier) {
+        public <R extends ActionResponse> void setExecuteVerifier(BiFunction<UnnecessaryActionTypeSubclass<R>, ActionRequest, R> verifier) {
             /*
              * Perform a little generics dance to force the callers to mock
              * a return type appropriate for the action even though we can't
@@ -120,8 +120,8 @@ public abstract class RestActionTestCase extends ESTestCase {
              */
             BiFunction<?, ?, ?> dropTypeInfo = (BiFunction<?, ?, ?>) verifier;
             @SuppressWarnings("unchecked")
-            BiFunction<ActionType<?>, ActionRequest, ActionResponse> pasteGenerics = (BiFunction<
-                ActionType<?>,
+            BiFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionResponse> pasteGenerics = (BiFunction<
+                    UnnecessaryActionTypeSubclass<?>,
                 ActionRequest,
                 ActionResponse>) dropTypeInfo;
             executeVerifier.set(pasteGenerics);
@@ -129,7 +129,7 @@ public abstract class RestActionTestCase extends ESTestCase {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -139,11 +139,11 @@ public abstract class RestActionTestCase extends ESTestCase {
         }
 
         /**
-         * Sets the function that will be called when {@link #executeLocally(ActionType, ActionRequest, ActionListener)} is called. The
+         * Sets the function that will be called when {@link #executeLocally(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)} is called. The
          * given function should return either a subclass of {@link ActionResponse} or {@code null}.
-         * @param verifier A function which is called in place of {@link #executeLocally(ActionType, ActionRequest, ActionListener)}
+         * @param verifier A function which is called in place of {@link #executeLocally(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)}
          */
-        public void setExecuteLocallyVerifier(BiFunction<ActionType<?>, ActionRequest, ActionResponse> verifier) {
+        public void setExecuteLocallyVerifier(BiFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionResponse> verifier) {
             executeLocallyVerifier.set(verifier);
         }
 
@@ -151,7 +151,7 @@ public abstract class RestActionTestCase extends ESTestCase {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> Task executeLocally(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

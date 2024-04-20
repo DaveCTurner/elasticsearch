@@ -13,7 +13,7 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoMetrics;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
@@ -111,7 +111,7 @@ public class RemoteClusterNodesActionTests extends ESTestCase {
                 @SuppressWarnings("unchecked")
                 @Override
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    ActionType<Response> action,
+                    UnnecessaryActionTypeSubclass<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {
@@ -189,7 +189,7 @@ public class RemoteClusterNodesActionTests extends ESTestCase {
                 @SuppressWarnings("unchecked")
                 @Override
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    ActionType<Response> action,
+                    UnnecessaryActionTypeSubclass<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {

@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.privilege;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for deleting application privileges.
  */
-public final class DeletePrivilegesAction extends ActionType<DeletePrivilegesResponse> {
+public final class DeletePrivilegesAction extends UnnecessaryActionTypeSubclass<DeletePrivilegesResponse> {
 
     public static final DeletePrivilegesAction INSTANCE = new DeletePrivilegesAction();
     public static final String NAME = "cluster:admin/xpack/security/privilege/delete";

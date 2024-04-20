@@ -11,7 +11,7 @@ package org.elasticsearch.health.node;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.ClusterState;
@@ -35,7 +35,7 @@ import java.util.Objects;
  * When the health node receives the health info, it will update the internal cache
  * regarding this node.
  */
-public class UpdateHealthInfoCacheAction extends ActionType<AcknowledgedResponse> {
+public class UpdateHealthInfoCacheAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static class Request extends HealthNodeRequest {
         private final String nodeId;

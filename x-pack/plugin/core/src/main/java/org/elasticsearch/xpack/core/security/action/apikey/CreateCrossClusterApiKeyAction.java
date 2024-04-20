@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for the creation of a cross-cluster API key
  */
-public final class CreateCrossClusterApiKeyAction extends ActionType<CreateApiKeyResponse> {
+public final class CreateCrossClusterApiKeyAction extends UnnecessaryActionTypeSubclass<CreateApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/cross_cluster/api_key/create";
     public static final CreateCrossClusterApiKeyAction INSTANCE = new CreateCrossClusterApiKeyAction();

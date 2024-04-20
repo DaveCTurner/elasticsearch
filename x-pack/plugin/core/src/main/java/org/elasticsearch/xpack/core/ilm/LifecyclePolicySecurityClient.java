@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.ilm;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.support.AbstractClient;
 import org.elasticsearch.xpack.core.ClientHelper;
@@ -41,7 +41,7 @@ public class LifecyclePolicySecurityClient extends AbstractClient {
 
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

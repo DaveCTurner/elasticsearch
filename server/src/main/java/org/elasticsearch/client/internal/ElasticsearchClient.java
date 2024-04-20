@@ -12,13 +12,13 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public interface ElasticsearchClient {
 
     /**
-     * Executes a generic action, denoted by an {@link ActionType}.
+     * Executes a generic action, denoted by an {@link UnnecessaryActionTypeSubclass}.
      *
      * @param action           The action type to execute.
      * @param request          The action request.
@@ -27,12 +27,12 @@ public interface ElasticsearchClient {
      * @return A future allowing to get back the response.
      */
     <Request extends ActionRequest, Response extends ActionResponse> ActionFuture<Response> execute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request
     );
 
     /**
-     * Executes a generic action, denoted by an {@link ActionType}.
+     * Executes a generic action, denoted by an {@link UnnecessaryActionTypeSubclass}.
      *
      * @param action           The action type to execute.
      * @param request          The action request.
@@ -41,7 +41,7 @@ public interface ElasticsearchClient {
      * @param <Response>       The response type.
      */
     <Request extends ActionRequest, Response extends ActionResponse> void execute(
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     );

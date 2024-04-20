@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -26,7 +26,7 @@ import java.util.Objects;
 /**
  * Internal (no-REST) action to retrieve metrics for serverless autoscaling.
  */
-public class GetMlAutoscalingStats extends ActionType<Response> {
+public class GetMlAutoscalingStats extends UnnecessaryActionTypeSubclass<Response> {
 
     public static final GetMlAutoscalingStats INSTANCE = new GetMlAutoscalingStats();
     public static final String NAME = "cluster:monitor/xpack/ml/autoscaling/stats/get";

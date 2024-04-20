@@ -8,12 +8,12 @@
 
 package org.elasticsearch.action.admin.indices.recovery;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * Recovery information action
  */
-public class RecoveryAction extends ActionType<RecoveryResponse> {
+public class RecoveryAction extends UnnecessaryActionTypeSubclass<RecoveryResponse> {
 
     public static final RecoveryAction INSTANCE = new RecoveryAction();
     public static final String NAME = "indices:monitor/recovery";

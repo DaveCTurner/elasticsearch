@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.enrich;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -51,7 +51,7 @@ public class LocalStateEnrich extends LocalStateCompositeXPackPlugin {
         }
 
         @Override
-        protected List<ActionType<XPackInfoFeatureResponse>> infoActions() {
+        protected List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions() {
             return Collections.singletonList(XPackInfoFeatureAction.ENRICH);
         }
     }

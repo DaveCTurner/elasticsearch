@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 
-public class GetIndexAction extends ActionType<GetIndexResponse> {
+public class GetIndexAction extends UnnecessaryActionTypeSubclass<GetIndexResponse> {
 
     public static final GetIndexAction INSTANCE = new GetIndexAction();
     public static final String NAME = "indices:admin/get";

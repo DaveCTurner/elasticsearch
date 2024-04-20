@@ -8,7 +8,7 @@
 
 package org.elasticsearch.index.reindex;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.script.Script;
@@ -20,7 +20,7 @@ public abstract class AbstractBulkIndexByScrollRequestBuilder<
 
     protected AbstractBulkIndexByScrollRequestBuilder(
         ElasticsearchClient client,
-        ActionType<BulkByScrollResponse> action,
+        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
         SearchRequestBuilder search
     ) {
         super(client, action, search);

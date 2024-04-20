@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.storedscripts;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.AcknowledgedTransportMasterNodeAction;
@@ -27,7 +27,7 @@ import org.elasticsearch.transport.TransportService;
 
 public class TransportPutStoredScriptAction extends AcknowledgedTransportMasterNodeAction<PutStoredScriptRequest> {
 
-    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/script/put");
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/script/put");
     private final ScriptService scriptService;
 
     @Inject

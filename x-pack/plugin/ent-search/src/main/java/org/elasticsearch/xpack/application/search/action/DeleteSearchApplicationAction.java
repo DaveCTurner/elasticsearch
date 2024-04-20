@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.application.search.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -28,7 +28,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class DeleteSearchApplicationAction {
 
     public static final String NAME = "cluster:admin/xpack/application/search_application/delete";
-    public static final ActionType<AcknowledgedResponse> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private DeleteSearchApplicationAction() {/* no instances */}
 

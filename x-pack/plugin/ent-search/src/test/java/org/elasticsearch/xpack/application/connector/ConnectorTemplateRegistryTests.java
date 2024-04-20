@@ -11,7 +11,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.ingest.PutPipelineTransportAction;
@@ -336,7 +336,7 @@ public class ConnectorTemplateRegistryTests extends ESTestCase {
      */
     private static class VerifyingClient extends NoOpClient {
 
-        private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+        private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
             fail("verifier not set");
             return null;
         };
@@ -348,7 +348,7 @@ public class ConnectorTemplateRegistryTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            ActionType<Response> action,
+            UnnecessaryActionTypeSubclass<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -359,14 +359,14 @@ public class ConnectorTemplateRegistryTests extends ESTestCase {
             }
         }
 
-        public void setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        public void setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             this.verifier = verifier;
         }
     }
 
     private ActionResponse verifyComposableTemplateInstalled(
         AtomicInteger calledTimes,
-        ActionType<?> action,
+        UnnecessaryActionTypeSubclass<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -403,7 +403,7 @@ public class ConnectorTemplateRegistryTests extends ESTestCase {
 
     private ActionResponse verifyComponentTemplateInstalled(
         AtomicInteger calledTimes,
-        ActionType<?> action,
+        UnnecessaryActionTypeSubclass<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -40,7 +40,7 @@ import java.util.Optional;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
-public class EvaluateDataFrameAction extends ActionType<EvaluateDataFrameAction.Response> {
+public class EvaluateDataFrameAction extends UnnecessaryActionTypeSubclass<EvaluateDataFrameAction.Response> {
 
     public static final EvaluateDataFrameAction INSTANCE = new EvaluateDataFrameAction();
     public static final String NAME = "cluster:monitor/xpack/ml/data_frame/evaluate";

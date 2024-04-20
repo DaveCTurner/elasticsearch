@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 
-public class ClearDeploymentCacheAction extends ActionType<ClearDeploymentCacheAction.Response> {
+public class ClearDeploymentCacheAction extends UnnecessaryActionTypeSubclass<ClearDeploymentCacheAction.Response> {
     public static final ClearDeploymentCacheAction INSTANCE = new ClearDeploymentCacheAction();
     public static final String NAME = "cluster:admin/xpack/ml/trained_models/deployment/clear_cache";
 

@@ -7,13 +7,13 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for the creation of an API key on behalf of another user
  * This returns the {@link CreateApiKeyResponse} because the REST output is intended to be identical to the {@link CreateApiKeyAction}.
  */
-public final class GrantApiKeyAction extends ActionType<CreateApiKeyResponse> {
+public final class GrantApiKeyAction extends UnnecessaryActionTypeSubclass<CreateApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/api_key/grant";
     public static final GrantApiKeyAction INSTANCE = new GrantApiKeyAction();

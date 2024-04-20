@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.watcher.transport.actions.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * This action gets an watch by name
  */
-public class GetWatchAction extends ActionType<GetWatchResponse> {
+public class GetWatchAction extends UnnecessaryActionTypeSubclass<GetWatchResponse> {
 
     public static final GetWatchAction INSTANCE = new GetWatchAction();
     public static final String NAME = "cluster:monitor/xpack/watcher/watch/get";

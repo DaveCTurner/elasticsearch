@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.security.action.oidc;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class OpenIdConnectLogoutAction extends ActionType<OpenIdConnectLogoutResponse> {
+public class OpenIdConnectLogoutAction extends UnnecessaryActionTypeSubclass<OpenIdConnectLogoutResponse> {
 
     public static final OpenIdConnectLogoutAction INSTANCE = new OpenIdConnectLogoutAction();
     public static final String NAME = "cluster:admin/xpack/security/oidc/logout";

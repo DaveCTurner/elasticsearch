@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.searchablesnapshots.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class SearchableSnapshotsStatsAction extends ActionType<SearchableSnapshotsStatsResponse> {
+public class SearchableSnapshotsStatsAction extends UnnecessaryActionTypeSubclass<SearchableSnapshotsStatsResponse> {
 
     public static final SearchableSnapshotsStatsAction INSTANCE = new SearchableSnapshotsStatsAction();
     static final String NAME = "cluster:monitor/xpack/searchable_snapshots/stats";

@@ -8,7 +8,7 @@
 
 package org.elasticsearch.action.termvectors;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportActions;
 import org.elasticsearch.action.support.single.shard.TransportSingleShardAction;
@@ -37,7 +37,7 @@ public class TransportShardMultiTermsVectorAction extends TransportSingleShardAc
     private final IndicesService indicesService;
 
     private static final String ACTION_NAME = MultiTermVectorsAction.NAME + "[shard]";
-    public static final ActionType<MultiTermVectorsShardResponse> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<MultiTermVectorsShardResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
 
     @Inject
     public TransportShardMultiTermsVectorAction(

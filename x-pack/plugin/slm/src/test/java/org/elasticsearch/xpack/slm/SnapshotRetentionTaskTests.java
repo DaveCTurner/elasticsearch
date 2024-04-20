@@ -11,7 +11,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
@@ -239,7 +239,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
                 @Override
                 @SuppressWarnings("unchecked")
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    ActionType<Response> action,
+                    UnnecessaryActionTypeSubclass<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {
@@ -314,7 +314,7 @@ public class SnapshotRetentionTaskTests extends ESTestCase {
                 @Override
                 @SuppressWarnings("unchecked")
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    ActionType<Response> action,
+                    UnnecessaryActionTypeSubclass<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {

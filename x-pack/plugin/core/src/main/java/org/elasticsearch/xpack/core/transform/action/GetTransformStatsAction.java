@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.transform.action;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
@@ -41,7 +41,7 @@ import java.util.Objects;
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 import static org.elasticsearch.core.Strings.format;
 
-public class GetTransformStatsAction extends ActionType<GetTransformStatsAction.Response> {
+public class GetTransformStatsAction extends UnnecessaryActionTypeSubclass<GetTransformStatsAction.Response> {
 
     public static final GetTransformStatsAction INSTANCE = new GetTransformStatsAction();
     public static final String NAME = "cluster:monitor/transform/stats/get";

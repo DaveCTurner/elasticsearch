@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.sql.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class SqlQueryAction extends ActionType<SqlQueryResponse> {
+public class SqlQueryAction extends UnnecessaryActionTypeSubclass<SqlQueryResponse> {
 
     public static final SqlQueryAction INSTANCE = new SqlQueryAction();
     public static final String NAME = "indices:data/read/sql";

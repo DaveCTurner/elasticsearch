@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.search.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetAsyncSearchAction extends ActionType<AsyncSearchResponse> {
+public class GetAsyncSearchAction extends UnnecessaryActionTypeSubclass<AsyncSearchResponse> {
     public static final GetAsyncSearchAction INSTANCE = new GetAsyncSearchAction();
     public static final String NAME = "indices:data/read/async_search/get";
 

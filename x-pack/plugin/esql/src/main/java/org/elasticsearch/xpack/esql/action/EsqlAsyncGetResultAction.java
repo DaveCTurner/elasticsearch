@@ -7,10 +7,10 @@
 
 package org.elasticsearch.xpack.esql.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.xpack.core.esql.EsqlAsyncActionNames;
 
-public class EsqlAsyncGetResultAction extends ActionType<EsqlQueryResponse> {
+public class EsqlAsyncGetResultAction extends UnnecessaryActionTypeSubclass<EsqlQueryResponse> {
 
     public static final EsqlAsyncGetResultAction INSTANCE = new EsqlAsyncGetResultAction();
 

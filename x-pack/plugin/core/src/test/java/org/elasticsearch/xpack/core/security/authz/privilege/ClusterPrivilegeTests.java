@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.security.authz.privilege;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.template.get.GetComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.get.GetComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction;
@@ -33,7 +33,7 @@ public class ClusterPrivilegeTests extends ESTestCase {
         }
     }
 
-    public static void assertGranted(ClusterPrivilege clusterPrivilege, ActionType<?> actionType) {
+    public static void assertGranted(ClusterPrivilege clusterPrivilege, UnnecessaryActionTypeSubclass<?> actionType) {
         assertTrue(clusterPrivilege.buildPermission(ClusterPermission.builder()).build().check(actionType.name(), null, null));
     }
 

@@ -15,7 +15,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.refresh.TransportShardRefreshAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportActions;
@@ -56,7 +56,7 @@ import static org.elasticsearch.core.Strings.format;
 public class TransportShardMultiGetAction extends TransportSingleShardAction<MultiGetShardRequest, MultiGetShardResponse> {
 
     private static final String ACTION_NAME = TransportMultiGetAction.NAME + "[shard]";
-    public static final ActionType<MultiGetShardResponse> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<MultiGetShardResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
     private static final Logger logger = LogManager.getLogger(TransportShardMultiGetAction.class);
 
     private final IndicesService indicesService;

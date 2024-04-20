@@ -9,7 +9,7 @@
 package org.elasticsearch.ingest.geoip.stats;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -33,7 +33,7 @@ import java.util.Set;
 
 public class GeoIpStatsAction {
 
-    public static final ActionType<Response> INSTANCE = new ActionType<>("cluster:monitor/ingest/geoip/stats");
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/ingest/geoip/stats");
 
     private GeoIpStatsAction() {/* no instances */}
 

@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.searchablesnapshots.action.cache;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
@@ -24,7 +24,7 @@ import java.io.IOException;
 
 import static org.elasticsearch.blobcache.shared.SharedBlobCacheService.SHARED_CACHE_SIZE_SETTING;
 
-public class FrozenCacheInfoNodeAction extends ActionType<FrozenCacheInfoResponse> {
+public class FrozenCacheInfoNodeAction extends UnnecessaryActionTypeSubclass<FrozenCacheInfoResponse> {
 
     public static final String NAME = FrozenCacheInfoAction.NAME + "[n]";
     public static final FrozenCacheInfoNodeAction INSTANCE = new FrozenCacheInfoNodeAction();

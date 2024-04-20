@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.cluster.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class MigrateToDataTiersAction extends ActionType<MigrateToDataTiersResponse> {
+public class MigrateToDataTiersAction extends UnnecessaryActionTypeSubclass<MigrateToDataTiersResponse> {
 
     public static final MigrateToDataTiersAction INSTANCE = new MigrateToDataTiersAction();
     public static final String NAME = "cluster:admin/migrate_to_data_tiers";

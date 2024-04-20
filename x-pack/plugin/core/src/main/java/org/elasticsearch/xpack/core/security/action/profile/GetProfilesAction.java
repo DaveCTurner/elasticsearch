@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.profile;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetProfilesAction extends ActionType<GetProfilesResponse> {
+public class GetProfilesAction extends UnnecessaryActionTypeSubclass<GetProfilesResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/profile/get";
     public static final GetProfilesAction INSTANCE = new GetProfilesAction();

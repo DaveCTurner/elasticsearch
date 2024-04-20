@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -25,7 +25,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.xpack.core.ml.inference.TrainedModelConfig.MODEL_SIZE_BYTES;
 
-public class PutTrainedModelAction extends ActionType<PutTrainedModelAction.Response> {
+public class PutTrainedModelAction extends UnnecessaryActionTypeSubclass<PutTrainedModelAction.Response> {
 
     public static final String DEFER_DEFINITION_DECOMPRESSION = "defer_definition_decompression";
     public static final PutTrainedModelAction INSTANCE = new PutTrainedModelAction();

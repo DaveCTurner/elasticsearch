@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.slm.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.Strings;
@@ -22,7 +22,7 @@ import org.elasticsearch.xpack.core.slm.SnapshotLifecyclePolicy;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PutSnapshotLifecycleAction extends ActionType<AcknowledgedResponse> {
+public class PutSnapshotLifecycleAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
     public static final PutSnapshotLifecycleAction INSTANCE = new PutSnapshotLifecycleAction();
     public static final String NAME = "cluster:admin/slm/put";
 

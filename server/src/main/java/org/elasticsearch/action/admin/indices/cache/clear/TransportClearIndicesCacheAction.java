@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.indices.cache.clear;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
@@ -37,7 +37,7 @@ public class TransportClearIndicesCacheAction extends TransportBroadcastByNodeAc
     BroadcastResponse,
     TransportBroadcastByNodeAction.EmptyResult> {
 
-    public static final ActionType<BroadcastResponse> TYPE = new ActionType<>("indices:admin/cache/clear");
+    public static final UnnecessaryActionTypeSubclass<BroadcastResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/cache/clear");
     private final IndicesService indicesService;
 
     @Inject

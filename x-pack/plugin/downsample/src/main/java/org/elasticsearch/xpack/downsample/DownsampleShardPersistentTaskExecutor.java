@@ -14,7 +14,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilters;
@@ -254,7 +254,7 @@ public class DownsampleShardPersistentTaskExecutor extends PersistentTasksExecut
     // directly from this persistent task executor. By delegating to this action (with a request that implements IndicesRequest) the
     // security thread local will be setup correctly so that we avoid this error:
     // org.elasticsearch.ElasticsearchSecurityException: no indices permissions found
-    public static class DelegatingAction extends ActionType<ActionResponse.Empty> {
+    public static class DelegatingAction extends UnnecessaryActionTypeSubclass<ActionResponse.Empty> {
 
         public static final DelegatingAction INSTANCE = new DelegatingAction();
         public static final String NAME = "indices:data/read/downsample_delegate";

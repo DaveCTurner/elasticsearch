@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.ccr.action;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Objects;
 
-public class CcrStatsAction extends ActionType<CcrStatsAction.Response> {
+public class CcrStatsAction extends UnnecessaryActionTypeSubclass<CcrStatsAction.Response> {
 
     public static final String NAME = "cluster:monitor/ccr/stats";
     public static final CcrStatsAction INSTANCE = new CcrStatsAction();

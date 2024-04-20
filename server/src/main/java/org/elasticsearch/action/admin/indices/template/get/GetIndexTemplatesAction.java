@@ -7,9 +7,9 @@
  */
 package org.elasticsearch.action.admin.indices.template.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetIndexTemplatesAction extends ActionType<GetIndexTemplatesResponse> {
+public class GetIndexTemplatesAction extends UnnecessaryActionTypeSubclass<GetIndexTemplatesResponse> {
 
     public static final GetIndexTemplatesAction INSTANCE = new GetIndexTemplatesAction();
     public static final String NAME = "indices:admin/template/get";

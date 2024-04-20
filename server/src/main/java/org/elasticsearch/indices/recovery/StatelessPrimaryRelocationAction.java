@@ -11,7 +11,7 @@ package org.elasticsearch.indices.recovery;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -22,7 +22,7 @@ import java.util.Objects;
 
 public class StatelessPrimaryRelocationAction {
 
-    public static final ActionType<ActionResponse.Empty> TYPE = new ActionType<>(
+    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TYPE = new UnnecessaryActionTypeSubclass<>(
         "internal:index/shard/recovery/stateless_primary_relocation"
     );
 

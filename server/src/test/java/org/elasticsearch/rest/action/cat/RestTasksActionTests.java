@@ -11,7 +11,7 @@ package org.elasticsearch.rest.action.cat;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.test.ESTestCase;
@@ -48,7 +48,7 @@ public class RestTasksActionTests extends ESTestCase {
             @Override
             @SuppressWarnings("unchecked")
             public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                ActionType<Response> action,
+                UnnecessaryActionTypeSubclass<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

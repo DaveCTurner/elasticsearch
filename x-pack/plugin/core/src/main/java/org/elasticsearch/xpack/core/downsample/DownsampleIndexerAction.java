@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.downsample;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.downsample.DownsampleConfig;
@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-public class DownsampleIndexerAction extends ActionType<DownsampleIndexerAction.Response> {
+public class DownsampleIndexerAction extends UnnecessaryActionTypeSubclass<DownsampleIndexerAction.Response> {
 
     public static final DownsampleIndexerAction INSTANCE = new DownsampleIndexerAction();
     public static final String NAME = "indices:admin/xpack/downsample_indexer";

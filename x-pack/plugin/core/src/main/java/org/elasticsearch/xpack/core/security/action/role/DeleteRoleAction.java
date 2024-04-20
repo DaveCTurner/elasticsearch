@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.role;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for deleting a role from the security index
  */
-public class DeleteRoleAction extends ActionType<DeleteRoleResponse> {
+public class DeleteRoleAction extends UnnecessaryActionTypeSubclass<DeleteRoleResponse> {
 
     public static final DeleteRoleAction INSTANCE = new DeleteRoleAction();
     public static final String NAME = "cluster:admin/xpack/security/role/delete";

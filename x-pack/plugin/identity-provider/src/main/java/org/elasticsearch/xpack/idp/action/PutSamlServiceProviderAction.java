@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.idp.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class PutSamlServiceProviderAction extends ActionType<PutSamlServiceProviderResponse> {
+public class PutSamlServiceProviderAction extends UnnecessaryActionTypeSubclass<PutSamlServiceProviderResponse> {
 
     public static final String NAME = "cluster:admin/idp/saml/sp/put";
     public static final PutSamlServiceProviderAction INSTANCE = new PutSamlServiceProviderAction(NAME);

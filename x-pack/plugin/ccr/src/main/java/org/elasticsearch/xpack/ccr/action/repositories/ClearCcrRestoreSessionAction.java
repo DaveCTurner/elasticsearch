@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.ccr.action.repositories;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
@@ -21,7 +21,7 @@ import org.elasticsearch.transport.TransportActionProxy;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xpack.ccr.repository.CcrRestoreSourceService;
 
-public class ClearCcrRestoreSessionAction extends ActionType<ActionResponse.Empty> {
+public class ClearCcrRestoreSessionAction extends UnnecessaryActionTypeSubclass<ActionResponse.Empty> {
 
     public static final ClearCcrRestoreSessionAction INTERNAL_INSTANCE = new ClearCcrRestoreSessionAction();
     public static final String INTERNAL_NAME = "internal:admin/ccr/restore/session/clear";

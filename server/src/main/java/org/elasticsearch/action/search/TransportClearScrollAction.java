@@ -9,7 +9,7 @@
 package org.elasticsearch.action.search;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -22,7 +22,7 @@ public class TransportClearScrollAction extends HandledTransportAction<ClearScro
 
     public static final String NAME = "indices:data/read/scroll/clear";
 
-    public static final ActionType<ClearScrollResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<ClearScrollResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     private final ClusterService clusterService;
     private final SearchTransportService searchTransportService;
 

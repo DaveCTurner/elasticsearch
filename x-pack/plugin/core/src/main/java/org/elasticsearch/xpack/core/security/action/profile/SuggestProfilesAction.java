@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.profile;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class SuggestProfilesAction extends ActionType<SuggestProfilesResponse> {
+public class SuggestProfilesAction extends UnnecessaryActionTypeSubclass<SuggestProfilesResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/profile/suggest";
     public static final SuggestProfilesAction INSTANCE = new SuggestProfilesAction();

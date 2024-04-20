@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.rollup.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetRollupCapsAction extends ActionType<GetRollupCapsAction.Response> {
+public class GetRollupCapsAction extends UnnecessaryActionTypeSubclass<GetRollupCapsAction.Response> {
 
     public static final GetRollupCapsAction INSTANCE = new GetRollupCapsAction();
     public static final String NAME = "cluster:monitor/xpack/rollup/get/caps";

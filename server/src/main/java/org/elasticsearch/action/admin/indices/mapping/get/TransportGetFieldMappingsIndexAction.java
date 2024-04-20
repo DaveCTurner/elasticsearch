@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.indices.mapping.get;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse.FieldMappingMetadata;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.single.shard.TransportSingleShardAction;
@@ -50,7 +50,7 @@ public class TransportGetFieldMappingsIndexAction extends TransportSingleShardAc
     GetFieldMappingsResponse> {
 
     private static final String ACTION_NAME = GetFieldMappingsAction.NAME + "[index]";
-    public static final ActionType<GetFieldMappingsResponse> TYPE = new ActionType<>(ACTION_NAME);
+    public static final UnnecessaryActionTypeSubclass<GetFieldMappingsResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
 
     private final IndicesService indicesService;
 

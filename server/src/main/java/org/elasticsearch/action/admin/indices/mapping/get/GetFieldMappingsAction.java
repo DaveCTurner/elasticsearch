@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.mapping.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetFieldMappingsAction extends ActionType<GetFieldMappingsResponse> {
+public class GetFieldMappingsAction extends UnnecessaryActionTypeSubclass<GetFieldMappingsResponse> {
 
     public static final GetFieldMappingsAction INSTANCE = new GetFieldMappingsAction();
     public static final String NAME = "indices:admin/mappings/fields/get";

@@ -13,7 +13,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -90,7 +90,7 @@ import static java.util.Collections.emptyMap;
  * Note that this 'msearch' implementation only supports executing a query, pagination and source filtering.
  * Other search features are not supported, because the enrich processor isn't using these search features.
  */
-public class EnrichShardMultiSearchAction extends ActionType<MultiSearchResponse> {
+public class EnrichShardMultiSearchAction extends UnnecessaryActionTypeSubclass<MultiSearchResponse> {
 
     public static final EnrichShardMultiSearchAction INSTANCE = new EnrichShardMultiSearchAction();
     private static final String NAME = "indices:data/read/shard_multi_search";

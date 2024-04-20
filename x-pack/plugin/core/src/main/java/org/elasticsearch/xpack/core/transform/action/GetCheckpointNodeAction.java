@@ -11,7 +11,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -31,7 +31,7 @@ import java.util.Set;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetCheckpointNodeAction extends ActionType<GetCheckpointNodeAction.Response> {
+public class GetCheckpointNodeAction extends UnnecessaryActionTypeSubclass<GetCheckpointNodeAction.Response> {
 
     public static final GetCheckpointNodeAction INSTANCE = new GetCheckpointNodeAction();
 

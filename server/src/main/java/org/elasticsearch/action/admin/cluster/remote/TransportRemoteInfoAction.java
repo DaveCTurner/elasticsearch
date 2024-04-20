@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.remote;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
@@ -23,7 +23,7 @@ import static java.util.stream.Collectors.toList;
 
 public final class TransportRemoteInfoAction extends HandledTransportAction<RemoteInfoRequest, RemoteInfoResponse> {
 
-    public static final ActionType<RemoteInfoResponse> TYPE = new ActionType<>("cluster:monitor/remote/info");
+    public static final UnnecessaryActionTypeSubclass<RemoteInfoResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/remote/info");
     private final RemoteClusterService remoteClusterService;
 
     @Inject

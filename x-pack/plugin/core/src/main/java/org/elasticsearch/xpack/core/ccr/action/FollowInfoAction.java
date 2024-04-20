@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ccr.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.Iterators;
@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-public class FollowInfoAction extends ActionType<FollowInfoAction.Response> {
+public class FollowInfoAction extends UnnecessaryActionTypeSubclass<FollowInfoAction.Response> {
 
     public static final String NAME = "cluster:monitor/ccr/follow_info";
 

@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -28,7 +28,7 @@ import java.util.Optional;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class PutTrainedModelVocabularyAction extends ActionType<AcknowledgedResponse> {
+public class PutTrainedModelVocabularyAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final PutTrainedModelVocabularyAction INSTANCE = new PutTrainedModelVocabularyAction();
     public static final String NAME = "cluster:admin/xpack/ml/trained_models/vocabulary/put";

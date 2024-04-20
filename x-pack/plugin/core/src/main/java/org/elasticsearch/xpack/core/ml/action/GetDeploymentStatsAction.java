@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class GetDeploymentStatsAction extends ActionType<GetDeploymentStatsAction.Response> {
+public class GetDeploymentStatsAction extends UnnecessaryActionTypeSubclass<GetDeploymentStatsAction.Response> {
 
     public static final GetDeploymentStatsAction INSTANCE = new GetDeploymentStatsAction();
     public static final String NAME = "cluster:internal/xpack/ml/trained_models/deployments/stats/get";

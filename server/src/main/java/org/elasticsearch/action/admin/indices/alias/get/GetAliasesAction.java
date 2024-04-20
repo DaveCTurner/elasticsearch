@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.alias.get;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class GetAliasesAction extends ActionType<GetAliasesResponse> {
+public class GetAliasesAction extends UnnecessaryActionTypeSubclass<GetAliasesResponse> {
 
     public static final GetAliasesAction INSTANCE = new GetAliasesAction();
     public static final String NAME = "indices:admin/aliases/get";

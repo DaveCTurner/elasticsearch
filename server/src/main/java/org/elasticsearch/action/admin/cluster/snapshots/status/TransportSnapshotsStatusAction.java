@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.cluster.snapshots.status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.RefCountAwareThreadedActionListener;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -66,7 +66,7 @@ import static org.elasticsearch.cluster.SnapshotsInProgress.ShardState.SUCCESS;
 
 public class TransportSnapshotsStatusAction extends TransportMasterNodeAction<SnapshotsStatusRequest, SnapshotsStatusResponse> {
 
-    public static final ActionType<SnapshotsStatusResponse> TYPE = new ActionType<>("cluster:admin/snapshot/status");
+    public static final UnnecessaryActionTypeSubclass<SnapshotsStatusResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/snapshot/status");
     private static final Logger logger = LogManager.getLogger(TransportSnapshotsStatusAction.class);
 
     private final RepositoriesService repositoriesService;

@@ -9,7 +9,7 @@ package org.elasticsearch.plugin.noop;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -36,8 +36,8 @@ import java.util.function.Supplier;
 
 public class NoopPlugin extends Plugin implements ActionPlugin {
 
-    public static final ActionType<SearchResponse> NOOP_SEARCH_ACTION = new ActionType<>("mock:data/read/search");
-    public static final ActionType<BulkResponse> NOOP_BULK_ACTION = new ActionType<>("mock:data/write/bulk");
+    public static final UnnecessaryActionTypeSubclass<SearchResponse> NOOP_SEARCH_ACTION = new UnnecessaryActionTypeSubclass<>("mock:data/read/search");
+    public static final UnnecessaryActionTypeSubclass<BulkResponse> NOOP_BULK_ACTION = new UnnecessaryActionTypeSubclass<>("mock:data/write/bulk");
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {

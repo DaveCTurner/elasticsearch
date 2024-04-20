@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -31,7 +31,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class UpdateTransformAction extends ActionType<UpdateTransformAction.Response> {
+public class UpdateTransformAction extends UnnecessaryActionTypeSubclass<UpdateTransformAction.Response> {
 
     public static final UpdateTransformAction INSTANCE = new UpdateTransformAction();
     public static final String NAME = "cluster:admin/transform/update";

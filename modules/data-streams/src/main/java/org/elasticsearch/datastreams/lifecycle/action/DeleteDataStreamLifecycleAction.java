@@ -8,7 +8,7 @@
 
 package org.elasticsearch.datastreams.lifecycle.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -25,7 +25,7 @@ import java.util.Objects;
  */
 public class DeleteDataStreamLifecycleAction {
 
-    public static final ActionType<AcknowledgedResponse> INSTANCE = new ActionType<>("indices:admin/data_stream/lifecycle/delete");
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>("indices:admin/data_stream/lifecycle/delete");
 
     private DeleteDataStreamLifecycleAction() {/* no instances */}
 

@@ -10,7 +10,7 @@ import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
@@ -229,7 +229,7 @@ public final class ClientHelper {
     public static <Request extends ActionRequest, Response extends ActionResponse> void executeAsyncWithOrigin(
         Client client,
         String origin,
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -292,7 +292,7 @@ public final class ClientHelper {
         Map<String, String> headers,
         String origin,
         Client client,
-        ActionType<Response> action,
+        UnnecessaryActionTypeSubclass<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

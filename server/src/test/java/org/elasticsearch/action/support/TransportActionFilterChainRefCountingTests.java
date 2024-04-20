@@ -14,7 +14,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
@@ -41,7 +41,7 @@ public class TransportActionFilterChainRefCountingTests extends ESSingleNodeTest
         return List.of(TestPlugin.class);
     }
 
-    static final ActionType<Response> TYPE = new ActionType<>("test:action");
+    static final UnnecessaryActionTypeSubclass<Response> TYPE = new UnnecessaryActionTypeSubclass<>("test:action");
 
     public void testAsyncActionFilterRefCounting() {
         final var countDownLatch = new CountDownLatch(2);

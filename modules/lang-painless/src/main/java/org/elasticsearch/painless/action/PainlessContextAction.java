@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -54,7 +54,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
  */
 public class PainlessContextAction {
 
-    public static final ActionType<Response> INSTANCE = new ActionType<>("cluster:admin/scripts/painless/context");
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:admin/scripts/painless/context");
 
     private static final String SCRIPT_CONTEXT_NAME_PARAM = "context";
 

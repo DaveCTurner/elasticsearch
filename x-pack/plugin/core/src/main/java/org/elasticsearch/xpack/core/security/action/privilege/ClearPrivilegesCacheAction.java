@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.privilege;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class ClearPrivilegesCacheAction extends ActionType<ClearPrivilegesCacheResponse> {
+public class ClearPrivilegesCacheAction extends UnnecessaryActionTypeSubclass<ClearPrivilegesCacheResponse> {
 
     public static final ClearPrivilegesCacheAction INSTANCE = new ClearPrivilegesCacheAction();
     public static final String NAME = "cluster:admin/xpack/security/privilege/cache/clear";

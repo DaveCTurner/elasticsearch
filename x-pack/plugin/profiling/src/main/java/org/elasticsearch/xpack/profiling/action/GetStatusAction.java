@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.profiling.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -20,7 +20,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetStatusAction extends ActionType<GetStatusAction.Response> {
+public class GetStatusAction extends UnnecessaryActionTypeSubclass<GetStatusAction.Response> {
     public static final GetStatusAction INSTANCE = new GetStatusAction();
     public static final String NAME = "cluster:monitor/profiling/status/get";
 

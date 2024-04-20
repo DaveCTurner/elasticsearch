@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.security.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.xpack.core.security.action.user.QueryUserResponse;
 
 /**
@@ -18,9 +18,9 @@ import org.elasticsearch.xpack.core.security.action.user.QueryUserResponse;
 public final class ActionTypes {
     private ActionTypes() {};
 
-    public static final ActionType<ActionResponse.Empty> RELOAD_REMOTE_CLUSTER_CREDENTIALS_ACTION = new ActionType<>(
+    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> RELOAD_REMOTE_CLUSTER_CREDENTIALS_ACTION = new UnnecessaryActionTypeSubclass<>(
         "cluster:admin/xpack/security/remote_cluster_credentials/reload"
     );
 
-    public static final ActionType<QueryUserResponse> QUERY_USER_ACTION = new ActionType<>("cluster:admin/xpack/security/user/query");
+    public static final UnnecessaryActionTypeSubclass<QueryUserResponse> QUERY_USER_ACTION = new UnnecessaryActionTypeSubclass<>("cluster:admin/xpack/security/user/query");
 }

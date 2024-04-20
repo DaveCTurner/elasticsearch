@@ -10,7 +10,7 @@ package org.elasticsearch.action.support.replication;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.HandledTransportAction;
@@ -49,7 +49,7 @@ public abstract class TransportBroadcastReplicationAction<
     ShardRequest extends ReplicationRequest<ShardRequest>,
     ShardResponse extends ReplicationResponse> extends HandledTransportAction<Request, Response> {
 
-    private final ActionType<ShardResponse> replicatedBroadcastShardAction;
+    private final UnnecessaryActionTypeSubclass<ShardResponse> replicatedBroadcastShardAction;
     private final ClusterService clusterService;
     private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final NodeClient client;
@@ -63,7 +63,7 @@ public abstract class TransportBroadcastReplicationAction<
         NodeClient client,
         ActionFilters actionFilters,
         IndexNameExpressionResolver indexNameExpressionResolver,
-        ActionType<ShardResponse> replicatedBroadcastShardAction,
+        UnnecessaryActionTypeSubclass<ShardResponse> replicatedBroadcastShardAction,
         Executor executor
     ) {
         super(name, transportService, actionFilters, requestReader, EsExecutors.DIRECT_EXECUTOR_SERVICE);

@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.indices.dangling.find.FindDanglingIndexRequest;
 import org.elasticsearch.action.admin.indices.dangling.find.NodeFindDanglingIndexResponse;
@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  * to perform the actual allocation.
  */
 public class TransportImportDanglingIndexAction extends HandledTransportAction<ImportDanglingIndexRequest, AcknowledgedResponse> {
-    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/indices/dangling/import");
+    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/indices/dangling/import");
     private static final Logger logger = LogManager.getLogger(TransportImportDanglingIndexAction.class);
 
     private final LocalAllocateDangledIndices danglingIndexAllocator;

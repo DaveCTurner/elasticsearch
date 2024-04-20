@@ -8,12 +8,12 @@
 
 package org.elasticsearch.action.admin.cluster.migration;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * Action for beginning a system feature upgrade
  */
-public class PostFeatureUpgradeAction extends ActionType<PostFeatureUpgradeResponse> {
+public class PostFeatureUpgradeAction extends UnnecessaryActionTypeSubclass<PostFeatureUpgradeResponse> {
 
     public static final PostFeatureUpgradeAction INSTANCE = new PostFeatureUpgradeAction();
     public static final String NAME = "cluster:admin/migration/post_system_feature";

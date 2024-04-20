@@ -13,7 +13,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -142,7 +142,7 @@ public class ListTasksIT extends ESSingleNodeTestCase {
         return List.of(TestPlugin.class);
     }
 
-    private static final ActionType<ActionResponse.Empty> TEST_ACTION = new ActionType<>(TestTransportAction.NAME);
+    private static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TEST_ACTION = new UnnecessaryActionTypeSubclass<>(TestTransportAction.NAME);
 
     public static class TestPlugin extends Plugin implements ActionPlugin {
         volatile CyclicBarrier barrier;

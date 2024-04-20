@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.coordination.ClusterFormationFailureHelper;
@@ -31,7 +31,7 @@ import java.util.Objects;
  * This class is used to fetch the ClusterFormationState from another node. The ClusterFormationState provides information about why that
  * node thinks that cluster formation has failed.
  */
-public class ClusterFormationInfoAction extends ActionType<ClusterFormationInfoAction.Response> {
+public class ClusterFormationInfoAction extends UnnecessaryActionTypeSubclass<ClusterFormationInfoAction.Response> {
 
     public static final ClusterFormationInfoAction INSTANCE = new ClusterFormationInfoAction();
     public static final String NAME = "internal:cluster/formation/info";

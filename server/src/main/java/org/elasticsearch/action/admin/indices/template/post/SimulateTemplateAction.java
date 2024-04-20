@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.template.post;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
@@ -25,7 +25,7 @@ import java.util.Objects;
  * An action for simulating the complete composed settings of the specified
  * index template name, or index template configuration
  */
-public class SimulateTemplateAction extends ActionType<SimulateIndexTemplateResponse> {
+public class SimulateTemplateAction extends UnnecessaryActionTypeSubclass<SimulateIndexTemplateResponse> {
 
     public static final SimulateTemplateAction INSTANCE = new SimulateTemplateAction();
     public static final String NAME = "indices:admin/index_template/simulate";

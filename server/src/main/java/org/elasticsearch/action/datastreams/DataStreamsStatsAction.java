@@ -7,7 +7,7 @@
  */
 package org.elasticsearch.action.datastreams;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class DataStreamsStatsAction extends ActionType<DataStreamsStatsAction.Response> {
+public class DataStreamsStatsAction extends UnnecessaryActionTypeSubclass<DataStreamsStatsAction.Response> {
 
     public static final DataStreamsStatsAction INSTANCE = new DataStreamsStatsAction();
     public static final String NAME = "indices:monitor/data_stream/stats";

@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.privilege;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType for retrieving one or more application privileges from the security index
  */
-public final class GetPrivilegesAction extends ActionType<GetPrivilegesResponse> {
+public final class GetPrivilegesAction extends UnnecessaryActionTypeSubclass<GetPrivilegesResponse> {
 
     public static final GetPrivilegesAction INSTANCE = new GetPrivilegesAction();
     public static final String NAME = "cluster:admin/xpack/security/privilege/get";

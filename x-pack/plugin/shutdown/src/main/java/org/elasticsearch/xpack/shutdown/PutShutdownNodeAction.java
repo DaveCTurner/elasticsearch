@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.shutdown;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata;
@@ -27,7 +27,7 @@ import static org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata.GRAC
 import static org.elasticsearch.cluster.metadata.SingleNodeShutdownMetadata.REPLACE_SHUTDOWN_TYPE_ADDED_VERSION;
 import static org.elasticsearch.core.Strings.format;
 
-public class PutShutdownNodeAction extends ActionType<AcknowledgedResponse> {
+public class PutShutdownNodeAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final PutShutdownNodeAction INSTANCE = new PutShutdownNodeAction();
     public static final String NAME = "cluster:admin/shutdown/create";

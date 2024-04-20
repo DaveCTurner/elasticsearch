@@ -11,7 +11,7 @@ package org.elasticsearch.client.internal;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
@@ -38,7 +38,7 @@ public class ParentTaskAssigningClientTests extends ESTestCase {
             final var mock = new NoOpClient(threadPool) {
                 @Override
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    ActionType<Response> action,
+                    UnnecessaryActionTypeSubclass<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {

@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ilm;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.TransportDeleteIndexAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -169,7 +169,7 @@ public class CleanupTargetIndexStepTests extends AbstractStepTestCase<CleanupTar
         return new NoOpClient(threadPool) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                ActionType<Response> action,
+                UnnecessaryActionTypeSubclass<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {
@@ -184,7 +184,7 @@ public class CleanupTargetIndexStepTests extends AbstractStepTestCase<CleanupTar
         return new NoOpClient(threadPool) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                ActionType<Response> action,
+                UnnecessaryActionTypeSubclass<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

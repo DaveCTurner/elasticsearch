@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.enrich.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -18,7 +18,7 @@ import org.elasticsearch.xpack.core.enrich.EnrichPolicy;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PutEnrichPolicyAction extends ActionType<AcknowledgedResponse> {
+public class PutEnrichPolicyAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final PutEnrichPolicyAction INSTANCE = new PutEnrichPolicyAction();
     public static final String NAME = "cluster:admin/xpack/enrich/put";

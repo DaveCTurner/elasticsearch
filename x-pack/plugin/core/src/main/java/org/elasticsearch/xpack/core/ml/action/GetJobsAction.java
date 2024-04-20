@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -26,7 +26,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetJobsAction extends ActionType<GetJobsAction.Response> {
+public class GetJobsAction extends UnnecessaryActionTypeSubclass<GetJobsAction.Response> {
 
     public static final GetJobsAction INSTANCE = new GetJobsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/job/get";

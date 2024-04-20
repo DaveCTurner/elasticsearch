@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.textstructure.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -17,7 +17,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class FindStructureAction extends ActionType<FindStructureResponse> {
+public class FindStructureAction extends UnnecessaryActionTypeSubclass<FindStructureResponse> {
 
     public static final FindStructureAction INSTANCE = new FindStructureAction();
     public static final String NAME = "cluster:monitor/text_structure/findstructure";

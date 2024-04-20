@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.watcher.transport.actions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -35,7 +35,7 @@ import java.util.Objects;
 import static org.elasticsearch.index.query.AbstractQueryBuilder.parseTopLevelQuery;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
-public class QueryWatchesAction extends ActionType<QueryWatchesAction.Response> {
+public class QueryWatchesAction extends UnnecessaryActionTypeSubclass<QueryWatchesAction.Response> {
 
     public static final QueryWatchesAction INSTANCE = new QueryWatchesAction();
     public static final String NAME = "cluster:monitor/xpack/watcher/watch/query";

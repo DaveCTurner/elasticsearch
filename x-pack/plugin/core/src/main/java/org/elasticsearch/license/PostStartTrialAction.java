@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class PostStartTrialAction extends ActionType<PostStartTrialResponse> {
+public class PostStartTrialAction extends UnnecessaryActionTypeSubclass<PostStartTrialResponse> {
 
     public static final PostStartTrialAction INSTANCE = new PostStartTrialAction();
     public static final String NAME = "cluster:admin/xpack/license/start_trial";

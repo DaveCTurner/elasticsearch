@@ -13,7 +13,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.support.ActionFilters;
@@ -60,7 +60,7 @@ import static org.elasticsearch.core.TimeValue.timeValueSeconds;
 public class TransportGetTaskAction extends HandledTransportAction<GetTaskRequest, GetTaskResponse> {
 
     public static final String TASKS_ORIGIN = "tasks";
-    public static final ActionType<GetTaskResponse> TYPE = new ActionType<>("cluster:monitor/task/get");
+    public static final UnnecessaryActionTypeSubclass<GetTaskResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/task/get");
     private static final TimeValue DEFAULT_WAIT_FOR_COMPLETION_TIMEOUT = timeValueSeconds(30);
 
     private final ThreadPool threadPool;

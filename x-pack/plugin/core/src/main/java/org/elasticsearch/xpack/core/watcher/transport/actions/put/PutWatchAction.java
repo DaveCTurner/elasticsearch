@@ -6,13 +6,13 @@
  */
 package org.elasticsearch.xpack.core.watcher.transport.actions.put;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.protocol.xpack.watcher.PutWatchResponse;
 
 /**
  * This action puts an watch into the watch index and adds it to the scheduler
  */
-public class PutWatchAction extends ActionType<PutWatchResponse> {
+public class PutWatchAction extends UnnecessaryActionTypeSubclass<PutWatchResponse> {
 
     public static final PutWatchAction INSTANCE = new PutWatchAction();
     public static final String NAME = "cluster:admin/xpack/watcher/watch/put";

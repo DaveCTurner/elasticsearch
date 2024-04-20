@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class PostCalendarEventsAction extends ActionType<PostCalendarEventsAction.Response> {
+public class PostCalendarEventsAction extends UnnecessaryActionTypeSubclass<PostCalendarEventsAction.Response> {
     public static final PostCalendarEventsAction INSTANCE = new PostCalendarEventsAction();
     public static final String NAME = "cluster:admin/xpack/ml/calendars/events/post";
 

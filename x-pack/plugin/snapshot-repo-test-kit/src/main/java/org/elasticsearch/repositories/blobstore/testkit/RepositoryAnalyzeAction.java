@@ -19,7 +19,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.RefCountingRunnable;
@@ -96,7 +96,7 @@ public class RepositoryAnalyzeAction extends HandledTransportAction<RepositoryAn
 
     private static final Logger logger = LogManager.getLogger(RepositoryAnalyzeAction.class);
 
-    public static final ActionType<RepositoryAnalyzeAction.Response> INSTANCE = new ActionType<>("cluster:admin/repository/analyze");
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:admin/repository/analyze");
 
     static final String UNCONTENDED_REGISTER_NAME_PREFIX = "test-register-uncontended-";
     static final String CONTENDED_REGISTER_NAME_PREFIX = "test-register-contended-";

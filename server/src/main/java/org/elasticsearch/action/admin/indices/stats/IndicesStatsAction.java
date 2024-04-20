@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.stats;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 
-public class IndicesStatsAction extends ActionType<IndicesStatsResponse> {
+public class IndicesStatsAction extends UnnecessaryActionTypeSubclass<IndicesStatsResponse> {
 
     public static final IndicesStatsAction INSTANCE = new IndicesStatsAction();
     public static final String NAME = "indices:monitor/stats";

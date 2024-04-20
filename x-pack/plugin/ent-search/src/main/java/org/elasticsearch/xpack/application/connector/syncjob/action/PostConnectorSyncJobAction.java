@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.connector.syncjob.action;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -38,7 +38,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstr
 public class PostConnectorSyncJobAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/sync_job/post";
-    public static final ActionType<PostConnectorSyncJobAction.Response> INSTANCE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
 
     private PostConnectorSyncJobAction() {/* no instances */}
 

@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.alias;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RequestValidators;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse.AliasActionResult;
@@ -59,7 +59,7 @@ import static java.util.Collections.unmodifiableList;
 public class TransportIndicesAliasesAction extends TransportMasterNodeAction<IndicesAliasesRequest, IndicesAliasesResponse> {
 
     public static final String NAME = "indices:admin/aliases";
-    public static final ActionType<IndicesAliasesResponse> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<IndicesAliasesResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     private static final Logger logger = LogManager.getLogger(TransportIndicesAliasesAction.class);
 
     private final MetadataIndexAliasesService indexAliasesService;

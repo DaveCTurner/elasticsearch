@@ -606,7 +606,7 @@ public class ActionModule extends AbstractModule {
             }
 
             public <Request extends ActionRequest, Response extends ActionResponse> void register(
-                ActionType<Response> action,
+                UnnecessaryActionTypeSubclass<Response> action,
                 Class<? extends TransportAction<Request, Response>> transportAction
             ) {
                 register(new ActionHandler<>(action, transportAction));
@@ -1039,9 +1039,9 @@ public class ActionModule extends AbstractModule {
 
         // register ActionType -> transportAction Map used by NodeClient
         @SuppressWarnings("rawtypes")
-        MapBinder<ActionType, TransportAction> transportActionsBinder = MapBinder.newMapBinder(
+        MapBinder<UnnecessaryActionTypeSubclass, TransportAction> transportActionsBinder = MapBinder.newMapBinder(
             binder(),
-            ActionType.class,
+            UnnecessaryActionTypeSubclass.class,
             TransportAction.class
         );
         for (ActionHandler<?, ?> action : actions.values()) {

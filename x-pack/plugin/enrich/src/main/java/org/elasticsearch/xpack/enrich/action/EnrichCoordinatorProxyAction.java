@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.enrich.action;
 
 import org.apache.logging.log4j.util.BiConsumer;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.LongAdder;
  * This is because the enrich processor executes asynchronously and a bulk request could easily overload
  * the search tp.
  */
-public class EnrichCoordinatorProxyAction extends ActionType<SearchResponse> {
+public class EnrichCoordinatorProxyAction extends UnnecessaryActionTypeSubclass<SearchResponse> {
 
     public static final EnrichCoordinatorProxyAction INSTANCE = new EnrichCoordinatorProxyAction();
     public static final String NAME = "indices:data/read/xpack/enrich/coordinate_lookups";

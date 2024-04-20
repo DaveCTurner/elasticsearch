@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public class ScheduleNowTransformAction extends ActionType<ScheduleNowTransformAction.Response> {
+public class ScheduleNowTransformAction extends UnnecessaryActionTypeSubclass<ScheduleNowTransformAction.Response> {
 
     public static final ScheduleNowTransformAction INSTANCE = new ScheduleNowTransformAction();
     public static final String NAME = "cluster:admin/transform/schedule_now";

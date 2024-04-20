@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.ccr.action;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -31,7 +31,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public final class PutFollowAction extends ActionType<PutFollowAction.Response> {
+public final class PutFollowAction extends UnnecessaryActionTypeSubclass<PutFollowAction.Response> {
 
     public static final PutFollowAction INSTANCE = new PutFollowAction();
     public static final String NAME = "indices:admin/xpack/ccr/put_follow";

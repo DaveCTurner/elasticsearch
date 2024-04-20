@@ -7,10 +7,10 @@
 
 package org.elasticsearch.xpack.core.security.action.profile;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class UpdateProfileDataAction extends ActionType<AcknowledgedResponse> {
+public class UpdateProfileDataAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/profile/put/data";
     public static final UpdateProfileDataAction INSTANCE = new UpdateProfileDataAction();

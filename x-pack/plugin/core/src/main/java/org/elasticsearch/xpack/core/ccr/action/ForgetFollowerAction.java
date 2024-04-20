@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.ccr.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.broadcast.BroadcastRequest;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -19,7 +19,7 @@ import org.elasticsearch.xcontent.XContentParser;
 import java.io.IOException;
 import java.util.Objects;
 
-public class ForgetFollowerAction extends ActionType<BroadcastResponse> {
+public class ForgetFollowerAction extends UnnecessaryActionTypeSubclass<BroadcastResponse> {
 
     public static final String NAME = "indices:admin/xpack/ccr/forget_follower";
     public static final ForgetFollowerAction INSTANCE = new ForgetFollowerAction();

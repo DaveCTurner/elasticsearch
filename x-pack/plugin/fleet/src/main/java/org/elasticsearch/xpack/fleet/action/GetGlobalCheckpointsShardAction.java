@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.fleet.action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.single.shard.SingleShardRequest;
 import org.elasticsearch.action.support.single.shard.TransportSingleShardAction;
@@ -38,7 +38,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.elasticsearch.index.seqno.SequenceNumbers.UNASSIGNED_SEQ_NO;
 
-public class GetGlobalCheckpointsShardAction extends ActionType<GetGlobalCheckpointsShardAction.Response> {
+public class GetGlobalCheckpointsShardAction extends UnnecessaryActionTypeSubclass<GetGlobalCheckpointsShardAction.Response> {
 
     public static final GetGlobalCheckpointsShardAction INSTANCE = new GetGlobalCheckpointsShardAction();
     public static final String NAME = "indices:monitor/fleet/global_checkpoints[s]";

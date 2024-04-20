@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.node.tasks.list;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.ActionFilters;
@@ -41,7 +41,7 @@ import static org.elasticsearch.core.TimeValue.timeValueSeconds;
 
 public class TransportListTasksAction extends TransportTasksAction<Task, ListTasksRequest, ListTasksResponse, TaskInfo> {
 
-    public static final ActionType<ListTasksResponse> TYPE = new ActionType<>("cluster:monitor/tasks/lists");
+    public static final UnnecessaryActionTypeSubclass<ListTasksResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/tasks/lists");
 
     public static long waitForCompletionTimeout(TimeValue timeout) {
         if (timeout == null) {

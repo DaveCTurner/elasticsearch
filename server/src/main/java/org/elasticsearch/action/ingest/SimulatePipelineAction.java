@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.ingest;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public class SimulatePipelineAction extends ActionType<SimulatePipelineResponse> {
+public class SimulatePipelineAction extends UnnecessaryActionTypeSubclass<SimulatePipelineResponse> {
 
     public static final SimulatePipelineAction INSTANCE = new SimulatePipelineAction();
     public static final String NAME = "cluster:admin/ingest/pipeline/simulate";

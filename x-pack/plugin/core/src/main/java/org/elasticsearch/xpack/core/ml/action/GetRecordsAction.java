@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -26,7 +26,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetRecordsAction extends ActionType<GetRecordsAction.Response> {
+public class GetRecordsAction extends UnnecessaryActionTypeSubclass<GetRecordsAction.Response> {
 
     public static final GetRecordsAction INSTANCE = new GetRecordsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/job/results/records/get";

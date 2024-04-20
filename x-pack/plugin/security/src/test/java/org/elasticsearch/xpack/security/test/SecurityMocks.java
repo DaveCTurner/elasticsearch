@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.security.test;
 
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
@@ -210,7 +210,7 @@ public final class SecurityMocks {
         }).when(client).prepareIndex(anyString());
         doAnswer(inv -> {
             Assert.assertThat(inv.getArguments(), arrayWithSize(3));
-            Assert.assertThat(inv.getArguments()[0], instanceOf(ActionType.class));
+            Assert.assertThat(inv.getArguments()[0], instanceOf(UnnecessaryActionTypeSubclass.class));
             Assert.assertThat(inv.getArguments()[1], instanceOf(IndexRequest.class));
             final IndexRequest request = (IndexRequest) inv.getArguments()[1];
             Assert.assertThat(request.index(), equalTo(indexAliasName));

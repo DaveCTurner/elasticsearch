@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.role;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
 /**
  * ActionType to retrieve a role from the security index
  */
-public class GetRolesAction extends ActionType<GetRolesResponse> {
+public class GetRolesAction extends UnnecessaryActionTypeSubclass<GetRolesResponse> {
 
     public static final GetRolesAction INSTANCE = new GetRolesAction();
     public static final String NAME = "cluster:admin/xpack/security/role/get";

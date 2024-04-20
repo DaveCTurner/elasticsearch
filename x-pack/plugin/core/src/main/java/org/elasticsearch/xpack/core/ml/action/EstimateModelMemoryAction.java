@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -28,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class EstimateModelMemoryAction extends ActionType<EstimateModelMemoryAction.Response> {
+public class EstimateModelMemoryAction extends UnnecessaryActionTypeSubclass<EstimateModelMemoryAction.Response> {
 
     public static final EstimateModelMemoryAction INSTANCE = new EstimateModelMemoryAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/estimate_model_memory";

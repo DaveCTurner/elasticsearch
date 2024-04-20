@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ccr.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -17,7 +17,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PauseFollowAction extends ActionType<AcknowledgedResponse> {
+public class PauseFollowAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final PauseFollowAction INSTANCE = new PauseFollowAction();
     public static final String NAME = "cluster:admin/xpack/ccr/pause_follow";

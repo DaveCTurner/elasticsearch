@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoMetrics;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
@@ -39,7 +39,7 @@ import java.util.Objects;
 public class RemoteClusterNodesAction {
 
     public static final String NAME = "cluster:internal/remote_cluster/nodes";
-    public static final ActionType<RemoteClusterNodesAction.Response> TYPE = new ActionType<>(NAME);
+    public static final UnnecessaryActionTypeSubclass<Response> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
     public static final RemoteClusterActionType<Response> REMOTE_TYPE = new RemoteClusterActionType<>(
         NAME,
         RemoteClusterNodesAction.Response::new

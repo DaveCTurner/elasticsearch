@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.autoscaling.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -34,7 +34,7 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class PutAutoscalingPolicyAction extends ActionType<AcknowledgedResponse> {
+public class PutAutoscalingPolicyAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
 
     public static final PutAutoscalingPolicyAction INSTANCE = new PutAutoscalingPolicyAction();
     public static final String NAME = "cluster:admin/autoscaling/put_autoscaling_policy";

@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.profiling.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 
-public final class GetTopNFunctionsAction extends ActionType<GetTopNFunctionsResponse> {
+public final class GetTopNFunctionsAction extends UnnecessaryActionTypeSubclass<GetTopNFunctionsResponse> {
     public static final GetTopNFunctionsAction INSTANCE = new GetTopNFunctionsAction();
     public static final String NAME = "indices:data/read/profiling/topn/functions";
 

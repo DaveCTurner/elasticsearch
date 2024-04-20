@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -23,7 +23,7 @@ import org.elasticsearch.xpack.core.ml.job.process.autodetect.state.DataCounts;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PostDataAction extends ActionType<PostDataAction.Response> {
+public class PostDataAction extends UnnecessaryActionTypeSubclass<PostDataAction.Response> {
 
     public static final PostDataAction INSTANCE = new PostDataAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/data/post";
