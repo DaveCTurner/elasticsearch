@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.shrink;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 
-public class ResizeAction extends UnnecessaryActionTypeSubclass<CreateIndexResponse> {
+public class ResizeAction extends ActionType<CreateIndexResponse> {
 
     public static final ResizeAction INSTANCE = new ResizeAction();
     public static final String NAME = "indices:admin/resize";

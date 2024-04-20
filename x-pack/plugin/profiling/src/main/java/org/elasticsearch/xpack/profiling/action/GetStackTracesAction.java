@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.profiling.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public final class GetStackTracesAction extends UnnecessaryActionTypeSubclass<GetStackTracesResponse> {
+public final class GetStackTracesAction extends ActionType<GetStackTracesResponse> {
     public static final GetStackTracesAction INSTANCE = new GetStackTracesAction();
     public static final String NAME = "indices:data/read/profiling/stack_traces";
 

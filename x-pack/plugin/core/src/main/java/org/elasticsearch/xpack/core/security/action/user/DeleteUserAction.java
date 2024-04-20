@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.user;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for deleting a native user.
  */
-public class DeleteUserAction extends UnnecessaryActionTypeSubclass<DeleteUserResponse> {
+public class DeleteUserAction extends ActionType<DeleteUserResponse> {
 
     public static final DeleteUserAction INSTANCE = new DeleteUserAction();
     public static final String NAME = "cluster:admin/xpack/security/user/delete";

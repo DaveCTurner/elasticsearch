@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.template.delete;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.AcknowledgedTransportMasterNodeAction;
@@ -31,7 +31,7 @@ import org.elasticsearch.transport.TransportService;
  */
 public class TransportDeleteIndexTemplateAction extends AcknowledgedTransportMasterNodeAction<DeleteIndexTemplateRequest> {
 
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/template/delete");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:admin/template/delete");
     private static final Logger logger = LogManager.getLogger(TransportDeleteIndexTemplateAction.class);
 
     private final MetadataIndexTemplateService indexTemplateService;

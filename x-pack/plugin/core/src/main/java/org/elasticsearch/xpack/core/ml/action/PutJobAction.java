@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
@@ -22,7 +22,7 @@ import org.elasticsearch.xpack.core.ml.job.messages.Messages;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PutJobAction extends UnnecessaryActionTypeSubclass<PutJobAction.Response> {
+public class PutJobAction extends ActionType<PutJobAction.Response> {
 
     public static final PutJobAction INSTANCE = new PutJobAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/put";

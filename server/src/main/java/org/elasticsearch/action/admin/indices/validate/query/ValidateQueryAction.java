@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.validate.query;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class ValidateQueryAction extends UnnecessaryActionTypeSubclass<ValidateQueryResponse> {
+public class ValidateQueryAction extends ActionType<ValidateQueryResponse> {
 
     public static final ValidateQueryAction INSTANCE = new ValidateQueryAction();
     public static final String NAME = "indices:admin/validate/query";

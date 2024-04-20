@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.watcher.transport.actions.put;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
-public class UpdateWatcherSettingsAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class UpdateWatcherSettingsAction extends ActionType<AcknowledgedResponse> {
 
     public static final UpdateWatcherSettingsAction INSTANCE = new UpdateWatcherSettingsAction();
     public static final String NAME = "cluster:admin/xpack/watcher/settings/update";

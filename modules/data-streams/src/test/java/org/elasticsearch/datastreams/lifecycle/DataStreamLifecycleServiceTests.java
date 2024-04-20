@@ -12,7 +12,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockRequest;
@@ -1539,7 +1539,7 @@ public class DataStreamLifecycleServiceTests extends ESTestCase {
         return new NoOpClient(threadPool) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {
@@ -1553,6 +1553,6 @@ public class DataStreamLifecycleServiceTests extends ESTestCase {
 
     private interface DoExecuteDelegate {
         @SuppressWarnings("rawtypes")
-        void doExecute(UnnecessaryActionTypeSubclass action, ActionRequest request, ActionListener listener);
+        void doExecute(ActionType action, ActionRequest request, ActionListener listener);
     }
 }

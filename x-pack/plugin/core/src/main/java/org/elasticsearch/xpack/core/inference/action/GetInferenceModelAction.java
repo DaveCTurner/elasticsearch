@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.inference.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class GetInferenceModelAction extends UnnecessaryActionTypeSubclass<GetInferenceModelAction.Response> {
+public class GetInferenceModelAction extends ActionType<GetInferenceModelAction.Response> {
 
     public static final GetInferenceModelAction INSTANCE = new GetInferenceModelAction();
     public static final String NAME = "cluster:monitor/xpack/inference/get";

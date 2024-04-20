@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.autoscaling.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -26,7 +26,7 @@ import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class GetAutoscalingCapacityAction extends UnnecessaryActionTypeSubclass<GetAutoscalingCapacityAction.Response> {
+public class GetAutoscalingCapacityAction extends ActionType<GetAutoscalingCapacityAction.Response> {
 
     public static final GetAutoscalingCapacityAction INSTANCE = new GetAutoscalingCapacityAction();
     public static final String NAME = "cluster:admin/autoscaling/get_autoscaling_capacity";

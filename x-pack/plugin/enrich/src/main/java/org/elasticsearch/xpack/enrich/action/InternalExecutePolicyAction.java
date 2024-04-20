@@ -10,7 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -54,7 +54,7 @@ import static org.elasticsearch.xpack.enrich.EnrichPolicyExecutor.TASK_ACTION;
  * Although {@link org.elasticsearch.xpack.enrich.EnrichPolicyRunner} doesn't do heavy operations, the coordination
  * of certain operations may have a non-negligible overhead (for example the coordination of the reindex step).
  */
-public class InternalExecutePolicyAction extends UnnecessaryActionTypeSubclass<Response> {
+public class InternalExecutePolicyAction extends ActionType<Response> {
 
     private static final Logger LOGGER = LogManager.getLogger(InternalExecutePolicyAction.class);
     public static final InternalExecutePolicyAction INSTANCE = new InternalExecutePolicyAction();

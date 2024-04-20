@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -39,7 +39,7 @@ import java.util.Optional;
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 import static org.elasticsearch.core.Strings.format;
 
-public class InferTrainedModelDeploymentAction extends UnnecessaryActionTypeSubclass<InferTrainedModelDeploymentAction.Response> {
+public class InferTrainedModelDeploymentAction extends ActionType<InferTrainedModelDeploymentAction.Response> {
 
     public static final InferTrainedModelDeploymentAction INSTANCE = new InferTrainedModelDeploymentAction();
 

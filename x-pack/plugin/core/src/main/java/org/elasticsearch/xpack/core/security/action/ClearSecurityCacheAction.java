@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class ClearSecurityCacheAction extends UnnecessaryActionTypeSubclass<ClearSecurityCacheResponse> {
+public class ClearSecurityCacheAction extends ActionType<ClearSecurityCacheResponse> {
 
     public static final ClearSecurityCacheAction INSTANCE = new ClearSecurityCacheAction();
     public static final String NAME = "cluster:admin/xpack/security/cache/clear";

@@ -10,7 +10,7 @@ package org.elasticsearch.action.synonyms;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -28,7 +28,7 @@ import org.elasticsearch.xcontent.XContentType;
 import java.io.IOException;
 import java.util.Objects;
 
-public class PutSynonymRuleAction extends UnnecessaryActionTypeSubclass<SynonymUpdateResponse> {
+public class PutSynonymRuleAction extends ActionType<SynonymUpdateResponse> {
 
     public static final PutSynonymRuleAction INSTANCE = new PutSynonymRuleAction();
     public static final String NAME = "cluster:admin/synonym_rules/put";

@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.sql.plugin;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SqlStatsAction extends UnnecessaryActionTypeSubclass<SqlStatsResponse> {
+public class SqlStatsAction extends ActionType<SqlStatsResponse> {
 
     public static final SqlStatsAction INSTANCE = new SqlStatsAction();
     public static final String NAME = "cluster:monitor/xpack/sql/stats/dist";

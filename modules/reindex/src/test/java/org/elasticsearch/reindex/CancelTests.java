@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.ingest.DeletePipelineRequest;
@@ -82,7 +82,7 @@ public class CancelTests extends ReindexTestCase {
      * Executes the cancellation test
      */
     private void testCancel(
-        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
+        ActionType<BulkByScrollResponse> action,
         AbstractBulkByScrollRequestBuilder<?, ?> builder,
         CancelAssertion assertion,
         Matcher<String> taskDescriptionMatcher

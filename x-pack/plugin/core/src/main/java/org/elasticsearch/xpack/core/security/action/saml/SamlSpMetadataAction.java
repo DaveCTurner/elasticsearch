@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.saml;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SamlSpMetadataAction extends UnnecessaryActionTypeSubclass<SamlSpMetadataResponse> {
+public class SamlSpMetadataAction extends ActionType<SamlSpMetadataResponse> {
     public static final String NAME = "cluster:monitor/xpack/security/saml/metadata";
     public static final SamlSpMetadataAction INSTANCE = new SamlSpMetadataAction();
 

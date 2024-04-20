@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ilm;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.TransportDeleteSnapshotAction;
 import org.elasticsearch.action.support.PlainActionFuture;
@@ -120,7 +120,7 @@ public class CleanupSnapshotStepTests extends AbstractStepTestCase<CleanupSnapsh
         return new NoOpClient(threadPool) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

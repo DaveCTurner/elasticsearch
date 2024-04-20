@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.cluster.desirednodes;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.cluster.metadata.DesiredNodes;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -24,7 +24,7 @@ import java.util.Objects;
 
 import static java.util.Collections.singletonMap;
 
-public class GetDesiredNodesAction extends UnnecessaryActionTypeSubclass<GetDesiredNodesAction.Response> {
+public class GetDesiredNodesAction extends ActionType<GetDesiredNodesAction.Response> {
     public static final GetDesiredNodesAction INSTANCE = new GetDesiredNodesAction();
     public static final String NAME = "cluster:admin/desired_nodes/get";
 

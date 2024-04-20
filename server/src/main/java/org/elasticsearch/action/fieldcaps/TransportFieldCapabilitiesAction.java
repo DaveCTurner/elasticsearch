@@ -12,7 +12,7 @@ import org.apache.lucene.util.ArrayUtil;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.support.AbstractThreadedActionListener;
@@ -68,7 +68,7 @@ import static org.elasticsearch.action.search.TransportSearchHelper.checkCCSVers
 
 public class TransportFieldCapabilitiesAction extends HandledTransportAction<FieldCapabilitiesRequest, FieldCapabilitiesResponse> {
     public static final String NAME = "indices:data/read/field_caps";
-    public static final UnnecessaryActionTypeSubclass<FieldCapabilitiesResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<FieldCapabilitiesResponse> TYPE = new ActionType<>(NAME);
     public static final RemoteClusterActionType<FieldCapabilitiesResponse> REMOTE_TYPE = new RemoteClusterActionType<>(
         NAME,
         FieldCapabilitiesResponse::new

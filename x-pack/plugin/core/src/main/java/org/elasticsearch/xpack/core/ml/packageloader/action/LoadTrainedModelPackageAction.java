@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.packageloader.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -23,7 +23,7 @@ import java.util.Objects;
  *
  * Note: This is a master node action, because the model could be loaded from a file.
  */
-public class LoadTrainedModelPackageAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class LoadTrainedModelPackageAction extends ActionType<AcknowledgedResponse> {
 
     public static final String NAME = "cluster:internal/xpack/ml/trained_models/package_loader/load";
     public static final LoadTrainedModelPackageAction INSTANCE = new LoadTrainedModelPackageAction();

@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.spatial.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
@@ -28,7 +28,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class SpatialStatsAction extends UnnecessaryActionTypeSubclass<SpatialStatsAction.Response> {
+public class SpatialStatsAction extends ActionType<SpatialStatsAction.Response> {
     public static final SpatialStatsAction INSTANCE = new SpatialStatsAction();
     public static final String NAME = "cluster:monitor/xpack/spatial/stats";
 

@@ -8,7 +8,7 @@
 
 package org.elasticsearch.action.admin.cluster.node.usage;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
@@ -34,7 +34,7 @@ public class TransportNodesUsageAction extends TransportNodesAction<
     TransportNodesUsageAction.NodeUsageRequest,
     NodeUsage> {
 
-    public static final UnnecessaryActionTypeSubclass<NodesUsageResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/nodes/usage");
+    public static final ActionType<NodesUsageResponse> TYPE = new ActionType<>("cluster:monitor/nodes/usage");
     private final UsageService restUsageService;
     private final AggregationUsageService aggregationUsageService;
     private final long sinceTime;

@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.settings;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class ClusterUpdateSettingsAction extends UnnecessaryActionTypeSubclass<ClusterUpdateSettingsResponse> {
+public class ClusterUpdateSettingsAction extends ActionType<ClusterUpdateSettingsResponse> {
 
     public static final ClusterUpdateSettingsAction INSTANCE = new ClusterUpdateSettingsAction();
     public static final String NAME = "cluster:admin/settings/update";

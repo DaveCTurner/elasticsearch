@@ -9,7 +9,7 @@
 package org.elasticsearch.action.search;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.ResolvedIndices;
 import org.elasticsearch.action.support.ActionFilters;
@@ -44,7 +44,7 @@ import java.util.Set;
 public class TransportSearchShardsAction extends HandledTransportAction<SearchShardsRequest, SearchShardsResponse> {
 
     public static final String NAME = "indices:admin/search/search_shards";
-    public static final UnnecessaryActionTypeSubclass<SearchShardsResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<SearchShardsResponse> TYPE = new ActionType<>(NAME);
     public static final RemoteClusterActionType<SearchShardsResponse> REMOTE_TYPE = new RemoteClusterActionType<>(
         NAME,
         SearchShardsResponse::new

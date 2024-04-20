@@ -9,7 +9,7 @@ package org.elasticsearch.datastreams.lifecycle.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -28,7 +28,7 @@ import java.util.Objects;
 /**
  * This action retrieves the data stream lifecycle stats from the master node.
  */
-public class GetDataStreamLifecycleStatsAction extends UnnecessaryActionTypeSubclass<GetDataStreamLifecycleStatsAction.Response> {
+public class GetDataStreamLifecycleStatsAction extends ActionType<GetDataStreamLifecycleStatsAction.Response> {
 
     public static final GetDataStreamLifecycleStatsAction INSTANCE = new GetDataStreamLifecycleStatsAction();
     public static final String NAME = "cluster:monitor/data_stream/lifecycle/stats";

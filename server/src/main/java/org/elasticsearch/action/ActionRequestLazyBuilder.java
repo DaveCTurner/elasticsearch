@@ -22,10 +22,10 @@ public abstract class ActionRequestLazyBuilder<Request extends ActionRequest, Re
     implements
         RequestBuilder<Request, Response> {
 
-    protected final UnnecessaryActionTypeSubclass<Response> action;
+    protected final ActionType<Response> action;
     protected final ElasticsearchClient client;
 
-    protected ActionRequestLazyBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action) {
+    protected ActionRequestLazyBuilder(ElasticsearchClient client, ActionType<Response> action) {
         Objects.requireNonNull(action, "action must not be null");
         this.action = action;
         this.client = client;

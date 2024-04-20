@@ -7,12 +7,12 @@
 package org.elasticsearch.xpack.core.rollup.action;
 
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 
-public class RollupSearchAction extends UnnecessaryActionTypeSubclass<SearchResponse> {
+public class RollupSearchAction extends ActionType<SearchResponse> {
 
     public static final RollupSearchAction INSTANCE = new RollupSearchAction();
     public static final String NAME = "indices:data/read/xpack/rollup/search";

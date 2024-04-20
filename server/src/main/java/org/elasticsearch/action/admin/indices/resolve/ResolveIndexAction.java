@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.RemoteClusterActionType;
@@ -60,7 +60,7 @@ import java.util.TreeMap;
 
 import static org.elasticsearch.action.search.TransportSearchHelper.checkCCSVersionCompatibility;
 
-public class ResolveIndexAction extends UnnecessaryActionTypeSubclass<ResolveIndexAction.Response> {
+public class ResolveIndexAction extends ActionType<ResolveIndexAction.Response> {
 
     public static final ResolveIndexAction INSTANCE = new ResolveIndexAction();
     public static final String NAME = "indices:admin/resolve/index";

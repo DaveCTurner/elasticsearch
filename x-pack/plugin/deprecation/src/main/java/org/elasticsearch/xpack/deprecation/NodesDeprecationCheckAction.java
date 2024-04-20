@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.deprecation;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -23,7 +23,7 @@ import java.util.Objects;
  * Runs deprecation checks on each node. Deprecation checks are performed locally so that filtered settings
  * can be accessed in the deprecation checks.
  */
-public class NodesDeprecationCheckAction extends UnnecessaryActionTypeSubclass<NodesDeprecationCheckResponse> {
+public class NodesDeprecationCheckAction extends ActionType<NodesDeprecationCheckResponse> {
     public static final NodesDeprecationCheckAction INSTANCE = new NodesDeprecationCheckAction();
     public static final String NAME = "cluster:admin/xpack/deprecation/nodes/info";
 

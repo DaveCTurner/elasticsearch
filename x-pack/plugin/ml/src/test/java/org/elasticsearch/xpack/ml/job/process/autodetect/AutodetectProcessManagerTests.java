@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.ml.job.process.autodetect;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.health.TransportClusterHealthAction;
 import org.elasticsearch.action.support.ActionTestUtils;
@@ -164,7 +164,7 @@ public class AutodetectProcessManagerTests extends ESTestCase {
         when(threadPool.executor(anyString())).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
         when(client.threadPool()).thenReturn(threadPool);
         doAnswer(invocationOnMock -> {
-            if (invocationOnMock.getArguments()[0] instanceof UnnecessaryActionTypeSubclass<?> v) {
+            if (invocationOnMock.getArguments()[0] instanceof ActionType<?> v) {
                 ActionListener<?> l = (ActionListener<?>) invocationOnMock.getArguments()[2];
                 if (v == TransportClusterHealthAction.TYPE) {
                     ActionListener<ClusterHealthResponse> listener = (ActionListener<ClusterHealthResponse>) l;

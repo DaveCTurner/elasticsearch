@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.rollover;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.stats.IndexStats;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsAction;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
@@ -106,7 +106,7 @@ public class TransportRolloverAction extends TransportMasterNodeAction<RolloverR
     }
 
     TransportRolloverAction(
-        UnnecessaryActionTypeSubclass<RolloverResponse> actionType,
+        ActionType<RolloverResponse> actionType,
         TransportService transportService,
         ClusterService clusterService,
         ThreadPool threadPool,

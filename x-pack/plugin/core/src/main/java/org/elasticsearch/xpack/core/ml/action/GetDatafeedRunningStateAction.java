@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -35,7 +35,7 @@ import static org.elasticsearch.core.Strings.format;
 /**
  * Internal only action to get the current running state of a datafeed
  */
-public class GetDatafeedRunningStateAction extends UnnecessaryActionTypeSubclass<GetDatafeedRunningStateAction.Response> {
+public class GetDatafeedRunningStateAction extends ActionType<GetDatafeedRunningStateAction.Response> {
 
     public static final GetDatafeedRunningStateAction INSTANCE = new GetDatafeedRunningStateAction();
     public static final String NAME = "cluster:internal/xpack/ml/datafeed/running_state";

@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.analyze;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.broadcast.node.TransportBroadcastByNodeAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -51,7 +51,7 @@ public class TransportReloadAnalyzersAction extends TransportBroadcastByNodeActi
     ReloadAnalyzersResponse,
     TransportReloadAnalyzersAction.ReloadResult> {
 
-    public static final UnnecessaryActionTypeSubclass<ReloadAnalyzersResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/reload_analyzers");
+    public static final ActionType<ReloadAnalyzersResponse> TYPE = new ActionType<>("indices:admin/reload_analyzers");
     private static final Logger logger = LogManager.getLogger(TransportReloadAnalyzersAction.class);
     private final IndicesService indicesService;
 

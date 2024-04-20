@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.esql.action;
 
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.xpack.core.esql.action.internal.SharedSecrets;
@@ -16,7 +16,7 @@ import org.elasticsearch.xpack.core.esql.action.internal.SharedSecrets;
 public abstract class EsqlQueryRequestBuilder<Request extends EsqlQueryRequest, Response extends EsqlQueryResponse> extends
     ActionRequestBuilder<Request, Response> {
 
-    private final UnnecessaryActionTypeSubclass<Response> action;
+    private final ActionType<Response> action;
 
     /** Creates a new ES|QL query request builder. */
     public static EsqlQueryRequestBuilder<? extends EsqlQueryRequest, ? extends EsqlQueryResponse> newRequestBuilder(
@@ -26,12 +26,12 @@ public abstract class EsqlQueryRequestBuilder<Request extends EsqlQueryRequest, 
     }
 
     // not for direct use
-    protected EsqlQueryRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
+    protected EsqlQueryRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
         this.action = action;
     }
 
-    public final UnnecessaryActionTypeSubclass<Response> action() {
+    public final ActionType<Response> action() {
         return action;
     }
 

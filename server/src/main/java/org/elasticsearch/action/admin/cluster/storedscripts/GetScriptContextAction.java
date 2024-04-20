@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.storedscripts;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetScriptContextAction extends UnnecessaryActionTypeSubclass<GetScriptContextResponse> {
+public class GetScriptContextAction extends ActionType<GetScriptContextResponse> {
 
     public static final GetScriptContextAction INSTANCE = new GetScriptContextAction();
     public static final String NAME = "cluster:admin/script_context/get";

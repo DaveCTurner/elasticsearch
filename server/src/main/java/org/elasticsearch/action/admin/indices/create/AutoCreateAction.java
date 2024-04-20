@@ -11,7 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.ActiveShardCount;
@@ -61,7 +61,7 @@ import static org.elasticsearch.cluster.routing.allocation.allocator.AllocationA
 /**
  * Api that auto creates an index or data stream that originate from requests that write into an index that doesn't yet exist.
  */
-public final class AutoCreateAction extends UnnecessaryActionTypeSubclass<CreateIndexResponse> {
+public final class AutoCreateAction extends ActionType<CreateIndexResponse> {
 
     private static final Logger logger = LogManager.getLogger(AutoCreateAction.class);
 

@@ -10,7 +10,7 @@ package org.elasticsearch.action.datastreams;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverConfiguration;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -41,7 +41,7 @@ import java.util.Objects;
 import static org.elasticsearch.TransportVersions.V_8_11_X;
 import static org.elasticsearch.cluster.metadata.DataStream.AUTO_SHARDING_FIELD;
 
-public class GetDataStreamAction extends UnnecessaryActionTypeSubclass<GetDataStreamAction.Response> {
+public class GetDataStreamAction extends ActionType<GetDataStreamAction.Response> {
 
     public static final GetDataStreamAction INSTANCE = new GetDataStreamAction();
     public static final String NAME = "indices:admin/data_stream/get";

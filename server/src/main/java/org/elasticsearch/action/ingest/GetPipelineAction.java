@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.ingest;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetPipelineAction extends UnnecessaryActionTypeSubclass<GetPipelineResponse> {
+public class GetPipelineAction extends ActionType<GetPipelineResponse> {
 
     public static final GetPipelineAction INSTANCE = new GetPipelineAction();
     public static final String NAME = "cluster:admin/ingest/pipeline/get";

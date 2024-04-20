@@ -16,7 +16,7 @@ import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.LatchedActionListener;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.support.ActionFilters;
@@ -504,7 +504,7 @@ public class CancellableTasksIT extends ESIntegTestCase {
 
     public static class TransportTestAction extends HandledTransportAction<TestRequest, TestResponse> {
 
-        public static UnnecessaryActionTypeSubclass<TestResponse> ACTION = new UnnecessaryActionTypeSubclass<>("internal::test_action");
+        public static ActionType<TestResponse> ACTION = new ActionType<>("internal::test_action");
         private final TransportService transportService;
         private final NodeClient client;
 

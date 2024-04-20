@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.TaskOperationFailure;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 import static org.elasticsearch.core.Strings.format;
 
-public class StopTransformAction extends UnnecessaryActionTypeSubclass<StopTransformAction.Response> {
+public class StopTransformAction extends ActionType<StopTransformAction.Response> {
 
     public static final StopTransformAction INSTANCE = new StopTransformAction();
     public static final String NAME = "cluster:admin/transform/stop";

@@ -8,12 +8,12 @@
 
 package org.elasticsearch.action.admin.cluster.repositories.get;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * Get repositories action
  */
-public class GetRepositoriesAction extends UnnecessaryActionTypeSubclass<GetRepositoriesResponse> {
+public class GetRepositoriesAction extends ActionType<GetRepositoriesResponse> {
 
     public static final GetRepositoriesAction INSTANCE = new GetRepositoriesAction();
     public static final String NAME = "cluster:admin/repository/get";

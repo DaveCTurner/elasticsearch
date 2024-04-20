@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.shutdown;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.Iterators;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetShutdownStatusAction extends UnnecessaryActionTypeSubclass<GetShutdownStatusAction.Response> {
+public class GetShutdownStatusAction extends ActionType<GetShutdownStatusAction.Response> {
 
     public static final GetShutdownStatusAction INSTANCE = new GetShutdownStatusAction();
     public static final String NAME = "cluster:admin/shutdown/get";

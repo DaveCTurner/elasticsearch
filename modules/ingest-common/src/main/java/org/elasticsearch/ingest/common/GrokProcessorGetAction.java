@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -42,7 +42,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 
 public class GrokProcessorGetAction {
 
-    static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:admin/ingest/processor/grok/get");
+    static final ActionType<GrokProcessorGetAction.Response> INSTANCE = new ActionType<>("cluster:admin/ingest/processor/grok/get");
 
     private GrokProcessorGetAction() {/* no instances */}
 

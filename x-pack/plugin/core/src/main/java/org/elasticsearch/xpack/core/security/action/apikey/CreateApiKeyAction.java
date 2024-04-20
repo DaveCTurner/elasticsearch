@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for the creation of an API key
  */
-public final class CreateApiKeyAction extends UnnecessaryActionTypeSubclass<CreateApiKeyResponse> {
+public final class CreateApiKeyAction extends ActionType<CreateApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/api_key/create";
     public static final CreateApiKeyAction INSTANCE = new CreateApiKeyAction();

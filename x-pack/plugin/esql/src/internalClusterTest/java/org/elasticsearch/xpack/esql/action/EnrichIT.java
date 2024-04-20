@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.esql.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.Client;
@@ -443,7 +443,7 @@ public class EnrichIT extends AbstractEsqlIntegTestCase {
             }
 
             @Override
-            protected List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions() {
+            protected List<ActionType<XPackInfoFeatureResponse>> infoActions() {
                 return Collections.singletonList(XPackInfoFeatureAction.ENRICH);
             }
         }

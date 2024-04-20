@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.ccr.action.repositories;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.inject.Inject;
@@ -17,7 +17,7 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportService;
 
-public class DeleteInternalCcrRepositoryAction extends UnnecessaryActionTypeSubclass<ActionResponse.Empty> {
+public class DeleteInternalCcrRepositoryAction extends ActionType<ActionResponse.Empty> {
 
     public static final DeleteInternalCcrRepositoryAction INSTANCE = new DeleteInternalCcrRepositoryAction();
     public static final String NAME = "internal:admin/ccr/internal_repository/delete";

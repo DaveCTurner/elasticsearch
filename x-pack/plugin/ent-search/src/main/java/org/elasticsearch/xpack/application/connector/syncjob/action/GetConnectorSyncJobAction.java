@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.application.connector.syncjob.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -30,7 +30,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class GetConnectorSyncJobAction {
 
     public static final String NAME = "indices:data/read/xpack/connector/sync_job/get";
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<GetConnectorSyncJobAction.Response> INSTANCE = new ActionType<>(NAME);
 
     private GetConnectorSyncJobAction() {/* no instances */}
 

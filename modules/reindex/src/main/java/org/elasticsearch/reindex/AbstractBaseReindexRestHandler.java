@@ -9,7 +9,7 @@
 package org.elasticsearch.reindex;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.SubscribableListener;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -30,7 +30,7 @@ import java.util.Map;
 
 public abstract class AbstractBaseReindexRestHandler<
     Request extends AbstractBulkByScrollRequest<Request>,
-    A extends UnnecessaryActionTypeSubclass<BulkByScrollResponse>> extends BaseRestHandler {
+    A extends ActionType<BulkByScrollResponse>> extends BaseRestHandler {
 
     private final A action;
 

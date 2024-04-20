@@ -11,13 +11,13 @@ package org.elasticsearch.test.client;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.support.AbstractClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 /**
- * Client that always responds with {@code null} to every request. Override {@link #doExecute(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)}
+ * Client that always responds with {@code null} to every request. Override {@link #doExecute(ActionType, ActionRequest, ActionListener)}
  * for testing.
  *
  * See also {@link NoOpNodeClient} if you need to mock a {@link org.elasticsearch.client.internal.node.NodeClient}.
@@ -30,7 +30,7 @@ public class NoOpClient extends AbstractClient {
 
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

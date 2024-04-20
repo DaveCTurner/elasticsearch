@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.security.action.settings;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -28,7 +28,7 @@ import java.util.Set;
 
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
-public class UpdateSecuritySettingsAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class UpdateSecuritySettingsAction extends ActionType<AcknowledgedResponse> {
     public static final UpdateSecuritySettingsAction INSTANCE = new UpdateSecuritySettingsAction();
     public static final String NAME = "cluster:admin/xpack/security/settings/update";
 

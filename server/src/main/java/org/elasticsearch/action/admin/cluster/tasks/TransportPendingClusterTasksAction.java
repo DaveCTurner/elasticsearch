@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.cluster.tasks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -31,7 +31,7 @@ public class TransportPendingClusterTasksAction extends TransportMasterNodeReadA
     PendingClusterTasksRequest,
     PendingClusterTasksResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<PendingClusterTasksResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/task");
+    public static final ActionType<PendingClusterTasksResponse> TYPE = new ActionType<>("cluster:monitor/task");
     private static final Logger logger = LogManager.getLogger(TransportPendingClusterTasksAction.class);
 
     @Inject

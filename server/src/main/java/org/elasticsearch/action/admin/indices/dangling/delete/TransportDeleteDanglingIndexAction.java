@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.indices.dangling.DanglingIndexInfo;
 import org.elasticsearch.action.admin.indices.dangling.list.ListDanglingIndicesRequest;
@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  * to add the index to the index graveyard.
  */
 public class TransportDeleteDanglingIndexAction extends AcknowledgedTransportMasterNodeAction<DeleteDanglingIndexRequest> {
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/indices/dangling/delete");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/indices/dangling/delete");
     private static final Logger logger = LogManager.getLogger(TransportDeleteDanglingIndexAction.class);
 
     private final Settings settings;

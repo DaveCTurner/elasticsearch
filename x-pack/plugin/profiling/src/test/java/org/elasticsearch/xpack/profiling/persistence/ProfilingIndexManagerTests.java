@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.profiling.persistence;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
@@ -393,7 +393,7 @@ public class ProfilingIndexManagerTests extends ESTestCase {
 
     private ActionResponse verifyIndexInstalled(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -411,7 +411,7 @@ public class ProfilingIndexManagerTests extends ESTestCase {
     private ActionResponse verifyIndexUpgraded(
         AtomicInteger indicesCreated,
         AtomicInteger indicesDeleted,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -435,7 +435,7 @@ public class ProfilingIndexManagerTests extends ESTestCase {
         String indexName,
         AtomicInteger mappingUpdates,
         AtomicInteger settingsUpdates,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

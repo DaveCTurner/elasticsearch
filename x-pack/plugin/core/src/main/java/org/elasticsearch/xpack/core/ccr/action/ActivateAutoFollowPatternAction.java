@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ccr.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -19,7 +19,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class ActivateAutoFollowPatternAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class ActivateAutoFollowPatternAction extends ActionType<AcknowledgedResponse> {
 
     public static final String NAME = "cluster:admin/xpack/ccr/auto_follow_pattern/activate";
     public static final ActivateAutoFollowPatternAction INSTANCE = new ActivateAutoFollowPatternAction();

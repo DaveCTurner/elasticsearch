@@ -10,7 +10,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.TimeValue;
@@ -37,7 +37,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class InferModelAction extends UnnecessaryActionTypeSubclass<InferModelAction.Response> {
+public class InferModelAction extends ActionType<InferModelAction.Response> {
     public static final String NAME = "cluster:internal/xpack/ml/inference/infer";
     public static final String EXTERNAL_NAME = "cluster:monitor/xpack/ml/inference/infer";
 

@@ -8,7 +8,7 @@
 
 package org.elasticsearch.reindex;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
@@ -35,7 +35,7 @@ import java.util.function.Predicate;
  */
 public abstract class AbstractBulkByQueryRestHandler<
     Request extends AbstractBulkByScrollRequest<Request>,
-    A extends UnnecessaryActionTypeSubclass<BulkByScrollResponse>> extends AbstractBaseReindexRestHandler<Request, A> {
+    A extends ActionType<BulkByScrollResponse>> extends AbstractBaseReindexRestHandler<Request, A> {
 
     protected AbstractBulkByQueryRestHandler(A action) {
         super(action);

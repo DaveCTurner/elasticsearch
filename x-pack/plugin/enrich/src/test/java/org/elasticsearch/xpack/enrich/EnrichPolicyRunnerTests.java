@@ -10,7 +10,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.LatchedActionListener;
 import org.elasticsearch.action.admin.cluster.health.TransportClusterHealthAction;
@@ -2070,7 +2070,7 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
         final CountDownLatch latch = new CountDownLatch(1);
         ActionListener<ExecuteEnrichPolicyStatus> listener = createTestListener(latch, exception::set);
 
-        UnnecessaryActionTypeSubclass<?> randomActionType = randomFrom(
+        ActionType<?> randomActionType = randomFrom(
             EnrichReindexAction.INSTANCE,
             GetIndexAction.INSTANCE,
             TransportCreateIndexAction.TYPE,
@@ -2085,7 +2085,7 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
 
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {
@@ -2385,7 +2385,7 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
         Client client = new FilterClient(client()) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

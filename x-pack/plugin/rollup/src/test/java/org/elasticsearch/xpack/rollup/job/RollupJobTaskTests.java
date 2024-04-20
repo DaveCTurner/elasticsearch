@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.rollup.job;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
@@ -1125,7 +1125,7 @@ public class RollupJobTaskTests extends ESTestCase {
             @SuppressWarnings("unchecked")
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

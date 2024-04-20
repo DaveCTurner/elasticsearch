@@ -13,7 +13,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.TimeValue;
@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class InferenceAction extends UnnecessaryActionTypeSubclass<InferenceAction.Response> {
+public class InferenceAction extends ActionType<InferenceAction.Response> {
 
     public static final InferenceAction INSTANCE = new InferenceAction();
     public static final String NAME = "cluster:monitor/xpack/inference";

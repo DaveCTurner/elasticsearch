@@ -8,12 +8,12 @@
 
 package org.elasticsearch.action.admin.cluster.repositories.verify;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * Verify repository action
  */
-public class VerifyRepositoryAction extends UnnecessaryActionTypeSubclass<VerifyRepositoryResponse> {
+public class VerifyRepositoryAction extends ActionType<VerifyRepositoryResponse> {
 
     public static final VerifyRepositoryAction INSTANCE = new VerifyRepositoryAction();
     public static final String NAME = "cluster:admin/repository/verify";

@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -61,7 +61,7 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
 
     public static class UpdateInternalOrPrivateAction {
 
-        public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("indices:admin/settings/update-internal-or-private-index");
+        public static final ActionType<Response> INSTANCE = new ActionType<>("indices:admin/settings/update-internal-or-private-index");
 
         public static class Request extends MasterNodeRequest<Request> {
 

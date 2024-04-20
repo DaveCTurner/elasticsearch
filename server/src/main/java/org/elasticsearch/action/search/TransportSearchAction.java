@@ -14,7 +14,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.RemoteClusterActionType;
@@ -113,7 +113,7 @@ import static org.elasticsearch.threadpool.ThreadPool.Names.SYSTEM_READ;
 public class TransportSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
 
     public static final String NAME = "indices:data/read/search";
-    public static final UnnecessaryActionTypeSubclass<SearchResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<SearchResponse> TYPE = new ActionType<>(NAME);
     public static final RemoteClusterActionType<SearchResponse> REMOTE_TYPE = new RemoteClusterActionType<>(NAME, SearchResponse::new);
     private static final Logger logger = LogManager.getLogger(TransportSearchAction.class);
     private static final DeprecationLogger DEPRECATION_LOGGER = DeprecationLogger.getLogger(TransportSearchAction.class);

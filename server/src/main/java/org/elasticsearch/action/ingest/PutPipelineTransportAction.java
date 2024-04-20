@@ -9,7 +9,7 @@
 package org.elasticsearch.action.ingest;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoMetrics;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.support.ActionFilters;
@@ -34,7 +34,7 @@ import java.util.Set;
 import static org.elasticsearch.ingest.IngestService.INGEST_ORIGIN;
 
 public class PutPipelineTransportAction extends AcknowledgedTransportMasterNodeAction<PutPipelineRequest> {
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/ingest/pipeline/put");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/ingest/pipeline/put");
     private final IngestService ingestService;
     private final OriginSettingClient client;
 

@@ -29,7 +29,7 @@ public final class RemoteClusterActionType<Response extends TransportResponse> {
     }
 
     /**
-     * Construct an {@link UnnecessaryActionTypeSubclass} which callers can execute on a remote cluster using a {@link RemoteClusterClient}, typically obtained
+     * Construct an {@link ActionType} which callers can execute on a remote cluster using a {@link RemoteClusterClient}, typically obtained
      * from {@link Client#getRemoteClusterClient}).
      *
      * @param name           The name of the action, which must be unique across actions. This is the ID of the transport action which is

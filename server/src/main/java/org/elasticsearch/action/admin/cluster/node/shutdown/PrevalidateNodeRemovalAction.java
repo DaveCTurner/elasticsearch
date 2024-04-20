@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.node.shutdown;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class PrevalidateNodeRemovalAction extends UnnecessaryActionTypeSubclass<PrevalidateNodeRemovalResponse> {
+public class PrevalidateNodeRemovalAction extends ActionType<PrevalidateNodeRemovalResponse> {
 
     public static final PrevalidateNodeRemovalAction INSTANCE = new PrevalidateNodeRemovalAction();
     public static final String NAME = "cluster:admin/shutdown/prevalidate_removal";

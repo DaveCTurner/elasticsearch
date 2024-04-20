@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetDatafeedsStatsAction extends UnnecessaryActionTypeSubclass<GetDatafeedsStatsAction.Response> {
+public class GetDatafeedsStatsAction extends ActionType<GetDatafeedsStatsAction.Response> {
 
     public static final GetDatafeedsStatsAction INSTANCE = new GetDatafeedsStatsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/datafeeds/stats/get";

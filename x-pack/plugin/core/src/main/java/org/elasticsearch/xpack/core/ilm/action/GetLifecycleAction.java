@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ilm.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.cluster.metadata.ItemUsage;
 import org.elasticsearch.common.Strings;
@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetLifecycleAction extends UnnecessaryActionTypeSubclass<GetLifecycleAction.Response> {
+public class GetLifecycleAction extends ActionType<GetLifecycleAction.Response> {
     public static final GetLifecycleAction INSTANCE = new GetLifecycleAction();
     public static final String NAME = "cluster:admin/ilm/get";
 

@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.coordination.MasterHistoryService;
@@ -32,7 +32,7 @@ import java.util.Objects;
 /**
  * This action is used to fetch the MasterHistory from a remote node.
  */
-public class MasterHistoryAction extends UnnecessaryActionTypeSubclass<MasterHistoryAction.Response> {
+public class MasterHistoryAction extends ActionType<MasterHistoryAction.Response> {
 
     public static final MasterHistoryAction INSTANCE = new MasterHistoryAction();
     public static final String NAME = "internal:cluster/master_history/get";

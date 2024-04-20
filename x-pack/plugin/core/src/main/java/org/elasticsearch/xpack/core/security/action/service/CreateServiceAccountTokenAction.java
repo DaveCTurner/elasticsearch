@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.service;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class CreateServiceAccountTokenAction extends UnnecessaryActionTypeSubclass<CreateServiceAccountTokenResponse> {
+public class CreateServiceAccountTokenAction extends ActionType<CreateServiceAccountTokenResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/service_account/token/create";
     public static final CreateServiceAccountTokenAction INSTANCE = new CreateServiceAccountTokenAction();

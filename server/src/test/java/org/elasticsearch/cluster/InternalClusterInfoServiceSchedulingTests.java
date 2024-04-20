@@ -11,7 +11,7 @@ package org.elasticsearch.cluster;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.support.ActionTestUtils;
@@ -163,7 +163,7 @@ public class InternalClusterInfoServiceSchedulingTests extends ESTestCase {
 
         @Override
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

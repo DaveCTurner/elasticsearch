@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.segments;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class IndicesSegmentsAction extends UnnecessaryActionTypeSubclass<IndicesSegmentResponse> {
+public class IndicesSegmentsAction extends ActionType<IndicesSegmentResponse> {
 
     public static final IndicesSegmentsAction INSTANCE = new IndicesSegmentsAction();
     public static final String NAME = "indices:monitor/segments";

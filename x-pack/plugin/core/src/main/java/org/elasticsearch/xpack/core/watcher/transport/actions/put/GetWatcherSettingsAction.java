@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.watcher.transport.actions.put;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -19,7 +19,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 
-public class GetWatcherSettingsAction extends UnnecessaryActionTypeSubclass<GetWatcherSettingsAction.Response> {
+public class GetWatcherSettingsAction extends ActionType<GetWatcherSettingsAction.Response> {
 
     public static final GetWatcherSettingsAction INSTANCE = new GetWatcherSettingsAction();
     public static final String NAME = "cluster:admin/xpack/watcher/settings/get";

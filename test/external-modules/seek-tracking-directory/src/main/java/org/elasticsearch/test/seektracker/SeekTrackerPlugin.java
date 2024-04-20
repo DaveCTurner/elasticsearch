@@ -10,7 +10,7 @@ package org.elasticsearch.test.seektracker;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -41,7 +41,7 @@ public class SeekTrackerPlugin extends Plugin implements ActionPlugin {
         Setting.Property.NodeScope
     );
 
-    public static final UnnecessaryActionTypeSubclass<SeekStatsResponse> SEEK_STATS_ACTION = new UnnecessaryActionTypeSubclass<>("cluster:monitor/seek_stats");
+    public static final ActionType<SeekStatsResponse> SEEK_STATS_ACTION = new ActionType<>("cluster:monitor/seek_stats");
 
     private final SeekStatsService seekStatsService = new SeekStatsService();
     private final boolean enabled;

@@ -13,7 +13,7 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -143,7 +143,7 @@ class ModelImporter {
     }
 
     private <Request extends ActionRequest, Response extends ActionResponse> void executeRequestIfNotCancelled(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request
     ) {
         if (task.isCancelled()) {

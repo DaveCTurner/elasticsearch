@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.coordination.CoordinationDiagnosticsService;
@@ -32,7 +32,7 @@ import static org.elasticsearch.cluster.coordination.CoordinationDiagnosticsServ
  * This action exposes CoordinationDiagnosticsService#diagnoseMasterStability so that a node can get a remote node's view of
  * coordination diagnostics (including master stability).
  */
-public class CoordinationDiagnosticsAction extends UnnecessaryActionTypeSubclass<CoordinationDiagnosticsAction.Response> {
+public class CoordinationDiagnosticsAction extends ActionType<CoordinationDiagnosticsAction.Response> {
 
     public static final CoordinationDiagnosticsAction INSTANCE = new CoordinationDiagnosticsAction();
     public static final String NAME = "internal:cluster/coordination_diagnostics/info";

@@ -11,7 +11,7 @@ package org.elasticsearch.action.synonyms;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -32,7 +32,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
  *
  * @param <T> Type to be returned by the response, wrapped in a {@link PagedResult}
  */
-public abstract class AbstractSynonymsPagedResultAction<T extends ActionResponse> extends UnnecessaryActionTypeSubclass<T> {
+public abstract class AbstractSynonymsPagedResultAction<T extends ActionResponse> extends ActionType<T> {
 
     public AbstractSynonymsPagedResultAction(String name, Writeable.Reader<T> reader) {
         super(name);

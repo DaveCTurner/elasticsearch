@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 
-public class ResetJobAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class ResetJobAction extends ActionType<AcknowledgedResponse> {
 
     public static final String NAME = "cluster:admin/xpack/ml/job/reset";
     public static final ResetJobAction INSTANCE = new ResetJobAction();

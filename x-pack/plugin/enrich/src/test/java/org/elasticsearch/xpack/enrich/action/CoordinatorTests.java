@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequest;
@@ -280,7 +280,7 @@ public class CoordinatorTests extends ESTestCase {
 
             @Override
             public <Request extends ActionRequest, Response extends ActionResponse> ActionFuture<Response> execute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request
             ) {
                 throw new UnsupportedOperationException();
@@ -288,7 +288,7 @@ public class CoordinatorTests extends ESTestCase {
 
             @Override
             public <Request extends ActionRequest, Response extends ActionResponse> void execute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

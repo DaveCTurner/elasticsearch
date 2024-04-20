@@ -12,7 +12,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.create.TransportCreateSnapshotAction;
@@ -319,9 +319,9 @@ public class SnapshotLifecycleTaskTests extends ESTestCase {
      */
     public static class VerifyingClient extends NoOpClient {
 
-        private final TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier;
+        private final TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier;
 
-        VerifyingClient(ThreadPool threadPool, TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        VerifyingClient(ThreadPool threadPool, TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             super(threadPool);
             this.verifier = verifier;
         }
@@ -329,7 +329,7 @@ public class SnapshotLifecycleTaskTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

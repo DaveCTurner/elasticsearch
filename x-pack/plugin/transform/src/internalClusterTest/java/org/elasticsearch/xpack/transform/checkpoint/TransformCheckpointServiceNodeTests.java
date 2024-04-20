@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.transform.checkpoint;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.stats.CommonStats;
@@ -114,7 +114,7 @@ public class TransformCheckpointServiceNodeTests extends TransformSingleNodeTest
         @SuppressWarnings("unchecked")
         @Override
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

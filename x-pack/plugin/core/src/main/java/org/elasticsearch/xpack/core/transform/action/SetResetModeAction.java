@@ -6,10 +6,10 @@
  */
 package org.elasticsearch.xpack.core.transform.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class SetResetModeAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class SetResetModeAction extends ActionType<AcknowledgedResponse> {
 
     public static final SetResetModeAction INSTANCE = new SetResetModeAction();
     public static final String NAME = "cluster:internal/xpack/transform/reset_mode";

@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.apmdata;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.ingest.PutPipelineRequest;
@@ -343,7 +343,7 @@ public class APMIndexTemplateRegistryTests extends ESTestCase {
         AtomicInteger indexTemplatesCounter,
         AtomicInteger componentTemplatesCounter,
         AtomicInteger ingestPipelinesCounter,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

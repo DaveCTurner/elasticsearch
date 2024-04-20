@@ -16,7 +16,7 @@ import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.TransportDeleteIndexAction;
@@ -795,7 +795,7 @@ public class IndexBasedTransformConfigManager implements TransformConfigManager 
     }
 
     private <Request extends ActionRequest, Response extends ActionResponse> void executeAsyncWithOrigin(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

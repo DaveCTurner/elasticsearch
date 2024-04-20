@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.fleet.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class PostSecretAction extends UnnecessaryActionTypeSubclass<PostSecretResponse> {
+public class PostSecretAction extends ActionType<PostSecretResponse> {
 
     public static final String NAME = "cluster:admin/fleet/secrets/post";
 

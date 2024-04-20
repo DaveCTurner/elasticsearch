@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.cluster.routing.allocation;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -55,7 +55,7 @@ public class DataTierTelemetryPlugin extends LocalStateCompositeXPackPlugin {
         }
 
         @Override
-        protected List<UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse>> usageActions() {
+        protected List<ActionType<XPackUsageFeatureResponse>> usageActions() {
             return Collections.singletonList(XPackUsageFeatureAction.DATA_TIERS);
         }
     }
@@ -72,7 +72,7 @@ public class DataTierTelemetryPlugin extends LocalStateCompositeXPackPlugin {
         }
 
         @Override
-        protected List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions() {
+        protected List<ActionType<XPackInfoFeatureResponse>> infoActions() {
             return Collections.singletonList(XPackInfoFeatureAction.DATA_TIERS);
         }
     }

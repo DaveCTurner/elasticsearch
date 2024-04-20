@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.indices.template.put;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.ComponentTemplate;
@@ -25,7 +25,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
 /**
  * An action for putting a single component template into the cluster state
  */
-public class PutComponentTemplateAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class PutComponentTemplateAction extends ActionType<AcknowledgedResponse> {
 
     public static final PutComponentTemplateAction INSTANCE = new PutComponentTemplateAction();
     public static final String NAME = "cluster:admin/component_template/put";

@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetTrialStatusAction extends UnnecessaryActionTypeSubclass<GetTrialStatusResponse> {
+public class GetTrialStatusAction extends ActionType<GetTrialStatusResponse> {
 
     public static final GetTrialStatusAction INSTANCE = new GetTrialStatusAction();
     public static final String NAME = "cluster:admin/xpack/license/trial_status";

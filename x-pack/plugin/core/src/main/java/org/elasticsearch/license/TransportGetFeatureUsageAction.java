@@ -8,7 +8,7 @@
 package org.elasticsearch.license;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
@@ -25,7 +25,7 @@ import java.util.Map;
 
 public class TransportGetFeatureUsageAction extends HandledTransportAction<GetFeatureUsageRequest, GetFeatureUsageResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<GetFeatureUsageResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/xpack/license/feature_usage");
+    public static final ActionType<GetFeatureUsageResponse> TYPE = new ActionType<>("cluster:admin/xpack/license/feature_usage");
 
     private final XPackLicenseState licenseState;
 

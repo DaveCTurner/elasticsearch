@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.shards;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -39,7 +39,7 @@ public class TransportClusterSearchShardsAction extends TransportMasterNodeReadA
     ClusterSearchShardsRequest,
     ClusterSearchShardsResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<ClusterSearchShardsResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/shards/search_shards");
+    public static final ActionType<ClusterSearchShardsResponse> TYPE = new ActionType<>("indices:admin/shards/search_shards");
 
     private final IndicesService indicesService;
 

@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for invalidating API key
  */
-public final class InvalidateApiKeyAction extends UnnecessaryActionTypeSubclass<InvalidateApiKeyResponse> {
+public final class InvalidateApiKeyAction extends ActionType<InvalidateApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/api_key/invalidate";
     public static final InvalidateApiKeyAction INSTANCE = new InvalidateApiKeyAction();

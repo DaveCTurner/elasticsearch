@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ilm.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -19,7 +19,7 @@ import org.elasticsearch.xpack.core.ilm.OperationMode;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetStatusAction extends UnnecessaryActionTypeSubclass<GetStatusAction.Response> {
+public class GetStatusAction extends ActionType<GetStatusAction.Response> {
     public static final GetStatusAction INSTANCE = new GetStatusAction();
     public static final String NAME = "cluster:admin/ilm/operation_mode/get";
 

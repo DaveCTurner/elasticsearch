@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.snapshots.restore;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -28,7 +28,7 @@ import org.elasticsearch.transport.TransportService;
  * Transport action for restore snapshot operation
  */
 public class TransportRestoreSnapshotAction extends TransportMasterNodeAction<RestoreSnapshotRequest, RestoreSnapshotResponse> {
-    public static final UnnecessaryActionTypeSubclass<RestoreSnapshotResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/snapshot/restore");
+    public static final ActionType<RestoreSnapshotResponse> TYPE = new ActionType<>("cluster:admin/snapshot/restore");
     private final RestoreService restoreService;
 
     @Inject

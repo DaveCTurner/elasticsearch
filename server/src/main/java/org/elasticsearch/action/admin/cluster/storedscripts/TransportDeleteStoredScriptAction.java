@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.storedscripts;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.AcknowledgedTransportMasterNodeAction;
@@ -27,7 +27,7 @@ import org.elasticsearch.transport.TransportService;
 
 public class TransportDeleteStoredScriptAction extends AcknowledgedTransportMasterNodeAction<DeleteStoredScriptRequest> {
 
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/script/delete");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/script/delete");
 
     @Inject
     public TransportDeleteStoredScriptAction(

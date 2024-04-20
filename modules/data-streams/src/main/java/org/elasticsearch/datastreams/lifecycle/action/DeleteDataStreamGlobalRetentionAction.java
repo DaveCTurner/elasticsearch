@@ -11,7 +11,7 @@ package org.elasticsearch.datastreams.lifecycle.action;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -39,7 +39,7 @@ import java.util.Objects;
  */
 public class DeleteDataStreamGlobalRetentionAction {
 
-    public static final UnnecessaryActionTypeSubclass<UpdateDataStreamGlobalRetentionResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(
+    public static final ActionType<UpdateDataStreamGlobalRetentionResponse> INSTANCE = new ActionType<>(
         "cluster:admin/data_stream/global_retention/delete"
     );
 

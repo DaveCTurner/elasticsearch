@@ -11,7 +11,7 @@ package org.elasticsearch.client.internal.node;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.AbstractClientHeadersTestCase;
@@ -31,7 +31,7 @@ public class NodeClientHeadersTests extends AbstractClientHeadersTestCase {
     private static final ActionFilters EMPTY_FILTERS = new ActionFilters(Collections.emptySet());
 
     @Override
-    protected Client buildClient(Settings headersSettings, UnnecessaryActionTypeSubclass<?>[] testedActions) {
+    protected Client buildClient(Settings headersSettings, ActionType<?>[] testedActions) {
         Settings settings = HEADER_SETTINGS;
         TaskManager taskManager = new TaskManager(settings, threadPool, Collections.emptySet());
         Actions actions = new Actions(testedActions, taskManager);
@@ -41,11 +41,11 @@ public class NodeClientHeadersTests extends AbstractClientHeadersTestCase {
     }
 
     private static class Actions extends HashMap<
-            UnnecessaryActionTypeSubclass<? extends ActionResponse>,
+        ActionType<? extends ActionResponse>,
         TransportAction<? extends ActionRequest, ? extends ActionResponse>> {
 
-        private Actions(UnnecessaryActionTypeSubclass<?>[] actions, TaskManager taskManager) {
-            for (UnnecessaryActionTypeSubclass<?> action : actions) {
+        private Actions(ActionType<?>[] actions, TaskManager taskManager) {
+            for (ActionType<?> action : actions) {
                 put(action, new InternalTransportAction(action.name(), taskManager));
             }
         }

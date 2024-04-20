@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.analytics.action;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
@@ -28,7 +28,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class AnalyticsStatsAction extends UnnecessaryActionTypeSubclass<AnalyticsStatsAction.Response> {
+public class AnalyticsStatsAction extends ActionType<AnalyticsStatsAction.Response> {
     public static final AnalyticsStatsAction INSTANCE = new AnalyticsStatsAction();
     public static final String NAME = "cluster:monitor/xpack/analytics/stats";
 

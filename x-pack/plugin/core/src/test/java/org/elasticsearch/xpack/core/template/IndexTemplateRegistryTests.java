@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.core.template;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
 import org.elasticsearch.action.admin.indices.rollover.RolloverRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
@@ -675,7 +675,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
 
     private static void assertPutComponentTemplate(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -692,7 +692,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
 
     private static void assertPutComposableIndexTemplateAction(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -712,7 +712,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
 
     private static void assertPutPipelineAction(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener,
         String... pipelineIds
@@ -737,7 +737,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
 
     private static void assertPutLifecycleAction(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -869,7 +869,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
      */
     public static class VerifyingClient extends NoOpClient {
 
-        private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+        private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
             fail("verifier not set");
             return null;
         };
@@ -881,7 +881,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -892,7 +892,7 @@ public class IndexTemplateRegistryTests extends ESTestCase {
             }
         }
 
-        public VerifyingClient setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        public VerifyingClient setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             this.verifier = verifier;
             return this;
         }

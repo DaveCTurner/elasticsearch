@@ -10,7 +10,7 @@ package org.elasticsearch.action.support.master;
 
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.core.TimeValue;
 
@@ -24,7 +24,7 @@ public abstract class MasterNodeOperationRequestBuilder<
         Request,
         Response> {
 
-    protected MasterNodeOperationRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
+    protected MasterNodeOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
     }
 

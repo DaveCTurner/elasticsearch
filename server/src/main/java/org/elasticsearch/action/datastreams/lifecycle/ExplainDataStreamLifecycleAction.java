@@ -11,7 +11,7 @@ package org.elasticsearch.action.datastreams.lifecycle;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverConfiguration;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -36,7 +36,7 @@ import java.util.Objects;
  */
 public class ExplainDataStreamLifecycleAction {
 
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("indices:admin/data_stream/lifecycle/explain");
+    public static final ActionType<Response> INSTANCE = new ActionType<>("indices:admin/data_stream/lifecycle/explain");
 
     private ExplainDataStreamLifecycleAction() {/* no instances */}
 

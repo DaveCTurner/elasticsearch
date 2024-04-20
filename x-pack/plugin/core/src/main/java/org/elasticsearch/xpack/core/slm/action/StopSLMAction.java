@@ -7,14 +7,14 @@
 
 package org.elasticsearch.xpack.core.slm.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 
 import java.io.IOException;
 
-public class StopSLMAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class StopSLMAction extends ActionType<AcknowledgedResponse> {
     public static final StopSLMAction INSTANCE = new StopSLMAction();
     public static final String NAME = "cluster:admin/slm/stop";
 

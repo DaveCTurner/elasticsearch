@@ -12,7 +12,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteRequest.OpType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
@@ -536,14 +536,14 @@ public class GeoIpDownloaderTests extends ESTestCase {
 
     private static class MockClient extends NoOpClient {
 
-        private final Map<UnnecessaryActionTypeSubclass<?>, BiConsumer<? extends ActionRequest, ? extends ActionListener<?>>> handlers = new HashMap<>();
+        private final Map<ActionType<?>, BiConsumer<? extends ActionRequest, ? extends ActionListener<?>>> handlers = new HashMap<>();
 
         private MockClient(ThreadPool threadPool) {
             super(threadPool);
         }
 
         public <Response extends ActionResponse, Request extends ActionRequest> void addHandler(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             BiConsumer<Request, ActionListener<Response>> listener
         ) {
             handlers.put(action, listener);
@@ -552,7 +552,7 @@ public class GeoIpDownloaderTests extends ESTestCase {
         @SuppressWarnings("unchecked")
         @Override
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {

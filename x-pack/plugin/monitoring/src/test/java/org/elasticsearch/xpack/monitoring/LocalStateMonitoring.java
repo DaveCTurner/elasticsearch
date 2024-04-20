@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.monitoring;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.TransportAction;
@@ -59,7 +59,7 @@ public class LocalStateMonitoring extends LocalStateCompositeXPackPlugin {
         }
 
         @Override
-        protected List<UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse>> usageActions() {
+        protected List<ActionType<XPackUsageFeatureResponse>> usageActions() {
             return Collections.singletonList(XPackUsageFeatureAction.MONITORING);
         }
     }

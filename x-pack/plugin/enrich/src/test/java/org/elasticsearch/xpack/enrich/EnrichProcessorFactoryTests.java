@@ -10,7 +10,7 @@ import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.cluster.ClusterName;
@@ -249,7 +249,7 @@ public class EnrichProcessorFactoryTests extends ESTestCase {
                 @Override
                 @SuppressWarnings("unchecked")
                 protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                    UnnecessaryActionTypeSubclass<Response> action,
+                    ActionType<Response> action,
                     Request request,
                     ActionListener<Response> listener
                 ) {

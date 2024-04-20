@@ -10,7 +10,7 @@ package org.elasticsearch.health;
 
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.health.node.DataStreamLifecycleHealthInfo;
 import org.elasticsearch.health.node.FetchHealthInfoCacheAction;
@@ -351,7 +351,7 @@ public class HealthServiceTests extends ESTestCase {
             ActionListener<FetchHealthInfoCacheAction.Response> actionListener = invocation.getArgument(2, ActionListener.class);
             actionListener.onResponse(new FetchHealthInfoCacheAction.Response(healthInfo));
             return null;
-        }).when(client).doExecute(any(UnnecessaryActionTypeSubclass.class), any(), any(ActionListener.class));
+        }).when(client).doExecute(any(ActionType.class), any(), any(ActionListener.class));
         return client;
     }
 

@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.rules.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -36,7 +36,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg
 public class PutQueryRulesetAction {
 
     public static final String NAME = "cluster:admin/xpack/query_rules/put";
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<PutQueryRulesetAction.Response> INSTANCE = new ActionType<>(NAME);
 
     private PutQueryRulesetAction() {/* no instances */}
 

@@ -6,10 +6,10 @@
  */
 package org.elasticsearch.xpack.core.graph.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.protocol.xpack.graph.GraphExploreResponse;
 
-public class GraphExploreAction extends UnnecessaryActionTypeSubclass<GraphExploreResponse> {
+public class GraphExploreAction extends ActionType<GraphExploreResponse> {
 
     public static final GraphExploreAction INSTANCE = new GraphExploreAction();
     public static final String NAME = "indices:data/read/xpack/graph/explore";

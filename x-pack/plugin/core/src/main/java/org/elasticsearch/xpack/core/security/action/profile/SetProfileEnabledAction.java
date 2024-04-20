@@ -7,10 +7,10 @@
 
 package org.elasticsearch.xpack.core.security.action.profile;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
-public class SetProfileEnabledAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class SetProfileEnabledAction extends ActionType<AcknowledgedResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/profile/set_enabled";
     public static final SetProfileEnabledAction INSTANCE = new SetProfileEnabledAction();

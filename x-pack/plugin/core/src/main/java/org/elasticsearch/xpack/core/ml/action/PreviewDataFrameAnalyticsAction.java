@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.CancellableTask;
@@ -31,7 +31,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class PreviewDataFrameAnalyticsAction extends UnnecessaryActionTypeSubclass<PreviewDataFrameAnalyticsAction.Response> {
+public class PreviewDataFrameAnalyticsAction extends ActionType<PreviewDataFrameAnalyticsAction.Response> {
 
     public static final PreviewDataFrameAnalyticsAction INSTANCE = new PreviewDataFrameAnalyticsAction();
     public static final String NAME = "cluster:admin/xpack/ml/data_frame/analytics/preview";

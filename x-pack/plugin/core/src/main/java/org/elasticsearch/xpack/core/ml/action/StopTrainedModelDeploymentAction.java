@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.Strings;
@@ -28,7 +28,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class StopTrainedModelDeploymentAction extends UnnecessaryActionTypeSubclass<StopTrainedModelDeploymentAction.Response> {
+public class StopTrainedModelDeploymentAction extends ActionType<StopTrainedModelDeploymentAction.Response> {
 
     public static final StopTrainedModelDeploymentAction INSTANCE = new StopTrainedModelDeploymentAction();
     public static final String NAME = "cluster:admin/xpack/ml/trained_models/deployment/stop";

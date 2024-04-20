@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.snapshots.features;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SnapshottableFeaturesAction extends UnnecessaryActionTypeSubclass<GetSnapshottableFeaturesResponse> {
+public class SnapshottableFeaturesAction extends ActionType<GetSnapshottableFeaturesResponse> {
 
     public static final SnapshottableFeaturesAction INSTANCE = new SnapshottableFeaturesAction();
     public static final String NAME = "cluster:admin/features/get";

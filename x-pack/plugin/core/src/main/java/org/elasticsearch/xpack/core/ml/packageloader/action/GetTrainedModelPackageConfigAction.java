@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.packageloader.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -23,7 +23,7 @@ import java.util.Objects;
  *
  * Note: This is a master node action, because the model could be loaded from a file.
  */
-public class GetTrainedModelPackageConfigAction extends UnnecessaryActionTypeSubclass<GetTrainedModelPackageConfigAction.Response> {
+public class GetTrainedModelPackageConfigAction extends ActionType<GetTrainedModelPackageConfigAction.Response> {
 
     public static final String NAME = "cluster:internal/xpack/ml/trained_models/package_loader/get_config";
     public static final GetTrainedModelPackageConfigAction INSTANCE = new GetTrainedModelPackageConfigAction();

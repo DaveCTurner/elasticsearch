@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.core.security.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for delegating PKI authentication
  */
-public class DelegatePkiAuthenticationAction extends UnnecessaryActionTypeSubclass<DelegatePkiAuthenticationResponse> {
+public class DelegatePkiAuthenticationAction extends ActionType<DelegatePkiAuthenticationResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/delegate_pki";
     public static final DelegatePkiAuthenticationAction INSTANCE = new DelegatePkiAuthenticationAction();

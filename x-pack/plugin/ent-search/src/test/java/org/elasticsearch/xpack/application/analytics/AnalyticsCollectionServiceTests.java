@@ -15,7 +15,7 @@ import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.datastreams.CreateDataStreamAction;
 import org.elasticsearch.action.datastreams.DeleteDataStreamAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -367,7 +367,7 @@ public class AnalyticsCollectionServiceTests extends ESTestCase {
     }
 
     public static class VerifyingClient extends NoOpClient {
-        private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+        private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
             fail("verifier not set");
             return null;
         };
@@ -379,7 +379,7 @@ public class AnalyticsCollectionServiceTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -390,7 +390,7 @@ public class AnalyticsCollectionServiceTests extends ESTestCase {
             }
         }
 
-        public void setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        public void setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             this.verifier = verifier;
         }
     }

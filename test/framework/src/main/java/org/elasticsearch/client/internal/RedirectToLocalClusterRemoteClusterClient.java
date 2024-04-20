@@ -11,7 +11,7 @@ package org.elasticsearch.client.internal;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.transport.TransportResponse;
@@ -34,6 +34,6 @@ public class RedirectToLocalClusterRemoteClusterClient implements RemoteClusterC
         Request request,
         ActionListener<Response> listener
     ) {
-        delegate.execute(new UnnecessaryActionTypeSubclass<ActionResponse>(action.name()), request, listener.map(r -> (Response) r));
+        delegate.execute(new ActionType<ActionResponse>(action.name()), request, listener.map(r -> (Response) r));
     }
 }

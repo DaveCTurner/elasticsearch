@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.service;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class DeleteServiceAccountTokenAction extends UnnecessaryActionTypeSubclass<DeleteServiceAccountTokenResponse> {
+public class DeleteServiceAccountTokenAction extends ActionType<DeleteServiceAccountTokenResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/service_account/token/delete";
     public static final DeleteServiceAccountTokenAction INSTANCE = new DeleteServiceAccountTokenAction();

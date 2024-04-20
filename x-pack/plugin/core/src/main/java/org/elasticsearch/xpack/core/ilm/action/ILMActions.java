@@ -6,14 +6,14 @@
  */
 package org.elasticsearch.xpack.core.ilm.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
 public enum ILMActions {
     ;
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> START = new UnnecessaryActionTypeSubclass<>("cluster:admin/ilm/start");
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> STOP = new UnnecessaryActionTypeSubclass<>("cluster:admin/ilm/stop");
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> RETRY = new UnnecessaryActionTypeSubclass<>("indices:admin/ilm/retry");
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> MOVE_TO_STEP = new UnnecessaryActionTypeSubclass<>("cluster:admin/ilm/_move/post");
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> PUT = new UnnecessaryActionTypeSubclass<>("cluster:admin/ilm/put");
+    public static final ActionType<AcknowledgedResponse> START = new ActionType<>("cluster:admin/ilm/start");
+    public static final ActionType<AcknowledgedResponse> STOP = new ActionType<>("cluster:admin/ilm/stop");
+    public static final ActionType<AcknowledgedResponse> RETRY = new ActionType<>("indices:admin/ilm/retry");
+    public static final ActionType<AcknowledgedResponse> MOVE_TO_STEP = new ActionType<>("cluster:admin/ilm/_move/post");
+    public static final ActionType<AcknowledgedResponse> PUT = new ActionType<>("cluster:admin/ilm/put");
 }

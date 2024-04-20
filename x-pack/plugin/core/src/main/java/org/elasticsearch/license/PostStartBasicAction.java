@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class PostStartBasicAction extends UnnecessaryActionTypeSubclass<PostStartBasicResponse> {
+public class PostStartBasicAction extends ActionType<PostStartBasicResponse> {
 
     public static final PostStartBasicAction INSTANCE = new PostStartBasicAction();
     public static final String NAME = "cluster:admin/xpack/license/start_basic";

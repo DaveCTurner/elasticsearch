@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.cluster.storedscripts;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetScriptLanguageAction extends UnnecessaryActionTypeSubclass<GetScriptLanguageResponse> {
+public class GetScriptLanguageAction extends ActionType<GetScriptLanguageResponse> {
     public static final GetScriptLanguageAction INSTANCE = new GetScriptLanguageAction();
     public static final String NAME = "cluster:admin/script_language/get";
 

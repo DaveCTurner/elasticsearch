@@ -6,13 +6,13 @@
  */
 package org.elasticsearch.xpack.core.watcher.transport.actions.execute;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * This action executes a watch, either ignoring the schedule and condition or just the schedule and can execute a subset of the actions,
  * optionally persisting the history entry
  */
-public class ExecuteWatchAction extends UnnecessaryActionTypeSubclass<ExecuteWatchResponse> {
+public class ExecuteWatchAction extends ActionType<ExecuteWatchResponse> {
 
     public static final ExecuteWatchAction INSTANCE = new ExecuteWatchAction();
     public static final String NAME = "cluster:admin/xpack/watcher/watch/execute";

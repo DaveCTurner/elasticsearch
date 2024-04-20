@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.textstructure.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -20,7 +20,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class FindMessageStructureAction extends UnnecessaryActionTypeSubclass<FindStructureResponse> {
+public class FindMessageStructureAction extends ActionType<FindStructureResponse> {
 
     public static final FindMessageStructureAction INSTANCE = new FindMessageStructureAction();
     public static final String NAME = "cluster:monitor/text_structure/find_message_structure";

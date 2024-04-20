@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.cluster.desirednodes;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -37,7 +37,7 @@ import java.io.IOException;
 
 public class TransportDeleteDesiredNodesAction extends TransportMasterNodeAction<AcknowledgedRequest.Plain, ActionResponse.Empty> {
 
-    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/desired_nodes/delete");
+    public static final ActionType<ActionResponse.Empty> TYPE = new ActionType<>("cluster:admin/desired_nodes/delete");
     private final MasterServiceTaskQueue<DeleteDesiredNodesTask> taskQueue;
 
     @Inject

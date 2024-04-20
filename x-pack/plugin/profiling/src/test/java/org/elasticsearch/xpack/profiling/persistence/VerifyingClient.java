@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.profiling.persistence;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.TriFunction;
 import org.elasticsearch.test.client.NoOpClient;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -21,7 +21,7 @@ import org.junit.Assert;
  */
 class VerifyingClient extends NoOpClient {
 
-    private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+    private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
         Assert.fail("verifier not set");
         return null;
     };
@@ -33,7 +33,7 @@ class VerifyingClient extends NoOpClient {
     @Override
     @SuppressWarnings("unchecked")
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -44,7 +44,7 @@ class VerifyingClient extends NoOpClient {
         }
     }
 
-    public VerifyingClient setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+    public VerifyingClient setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
         this.verifier = verifier;
         return this;
     }

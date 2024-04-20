@@ -10,7 +10,7 @@ package org.elasticsearch.action.support.single.shard;
 
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 
 public abstract class SingleShardOperationRequestBuilder<
@@ -20,7 +20,7 @@ public abstract class SingleShardOperationRequestBuilder<
         Request,
         Response> {
 
-    protected SingleShardOperationRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
+    protected SingleShardOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
     }
 

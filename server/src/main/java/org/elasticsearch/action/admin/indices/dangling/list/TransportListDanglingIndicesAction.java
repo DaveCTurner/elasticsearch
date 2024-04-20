@@ -8,7 +8,7 @@
 
 package org.elasticsearch.action.admin.indices.dangling.list;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.indices.dangling.DanglingIndexInfo;
 import org.elasticsearch.action.support.ActionFilters;
@@ -37,7 +37,7 @@ public class TransportListDanglingIndicesAction extends TransportNodesAction<
     NodeListDanglingIndicesRequest,
     NodeListDanglingIndicesResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<ListDanglingIndicesResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/indices/dangling/list");
+    public static final ActionType<ListDanglingIndicesResponse> TYPE = new ActionType<>("cluster:admin/indices/dangling/list");
 
     private final DanglingIndicesState danglingIndicesState;
 

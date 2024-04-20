@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -21,7 +21,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import java.io.IOException;
 import java.util.Objects;
 
-public class UpgradeTransformsAction extends UnnecessaryActionTypeSubclass<UpgradeTransformsAction.Response> {
+public class UpgradeTransformsAction extends ActionType<UpgradeTransformsAction.Response> {
 
     public static final UpgradeTransformsAction INSTANCE = new UpgradeTransformsAction();
     public static final String NAME = "cluster:admin/transform/upgrade";

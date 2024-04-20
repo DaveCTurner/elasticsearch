@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.inference.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -17,7 +17,7 @@ import org.elasticsearch.inference.TaskType;
 import java.io.IOException;
 import java.util.Objects;
 
-public class DeleteInferenceModelAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteInferenceModelAction extends ActionType<AcknowledgedResponse> {
 
     public static final DeleteInferenceModelAction INSTANCE = new DeleteInferenceModelAction();
     public static final String NAME = "cluster:admin/xpack/inference/delete";

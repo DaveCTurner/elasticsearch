@@ -13,7 +13,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.UnavailableShardsException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -48,7 +48,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class GetGlobalCheckpointsAction extends UnnecessaryActionTypeSubclass<GetGlobalCheckpointsAction.Response> {
+public class GetGlobalCheckpointsAction extends ActionType<GetGlobalCheckpointsAction.Response> {
 
     public static final GetGlobalCheckpointsAction INSTANCE = new GetGlobalCheckpointsAction();
     public static final String NAME = "indices:monitor/fleet/global_checkpoints";

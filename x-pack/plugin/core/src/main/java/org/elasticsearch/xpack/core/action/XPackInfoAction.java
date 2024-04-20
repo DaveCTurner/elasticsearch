@@ -6,14 +6,14 @@
  */
 package org.elasticsearch.xpack.core.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.protocol.xpack.XPackInfoResponse;
 
 public class XPackInfoAction {
 
     public static final String NAME = "cluster:monitor/xpack/info";
-    public static final UnnecessaryActionTypeSubclass<XPackInfoResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<XPackInfoResponse> INSTANCE = new ActionType<>(NAME);
     public static final RemoteClusterActionType<XPackInfoResponse> REMOTE_TYPE = new RemoteClusterActionType<>(
         NAME,
         XPackInfoResponse::new

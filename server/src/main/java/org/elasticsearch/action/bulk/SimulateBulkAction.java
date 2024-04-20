@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.bulk;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SimulateBulkAction extends UnnecessaryActionTypeSubclass<BulkResponse> {
+public class SimulateBulkAction extends ActionType<BulkResponse> {
 
     public static final SimulateBulkAction INSTANCE = new SimulateBulkAction();
     public static final String NAME = "indices:data/write/simulate/bulk";

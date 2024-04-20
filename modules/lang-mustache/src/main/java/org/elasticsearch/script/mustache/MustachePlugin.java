@@ -10,7 +10,7 @@ package org.elasticsearch.script.mustache;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -36,8 +36,8 @@ import java.util.function.Supplier;
 
 public class MustachePlugin extends Plugin implements ScriptPlugin, ActionPlugin, SearchPlugin {
 
-    public static final UnnecessaryActionTypeSubclass<SearchTemplateResponse> SEARCH_TEMPLATE_ACTION = new UnnecessaryActionTypeSubclass<>("indices:data/read/search/template");
-    public static final UnnecessaryActionTypeSubclass<MultiSearchTemplateResponse> MULTI_SEARCH_TEMPLATE_ACTION = new UnnecessaryActionTypeSubclass<>(
+    public static final ActionType<SearchTemplateResponse> SEARCH_TEMPLATE_ACTION = new ActionType<>("indices:data/read/search/template");
+    public static final ActionType<MultiSearchTemplateResponse> MULTI_SEARCH_TEMPLATE_ACTION = new ActionType<>(
         "indices:data/read/msearch/template"
     );
 

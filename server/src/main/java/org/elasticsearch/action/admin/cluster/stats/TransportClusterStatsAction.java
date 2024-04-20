@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.cluster.stats;
 
 import org.apache.lucene.store.AlreadyClosedException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -62,7 +62,7 @@ public class TransportClusterStatsAction extends TransportNodesAction<
     TransportClusterStatsAction.ClusterStatsNodeRequest,
     ClusterStatsNodeResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<ClusterStatsResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/stats");
+    public static final ActionType<ClusterStatsResponse> TYPE = new ActionType<>("cluster:monitor/stats");
     private static final CommonStatsFlags SHARD_STATS_FLAGS = new CommonStatsFlags(
         CommonStatsFlags.Flag.Docs,
         CommonStatsFlags.Flag.Store,

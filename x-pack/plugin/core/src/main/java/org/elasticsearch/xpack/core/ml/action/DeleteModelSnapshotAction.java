@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -18,7 +18,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 
 import java.io.IOException;
 
-public class DeleteModelSnapshotAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteModelSnapshotAction extends ActionType<AcknowledgedResponse> {
 
     public static final DeleteModelSnapshotAction INSTANCE = new DeleteModelSnapshotAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/model_snapshots/delete";

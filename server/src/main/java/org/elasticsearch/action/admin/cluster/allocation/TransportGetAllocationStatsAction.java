@@ -12,7 +12,7 @@ import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeReadAction;
@@ -41,7 +41,7 @@ public class TransportGetAllocationStatsAction extends TransportMasterNodeReadAc
     TransportGetAllocationStatsAction.Request,
     TransportGetAllocationStatsAction.Response> {
 
-    public static final UnnecessaryActionTypeSubclass<Response> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/allocation/stats");
+    public static final ActionType<TransportGetAllocationStatsAction.Response> TYPE = new ActionType<>("cluster:monitor/allocation/stats");
 
     private final AllocationStatsService allocationStatsService;
     private final DiskThresholdSettings diskThresholdSettings;

@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.profiling.persistence;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
@@ -369,7 +369,7 @@ public class ProfilingDataStreamManagerTests extends ESTestCase {
 
     private ActionResponse verifyDataStreamInstalled(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -387,7 +387,7 @@ public class ProfilingDataStreamManagerTests extends ESTestCase {
 
     private ActionResponse verifyDataStreamRolledOver(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {
@@ -417,7 +417,7 @@ public class ProfilingDataStreamManagerTests extends ESTestCase {
         String indexName,
         AtomicInteger mappingUpdates,
         AtomicInteger settingsUpdates,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

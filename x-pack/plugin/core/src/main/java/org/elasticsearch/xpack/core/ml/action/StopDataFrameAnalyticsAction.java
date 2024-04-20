@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.Strings;
@@ -34,7 +34,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-public class StopDataFrameAnalyticsAction extends UnnecessaryActionTypeSubclass<StopDataFrameAnalyticsAction.Response> {
+public class StopDataFrameAnalyticsAction extends ActionType<StopDataFrameAnalyticsAction.Response> {
 
     public static final StopDataFrameAnalyticsAction INSTANCE = new StopDataFrameAnalyticsAction();
     public static final String NAME = "cluster:admin/xpack/ml/data_frame/analytics/stop";

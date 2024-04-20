@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.sql.plugin;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.xpack.ql.async.QlStatusResponse;
 
 import static org.elasticsearch.xpack.core.sql.SqlAsyncActionNames.SQL_ASYNC_GET_STATUS_ACTION_NAME;
 
-public class SqlAsyncGetStatusAction extends UnnecessaryActionTypeSubclass<QlStatusResponse> {
+public class SqlAsyncGetStatusAction extends ActionType<QlStatusResponse> {
     public static final SqlAsyncGetStatusAction INSTANCE = new SqlAsyncGetStatusAction();
     public static final String NAME = SQL_ASYNC_GET_STATUS_ACTION_NAME;
 

@@ -10,7 +10,7 @@ package org.elasticsearch.client.internal;
 
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.reroute.TransportClusterRerouteAction;
 import org.elasticsearch.action.admin.cluster.snapshots.create.TransportCreateSnapshotAction;
 import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
@@ -46,7 +46,7 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
         .put(ThreadContext.PREFIX + ".key2", "val 2")
         .build();
 
-    private static final UnnecessaryActionTypeSubclass<?>[] ACTIONS = new UnnecessaryActionTypeSubclass<?>[] {
+    private static final ActionType<?>[] ACTIONS = new ActionType<?>[] {
         // client actions
         TransportGetAction.TYPE,
         TransportSearchAction.TYPE,
@@ -87,7 +87,7 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
         terminate(threadPool);
     }
 
-    protected abstract Client buildClient(Settings headersSettings, UnnecessaryActionTypeSubclass<?>[] testedActions);
+    protected abstract Client buildClient(Settings headersSettings, ActionType<?>[] testedActions);
 
     public void testActions() {
 

@@ -11,7 +11,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -25,7 +25,7 @@ import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
 
-public class FrozenCacheInfoAction extends UnnecessaryActionTypeSubclass<FrozenCacheInfoResponse> {
+public class FrozenCacheInfoAction extends ActionType<FrozenCacheInfoResponse> {
 
     public static final String NAME = "internal:admin/xpack/searchable_snapshots/frozen_cache_info";
     public static final FrozenCacheInfoAction INSTANCE = new FrozenCacheInfoAction();

@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.security.action.oidc;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class OpenIdConnectPrepareAuthenticationAction extends UnnecessaryActionTypeSubclass<OpenIdConnectPrepareAuthenticationResponse> {
+public class OpenIdConnectPrepareAuthenticationAction extends ActionType<OpenIdConnectPrepareAuthenticationResponse> {
 
     public static final OpenIdConnectPrepareAuthenticationAction INSTANCE = new OpenIdConnectPrepareAuthenticationAction();
     public static final String NAME = "cluster:admin/xpack/security/oidc/prepare";

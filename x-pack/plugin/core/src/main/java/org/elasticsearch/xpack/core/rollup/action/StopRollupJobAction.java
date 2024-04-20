@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.rollup.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-public class StopRollupJobAction extends UnnecessaryActionTypeSubclass<StopRollupJobAction.Response> {
+public class StopRollupJobAction extends ActionType<StopRollupJobAction.Response> {
 
     public static final StopRollupJobAction INSTANCE = new StopRollupJobAction();
     public static final String NAME = "cluster:admin/xpack/rollup/stop";

@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.snapshots.status;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
@@ -50,7 +50,7 @@ public class TransportNodesSnapshotsStatus extends TransportNodesAction<
     TransportNodesSnapshotsStatus.NodeSnapshotStatus> {
 
     public static final String ACTION_NAME = TransportSnapshotsStatusAction.TYPE.name() + "[nodes]";
-    public static final UnnecessaryActionTypeSubclass<NodesSnapshotStatus> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
+    public static final ActionType<NodesSnapshotStatus> TYPE = new ActionType<>(ACTION_NAME);
 
     private final SnapshotShardsService snapshotShardsService;
 

@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetBasicStatusAction extends UnnecessaryActionTypeSubclass<GetBasicStatusResponse> {
+public class GetBasicStatusAction extends ActionType<GetBasicStatusResponse> {
 
     public static final GetBasicStatusAction INSTANCE = new GetBasicStatusAction();
     public static final String NAME = "cluster:admin/xpack/license/basic_status";

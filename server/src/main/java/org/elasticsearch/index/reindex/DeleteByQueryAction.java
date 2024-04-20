@@ -8,9 +8,9 @@
 
 package org.elasticsearch.index.reindex;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class DeleteByQueryAction extends UnnecessaryActionTypeSubclass<BulkByScrollResponse> {
+public class DeleteByQueryAction extends ActionType<BulkByScrollResponse> {
 
     public static final DeleteByQueryAction INSTANCE = new DeleteByQueryAction();
     public static final String NAME = "indices:data/write/delete/byquery";

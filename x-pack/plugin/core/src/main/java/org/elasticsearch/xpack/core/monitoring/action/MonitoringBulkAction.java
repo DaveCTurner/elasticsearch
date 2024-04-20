@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.monitoring.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class MonitoringBulkAction extends UnnecessaryActionTypeSubclass<MonitoringBulkResponse> {
+public class MonitoringBulkAction extends ActionType<MonitoringBulkResponse> {
 
     public static final MonitoringBulkAction INSTANCE = new MonitoringBulkAction();
     public static final String NAME = "cluster:admin/xpack/monitoring/bulk";

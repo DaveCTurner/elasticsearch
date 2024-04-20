@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.application.connector.syncjob.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -29,7 +29,7 @@ import static org.elasticsearch.xpack.application.connector.syncjob.ConnectorSyn
 public class CancelConnectorSyncJobAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/sync_job/cancel";
-    public static final UnnecessaryActionTypeSubclass<ConnectorUpdateActionResponse> INSTANCE = new UnnecessaryActionTypeSubclass<ConnectorUpdateActionResponse>(NAME);
+    public static final ActionType<ConnectorUpdateActionResponse> INSTANCE = new ActionType<ConnectorUpdateActionResponse>(NAME);
 
     private CancelConnectorSyncJobAction() {/* no instances */}
 

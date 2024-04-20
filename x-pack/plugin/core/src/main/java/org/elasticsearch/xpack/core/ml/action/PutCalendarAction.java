@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -26,7 +26,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class PutCalendarAction extends UnnecessaryActionTypeSubclass<PutCalendarAction.Response> {
+public class PutCalendarAction extends ActionType<PutCalendarAction.Response> {
     public static final PutCalendarAction INSTANCE = new PutCalendarAction();
     public static final String NAME = "cluster:admin/xpack/ml/calendars/put";
 

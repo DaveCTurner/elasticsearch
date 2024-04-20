@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.oidc;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for initiating an authentication process using OpenID Connect
  */
-public final class OpenIdConnectAuthenticateAction extends UnnecessaryActionTypeSubclass<OpenIdConnectAuthenticateResponse> {
+public final class OpenIdConnectAuthenticateAction extends ActionType<OpenIdConnectAuthenticateResponse> {
 
     public static final OpenIdConnectAuthenticateAction INSTANCE = new OpenIdConnectAuthenticateAction();
     public static final String NAME = "cluster:admin/xpack/security/oidc/authenticate";

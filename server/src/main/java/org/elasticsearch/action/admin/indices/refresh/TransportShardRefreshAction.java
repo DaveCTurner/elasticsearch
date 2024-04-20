@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.refresh;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionListenerResponseHandler;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.BasicReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
@@ -42,7 +42,7 @@ public class TransportShardRefreshAction extends TransportReplicationAction<
     private static final Logger logger = LogManager.getLogger(TransportShardRefreshAction.class);
 
     public static final String NAME = RefreshAction.NAME + "[s]";
-    public static final UnnecessaryActionTypeSubclass<ReplicationResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<ReplicationResponse> TYPE = new ActionType<>(NAME);
     public static final String SOURCE_API = "api";
 
     private final Executor refreshExecutor;

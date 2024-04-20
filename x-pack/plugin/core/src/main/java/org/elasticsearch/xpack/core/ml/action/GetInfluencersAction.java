@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -26,7 +26,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetInfluencersAction extends UnnecessaryActionTypeSubclass<GetInfluencersAction.Response> {
+public class GetInfluencersAction extends ActionType<GetInfluencersAction.Response> {
 
     public static final GetInfluencersAction INSTANCE = new GetInfluencersAction();
     public static final String NAME = "cluster:monitor/xpack/ml/job/results/influencers/get";

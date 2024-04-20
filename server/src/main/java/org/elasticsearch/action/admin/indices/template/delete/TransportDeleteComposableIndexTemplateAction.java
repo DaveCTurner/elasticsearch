@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.template.delete;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.template.reservedstate.ReservedComposableIndexTemplateAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -43,7 +43,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
 public class TransportDeleteComposableIndexTemplateAction extends AcknowledgedTransportMasterNodeAction<
     TransportDeleteComposableIndexTemplateAction.Request> {
 
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:admin/index_template/delete");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:admin/index_template/delete");
     private final MetadataIndexTemplateService indexTemplateService;
 
     @Inject

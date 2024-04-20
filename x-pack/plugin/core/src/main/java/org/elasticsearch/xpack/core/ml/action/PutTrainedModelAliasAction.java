@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 import static org.elasticsearch.xpack.core.ml.job.messages.Messages.INVALID_MODEL_ALIAS;
 
-public class PutTrainedModelAliasAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class PutTrainedModelAliasAction extends ActionType<AcknowledgedResponse> {
 
     // NOTE this is similar to our valid ID check. The difference here is that model_aliases cannot end in numbers
     // This is to protect our automatic model naming conventions from hitting weird model_alias conflicts

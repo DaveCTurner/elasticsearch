@@ -12,7 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
@@ -40,7 +40,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class GetHealthAction extends UnnecessaryActionTypeSubclass<GetHealthAction.Response> {
+public class GetHealthAction extends ActionType<GetHealthAction.Response> {
 
     public static final GetHealthAction INSTANCE = new GetHealthAction();
     public static final String NAME = "cluster:monitor/health_api";

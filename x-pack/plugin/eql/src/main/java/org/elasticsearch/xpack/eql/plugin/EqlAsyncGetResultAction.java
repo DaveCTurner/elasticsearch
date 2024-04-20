@@ -6,11 +6,11 @@
  */
 package org.elasticsearch.xpack.eql.plugin;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.xpack.core.eql.EqlAsyncActionNames;
 import org.elasticsearch.xpack.eql.action.EqlSearchResponse;
 
-public class EqlAsyncGetResultAction extends UnnecessaryActionTypeSubclass<EqlSearchResponse> {
+public class EqlAsyncGetResultAction extends ActionType<EqlSearchResponse> {
     public static final EqlAsyncGetResultAction INSTANCE = new EqlAsyncGetResultAction();
 
     private EqlAsyncGetResultAction() {

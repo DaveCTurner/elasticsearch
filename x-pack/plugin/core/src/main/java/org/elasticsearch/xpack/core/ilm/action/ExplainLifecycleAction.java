@@ -7,10 +7,10 @@
 
 package org.elasticsearch.xpack.core.ilm.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.xpack.core.ilm.ExplainLifecycleResponse;
 
-public class ExplainLifecycleAction extends UnnecessaryActionTypeSubclass<ExplainLifecycleResponse> {
+public class ExplainLifecycleAction extends ActionType<ExplainLifecycleResponse> {
     public static final ExplainLifecycleAction INSTANCE = new ExplainLifecycleAction();
     public static final String NAME = "indices:admin/ilm/explain";
 

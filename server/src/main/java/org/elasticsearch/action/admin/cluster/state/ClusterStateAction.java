@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.cluster.state;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 
-public class ClusterStateAction extends UnnecessaryActionTypeSubclass<ClusterStateResponse> {
+public class ClusterStateAction extends ActionType<ClusterStateResponse> {
 
     public static final ClusterStateAction INSTANCE = new ClusterStateAction();
     public static final String NAME = "cluster:monitor/state";

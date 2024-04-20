@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -42,7 +42,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class PreviewTransformAction extends UnnecessaryActionTypeSubclass<PreviewTransformAction.Response> {
+public class PreviewTransformAction extends ActionType<PreviewTransformAction.Response> {
 
     public static final PreviewTransformAction INSTANCE = new PreviewTransformAction();
     public static final String NAME = "cluster:admin/transform/preview";

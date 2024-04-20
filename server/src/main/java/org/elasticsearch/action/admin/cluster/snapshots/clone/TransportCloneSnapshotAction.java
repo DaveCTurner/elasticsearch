@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.snapshots.clone;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.AcknowledgedTransportMasterNodeAction;
@@ -30,7 +30,7 @@ import org.elasticsearch.transport.TransportService;
  */
 public final class TransportCloneSnapshotAction extends AcknowledgedTransportMasterNodeAction<CloneSnapshotRequest> {
 
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/snapshot/clone");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/snapshot/clone");
     private final SnapshotsService snapshotsService;
 
     @Inject

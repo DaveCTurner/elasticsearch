@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -37,7 +37,7 @@ import java.util.Set;
 import static org.elasticsearch.core.RestApiVersion.onOrAfter;
 import static org.elasticsearch.core.Strings.format;
 
-public class GetTrainedModelsStatsAction extends UnnecessaryActionTypeSubclass<GetTrainedModelsStatsAction.Response> {
+public class GetTrainedModelsStatsAction extends ActionType<GetTrainedModelsStatsAction.Response> {
 
     public static final GetTrainedModelsStatsAction INSTANCE = new GetTrainedModelsStatsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/inference/stats/get";

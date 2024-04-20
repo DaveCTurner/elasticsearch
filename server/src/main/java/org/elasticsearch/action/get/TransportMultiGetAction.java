@@ -9,7 +9,7 @@
 package org.elasticsearch.action.get;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DelegatingActionListener;
 import org.elasticsearch.action.RoutingMissingException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TransportMultiGetAction extends HandledTransportAction<MultiGetRequest, MultiGetResponse> {
 
     public static final String NAME = "indices:data/read/mget";
-    public static final UnnecessaryActionTypeSubclass<MultiGetResponse> TYPE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<MultiGetResponse> TYPE = new ActionType<>(NAME);
     private final ClusterService clusterService;
     private final NodeClient client;
     private final IndexNameExpressionResolver indexNameExpressionResolver;

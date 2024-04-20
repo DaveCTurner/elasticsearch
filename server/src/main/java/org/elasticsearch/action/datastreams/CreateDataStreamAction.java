@@ -8,7 +8,7 @@
 package org.elasticsearch.action.datastreams;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -21,7 +21,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 import java.util.Objects;
 
-public class CreateDataStreamAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class CreateDataStreamAction extends ActionType<AcknowledgedResponse> {
 
     public static final CreateDataStreamAction INSTANCE = new CreateDataStreamAction();
     public static final String NAME = "indices:admin/data_stream/create";

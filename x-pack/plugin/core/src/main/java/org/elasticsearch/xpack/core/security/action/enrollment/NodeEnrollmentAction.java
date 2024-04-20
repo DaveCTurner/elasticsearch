@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.enrollment;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public final class NodeEnrollmentAction extends UnnecessaryActionTypeSubclass<NodeEnrollmentResponse> {
+public final class NodeEnrollmentAction extends ActionType<NodeEnrollmentResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/enroll/node";
     public static final NodeEnrollmentAction INSTANCE = new NodeEnrollmentAction();

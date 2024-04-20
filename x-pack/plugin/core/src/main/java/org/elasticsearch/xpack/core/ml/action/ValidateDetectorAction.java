@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -20,7 +20,7 @@ import org.elasticsearch.xpack.core.ml.job.config.Detector;
 import java.io.IOException;
 import java.util.Objects;
 
-public class ValidateDetectorAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class ValidateDetectorAction extends ActionType<AcknowledgedResponse> {
 
     public static final ValidateDetectorAction INSTANCE = new ValidateDetectorAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/validate/detector";

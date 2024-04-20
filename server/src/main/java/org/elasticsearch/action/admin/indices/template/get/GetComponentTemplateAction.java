@@ -11,7 +11,7 @@ package org.elasticsearch.action.admin.indices.template.get;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.rollover.RolloverConfiguration;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.cluster.metadata.ComponentTemplate;
@@ -30,7 +30,7 @@ import java.util.Objects;
 /**
  * Action to retrieve one or more component templates
  */
-public class GetComponentTemplateAction extends UnnecessaryActionTypeSubclass<GetComponentTemplateAction.Response> {
+public class GetComponentTemplateAction extends ActionType<GetComponentTemplateAction.Response> {
 
     public static final GetComponentTemplateAction INSTANCE = new GetComponentTemplateAction();
     public static final String NAME = "cluster:admin/component_template/get";

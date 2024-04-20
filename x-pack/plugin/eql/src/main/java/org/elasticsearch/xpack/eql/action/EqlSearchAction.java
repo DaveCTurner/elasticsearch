@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.eql.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class EqlSearchAction extends UnnecessaryActionTypeSubclass<EqlSearchResponse> {
+public class EqlSearchAction extends ActionType<EqlSearchResponse> {
     public static final EqlSearchAction INSTANCE = new EqlSearchAction();
     public static final String NAME = "indices:data/read/eql";
 

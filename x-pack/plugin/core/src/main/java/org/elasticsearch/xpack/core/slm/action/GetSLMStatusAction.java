@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.slm.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -17,7 +17,7 @@ import org.elasticsearch.xpack.core.ilm.OperationMode;
 
 import java.io.IOException;
 
-public class GetSLMStatusAction extends UnnecessaryActionTypeSubclass<GetSLMStatusAction.Response> {
+public class GetSLMStatusAction extends ActionType<GetSLMStatusAction.Response> {
     public static final GetSLMStatusAction INSTANCE = new GetSLMStatusAction();
     public static final String NAME = "cluster:admin/slm/status";
 

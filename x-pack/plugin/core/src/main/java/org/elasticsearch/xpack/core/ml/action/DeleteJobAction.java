@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -18,7 +18,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class DeleteJobAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteJobAction extends ActionType<AcknowledgedResponse> {
 
     public static final DeleteJobAction INSTANCE = new DeleteJobAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/delete";

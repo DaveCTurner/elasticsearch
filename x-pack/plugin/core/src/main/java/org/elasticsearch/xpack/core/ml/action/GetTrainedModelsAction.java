@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -27,7 +27,7 @@ import java.util.Set;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class GetTrainedModelsAction extends UnnecessaryActionTypeSubclass<GetTrainedModelsAction.Response> {
+public class GetTrainedModelsAction extends ActionType<GetTrainedModelsAction.Response> {
 
     public static final GetTrainedModelsAction INSTANCE = new GetTrainedModelsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/inference/get";

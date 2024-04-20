@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.monitoring.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class MonitoringMigrateAlertsAction extends UnnecessaryActionTypeSubclass<MonitoringMigrateAlertsResponse> {
+public class MonitoringMigrateAlertsAction extends ActionType<MonitoringMigrateAlertsResponse> {
 
     public static final MonitoringMigrateAlertsAction INSTANCE = new MonitoringMigrateAlertsAction();
     public static final String NAME = "cluster:admin/xpack/monitoring/migrate/alerts";

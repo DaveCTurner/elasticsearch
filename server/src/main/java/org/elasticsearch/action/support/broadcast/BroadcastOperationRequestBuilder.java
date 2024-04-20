@@ -9,7 +9,7 @@
 package org.elasticsearch.action.support.broadcast;
 
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.core.TimeValue;
@@ -21,7 +21,7 @@ public abstract class BroadcastOperationRequestBuilder<
         Request,
         Response> {
 
-    protected BroadcastOperationRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
+    protected BroadcastOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
     }
 

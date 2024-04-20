@@ -9,7 +9,7 @@
 package org.elasticsearch.index.reindex;
 
 import org.elasticsearch.action.ActionRequestLazyBuilder;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
@@ -38,7 +38,7 @@ public abstract class AbstractBulkByScrollRequestBuilder<
 
     protected AbstractBulkByScrollRequestBuilder(
         ElasticsearchClient client,
-        UnnecessaryActionTypeSubclass<BulkByScrollResponse> action,
+        ActionType<BulkByScrollResponse> action,
         SearchRequestBuilder source
     ) {
         super(client, action);

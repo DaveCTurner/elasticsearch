@@ -8,7 +8,7 @@
 package org.elasticsearch.action.datastreams;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -24,7 +24,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class DeleteDataStreamAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteDataStreamAction extends ActionType<AcknowledgedResponse> {
 
     public static final DeleteDataStreamAction INSTANCE = new DeleteDataStreamAction();
     public static final String NAME = "indices:admin/data_stream/delete";

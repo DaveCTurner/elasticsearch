@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.slm.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -24,7 +24,7 @@ import java.util.Objects;
  * These are retrieved from the master's cluster state and contain numbers related to the count of
  * snapshots taken or deleted, as well as retention runs and time spent deleting snapshots.
  */
-public class GetSnapshotLifecycleStatsAction extends UnnecessaryActionTypeSubclass<GetSnapshotLifecycleStatsAction.Response> {
+public class GetSnapshotLifecycleStatsAction extends ActionType<GetSnapshotLifecycleStatsAction.Response> {
     public static final GetSnapshotLifecycleStatsAction INSTANCE = new GetSnapshotLifecycleStatsAction();
     public static final String NAME = "cluster:admin/slm/stats";
 

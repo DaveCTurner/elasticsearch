@@ -11,7 +11,7 @@ package org.elasticsearch.action.synonyms;
 import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -19,7 +19,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 import java.util.Objects;
 
-public class DeleteSynonymsAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteSynonymsAction extends ActionType<AcknowledgedResponse> {
 
     public static final DeleteSynonymsAction INSTANCE = new DeleteSynonymsAction();
     public static final String NAME = "cluster:admin/synonyms/delete";

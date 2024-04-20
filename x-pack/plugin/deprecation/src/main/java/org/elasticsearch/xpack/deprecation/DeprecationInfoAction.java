@@ -10,7 +10,7 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class DeprecationInfoAction extends UnnecessaryActionTypeSubclass<DeprecationInfoAction.Response> {
+public class DeprecationInfoAction extends ActionType<DeprecationInfoAction.Response> {
 
     public static final DeprecationInfoAction INSTANCE = new DeprecationInfoAction();
     public static final String NAME = "cluster:admin/xpack/deprecation/info";

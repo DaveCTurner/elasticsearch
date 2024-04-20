@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.cluster.snapshots.features;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /** Action for resetting feature states, mostly meaning system indices */
-public class ResetFeatureStateAction extends UnnecessaryActionTypeSubclass<ResetFeatureStateResponse> {
+public class ResetFeatureStateAction extends ActionType<ResetFeatureStateResponse> {
 
     public static final ResetFeatureStateAction INSTANCE = new ResetFeatureStateAction();
     public static final String NAME = "cluster:admin/features/reset";

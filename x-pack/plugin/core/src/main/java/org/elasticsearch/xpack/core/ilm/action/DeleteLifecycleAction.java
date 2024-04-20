@@ -7,7 +7,7 @@
 
 package org.elasticsearch.xpack.core.ilm.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -19,7 +19,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.core.Strings.format;
 
-public class DeleteLifecycleAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteLifecycleAction extends ActionType<AcknowledgedResponse> {
     public static final DeleteLifecycleAction INSTANCE = new DeleteLifecycleAction();
     public static final String NAME = "cluster:admin/ilm/delete";
 

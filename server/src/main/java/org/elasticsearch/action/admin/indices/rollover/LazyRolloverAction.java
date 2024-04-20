@@ -8,7 +8,7 @@
 package org.elasticsearch.action.admin.indices.rollover;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.datastreams.autosharding.DataStreamAutoShardingService;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.internal.Client;
@@ -32,7 +32,7 @@ import java.util.Map;
  * API that lazily rolls over a data stream that has the flag {@link DataStream#rolloverOnWrite()} enabled. These requests always
  * originate from requests that write into the data stream.
  */
-public final class LazyRolloverAction extends UnnecessaryActionTypeSubclass<RolloverResponse> {
+public final class LazyRolloverAction extends ActionType<RolloverResponse> {
 
     public static final NodeFeature DATA_STREAM_LAZY_ROLLOVER = new NodeFeature("data_stream.rollover.lazy");
 

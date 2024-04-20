@@ -12,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.support.ActionFilters;
@@ -29,7 +29,7 @@ import static org.elasticsearch.action.search.ParsedScrollId.QUERY_THEN_FETCH_TY
 import static org.elasticsearch.action.search.TransportSearchHelper.parseScrollId;
 
 public class TransportSearchScrollAction extends HandledTransportAction<SearchScrollRequest, SearchResponse> {
-    public static final UnnecessaryActionTypeSubclass<SearchResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:data/read/scroll");
+    public static final ActionType<SearchResponse> TYPE = new ActionType<>("indices:data/read/scroll");
     public static final RemoteClusterActionType<SearchResponse> REMOTE_TYPE = new RemoteClusterActionType<>(
         TYPE.name(),
         SearchResponse::new

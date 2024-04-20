@@ -8,7 +8,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -25,7 +25,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class GetCalendarsAction extends UnnecessaryActionTypeSubclass<GetCalendarsAction.Response> {
+public class GetCalendarsAction extends ActionType<GetCalendarsAction.Response> {
 
     public static final GetCalendarsAction INSTANCE = new GetCalendarsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/calendars/get";

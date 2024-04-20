@@ -8,9 +8,9 @@
 
 package org.elasticsearch.action.admin.indices.stats;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class FieldUsageStatsAction extends UnnecessaryActionTypeSubclass<FieldUsageStatsResponse> {
+public class FieldUsageStatsAction extends ActionType<FieldUsageStatsResponse> {
 
     public static final FieldUsageStatsAction INSTANCE = new FieldUsageStatsAction();
     public static final String NAME = "indices:monitor/field_usage_stats";

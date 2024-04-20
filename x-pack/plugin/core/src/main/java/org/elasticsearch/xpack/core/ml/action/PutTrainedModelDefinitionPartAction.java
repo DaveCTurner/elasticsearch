@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -27,7 +27,7 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class PutTrainedModelDefinitionPartAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class PutTrainedModelDefinitionPartAction extends ActionType<AcknowledgedResponse> {
     public static final int MAX_NUM_NATIVE_DEFINITION_PARTS = 10_000;
 
     public static final PutTrainedModelDefinitionPartAction INSTANCE = new PutTrainedModelDefinitionPartAction();

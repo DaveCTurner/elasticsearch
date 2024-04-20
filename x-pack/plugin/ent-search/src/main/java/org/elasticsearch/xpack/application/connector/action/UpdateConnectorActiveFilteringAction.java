@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.application.connector.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -23,7 +23,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
 public class UpdateConnectorActiveFilteringAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/update_filtering/activate";
-    public static final UnnecessaryActionTypeSubclass<ConnectorUpdateActionResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<ConnectorUpdateActionResponse> INSTANCE = new ActionType<>(NAME);
 
     private UpdateConnectorActiveFilteringAction() {/* no instances */}
 

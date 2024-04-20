@@ -11,7 +11,7 @@ package org.elasticsearch.action.synonyms;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.ValidateActions;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -23,7 +23,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import java.io.IOException;
 import java.util.Objects;
 
-public class GetSynonymRuleAction extends UnnecessaryActionTypeSubclass<GetSynonymRuleAction.Response> {
+public class GetSynonymRuleAction extends ActionType<GetSynonymRuleAction.Response> {
 
     public static final GetSynonymRuleAction INSTANCE = new GetSynonymRuleAction();
     public static final String NAME = "cluster:admin/synonym_rules/get";

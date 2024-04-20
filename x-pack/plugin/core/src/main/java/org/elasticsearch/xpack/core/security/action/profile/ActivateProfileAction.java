@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.profile;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class ActivateProfileAction extends UnnecessaryActionTypeSubclass<ActivateProfileResponse> {
+public class ActivateProfileAction extends ActionType<ActivateProfileResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/profile/activate";
     public static final ActivateProfileAction INSTANCE = new ActivateProfileAction();

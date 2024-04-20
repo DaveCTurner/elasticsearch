@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.node.stats;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.cluster.allocation.TransportGetAllocationStatsAction;
 import org.elasticsearch.action.support.ActionFilters;
@@ -46,7 +46,7 @@ public class TransportNodesStatsAction extends TransportNodesAction<
     TransportNodesStatsAction.NodeStatsRequest,
     NodeStats> {
 
-    public static final UnnecessaryActionTypeSubclass<NodesStatsResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:monitor/nodes/stats");
+    public static final ActionType<NodesStatsResponse> TYPE = new ActionType<>("cluster:monitor/nodes/stats");
 
     private final NodeService nodeService;
     private final NodeClient client;

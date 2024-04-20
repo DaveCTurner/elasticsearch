@@ -7,12 +7,12 @@
 
 package org.elasticsearch.xpack.idp.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * Action to remove a service provider from the IdP.
  */
-public class DeleteSamlServiceProviderAction extends UnnecessaryActionTypeSubclass<DeleteSamlServiceProviderResponse> {
+public class DeleteSamlServiceProviderAction extends ActionType<DeleteSamlServiceProviderResponse> {
 
     public static final String NAME = "cluster:admin/idp/saml/sp/delete";
     public static final DeleteSamlServiceProviderAction INSTANCE = new DeleteSamlServiceProviderAction(NAME);

@@ -12,7 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.TaskOperationFailure;
@@ -71,8 +71,8 @@ public class TestTaskPlugin extends Plugin implements ActionPlugin, NetworkPlugi
 
     private static final Logger logger = LogManager.getLogger(TestTaskPlugin.class);
 
-    public static final UnnecessaryActionTypeSubclass<NodesResponse> TEST_TASK_ACTION = new UnnecessaryActionTypeSubclass<>("cluster:admin/tasks/test");
-    public static final UnnecessaryActionTypeSubclass<UnblockTestTasksResponse> UNBLOCK_TASK_ACTION = new UnnecessaryActionTypeSubclass<>("cluster:admin/tasks/testunblock");
+    public static final ActionType<NodesResponse> TEST_TASK_ACTION = new ActionType<>("cluster:admin/tasks/test");
+    public static final ActionType<UnblockTestTasksResponse> UNBLOCK_TASK_ACTION = new ActionType<>("cluster:admin/tasks/testunblock");
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {

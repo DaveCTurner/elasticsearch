@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -18,7 +18,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class DeleteTrainedModelAssignmentAction extends UnnecessaryActionTypeSubclass<AcknowledgedResponse> {
+public class DeleteTrainedModelAssignmentAction extends ActionType<AcknowledgedResponse> {
     public static final DeleteTrainedModelAssignmentAction INSTANCE = new DeleteTrainedModelAssignmentAction();
     public static final String NAME = "cluster:internal/xpack/ml/model_allocation/delete";
 

@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.xpack.core.XPackField;
 
 import java.util.List;
@@ -22,34 +22,34 @@ public class XPackInfoFeatureAction {
 
     private static final String BASE_NAME = "cluster:monitor/xpack/info/";
 
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> SECURITY = xpackInfoFeatureAction(XPackField.SECURITY);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> MONITORING = xpackInfoFeatureAction(XPackField.MONITORING);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> WATCHER = xpackInfoFeatureAction(XPackField.WATCHER);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> GRAPH = xpackInfoFeatureAction(XPackField.GRAPH);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> MACHINE_LEARNING = xpackInfoFeatureAction(XPackField.MACHINE_LEARNING);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> LOGSTASH = xpackInfoFeatureAction(XPackField.LOGSTASH);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> EQL = xpackInfoFeatureAction(XPackField.EQL);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ESQL = xpackInfoFeatureAction(XPackField.ESQL);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> SQL = xpackInfoFeatureAction(XPackField.SQL);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ROLLUP = xpackInfoFeatureAction(XPackField.ROLLUP);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> INDEX_LIFECYCLE = xpackInfoFeatureAction(XPackField.INDEX_LIFECYCLE);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> SNAPSHOT_LIFECYCLE = xpackInfoFeatureAction(XPackField.SNAPSHOT_LIFECYCLE);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> CCR = xpackInfoFeatureAction(XPackField.CCR);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> TRANSFORM = xpackInfoFeatureAction(XPackField.TRANSFORM);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> VOTING_ONLY = xpackInfoFeatureAction(XPackField.VOTING_ONLY);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> FROZEN_INDICES = xpackInfoFeatureAction(XPackField.FROZEN_INDICES);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> SPATIAL = xpackInfoFeatureAction(XPackField.SPATIAL);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ANALYTICS = xpackInfoFeatureAction(XPackField.ANALYTICS);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ENRICH = xpackInfoFeatureAction(XPackField.ENRICH);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> SEARCHABLE_SNAPSHOTS = xpackInfoFeatureAction(XPackField.SEARCHABLE_SNAPSHOTS);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> DATA_STREAMS = xpackInfoFeatureAction(XPackField.DATA_STREAMS);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> DATA_TIERS = xpackInfoFeatureAction(XPackField.DATA_TIERS);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> AGGREGATE_METRIC = xpackInfoFeatureAction(XPackField.AGGREGATE_METRIC);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ARCHIVE = xpackInfoFeatureAction(XPackField.ARCHIVE);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> ENTERPRISE_SEARCH = xpackInfoFeatureAction(XPackField.ENTERPRISE_SEARCH);
-    public static final UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> UNIVERSAL_PROFILING = xpackInfoFeatureAction(XPackField.UNIVERSAL_PROFILING);
+    public static final ActionType<XPackInfoFeatureResponse> SECURITY = xpackInfoFeatureAction(XPackField.SECURITY);
+    public static final ActionType<XPackInfoFeatureResponse> MONITORING = xpackInfoFeatureAction(XPackField.MONITORING);
+    public static final ActionType<XPackInfoFeatureResponse> WATCHER = xpackInfoFeatureAction(XPackField.WATCHER);
+    public static final ActionType<XPackInfoFeatureResponse> GRAPH = xpackInfoFeatureAction(XPackField.GRAPH);
+    public static final ActionType<XPackInfoFeatureResponse> MACHINE_LEARNING = xpackInfoFeatureAction(XPackField.MACHINE_LEARNING);
+    public static final ActionType<XPackInfoFeatureResponse> LOGSTASH = xpackInfoFeatureAction(XPackField.LOGSTASH);
+    public static final ActionType<XPackInfoFeatureResponse> EQL = xpackInfoFeatureAction(XPackField.EQL);
+    public static final ActionType<XPackInfoFeatureResponse> ESQL = xpackInfoFeatureAction(XPackField.ESQL);
+    public static final ActionType<XPackInfoFeatureResponse> SQL = xpackInfoFeatureAction(XPackField.SQL);
+    public static final ActionType<XPackInfoFeatureResponse> ROLLUP = xpackInfoFeatureAction(XPackField.ROLLUP);
+    public static final ActionType<XPackInfoFeatureResponse> INDEX_LIFECYCLE = xpackInfoFeatureAction(XPackField.INDEX_LIFECYCLE);
+    public static final ActionType<XPackInfoFeatureResponse> SNAPSHOT_LIFECYCLE = xpackInfoFeatureAction(XPackField.SNAPSHOT_LIFECYCLE);
+    public static final ActionType<XPackInfoFeatureResponse> CCR = xpackInfoFeatureAction(XPackField.CCR);
+    public static final ActionType<XPackInfoFeatureResponse> TRANSFORM = xpackInfoFeatureAction(XPackField.TRANSFORM);
+    public static final ActionType<XPackInfoFeatureResponse> VOTING_ONLY = xpackInfoFeatureAction(XPackField.VOTING_ONLY);
+    public static final ActionType<XPackInfoFeatureResponse> FROZEN_INDICES = xpackInfoFeatureAction(XPackField.FROZEN_INDICES);
+    public static final ActionType<XPackInfoFeatureResponse> SPATIAL = xpackInfoFeatureAction(XPackField.SPATIAL);
+    public static final ActionType<XPackInfoFeatureResponse> ANALYTICS = xpackInfoFeatureAction(XPackField.ANALYTICS);
+    public static final ActionType<XPackInfoFeatureResponse> ENRICH = xpackInfoFeatureAction(XPackField.ENRICH);
+    public static final ActionType<XPackInfoFeatureResponse> SEARCHABLE_SNAPSHOTS = xpackInfoFeatureAction(XPackField.SEARCHABLE_SNAPSHOTS);
+    public static final ActionType<XPackInfoFeatureResponse> DATA_STREAMS = xpackInfoFeatureAction(XPackField.DATA_STREAMS);
+    public static final ActionType<XPackInfoFeatureResponse> DATA_TIERS = xpackInfoFeatureAction(XPackField.DATA_TIERS);
+    public static final ActionType<XPackInfoFeatureResponse> AGGREGATE_METRIC = xpackInfoFeatureAction(XPackField.AGGREGATE_METRIC);
+    public static final ActionType<XPackInfoFeatureResponse> ARCHIVE = xpackInfoFeatureAction(XPackField.ARCHIVE);
+    public static final ActionType<XPackInfoFeatureResponse> ENTERPRISE_SEARCH = xpackInfoFeatureAction(XPackField.ENTERPRISE_SEARCH);
+    public static final ActionType<XPackInfoFeatureResponse> UNIVERSAL_PROFILING = xpackInfoFeatureAction(XPackField.UNIVERSAL_PROFILING);
 
-    public static final List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> ALL = List.of(
+    public static final List<ActionType<XPackInfoFeatureResponse>> ALL = List.of(
         SECURITY,
         MONITORING,
         WATCHER,
@@ -78,8 +78,8 @@ public class XPackInfoFeatureAction {
         UNIVERSAL_PROFILING
     );
 
-    public static UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse> xpackInfoFeatureAction(String suffix) {
-        return new UnnecessaryActionTypeSubclass<>(BASE_NAME + suffix);
+    public static ActionType<XPackInfoFeatureResponse> xpackInfoFeatureAction(String suffix) {
+        return new ActionType<>(BASE_NAME + suffix);
     }
 
     private XPackInfoFeatureAction() {/* no instances */}

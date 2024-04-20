@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.ml.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -34,7 +34,7 @@ import java.util.Objects;
 import static org.elasticsearch.core.Strings.format;
 import static org.elasticsearch.xpack.core.ml.action.UpgradeJobModelSnapshotAction.Request.SNAPSHOT_ID;
 
-public class GetJobModelSnapshotsUpgradeStatsAction extends UnnecessaryActionTypeSubclass<GetJobModelSnapshotsUpgradeStatsAction.Response> {
+public class GetJobModelSnapshotsUpgradeStatsAction extends ActionType<GetJobModelSnapshotsUpgradeStatsAction.Response> {
 
     public static final GetJobModelSnapshotsUpgradeStatsAction INSTANCE = new GetJobModelSnapshotsUpgradeStatsAction();
     public static final String NAME = "cluster:monitor/xpack/ml/job/model_snapshots/upgrade/stats/get";

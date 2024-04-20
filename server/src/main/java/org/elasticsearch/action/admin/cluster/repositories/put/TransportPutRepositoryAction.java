@@ -9,7 +9,7 @@
 package org.elasticsearch.action.admin.cluster.repositories.put;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.repositories.reservedstate.ReservedRepositoryAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -34,7 +34,7 @@ import java.util.Set;
  */
 public class TransportPutRepositoryAction extends AcknowledgedTransportMasterNodeAction<PutRepositoryRequest> {
 
-    public static final UnnecessaryActionTypeSubclass<AcknowledgedResponse> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/repository/put");
+    public static final ActionType<AcknowledgedResponse> TYPE = new ActionType<>("cluster:admin/repository/put");
     private final RepositoriesService repositoriesService;
 
     @Inject

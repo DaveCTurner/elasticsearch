@@ -11,7 +11,7 @@ package org.elasticsearch.test.client;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.RemoteClusterClient;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
- * Client that always response with {@code null} to every request. Override {@link #doExecute(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)} or
- * {@link #executeLocally(UnnecessaryActionTypeSubclass, ActionRequest, ActionListener)} for testing.
+ * Client that always response with {@code null} to every request. Override {@link #doExecute(ActionType, ActionRequest, ActionListener)} or
+ * {@link #executeLocally(ActionType, ActionRequest, ActionListener)} for testing.
  *
  * See also {@link NoOpClient} if you do not specifically need a {@link NodeClient}.
  */
@@ -43,7 +43,7 @@ public class NoOpNodeClient extends NodeClient {
 
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -53,7 +53,7 @@ public class NoOpNodeClient extends NodeClient {
 
     @Override
     public void initialize(
-        Map<UnnecessaryActionTypeSubclass<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions,
+        Map<ActionType<? extends ActionResponse>, TransportAction<? extends ActionRequest, ? extends ActionResponse>> actions,
         TaskManager taskManager,
         Supplier<String> localNodeId,
         Transport.Connection localConnection,
@@ -64,7 +64,7 @@ public class NoOpNodeClient extends NodeClient {
 
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> Task executeLocally(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {

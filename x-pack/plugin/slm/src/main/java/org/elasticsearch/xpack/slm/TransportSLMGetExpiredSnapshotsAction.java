@@ -14,7 +14,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionRunnable;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.SubscribableListener;
@@ -57,7 +57,7 @@ public class TransportSLMGetExpiredSnapshotsAction extends TransportAction<
     TransportSLMGetExpiredSnapshotsAction.Request,
     TransportSLMGetExpiredSnapshotsAction.Response> {
 
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>("cluster:admin/slm/execute/get_expired_snapshots");
+    public static final ActionType<Response> INSTANCE = new ActionType<>("cluster:admin/slm/execute/get_expired_snapshots");
 
     private static final Logger logger = LogManager.getLogger(TransportSLMGetExpiredSnapshotsAction.class);
 

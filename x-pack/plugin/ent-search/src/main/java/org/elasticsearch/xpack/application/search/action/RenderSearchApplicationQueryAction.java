@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.application.search.action;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.io.stream.NamedWriteable;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -22,7 +22,7 @@ import java.util.Objects;
 public class RenderSearchApplicationQueryAction {
 
     public static final String NAME = "cluster:admin/xpack/application/search_application/render_query";
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<RenderSearchApplicationQueryAction.Response> INSTANCE = new ActionType<>(NAME);
 
     private RenderSearchApplicationQueryAction() {/* no instances */}
 

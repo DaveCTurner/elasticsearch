@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.ValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -34,7 +34,7 @@ import java.util.Objects;
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 import static org.elasticsearch.core.Strings.format;
 
-public class GetTransformAction extends UnnecessaryActionTypeSubclass<GetTransformAction.Response> {
+public class GetTransformAction extends ActionType<GetTransformAction.Response> {
 
     public static final GetTransformAction INSTANCE = new GetTransformAction();
     public static final String NAME = "cluster:monitor/transform/get";

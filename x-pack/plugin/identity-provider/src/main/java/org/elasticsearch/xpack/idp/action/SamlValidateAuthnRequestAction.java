@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.idp.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SamlValidateAuthnRequestAction extends UnnecessaryActionTypeSubclass<SamlValidateAuthnRequestResponse> {
+public class SamlValidateAuthnRequestAction extends ActionType<SamlValidateAuthnRequestResponse> {
 
     public static final String NAME = "cluster:admin/idp/saml/validate";
     public static final SamlValidateAuthnRequestAction INSTANCE = new SamlValidateAuthnRequestAction();

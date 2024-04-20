@@ -8,7 +8,7 @@
 package org.elasticsearch.action.admin.indices.readonly;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationOperation;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
@@ -44,7 +44,7 @@ public class TransportVerifyShardIndexBlockAction extends TransportReplicationAc
     TransportVerifyShardIndexBlockAction.ShardRequest,
     ReplicationResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<ReplicationResponse> TYPE = new UnnecessaryActionTypeSubclass<>(TransportAddIndexBlockAction.TYPE.name() + "[s]");
+    public static final ActionType<ReplicationResponse> TYPE = new ActionType<>(TransportAddIndexBlockAction.TYPE.name() + "[s]");
 
     @Inject
     public TransportVerifyShardIndexBlockAction(

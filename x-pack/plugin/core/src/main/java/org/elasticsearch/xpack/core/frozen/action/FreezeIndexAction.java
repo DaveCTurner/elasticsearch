@@ -6,10 +6,10 @@
  */
 package org.elasticsearch.xpack.core.frozen.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.protocol.xpack.frozen.FreezeResponse;
 
-public class FreezeIndexAction extends UnnecessaryActionTypeSubclass<FreezeResponse> {
+public class FreezeIndexAction extends ActionType<FreezeResponse> {
 
     public static final FreezeIndexAction INSTANCE = new FreezeIndexAction();
     public static final String NAME = "indices:admin/freeze";

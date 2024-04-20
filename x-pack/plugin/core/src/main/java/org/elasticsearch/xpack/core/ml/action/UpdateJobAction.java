@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -20,7 +20,7 @@ import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
 import java.io.IOException;
 import java.util.Objects;
 
-public class UpdateJobAction extends UnnecessaryActionTypeSubclass<PutJobAction.Response> {
+public class UpdateJobAction extends ActionType<PutJobAction.Response> {
     public static final UpdateJobAction INSTANCE = new UpdateJobAction();
     public static final String NAME = "cluster:admin/xpack/ml/job/update";
 

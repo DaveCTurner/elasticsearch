@@ -11,7 +11,7 @@ package org.elasticsearch.index.seqno;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.single.shard.SingleShardRequest;
@@ -46,9 +46,9 @@ import java.util.Objects;
 public class RetentionLeaseActions {
 
     public static final long RETAIN_ALL = -1;
-    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> ADD = new UnnecessaryActionTypeSubclass<>("indices:admin/seq_no/add_retention_lease");
-    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> RENEW = new UnnecessaryActionTypeSubclass<>("indices:admin/seq_no/renew_retention_lease");
-    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> REMOVE = new UnnecessaryActionTypeSubclass<>("indices:admin/seq_no/remove_retention_lease");
+    public static final ActionType<ActionResponse.Empty> ADD = new ActionType<>("indices:admin/seq_no/add_retention_lease");
+    public static final ActionType<ActionResponse.Empty> RENEW = new ActionType<>("indices:admin/seq_no/renew_retention_lease");
+    public static final ActionType<ActionResponse.Empty> REMOVE = new ActionType<>("indices:admin/seq_no/remove_retention_lease");
 
     public static final RemoteClusterActionType<ActionResponse.Empty> REMOTE_ADD = RemoteClusterActionType.emptyResponse(ADD.name());
     public static final RemoteClusterActionType<ActionResponse.Empty> REMOTE_RENEW = RemoteClusterActionType.emptyResponse(RENEW.name());

@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -20,7 +20,7 @@ import org.elasticsearch.xpack.core.ml.datafeed.DatafeedUpdate;
 import java.io.IOException;
 import java.util.Objects;
 
-public class UpdateDatafeedAction extends UnnecessaryActionTypeSubclass<PutDatafeedAction.Response> {
+public class UpdateDatafeedAction extends ActionType<PutDatafeedAction.Response> {
 
     public static final UpdateDatafeedAction INSTANCE = new UpdateDatafeedAction();
     public static final String NAME = "cluster:admin/xpack/ml/datafeeds/update";

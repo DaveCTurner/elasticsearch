@@ -10,7 +10,7 @@ package org.elasticsearch.xpack.application.connector.action;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -33,7 +33,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstr
 public class PostConnectorAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/post";
-    public static final UnnecessaryActionTypeSubclass<Response> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<PostConnectorAction.Response> INSTANCE = new ActionType<>(NAME);
 
     private PostConnectorAction() {/* no instances */}
 

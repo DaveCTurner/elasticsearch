@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.enrich.action;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
-public class EnrichStatsAction extends UnnecessaryActionTypeSubclass<EnrichStatsAction.Response> {
+public class EnrichStatsAction extends ActionType<EnrichStatsAction.Response> {
 
     public static final EnrichStatsAction INSTANCE = new EnrichStatsAction();
     public static final String NAME = "cluster:monitor/xpack/enrich/stats";

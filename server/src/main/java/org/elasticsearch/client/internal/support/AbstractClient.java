@@ -14,7 +14,7 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequest;
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequestBuilder;
@@ -336,7 +336,7 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public final <Request extends ActionRequest, Response extends ActionResponse> ActionFuture<Response> execute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request
     ) {
         PlainActionFuture<Response> actionFuture = new RefCountedFuture<>();
@@ -349,7 +349,7 @@ public abstract class AbstractClient implements Client {
      */
     @Override
     public final <Request extends ActionRequest, Response extends ActionResponse> void execute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     ) {
@@ -362,7 +362,7 @@ public abstract class AbstractClient implements Client {
     }
 
     protected abstract <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-        UnnecessaryActionTypeSubclass<Response> action,
+        ActionType<Response> action,
         Request request,
         ActionListener<Response> listener
     );
@@ -638,7 +638,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> ActionFuture<Response> execute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request
         ) {
             return client.execute(action, request);
@@ -646,7 +646,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> void execute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -1063,7 +1063,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> ActionFuture<Response> execute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request
         ) {
             return client.execute(action, request);
@@ -1071,7 +1071,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public <Request extends ActionRequest, Response extends ActionResponse> void execute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -1494,7 +1494,7 @@ public abstract class AbstractClient implements Client {
         return new FilterClient(this) {
             @Override
             protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-                UnnecessaryActionTypeSubclass<Response> action,
+                ActionType<Response> action,
                 Request request,
                 ActionListener<Response> listener
             ) {

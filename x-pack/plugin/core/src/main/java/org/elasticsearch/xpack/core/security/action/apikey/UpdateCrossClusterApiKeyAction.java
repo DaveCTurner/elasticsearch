@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.core.security.action.apikey;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public final class UpdateCrossClusterApiKeyAction extends UnnecessaryActionTypeSubclass<UpdateApiKeyResponse> {
+public final class UpdateCrossClusterApiKeyAction extends ActionType<UpdateApiKeyResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/cross_cluster/api_key/update";
     public static final UpdateCrossClusterApiKeyAction INSTANCE = new UpdateCrossClusterApiKeyAction();

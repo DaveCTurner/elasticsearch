@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.security;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -56,7 +56,7 @@ public class LocalStateSecurity extends LocalStateCompositeXPackPlugin implement
         }
 
         @Override
-        protected List<UnnecessaryActionTypeSubclass<XPackUsageFeatureResponse>> usageActions() {
+        protected List<ActionType<XPackUsageFeatureResponse>> usageActions() {
             return Collections.singletonList(XPackUsageFeatureAction.SECURITY);
         }
     }
@@ -73,7 +73,7 @@ public class LocalStateSecurity extends LocalStateCompositeXPackPlugin implement
         }
 
         @Override
-        protected List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions() {
+        protected List<ActionType<XPackInfoFeatureResponse>> infoActions() {
             return Collections.singletonList(XPackInfoFeatureAction.SECURITY);
         }
     }

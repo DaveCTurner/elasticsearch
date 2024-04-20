@@ -11,7 +11,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.ingest.PutPipelineTransportAction;
@@ -552,7 +552,7 @@ public class StackTemplateRegistryTests extends ESTestCase {
      */
     public static class VerifyingClient extends NoOpClient {
 
-        private TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
+        private TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier = (a, r, l) -> {
             fail("verifier not set");
             return null;
         };
@@ -564,7 +564,7 @@ public class StackTemplateRegistryTests extends ESTestCase {
         @Override
         @SuppressWarnings("unchecked")
         protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(
-            UnnecessaryActionTypeSubclass<Response> action,
+            ActionType<Response> action,
             Request request,
             ActionListener<Response> listener
         ) {
@@ -575,7 +575,7 @@ public class StackTemplateRegistryTests extends ESTestCase {
             }
         }
 
-        public VerifyingClient setVerifier(TriFunction<UnnecessaryActionTypeSubclass<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
+        public VerifyingClient setVerifier(TriFunction<ActionType<?>, ActionRequest, ActionListener<?>, ActionResponse> verifier) {
             this.verifier = verifier;
             return this;
         }
@@ -583,7 +583,7 @@ public class StackTemplateRegistryTests extends ESTestCase {
 
     private ActionResponse verifyComponentTemplateInstalled(
         AtomicInteger calledTimes,
-        UnnecessaryActionTypeSubclass<?> action,
+        ActionType<?> action,
         ActionRequest request,
         ActionListener<?> listener
     ) {

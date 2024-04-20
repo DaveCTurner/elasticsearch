@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.privilege;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for putting (adding/updating) one or more application privileges.
  */
-public final class PutPrivilegesAction extends UnnecessaryActionTypeSubclass<PutPrivilegesResponse> {
+public final class PutPrivilegesAction extends ActionType<PutPrivilegesResponse> {
 
     public static final PutPrivilegesAction INSTANCE = new PutPrivilegesAction();
     public static final String NAME = "cluster:admin/xpack/security/privilege/put";

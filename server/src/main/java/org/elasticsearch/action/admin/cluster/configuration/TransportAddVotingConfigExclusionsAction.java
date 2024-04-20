@@ -13,7 +13,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
@@ -49,7 +49,7 @@ public class TransportAddVotingConfigExclusionsAction extends TransportMasterNod
     AddVotingConfigExclusionsRequest,
     ActionResponse.Empty> {
 
-    public static final UnnecessaryActionTypeSubclass<ActionResponse.Empty> TYPE = new UnnecessaryActionTypeSubclass<>("cluster:admin/voting_config/add_exclusions");
+    public static final ActionType<ActionResponse.Empty> TYPE = new ActionType<>("cluster:admin/voting_config/add_exclusions");
     private static final Logger logger = LogManager.getLogger(TransportAddVotingConfigExclusionsAction.class);
 
     public static final Setting<Integer> MAXIMUM_VOTING_CONFIG_EXCLUSIONS_SETTING = Setting.intSetting(

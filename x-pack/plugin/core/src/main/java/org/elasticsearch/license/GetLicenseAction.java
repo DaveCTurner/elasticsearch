@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetLicenseAction extends UnnecessaryActionTypeSubclass<GetLicenseResponse> {
+public class GetLicenseAction extends ActionType<GetLicenseResponse> {
 
     public static final GetLicenseAction INSTANCE = new GetLicenseAction();
     public static final String NAME = "cluster:monitor/xpack/license/get";

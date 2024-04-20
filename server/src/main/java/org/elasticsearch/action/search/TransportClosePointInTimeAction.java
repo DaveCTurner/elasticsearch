@@ -9,7 +9,7 @@
 package org.elasticsearch.action.search;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -23,7 +23,7 @@ import java.util.Collection;
 
 public class TransportClosePointInTimeAction extends HandledTransportAction<ClosePointInTimeRequest, ClosePointInTimeResponse> {
 
-    public static final UnnecessaryActionTypeSubclass<ClosePointInTimeResponse> TYPE = new UnnecessaryActionTypeSubclass<>("indices:data/read/close_point_in_time");
+    public static final ActionType<ClosePointInTimeResponse> TYPE = new ActionType<>("indices:data/read/close_point_in_time");
     private final ClusterService clusterService;
     private final SearchTransportService searchTransportService;
     private final NamedWriteableRegistry namedWriteableRegistry;

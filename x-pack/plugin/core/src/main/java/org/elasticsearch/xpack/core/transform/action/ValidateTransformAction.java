@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 
-public class ValidateTransformAction extends UnnecessaryActionTypeSubclass<ValidateTransformAction.Response> {
+public class ValidateTransformAction extends ActionType<ValidateTransformAction.Response> {
 
     public static final ValidateTransformAction INSTANCE = new ValidateTransformAction();
     public static final String NAME = "cluster:admin/transform/validate";

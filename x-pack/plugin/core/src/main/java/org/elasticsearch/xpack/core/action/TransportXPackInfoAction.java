@@ -7,7 +7,7 @@
 package org.elasticsearch.xpack.core.action;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -32,7 +32,7 @@ public class TransportXPackInfoAction extends HandledTransportAction<XPackInfoRe
 
     private final LicenseService licenseService;
     private final NodeClient client;
-    private final List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions;
+    private final List<ActionType<XPackInfoFeatureResponse>> infoActions;
 
     @SuppressWarnings("this-escape")
     @Inject
@@ -49,7 +49,7 @@ public class TransportXPackInfoAction extends HandledTransportAction<XPackInfoRe
     }
 
     // overrideable for tests
-    protected List<UnnecessaryActionTypeSubclass<XPackInfoFeatureResponse>> infoActions() {
+    protected List<ActionType<XPackInfoFeatureResponse>> infoActions() {
         return XPackInfoFeatureAction.ALL;
     }
 

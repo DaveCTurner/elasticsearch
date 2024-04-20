@@ -8,7 +8,7 @@
 package org.elasticsearch.xpack.core.transform.action;
 
 import org.elasticsearch.TransportVersions;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Objects;
 
-public class StartTransformAction extends UnnecessaryActionTypeSubclass<StartTransformAction.Response> {
+public class StartTransformAction extends ActionType<StartTransformAction.Response> {
 
     public static final StartTransformAction INSTANCE = new StartTransformAction();
     public static final String NAME = "cluster:admin/transform/start";

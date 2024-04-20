@@ -8,10 +8,10 @@
 
 package org.elasticsearch.action.admin.indices.forcemerge;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 
-public class ForceMergeAction extends UnnecessaryActionTypeSubclass<BroadcastResponse> {
+public class ForceMergeAction extends ActionType<BroadcastResponse> {
 
     public static final ForceMergeAction INSTANCE = new ForceMergeAction();
     public static final String NAME = "indices:admin/forcemerge";

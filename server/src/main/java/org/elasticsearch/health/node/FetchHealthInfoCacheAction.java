@@ -11,7 +11,7 @@ package org.elasticsearch.health.node;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -31,7 +31,7 @@ import java.util.Objects;
  * This action retrieves all the HealthInfo data from the health node. It is meant to be used when a user makes a health API request. The
  * data that this action retrieves is populated by UpdateHealthInfoCacheAction.
  */
-public class FetchHealthInfoCacheAction extends UnnecessaryActionTypeSubclass<FetchHealthInfoCacheAction.Response> {
+public class FetchHealthInfoCacheAction extends ActionType<FetchHealthInfoCacheAction.Response> {
 
     public static class Request extends HealthNodeRequest {
         public Request() {}

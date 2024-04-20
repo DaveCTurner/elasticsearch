@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.profiling.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public final class GetFlamegraphAction extends UnnecessaryActionTypeSubclass<GetFlamegraphResponse> {
+public final class GetFlamegraphAction extends ActionType<GetFlamegraphResponse> {
     public static final GetFlamegraphAction INSTANCE = new GetFlamegraphAction();
     public static final String NAME = "indices:data/read/profiling/flamegraph";
 

@@ -10,7 +10,7 @@ package org.elasticsearch.client.internal;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.transport.TransportResponse;
 
@@ -19,7 +19,7 @@ import org.elasticsearch.transport.TransportResponse;
  */
 public interface RemoteClusterClient {
     /**
-     * Executes an action, denoted by an {@link UnnecessaryActionTypeSubclass}, on the remote cluster.
+     * Executes an action, denoted by an {@link ActionType}, on the remote cluster.
      *
      * @param action           The action type to execute.
      * @param request          The action request.

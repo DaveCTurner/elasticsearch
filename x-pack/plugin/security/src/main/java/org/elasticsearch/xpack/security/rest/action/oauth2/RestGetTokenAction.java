@@ -10,7 +10,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.SecureString;
 import org.elasticsearch.common.settings.Settings;
@@ -99,7 +99,7 @@ public final class RestGetTokenAction extends TokenBaseRestHandler implements Re
     protected RestChannelConsumer innerPrepareRequest(RestRequest request, NodeClient client) throws IOException {
         try (XContentParser parser = request.contentParser()) {
             final CreateTokenRequest tokenRequest = PARSER.parse(parser, null);
-            final UnnecessaryActionTypeSubclass<CreateTokenResponse> action = "refresh_token".equals(tokenRequest.getGrantType())
+            final ActionType<CreateTokenResponse> action = "refresh_token".equals(tokenRequest.getGrantType())
                 ? RefreshTokenAction.INSTANCE
                 : CreateTokenAction.INSTANCE;
             return channel -> client.execute(

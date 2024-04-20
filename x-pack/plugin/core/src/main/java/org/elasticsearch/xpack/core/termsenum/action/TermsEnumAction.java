@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.termsenum.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.RemoteClusterActionType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -17,7 +17,7 @@ import java.io.IOException;
 
 import static org.elasticsearch.index.query.AbstractQueryBuilder.parseTopLevelQuery;
 
-public class TermsEnumAction extends UnnecessaryActionTypeSubclass<TermsEnumResponse> {
+public class TermsEnumAction extends ActionType<TermsEnumResponse> {
 
     public static final TermsEnumAction INSTANCE = new TermsEnumAction();
     public static final String NAME = "indices:data/read/xpack/termsenum/list";

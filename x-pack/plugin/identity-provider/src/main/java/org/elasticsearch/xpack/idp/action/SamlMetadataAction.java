@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.idp.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class SamlMetadataAction extends UnnecessaryActionTypeSubclass<SamlMetadataResponse> {
+public class SamlMetadataAction extends ActionType<SamlMetadataResponse> {
 
     public static final String NAME = "cluster:admin/idp/saml/metadata";
     public static final SamlMetadataAction INSTANCE = new SamlMetadataAction();

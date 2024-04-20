@@ -9,7 +9,7 @@
 package org.elasticsearch.index.seqno;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.replication.ReplicationRequest;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
@@ -39,7 +39,7 @@ public class GlobalCheckpointSyncAction extends TransportReplicationAction<
     ReplicationResponse> {
 
     public static String ACTION_NAME = "indices:admin/seq_no/global_checkpoint_sync";
-    public static UnnecessaryActionTypeSubclass<ReplicationResponse> TYPE = new UnnecessaryActionTypeSubclass<>(ACTION_NAME);
+    public static ActionType<ReplicationResponse> TYPE = new ActionType<>(ACTION_NAME);
 
     @Inject
     public GlobalCheckpointSyncAction(

@@ -6,7 +6,7 @@
  */
 package org.elasticsearch.xpack.core.ml.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.tasks.BaseTasksResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -15,7 +15,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import java.io.IOException;
 import java.util.Objects;
 
-public class KillProcessAction extends UnnecessaryActionTypeSubclass<KillProcessAction.Response> {
+public class KillProcessAction extends ActionType<KillProcessAction.Response> {
 
     public static final KillProcessAction INSTANCE = new KillProcessAction();
     public static final String NAME = "cluster:internal/xpack/ml/job/kill/process";

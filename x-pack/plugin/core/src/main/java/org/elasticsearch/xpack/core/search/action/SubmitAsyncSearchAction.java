@@ -6,9 +6,9 @@
  */
 package org.elasticsearch.xpack.core.search.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public final class SubmitAsyncSearchAction extends UnnecessaryActionTypeSubclass<AsyncSearchResponse> {
+public final class SubmitAsyncSearchAction extends ActionType<AsyncSearchResponse> {
     public static final SubmitAsyncSearchAction INSTANCE = new SubmitAsyncSearchAction();
     public static final String NAME = "indices:data/read/async_search/submit";
 

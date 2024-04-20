@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.logstash.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class DeletePipelineAction extends UnnecessaryActionTypeSubclass<DeletePipelineResponse> {
+public class DeletePipelineAction extends ActionType<DeletePipelineResponse> {
 
     public static final String NAME = "cluster:admin/logstash/pipeline/delete";
     public static final DeletePipelineAction INSTANCE = new DeletePipelineAction();

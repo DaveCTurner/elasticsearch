@@ -10,7 +10,7 @@ package org.elasticsearch.action.admin.indices.analyze;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.single.shard.SingleShardRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -34,7 +34,7 @@ import java.util.TreeMap;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class AnalyzeAction extends UnnecessaryActionTypeSubclass<AnalyzeAction.Response> {
+public class AnalyzeAction extends ActionType<AnalyzeAction.Response> {
 
     public static final AnalyzeAction INSTANCE = new AnalyzeAction();
     public static final String NAME = "indices:admin/analyze";

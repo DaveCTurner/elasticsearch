@@ -9,7 +9,7 @@ package org.elasticsearch.xpack.application.connector.action;
 
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -33,7 +33,7 @@ import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstr
 public class UpdateConnectorErrorAction {
 
     public static final String NAME = "indices:data/write/xpack/connector/update_error";
-    public static final UnnecessaryActionTypeSubclass<ConnectorUpdateActionResponse> INSTANCE = new UnnecessaryActionTypeSubclass<>(NAME);
+    public static final ActionType<ConnectorUpdateActionResponse> INSTANCE = new ActionType<>(NAME);
 
     private UpdateConnectorErrorAction() {/* no instances */}
 

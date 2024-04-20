@@ -6,10 +6,10 @@
  */
 package org.elasticsearch.license;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.protocol.xpack.license.PutLicenseResponse;
 
-public class PutLicenseAction extends UnnecessaryActionTypeSubclass<PutLicenseResponse> {
+public class PutLicenseAction extends ActionType<PutLicenseResponse> {
 
     public static final PutLicenseAction INSTANCE = new PutLicenseAction();
     public static final String NAME = "cluster:admin/xpack/license/put";

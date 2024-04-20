@@ -8,7 +8,7 @@
 package org.elasticsearch.action.support.master.info;
 
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
@@ -22,7 +22,7 @@ public abstract class ClusterInfoRequestBuilder<
         Response,
         Builder> {
 
-    protected ClusterInfoRequestBuilder(ElasticsearchClient client, UnnecessaryActionTypeSubclass<Response> action, Request request) {
+    protected ClusterInfoRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
     }
 

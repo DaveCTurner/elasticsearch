@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.privilege;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for retrieving builtin privileges from security
  */
-public final class GetBuiltinPrivilegesAction extends UnnecessaryActionTypeSubclass<GetBuiltinPrivilegesResponse> {
+public final class GetBuiltinPrivilegesAction extends ActionType<GetBuiltinPrivilegesResponse> {
 
     public static final GetBuiltinPrivilegesAction INSTANCE = new GetBuiltinPrivilegesAction();
     public static final String NAME = "cluster:admin/xpack/security/privilege/builtin/get";

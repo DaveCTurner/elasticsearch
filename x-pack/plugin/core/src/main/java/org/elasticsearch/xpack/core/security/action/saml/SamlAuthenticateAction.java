@@ -6,12 +6,12 @@
  */
 package org.elasticsearch.xpack.core.security.action.saml;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
 /**
  * ActionType for authenticating using SAML assertions
  */
-public final class SamlAuthenticateAction extends UnnecessaryActionTypeSubclass<SamlAuthenticateResponse> {
+public final class SamlAuthenticateAction extends ActionType<SamlAuthenticateResponse> {
 
     public static final String NAME = "cluster:admin/xpack/security/saml/authenticate";
     public static final SamlAuthenticateAction INSTANCE = new SamlAuthenticateAction();

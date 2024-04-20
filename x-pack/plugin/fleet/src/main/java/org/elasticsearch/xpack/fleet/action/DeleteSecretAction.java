@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.fleet.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class DeleteSecretAction extends UnnecessaryActionTypeSubclass<DeleteSecretResponse> {
+public class DeleteSecretAction extends ActionType<DeleteSecretResponse> {
 
     public static final String NAME = "cluster:admin/fleet/secrets/delete";
 

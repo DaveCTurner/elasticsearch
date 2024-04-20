@@ -7,9 +7,9 @@
 
 package org.elasticsearch.xpack.logstash.action;
 
-import org.elasticsearch.action.UnnecessaryActionTypeSubclass;
+import org.elasticsearch.action.ActionType;
 
-public class GetPipelineAction extends UnnecessaryActionTypeSubclass<GetPipelineResponse> {
+public class GetPipelineAction extends ActionType<GetPipelineResponse> {
 
     public static final String NAME = "cluster:admin/logstash/pipeline/get";
     public static final GetPipelineAction INSTANCE = new GetPipelineAction();
