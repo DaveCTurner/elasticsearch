@@ -1401,7 +1401,7 @@ public class DataStreamIT extends ESIntegTestCase {
     public void testAutoCreateV1TemplateNoDataStream() {
         Settings settings = Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).build();
 
-        PutIndexTemplateRequest v1Request = new PutIndexTemplateRequest("logs-foo");
+        PutIndexTemplateRequest v1Request = new PutIndexTemplateRequest(masterNodeTimeout, "logs-foo");
         v1Request.patterns(List.of("logs-foo*"));
         v1Request.settings(settings);
         v1Request.order(Integer.MAX_VALUE); // in order to avoid number_of_replicas being overwritten by random_template

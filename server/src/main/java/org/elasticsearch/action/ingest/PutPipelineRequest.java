@@ -13,6 +13,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -30,15 +31,16 @@ public class PutPipelineRequest extends AcknowledgedRequest<PutPipelineRequest> 
     /**
      * Create a new pipeline request with the id and source along with the content type of the source
      */
-    public PutPipelineRequest(String id, BytesReference source, XContentType xContentType, Integer version) {
+    public PutPipelineRequest(TimeValue masterNodeTimeout, String id, BytesReference source, XContentType xContentType, Integer version) {
+        super(masterNodeTimeout);
         this.id = Objects.requireNonNull(id);
         this.source = Objects.requireNonNull(source);
         this.xContentType = Objects.requireNonNull(xContentType);
         this.version = version;
     }
 
-    public PutPipelineRequest(String id, BytesReference source, XContentType xContentType) {
-        this(id, source, xContentType, null);
+    public PutPipelineRequest(TimeValue masterNodeTimeout, String id, BytesReference source, XContentType xContentType) {
+        this(masterNodeTimeout, id, source, xContentType, null);
     }
 
     public PutPipelineRequest(StreamInput in) throws IOException {

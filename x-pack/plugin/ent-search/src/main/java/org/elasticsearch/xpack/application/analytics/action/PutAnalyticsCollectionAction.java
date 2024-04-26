@@ -32,7 +32,7 @@ public class PutAnalyticsCollectionAction {
 
     private PutAnalyticsCollectionAction() {/* no instances */}
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
         private final String name;
 
         public static final ParseField NAME_FIELD = new ParseField("name");

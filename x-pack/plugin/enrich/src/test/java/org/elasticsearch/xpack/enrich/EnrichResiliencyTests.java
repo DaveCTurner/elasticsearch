@@ -124,7 +124,7 @@ public class EnrichResiliencyTests extends ESSingleNodeTestCase {
 
         client().execute(
             PutPipelineTransportAction.TYPE,
-            new PutPipelineRequest(enrichPipelineName, BytesReference.bytes(pipe1), XContentType.JSON)
+            new PutPipelineRequest(masterNodeTimeout, enrichPipelineName, BytesReference.bytes(pipe1), XContentType.JSON)
         ).actionGet();
 
         client().admin().indices().create(new CreateIndexRequest(enrichedIndexName)).actionGet();
@@ -242,12 +242,12 @@ public class EnrichResiliencyTests extends ESSingleNodeTestCase {
 
         client().execute(
             PutPipelineTransportAction.TYPE,
-            new PutPipelineRequest(enrichPipelineName1, BytesReference.bytes(pipe1), XContentType.JSON)
+            new PutPipelineRequest(masterNodeTimeout, enrichPipelineName1, BytesReference.bytes(pipe1), XContentType.JSON)
         ).actionGet();
 
         client().execute(
             PutPipelineTransportAction.TYPE,
-            new PutPipelineRequest(enrichPipelineName2, BytesReference.bytes(pipe2), XContentType.JSON)
+            new PutPipelineRequest(masterNodeTimeout, enrichPipelineName2, BytesReference.bytes(pipe2), XContentType.JSON)
         ).actionGet();
 
         client().admin().indices().create(new CreateIndexRequest(enrichedIndexName)).actionGet();

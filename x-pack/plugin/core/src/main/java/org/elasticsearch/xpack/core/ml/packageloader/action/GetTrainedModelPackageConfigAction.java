@@ -32,7 +32,7 @@ public class GetTrainedModelPackageConfigAction extends ActionType<GetTrainedMod
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<GetTrainedModelPackageConfigAction.Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String packagedModelId;
 

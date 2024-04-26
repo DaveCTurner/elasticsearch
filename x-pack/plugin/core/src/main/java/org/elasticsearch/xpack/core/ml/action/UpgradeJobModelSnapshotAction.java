@@ -33,7 +33,7 @@ public class UpgradeJobModelSnapshotAction extends ActionType<UpgradeJobModelSna
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
         // Default to 30m as loading an older snapshot can take a while
         public static final TimeValue DEFAULT_TIMEOUT = TimeValue.timeValueMinutes(30);
 

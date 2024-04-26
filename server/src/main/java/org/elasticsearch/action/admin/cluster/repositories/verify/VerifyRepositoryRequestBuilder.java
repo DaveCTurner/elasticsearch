@@ -14,10 +14,7 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 /**
  * Builder for verify repository request
  */
-public class VerifyRepositoryRequestBuilder extends MasterNodeOperationRequestBuilder<
-    VerifyRepositoryRequest,
-    VerifyRepositoryResponse,
-    VerifyRepositoryRequestBuilder> {
+public class VerifyRepositoryRequestBuilder extends MasterNodeOperationRequestBuilder<VerifyRepositoryRequest, VerifyRepositoryResponse> {
 
     /**
      * Constructs unregister repository request builder with specified repository name

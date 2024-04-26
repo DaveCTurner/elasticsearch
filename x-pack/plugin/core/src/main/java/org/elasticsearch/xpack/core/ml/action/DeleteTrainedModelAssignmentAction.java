@@ -26,7 +26,7 @@ public class DeleteTrainedModelAssignmentAction extends ActionType<AcknowledgedR
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
         private final String modelId;
 
         public Request(String modelId) {

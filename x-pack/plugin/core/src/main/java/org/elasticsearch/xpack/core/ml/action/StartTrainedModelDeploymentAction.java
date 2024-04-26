@@ -72,7 +72,7 @@ public class StartTrainedModelDeploymentAction extends ActionType<CreateTrainedM
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
 
         private static final AllocationStatus.State[] VALID_WAIT_STATES = new AllocationStatus.State[] {
             AllocationStatus.State.STARTED,

@@ -350,7 +350,12 @@ public class EnrichMultiNodeIT extends ESIntegTestCase {
             {
               "processors": [ { "enrich": { "policy_name": "%s", "field": "%s", "target_field": "user" } } ]
             }""", policyName, MATCH_FIELD);
-        PutPipelineRequest request = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest request = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(request).actionGet();
     }
 }

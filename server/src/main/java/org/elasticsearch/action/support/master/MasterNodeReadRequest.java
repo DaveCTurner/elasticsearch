@@ -10,17 +10,20 @@ package org.elasticsearch.action.support.master;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
 /**
  * Base request for master based read operations that allows to read the cluster state from the local node if needed
  */
-public abstract class MasterNodeReadRequest<Request extends MasterNodeReadRequest<Request>> extends MasterNodeRequest<Request> {
+public abstract class MasterNodeReadRequest<Request extends MasterNodeReadRequest<Request>> extends MasterNodeRequest {
 
     protected boolean local = false;
 
-    protected MasterNodeReadRequest() {}
+    protected MasterNodeReadRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     protected MasterNodeReadRequest(StreamInput in) throws IOException {
         super(in);

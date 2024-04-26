@@ -14,6 +14,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.cluster.ClusterState;
@@ -61,10 +62,12 @@ public class PersistentTasksService {
     ) {
         @SuppressWarnings("unchecked")
         final ActionListener<PersistentTask<?>> wrappedListener = listener.map(t -> (PersistentTask<Params>) t);
-        StartPersistentTaskAction.Request request = new StartPersistentTaskAction.Request(taskId, taskName, taskParams);
-        if (timeout != null) {
-            request.masterNodeTimeout(timeout);
-        }
+        StartPersistentTaskAction.Request request = new StartPersistentTaskAction.Request(
+            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            taskId,
+            taskName,
+            taskParams
+        );
         execute(request, StartPersistentTaskAction.INSTANCE, wrappedListener);
     }
 
@@ -85,14 +88,12 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         CompletionPersistentTaskAction.Request request = new CompletionPersistentTaskAction.Request(
+            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId,
             taskAllocationId,
             taskFailure,
             localAbortReason
         );
-        if (timeout != null) {
-            request.masterNodeTimeout(timeout);
-        }
         execute(request, CompletionPersistentTaskAction.INSTANCE, listener);
     }
 
@@ -133,13 +134,11 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         UpdatePersistentTaskStatusAction.Request request = new UpdatePersistentTaskStatusAction.Request(
+            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId,
             taskAllocationID,
             taskState
         );
-        if (timeout != null) {
-            request.masterNodeTimeout(timeout);
-        }
         execute(request, UpdatePersistentTaskStatusAction.INSTANCE, listener);
     }
 
@@ -151,10 +150,10 @@ public class PersistentTasksService {
         final @Nullable TimeValue timeout,
         final ActionListener<PersistentTask<?>> listener
     ) {
-        RemovePersistentTaskAction.Request request = new RemovePersistentTaskAction.Request(taskId);
-        if (timeout != null) {
-            request.masterNodeTimeout(timeout);
-        }
+        RemovePersistentTaskAction.Request request = new RemovePersistentTaskAction.Request(
+            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            taskId
+        );
         execute(request, RemovePersistentTaskAction.INSTANCE, listener);
     }
 

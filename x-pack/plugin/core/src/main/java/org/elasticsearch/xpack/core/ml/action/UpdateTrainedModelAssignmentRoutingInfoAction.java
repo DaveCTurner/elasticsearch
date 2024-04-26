@@ -27,7 +27,7 @@ public class UpdateTrainedModelAssignmentRoutingInfoAction extends ActionType<Ac
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
         private final String nodeId;
         private final String deploymentId;
         private final RoutingInfoUpdate update;

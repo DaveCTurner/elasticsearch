@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.cluster.health;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.Priority;
@@ -22,7 +23,13 @@ public class ClusterHealthRequestBuilder extends MasterNodeReadOperationRequestB
     ClusterHealthRequestBuilder> {
 
     public ClusterHealthRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportClusterHealthAction.TYPE, new ClusterHealthRequest());
+        super(
+            client,
+            TransportClusterHealthAction.TYPE,
+            new ClusterHealthRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT // TODO only used in tests, get rid of this
+            )
+        );
     }
 
     public ClusterHealthRequestBuilder setIndices(String... indices) {
@@ -36,7 +43,7 @@ public class ClusterHealthRequestBuilder extends MasterNodeReadOperationRequestB
     }
 
     public ClusterHealthRequestBuilder setTimeout(TimeValue timeout) {
-        request.timeout(timeout);
+        // request.timeout(timeout); TODO fix up tests
         return this;
     }
 

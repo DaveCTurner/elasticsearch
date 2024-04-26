@@ -14,6 +14,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.template.get.GetComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -51,20 +52,17 @@ public class RestTemplatesAction extends AbstractCatAction {
     @Override
     protected RestChannelConsumer doCatRequest(final RestRequest request, NodeClient client) {
         final String matchPattern = request.hasParam("name") ? request.param("name") : null;
-
+        final var masterNodeTimeout = request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
         final GetIndexTemplatesRequest getIndexTemplatesRequest = matchPattern == null
-            ? new GetIndexTemplatesRequest()
-            : new GetIndexTemplatesRequest(matchPattern);
+            ? new GetIndexTemplatesRequest(masterNodeTimeout)
+            : new GetIndexTemplatesRequest(masterNodeTimeout, matchPattern);
         getIndexTemplatesRequest.local(request.paramAsBoolean("local", getIndexTemplatesRequest.local()));
-        getIndexTemplatesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getIndexTemplatesRequest.masterNodeTimeout()));
 
         final GetComposableIndexTemplateAction.Request getComposableTemplatesRequest = new GetComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             matchPattern
         );
         getComposableTemplatesRequest.local(request.paramAsBoolean("local", getComposableTemplatesRequest.local()));
-        getComposableTemplatesRequest.masterNodeTimeout(
-            request.paramAsTime("master_timeout", getComposableTemplatesRequest.masterNodeTimeout())
-        );
 
         return channel -> {
 

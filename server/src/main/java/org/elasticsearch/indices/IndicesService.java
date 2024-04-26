@@ -879,9 +879,8 @@ public class IndicesService extends AbstractLifecycleComponent
         indexShard.startRecovery(recoveryState, recoveryTargetService, recoveryListener, repositoriesService, (mapping, listener) -> {
             assert recoveryState.getRecoverySource().getType() == RecoverySource.Type.LOCAL_SHARDS
                 : "mapping update consumer only required by local shards recovery";
-            AcknowledgedRequest<PutMappingRequest> putMappingRequestAcknowledgedRequest = new PutMappingRequest().setConcreteIndex(
-                shardRouting.index()
-            )
+            AcknowledgedRequest<PutMappingRequest> putMappingRequestAcknowledgedRequest = new PutMappingRequest(TimeValue.MAX_VALUE)
+                .setConcreteIndex(shardRouting.index())
                 .setConcreteIndex(shardRouting.index()) // concrete index - no name clash, it uses uuid
                 .source(mapping.source().string(), XContentType.JSON);
             // concrete index - no name clash, it uses uuid
@@ -889,7 +888,7 @@ public class IndicesService extends AbstractLifecycleComponent
                 featureService.clusterHasFeature(clusterService.state(), SUPPORTS_AUTO_PUT)
                     ? TransportAutoPutMappingAction.TYPE
                     : TransportPutMappingAction.TYPE,
-                putMappingRequestAcknowledgedRequest.ackTimeout(TimeValue.MAX_VALUE).masterNodeTimeout(TimeValue.MAX_VALUE),
+                putMappingRequestAcknowledgedRequest.ackTimeout(TimeValue.MAX_VALUE),
                 new RefCountAwareThreadedActionListener<>(threadPool.generic(), listener.map(ignored -> null))
             );
         }, this, clusterStateVersion);

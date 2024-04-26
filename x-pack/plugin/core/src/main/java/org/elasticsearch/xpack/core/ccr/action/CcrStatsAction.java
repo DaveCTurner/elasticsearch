@@ -34,7 +34,7 @@ public class CcrStatsAction extends ActionType<CcrStatsAction.Response> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private TimeValue timeout;
 

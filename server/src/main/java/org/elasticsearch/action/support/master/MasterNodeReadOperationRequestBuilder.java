@@ -19,7 +19,7 @@ public abstract class MasterNodeReadOperationRequestBuilder<
     Request extends MasterNodeReadRequest<Request>,
     Response extends ActionResponse,
     RequestBuilder extends MasterNodeReadOperationRequestBuilder<Request, Response, RequestBuilder>> extends
-    MasterNodeOperationRequestBuilder<Request, Response, RequestBuilder> {
+    MasterNodeOperationRequestBuilder<Request, Response> {
 
     protected MasterNodeReadOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);

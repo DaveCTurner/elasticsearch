@@ -22,9 +22,7 @@ import static org.elasticsearch.core.TimeValue.timeValueSeconds;
  * Abstract base class for action requests that track acknowledgements of cluster state updates: such a request is acknowledged only once
  * the cluster state update is committed and all relevant nodes have applied it and acknowledged its application to the elected master..
  */
-public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Request>> extends MasterNodeRequest<Request>
-    implements
-        AckedRequest {
+public abstract class AcknowledgedRequest<Request extends MasterNodeRequest> extends MasterNodeRequest implements AckedRequest {
 
     public static final TimeValue DEFAULT_ACK_TIMEOUT = timeValueSeconds(30);
 
@@ -36,15 +34,16 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
     /**
      * Construct an {@link AcknowledgedRequest} with the default ack timeout of 30s.
      */
-    protected AcknowledgedRequest() {
-        this(DEFAULT_ACK_TIMEOUT);
+    protected AcknowledgedRequest(TimeValue masterNodeTimeout) {
+        this(masterNodeTimeout, DEFAULT_ACK_TIMEOUT);
     }
 
     /**
      * @param ackTimeout specifies how long to wait for all relevant nodes to apply a cluster state update and acknowledge this to the
      *                   elected master.
      */
-    protected AcknowledgedRequest(TimeValue ackTimeout) {
+    protected AcknowledgedRequest(TimeValue masterNodeTimeout, TimeValue ackTimeout) {
+        super(masterNodeTimeout);
         this.ackTimeout = Objects.requireNonNull(ackTimeout);
     }
 
@@ -94,6 +93,8 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
             super(in);
         }
 
-        public Plain() {}
+        public Plain(TimeValue masterNodeTimeout) {
+            super(masterNodeTimeout);
+        }
     }
 }

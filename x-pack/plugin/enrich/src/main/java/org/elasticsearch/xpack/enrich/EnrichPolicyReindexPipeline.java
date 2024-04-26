@@ -67,7 +67,7 @@ public class EnrichPolicyReindexPipeline {
      */
     public static void create(Client client, ActionListener<AcknowledgedResponse> listener) {
         final BytesReference pipeline = BytesReference.bytes(currentEnrichPipelineDefinition(XContentType.JSON));
-        final PutPipelineRequest request = new PutPipelineRequest(pipelineName(), pipeline, XContentType.JSON);
+        final PutPipelineRequest request = new PutPipelineRequest(masterNodeTimeout, pipelineName(), pipeline, XContentType.JSON);
         client.admin().cluster().putPipeline(request, listener);
     }
 

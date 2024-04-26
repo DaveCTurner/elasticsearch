@@ -11,10 +11,7 @@ import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.protocol.xpack.XPackUsageRequest;
 
-public class XPackUsageRequestBuilder extends MasterNodeOperationRequestBuilder<
-    XPackUsageRequest,
-    XPackUsageResponse,
-    XPackUsageRequestBuilder> {
+public class XPackUsageRequestBuilder extends MasterNodeOperationRequestBuilder<XPackUsageRequest, XPackUsageResponse> {
 
     public XPackUsageRequestBuilder(ElasticsearchClient client) {
         this(client, XPackUsageAction.INSTANCE);

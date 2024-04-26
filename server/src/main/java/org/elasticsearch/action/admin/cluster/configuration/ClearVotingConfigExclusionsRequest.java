@@ -19,14 +19,16 @@ import java.io.IOException;
  * A request to clear the voting config exclusions from the cluster state, optionally waiting for these nodes to be removed from the
  * cluster first.
  */
-public class ClearVotingConfigExclusionsRequest extends MasterNodeRequest<ClearVotingConfigExclusionsRequest> {
+public class ClearVotingConfigExclusionsRequest extends MasterNodeRequest {
     private boolean waitForRemoval = true;
     private TimeValue timeout = TimeValue.timeValueSeconds(30);
 
     /**
      * Construct a request to remove all the voting config exclusions from the cluster state.
      */
-    public ClearVotingConfigExclusionsRequest() {}
+    public ClearVotingConfigExclusionsRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     public ClearVotingConfigExclusionsRequest(StreamInput in) throws IOException {
         super(in);

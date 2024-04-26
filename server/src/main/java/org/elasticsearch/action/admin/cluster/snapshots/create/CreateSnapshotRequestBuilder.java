@@ -18,10 +18,7 @@ import java.util.Map;
 /**
  * Create snapshot request builder
  */
-public class CreateSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<
-    CreateSnapshotRequest,
-    CreateSnapshotResponse,
-    CreateSnapshotRequestBuilder> {
+public class CreateSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<CreateSnapshotRequest, CreateSnapshotResponse> {
 
     /**
      * Constructs a new create snapshot request builder with specified repository and snapshot names

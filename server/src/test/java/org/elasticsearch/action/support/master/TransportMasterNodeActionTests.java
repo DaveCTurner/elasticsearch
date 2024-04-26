@@ -145,7 +145,7 @@ public class TransportMasterNodeActionTests extends ESTestCase {
         }
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements IndicesRequest.Replaceable {
+    public static class Request extends MasterNodeRequest implements IndicesRequest.Replaceable {
         private String[] indices = Strings.EMPTY_ARRAY;
         private final RefCounted refCounted = AbstractRefCounted.of(() -> {});
 

@@ -12,29 +12,14 @@ import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.ElasticsearchClient;
-import org.elasticsearch.core.TimeValue;
 
 /**
  * Base request builder for master node operations
  */
-public abstract class MasterNodeOperationRequestBuilder<
-    Request extends MasterNodeRequest<Request>,
-    Response extends ActionResponse,
-    RequestBuilder extends MasterNodeOperationRequestBuilder<Request, Response, RequestBuilder>> extends ActionRequestBuilder<
-        Request,
-        Response> {
+public abstract class MasterNodeOperationRequestBuilder<Request extends MasterNodeRequest, Response extends ActionResponse> extends
+    ActionRequestBuilder<Request, Response> {
 
     protected MasterNodeOperationRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);
     }
-
-    /**
-     * Sets the master node timeout in case the master has not yet been discovered.
-     */
-    @SuppressWarnings("unchecked")
-    public final RequestBuilder setMasterNodeTimeout(TimeValue timeout) {
-        request.masterNodeTimeout(timeout);
-        return (RequestBuilder) this;
-    }
-
 }

@@ -19,13 +19,10 @@ import org.elasticsearch.xcontent.XContentType;
 import java.util.List;
 import java.util.Map;
 
-public class PutIndexTemplateRequestBuilder extends MasterNodeOperationRequestBuilder<
-    PutIndexTemplateRequest,
-    AcknowledgedResponse,
-    PutIndexTemplateRequestBuilder> {
+public class PutIndexTemplateRequestBuilder extends MasterNodeOperationRequestBuilder<PutIndexTemplateRequest, AcknowledgedResponse> {
 
     public PutIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
-        super(client, TransportPutIndexTemplateAction.TYPE, new PutIndexTemplateRequest(name));
+        super(client, TransportPutIndexTemplateAction.TYPE, new PutIndexTemplateRequest(masterNodeTimeout, name));
     }
 
     /**

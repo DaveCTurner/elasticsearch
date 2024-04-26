@@ -24,7 +24,12 @@ import java.nio.charset.StandardCharsets;
 public class PutPipelineRequestTests extends ESTestCase {
 
     public void testSerializationWithXContent() throws IOException {
-        PutPipelineRequest request = new PutPipelineRequest("1", new BytesArray("{}".getBytes(StandardCharsets.UTF_8)), XContentType.JSON);
+        PutPipelineRequest request = new PutPipelineRequest(
+            masterNodeTimeout,
+            "1",
+            new BytesArray("{}".getBytes(StandardCharsets.UTF_8)),
+            XContentType.JSON
+        );
         assertEquals(XContentType.JSON, request.getXContentType());
 
         BytesStreamOutput output = new BytesStreamOutput();
@@ -51,7 +56,7 @@ public class PutPipelineRequestTests extends ESTestCase {
         // End first processor
         pipelineBuilder.endArray();
         pipelineBuilder.endObject();
-        PutPipelineRequest request = new PutPipelineRequest("1", BytesReference.bytes(pipelineBuilder), xContentType);
+        PutPipelineRequest request = new PutPipelineRequest(masterNodeTimeout, "1", BytesReference.bytes(pipelineBuilder), xContentType);
         XContentBuilder requestBuilder = XContentBuilder.builder(xContentType.xContent());
         BytesReference actualRequestBody = BytesReference.bytes(request.toXContent(requestBuilder, ToXContent.EMPTY_PARAMS));
         assertEquals(BytesReference.bytes(pipelineBuilder), actualRequestBody);

@@ -464,7 +464,10 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         executor.execute(() -> {
             final String templateName = config.getTemplateName();
 
-            PutIndexTemplateRequest request = new PutIndexTemplateRequest(templateName).source(config.loadBytes(), XContentType.JSON);
+            PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout, templateName).source(
+                config.loadBytes(),
+                XContentType.JSON
+            );
             request.masterNodeTimeout(TimeValue.MAX_VALUE);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
@@ -723,6 +726,7 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
             PutPipelineRequest request = new PutPipelineRequest(
+                masterNodeTimeout,
                 pipelineConfig.getId(),
                 pipelineConfig.loadConfig(),
                 pipelineConfig.getXContentType()

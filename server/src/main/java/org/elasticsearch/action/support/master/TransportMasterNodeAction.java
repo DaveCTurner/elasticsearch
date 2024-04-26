@@ -52,7 +52,7 @@ import static org.elasticsearch.core.Strings.format;
 /**
  * A base class for operations that needs to be performed on the master node.
  */
-public abstract class TransportMasterNodeAction<Request extends MasterNodeRequest<Request>, Response extends ActionResponse> extends
+public abstract class TransportMasterNodeAction<Request extends MasterNodeRequest, Response extends ActionResponse> extends
     HandledTransportAction<Request, Response>
     implements
         ActionWithReservedState<Request> {

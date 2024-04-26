@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -25,7 +26,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
  * Delete snapshot request removes snapshots from the repository and cleans up all files that are associated with the snapshots.
  * All files that are shared with at least one other existing snapshot are left intact.
  */
-public class DeleteSnapshotRequest extends MasterNodeRequest<DeleteSnapshotRequest> {
+public class DeleteSnapshotRequest extends MasterNodeRequest {
 
     private String repository;
 
@@ -37,7 +38,8 @@ public class DeleteSnapshotRequest extends MasterNodeRequest<DeleteSnapshotReque
      * @param repository repository name
      * @param snapshots  snapshot names
      */
-    public DeleteSnapshotRequest(String repository, String... snapshots) {
+    public DeleteSnapshotRequest(TimeValue masterNodeTimeout, String repository, String... snapshots) {
+        super(masterNodeTimeout);
         this.repository = repository;
         this.snapshots = snapshots;
     }

@@ -63,7 +63,7 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
 
         public static final ActionType<Response> INSTANCE = new ActionType<>("indices:admin/settings/update-internal-or-private-index");
 
-        public static class Request extends MasterNodeRequest<Request> {
+        public static class Request extends MasterNodeRequest {
 
             private String index;
             private String key;

@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.cluster.node.shutdown;
 import org.elasticsearch.TransportVersions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -34,6 +35,7 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
     private TimeValue timeout = TimeValue.timeValueSeconds(30);
 
     private PrevalidateNodeRemovalRequest(Builder builder) {
+        super(builder.masterNodeTimeout);
         this.names = builder.names;
         this.ids = builder.ids;
         this.externalIds = builder.externalIds;
@@ -92,14 +94,6 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
         return timeout;
     }
 
-    public PrevalidateNodeRemovalRequest timeout(TimeValue timeout) {
-        this.timeout = timeout;
-        if (masterNodeTimeout == DEFAULT_MASTER_NODE_TIMEOUT) {
-            masterNodeTimeout = timeout;
-        }
-        return this;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -119,6 +113,7 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
 
     public static class Builder {
 
+        private TimeValue masterNodeTimeout = MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT;
         private String[] names = Strings.EMPTY_ARRAY;
         private String[] ids = Strings.EMPTY_ARRAY;
         private String[] externalIds = Strings.EMPTY_ARRAY;
@@ -138,6 +133,11 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
         public Builder setExternalIds(String... externalIds) {
             Objects.requireNonNull(externalIds);
             this.externalIds = externalIds;
+            return this;
+        }
+
+        public Builder setMasterNodeTimeout(TimeValue masterNodeTimeout) {
+            this.masterNodeTimeout = Objects.requireNonNull(masterNodeTimeout);
             return this;
         }
 

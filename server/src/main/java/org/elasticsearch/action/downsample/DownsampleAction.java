@@ -38,25 +38,29 @@ public class DownsampleAction extends ActionType<AcknowledgedResponse> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements IndicesRequest, ToXContentObject {
+    public static class Request extends MasterNodeRequest implements IndicesRequest, ToXContentObject {
         private String sourceIndex;
         private String targetIndex;
         private TimeValue waitTimeout;
         private DownsampleConfig downsampleConfig;
 
         public Request(
+            final TimeValue masterNodeTimeout,
             final String sourceIndex,
             final String targetIndex,
             final TimeValue waitTimeout,
             final DownsampleConfig downsampleConfig
         ) {
+            super(masterNodeTimeout);
             this.sourceIndex = sourceIndex;
             this.targetIndex = targetIndex;
             this.waitTimeout = waitTimeout == null ? DEFAULT_WAIT_TIMEOUT : waitTimeout;
             this.downsampleConfig = downsampleConfig;
         }
 
-        public Request() {}
+        public Request(TimeValue masterNodeTimeout) {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

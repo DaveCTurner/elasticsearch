@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -25,7 +26,9 @@ public class GetRepositoriesRequest extends MasterNodeReadRequest<GetRepositorie
 
     private String[] repositories = Strings.EMPTY_ARRAY;
 
-    public GetRepositoriesRequest() {}
+    public GetRepositoriesRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new get repositories request with a list of repositories.
@@ -35,7 +38,8 @@ public class GetRepositoriesRequest extends MasterNodeReadRequest<GetRepositorie
      *
      * @param repositories list of repositories
      */
-    public GetRepositoriesRequest(String[] repositories) {
+    public GetRepositoriesRequest(TimeValue masterNodeTimeout, String[] repositories) {
+        super(masterNodeTimeout);
         this.repositories = repositories;
     }
 

@@ -131,8 +131,10 @@ public class TemplateUpgradeService implements ClusterStateListener {
         }
 
         for (Map.Entry<String, BytesReference> change : changes.entrySet()) {
-            PutIndexTemplateRequest request = new PutIndexTemplateRequest(change.getKey()).source(change.getValue(), XContentType.JSON);
-            request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
+            PutIndexTemplateRequest request = new PutIndexTemplateRequest(
+                TimeValue.timeValueMinutes(1) /* TODO consider making this longer - why time out at all? */,
+                change.getKey()
+            ).source(change.getValue(), XContentType.JSON);
             client.admin().indices().putTemplate(request, new ActionListener<AcknowledgedResponse>() {
                 @Override
                 public void onResponse(AcknowledgedResponse response) {
@@ -153,8 +155,10 @@ public class TemplateUpgradeService implements ClusterStateListener {
         }
 
         for (String template : deletions) {
-            DeleteIndexTemplateRequest request = new DeleteIndexTemplateRequest(template);
-            request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
+            DeleteIndexTemplateRequest request = new DeleteIndexTemplateRequest(
+                TimeValue.timeValueMinutes(1) /* TODO consider making this longer - why time out at all? */,
+                template
+            );
             client.admin().indices().deleteTemplate(request, new ActionListener<AcknowledgedResponse>() {
                 @Override
                 public void onResponse(AcknowledgedResponse response) {

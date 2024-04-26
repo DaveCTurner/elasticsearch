@@ -22,6 +22,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -108,13 +109,16 @@ public class PutMappingRequest extends AcknowledgedRequest<PutMappingRequest> im
         writeIndexOnly = in.readBoolean();
     }
 
-    public PutMappingRequest() {}
+    public PutMappingRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new put mapping request against one or more indices. If nothing is set then
      * it will be executed against all indices.
      */
-    public PutMappingRequest(String... indices) {
+    public PutMappingRequest(TimeValue masterNodeTimeout, String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 

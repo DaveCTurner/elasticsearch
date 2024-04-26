@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -24,7 +25,8 @@ public class GetIndexTemplatesRequest extends MasterNodeReadRequest<GetIndexTemp
 
     private final String[] names;
 
-    public GetIndexTemplatesRequest(String... names) {
+    public GetIndexTemplatesRequest(TimeValue masterNodeTimeout, String... names) {
+        super(masterNodeTimeout);
         this.names = names;
     }
 

@@ -20,8 +20,7 @@ public abstract class AcknowledgedRequestBuilder<
     Response extends ActionResponse & IsAcknowledgedSupplier,
     RequestBuilder extends AcknowledgedRequestBuilder<Request, Response, RequestBuilder>> extends MasterNodeOperationRequestBuilder<
         Request,
-        Response,
-        RequestBuilder> {
+        Response> {
 
     protected AcknowledgedRequestBuilder(ElasticsearchClient client, ActionType<Response> action, Request request) {
         super(client, action, request);

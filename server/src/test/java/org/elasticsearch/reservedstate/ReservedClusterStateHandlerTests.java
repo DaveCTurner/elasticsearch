@@ -10,7 +10,6 @@ package org.elasticsearch.reservedstate;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
-import org.elasticsearch.indices.settings.InternalOrPrivateSettingsPlugin;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xcontent.XContentParser;
 
@@ -42,7 +41,7 @@ public class ReservedClusterStateHandlerTests extends ESTestCase {
         );
     }
 
-    static class ValidRequest extends MasterNodeRequest<InternalOrPrivateSettingsPlugin.UpdateInternalOrPrivateAction.Request> {
+    static class ValidRequest extends MasterNodeRequest {
         @Override
         public ActionRequestValidationException validate() {
             return null;

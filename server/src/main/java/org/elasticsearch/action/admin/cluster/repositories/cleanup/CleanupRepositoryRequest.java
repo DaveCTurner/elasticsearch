@@ -11,6 +11,7 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -20,11 +21,13 @@ public class CleanupRepositoryRequest extends AcknowledgedRequest<CleanupReposit
 
     private String repository;
 
-    public CleanupRepositoryRequest(String repository) {
+    public CleanupRepositoryRequest(TimeValue masterNodeTimeout, String repository) {
+        super(masterNodeTimeout);
         this.repository = repository;
     }
 
     public CleanupRepositoryRequest(StreamInput in) throws IOException {
+        super(DEFAULT_MASTER_NODE_TIMEOUT); // TODO BUG!
         repository = in.readString();
     }
 

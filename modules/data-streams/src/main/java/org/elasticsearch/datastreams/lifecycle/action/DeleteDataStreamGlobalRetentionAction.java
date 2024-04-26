@@ -45,7 +45,7 @@ public class DeleteDataStreamGlobalRetentionAction {
 
     private DeleteDataStreamGlobalRetentionAction() {/* no instances */}
 
-    public static final class Request extends MasterNodeRequest<Request> {
+    public static final class Request extends MasterNodeRequest {
         private boolean dryRun = false;
 
         public Request(StreamInput in) throws IOException {

@@ -11,16 +11,17 @@ package org.elasticsearch.action.admin.cluster.migration;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
 /**
  * Request to begin an upgrade of system features
  */
-public class PostFeatureUpgradeRequest extends MasterNodeRequest<PostFeatureUpgradeRequest> {
+public class PostFeatureUpgradeRequest extends MasterNodeRequest {
 
-    public PostFeatureUpgradeRequest() {
-        super();
+    public PostFeatureUpgradeRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
     }
 
     public PostFeatureUpgradeRequest(StreamInput in) throws IOException {

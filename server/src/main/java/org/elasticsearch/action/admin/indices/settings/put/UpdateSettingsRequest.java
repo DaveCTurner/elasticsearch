@@ -18,6 +18,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -61,19 +62,23 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
         }
     }
 
-    public UpdateSettingsRequest() {}
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new request to update settings for one or more indices
      */
-    public UpdateSettingsRequest(String... indices) {
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout, String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 
     /**
      * Constructs a new request to update settings for one or more indices
      */
-    public UpdateSettingsRequest(Settings settings, String... indices) {
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout, Settings settings, String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
         this.settings = settings;
     }
@@ -254,7 +259,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
             return false;
         }
         UpdateSettingsRequest that = (UpdateSettingsRequest) o;
-        return masterNodeTimeout.equals(that.masterNodeTimeout)
+        return masterNodeTimeout().equals(that.masterNodeTimeout())
             && ackTimeout().equals(that.ackTimeout())
             && Objects.equals(settings, that.settings)
             && Objects.equals(indicesOptions, that.indicesOptions)
@@ -265,7 +270,15 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
 
     @Override
     public int hashCode() {
-        return Objects.hash(masterNodeTimeout, ackTimeout(), settings, indicesOptions, preserveExisting, reopen, Arrays.hashCode(indices));
+        return Objects.hash(
+            masterNodeTimeout(),
+            ackTimeout(),
+            settings,
+            indicesOptions,
+            preserveExisting,
+            reopen,
+            Arrays.hashCode(indices)
+        );
     }
 
 }

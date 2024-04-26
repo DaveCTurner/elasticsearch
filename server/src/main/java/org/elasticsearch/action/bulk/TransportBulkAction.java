@@ -577,17 +577,15 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
     }
 
     void createIndex(String index, boolean requireDataStream, TimeValue timeout, ActionListener<CreateIndexResponse> listener) {
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest();
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(timeout);
         createIndexRequest.index(index);
         createIndexRequest.requireDataStream(requireDataStream);
         createIndexRequest.cause("auto(bulk api)");
-        createIndexRequest.masterNodeTimeout(timeout);
         client.execute(AutoCreateAction.INSTANCE, createIndexRequest, listener);
     }
 
     void lazyRolloverDataStream(String dataStream, TimeValue timeout, ActionListener<RolloverResponse> listener) {
-        RolloverRequest rolloverRequest = new RolloverRequest(dataStream, null);
-        rolloverRequest.masterNodeTimeout(timeout);
+        RolloverRequest rolloverRequest = new RolloverRequest(timeout, dataStream, null);
         // We are executing a lazy rollover because it is an action specialised for this situation, when we want an
         // unconditional and performant rollover.
         rolloverClient.execute(LazyRolloverAction.INSTANCE, rolloverRequest, listener);

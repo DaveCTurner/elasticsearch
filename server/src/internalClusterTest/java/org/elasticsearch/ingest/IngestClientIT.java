@@ -23,6 +23,7 @@ import org.elasticsearch.action.ingest.SimulateDocumentBaseResult;
 import org.elasticsearch.action.ingest.SimulatePipelineRequest;
 import org.elasticsearch.action.ingest.SimulatePipelineResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Requests;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -136,7 +137,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest("_id", source, XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            "_id",
+            source,
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).get();
 
         int numRequests = scaledRandomIntBetween(32, 128);
@@ -187,7 +193,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest("_id", source, XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            "_id",
+            source,
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).get();
 
         BulkRequest bulkRequest = new BulkRequest();
@@ -222,7 +233,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest("_id", source, XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            "_id",
+            source,
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).get();
 
         GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline("_id").get();
@@ -241,7 +257,7 @@ public class IngestClientIT extends ESIntegTestCase {
         assertThat(doc.get("field"), equalTo("value2"));
         assertThat(doc.get("processed"), equalTo(true));
 
-        DeletePipelineRequest deletePipelineRequest = new DeletePipelineRequest("_id");
+        DeletePipelineRequest deletePipelineRequest = new DeletePipelineRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, "_id");
         AcknowledgedResponse response = clusterAdmin().deletePipeline(deletePipelineRequest).get();
         assertThat(response.isAcknowledged(), is(true));
 
@@ -263,7 +279,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest("_id2", source, XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            "_id2",
+            source,
+            XContentType.JSON
+        );
         Exception e = expectThrows(ElasticsearchParseException.class, clusterAdmin().putPipeline(putPipelineRequest));
         assertThat(e.getMessage(), equalTo("processor [test] doesn't support one or more provided configuration parameters [unused]"));
 
@@ -284,7 +305,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest("_id", source, XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            "_id",
+            source,
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).get();
 
         BulkItemResponse item = client(masterOnlyNode).prepareBulk()
@@ -310,7 +336,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("1", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+                "1",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
         {
@@ -327,7 +358,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("2", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+                "2",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
         {
@@ -343,7 +379,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("3", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+                "3",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
 
@@ -383,7 +424,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("1", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                masterNodeTimeout,
+                "1",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
         {
@@ -400,7 +446,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("2", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                masterNodeTimeout,
+                "2",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
         {
@@ -416,7 +467,12 @@ public class IngestClientIT extends ESIntegTestCase {
                 source.endArray();
             }
             source.endObject();
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest("3", BytesReference.bytes(source), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                masterNodeTimeout,
+                "3",
+                BytesReference.bytes(source),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).get();
         }
 

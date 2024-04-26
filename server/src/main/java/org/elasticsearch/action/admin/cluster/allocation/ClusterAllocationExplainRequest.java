@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParser;
@@ -24,7 +25,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
 /**
  * A request to explain the allocation of a shard in the cluster
  */
-public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAllocationExplainRequest> {
+public class ClusterAllocationExplainRequest extends MasterNodeRequest {
 
     private static final ObjectParser<ClusterAllocationExplainRequest, Void> PARSER = new ObjectParser<>("cluster/allocation/explain");
     static {
@@ -48,7 +49,8 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
     /**
      * Create a new allocation explain request to explain any unassigned shard in the cluster.
      */
-    public ClusterAllocationExplainRequest() {
+    public ClusterAllocationExplainRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
         this.index = null;
         this.shard = null;
         this.primary = null;
@@ -72,7 +74,8 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
      *
      * Package private for testing.
      */
-    ClusterAllocationExplainRequest(String index, int shard, boolean primary, @Nullable String currentNode) {
+    ClusterAllocationExplainRequest(TimeValue masterNodeTimeout, String index, int shard, boolean primary, @Nullable String currentNode) {
+        super(masterNodeTimeout);
         this.index = index;
         this.shard = shard;
         this.primary = primary;
@@ -229,7 +232,7 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
         return sb.toString();
     }
 
-    public static ClusterAllocationExplainRequest parse(XContentParser parser) throws IOException {
-        return PARSER.parse(parser, new ClusterAllocationExplainRequest(), null);
+    public static ClusterAllocationExplainRequest parse(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
+        return PARSER.parse(parser, new ClusterAllocationExplainRequest(masterNodeTimeout), null);
     }
 }

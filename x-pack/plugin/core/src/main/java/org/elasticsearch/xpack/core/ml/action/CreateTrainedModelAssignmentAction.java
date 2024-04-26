@@ -32,7 +32,7 @@ public class CreateTrainedModelAssignmentAction extends ActionType<CreateTrained
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
         private final StartTrainedModelDeploymentAction.TaskParams taskParams;
 
         public Request(StartTrainedModelDeploymentAction.TaskParams taskParams) {

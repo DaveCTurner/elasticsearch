@@ -24,7 +24,7 @@ public class FinalizeJobExecutionAction extends ActionType<AcknowledgedResponse>
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private String[] jobIds;
 

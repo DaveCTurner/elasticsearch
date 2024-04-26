@@ -33,7 +33,7 @@ public class DeleteAnalyticsCollectionAction {
 
     private DeleteAnalyticsCollectionAction() {/* no instances */}
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
         private final String collectionName;
 
         public static ParseField COLLECTION_NAME_FIELD = new ParseField("collection_name");

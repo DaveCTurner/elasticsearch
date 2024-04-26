@@ -20,7 +20,7 @@ import java.util.concurrent.Executor;
 /**
  * Base class for the common case of a {@link TransportMasterNodeAction} that responds with an {@link AcknowledgedResponse}.
  */
-public abstract class AcknowledgedTransportMasterNodeAction<Request extends MasterNodeRequest<Request>> extends TransportMasterNodeAction<
+public abstract class AcknowledgedTransportMasterNodeAction<Request extends MasterNodeRequest> extends TransportMasterNodeAction<
     Request,
     AcknowledgedResponse> {
 

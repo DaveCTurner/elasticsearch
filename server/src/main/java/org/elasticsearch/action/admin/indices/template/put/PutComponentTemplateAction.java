@@ -17,6 +17,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -37,7 +38,7 @@ public class PutComponentTemplateAction extends ActionType<AcknowledgedResponse>
     /**
      * A request for putting a single component template into the cluster state
      */
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
         private final String name;
         @Nullable
         private String cause;
@@ -55,7 +56,8 @@ public class PutComponentTemplateAction extends ActionType<AcknowledgedResponse>
         /**
          * Constructs a new put component template request with the provided name.
          */
-        public Request(String name) {
+        public Request(TimeValue masterNodeTimeout, String name) {
+            super(masterNodeTimeout);
             this.name = name;
         }
 

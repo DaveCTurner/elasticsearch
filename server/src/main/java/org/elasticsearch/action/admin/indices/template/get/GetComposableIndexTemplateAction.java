@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.metadata.DataStreamGlobalRetention;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -48,7 +49,8 @@ public class GetComposableIndexTemplateAction extends ActionType<GetComposableIn
         /**
          * @param name A template name or pattern, or {@code null} to retrieve all templates.
          */
-        public Request(@Nullable String name) {
+        public Request(TimeValue masterNodeTimeout, @Nullable String name) {
+            super(masterNodeTimeout);
             if (name != null && name.contains(",")) {
                 throw new IllegalArgumentException("template name may not contain ','");
             }

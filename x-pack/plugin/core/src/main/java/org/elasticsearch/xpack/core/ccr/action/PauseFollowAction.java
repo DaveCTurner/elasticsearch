@@ -26,7 +26,7 @@ public class PauseFollowAction extends ActionType<AcknowledgedResponse> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String followIndex;
 

@@ -1646,7 +1646,7 @@ public class AuthorizationServiceTests extends ESTestCase {
 
         AuditUtil.getOrGenerateRequestId(threadContext);
 
-        TransportRequest request = new PutIndexTemplateRequest(randomAlphaOfLengthBetween(4, 20));
+        TransportRequest request = new PutIndexTemplateRequest(masterNodeTimeout, randomAlphaOfLengthBetween(4, 20));
 
         ElasticsearchSecurityException securityException = expectThrows(
             ElasticsearchSecurityException.class,

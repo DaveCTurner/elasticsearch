@@ -11,6 +11,7 @@ package org.elasticsearch.action.ingest;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -19,7 +20,8 @@ public class DeletePipelineRequest extends AcknowledgedRequest<DeletePipelineReq
 
     private String id;
 
-    public DeletePipelineRequest(String id) {
+    public DeletePipelineRequest(TimeValue masterNodeTimeout, String id) {
+        super(masterNodeTimeout);
         if (id == null) {
             throw new IllegalArgumentException("id is missing");
         }

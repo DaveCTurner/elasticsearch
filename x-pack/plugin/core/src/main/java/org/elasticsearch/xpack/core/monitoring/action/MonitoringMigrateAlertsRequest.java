@@ -13,7 +13,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 
 import java.io.IOException;
 
-public class MonitoringMigrateAlertsRequest extends MasterNodeRequest<MonitoringMigrateAlertsRequest> {
+public class MonitoringMigrateAlertsRequest extends MasterNodeRequest {
 
     public MonitoringMigrateAlertsRequest() {}
 

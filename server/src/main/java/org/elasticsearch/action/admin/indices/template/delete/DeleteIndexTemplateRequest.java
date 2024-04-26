@@ -11,6 +11,7 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -19,7 +20,7 @@ import static org.elasticsearch.action.ValidateActions.addValidationError;
 /**
  * A request to delete an index template.
  */
-public class DeleteIndexTemplateRequest extends MasterNodeRequest<DeleteIndexTemplateRequest> {
+public class DeleteIndexTemplateRequest extends MasterNodeRequest {
 
     private String name;
 
@@ -28,12 +29,15 @@ public class DeleteIndexTemplateRequest extends MasterNodeRequest<DeleteIndexTem
         name = in.readString();
     }
 
-    public DeleteIndexTemplateRequest() {}
+    public DeleteIndexTemplateRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new delete index request for the specified name.
      */
-    public DeleteIndexTemplateRequest(String name) {
+    public DeleteIndexTemplateRequest(TimeValue masterNodeTimeout, String name) {
+        super(masterNodeTimeout);
         this.name = name;
     }
 

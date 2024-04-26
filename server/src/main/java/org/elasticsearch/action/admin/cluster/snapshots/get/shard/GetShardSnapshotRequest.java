@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
@@ -22,13 +23,14 @@ import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
 
-public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotRequest> {
+public class GetShardSnapshotRequest extends MasterNodeRequest {
     private static final String ALL_REPOSITORIES = "_all";
 
     private final List<String> repositories;
     private final ShardId shardId;
 
-    GetShardSnapshotRequest(List<String> repositories, ShardId shardId) {
+    GetShardSnapshotRequest(TimeValue masterNodeTimeout, List<String> repositories, ShardId shardId) {
+        super(masterNodeTimeout);
         assert repositories.isEmpty() == false;
         assert repositories.stream().noneMatch(Objects::isNull);
         assert repositories.size() == 1 || repositories.stream().noneMatch(repo -> repo.equals(ALL_REPOSITORIES));
@@ -50,7 +52,11 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
     }
 
     public static GetShardSnapshotRequest latestSnapshotInAllRepositories(ShardId shardId) {
-        return new GetShardSnapshotRequest(Collections.singletonList(ALL_REPOSITORIES), shardId);
+        return new GetShardSnapshotRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, // TODO should this be longer?
+            Collections.singletonList(ALL_REPOSITORIES),
+            shardId
+        );
     }
 
     public static GetShardSnapshotRequest latestSnapshotInRepositories(ShardId shardId, List<String> repositories) {
@@ -61,7 +67,11 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
         if (repositories.stream().anyMatch(Objects::isNull)) {
             throw new NullPointerException("null values are not allowed in the repository list");
         }
-        return new GetShardSnapshotRequest(repositories, shardId);
+        return new GetShardSnapshotRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, // TODO should this be longer?
+            repositories,
+            shardId
+        );
     }
 
     @Override

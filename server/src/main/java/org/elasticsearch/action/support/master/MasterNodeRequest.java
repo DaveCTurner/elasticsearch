@@ -14,17 +14,24 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
- * A based request for master based operation.
+ * A base request for requests that are routed to the elected master node.
  */
-public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Request>> extends ActionRequest {
+public abstract class MasterNodeRequest extends ActionRequest {
 
     public static final TimeValue DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
 
-    protected TimeValue masterNodeTimeout = DEFAULT_MASTER_NODE_TIMEOUT;
+    private final TimeValue masterNodeTimeout;
 
-    protected MasterNodeRequest() {}
+    /**
+     * @param masterNodeTimeout Specifies how long to wait when the master has not been discovered yet, or is disconnected, or is busy
+     *                          processing other tasks. The value {@link TimeValue#MINUS_ONE} means to wait forever.
+     */
+    protected MasterNodeRequest(TimeValue masterNodeTimeout) {
+        this.masterNodeTimeout = Objects.requireNonNull(masterNodeTimeout);
+    }
 
     protected MasterNodeRequest(StreamInput in) throws IOException {
         super(in);
@@ -36,16 +43,6 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
         super.writeTo(out);
         assert hasReferences();
         out.writeTimeValue(masterNodeTimeout);
-    }
-
-    /**
-     * Specifies how long to wait when the master has not been discovered yet, or is disconnected, or is busy processing other tasks. The
-     * value {@link TimeValue#MINUS_ONE} means to wait forever.
-     */
-    @SuppressWarnings("unchecked")
-    public final Request masterNodeTimeout(TimeValue timeout) {
-        this.masterNodeTimeout = timeout;
-        return (Request) this;
     }
 
     /**

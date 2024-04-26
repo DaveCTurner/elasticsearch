@@ -31,7 +31,7 @@ public class PutEnrichPolicyAction extends ActionType<AcknowledgedResponse> {
         return new Request(name, EnrichPolicy.fromXContent(parser));
     }
 
-    public static class Request extends MasterNodeRequest<PutEnrichPolicyAction.Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final EnrichPolicy policy;
         private final String name;

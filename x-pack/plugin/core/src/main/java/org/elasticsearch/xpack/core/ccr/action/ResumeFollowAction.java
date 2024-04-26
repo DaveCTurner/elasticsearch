@@ -32,7 +32,7 @@ public final class ResumeFollowAction extends ActionType<AcknowledgedResponse> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
 
         // Note that Request should be the Value class here for this parser with a 'parameters' field that maps to FollowParameters class
         // But since two minor version are already released with duplicate follow parameters in several APIs, FollowParameters

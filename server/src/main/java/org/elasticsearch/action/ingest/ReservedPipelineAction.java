@@ -118,7 +118,7 @@ public class ReservedPipelineAction implements ReservedClusterStateHandler<List<
             Map<String, ?> content = (Map<String, ?>) source.get(id);
             try (XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON)) {
                 builder.map(content);
-                result.add(new PutPipelineRequest(id, BytesReference.bytes(builder), XContentType.JSON));
+                result.add(new PutPipelineRequest(masterNodeTimeout, id, BytesReference.bytes(builder), XContentType.JSON));
             } catch (Exception e) {
                 throw new ElasticsearchGenerationException("Failed to generate [" + source + "]", e);
             }

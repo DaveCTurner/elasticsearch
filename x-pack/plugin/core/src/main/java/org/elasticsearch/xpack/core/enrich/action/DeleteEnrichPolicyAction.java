@@ -25,7 +25,7 @@ public class DeleteEnrichPolicyAction extends ActionType<AcknowledgedResponse> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<DeleteEnrichPolicyAction.Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String name;
 

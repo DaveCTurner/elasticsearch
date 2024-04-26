@@ -12,8 +12,7 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 
 public class CleanupRepositoryRequestBuilder extends MasterNodeOperationRequestBuilder<
     CleanupRepositoryRequest,
-    CleanupRepositoryResponse,
-    CleanupRepositoryRequestBuilder> {
+    CleanupRepositoryResponse> {
 
     public CleanupRepositoryRequestBuilder(ElasticsearchClient client, String repository) {
         super(client, TransportCleanupRepositoryAction.TYPE, new CleanupRepositoryRequest(repository));

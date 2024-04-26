@@ -57,7 +57,7 @@ public class DocumentSizeObserverWithPipelinesIT extends ESIntegTestCase {
               ]
             }
             """);
-        clusterAdmin().putPipeline(new PutPipelineRequest("pipeline", pipelineBody, XContentType.JSON)).actionGet();
+        clusterAdmin().putPipeline(new PutPipelineRequest(masterNodeTimeout, "pipeline", pipelineBody, XContentType.JSON)).actionGet();
 
         client().index(
             new IndexRequest(TEST_INDEX_NAME).setPipeline("pipeline")

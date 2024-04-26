@@ -20,10 +20,7 @@ import java.util.Map;
 /**
  * Restore snapshot request builder
  */
-public class RestoreSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<
-    RestoreSnapshotRequest,
-    RestoreSnapshotResponse,
-    RestoreSnapshotRequestBuilder> {
+public class RestoreSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<RestoreSnapshotRequest, RestoreSnapshotResponse> {
 
     /**
      * Constructs new restore snapshot request builder with specified repository and snapshot names

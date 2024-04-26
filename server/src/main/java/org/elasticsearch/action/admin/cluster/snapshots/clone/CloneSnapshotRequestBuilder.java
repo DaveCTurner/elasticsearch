@@ -11,16 +11,24 @@ package org.elasticsearch.action.admin.cluster.snapshots.clone;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.Strings;
 
-public class CloneSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<
-    CloneSnapshotRequest,
-    AcknowledgedResponse,
-    CloneSnapshotRequestBuilder> {
+public class CloneSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<CloneSnapshotRequest, AcknowledgedResponse> {
 
     public CloneSnapshotRequestBuilder(ElasticsearchClient client, String repository, String source, String target) {
-        super(client, TransportCloneSnapshotAction.TYPE, new CloneSnapshotRequest(repository, source, target, Strings.EMPTY_ARRAY));
+        super(
+            client,
+            TransportCloneSnapshotAction.TYPE,
+            new CloneSnapshotRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, // TODO only used in tests, get rid of this
+                repository,
+                source,
+                target,
+                Strings.EMPTY_ARRAY
+            )
+        );
     }
 
     /**

@@ -15,10 +15,7 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 /**
  * Delete snapshot request builder
  */
-public class DeleteSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<
-    DeleteSnapshotRequest,
-    AcknowledgedResponse,
-    DeleteSnapshotRequestBuilder> {
+public class DeleteSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<DeleteSnapshotRequest, AcknowledgedResponse> {
 
     /**
      * Constructs delete snapshot request builder with specified repository and snapshot names

@@ -508,7 +508,7 @@ public class ClusterStateChanges {
         }
     }
 
-    private <Request extends MasterNodeRequest<Request>, Response extends ActionResponse> ClusterState execute(
+    private <Request extends MasterNodeRequest, Response extends ActionResponse> ClusterState execute(
         TransportMasterNodeAction<Request, Response> masterNodeAction,
         Request request,
         ClusterState clusterState

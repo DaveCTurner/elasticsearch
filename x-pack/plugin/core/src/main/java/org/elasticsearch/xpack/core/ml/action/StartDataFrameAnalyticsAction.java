@@ -45,7 +45,7 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
 
         public static final ParseField TIMEOUT = new ParseField("timeout");
 

@@ -32,7 +32,7 @@ import static org.elasticsearch.common.settings.Settings.readSettingsFromStream;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.constructorArg;
 import static org.elasticsearch.xcontent.ConstructingObjectParser.optionalConstructorArg;
 
-public class MountSearchableSnapshotRequest extends MasterNodeRequest<MountSearchableSnapshotRequest> {
+public class MountSearchableSnapshotRequest extends MasterNodeRequest {
 
     public static final ConstructingObjectParser<MountSearchableSnapshotRequest, RestRequest> PARSER = new ConstructingObjectParser<>(
         "mount_searchable_snapshot",

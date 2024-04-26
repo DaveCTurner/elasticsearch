@@ -45,8 +45,8 @@ public class PutIndexTemplateRequestTests extends ESTestCase {
     }
 
     public void testMappingKeyedByType() throws IOException {
-        PutIndexTemplateRequest request1 = new PutIndexTemplateRequest("foo");
-        PutIndexTemplateRequest request2 = new PutIndexTemplateRequest("bar");
+        PutIndexTemplateRequest request1 = new PutIndexTemplateRequest(masterNodeTimeout, "foo");
+        PutIndexTemplateRequest request2 = new PutIndexTemplateRequest(masterNodeTimeout, "bar");
         {
             XContentBuilder builder = XContentFactory.contentBuilder(randomFrom(XContentType.values()));
             builder.startObject()
@@ -85,8 +85,8 @@ public class PutIndexTemplateRequestTests extends ESTestCase {
             assertEquals(request1.mappings(), request2.mappings());
         }
         {
-            request1 = new PutIndexTemplateRequest("foo");
-            request2 = new PutIndexTemplateRequest("bar");
+            request1 = new PutIndexTemplateRequest(masterNodeTimeout, "foo");
+            request2 = new PutIndexTemplateRequest(masterNodeTimeout, "bar");
             String nakedMapping = """
                 {"properties": {"foo": {"type": "integer"}}}""";
             request1.mapping(nakedMapping, XContentType.JSON);
@@ -94,8 +94,8 @@ public class PutIndexTemplateRequestTests extends ESTestCase {
             assertEquals(request1.mappings(), request2.mappings());
         }
         {
-            request1 = new PutIndexTemplateRequest("foo");
-            request2 = new PutIndexTemplateRequest("bar");
+            request1 = new PutIndexTemplateRequest(masterNodeTimeout, "foo");
+            request2 = new PutIndexTemplateRequest(masterNodeTimeout, "bar");
             Map<String, Object> nakedMapping = Map.<String, Object>of(
                 "properties",
                 Map.<String, Object>of("bar", Map.<String, Object>of("type", "scaled_float", "scaling_factor", 100))

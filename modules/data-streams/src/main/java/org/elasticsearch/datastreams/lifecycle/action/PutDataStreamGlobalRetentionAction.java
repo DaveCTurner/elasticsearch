@@ -51,7 +51,7 @@ public class PutDataStreamGlobalRetentionAction {
 
     private PutDataStreamGlobalRetentionAction() {/* no instances */}
 
-    public static final class Request extends MasterNodeRequest<Request> {
+    public static final class Request extends MasterNodeRequest {
 
         public static final ConstructingObjectParser<PutDataStreamGlobalRetentionAction.Request, Void> PARSER =
             new ConstructingObjectParser<>(

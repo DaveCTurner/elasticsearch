@@ -22,6 +22,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -43,7 +44,7 @@ public class StartPersistentTaskAction extends ActionType<PersistentTaskResponse
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private String taskId;
 
@@ -51,7 +52,9 @@ public class StartPersistentTaskAction extends ActionType<PersistentTaskResponse
 
         private PersistentTaskParams params;
 
-        public Request() {}
+        public Request(TimeValue masterNodeTimeout) {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);
@@ -60,7 +63,8 @@ public class StartPersistentTaskAction extends ActionType<PersistentTaskResponse
             params = in.readNamedWriteable(PersistentTaskParams.class);
         }
 
-        public Request(String taskId, String taskName, PersistentTaskParams params) {
+        public Request(TimeValue masterNodeTimeout, String taskId, String taskName, PersistentTaskParams params) {
+            super(masterNodeTimeout);
             this.taskId = taskId;
             this.taskName = taskName;
             this.params = params;

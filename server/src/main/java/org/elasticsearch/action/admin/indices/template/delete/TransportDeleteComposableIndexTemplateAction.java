@@ -27,6 +27,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -95,7 +96,7 @@ public class TransportDeleteComposableIndexTemplateAction extends AcknowledgedTr
             .collect(Collectors.toSet());
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String[] names;
 
@@ -107,7 +108,8 @@ public class TransportDeleteComposableIndexTemplateAction extends AcknowledgedTr
         /**
          * Constructs a new delete template request for the specified name.
          */
-        public Request(String... names) {
+        public Request(TimeValue masterNodeTimeout, String... names) {
+            super(masterNodeTimeout);
             this.names = Objects.requireNonNull(names, "templates to delete must not be null");
         }
 

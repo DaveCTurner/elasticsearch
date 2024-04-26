@@ -101,7 +101,7 @@ public interface ReservedClusterStateHandler<T> {
      *
      * @param request the master node request that we base this reserved state handler on
      */
-    default void validate(MasterNodeRequest<?> request) {
+    default void validate(MasterNodeRequest request) {
         ActionRequestValidationException exception = request.validate();
         if (exception != null) {
             throw new IllegalStateException("Validation error", exception);

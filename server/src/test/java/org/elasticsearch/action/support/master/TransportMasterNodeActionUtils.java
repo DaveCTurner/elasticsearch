@@ -19,7 +19,7 @@ public class TransportMasterNodeActionUtils {
      * {@link TransportMasterNodeAction#masterOperation(org.elasticsearch.tasks.Task,MasterNodeRequest, ClusterState, ActionListener)}
      * which is a protected method.
      */
-    public static <Request extends MasterNodeRequest<Request>, Response extends ActionResponse> void runMasterOperation(
+    public static <Request extends MasterNodeRequest, Response extends ActionResponse> void runMasterOperation(
         TransportMasterNodeAction<Request, Response> masterNodeAction,
         Request request,
         ClusterState clusterState,

@@ -9,6 +9,7 @@
 package org.elasticsearch.action.admin.cluster.allocation;
 
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 
 /**
@@ -16,11 +17,14 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
  */
 public class ClusterAllocationExplainRequestBuilder extends MasterNodeOperationRequestBuilder<
     ClusterAllocationExplainRequest,
-    ClusterAllocationExplainResponse,
-    ClusterAllocationExplainRequestBuilder> {
+    ClusterAllocationExplainResponse> {
 
     public ClusterAllocationExplainRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportClusterAllocationExplainAction.TYPE, new ClusterAllocationExplainRequest());
+        super(
+            client,
+            TransportClusterAllocationExplainAction.TYPE,
+            new ClusterAllocationExplainRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT) // TODO only used in tests, get rid of this
+        );
     }
 
     /** The index name to use when finding the shard to explain */

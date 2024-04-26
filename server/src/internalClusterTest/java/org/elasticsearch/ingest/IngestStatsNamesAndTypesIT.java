@@ -92,7 +92,8 @@ public class IngestStatsNamesAndTypesIT extends ESIntegTestCase {
             }
             """, MockScriptEngine.NAME, MockScriptEngine.NAME);
         BytesReference pipeline1Reference = new BytesArray(pipeline1);
-        clusterAdmin().putPipeline(new PutPipelineRequest("pipeline1", pipeline1Reference, XContentType.JSON)).actionGet();
+        clusterAdmin().putPipeline(new PutPipelineRequest(masterNodeTimeout, "pipeline1", pipeline1Reference, XContentType.JSON))
+            .actionGet();
 
         // index a single document through the pipeline
         BulkRequest bulkRequest = new BulkRequest();

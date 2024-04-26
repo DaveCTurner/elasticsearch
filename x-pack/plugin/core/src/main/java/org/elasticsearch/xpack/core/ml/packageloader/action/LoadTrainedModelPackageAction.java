@@ -32,7 +32,7 @@ public class LoadTrainedModelPackageAction extends ActionType<AcknowledgedRespon
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<LoadTrainedModelPackageAction.Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String modelId;
         private final ModelPackageConfig modelPackageConfig;

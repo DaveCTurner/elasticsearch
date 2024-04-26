@@ -11,10 +11,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 
-public class DeleteIndexTemplateRequestBuilder extends MasterNodeOperationRequestBuilder<
-    DeleteIndexTemplateRequest,
-    AcknowledgedResponse,
-    DeleteIndexTemplateRequestBuilder> {
+public class DeleteIndexTemplateRequestBuilder extends MasterNodeOperationRequestBuilder<DeleteIndexTemplateRequest, AcknowledgedResponse> {
 
     public DeleteIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
         super(client, TransportDeleteIndexTemplateAction.TYPE, new DeleteIndexTemplateRequest(name));

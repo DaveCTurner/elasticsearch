@@ -293,7 +293,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
     }
 
     private void putTrainedModelIngestPipeline(String pipelineId) throws Exception {
-        client().execute(PutPipelineTransportAction.TYPE, new PutPipelineRequest(pipelineId, new BytesArray("""
+        client().execute(PutPipelineTransportAction.TYPE, new PutPipelineRequest(masterNodeTimeout, pipelineId, new BytesArray("""
             {
                 "processors": [
                   {

@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.desirednodes.TransportDeleteDesiredNodesAction;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -31,8 +32,9 @@ public class RestDeleteDesiredNodesAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain();
-        deleteDesiredNodesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteDesiredNodesRequest.masterNodeTimeout()));
+        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
+        );
         return restChannel -> client.execute(
             TransportDeleteDesiredNodesAction.TYPE,
             deleteDesiredNodesRequest,

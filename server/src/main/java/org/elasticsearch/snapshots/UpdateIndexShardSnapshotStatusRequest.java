@@ -13,6 +13,7 @@ import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.UpdateForV9;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
@@ -21,7 +22,7 @@ import java.util.Objects;
 /**
  * Internal request that is used to send changes in snapshot status to master
  */
-public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest<UpdateIndexShardSnapshotStatusRequest> {
+public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest {
     private final Snapshot snapshot;
     private final ShardId shardId;
     private final SnapshotsInProgress.ShardSnapshotStatus status;
@@ -33,12 +34,15 @@ public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest<Upd
         status = SnapshotsInProgress.ShardSnapshotStatus.readFrom(in);
     }
 
+    @UpdateForV9 // specify MINUS_ONE, we want an infinite timeout here
     public UpdateIndexShardSnapshotStatusRequest(Snapshot snapshot, ShardId shardId, SnapshotsInProgress.ShardSnapshotStatus status) {
+        super(
+            // By default, we keep trying to post snapshot status messages to avoid snapshot processes getting stuck.
+            TimeValue.timeValueNanos(Long.MAX_VALUE)
+        );
         this.snapshot = snapshot;
         this.shardId = shardId;
         this.status = status;
-        // By default, we keep trying to post snapshot status messages to avoid snapshot processes getting stuck.
-        this.masterNodeTimeout = TimeValue.timeValueNanos(Long.MAX_VALUE);
     }
 
     @Override

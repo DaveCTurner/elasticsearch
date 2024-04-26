@@ -38,7 +38,7 @@ public class GetShutdownStatusAction extends ActionType<GetShutdownStatusAction.
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String[] nodeIds;
 

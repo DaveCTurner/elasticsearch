@@ -33,7 +33,7 @@ public class EnrichStatsAction extends ActionType<EnrichStatsAction.Response> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         public Request() {}
 

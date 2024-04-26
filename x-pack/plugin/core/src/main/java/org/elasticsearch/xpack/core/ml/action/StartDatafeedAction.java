@@ -53,7 +53,7 @@ public class StartDatafeedAction extends ActionType<NodeAcknowledgedResponse> {
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> implements ToXContentObject {
+    public static class Request extends MasterNodeRequest implements ToXContentObject {
 
         public static Request parseRequest(String datafeedId, XContentParser parser) {
             DatafeedParams params = DatafeedParams.PARSER.apply(parser, null);

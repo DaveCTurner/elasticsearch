@@ -531,6 +531,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         client().execute(
             PutPipelineTransportAction.TYPE,
             new PutPipelineRequest(
+                masterNodeTimeout,
                 "test_infer_license_pipeline",
                 new BytesArray(pipeline.getBytes(StandardCharsets.UTF_8)),
                 XContentType.JSON
@@ -579,6 +580,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         client().execute(
             PutPipelineTransportAction.TYPE,
             new PutPipelineRequest(
+                masterNodeTimeout,
                 "test_infer_license_pipeline_again",
                 new BytesArray(pipeline.getBytes(StandardCharsets.UTF_8)),
                 XContentType.JSON
@@ -613,6 +615,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         client().execute(
             PutPipelineTransportAction.TYPE,
             new PutPipelineRequest(
+                masterNodeTimeout,
                 "test_infer_license_pipeline",
                 new BytesArray(pipeline.getBytes(StandardCharsets.UTF_8)),
                 XContentType.JSON

@@ -16,7 +16,7 @@ import org.elasticsearch.tasks.TaskId;
 import java.io.IOException;
 import java.util.Map;
 
-public class XPackUsageRequest extends MasterNodeRequest<XPackUsageRequest> {
+public class XPackUsageRequest extends MasterNodeRequest {
 
     public XPackUsageRequest() {}
 

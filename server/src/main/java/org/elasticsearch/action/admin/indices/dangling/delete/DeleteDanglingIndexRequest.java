@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.indices.dangling.delete;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -29,8 +30,8 @@ public class DeleteDanglingIndexRequest extends AcknowledgedRequest<DeleteDangli
         this.acceptDataLoss = in.readBoolean();
     }
 
-    public DeleteDanglingIndexRequest(String indexUUID, boolean acceptDataLoss) {
-        super();
+    public DeleteDanglingIndexRequest(TimeValue masterNodeTimeout, String indexUUID, boolean acceptDataLoss) {
+        super(masterNodeTimeout);
         this.indexUUID = Objects.requireNonNull(indexUUID, "indexUUID cannot be null");
         this.acceptDataLoss = acceptDataLoss;
     }

@@ -17,10 +17,7 @@ import org.elasticsearch.search.sort.SortOrder;
 /**
  * Get snapshots request builder
  */
-public class GetSnapshotsRequestBuilder extends MasterNodeOperationRequestBuilder<
-    GetSnapshotsRequest,
-    GetSnapshotsResponse,
-    GetSnapshotsRequestBuilder> {
+public class GetSnapshotsRequestBuilder extends MasterNodeOperationRequestBuilder<GetSnapshotsRequest, GetSnapshotsResponse> {
 
     /**
      * Constructs the new get snapshot request with specified repositories

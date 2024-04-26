@@ -11,6 +11,7 @@ package org.elasticsearch.rest.action.cat;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.Table;
@@ -51,12 +52,11 @@ public class RestSnapshotAction extends AbstractCatAction {
     @Override
     protected RestChannelConsumer doCatRequest(final RestRequest request, NodeClient client) {
         final String[] matchAll = { ResolvedRepositories.ALL_PATTERN };
-        GetSnapshotsRequest getSnapshotsRequest = new GetSnapshotsRequest().repositories(request.paramAsStringArray("repository", matchAll))
-            .snapshots(matchAll);
+        GetSnapshotsRequest getSnapshotsRequest = new GetSnapshotsRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
+        ).repositories(request.paramAsStringArray("repository", matchAll)).snapshots(matchAll);
 
         getSnapshotsRequest.ignoreUnavailable(request.paramAsBoolean("ignore_unavailable", getSnapshotsRequest.ignoreUnavailable()));
-
-        getSnapshotsRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getSnapshotsRequest.masterNodeTimeout()));
 
         return channel -> client.admin().cluster().getSnapshots(getSnapshotsRequest, new RestResponseListener<>(channel) {
             @Override

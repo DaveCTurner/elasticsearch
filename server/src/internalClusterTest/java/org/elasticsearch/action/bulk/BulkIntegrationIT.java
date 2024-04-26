@@ -144,7 +144,11 @@ public class BulkIntegrationIT extends ESIntegTestCase {
             .endArray()
             .endObject();
 
-        assertAcked(clusterAdmin().putPipeline(new PutPipelineRequest(pipelineId, BytesReference.bytes(pipeline), XContentType.JSON)));
+        assertAcked(
+            clusterAdmin().putPipeline(
+                new PutPipelineRequest(masterNodeTimeout, pipelineId, BytesReference.bytes(pipeline), XContentType.JSON)
+            )
+        );
     }
 
     /** This test ensures that index deletion makes indexing fail quickly, not wait on the index that has disappeared */

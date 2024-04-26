@@ -272,6 +272,7 @@ import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequestBuilder;
@@ -1445,7 +1446,13 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ResizeRequestBuilder prepareResizeIndex(String sourceIndex, String targetIndex) {
-            return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex).setTargetIndex(new CreateIndexRequest(targetIndex));
+            return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex)
+                .setTargetIndex(
+                    new CreateIndexRequest(
+                        MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, // TODO only used in tests, get rid of this whole method
+                        targetIndex
+                    )
+                );
         }
 
         @Override

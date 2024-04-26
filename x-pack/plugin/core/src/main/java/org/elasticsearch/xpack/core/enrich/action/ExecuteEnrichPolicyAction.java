@@ -28,7 +28,7 @@ public class ExecuteEnrichPolicyAction extends ActionType<ExecuteEnrichPolicyAct
         super(NAME);
     }
 
-    public static class Request extends MasterNodeRequest<Request> {
+    public static class Request extends MasterNodeRequest {
 
         private final String name;
         private boolean waitForCompletion;
