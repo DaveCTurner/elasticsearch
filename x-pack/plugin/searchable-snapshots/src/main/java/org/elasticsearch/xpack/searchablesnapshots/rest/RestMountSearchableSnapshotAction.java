@@ -36,7 +36,7 @@ public class RestMountSearchableSnapshotAction extends BaseRestHandler {
         MountSearchableSnapshotRequest mountSearchableSnapshotRequest = MountSearchableSnapshotRequest.PARSER.apply(
             request.contentParser(),
             request
-        ).masterNodeTimeout(request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT));
+        ).masterNodeTimeout(request.paramAsTime("master_timeout", MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT));
         return channel -> client.execute(
             MountSearchableSnapshotAction.INSTANCE,
             mountSearchableSnapshotRequest,

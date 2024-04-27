@@ -44,7 +44,7 @@ public class RestClusterSearchShardsAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
         final ClusterSearchShardsRequest clusterSearchShardsRequest = new ClusterSearchShardsRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
             indices
         );
         clusterSearchShardsRequest.local(request.paramAsBoolean("local", clusterSearchShardsRequest.local()));

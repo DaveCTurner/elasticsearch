@@ -43,7 +43,7 @@ public class RestXPackUsageAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final TimeValue masterTimeout = request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
+        final TimeValue masterTimeout = request.paramAsTime("master_timeout", MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT);
         final HttpChannel httpChannel = request.getHttpChannel();
         return channel -> new XPackUsageRequestBuilder(new RestCancellableNodeClient(client, httpChannel)).setMasterNodeTimeout(
             masterTimeout

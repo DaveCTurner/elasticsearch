@@ -52,7 +52,7 @@ public class RestAliasAction extends AbstractCatAction {
 
     @Override
     protected RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
-        final var masterNodeTimeout = MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT; /* TODO configurable timeout here? */
+        final var masterNodeTimeout = MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT; /* TODO configurable timeout here? */
         final GetAliasesRequest getAliasesRequest = request.hasParam("alias")
             ? new GetAliasesRequest(masterNodeTimeout, Strings.commaDelimitedListToStringArray(request.param("alias")))
             : new GetAliasesRequest(masterNodeTimeout);

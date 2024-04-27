@@ -224,7 +224,7 @@ public class ClusterStateRequest extends MasterNodeReadRequest<ClusterStateReque
         if (indices.length > 0) {
             stringBuilder.append("indices ").append(Arrays.toString(indices)).append(", ");
         }
-        stringBuilder.append("master timeout [").append(masterNodeTimeout0).append("]]");
+        stringBuilder.append("master timeout [").append(masterNodeTimeout).append("]]");
         return stringBuilder.toString();
     }
 

@@ -20,24 +20,32 @@ import java.io.IOException;
  */
 public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Request>> extends ActionRequest {
 
-    public static final TimeValue DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
+    /**
+     * In production code it's almost certainly a mistake to use this default for the master node timeout. Master-node actions triggered by
+     * user requests should respect the timeout specified in the request, using {@link
+     * org.elasticsearch.rest.RestUtils#getMasterNodeTimeout} which implements the common API behaviour described in the reference docs.
+     * Internal master-node actions should probably not time out after just 30s - in many cases they should keep trying forever, and in the
+     * few cases where that doesn't apply they should still be explicit about the desired timeout behaviour.
+     */
+    @Deprecated(forRemoval = true)
+    public static final TimeValue TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
 
-    protected TimeValue masterNodeTimeout0 = DEFAULT_MASTER_NODE_TIMEOUT;
+    protected TimeValue masterNodeTimeout;
 
     protected MasterNodeRequest(TimeValue masterNodeTimeout) {
-        this.masterNodeTimeout0 = masterNodeTimeout;
+        this.masterNodeTimeout = masterNodeTimeout;
     }
 
     protected MasterNodeRequest(StreamInput in) throws IOException {
         super(in);
-        masterNodeTimeout0 = in.readTimeValue();
+        masterNodeTimeout = in.readTimeValue();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         assert hasReferences();
-        out.writeTimeValue(masterNodeTimeout0);
+        out.writeTimeValue(masterNodeTimeout);
     }
 
     /**
@@ -46,7 +54,7 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      */
     @SuppressWarnings("unchecked")
     public final Request masterNodeTimeout(TimeValue timeout) {
-        this.masterNodeTimeout0 = timeout;
+        this.masterNodeTimeout = timeout;
         return (Request) this;
     }
 
@@ -55,6 +63,6 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      * value {@link TimeValue#MINUS_ONE} means to wait forever.
      */
     public final TimeValue masterNodeTimeout() {
-        return this.masterNodeTimeout0;
+        return this.masterNodeTimeout;
     }
 }

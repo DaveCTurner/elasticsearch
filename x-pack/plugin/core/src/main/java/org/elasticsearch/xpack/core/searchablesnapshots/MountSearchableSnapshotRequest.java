@@ -223,7 +223,7 @@ public class MountSearchableSnapshotRequest extends MasterNodeRequest<MountSearc
             && Objects.equals(snapshotIndexName, that.snapshotIndexName)
             && Objects.equals(indexSettings, that.indexSettings)
             && Arrays.equals(ignoreIndexSettings, that.ignoreIndexSettings)
-            && Objects.equals(masterNodeTimeout0, that.masterNodeTimeout0);
+            && Objects.equals(masterNodeTimeout, that.masterNodeTimeout);
     }
 
     @Override
@@ -235,7 +235,7 @@ public class MountSearchableSnapshotRequest extends MasterNodeRequest<MountSearc
             snapshotIndexName,
             indexSettings,
             waitForCompletion,
-            masterNodeTimeout0,
+            masterNodeTimeout,
             storage
         );
         result = 31 * result + Arrays.hashCode(ignoreIndexSettings);

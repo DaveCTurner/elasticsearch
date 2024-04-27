@@ -45,7 +45,7 @@ public class RestResetFeatureStateAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         final ResetFeatureStateRequest req = new ResetFeatureStateRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */
         );
 
         return restChannel -> client.execute(ResetFeatureStateAction.INSTANCE, req, new RestToXContentListener<>(restChannel, r -> {

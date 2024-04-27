@@ -50,7 +50,7 @@ public class RestHealthAction extends AbstractCatAction {
     @Override
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
         ClusterHealthRequest clusterHealthRequest = new ClusterHealthRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */
         );
 
         return channel -> client.admin().cluster().health(clusterHealthRequest, new RestResponseListener<ClusterHealthResponse>(channel) {

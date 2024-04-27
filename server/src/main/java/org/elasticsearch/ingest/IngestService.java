@@ -320,7 +320,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
          * Used by the {@link org.elasticsearch.action.ingest.ReservedPipelineAction}
          */
         public DeletePipelineClusterStateUpdateTask(String id) {
-            this(null, new DeletePipelineRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, id));
+            this(null, new DeletePipelineRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, id));
         }
 
         @Override

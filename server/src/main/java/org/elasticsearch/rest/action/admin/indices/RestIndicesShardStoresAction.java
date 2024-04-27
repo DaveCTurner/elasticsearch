@@ -47,7 +47,7 @@ public class RestIndicesShardStoresAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         IndicesShardStoresRequest indicesShardStoresRequest = new IndicesShardStoresRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
             Strings.splitStringByCommaToArray(request.param("index"))
         );
         if (request.hasParam("status")) {

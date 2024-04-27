@@ -64,7 +64,7 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
             throw new NullPointerException("null values are not allowed in the repository list");
         }
         return new GetShardSnapshotRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
             repositories,
             shardId
         );

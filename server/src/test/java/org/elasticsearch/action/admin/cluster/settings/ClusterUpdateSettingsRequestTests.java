@@ -64,14 +64,14 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
             );
             XContentParseException iae = expectThrows(XContentParseException.class, () -> {
                 try (var parser = createParser(xContentType.xContent(), mutated)) {
-                    ClusterUpdateSettingsRequest.fromXContent(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, parser);
+                    ClusterUpdateSettingsRequest.fromXContent(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT, parser);
                 }
             });
             assertThat(iae.getMessage(), containsString("[cluster_update_settings_request] unknown field [" + unsupportedField + "]"));
         } else {
             try (XContentParser parser = createParser(xContentType.xContent(), originalBytes)) {
                 ClusterUpdateSettingsRequest parsedRequest = ClusterUpdateSettingsRequest.fromXContent(
-                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+                    MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT,
                     parser
                 );
 
@@ -83,7 +83,7 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
     }
 
     private static ClusterUpdateSettingsRequest createTestItem() {
-        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
+        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT);
         request.persistentSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         request.transientSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         return request;

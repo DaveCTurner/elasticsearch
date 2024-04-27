@@ -259,7 +259,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
             return false;
         }
         UpdateSettingsRequest that = (UpdateSettingsRequest) o;
-        return masterNodeTimeout0.equals(that.masterNodeTimeout0)
+        return masterNodeTimeout.equals(that.masterNodeTimeout)
             && ackTimeout().equals(that.ackTimeout())
             && Objects.equals(settings, that.settings)
             && Objects.equals(indicesOptions, that.indicesOptions)
@@ -270,7 +270,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
 
     @Override
     public int hashCode() {
-        return Objects.hash(masterNodeTimeout0, ackTimeout(), settings, indicesOptions, preserveExisting, reopen, Arrays.hashCode(indices));
+        return Objects.hash(masterNodeTimeout, ackTimeout(), settings, indicesOptions, preserveExisting, reopen, Arrays.hashCode(indices));
     }
 
 }

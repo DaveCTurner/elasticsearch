@@ -79,17 +79,17 @@ public class CcrStatsAction extends ActionType<CcrStatsAction.Response> {
                 return false;
             }
             Request that = (Request) o;
-            return Objects.equals(this.timeout, that.timeout) && Objects.equals(this.masterNodeTimeout0, that.masterNodeTimeout0);
+            return Objects.equals(this.timeout, that.timeout) && Objects.equals(this.masterNodeTimeout, that.masterNodeTimeout);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.timeout, this.masterNodeTimeout0);
+            return Objects.hash(this.timeout, this.masterNodeTimeout);
         }
 
         @Override
         public String toString() {
-            return "CcrStatsAction.Request[timeout=" + timeout + ", masterNodeTimeout=" + masterNodeTimeout0 + "]";
+            return "CcrStatsAction.Request[timeout=" + timeout + ", masterNodeTimeout=" + masterNodeTimeout + "]";
         }
     }
 

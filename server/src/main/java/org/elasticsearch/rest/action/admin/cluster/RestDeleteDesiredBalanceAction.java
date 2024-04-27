@@ -38,7 +38,7 @@ public class RestDeleteDesiredBalanceAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return channel -> client.execute(
             TransportDeleteDesiredBalanceAction.TYPE,
-            new DesiredBalanceRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */),
+            new DesiredBalanceRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */),
             new RestToXContentListener<>(channel)
         );
     }

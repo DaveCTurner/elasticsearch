@@ -63,7 +63,7 @@ public class PersistentTasksService {
         @SuppressWarnings("unchecked")
         final ActionListener<PersistentTask<?>> wrappedListener = listener.map(t -> (PersistentTask<Params>) t);
         StartPersistentTaskAction.Request request = new StartPersistentTaskAction.Request(
-            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            timeout == null ? MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId,
             taskName,
             taskParams
@@ -88,7 +88,7 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         CompletionPersistentTaskAction.Request request = new CompletionPersistentTaskAction.Request(
-            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            timeout == null ? MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId,
             taskAllocationId,
             taskFailure,
@@ -134,7 +134,7 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         UpdatePersistentTaskStatusAction.Request request = new UpdatePersistentTaskStatusAction.Request(
-            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            timeout == null ? MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId,
             taskAllocationID,
             taskState
@@ -151,7 +151,7 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         RemovePersistentTaskAction.Request request = new RemovePersistentTaskAction.Request(
-            timeout == null ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT : timeout,
+            timeout == null ? MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT : timeout,
             taskId
         );
         execute(request, RemovePersistentTaskAction.INSTANCE, listener);

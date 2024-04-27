@@ -459,7 +459,7 @@ public class DiskThresholdMonitor {
         client.admin()
             .indices()
             .prepareUpdateSettings(
-                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+                MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
                 indicesToUpdate.toArray(Strings.EMPTY_ARRAY)
             )
             .setSettings(readOnlySettings)
@@ -500,7 +500,7 @@ public class DiskThresholdMonitor {
             client.admin()
                 .indices()
                 .prepareUpdateSettings(
-                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+                    MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
                     indicesToRelease.toArray(Strings.EMPTY_ARRAY)
                 )
                 .setSettings(NOT_READ_ONLY_ALLOW_DELETE_SETTINGS)

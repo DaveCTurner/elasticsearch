@@ -198,7 +198,7 @@ public class SystemIndexMappingUpdateService implements ClusterStateListener {
         final String indexName = descriptor.getPrimaryIndex();
 
         PutMappingRequest request = new PutMappingRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
             indexName
         ).source(descriptor.getMappings(), XContentType.JSON);
 

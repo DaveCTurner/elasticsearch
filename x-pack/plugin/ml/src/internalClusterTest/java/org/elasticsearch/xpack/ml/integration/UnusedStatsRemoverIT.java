@@ -57,7 +57,7 @@ public class UnusedStatsRemoverIT extends BaseMlIntegTestCase {
             client(),
             clusterService().state(),
             TestIndexNameExpressionResolver.newInstance(client().threadPool().getThreadContext()),
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT,
             future
         );
         future.actionGet();

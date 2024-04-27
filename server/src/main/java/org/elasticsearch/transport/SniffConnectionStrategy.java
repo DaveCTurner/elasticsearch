@@ -319,7 +319,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                 } else {
                     action = ClusterStateAction.NAME;
                     final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(
-                        MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
+                        MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
                     );
                     clusterStateRequest.clear();
                     clusterStateRequest.nodes(true);

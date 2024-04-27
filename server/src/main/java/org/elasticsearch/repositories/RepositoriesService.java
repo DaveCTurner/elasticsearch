@@ -467,7 +467,10 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
          * @param name the repository name
          */
         public UnregisterRepositoryTask(String name) {
-            this(new DeleteRepositoryRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, name), null);
+            this(
+                new DeleteRepositoryRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, name),
+                null
+            );
         }
 
         @Override

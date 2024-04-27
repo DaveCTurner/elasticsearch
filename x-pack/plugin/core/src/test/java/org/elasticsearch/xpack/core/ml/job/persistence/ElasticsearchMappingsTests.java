@@ -297,7 +297,7 @@ public class ElasticsearchMappingsTests extends ESTestCase {
                 {"_doc":{"properties":{"some-field":{"type":"long"}}}}""",
             client,
             clusterState,
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT,
             ActionTestUtils.assertNoFailureListener(Assert::assertTrue),
             1
         );

@@ -371,7 +371,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
             TestIndexNameExpressionResolver.newInstance(),
             TEST_INDEX_PREFIX,
             TEST_INDEX_ALIAS,
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT,
             listener
         );
     }

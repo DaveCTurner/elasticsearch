@@ -124,7 +124,7 @@ public final class LazyRolloverAction extends ActionType<RolloverResponse> {
             // This will provide a more resilient user experience
             RolloverTask rolloverTask = new RolloverTask(
                 new RolloverRequest(
-                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO copy from rolloverRequest? */,
+                    MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO copy from rolloverRequest? */,
                     rolloverRequest.getRolloverTarget(),
                     null
                 ),

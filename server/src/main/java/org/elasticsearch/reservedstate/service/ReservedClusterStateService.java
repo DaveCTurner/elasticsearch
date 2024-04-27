@@ -106,7 +106,7 @@ public class ReservedClusterStateService {
             p.nextToken();
             return new Tuple<>(
                 name,
-                handlers.get(name).fromXContent(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, p)
+                handlers.get(name).fromXContent(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, p)
             );
         }, STATE_FIELD);
         stateChunkParser.declareObject(ConstructingObjectParser.constructorArg(), (p, c) -> ReservedStateVersion.parse(p), METADATA_FIELD);

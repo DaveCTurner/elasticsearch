@@ -33,7 +33,7 @@ public class IndicesAliasesRequestTests extends ESTestCase {
         try (XContentParser parser = createParser(xContentType.xContent(), shuffled)) {
             parsedIndicesAliasesRequest = IndicesAliasesRequest.PARSER.parse(
                 parser,
-                new IndicesAliasesRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+                new IndicesAliasesRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT),
                 null
             );
             assertNull(parser.nextToken());
@@ -48,7 +48,7 @@ public class IndicesAliasesRequestTests extends ESTestCase {
 
     private IndicesAliasesRequest createTestInstance() {
         int numItems = randomIntBetween(0, 32);
-        IndicesAliasesRequest request = new IndicesAliasesRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
+        IndicesAliasesRequest request = new IndicesAliasesRequest(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT);
         if (randomBoolean()) {
             request.ackTimeout(randomTimeValue());
         }

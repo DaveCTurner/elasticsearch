@@ -92,7 +92,7 @@ public class TransportNodesStatsAction extends TransportNodesAction<
             client.execute(
                 TransportGetAllocationStatsAction.TYPE,
                 new TransportGetAllocationStatsAction.Request(
-                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+                    MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
                     new TaskId(clusterService.localNode().getId(), task.getId())
                 ),
                 listener.delegateFailure((l, r) -> {

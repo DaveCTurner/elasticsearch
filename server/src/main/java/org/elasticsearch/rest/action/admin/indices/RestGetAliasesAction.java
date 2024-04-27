@@ -207,7 +207,7 @@ public class RestGetAliasesAction extends BaseRestHandler {
         final boolean namesProvided = request.hasParam("name");
         final String[] aliases = request.paramAsStringArrayOrEmptyIfAll("name");
         final GetAliasesRequest getAliasesRequest = new GetAliasesRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout? */,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout? */,
             aliases
         );
         final String[] indices = Strings.splitStringByCommaToArray(request.param("index"));

@@ -150,7 +150,7 @@ final class RemoteClusterConnection implements Closeable {
                     );
                 } else {
                     final ClusterStateRequest request = new ClusterStateRequest(
-                        MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
+                        MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
                     );
                     request.clear();
                     request.nodes(true);

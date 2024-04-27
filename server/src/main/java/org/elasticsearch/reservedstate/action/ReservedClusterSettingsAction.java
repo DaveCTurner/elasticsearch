@@ -61,7 +61,7 @@ public class ReservedClusterSettingsAction implements ReservedClusterStateHandle
         toDelete.forEach(k -> newSettings.put(k, (String) null));
 
         final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(
-            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
         );
         clusterUpdateSettingsRequest.persistentSettings(newSettings);
         return clusterUpdateSettingsRequest;

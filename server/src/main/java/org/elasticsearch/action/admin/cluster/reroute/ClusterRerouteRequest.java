@@ -134,12 +134,12 @@ public class ClusterRerouteRequest extends AcknowledgedRequest<ClusterRerouteReq
             && Objects.equals(explain, other.explain)
             && Objects.equals(ackTimeout(), other.ackTimeout())
             && Objects.equals(retryFailed, other.retryFailed)
-            && Objects.equals(masterNodeTimeout0, other.masterNodeTimeout0);
+            && Objects.equals(masterNodeTimeout, other.masterNodeTimeout);
     }
 
     @Override
     public int hashCode() {
         // Override equals and hashCode for testing
-        return Objects.hash(commands, dryRun, explain, ackTimeout(), retryFailed, masterNodeTimeout0);
+        return Objects.hash(commands, dryRun, explain, ackTimeout(), retryFailed, masterNodeTimeout);
     }
 }

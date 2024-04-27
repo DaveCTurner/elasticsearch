@@ -50,11 +50,13 @@ public class RestClusterAllocationExplainAction extends BaseRestHandler {
         ClusterAllocationExplainRequest req;
         if (request.hasContentOrSourceParam() == false) {
             // Empty request signals "explain the first unassigned shard you find"
-            req = new ClusterAllocationExplainRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */);
+            req = new ClusterAllocationExplainRequest(
+                MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */
+            );
         } else {
             try (XContentParser parser = request.contentOrSourceParamParser()) {
                 req = ClusterAllocationExplainRequest.parse(
-                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+                    MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
                     parser
                 );
             }

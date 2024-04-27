@@ -28,7 +28,7 @@ public class CleanupRepositoryRequest extends AcknowledgedRequest<CleanupReposit
     }
 
     public CleanupRepositoryRequest(StreamInput in) throws IOException {
-        super(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
+        super(MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
         repository = in.readString();
     }
 
