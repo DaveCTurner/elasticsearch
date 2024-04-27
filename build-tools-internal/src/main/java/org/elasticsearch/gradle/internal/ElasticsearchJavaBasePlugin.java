@@ -149,8 +149,6 @@ public class ElasticsearchJavaBasePlugin implements Plugin<Project> {
             // TODO Discuss moving compileOptions.getCompilerArgs() to use provider api with Gradle team.
             List<String> compilerArgs = compileOptions.getCompilerArgs();
             compilerArgs.add("-Werror");
-            compilerArgs.add("-Xmaxerrs");
-            compilerArgs.add("5000");
             compilerArgs.add("-Xlint:all,-path,-serial,-options,-deprecation,-try,-removal");
             compilerArgs.add("-Xdoclint:all");
             compilerArgs.add("-Xdoclint:-missing");

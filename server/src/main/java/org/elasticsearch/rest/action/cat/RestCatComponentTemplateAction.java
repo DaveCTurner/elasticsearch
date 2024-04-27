@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.cat;
 
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.ComponentTemplate;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -73,10 +74,11 @@ public class RestCatComponentTemplateAction extends AbstractCatAction {
     @Override
     protected BaseRestHandler.RestChannelConsumer doCatRequest(RestRequest request, NodeClient client) {
         final String matchPattern = request.hasParam("name") ? request.param("name") : null;
-        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout);
+        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
+        );
         clusterStateRequest.clear().metadata(true);
         clusterStateRequest.local(request.paramAsBoolean("local", clusterStateRequest.local()));
-        clusterStateRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterStateRequest.masterNodeTimeout()));
         return channel -> client.admin().cluster().state(clusterStateRequest, new RestResponseListener<>(channel) {
             @Override
             public RestResponse buildResponse(ClusterStateResponse clusterStateResponse) throws Exception {

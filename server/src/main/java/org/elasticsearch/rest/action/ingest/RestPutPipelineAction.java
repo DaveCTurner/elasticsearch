@@ -9,6 +9,7 @@
 package org.elasticsearch.rest.action.ingest;
 
 import org.elasticsearch.action.ingest.PutPipelineRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.Tuple;
@@ -54,13 +55,12 @@ public class RestPutPipelineAction extends BaseRestHandler {
 
         Tuple<XContentType, BytesReference> sourceTuple = restRequest.contentOrSourceParam();
         PutPipelineRequest request = new PutPipelineRequest(
-            masterNodeTimeout,
+            restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
             restRequest.param("id"),
             sourceTuple.v2(),
             sourceTuple.v1(),
             ifVersion
         );
-        request.masterNodeTimeout(restRequest.paramAsTime("master_timeout", request.masterNodeTimeout()));
         request.ackTimeout(restRequest.paramAsTime("timeout", request.ackTimeout()));
         return channel -> client.admin().cluster().putPipeline(request, new RestToXContentListener<>(channel));
     }

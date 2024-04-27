@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.core.RestApiVersion;
 import org.elasticsearch.repositories.RepositoryConflictException;
@@ -45,12 +46,14 @@ public class RestPutRepositoryAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String name = request.param("repository");
-        PutRepositoryRequest putRepositoryRequest = new PutRepositoryRequest(masterNodeTimeout, name);
+        PutRepositoryRequest putRepositoryRequest = new PutRepositoryRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+            name
+        );
         try (XContentParser parser = request.contentParser()) {
             putRepositoryRequest.source(parser.mapOrdered());
         }
         putRepositoryRequest.verify(request.paramAsBoolean("verify", true));
-        putRepositoryRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putRepositoryRequest.masterNodeTimeout()));
         putRepositoryRequest.ackTimeout(request.paramAsTime("timeout", putRepositoryRequest.ackTimeout()));
         return channel -> client.admin()
             .cluster()

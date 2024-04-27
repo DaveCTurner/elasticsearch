@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.cat;
 
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequest;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.common.Table;
@@ -36,9 +37,10 @@ public class RestRepositoriesAction extends AbstractCatAction {
 
     @Override
     protected RestChannelConsumer doCatRequest(RestRequest request, NodeClient client) {
-        GetRepositoriesRequest getRepositoriesRequest = new GetRepositoriesRequest(masterNodeTimeout);
+        GetRepositoriesRequest getRepositoriesRequest = new GetRepositoriesRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
+        );
         getRepositoriesRequest.local(request.paramAsBoolean("local", getRepositoriesRequest.local()));
-        getRepositoriesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRepositoriesRequest.masterNodeTimeout()));
 
         return channel -> client.admin()
             .cluster()

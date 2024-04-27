@@ -10,6 +10,7 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.migration.PostFeatureUpgradeAction;
 import org.elasticsearch.action.admin.cluster.migration.PostFeatureUpgradeRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -39,10 +40,9 @@ public class RestPostFeatureUpgradeAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-
-        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest(masterNodeTimeout);
-        req.masterNodeTimeout(request.paramAsTime("master_timeout", req.masterNodeTimeout()));
-
-        return restChannel -> { client.execute(PostFeatureUpgradeAction.INSTANCE, req, new RestToXContentListener<>(restChannel)); };
+        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
+        );
+        return restChannel -> client.execute(PostFeatureUpgradeAction.INSTANCE, req, new RestToXContentListener<>(restChannel));
     }
 }
