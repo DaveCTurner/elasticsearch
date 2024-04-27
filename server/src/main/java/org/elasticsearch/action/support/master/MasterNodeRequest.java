@@ -12,6 +12,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.UpdateForV9;
 
 import java.io.IOException;
 
@@ -29,6 +30,9 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      */
     @Deprecated(forRemoval = true)
     public static final TimeValue TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
+
+    @UpdateForV9 // replace with MINUS_ONE when such infinite timeouts are fully supported
+    public static final TimeValue VERY_LONG_MASTER_NODE_TIMEOUT = TimeValue.MAX_VALUE;
 
     protected TimeValue masterNodeTimeout;
 

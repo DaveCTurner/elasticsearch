@@ -14,6 +14,7 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.ResourceNotFoundException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -375,7 +376,10 @@ public final class GeoIpDownloaderTaskExecutor extends PersistentTasksExecutor<G
                 Index databasesIndex = databasesAbstraction.getWriteIndex();
                 client.admin()
                     .indices()
-                    .prepareDelete(masterNodeTimeout, databasesIndex.getName())
+                    .prepareDelete(
+                        MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable or longer timeout here? */,
+                        databasesIndex.getName()
+                    )
                     .execute(ActionListener.wrap(rr -> {}, e -> {
                         Throwable t = e instanceof RemoteTransportException ? ExceptionsHelper.unwrapCause(e) : e;
                         if (t instanceof ResourceNotFoundException == false) {

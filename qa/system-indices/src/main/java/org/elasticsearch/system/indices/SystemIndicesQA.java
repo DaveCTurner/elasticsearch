@@ -44,6 +44,7 @@ import static org.elasticsearch.action.admin.cluster.node.tasks.get.TransportGet
 import static org.elasticsearch.index.mapper.MapperService.SINGLE_MAPPING_NAME;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
 
 public class SystemIndicesQA extends Plugin implements SystemIndexPlugin, ActionPlugin {
@@ -155,10 +156,13 @@ public class SystemIndicesQA extends Plugin implements SystemIndexPlugin, Action
         }
 
         @Override
-        protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
             return channel -> client.admin()
                 .indices()
-                .create(new CreateIndexRequest(masterNodeTimeout, ".net-new-system-index-primary"), new RestToXContentListener<>(channel));
+                .create(
+                    new CreateIndexRequest(getMasterNodeTimeout(request), ".net-new-system-index-primary"),
+                    new RestToXContentListener<>(channel)
+                );
         }
 
         @Override

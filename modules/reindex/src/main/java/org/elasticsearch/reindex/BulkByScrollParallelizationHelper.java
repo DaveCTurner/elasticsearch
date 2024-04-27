@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.index.Index;
@@ -114,7 +115,9 @@ class BulkByScrollParallelizationHelper {
     ) {
         int configuredSlices = request.getSlices();
         if (configuredSlices == AbstractBulkByScrollRequest.AUTO_SLICES) {
-            ClusterSearchShardsRequest shardsRequest = new ClusterSearchShardsRequest(masterNodeTimeout);
+            ClusterSearchShardsRequest shardsRequest = new ClusterSearchShardsRequest(
+                MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable or longer timeout here? */
+            );
             shardsRequest.indices(request.getSearchRequest().indices());
             client.admin().cluster().searchShards(shardsRequest, listener.safeMap(response -> {
                 setWorkerCount(request, task, countSlicesBasedOnShards(response));

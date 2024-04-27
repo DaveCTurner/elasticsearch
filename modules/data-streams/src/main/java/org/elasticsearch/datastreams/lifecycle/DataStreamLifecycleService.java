@@ -34,6 +34,7 @@ import org.elasticsearch.action.downsample.DownsampleConfig;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -559,7 +560,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
      */
     private void downsampleIndexOnce(DataStreamLifecycle.Downsampling.Round round, String sourceIndex, String downsampleIndexName) {
         DownsampleAction.Request request = new DownsampleAction.Request(
-            masterNodeTimeout,
+            MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
             sourceIndex,
             downsampleIndexName,
             null,
@@ -706,7 +707,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
      * Issues a request to delete the provided index through the transport action deduplicator.
      */
     private void deleteIndexOnce(String indexName, String reason) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName, masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE);
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(TimeValue.MAX_VALUE, indexName);
         transportActionsDeduplicator.executeOnce(
             deleteIndexRequest,
             new ErrorRecordingActionListener(
@@ -724,9 +725,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
      * Issues a request to add a WRITE index block for the provided index through the transport action deduplicator.
      */
     private void addIndexBlockOnce(String indexName) {
-        AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(masterNodeTimeout, WRITE, indexName).masterNodeTimeout(
-            TimeValue.MAX_VALUE
-        );
+        AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(TimeValue.MAX_VALUE, WRITE, indexName);
         transportActionsDeduplicator.executeOnce(
             addIndexBlockRequest,
             new ErrorRecordingActionListener(
@@ -903,14 +902,15 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
             Integer configuredMergeFactor = MergePolicyConfig.INDEX_MERGE_POLICY_MERGE_FACTOR_SETTING.get(backingIndex.getSettings());
             if ((configuredFloorSegmentMerge == null || configuredFloorSegmentMerge.equals(targetMergePolicyFloorSegment) == false)
                 || (configuredMergeFactor == null || configuredMergeFactor.equals(targetMergePolicyFactor) == false)) {
-                UpdateSettingsRequest updateMergePolicySettingsRequest = new UpdateSettingsRequest(masterNodeTimeout);
+                UpdateSettingsRequest updateMergePolicySettingsRequest = new UpdateSettingsRequest(
+                    MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT
+                );
                 updateMergePolicySettingsRequest.indices(indexName);
                 updateMergePolicySettingsRequest.settings(
                     Settings.builder()
                         .put(MergePolicyConfig.INDEX_MERGE_POLICY_FLOOR_SEGMENT_SETTING.getKey(), targetMergePolicyFloorSegment)
                         .put(MergePolicyConfig.INDEX_MERGE_POLICY_MERGE_FACTOR_SETTING.getKey(), targetMergePolicyFactor)
                 );
-                updateMergePolicySettingsRequest.masterNodeTimeout(TimeValue.MAX_VALUE);
                 affectedIndices.add(index);
                 transportActionsDeduplicator.executeOnce(
                     updateMergePolicySettingsRequest,
@@ -1359,7 +1359,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
         String dataStream,
         TimeValue dataRetention
     ) {
-        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, dataStream, null).masterNodeTimeout(TimeValue.MAX_VALUE);
+        RolloverRequest rolloverRequest = new RolloverRequest(MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT, dataStream, null);
         rolloverRequest.setConditions(rolloverConfiguration.resolveRolloverConditions(dataRetention));
         return rolloverRequest;
     }
