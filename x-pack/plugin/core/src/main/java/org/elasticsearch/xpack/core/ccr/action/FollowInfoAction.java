@@ -41,7 +41,9 @@ public class FollowInfoAction extends ActionType<FollowInfoAction.Response> {
 
         private String[] followerIndices;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public String[] getFollowerIndices() {
             return followerIndices;

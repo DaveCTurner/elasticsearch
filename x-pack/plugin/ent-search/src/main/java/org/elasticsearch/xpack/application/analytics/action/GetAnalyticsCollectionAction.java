@@ -41,6 +41,7 @@ public class GetAnalyticsCollectionAction {
         public static ParseField NAMES_FIELD = new ParseField("names");
 
         public Request(String[] names) {
+            super(masterNodeTimeout);
             this.names = Objects.requireNonNull(names, "Collection names cannot be null");
         }
 

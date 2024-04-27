@@ -43,9 +43,12 @@ public class SimulateTemplateAction extends ActionType<SimulateIndexTemplateResp
         private TransportPutComposableIndexTemplateAction.Request indexTemplateRequest;
         private boolean includeDefaults = false;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(String templateName) {
+            super(masterNodeTimeout);
             if (templateName == null) {
                 throw new IllegalArgumentException("template name cannot be null");
             }
@@ -53,6 +56,7 @@ public class SimulateTemplateAction extends ActionType<SimulateIndexTemplateResp
         }
 
         public Request(TransportPutComposableIndexTemplateAction.Request indexTemplateRequest) {
+            super(masterNodeTimeout);
             if (indexTemplateRequest == null) {
                 throw new IllegalArgumentException("index template body must be present");
             }

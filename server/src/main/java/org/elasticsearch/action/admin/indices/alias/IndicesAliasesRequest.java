@@ -21,6 +21,7 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -65,7 +66,7 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         origin = in.readOptionalString();
     }
 
-    public IndicesAliasesRequest() {
+    public IndicesAliasesRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
@@ -670,7 +671,10 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         return builder;
     }
 
-    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>("aliases", IndicesAliasesRequest::new);
+    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>(
+        "aliases",
+        () -> new IndicesAliasesRequest(masterNodeTimeout)
+    );
     static {
         PARSER.declareObjectArray((request, actions) -> {
             for (AliasActions action : actions) {

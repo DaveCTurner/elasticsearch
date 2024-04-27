@@ -51,7 +51,9 @@ public class GetSettingsRequest extends MasterNodeReadRequest<GetSettingsRequest
         return this;
     }
 
-    public GetSettingsRequest() {}
+    public GetSettingsRequest() {
+        super(masterNodeTimeout);
+    }
 
     public GetSettingsRequest(StreamInput in) throws IOException {
         super(in);

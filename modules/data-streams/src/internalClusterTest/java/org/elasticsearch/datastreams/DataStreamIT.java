@@ -540,7 +540,7 @@ public class DataStreamIT extends ESIntegTestCase {
         String dataStreamName = "logs-foobar";
         CreateDataStreamAction.Request request = new CreateDataStreamAction.Request(dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, request).actionGet();
-        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
         String aliasToDataStream = "logs";
         aliasesRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).alias(aliasToDataStream).index("logs-foobar"));
         assertAcked(indicesAdmin().aliases(aliasesRequest).actionGet());
@@ -693,7 +693,7 @@ public class DataStreamIT extends ESIntegTestCase {
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index(dataStreamName).aliases("foo");
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addAction);
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
         GetAliasesResponse response = indicesAdmin().getAliases(new GetAliasesRequest()).actionGet();
@@ -719,7 +719,7 @@ public class DataStreamIT extends ESIntegTestCase {
         AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index(dataStreamName)
             .aliases("foo")
             .filter(Map.of("term", Map.of("type", Map.of("value", "y"))));
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addAction);
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
         GetAliasesResponse response = indicesAdmin().getAliases(new GetAliasesRequest()).actionGet();
@@ -749,7 +749,7 @@ public class DataStreamIT extends ESIntegTestCase {
         addAction = new AliasActions(AliasActions.Type.ADD).index(dataStreamName)
             .aliases("foo")
             .filter(Map.of("term", Map.of("type", Map.of("value", "x"))));
-        aliasesAddRequest = new IndicesAliasesRequest();
+        aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addAction);
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
         response = indicesAdmin().getAliases(new GetAliasesRequest()).actionGet();
@@ -794,7 +794,7 @@ public class DataStreamIT extends ESIntegTestCase {
             .filter(Map.of("term", Map.of("type", Map.of("value", "y"))));
         AliasActions addUnfilteredAliasAction = new AliasActions(AliasActions.Type.ADD).index(dataStreamName).aliases("bar");
 
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addFilteredAliasAction);
         aliasesAddRequest.addAliasAction(addUnfilteredAliasAction);
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
@@ -833,10 +833,10 @@ public class DataStreamIT extends ESIntegTestCase {
         }
         Map<String, Object> indexFilters = Map.of("term", Map.of("type", Map.of("value", "y")));
         AliasActions addAction = new AliasActions(AliasActions.Type.ADD).aliases(alias).indices(dataStreams).filter(indexFilters);
-        assertAcked(indicesAdmin().aliases(new IndicesAliasesRequest().addAliasAction(addAction)).actionGet());
+        assertAcked(indicesAdmin().aliases(new IndicesAliasesRequest(masterNodeTimeout).addAliasAction(addAction)).actionGet());
 
         addAction = new AliasActions(AliasActions.Type.ADD).aliases(alias).indices(dataStreams[0]).filter(indexFilters).writeIndex(true);
-        assertAcked(indicesAdmin().aliases(new IndicesAliasesRequest().addAliasAction(addAction)).actionGet());
+        assertAcked(indicesAdmin().aliases(new IndicesAliasesRequest(masterNodeTimeout).addAliasAction(addAction)).actionGet());
 
         GetAliasesResponse response = indicesAdmin().getAliases(new GetAliasesRequest()).actionGet();
         assertThat(response.getDataStreamAliases().size(), equalTo(dataStreams.length));
@@ -880,7 +880,7 @@ public class DataStreamIT extends ESIntegTestCase {
         }
         Exception e = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().aliases(new IndicesAliasesRequest().addAliasAction(addAction))
+            indicesAdmin().aliases(new IndicesAliasesRequest(masterNodeTimeout).addAliasAction(addAction))
         );
         assertThat(e.getMessage(), equalTo("failed to parse filter for alias [" + alias + "]"));
         GetAliasesResponse response = indicesAdmin().getAliases(new GetAliasesRequest()).actionGet();
@@ -895,7 +895,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         String backingIndex = DataStream.getDefaultBackingIndexName(dataStreamName, 1);
         AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index(backingIndex).aliases("first_gen");
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addAction);
         Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
         assertThat(
@@ -919,7 +919,7 @@ public class DataStreamIT extends ESIntegTestCase {
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index("metrics-*").aliases("my-alias");
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(addAction);
         Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
         assertThat(e.getMessage(), equalTo("expressions [metrics-*] that match with both data streams and regular indices are disallowed"));
@@ -932,7 +932,7 @@ public class DataStreamIT extends ESIntegTestCase {
         CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("metrics-foo").aliases("my-alias1"));
         aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("metrics-myindex").aliases("my-alias2"));
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
@@ -943,7 +943,7 @@ public class DataStreamIT extends ESIntegTestCase {
         );
         assertThat(response.getAliases().get("metrics-myindex"), equalTo(List.of(new AliasMetadata.Builder("my-alias2").build())));
 
-        aliasesAddRequest = new IndicesAliasesRequest();
+        aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.REMOVE).index("_all").aliases("my-alias1"));
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.REMOVE).index("_all").aliases("my-alias2"));
@@ -963,7 +963,7 @@ public class DataStreamIT extends ESIntegTestCase {
         CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         {
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(
                 new AliasActions(AliasActions.Type.ADD).index("metrics-foo").aliases("my-alias1", "my-alias2")
             );
@@ -981,13 +981,13 @@ public class DataStreamIT extends ESIntegTestCase {
         }
         // ADD doesn't resolve wildcards:
         {
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("metrics-foo").aliases("my-alias*"));
             expectThrows(InvalidAliasNameException.class, indicesAdmin().aliases(aliasesAddRequest));
         }
         // REMOVE does resolve wildcards:
         {
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             if (randomBoolean()) {
                 aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.REMOVE).index("metrics-*").aliases("my-*"));
             } else {
@@ -1007,7 +1007,7 @@ public class DataStreamIT extends ESIntegTestCase {
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         {
             AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index("metrics-*").aliases("my-alias").routing("[routing]");
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(addAction);
             Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(e.getMessage(), equalTo("aliases that point to data streams don't support routing"));
@@ -1016,7 +1016,7 @@ public class DataStreamIT extends ESIntegTestCase {
             AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index("metrics-*")
                 .aliases("my-alias")
                 .indexRouting("[index_routing]");
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(addAction);
             Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(e.getMessage(), equalTo("aliases that point to data streams don't support index_routing"));
@@ -1025,7 +1025,7 @@ public class DataStreamIT extends ESIntegTestCase {
             AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index("metrics-*")
                 .aliases("my-alias")
                 .searchRouting("[search_routing]");
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(addAction);
             Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(e.getMessage(), equalTo("aliases that point to data streams don't support search_routing"));
@@ -1034,7 +1034,7 @@ public class DataStreamIT extends ESIntegTestCase {
             AliasActions addAction = new AliasActions(AliasActions.Type.ADD).index("metrics-*")
                 .aliases("my-alias")
                 .isHidden(randomBoolean());
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(addAction);
             Exception e = expectThrows(IllegalArgumentException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(e.getMessage(), equalTo("aliases that point to data streams don't support is_hidden"));
@@ -1625,7 +1625,7 @@ public class DataStreamIT extends ESIntegTestCase {
             DataStreamIT.putComposableIndexTemplate("my-template", List.of("my-*"));
             var request = new CreateDataStreamAction.Request("my-ds");
             assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-            var aliasesAddRequest = new IndicesAliasesRequest();
+            var aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("my-ds").aliases("my-alias"));
             assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
 
@@ -1661,7 +1661,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
             var request = new CreateDataStreamAction.Request("logs-es");
             assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("logs-es").aliases("logs"));
             var e = expectThrows(IllegalStateException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(e.getMessage(), containsString("data stream alias and indices alias have the same name (logs)"));
@@ -1693,7 +1693,7 @@ public class DataStreamIT extends ESIntegTestCase {
         {
             var request = new CreateDataStreamAction.Request("logs-es");
             assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("logs-es").aliases("logs"));
             var e = expectThrows(InvalidAliasNameException.class, indicesAdmin().aliases(aliasesAddRequest));
             assertThat(
@@ -1727,7 +1727,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         var request = new CreateDataStreamAction.Request("logs-es");
         assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("logs-es").aliases("logs"));
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
 
@@ -1741,7 +1741,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         var request = new CreateDataStreamAction.Request("logs-es");
         assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesAddRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesAddRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("logs-es").aliases("logs"));
         assertAcked(indicesAdmin().aliases(aliasesAddRequest).actionGet());
 
@@ -1753,7 +1753,7 @@ public class DataStreamIT extends ESIntegTestCase {
         {
             CreateIndexRequest createIndexRequest = new CreateIndexRequest("my-index");
             assertAcked(indicesAdmin().create(createIndexRequest).actionGet());
-            IndicesAliasesRequest addAliasRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest addAliasRequest = new IndicesAliasesRequest(masterNodeTimeout);
             addAliasRequest.addAliasAction(new AliasActions(AliasActions.Type.ADD).index("my-index").aliases("logs"));
             var e = expectThrows(IllegalStateException.class, indicesAdmin().aliases(addAliasRequest));
             assertThat(e.getMessage(), containsString("data stream alias and indices alias have the same name (logs)"));

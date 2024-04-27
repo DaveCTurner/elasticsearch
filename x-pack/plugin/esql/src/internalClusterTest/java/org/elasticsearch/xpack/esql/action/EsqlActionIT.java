@@ -1553,7 +1553,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     }
 
     private void createAlias(List<String> indices, String alias) throws InterruptedException, ExecutionException {
-        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
         for (String indexName : indices) {
             aliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().index(indexName).alias(alias));
         }

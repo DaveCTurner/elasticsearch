@@ -61,6 +61,7 @@ public class GetJobModelSnapshotsUpgradeStatsAction extends ActionType<GetJobMod
         private boolean allowNoMatch = true;
 
         public Request(String jobId, String snapshotId) {
+            super(masterNodeTimeout);
             this.jobId = ExceptionsHelper.requireNonNull(jobId, Job.ID.getPreferredName());
             this.snapshotId = ExceptionsHelper.requireNonNull(snapshotId, SNAPSHOT_ID.getPreferredName());
         }

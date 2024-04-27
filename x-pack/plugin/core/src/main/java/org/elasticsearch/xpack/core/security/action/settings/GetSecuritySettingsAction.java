@@ -34,9 +34,13 @@ public class GetSecuritySettingsAction extends ActionType<GetSecuritySettingsAct
 
     public static class Request extends MasterNodeReadRequest<GetSecuritySettingsAction.Request> {
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
-        public Request(StreamInput in) throws IOException {}
+        public Request(StreamInput in) throws IOException {
+            super(masterNodeTimeout);
+        }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {}

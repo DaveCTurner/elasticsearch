@@ -70,6 +70,7 @@ public class GetDatafeedsStatsAction extends ActionType<GetDatafeedsStatsAction.
         private boolean allowNoMatch = true;
 
         public Request(String datafeedId) {
+            super(masterNodeTimeout);
             this.datafeedId = ExceptionsHelper.requireNonNull(datafeedId, DatafeedConfig.ID.getPreferredName());
         }
 

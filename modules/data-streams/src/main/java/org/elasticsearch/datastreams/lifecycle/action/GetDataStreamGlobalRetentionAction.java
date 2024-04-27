@@ -47,7 +47,9 @@ public class GetDataStreamGlobalRetentionAction {
 
     public static final class Request extends MasterNodeReadRequest<Request> {
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

@@ -52,7 +52,7 @@ public class HistogramPercentileAggregationTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject();
         createIndex("raw");
-        PutMappingRequest request = new PutMappingRequest("raw").source(xContentBuilder);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, "raw").source(xContentBuilder);
         client().admin().indices().putMapping(request).actionGet();
 
         XContentBuilder xContentBuilder2 = XContentFactory.jsonBuilder()
@@ -66,7 +66,7 @@ public class HistogramPercentileAggregationTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject();
         createIndex("pre_agg");
-        PutMappingRequest request2 = new PutMappingRequest("pre_agg").source(xContentBuilder2);
+        PutMappingRequest request2 = new PutMappingRequest(masterNodeTimeout, "pre_agg").source(xContentBuilder2);
         client().admin().indices().putMapping(request2).actionGet();
 
         int numberOfSignificantValueDigits = TestUtil.nextInt(random(), 1, 5);
@@ -148,7 +148,7 @@ public class HistogramPercentileAggregationTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject();
         createIndex("raw");
-        PutMappingRequest request = new PutMappingRequest("raw").source(xContentBuilder);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, "raw").source(xContentBuilder);
         client().admin().indices().putMapping(request).actionGet();
 
         XContentBuilder xContentBuilder2 = XContentFactory.jsonBuilder()
@@ -166,7 +166,7 @@ public class HistogramPercentileAggregationTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject();
         createIndex("pre_agg");
-        PutMappingRequest request2 = new PutMappingRequest("pre_agg").source(xContentBuilder2);
+        PutMappingRequest request2 = new PutMappingRequest(masterNodeTimeout, "pre_agg").source(xContentBuilder2);
         client().admin().indices().putMapping(request2).actionGet();
 
         TDigestState histogram = TDigestState.create(compression);

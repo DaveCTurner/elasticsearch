@@ -33,7 +33,7 @@ import static org.hamcrest.Matchers.containsString;
 public class PutMappingRequestTests extends ESTestCase {
 
     public void testValidation() {
-        PutMappingRequest r = new PutMappingRequest("myindex");
+        PutMappingRequest r = new PutMappingRequest(masterNodeTimeout, "myindex");
         ActionRequestValidationException ex = r.validate();
         assertNotNull("source validation should fail", ex);
         assertTrue(ex.getMessage().contains("source is missing"));
@@ -83,7 +83,7 @@ public class PutMappingRequestTests extends ESTestCase {
                 tuple("alias2", List.of(tuple("index2", false), tuple("index3", true)))
             )
         );
-        PutMappingRequest request = new PutMappingRequest().indices("foo", "alias1", "alias2").writeIndexOnly(true);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("foo", "alias1", "alias2").writeIndexOnly(true);
         Index[] indices = TransportPutMappingAction.resolveIndices(cs, request, TestIndexNameExpressionResolver.newInstance());
         List<String> indexNames = Arrays.stream(indices).map(Index::getName).toList();
         IndexAbstraction expectedDs = cs.metadata().getIndicesLookup().get("foo");
@@ -107,7 +107,7 @@ public class PutMappingRequestTests extends ESTestCase {
                 tuple("alias2", List.of(tuple("index2", false), tuple("index3", true)))
             )
         );
-        PutMappingRequest request = new PutMappingRequest().indices("foo", "alias1", "alias2");
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("foo", "alias1", "alias2");
         Index[] indices = TransportPutMappingAction.resolveIndices(cs, request, TestIndexNameExpressionResolver.newInstance());
         List<String> indexNames = Arrays.stream(indices).map(Index::getName).toList();
         IndexAbstraction expectedDs = cs.metadata().getIndicesLookup().get("foo");
@@ -136,7 +136,7 @@ public class PutMappingRequestTests extends ESTestCase {
                 tuple("alias2", List.of(tuple("index2", false), tuple("index3", true)))
             )
         );
-        PutMappingRequest request = new PutMappingRequest().indices("foo", "index3").writeIndexOnly(true);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("foo", "index3").writeIndexOnly(true);
         Index[] indices = TransportPutMappingAction.resolveIndices(cs, request, TestIndexNameExpressionResolver.newInstance());
         List<String> indexNames = Arrays.stream(indices).map(Index::getName).toList();
         IndexAbstraction expectedDs = cs.metadata().getIndicesLookup().get("foo");
@@ -165,7 +165,7 @@ public class PutMappingRequestTests extends ESTestCase {
                 tuple("alias2", List.of(tuple("index2", false), tuple("index3", true)))
             )
         );
-        PutMappingRequest request = new PutMappingRequest().indices("*").writeIndexOnly(true);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("*").writeIndexOnly(true);
         IllegalArgumentException e = expectThrows(
             IllegalArgumentException.class,
             () -> TransportPutMappingAction.resolveIndices(cs2, request, TestIndexNameExpressionResolver.newInstance())
@@ -189,7 +189,7 @@ public class PutMappingRequestTests extends ESTestCase {
                 tuple("alias2", List.of(tuple("index2", false), tuple("index3", false)))
             )
         );
-        PutMappingRequest request = new PutMappingRequest().indices("alias2").writeIndexOnly(true);
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("alias2").writeIndexOnly(true);
         IllegalArgumentException e = expectThrows(
             IllegalArgumentException.class,
             () -> TransportPutMappingAction.resolveIndices(cs2, request, TestIndexNameExpressionResolver.newInstance())

@@ -97,7 +97,7 @@ public class IndicesSegmentsWithVectorsIT extends ESIntegTestCase {
     }
 
     private static void addMapping(String indexName, String vectorField) {
-        PutMappingRequest request = new PutMappingRequest().indices(indexName)
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices(indexName)
             .origin(randomFrom("1", "2"))
             .source(vectorField, "type=dense_vector");
         assertAcked(indicesAdmin().putMapping(request).actionGet());

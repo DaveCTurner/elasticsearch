@@ -364,7 +364,9 @@ public final class DestinationIndex {
             }
 
             // Add the mappings to the destination index
-            PutMappingRequest putMappingRequest = new PutMappingRequest(getIndexResponse.indices()).source(addedMappings);
+            PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, getIndexResponse.indices()).source(
+                addedMappings
+            );
             ClientHelper.executeWithHeadersAsync(
                 config.getHeaders(),
                 ML_ORIGIN,

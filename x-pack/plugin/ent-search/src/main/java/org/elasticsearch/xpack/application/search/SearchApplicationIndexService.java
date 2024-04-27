@@ -328,7 +328,7 @@ public class SearchApplicationIndexService {
     }
 
     private void removeAlias(String searchAliasName, ActionListener<AcknowledgedResponse> listener) {
-        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest().addAliasAction(
+        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout).addAliasAction(
             IndicesAliasesRequest.AliasActions.remove().aliases(searchAliasName).indices("*")
         );
         client.admin().indices().aliases(aliasesRequest, new ActionListener<>() {

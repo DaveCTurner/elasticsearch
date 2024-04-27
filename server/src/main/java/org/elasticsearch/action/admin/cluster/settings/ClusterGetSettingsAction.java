@@ -33,7 +33,9 @@ public class ClusterGetSettingsAction extends ActionType<ClusterGetSettingsActio
      * Request to retrieve the cluster settings
      */
     public static class Request extends MasterNodeReadRequest<Request> {
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

@@ -33,7 +33,9 @@ public class GetDesiredNodesAction extends ActionType<GetDesiredNodesAction.Resp
     }
 
     public static class Request extends MasterNodeReadRequest<Request> {
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

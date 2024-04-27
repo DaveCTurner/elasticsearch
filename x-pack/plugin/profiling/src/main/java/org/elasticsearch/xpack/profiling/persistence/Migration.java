@@ -128,7 +128,7 @@ public interface Migration {
         }
 
         public void apply(String index, Consumer<PutMappingRequest> mappingConsumer, Consumer<UpdateSettingsRequest> settingsConsumer) {
-            mappingConsumer.accept(new PutMappingRequest(index).source(body));
+            mappingConsumer.accept(new PutMappingRequest(masterNodeTimeout, index).source(body));
         }
 
         @Override

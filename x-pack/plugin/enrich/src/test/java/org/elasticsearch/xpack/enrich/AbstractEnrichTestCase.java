@@ -70,7 +70,7 @@ public abstract class AbstractEnrichTestCase extends ESSingleNodeTestCase {
                 client.admin().indices().create(createIndexRequest).actionGet();
             } catch (ResourceAlreadyExistsException e) {
                 // and that is okay, but update the mapping so that there is always a mapping for match field:
-                PutMappingRequest putMappingRequest = new PutMappingRequest(sourceIndex);
+                PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, sourceIndex);
                 putMappingRequest.source(policy.getMatchField(), "type=keyword");
                 client.admin().indices().putMapping(putMappingRequest).actionGet();
             }

@@ -56,12 +56,14 @@ public class ValidateMappingRequestPluginIT extends ESSingleNodeTestCase {
         allowedOrigins.put("index_2", Arrays.asList("2", "3"));
         {
             String origin = randomFrom("", "3", "4", "5");
-            PutMappingRequest request = new PutMappingRequest().indices("index_1").source("t1", "type=keyword").origin(origin);
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("index_1")
+                .source("t1", "type=keyword")
+                .origin(origin);
             Exception e = expectThrows(IllegalStateException.class, indicesAdmin().putMapping(request));
             assertThat(e.getMessage(), equalTo("not allowed: index[index_1] origin[" + origin + "]"));
         }
         {
-            PutMappingRequest request = new PutMappingRequest().indices("index_1")
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("index_1")
                 .origin(randomFrom("1", "2"))
                 .source("t1", "type=keyword");
             assertAcked(indicesAdmin().putMapping(request).actionGet());
@@ -69,12 +71,14 @@ public class ValidateMappingRequestPluginIT extends ESSingleNodeTestCase {
 
         {
             String origin = randomFrom("", "1", "4", "5");
-            PutMappingRequest request = new PutMappingRequest().indices("index_2").source("t2", "type=keyword").origin(origin);
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("index_2")
+                .source("t2", "type=keyword")
+                .origin(origin);
             Exception e = expectThrows(IllegalStateException.class, indicesAdmin().putMapping(request));
             assertThat(e.getMessage(), equalTo("not allowed: index[index_2] origin[" + origin + "]"));
         }
         {
-            PutMappingRequest request = new PutMappingRequest().indices("index_2")
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("index_2")
                 .origin(randomFrom("2", "3"))
                 .source("t1", "type=keyword");
             assertAcked(indicesAdmin().putMapping(request).actionGet());
@@ -82,12 +86,14 @@ public class ValidateMappingRequestPluginIT extends ESSingleNodeTestCase {
 
         {
             String origin = randomFrom("", "1", "3", "4");
-            PutMappingRequest request = new PutMappingRequest().indices("*").source("t3", "type=keyword").origin(origin);
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("*").source("t3", "type=keyword").origin(origin);
             Exception e = expectThrows(IllegalStateException.class, indicesAdmin().putMapping(request));
             assertThat(e.getMessage(), containsString("not allowed:"));
         }
         {
-            PutMappingRequest request = new PutMappingRequest().indices("index_2").origin("2").source("t3", "type=keyword");
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout).indices("index_2")
+                .origin("2")
+                .source("t3", "type=keyword");
             assertAcked(indicesAdmin().putMapping(request).actionGet());
         }
     }

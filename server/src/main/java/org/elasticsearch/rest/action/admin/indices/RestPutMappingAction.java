@@ -66,7 +66,7 @@ public class RestPutMappingAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        PutMappingRequest putMappingRequest = new PutMappingRequest(indices);
+        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, indices);
 
         Map<String, Object> sourceAsMap = XContentHelper.convertToMap(request.requiredContent(), false, request.getXContentType()).v2();
         if (request.getRestApiVersion() == RestApiVersion.V_7) {

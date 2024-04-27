@@ -105,7 +105,7 @@ public class MappingUpdatedAction {
 
     // can be overridden by tests
     protected void sendUpdateMapping(Index index, Mapping mappingUpdate, ActionListener<Void> listener) {
-        PutMappingRequest putMappingRequest = new PutMappingRequest();
+        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout);
         putMappingRequest.setConcreteIndex(index);
         putMappingRequest.source(mappingUpdate.toString(), XContentType.JSON);
         putMappingRequest.masterNodeTimeout(dynamicMappingUpdateTimeout);

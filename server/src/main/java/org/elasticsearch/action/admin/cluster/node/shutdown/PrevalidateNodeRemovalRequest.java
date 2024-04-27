@@ -34,6 +34,7 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
     private TimeValue timeout = TimeValue.timeValueSeconds(30);
 
     private PrevalidateNodeRemovalRequest(Builder builder) {
+        super(masterNodeTimeout);
         this.names = builder.names;
         this.ids = builder.ids;
         this.externalIds = builder.externalIds;

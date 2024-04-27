@@ -21,6 +21,7 @@ public class GetPipelineRequest extends MasterNodeReadRequest<GetPipelineRequest
     private final boolean summary;
 
     public GetPipelineRequest(boolean summary, String... ids) {
+        super(masterNodeTimeout);
         if (ids == null) {
             throw new IllegalArgumentException("ids cannot be null");
         }

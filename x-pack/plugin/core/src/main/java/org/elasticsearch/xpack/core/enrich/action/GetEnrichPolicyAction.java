@@ -39,10 +39,12 @@ public class GetEnrichPolicyAction extends ActionType<GetEnrichPolicyAction.Resp
         private final List<String> names;
 
         public Request() {
+            super(masterNodeTimeout);
             this.names = new ArrayList<>();
         }
 
         public Request(String[] names) {
+            super(masterNodeTimeout);
             this.names = Arrays.asList(names);
         }
 

@@ -364,7 +364,7 @@ public final class ShardFollowTasksExecutor extends PersistentTasksExecutor<Shar
                     if (aliasActions.isEmpty()) {
                         handler.accept(leaderIndexMetadata.getAliasesVersion());
                     } else {
-                        final var request = new IndicesAliasesRequest().masterNodeTimeout(TimeValue.MAX_VALUE);
+                        final var request = new IndicesAliasesRequest(masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE);
                         request.origin("ccr");
                         aliasActions.forEach(request::addAliasAction);
                         followerClient.admin()

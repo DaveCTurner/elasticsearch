@@ -123,7 +123,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
         id = indexResponse.getId();
 
-        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
         aliasesRequest.addAliasAction(
             new AliasActions(AliasActions.Type.ADD).alias("my-alias").index("ds").filter(QueryBuilders.matchAllQuery())
         );

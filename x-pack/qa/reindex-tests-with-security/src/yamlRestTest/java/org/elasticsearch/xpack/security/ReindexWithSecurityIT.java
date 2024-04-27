@@ -212,7 +212,7 @@ public class ReindexWithSecurityIT extends ESRestTestCase {
         if (frequently()) {
             boolean aliasAdded = false;
 
-            IndicesAliasesRequest request = new IndicesAliasesRequest();
+            IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
             for (String index : indices) {
                 if (frequently()) {
                     // one alias per index with prefix "alias-"

@@ -331,6 +331,7 @@ public class DeprecationInfoAction extends ActionType<DeprecationInfoAction.Resp
         private String[] indices;
 
         public Request(String... indices) {
+            super(masterNodeTimeout);
             this.indices = indices;
         }
 

@@ -266,7 +266,7 @@ public class TransportPutRollupJobAction extends AcknowledgedTransportMasterNode
             metadata.put(RollupField.ROLLUP_META, rollupMeta);
             Map<String, Object> newMapping = mappings.getSourceAsMap();
             newMapping.put("_meta", metadata);
-            PutMappingRequest request = new PutMappingRequest(indexName);
+            PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, indexName);
             request.source(newMapping);
             client.execute(
                 TransportPutMappingAction.TYPE,

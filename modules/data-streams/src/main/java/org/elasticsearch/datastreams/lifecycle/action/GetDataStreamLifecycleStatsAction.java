@@ -43,7 +43,9 @@ public class GetDataStreamLifecycleStatsAction extends ActionType<GetDataStreamL
             super(in);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         @Override
         public ActionRequestValidationException validate() {

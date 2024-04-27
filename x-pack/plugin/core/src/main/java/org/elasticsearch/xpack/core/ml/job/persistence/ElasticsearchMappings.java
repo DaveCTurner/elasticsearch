@@ -176,7 +176,7 @@ public class ElasticsearchMappings {
                 final String[] indicesThatRequireAnUpdate = mappingRequiresUpdate(state, concreteIndices, minVersion);
                 if (indicesThatRequireAnUpdate.length > 0) {
                     String mapping = mappingSupplier.get();
-                    PutMappingRequest putMappingRequest = new PutMappingRequest(indicesThatRequireAnUpdate);
+                    PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, indicesThatRequireAnUpdate);
                     putMappingRequest.source(mapping, XContentType.JSON);
                     putMappingRequest.origin(ML_ORIGIN);
                     putMappingRequest.masterNodeTimeout(masterNodeTimeout);

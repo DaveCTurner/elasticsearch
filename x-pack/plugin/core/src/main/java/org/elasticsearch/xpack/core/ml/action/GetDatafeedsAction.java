@@ -50,6 +50,7 @@ public class GetDatafeedsAction extends ActionType<GetDatafeedsAction.Response> 
         }
 
         public Request() {
+            super(masterNodeTimeout);
             local(true);
         }
 

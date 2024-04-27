@@ -25,6 +25,7 @@ public class GetIndexTemplatesRequest extends MasterNodeReadRequest<GetIndexTemp
     private final String[] names;
 
     public GetIndexTemplatesRequest(String... names) {
+        super(masterNodeTimeout);
         this.names = names;
     }
 

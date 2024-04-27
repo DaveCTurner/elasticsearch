@@ -833,7 +833,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveIndicesAliasesRequest() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").indices("foo", "foofoo"));
         request.addAliasAction(AliasActions.add().alias("alias2").indices("foo", "foobar"));
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME)).getLocal();
@@ -847,7 +847,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveIndicesAliasesRequestExistingAlias() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").indices("foo", "foofoo"));
         request.addAliasAction(AliasActions.add().alias("foofoobar").indices("foo", "foobar"));
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME)).getLocal();
@@ -861,7 +861,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveIndicesAliasesRequestMissingIndex() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").indices("foo", "foofoo"));
         request.addAliasAction(AliasActions.add().alias("alias2").index("missing"));
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME)).getLocal();
@@ -876,7 +876,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsIndicesAliasesRequest() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("foo-alias").index("foo*"));
         request.addAliasAction(AliasActions.add().alias("alias2").index("bar*"));
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME)).getLocal();
@@ -892,7 +892,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsIndicesAliasesRequestNoMatchingIndices() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").index("foo*"));
         request.addAliasAction(AliasActions.add().alias("alias2").index("bar*"));
         request.addAliasAction(AliasActions.add().alias("alias3").index("non_matching_*"));
@@ -904,7 +904,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllIndicesAliasesRequest() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").index("_all"));
         request.addAliasAction(AliasActions.add().alias("alias2").index("_all"));
         List<String> indices = resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME)).getLocal();
@@ -920,7 +920,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllIndicesAliasesRequestNoAuthorizedIndices() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").index("_all"));
         // current user is not authorized for any index, _all resolves to no indices, the request fails
         expectThrows(
@@ -930,7 +930,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsIndicesAliasesRequestNoAuthorizedIndices() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.add().alias("alias1").index("foo*"));
         // current user is not authorized for any index, foo* resolves to no indices, the request fails
         expectThrows(
@@ -940,7 +940,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveIndicesAliasesRequestDeleteActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("foo").alias("foofoobar"));
         request.addAliasAction(AliasActions.remove().index("foofoo").alias("barbaz"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -956,7 +956,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveIndicesAliasesRequestDeleteActionsMissingIndex() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("foo").alias("foofoobar"));
         request.addAliasAction(AliasActions.remove().index("missing_index").alias("missing_alias"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -972,7 +972,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsIndicesAliasesRequestDeleteActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("foo*").alias("foofoobar"));
         request.addAliasAction(AliasActions.remove().index("bar*").alias("barbaz"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -989,7 +989,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesWildcardsIndicesAliasesRequestDeleteActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("*").alias("foo*"));
         request.addAliasAction(AliasActions.remove().index("*bar").alias("foo*"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -1007,7 +1007,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAllAliasesWildcardsIndicesAliasesRequestDeleteActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("*").alias("_all"));
         request.addAliasAction(AliasActions.remove().index("_all").aliases("_all", "explicit"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -1025,7 +1025,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesWildcardsIndicesAliasesRequestRemoveAliasActionsNoAuthorizedIndices() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("foo*").alias("foo*"));
         request.addAliasAction(AliasActions.remove().index("*bar").alias("bar*"));
         resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME));
@@ -1034,7 +1034,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveAliasesWildcardsIndicesAliasesRequestRemoveIndexActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.removeIndex().index("foo*"));
         request.addAliasAction(AliasActions.removeIndex().index("*bar"));
         resolveIndices(request, buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME));
@@ -1045,7 +1045,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testResolveWildcardsIndicesAliasesRequestAddAndDeleteActions() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest();
+        IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout);
         request.addAliasAction(AliasActions.remove().index("foo*").alias("foofoobar"));
         request.addAliasAction(AliasActions.add().index("bar*").alias("foofoobar"));
         final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportIndicesAliasesAction.NAME);
@@ -1544,7 +1544,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
                 TransportDeleteIndexAction.TYPE.name()
             ),
             new Tuple<TransportRequest, String>(
-                new PutMappingRequest("remote:foo").indicesOptions(options),
+                new PutMappingRequest(masterNodeTimeout, "remote:foo").indicesOptions(options),
                 TransportPutMappingAction.TYPE.name()
             )
         );
@@ -1563,7 +1563,10 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
                 new DeleteIndexRequest("*:*").indicesOptions(options),
                 TransportDeleteIndexAction.TYPE.name()
             ),
-            new Tuple<TransportRequest, String>(new PutMappingRequest("*:*").indicesOptions(options), TransportPutMappingAction.TYPE.name())
+            new Tuple<TransportRequest, String>(
+                new PutMappingRequest(masterNodeTimeout, "*:*").indicesOptions(options),
+                TransportPutMappingAction.TYPE.name()
+            )
         );
         final ResolvedIndices resolved = resolveIndices(tuple.v1(), buildAuthorizedIndices(user, tuple.v2()));
         assertNoIndices((IndicesRequest.Replaceable) tuple.v1(), resolved);
@@ -1613,7 +1616,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
             assertThat(indices, hasItem(SECURITY_MAIN_ALIAS));
         }
         {
-            IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesRequest.addAliasAction(AliasActions.add().alias("security_alias").index(SECURITY_MAIN_ALIAS));
             final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(
                 InternalUsers.XPACK_SECURITY_USER,
@@ -1651,7 +1654,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
         }
 
         {
-            IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest();
+            IndicesAliasesRequest aliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
             aliasesRequest.addAliasAction(AliasActions.add().alias("security_alias1").index("*"));
             final AuthorizedIndices authorizedIndices = buildAuthorizedIndices(allAccessUser, TransportIndicesAliasesAction.NAME);
             List<String> indices = resolveIndices(aliasesRequest, authorizedIndices).getLocal();
@@ -1764,7 +1767,9 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     }
 
     public void testDynamicPutMappingRequestFromAlias() {
-        PutMappingRequest request = new PutMappingRequest(Strings.EMPTY_ARRAY).setConcreteIndex(new Index("foofoo", UUIDs.base64UUID()));
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, Strings.EMPTY_ARRAY).setConcreteIndex(
+            new Index("foofoo", UUIDs.base64UUID())
+        );
         User user = new User("alias-writer", "alias_read_write");
         AuthorizedIndices authorizedIndices = buildAuthorizedIndices(user, TransportPutMappingAction.TYPE.name());
 
@@ -1773,14 +1778,16 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
 
         // multiple indices map to an alias so we can only return the concrete index
         final String index = randomFrom("foo", "foobar");
-        request = new PutMappingRequest(Strings.EMPTY_ARRAY).setConcreteIndex(new Index(index, UUIDs.base64UUID()));
+        request = new PutMappingRequest(masterNodeTimeout, Strings.EMPTY_ARRAY).setConcreteIndex(new Index(index, UUIDs.base64UUID()));
         putMappingIndexOrAlias = IndicesAndAliasesResolver.getPutMappingIndexOrAlias(request, authorizedIndices::check, metadata);
         assertEquals(index, putMappingIndexOrAlias);
     }
 
     public void testWhenAliasToMultipleIndicesAndUserIsAuthorizedUsingAliasReturnsAliasNameForDynamicPutMappingRequestOnWriteIndex() {
         String index = "logs-00003"; // write index
-        PutMappingRequest request = new PutMappingRequest(Strings.EMPTY_ARRAY).setConcreteIndex(new Index(index, UUIDs.base64UUID()));
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, Strings.EMPTY_ARRAY).setConcreteIndex(
+            new Index(index, UUIDs.base64UUID())
+        );
         assert metadata.getIndicesLookup().get("logs-alias").getIndices().size() == 3;
         String putMappingIndexOrAlias = IndicesAndAliasesResolver.getPutMappingIndexOrAlias(request, "logs-alias"::equals, metadata);
         String message = "user is authorized to access `logs-alias` and the put mapping request is for a write index"
@@ -1790,7 +1797,9 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
 
     public void testWhenAliasToMultipleIndicesAndUserIsAuthorizedUsingAliasReturnsIndexNameForDynamicPutMappingRequestOnReadIndex() {
         String index = "logs-00002"; // read index
-        PutMappingRequest request = new PutMappingRequest(Strings.EMPTY_ARRAY).setConcreteIndex(new Index(index, UUIDs.base64UUID()));
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, Strings.EMPTY_ARRAY).setConcreteIndex(
+            new Index(index, UUIDs.base64UUID())
+        );
         assert metadata.getIndicesLookup().get("logs-alias").getIndices().size() == 3;
         String putMappingIndexOrAlias = IndicesAndAliasesResolver.getPutMappingIndexOrAlias(request, "logs-alias"::equals, metadata);
         String message = "user is authorized to access `logs-alias` and the put mapping request is for a read index"

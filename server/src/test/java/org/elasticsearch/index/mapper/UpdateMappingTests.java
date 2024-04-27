@@ -231,7 +231,7 @@ public class UpdateMappingTests extends ESSingleNodeTestCase {
         final ClusterService clusterService = getInstanceFromNode(ClusterService.class);
         {
             final long previousVersion = clusterService.state().metadata().index("test").getMappingVersion();
-            final PutMappingRequest request = new PutMappingRequest();
+            final PutMappingRequest request = new PutMappingRequest(masterNodeTimeout);
             request.indices("test");
             request.source("field", "type=text");
             client().admin().indices().putMapping(request).actionGet();
@@ -240,7 +240,7 @@ public class UpdateMappingTests extends ESSingleNodeTestCase {
 
         {
             final long previousVersion = clusterService.state().metadata().index("test").getMappingVersion();
-            final PutMappingRequest request = new PutMappingRequest();
+            final PutMappingRequest request = new PutMappingRequest(masterNodeTimeout);
             request.indices("test");
             request.source("field", "type=text");
             client().admin().indices().putMapping(request).actionGet();

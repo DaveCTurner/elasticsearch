@@ -420,7 +420,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         final String leaderIndexSettings = getIndexSettings(between(1, 2), between(0, 1));
         assertAcked(leaderClient().admin().indices().prepareCreate("index-1").setSource(leaderIndexSettings, XContentType.JSON));
         followerClient().execute(PutFollowAction.INSTANCE, putFollow("index-1", "index-2")).get();
-        PutMappingRequest putMappingRequest = new PutMappingRequest("index-2").source("new_field", "type=keyword");
+        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, "index-2").source("new_field", "type=keyword");
         ElasticsearchStatusException forbiddenException = expectThrows(
             ElasticsearchStatusException.class,
             () -> followerClient().admin().indices().putMapping(putMappingRequest).actionGet()
@@ -444,7 +444,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         final String leaderIndexSettings = getIndexSettings(between(1, 2), between(0, 1));
         assertAcked(leaderClient().admin().indices().prepareCreate("leader").setSource(leaderIndexSettings, XContentType.JSON));
         followerClient().execute(PutFollowAction.INSTANCE, putFollow("leader", "follower")).get();
-        final IndicesAliasesRequest request = new IndicesAliasesRequest().masterNodeTimeout(TimeValue.MAX_VALUE)
+        final IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("follower").alias("follower_alias"));
         final ElasticsearchStatusException e = expectThrows(
             ElasticsearchStatusException.class,
@@ -470,7 +470,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         followerClient().admin().indices().close(new CloseIndexRequest("follower").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
         assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request("follower")).actionGet());
         followerClient().admin().indices().open(new OpenIndexRequest("follower").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
-        final IndicesAliasesRequest request = new IndicesAliasesRequest().masterNodeTimeout(TimeValue.MAX_VALUE)
+        final IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("follower").alias("follower_alias"));
         assertAcked(followerClient().admin().indices().aliases(request).actionGet());
         final GetAliasesResponse response = followerClient().admin()
@@ -1136,7 +1136,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertAcked(leaderClient().admin().indices().open(openIndexRequest).actionGet());
         ensureLeaderGreen("leader");
 
-        PutMappingRequest putMappingRequest = new PutMappingRequest("leader");
+        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, "leader");
         putMappingRequest.source("new_field", "type=text,analyzer=my_analyzer");
         assertAcked(leaderClient().admin().indices().putMapping(putMappingRequest).actionGet());
 

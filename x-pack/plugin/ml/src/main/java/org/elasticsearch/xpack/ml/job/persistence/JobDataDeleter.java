@@ -515,7 +515,7 @@ public class JobDataDeleter {
         }
         return aliases.isEmpty()
             ? null
-            : new IndicesAliasesRequest().addAliasAction(
+            : new IndicesAliasesRequest(masterNodeTimeout).addAliasAction(
                 IndicesAliasesRequest.AliasActions.remove().aliases(aliases.toArray(new String[0])).indices(indices.toArray(new String[0]))
             );
     }

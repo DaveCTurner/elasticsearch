@@ -91,7 +91,7 @@ public class IndicesAliasesRequestInterceptorTests extends ESTestCase {
         new SecurityContext(Settings.EMPTY, threadContext).putIndicesAccessControl(accessControl);
         IndicesAliasesRequestInterceptor interceptor = new IndicesAliasesRequestInterceptor(threadContext, licenseState, auditTrailService);
 
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.remove().index("bar").alias(randomAlphaOfLength(4)));
         }
@@ -138,7 +138,7 @@ public class IndicesAliasesRequestInterceptorTests extends ESTestCase {
         new SecurityContext(Settings.EMPTY, threadContext).putIndicesAccessControl(accessControl);
         IndicesAliasesRequestInterceptor interceptor = new IndicesAliasesRequestInterceptor(threadContext, licenseState, auditTrailService);
 
-        final IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        final IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.remove().index("bar").alias(randomAlphaOfLength(4)));
         }
@@ -173,7 +173,7 @@ public class IndicesAliasesRequestInterceptorTests extends ESTestCase {
         }
 
         // swap target and source for success
-        final IndicesAliasesRequest successRequest = new IndicesAliasesRequest();
+        final IndicesAliasesRequest successRequest = new IndicesAliasesRequest(masterNodeTimeout);
         if (randomBoolean()) {
             successRequest.addAliasAction(IndicesAliasesRequest.AliasActions.remove().index("bar").alias(randomAlphaOfLength(4)));
         }

@@ -50,7 +50,14 @@ public class RestPutStoredScriptAction extends BaseRestHandler {
         XContentType xContentType = request.getXContentType();
         StoredScriptSource source = StoredScriptSource.parse(content, xContentType);
 
-        PutStoredScriptRequest putRequest = new PutStoredScriptRequest(id, context, content, request.getXContentType(), source);
+        PutStoredScriptRequest putRequest = new PutStoredScriptRequest(
+            masterNodeTimeout,
+            id,
+            context,
+            content,
+            request.getXContentType(),
+            source
+        );
         putRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putRequest.masterNodeTimeout()));
         putRequest.ackTimeout(request.paramAsTime("timeout", putRequest.ackTimeout()));
         return channel -> client.admin().cluster().putStoredScript(putRequest, new RestToXContentListener<>(channel));

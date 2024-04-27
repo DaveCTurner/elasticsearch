@@ -691,7 +691,7 @@ public class EnrichPolicyRunner implements Runnable {
         validateIndexBeforePromotion(destinationIndexName, clusterState);
         String[] concreteIndices = indexNameExpressionResolver.concreteIndexNamesWithSystemIndexAccess(clusterState, aliasRequest);
         String[] aliases = aliasRequest.aliases();
-        IndicesAliasesRequest aliasToggleRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest aliasToggleRequest = new IndicesAliasesRequest(masterNodeTimeout);
         String[] indices = clusterState.metadata().findAliases(aliases, concreteIndices).keySet().toArray(new String[0]);
         if (indices.length > 0) {
             aliasToggleRequest.addAliasAction(IndicesAliasesRequest.AliasActions.remove().indices(indices).alias(enrichIndexBase));

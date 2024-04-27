@@ -525,7 +525,10 @@ public class IndicesRequestIT extends ESIntegTestCase {
     public void testPutMapping() {
         interceptTransportActions(TransportPutMappingAction.TYPE.name());
 
-        PutMappingRequest putMappingRequest = new PutMappingRequest(randomUniqueIndicesOrAliases()).source("field", "type=text");
+        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, randomUniqueIndicesOrAliases()).source(
+            "field",
+            "type=text"
+        );
         internalCluster().coordOnlyNodeClient().admin().indices().putMapping(putMappingRequest).actionGet();
 
         clearInterceptedActions();

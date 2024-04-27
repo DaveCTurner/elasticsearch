@@ -48,9 +48,12 @@ public class GetComponentTemplateAction extends ActionType<GetComponentTemplateA
         private String name;
         private boolean includeDefaults;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = name;
             this.includeDefaults = false;
         }

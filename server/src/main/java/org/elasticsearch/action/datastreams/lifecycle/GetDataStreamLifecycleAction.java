@@ -49,10 +49,12 @@ public class GetDataStreamLifecycleAction {
         private boolean includeDefaults = false;
 
         public Request(String[] names) {
+            super(masterNodeTimeout);
             this.names = names;
         }
 
         public Request(String[] names, boolean includeDefaults) {
+            super(masterNodeTimeout);
             this.names = names;
             this.includeDefaults = includeDefaults;
         }

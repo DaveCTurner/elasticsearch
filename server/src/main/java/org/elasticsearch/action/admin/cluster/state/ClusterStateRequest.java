@@ -38,7 +38,9 @@ public class ClusterStateRequest extends MasterNodeReadRequest<ClusterStateReque
     private String[] indices = Strings.EMPTY_ARRAY;
     private IndicesOptions indicesOptions = IndicesOptions.lenientExpandOpen();
 
-    public ClusterStateRequest() {}
+    public ClusterStateRequest() {
+        super(masterNodeTimeout);
+    }
 
     public ClusterStateRequest(StreamInput in) throws IOException {
         super(in);

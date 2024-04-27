@@ -1424,7 +1424,7 @@ public class RBACEngineTests extends ESTestCase {
             lookup.put(im.getIndex().getName(), new IndexAbstraction.ConcreteIndex(im, ds));
         }
 
-        PutMappingRequest request = new PutMappingRequest("*");
+        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, "*");
         request.source("{ \"properties\": { \"message\": { \"type\": \"text\" } } }", XContentType.JSON);
         AuthorizedIndices authorizedIndices = RBACEngine.resolveAuthorizedIndicesFromRole(
             role,

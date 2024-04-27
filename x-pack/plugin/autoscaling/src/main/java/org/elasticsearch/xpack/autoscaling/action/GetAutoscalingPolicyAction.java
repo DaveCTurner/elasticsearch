@@ -38,6 +38,7 @@ public class GetAutoscalingPolicyAction extends ActionType<GetAutoscalingPolicyA
         }
 
         public Request(final String name) {
+            super(masterNodeTimeout);
             this.name = Objects.requireNonNull(name);
         }
 

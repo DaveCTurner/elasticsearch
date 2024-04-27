@@ -53,6 +53,7 @@ public class ExplainDataStreamLifecycleAction {
         }
 
         public Request(String[] names, boolean includeDefaults) {
+            super(masterNodeTimeout);
             this.names = names;
             this.includeDefaults = includeDefaults;
         }

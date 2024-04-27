@@ -48,6 +48,7 @@ public class GetJobsAction extends ActionType<GetJobsAction.Response> {
         }
 
         public Request() {
+            super(masterNodeTimeout);
             local(true);
         }
 

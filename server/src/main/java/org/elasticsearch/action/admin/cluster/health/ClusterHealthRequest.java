@@ -38,9 +38,12 @@ public class ClusterHealthRequest extends MasterNodeReadRequest<ClusterHealthReq
     private String waitForNodes = "";
     private Priority waitForEvents = null;
 
-    public ClusterHealthRequest() {}
+    public ClusterHealthRequest() {
+        super(masterNodeTimeout);
+    }
 
     public ClusterHealthRequest(String... indices) {
+        super(masterNodeTimeout);
         this.indices = indices;
     }
 
