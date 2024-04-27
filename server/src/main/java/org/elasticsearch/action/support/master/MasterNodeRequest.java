@@ -34,22 +34,22 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
     @UpdateForV9 // replace with MINUS_ONE when such infinite timeouts are fully supported
     public static final TimeValue VERY_LONG_MASTER_NODE_TIMEOUT = TimeValue.MAX_VALUE;
 
-    protected TimeValue masterNodeTimeout;
+    private TimeValue masterNodeTimeout0;
 
     protected MasterNodeRequest(TimeValue masterNodeTimeout) {
-        this.masterNodeTimeout = masterNodeTimeout;
+        this.masterNodeTimeout0 = masterNodeTimeout;
     }
 
     protected MasterNodeRequest(StreamInput in) throws IOException {
         super(in);
-        masterNodeTimeout = in.readTimeValue();
+        masterNodeTimeout0 = in.readTimeValue();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         assert hasReferences();
-        out.writeTimeValue(masterNodeTimeout);
+        out.writeTimeValue(masterNodeTimeout0);
     }
 
     /**
@@ -58,7 +58,7 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      */
     @SuppressWarnings("unchecked")
     public final Request masterNodeTimeout(TimeValue timeout) {
-        this.masterNodeTimeout = timeout;
+        this.masterNodeTimeout0 = timeout;
         return (Request) this;
     }
 
@@ -67,6 +67,6 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
      * value {@link TimeValue#MINUS_ONE} means to wait forever.
      */
     public final TimeValue masterNodeTimeout() {
-        return this.masterNodeTimeout;
+        return this.masterNodeTimeout0;
     }
 }

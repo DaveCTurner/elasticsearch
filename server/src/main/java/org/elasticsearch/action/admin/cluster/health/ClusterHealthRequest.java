@@ -124,8 +124,9 @@ public class ClusterHealthRequest extends MasterNodeReadRequest<ClusterHealthReq
 
     public ClusterHealthRequest timeout(TimeValue timeout) {
         this.timeout = timeout;
-        if (masterNodeTimeout == TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT) {
-            masterNodeTimeout = timeout;
+        // TODO hmm this might need better handling?
+        if (masterNodeTimeout().equals(TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT)) {
+            masterNodeTimeout(timeout);
         }
         return this;
     }

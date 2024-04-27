@@ -465,7 +465,7 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
             && Arrays.equals(indices, that.indices)
             && Objects.equals(indicesOptions, that.indicesOptions)
             && Arrays.equals(featureStates, that.featureStates)
-            && Objects.equals(masterNodeTimeout, that.masterNodeTimeout)
+            && Objects.equals(masterNodeTimeout(), that.masterNodeTimeout())
             && Objects.equals(userMetadata, that.userMetadata);
     }
 
@@ -499,7 +499,7 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
             + ", waitForCompletion="
             + waitForCompletion
             + ", masterNodeTimeout="
-            + masterNodeTimeout
+            + masterNodeTimeout()
             + ", metadata="
             + userMetadata
             + '}';

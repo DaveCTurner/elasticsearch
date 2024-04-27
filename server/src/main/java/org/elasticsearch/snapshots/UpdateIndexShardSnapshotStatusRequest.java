@@ -12,7 +12,6 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
@@ -33,18 +32,14 @@ public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest<Upd
         status = SnapshotsInProgress.ShardSnapshotStatus.readFrom(in);
     }
 
-    public UpdateIndexShardSnapshotStatusRequest(
-        TimeValue masterNodeTimeout,
-        Snapshot snapshot,
-        ShardId shardId,
-        SnapshotsInProgress.ShardSnapshotStatus status
-    ) {
-        super(masterNodeTimeout);
+    public UpdateIndexShardSnapshotStatusRequest(Snapshot snapshot, ShardId shardId, SnapshotsInProgress.ShardSnapshotStatus status) {
+        super(
+            // By default, we keep trying to post snapshot status messages forever, to avoid snapshot processes getting stuck.
+            MasterNodeRequest.VERY_LONG_MASTER_NODE_TIMEOUT
+        );
         this.snapshot = snapshot;
         this.shardId = shardId;
         this.status = status;
-        // By default, we keep trying to post snapshot status messages to avoid snapshot processes getting stuck.
-        this.masterNodeTimeout = TimeValue.timeValueNanos(Long.MAX_VALUE);
     }
 
     @Override

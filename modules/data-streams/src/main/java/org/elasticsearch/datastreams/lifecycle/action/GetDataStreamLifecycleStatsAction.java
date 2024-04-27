@@ -43,7 +43,7 @@ public class GetDataStreamLifecycleStatsAction extends ActionType<GetDataStreamL
             super(in);
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
