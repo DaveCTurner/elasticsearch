@@ -434,9 +434,9 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         );
         assertThat(forbiddenException.status(), equalTo(RestStatus.FORBIDDEN));
         pauseFollow("index-2");
-        followerClient().admin().indices().close(new CloseIndexRequest("index-2")).actionGet();
+        followerClient().admin().indices().close(new CloseIndexRequest(masterNodeTimeout, "index-2")).actionGet();
         assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request("index-2")).actionGet());
-        followerClient().admin().indices().open(new OpenIndexRequest("index-2")).actionGet();
+        followerClient().admin().indices().open(new OpenIndexRequest(masterNodeTimeout, "index-2")).actionGet();
         assertAcked(followerClient().admin().indices().putMapping(putMappingRequest).actionGet());
     }
 
@@ -467,9 +467,15 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertAcked(leaderClient().admin().indices().prepareCreate("leader").setSource(leaderIndexSettings, XContentType.JSON));
         followerClient().execute(PutFollowAction.INSTANCE, putFollow("leader", "follower")).get();
         pauseFollow("follower");
-        followerClient().admin().indices().close(new CloseIndexRequest("follower").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, "follower").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request("follower")).actionGet());
-        followerClient().admin().indices().open(new OpenIndexRequest("follower").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .open(new OpenIndexRequest(masterNodeTimeout, "follower").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         final IndicesAliasesRequest request = new IndicesAliasesRequest(masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("follower").alias("follower_alias"));
         assertAcked(followerClient().admin().indices().aliases(request).actionGet());
@@ -674,7 +680,10 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         PutFollowAction.Request followRequest = putFollow("index1", "index2");
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
         pauseFollow("index2");
-        followerClient().admin().indices().close(new CloseIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
 
         UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE);
         updateSettingsRequest.settings(Settings.builder().put(CcrSettings.CCR_FOLLOWING_INDEX_SETTING.getKey(), false).build());
@@ -707,7 +716,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         leaderClient().prepareIndex("index1").setId("1").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 1));
 
-        leaderClient().admin().indices().close(new CloseIndexRequest("index1")).actionGet();
+        leaderClient().admin().indices().close(new CloseIndexRequest(masterNodeTimeout, "index1")).actionGet();
         assertBusy(() -> {
             StatsResponses response = followerClient().execute(FollowStatsAction.INSTANCE, new StatsRequest()).actionGet();
             assertThat(response.getNodeFailures(), empty());
@@ -727,7 +736,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(exception.getRootCause().getMessage(), equalTo("index [index1] blocked by: [FORBIDDEN/4/index closed];"));
         });
 
-        leaderClient().admin().indices().open(new OpenIndexRequest("index1")).actionGet();
+        leaderClient().admin().indices().open(new OpenIndexRequest(masterNodeTimeout, "index1")).actionGet();
         leaderClient().prepareIndex("index1").setId("2").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 2));
 
@@ -753,7 +762,10 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         leaderClient().prepareIndex("index1").setId("1").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 1));
 
-        followerClient().admin().indices().close(new CloseIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         leaderClient().prepareIndex("index1").setId("2").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> {
             StatsResponses response = followerClient().execute(FollowStatsAction.INSTANCE, new StatsRequest()).actionGet();
@@ -762,7 +774,10 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(response.getStatsResponses(), hasSize(1));
             assertThat(response.getStatsResponses().get(0).status().failedWriteRequests(), greaterThanOrEqualTo(1L));
         });
-        followerClient().admin().indices().open(new OpenIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .open(new OpenIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 2));
 
         pauseFollow("index2");
@@ -787,7 +802,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         leaderClient().prepareIndex("index1").setId("1").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 1));
 
-        leaderClient().admin().indices().delete(new DeleteIndexRequest("index1")).actionGet();
+        leaderClient().admin().indices().delete(new DeleteIndexRequest("index1", masterNodeTimeout)).actionGet();
         assertBusy(() -> {
             StatsResponses response = followerClient().execute(FollowStatsAction.INSTANCE, new StatsRequest()).actionGet();
             assertThat(response.getNodeFailures(), empty());
@@ -868,7 +883,10 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         leaderClient().prepareIndex("index1").setId("1").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 1));
 
-        followerClient().admin().indices().delete(new DeleteIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .delete(new DeleteIndexRequest("index2", masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         leaderClient().prepareIndex("index1").setId("2").setSource("{}", XContentType.JSON).get();
         assertBusy(() -> {
             StatsResponses response = followerClient().execute(FollowStatsAction.INSTANCE, new StatsRequest()).actionGet();
@@ -936,9 +954,15 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
         // Turn follow index into a regular index by: pausing shard follow, close index, unfollow index and then open index:
         pauseFollow("index2");
-        followerClient().admin().indices().close(new CloseIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request("index2")).actionGet());
-        followerClient().admin().indices().open(new OpenIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .open(new OpenIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
         ensureFollowerGreen("index2");
 
         // Indexing succeeds now, because index2 is no longer a follow index:
@@ -1121,7 +1145,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertThat(getFollowTaskSettingsVersion("follower"), equalTo(1L));
         assertThat(getFollowTaskMappingVersion("follower"), equalTo(1L));
 
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest("leader");
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, "leader");
         assertAcked(leaderClient().admin().indices().close(closeIndexRequest).actionGet());
 
         UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("leader");
@@ -1132,7 +1156,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         );
         assertAcked(leaderClient().admin().indices().updateSettings(updateSettingsRequest).actionGet());
 
-        OpenIndexRequest openIndexRequest = new OpenIndexRequest("leader");
+        OpenIndexRequest openIndexRequest = new OpenIndexRequest(masterNodeTimeout, "leader");
         assertAcked(leaderClient().admin().indices().open(openIndexRequest).actionGet());
         ensureLeaderGreen("leader");
 

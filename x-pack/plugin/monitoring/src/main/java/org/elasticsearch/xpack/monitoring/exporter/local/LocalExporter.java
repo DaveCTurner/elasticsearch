@@ -664,7 +664,7 @@ public final class LocalExporter extends Exporter implements ClusterStateListene
 
     private void deleteIndices(Set<String> indices) {
         logger.trace("deleting {} indices: [{}]", indices.size(), collectionToCommaDelimitedString(indices));
-        final DeleteIndexRequest request = new DeleteIndexRequest(indices.toArray(new String[indices.size()]));
+        final DeleteIndexRequest request = new DeleteIndexRequest(masterNodeTimeout, indices.toArray(new String[indices.size()]));
         executeAsyncWithOrigin(
             client.threadPool().getThreadContext(),
             MONITORING_ORIGIN,

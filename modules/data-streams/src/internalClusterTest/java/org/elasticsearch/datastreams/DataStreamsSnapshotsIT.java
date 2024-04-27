@@ -212,7 +212,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(Collections.singletonList(dsBackingIndexName), getSnapshot(REPO, SNAPSHOT).indices());
 
         // Close all indices:
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest("*");
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, "*");
         closeIndexRequest.indicesOptions(IndicesOptions.strictExpandHidden());
         assertAcked(client.admin().indices().close(closeIndexRequest).actionGet());
 
@@ -266,7 +266,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertThat(rolloverResponse.getNewIndex(), equalTo(backingIndexAfterSnapshot));
 
         // Close all backing indices of ds data stream:
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(".ds-ds-*");
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, ".ds-ds-*");
         closeIndexRequest.indicesOptions(IndicesOptions.strictExpandHidden());
         assertAcked(client.admin().indices().close(closeIndexRequest).actionGet());
 

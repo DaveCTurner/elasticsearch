@@ -46,7 +46,10 @@ public class RestCloseIndexAction extends BaseRestHandler {
     @Override
     @UpdateForV9
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(Strings.splitStringByCommaToArray(request.param("index")));
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(
+            masterNodeTimeout,
+            Strings.splitStringByCommaToArray(request.param("index"))
+        );
         closeIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", closeIndexRequest.masterNodeTimeout()));
         closeIndexRequest.ackTimeout(request.paramAsTime("timeout", closeIndexRequest.ackTimeout()));
         closeIndexRequest.indicesOptions(IndicesOptions.fromRequest(request, closeIndexRequest.indicesOptions()));

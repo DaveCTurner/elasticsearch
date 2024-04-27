@@ -249,7 +249,7 @@ public class ProfilingIndexManager extends AbstractProfilingPersistenceManager<P
     }
 
     private void deleteIndices(final String[] indices, final ActionListener<AcknowledgedResponse> listener) {
-        DeleteIndexRequest request = new DeleteIndexRequest(indices);
+        DeleteIndexRequest request = new DeleteIndexRequest(masterNodeTimeout, indices);
         request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
         executeAsync("delete", request, listener, (req, l) -> client.admin().indices().delete(req, l));
     }

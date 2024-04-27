@@ -177,7 +177,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
             assertThat(followedLeaderIndixUUIDs.get(0), equalTo(leaderIndexUUID));
         });
 
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("logs-201901");
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("logs-201901", masterNodeTimeout);
         assertAcked(leaderClient().admin().indices().delete(deleteIndexRequest).actionGet());
 
         assertLongBusy(() -> {

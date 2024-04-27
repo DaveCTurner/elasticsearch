@@ -167,7 +167,7 @@ public class IndicesStatsTests extends ESSingleNodeTestCase {
         String closeIndex = "close-index";
         createIndex(closeIndex);
 
-        indicesAdmin().close(new CloseIndexRequest(closeIndex)).get();
+        indicesAdmin().close(new CloseIndexRequest(masterNodeTimeout, closeIndex)).get();
 
         IndicesStatsResponse rsp = indicesAdmin().prepareStats().setIndicesOptions(IndicesOptions.STRICT_EXPAND_OPEN_CLOSED).get();
         IndexStats openIndexStats = rsp.getIndex(openIndex);

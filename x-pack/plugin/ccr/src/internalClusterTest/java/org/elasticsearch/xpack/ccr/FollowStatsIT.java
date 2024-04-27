@@ -161,7 +161,7 @@ public class FollowStatsIT extends CcrSingleNodeTestCase {
         assertThat(response.getStatsResponses().size(), equalTo(1));
         assertThat(response.getStatsResponses().get(0).status().followerIndex(), equalTo("follower1"));
 
-        assertAcked(client().admin().indices().delete(new DeleteIndexRequest("follower1")).actionGet());
+        assertAcked(client().admin().indices().delete(new DeleteIndexRequest("follower1", masterNodeTimeout)).actionGet());
 
         assertBusy(() -> {
             FollowStatsAction.StatsRequest request = new FollowStatsAction.StatsRequest();
@@ -189,7 +189,7 @@ public class FollowStatsIT extends CcrSingleNodeTestCase {
         assertThat(response.getStatsResponses().size(), equalTo(1));
         assertThat(response.getStatsResponses().get(0).status().followerIndex(), equalTo("follower1"));
 
-        assertAcked(client().admin().indices().close(new CloseIndexRequest("follower1")).actionGet());
+        assertAcked(client().admin().indices().close(new CloseIndexRequest(masterNodeTimeout, "follower1")).actionGet());
 
         statsRequest = new FollowStatsAction.StatsRequest();
         response = client().execute(FollowStatsAction.INSTANCE, statsRequest).actionGet();

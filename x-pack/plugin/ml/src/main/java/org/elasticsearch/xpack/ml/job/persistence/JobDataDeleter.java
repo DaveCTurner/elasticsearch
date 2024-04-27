@@ -365,7 +365,7 @@ public class JobDataDeleter {
                 return;
             }
             logger.info("[{}] deleting the following indices directly {}", jobId, indicesToDelete);
-            DeleteIndexRequest request = new DeleteIndexRequest(indicesToDelete.toArray(String[]::new));
+            DeleteIndexRequest request = new DeleteIndexRequest(masterNodeTimeout, indicesToDelete.toArray(String[]::new));
             request.indicesOptions(IndicesOptions.lenientExpandOpenHidden());
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),

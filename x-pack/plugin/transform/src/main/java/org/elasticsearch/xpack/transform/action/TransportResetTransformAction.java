@@ -185,7 +185,7 @@ public class TransportResetTransformAction extends AcknowledgedTransportMasterNo
                 return;
             }
             String destIndex = transformConfigAndVersionHolder.get().v1().getDestination().getIndex();
-            DeleteIndexRequest deleteDestIndexRequest = new DeleteIndexRequest(destIndex);
+            DeleteIndexRequest deleteDestIndexRequest = new DeleteIndexRequest(destIndex, masterNodeTimeout);
             executeAsyncWithOrigin(client, TRANSFORM_ORIGIN, TransportDeleteIndexAction.TYPE, deleteDestIndexRequest, finalListener);
         }, listener::onFailure);
 

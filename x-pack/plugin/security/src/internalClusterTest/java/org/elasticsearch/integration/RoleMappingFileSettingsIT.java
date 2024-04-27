@@ -388,7 +388,9 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
 
         var savedClusterState = setupClusterStateListenerForSecurityWriteError(internalCluster().getMasterName());
 
-        final CloseIndexResponse closeIndexResponse = indicesAdmin().close(new CloseIndexRequest(INTERNAL_SECURITY_MAIN_INDEX_7)).get();
+        final CloseIndexResponse closeIndexResponse = indicesAdmin().close(
+            new CloseIndexRequest(masterNodeTimeout, INTERNAL_SECURITY_MAIN_INDEX_7)
+        ).get();
         assertTrue(closeIndexResponse.isAcknowledged());
 
         writeJSONFile(internalCluster().getMasterName(), testJSON);

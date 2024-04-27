@@ -93,7 +93,7 @@ public class EmptyStateIndexRemover implements MlDataRemover {
     }
 
     private void executeDeleteEmptyStateIndices(Set<String> emptyStateIndices, ActionListener<Boolean> listener) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(emptyStateIndices.toArray(new String[0]));
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout, emptyStateIndices.toArray(new String[0]));
         deleteIndexRequest.setParentTask(parentTaskId);
         client.admin()
             .indices()

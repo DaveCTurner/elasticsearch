@@ -16,6 +16,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -39,14 +40,14 @@ public class OpenIndexRequest extends AcknowledgedRequest<OpenIndexRequest> impl
         waitForActiveShards = ActiveShardCount.readFrom(in);
     }
 
-    public OpenIndexRequest() {
+    public OpenIndexRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
     /**
      * Constructs a new open index request for the specified index.
      */
-    public OpenIndexRequest(String... indices) {
+    public OpenIndexRequest(TimeValue masterNodeTimeout, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
     }

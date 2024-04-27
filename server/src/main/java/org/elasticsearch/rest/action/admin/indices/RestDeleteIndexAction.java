@@ -38,7 +38,10 @@ public class RestDeleteIndexAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(Strings.splitStringByCommaToArray(request.param("index")));
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(
+            masterNodeTimeout,
+            Strings.splitStringByCommaToArray(request.param("index"))
+        );
         deleteIndexRequest.ackTimeout(request.paramAsTime("timeout", deleteIndexRequest.ackTimeout()));
         deleteIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteIndexRequest.masterNodeTimeout()));
         deleteIndexRequest.indicesOptions(IndicesOptions.fromRequest(request, deleteIndexRequest.indicesOptions()));

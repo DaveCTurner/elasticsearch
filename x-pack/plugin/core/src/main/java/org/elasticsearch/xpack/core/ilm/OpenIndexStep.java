@@ -36,7 +36,9 @@ final class OpenIndexStep extends AsyncActionStep {
         ActionListener<Void> listener
     ) {
         if (indexMetadata.getState() == IndexMetadata.State.CLOSE) {
-            OpenIndexRequest request = new OpenIndexRequest(indexMetadata.getIndex().getName()).masterNodeTimeout(TimeValue.MAX_VALUE);
+            OpenIndexRequest request = new OpenIndexRequest(masterNodeTimeout, indexMetadata.getIndex().getName()).masterNodeTimeout(
+                TimeValue.MAX_VALUE
+            );
             getClient().admin().indices().open(request, listener.delegateFailureAndWrap((l, openIndexResponse) -> {
                 if (openIndexResponse.isAcknowledged() == false) {
                     throw new ElasticsearchException("open index request failed to be acknowledged");

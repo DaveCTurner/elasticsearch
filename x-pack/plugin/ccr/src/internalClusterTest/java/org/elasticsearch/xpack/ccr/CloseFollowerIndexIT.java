@@ -101,7 +101,7 @@ public class CloseFollowerIndexIT extends CcrIntegTestCase {
 
         atLeastDocsIndexed(followerClient(), "index2", 32);
 
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE);
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE);
         closeIndexRequest.waitForActiveShards(ActiveShardCount.NONE);
         AcknowledgedResponse response = followerClient().admin().indices().close(closeIndexRequest).get();
         assertThat(response.isAcknowledged(), is(true));
@@ -115,7 +115,12 @@ public class CloseFollowerIndexIT extends CcrIntegTestCase {
             thread.join();
         }
 
-        assertAcked(followerClient().admin().indices().open(new OpenIndexRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE)).get());
+        assertAcked(
+            followerClient().admin()
+                .indices()
+                .open(new OpenIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
+                .get()
+        );
 
         clusterState = followerClient().admin().cluster().prepareState().get().getState();
         assertThat(clusterState.metadata().index("index2").getState(), is(IndexMetadata.State.OPEN));

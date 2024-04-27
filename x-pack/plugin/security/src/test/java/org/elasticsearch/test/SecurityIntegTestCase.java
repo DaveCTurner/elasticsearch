@@ -416,7 +416,7 @@ public abstract class SecurityIntegTestCase extends ESIntegTestCase {
         GetIndexResponse getIndexResponse = client.admin().indices().getIndex(getIndexRequest).actionGet();
         if (getIndexResponse.getIndices().length > 0) {
             // this is a hack to clean up the .security index since only a superuser can delete it
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(getIndexResponse.getIndices());
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout, getIndexResponse.getIndices());
             client.admin().indices().delete(deleteIndexRequest).actionGet();
         }
     }

@@ -1988,14 +1988,14 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
         {
             IndexNotFoundException infe = expectThrows(
                 IndexNotFoundException.class,
-                () -> indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("does_not_exist"))
+                () -> indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("does_not_exist", masterNodeTimeout))
             );
             assertEquals("does_not_exist", infe.getIndex().getName());
             assertEquals("no such index [does_not_exist]", infe.getMessage());
         }
         {
             // same delete request but with request options that DO NOT expand wildcards
-            DeleteIndexRequest request = new DeleteIndexRequest("does_not_exist").indicesOptions(
+            DeleteIndexRequest request = new DeleteIndexRequest("does_not_exist", masterNodeTimeout).indicesOptions(
                 IndicesOptions.builder().wildcardOptions(doNotExpandWildcards()).build()
             );
             IndexNotFoundException infe = expectThrows(
@@ -2008,7 +2008,7 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
         {
             IllegalArgumentException iae = expectThrows(
                 IllegalArgumentException.class,
-                () -> indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-alias"))
+                () -> indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-alias", masterNodeTimeout))
             );
             assertEquals(
                 "The provided expression [test-alias] matches an alias, specify the corresponding concrete indices instead.",
@@ -2017,7 +2017,7 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
         }
         {
             // same delete request but with request options that DO NOT expand wildcards
-            DeleteIndexRequest request = new DeleteIndexRequest("test-alias").indicesOptions(
+            DeleteIndexRequest request = new DeleteIndexRequest("test-alias", masterNodeTimeout).indicesOptions(
                 IndicesOptions.fromOptions(false, true, false, false, false, false, true, false)
             );
             IllegalArgumentException iae = expectThrows(
@@ -2030,20 +2030,20 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
             );
         }
         {
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-alias");
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-alias", masterNodeTimeout);
             deleteIndexRequest.indicesOptions(IndicesOptions.fromOptions(true, true, true, true, false, false, true, false));
             String[] indices = indexNameExpressionResolver.concreteIndexNames(state, deleteIndexRequest);
             assertEquals(0, indices.length);
         }
         {
             // same request as above but with request options that DO NOT expand wildcards
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-alias");
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-alias", masterNodeTimeout);
             deleteIndexRequest.indicesOptions(IndicesOptions.fromOptions(true, true, false, false, false, false, true, false));
             String[] indices = indexNameExpressionResolver.concreteIndexNames(state, deleteIndexRequest);
             assertEquals(0, indices.length);
         }
         {
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-a*");
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test-a*", masterNodeTimeout);
             deleteIndexRequest.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), false, true, true, false, false, true, false));
             IndexNotFoundException infe = expectThrows(
                 IndexNotFoundException.class,
@@ -2052,18 +2052,21 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
             assertEquals(infe.getIndex().getName(), "test-a*");
         }
         {
-            String[] indices = indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-a*"));
+            String[] indices = indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-a*", masterNodeTimeout));
             assertEquals(0, indices.length);
         }
         {
-            String[] indices = indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-index"));
+            String[] indices = indexNameExpressionResolver.concreteIndexNames(
+                state,
+                new DeleteIndexRequest("test-index", masterNodeTimeout)
+            );
             assertEquals(1, indices.length);
             assertEquals("test-index", indices[0]);
         }
         {
             String[] indices = indexNameExpressionResolver.concreteIndexNames(
                 state,
-                new DeleteIndexRequest("test-index").indicesOptions(
+                new DeleteIndexRequest("test-index", masterNodeTimeout).indicesOptions(
                     IndicesOptions.fromOptions(false, true, false, false, false, false, false, false)
                 )
             );
@@ -2071,7 +2074,7 @@ public class IndexNameExpressionResolverTests extends ESTestCase {
             assertEquals("test-index", indices[0]);
         }
         {
-            String[] indices = indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-*"));
+            String[] indices = indexNameExpressionResolver.concreteIndexNames(state, new DeleteIndexRequest("test-*", masterNodeTimeout));
             assertEquals(1, indices.length);
             assertEquals("test-index", indices[0]);
         }

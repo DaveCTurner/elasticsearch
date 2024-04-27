@@ -73,7 +73,7 @@ public class DeleteStep extends AsyncRetryDuringSnapshotActionStep {
         getClient().admin()
             .indices()
             .delete(
-                new DeleteIndexRequest(indexName).masterNodeTimeout(TimeValue.MAX_VALUE),
+                new DeleteIndexRequest(indexName, masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE),
                 listener.delegateFailureAndWrap((l, response) -> l.onResponse(null))
             );
     }

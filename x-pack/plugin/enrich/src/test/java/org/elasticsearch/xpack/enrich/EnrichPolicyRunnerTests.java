@@ -2412,7 +2412,7 @@ public class EnrichPolicyRunnerTests extends ESSingleNodeTestCase {
                 if (action.equals(EnrichReindexAction.INSTANCE)) {
                     super.doExecute(
                         TransportDeleteIndexAction.TYPE,
-                        new DeleteIndexRequest(createdEnrichIndex),
+                        new DeleteIndexRequest(createdEnrichIndex, masterNodeTimeout),
                         listener.delegateFailureAndWrap((delegate, response) -> {
                             if (response.isAcknowledged() == false) {
                                 fail("Enrich index should have been deleted but was not");

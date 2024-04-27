@@ -246,9 +246,9 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
         state = cluster.applyStartedShards(state, state.routingTable().index(index).shard(0).replicaShards());
 
         // close the index and open it up again (this will sometimes swap roles between primary and replica)
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(state.metadata().index(index).getIndex().getName());
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, state.metadata().index(index).getIndex().getName());
         state = cluster.closeIndices(state, closeIndexRequest);
-        OpenIndexRequest openIndexRequest = new OpenIndexRequest(state.metadata().index(index).getIndex().getName());
+        OpenIndexRequest openIndexRequest = new OpenIndexRequest(masterNodeTimeout, state.metadata().index(index).getIndex().getName());
         openIndexRequest.waitForActiveShards(ActiveShardCount.NONE);
         state = cluster.openIndices(state, openIndexRequest);
 
@@ -394,7 +394,10 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
             indicesToDelete.add(state.metadata().index(index).getIndex().getName());
         }
         if (indicesToDelete.isEmpty() == false) {
-            DeleteIndexRequest deleteRequest = new DeleteIndexRequest(indicesToDelete.toArray(new String[indicesToDelete.size()]));
+            DeleteIndexRequest deleteRequest = new DeleteIndexRequest(
+                masterNodeTimeout,
+                indicesToDelete.toArray(new String[indicesToDelete.size()])
+            );
             state = cluster.deleteIndices(state, deleteRequest);
             for (String index : indicesToDelete) {
                 assertFalse(state.metadata().hasIndex(index));
@@ -404,14 +407,17 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
         // randomly close indices
         int numberOfIndicesToClose = randomInt(Math.min(1, state.metadata().indices().size()));
         for (String index : randomSubsetOf(numberOfIndicesToClose, state.metadata().indices().keySet().toArray(new String[0]))) {
-            CloseIndexRequest closeIndexRequest = new CloseIndexRequest(state.metadata().index(index).getIndex().getName());
+            CloseIndexRequest closeIndexRequest = new CloseIndexRequest(
+                masterNodeTimeout,
+                state.metadata().index(index).getIndex().getName()
+            );
             state = cluster.closeIndices(state, closeIndexRequest);
         }
 
         // randomly open indices
         int numberOfIndicesToOpen = randomInt(Math.min(1, state.metadata().indices().size()));
         for (String index : randomSubsetOf(numberOfIndicesToOpen, state.metadata().indices().keySet().toArray(new String[0]))) {
-            OpenIndexRequest openIndexRequest = new OpenIndexRequest(state.metadata().index(index).getIndex().getName());
+            OpenIndexRequest openIndexRequest = new OpenIndexRequest(masterNodeTimeout, state.metadata().index(index).getIndex().getName());
             openIndexRequest.waitForActiveShards(ActiveShardCount.NONE);
             state = cluster.openIndices(state, openIndexRequest);
         }

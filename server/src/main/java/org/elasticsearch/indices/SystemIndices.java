@@ -895,7 +895,7 @@ public class SystemIndices {
             String[] indexNames,
             final ActionListener<ResetFeatureStateStatus> listener
         ) {
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest();
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout);
             deleteIndexRequest.indices(indexNames);
             client.execute(TransportDeleteIndexAction.TYPE, deleteIndexRequest, new ActionListener<>() {
                 @Override

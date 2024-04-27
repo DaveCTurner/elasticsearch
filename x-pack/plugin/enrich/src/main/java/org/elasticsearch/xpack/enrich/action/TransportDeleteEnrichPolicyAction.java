@@ -147,7 +147,7 @@ public class TransportDeleteEnrichPolicyAction extends AcknowledgedTransportMast
 
         // delete all enrich indices for this policy, we delete concrete indices here but not a wildcard index expression
         // as the setting 'action.destructive_requires_name' may be set to true
-        DeleteIndexRequest deleteRequest = new DeleteIndexRequest().indices(indices).indicesOptions(LENIENT_OPTIONS);
+        DeleteIndexRequest deleteRequest = new DeleteIndexRequest(masterNodeTimeout).indices(indices).indicesOptions(LENIENT_OPTIONS);
 
         new OriginSettingClient(client, ENRICH_ORIGIN).admin()
             .indices()

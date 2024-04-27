@@ -393,7 +393,9 @@ public final class ShardFollowTasksExecutor extends PersistentTasksExecutor<Shar
                 Runnable handler,
                 Consumer<Exception> onFailure
             ) {
-                CloseIndexRequest closeRequest = new CloseIndexRequest(followIndex).masterNodeTimeout(TimeValue.MAX_VALUE);
+                CloseIndexRequest closeRequest = new CloseIndexRequest(masterNodeTimeout, followIndex).masterNodeTimeout(
+                    TimeValue.MAX_VALUE
+                );
                 CheckedConsumer<CloseIndexResponse, Exception> onResponse = response -> {
                     updateSettingsAndOpenIndex(followIndex, updatedSettings, handler, onFailure);
                 };
@@ -415,7 +417,9 @@ public final class ShardFollowTasksExecutor extends PersistentTasksExecutor<Shar
             }
 
             private void openIndex(String followIndex, Runnable handler, Consumer<Exception> onFailure) {
-                OpenIndexRequest openIndexRequest = new OpenIndexRequest(followIndex).masterNodeTimeout(TimeValue.MAX_VALUE);
+                OpenIndexRequest openIndexRequest = new OpenIndexRequest(masterNodeTimeout, followIndex).masterNodeTimeout(
+                    TimeValue.MAX_VALUE
+                );
                 CheckedConsumer<OpenIndexResponse, Exception> onResponse = response -> handler.run();
                 followerClient.admin().indices().open(openIndexRequest, ActionListener.wrap(onResponse, onFailure));
             }

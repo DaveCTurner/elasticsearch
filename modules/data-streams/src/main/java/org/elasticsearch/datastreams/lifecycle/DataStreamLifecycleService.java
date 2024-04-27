@@ -700,7 +700,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
      * Issues a request to delete the provided index through the transport action deduplicator.
      */
     private void deleteIndexOnce(String indexName, String reason) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName).masterNodeTimeout(TimeValue.MAX_VALUE);
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(indexName, masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE);
         transportActionsDeduplicator.executeOnce(
             deleteIndexRequest,
             new ErrorRecordingActionListener(

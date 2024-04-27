@@ -211,7 +211,8 @@ public class EnrichPolicyMaintenanceService implements LocalNodeMasterListener {
 
     private void deleteIndices(String[] removeIndices) {
         if (removeIndices.length != 0) {
-            DeleteIndexRequest deleteIndices = new DeleteIndexRequest().indices(removeIndices).indicesOptions(IGNORE_UNAVAILABLE);
+            DeleteIndexRequest deleteIndices = new DeleteIndexRequest(masterNodeTimeout).indices(removeIndices)
+                .indicesOptions(IGNORE_UNAVAILABLE);
             client.admin().indices().delete(deleteIndices, new ActionListener<>() {
                 @Override
                 public void onResponse(AcknowledgedResponse acknowledgedResponse) {

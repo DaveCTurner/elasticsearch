@@ -279,7 +279,7 @@ public class IndexBasedTransformConfigManager implements TransformConfigManager 
             return;
         }
 
-        DeleteIndexRequest deleteRequest = new DeleteIndexRequest(indicesToDelete.toArray(new String[0])).indicesOptions(
+        DeleteIndexRequest deleteRequest = new DeleteIndexRequest(masterNodeTimeout, indicesToDelete.toArray(new String[0])).indicesOptions(
             IndicesOptions.LENIENT_EXPAND_OPEN
         );
 

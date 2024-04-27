@@ -478,7 +478,7 @@ public class BasicWatcherTests extends AbstractWatcherIntegrationTestCase {
         assertThat(response.getWatches().size(), equalTo(0));
 
         // Even if there is no .watches index this api should work and return 0 watches.
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("*");
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("*", masterNodeTimeout);
         deleteIndexRequest.indicesOptions(IndicesOptions.lenientExpandOpenHidden());
         indicesAdmin().delete(deleteIndexRequest).actionGet();
         request = new QueryWatchesAction.Request(null, null, null, null, null);

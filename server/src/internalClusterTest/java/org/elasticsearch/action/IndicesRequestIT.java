@@ -484,7 +484,7 @@ public class IndicesRequestIT extends ESIntegTestCase {
     public void testOpenIndex() {
         interceptTransportActions(OpenIndexAction.NAME);
 
-        OpenIndexRequest openIndexRequest = new OpenIndexRequest(randomUniqueIndicesOrAliases());
+        OpenIndexRequest openIndexRequest = new OpenIndexRequest(masterNodeTimeout, randomUniqueIndicesOrAliases());
         internalCluster().coordOnlyNodeClient().admin().indices().open(openIndexRequest).actionGet();
 
         clearInterceptedActions();
@@ -494,7 +494,7 @@ public class IndicesRequestIT extends ESIntegTestCase {
     public void testCloseIndex() {
         interceptTransportActions(TransportCloseIndexAction.NAME);
 
-        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(randomUniqueIndicesOrAliases());
+        CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, randomUniqueIndicesOrAliases());
         internalCluster().coordOnlyNodeClient().admin().indices().close(closeIndexRequest).actionGet();
 
         clearInterceptedActions();
@@ -505,7 +505,7 @@ public class IndicesRequestIT extends ESIntegTestCase {
         interceptTransportActions(TransportDeleteIndexAction.TYPE.name());
 
         String[] randomIndicesOrAliases = randomUniqueIndices();
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(randomIndicesOrAliases);
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout, randomIndicesOrAliases);
         assertAcked(internalCluster().coordOnlyNodeClient().admin().indices().delete(deleteIndexRequest).actionGet());
 
         clearInterceptedActions();

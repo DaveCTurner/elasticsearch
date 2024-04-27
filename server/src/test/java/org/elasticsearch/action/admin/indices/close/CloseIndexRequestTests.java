@@ -108,7 +108,7 @@ public class CloseIndexRequestTests extends ESTestCase {
     }
 
     private CloseIndexRequest randomRequest() {
-        CloseIndexRequest request = new CloseIndexRequest();
+        CloseIndexRequest request = new CloseIndexRequest(masterNodeTimeout);
         request.indices(generateRandomStringArray(10, 5, false, false));
         if (randomBoolean()) {
             request.indicesOptions(

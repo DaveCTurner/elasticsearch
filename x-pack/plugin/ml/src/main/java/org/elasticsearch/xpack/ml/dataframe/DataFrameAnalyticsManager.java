@@ -272,7 +272,7 @@ public class DataFrameAnalyticsManager {
             new ParentTaskAssigningClient(client, task.getParentTaskId()),
             ML_ORIGIN,
             TransportDeleteIndexAction.TYPE,
-            new DeleteIndexRequest(config.getDest().getIndex()),
+            new DeleteIndexRequest(config.getDest().getIndex(), masterNodeTimeout),
             ActionListener.wrap(
                 r -> executeStep(task, config, new ReindexingStep(clusterService, client, task, auditor, config, destIndexAllowedSettings)),
                 e -> {

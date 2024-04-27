@@ -67,7 +67,7 @@ public class CleanupShrinkIndexStep extends AsyncRetryDuringSnapshotActionStep {
         getClient().admin()
             .indices()
             .delete(
-                new DeleteIndexRequest(shrinkIndexName).masterNodeTimeout(TimeValue.MAX_VALUE),
+                new DeleteIndexRequest(shrinkIndexName, masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE),
                 new ActionListener<AcknowledgedResponse>() {
                     @Override
                     public void onResponse(AcknowledgedResponse acknowledgedResponse) {

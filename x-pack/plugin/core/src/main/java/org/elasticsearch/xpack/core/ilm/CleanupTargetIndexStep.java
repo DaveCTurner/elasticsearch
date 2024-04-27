@@ -88,24 +88,27 @@ public class CleanupTargetIndexStep extends AsyncRetryDuringSnapshotActionStep {
         }
         getClient().admin()
             .indices()
-            .delete(new DeleteIndexRequest(targetIndexName).masterNodeTimeout(TimeValue.MAX_VALUE), new ActionListener<>() {
-                @Override
-                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                    // even if not all nodes acked the delete request yet we can consider this operation as successful as
-                    // we'll generate a new index name and attempt to create an index with the newly generated name
-                    listener.onResponse(null);
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    if (e instanceof IndexNotFoundException) {
-                        // we can move on if the index was deleted in the meantime
+            .delete(
+                new DeleteIndexRequest(targetIndexName, masterNodeTimeout).masterNodeTimeout(TimeValue.MAX_VALUE),
+                new ActionListener<>() {
+                    @Override
+                    public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                        // even if not all nodes acked the delete request yet we can consider this operation as successful as
+                        // we'll generate a new index name and attempt to create an index with the newly generated name
                         listener.onResponse(null);
-                    } else {
-                        listener.onFailure(e);
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        if (e instanceof IndexNotFoundException) {
+                            // we can move on if the index was deleted in the meantime
+                            listener.onResponse(null);
+                        } else {
+                            listener.onFailure(e);
+                        }
                     }
                 }
-            });
+            );
     }
 
     @Override

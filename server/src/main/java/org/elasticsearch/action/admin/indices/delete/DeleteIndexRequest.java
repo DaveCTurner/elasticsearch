@@ -15,6 +15,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -48,7 +49,7 @@ public class DeleteIndexRequest extends AcknowledgedRequest<DeleteIndexRequest> 
         indicesOptions = IndicesOptions.readIndicesOptions(in);
     }
 
-    public DeleteIndexRequest() {
+    public DeleteIndexRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
@@ -57,7 +58,7 @@ public class DeleteIndexRequest extends AcknowledgedRequest<DeleteIndexRequest> 
      *
      * @param index The index to delete. Use "_all" to delete all indices.
      */
-    public DeleteIndexRequest(String index) {
+    public DeleteIndexRequest(TimeValue masterNodeTimeout, String index) {
         super(masterNodeTimeout);
         this.indices = new String[] { index };
     }
@@ -67,7 +68,7 @@ public class DeleteIndexRequest extends AcknowledgedRequest<DeleteIndexRequest> 
      *
      * @param indices The indices to delete. Use "_all" to delete all indices.
      */
-    public DeleteIndexRequest(String... indices) {
+    public DeleteIndexRequest(TimeValue masterNodeTimeout, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
     }

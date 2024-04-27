@@ -79,7 +79,7 @@ public class ReservedRealmElasticAutoconfigIntegTests extends SecuritySingleNode
             if (getIndexResponse.getIndices().length > 0) {
                 assertThat(getIndexResponse.getIndices().length, is(1));
                 assertThat(getIndexResponse.getIndices()[0], is(TestRestrictedIndices.INTERNAL_SECURITY_MAIN_INDEX_7));
-                DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(getIndexResponse.getIndices());
+                DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout, getIndexResponse.getIndices());
                 assertAcked(client().admin().indices().delete(deleteIndexRequest).actionGet());
             }
 

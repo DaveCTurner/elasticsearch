@@ -471,7 +471,7 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             }
 
             pauseFollow(followerIndex);
-            assertAcked(followerClient().admin().indices().close(new CloseIndexRequest(followerIndex)).actionGet());
+            assertAcked(followerClient().admin().indices().close(new CloseIndexRequest(masterNodeTimeout, followerIndex)).actionGet());
             assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request(followerIndex)).actionGet());
 
             final IndicesStatsResponse afterUnfollowStats = leaderClient().admin()
@@ -511,7 +511,10 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         ensureFollowerGreen(true, followerIndex);
 
         pauseFollow(followerIndex);
-        followerClient().admin().indices().close(new CloseIndexRequest(followerIndex).masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, followerIndex).masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
 
         // we will disrupt requests to remove retention leases for these random shards
         final Set<Integer> shardIds = new HashSet<>(
@@ -992,7 +995,7 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             removeLeaseLatch.await();
 
             pauseFollow(followerIndex);
-            assertAcked(followerClient().admin().indices().close(new CloseIndexRequest(followerIndex)).actionGet());
+            assertAcked(followerClient().admin().indices().close(new CloseIndexRequest(masterNodeTimeout, followerIndex)).actionGet());
             assertAcked(followerClient().execute(UnfollowAction.INSTANCE, new UnfollowAction.Request(followerIndex)).actionGet());
 
             unfollowLatch.countDown();
@@ -1037,7 +1040,10 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         ensureFollowerGreen(true, followerIndex);
 
         pauseFollow(followerIndex);
-        followerClient().admin().indices().close(new CloseIndexRequest(followerIndex).masterNodeTimeout(TimeValue.MAX_VALUE)).actionGet();
+        followerClient().admin()
+            .indices()
+            .close(new CloseIndexRequest(masterNodeTimeout, followerIndex).masterNodeTimeout(TimeValue.MAX_VALUE))
+            .actionGet();
 
         final ClusterStateResponse followerIndexClusterState = followerClient().admin()
             .cluster()

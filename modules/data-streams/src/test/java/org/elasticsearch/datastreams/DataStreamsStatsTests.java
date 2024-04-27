@@ -128,7 +128,11 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
         String dataStreamName = createDataStream();
         createDocument(dataStreamName);
         assertTrue(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get().isAcknowledged());
-        assertTrue(indicesAdmin().close(new CloseIndexRequest(".ds-" + dataStreamName + "-*-000001")).actionGet().isAcknowledged());
+        assertTrue(
+            indicesAdmin().close(new CloseIndexRequest(masterNodeTimeout, ".ds-" + dataStreamName + "-*-000001"))
+                .actionGet()
+                .isAcknowledged()
+        );
 
         assertBusy(
             () -> assertNotEquals(ClusterHealthStatus.RED, clusterAdmin().health(new ClusterHealthRequest()).actionGet().getStatus())

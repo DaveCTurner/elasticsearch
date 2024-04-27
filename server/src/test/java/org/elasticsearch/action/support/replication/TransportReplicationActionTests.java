@@ -600,7 +600,7 @@ public class TransportReplicationActionTests extends ESTestCase {
                     clusterService.state(),
                     new CreateIndexRequest(masterNodeTimeout, index).waitForActiveShards(ActiveShardCount.NONE)
                 ),
-                new CloseIndexRequest(index)
+                new CloseIndexRequest(masterNodeTimeout, index)
             )
         );
         assertThat(clusterService.state().metadata().indices().get(index).getState(), equalTo(IndexMetadata.State.CLOSE));

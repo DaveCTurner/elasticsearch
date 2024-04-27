@@ -875,7 +875,7 @@ public class AuthorizationServiceTests extends ESTestCase {
      * does not work for requests that are not remote-index-capable.
      */
     public void testRemoteIndicesOnlyWorkWithApplicableRequestTypes() {
-        DeleteIndexRequest request = new DeleteIndexRequest();
+        DeleteIndexRequest request = new DeleteIndexRequest(masterNodeTimeout);
         request.indices("other_cluster:index1", "other_cluster:index2");
         final Authentication authentication = createAuthentication(new User("test user"));
         mockEmptyMetadata();
@@ -2368,7 +2368,7 @@ public class AuthorizationServiceTests extends ESTestCase {
         requests.add(
             new Tuple<>(
                 TransportDeleteIndexAction.TYPE.name(),
-                new DeleteIndexRequest(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7))
+                new DeleteIndexRequest(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7), masterNodeTimeout)
             )
         );
         for (final Tuple<String, TransportRequest> requestTuple : requests) {

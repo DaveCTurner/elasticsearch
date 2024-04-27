@@ -151,7 +151,7 @@ public class TransportDeleteTransformAction extends AcknowledgedTransportMasterN
             transformConfigAndVersion -> {
                 TransformConfig config = transformConfigAndVersion.v1();
                 String destIndex = config.getDestination().getIndex();
-                DeleteIndexRequest deleteDestIndexRequest = new DeleteIndexRequest(destIndex);
+                DeleteIndexRequest deleteDestIndexRequest = new DeleteIndexRequest(destIndex, masterNodeTimeout);
                 deleteDestIndexRequest.ackTimeout(timeout);
                 deleteDestIndexRequest.setParentTask(parentTaskId);
                 executeWithHeadersAsync(

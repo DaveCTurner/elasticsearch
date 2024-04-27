@@ -582,7 +582,7 @@ public class SecurityServerTransportInterceptorTests extends ESTestCase {
             return null;
         }).when(channel).sendResponse(any(Exception.class));
         final AtomicBoolean decRefCalled = new AtomicBoolean(false);
-        final DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest() {
+        final DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout) {
             @Override
             public boolean decRef() {
                 assertTrue(decRefCalled.compareAndSet(false, true));

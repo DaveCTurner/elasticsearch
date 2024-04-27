@@ -41,7 +41,9 @@ final class CloseFollowerIndexStep extends AsyncRetryDuringSnapshotActionStep {
         }
 
         if (indexMetadata.getState() == IndexMetadata.State.OPEN) {
-            CloseIndexRequest closeIndexRequest = new CloseIndexRequest(followerIndex).masterNodeTimeout(TimeValue.MAX_VALUE);
+            CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, followerIndex).masterNodeTimeout(
+                TimeValue.MAX_VALUE
+            );
             getClient().admin().indices().close(closeIndexRequest, listener.delegateFailureAndWrap((l, r) -> {
                 if (r.isAcknowledged() == false) {
                     throw new ElasticsearchException("close index request failed to be acknowledged");

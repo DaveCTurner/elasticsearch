@@ -337,7 +337,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         continueOrDie(
             createSnapshotResponseListener,
-            createSnapshotResponse -> client().admin().indices().delete(new DeleteIndexRequest(index), deleteIndexListener)
+            createSnapshotResponse -> client().admin()
+                .indices()
+                .delete(new DeleteIndexRequest(index, masterNodeTimeout), deleteIndexListener)
         );
 
         final SubscribableListener<RestoreSnapshotResponse> restoreSnapshotResponseListener = new SubscribableListener<>();
@@ -876,22 +878,24 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         continueOrDie(
             createSnapshotResponseStepListener,
-            createSnapshotResponse -> client().admin().indices().delete(new DeleteIndexRequest(index), new ActionListener<>() {
-                @Override
-                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                    if (partialSnapshot) {
-                        // Recreate index by the same name to test that we don't snapshot conflicting metadata in this scenario
-                        client().admin().indices().create(new CreateIndexRequest(masterNodeTimeout, index), ActionListener.noop());
+            createSnapshotResponse -> client().admin()
+                .indices()
+                .delete(new DeleteIndexRequest(index, masterNodeTimeout), new ActionListener<>() {
+                    @Override
+                    public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                        if (partialSnapshot) {
+                            // Recreate index by the same name to test that we don't snapshot conflicting metadata in this scenario
+                            client().admin().indices().create(new CreateIndexRequest(masterNodeTimeout, index), ActionListener.noop());
+                        }
                     }
-                }
 
-                @Override
-                public void onFailure(Exception e) {
-                    if (partialSnapshot) {
-                        throw new AssertionError("Delete index should always work during partial snapshots", e);
+                    @Override
+                    public void onFailure(Exception e) {
+                        if (partialSnapshot) {
+                            throw new AssertionError("Delete index should always work during partial snapshots", e);
+                        }
                     }
-                }
-            })
+                })
         );
 
         deterministicTaskQueue.runAllRunnableTasks();

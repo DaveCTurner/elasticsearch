@@ -19,7 +19,7 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 public class OpenIndexRequestBuilder extends AcknowledgedRequestBuilder<OpenIndexRequest, OpenIndexResponse, OpenIndexRequestBuilder> {
 
     public OpenIndexRequestBuilder(ElasticsearchClient client, String... indices) {
-        super(client, OpenIndexAction.INSTANCE, new OpenIndexRequest(indices));
+        super(client, OpenIndexAction.INSTANCE, new OpenIndexRequest(masterNodeTimeout, indices));
     }
 
     /**

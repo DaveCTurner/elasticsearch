@@ -16,6 +16,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -37,14 +38,14 @@ public class CloseIndexRequest extends AcknowledgedRequest<CloseIndexRequest> im
         waitForActiveShards = ActiveShardCount.readFrom(in);
     }
 
-    public CloseIndexRequest() {
+    public CloseIndexRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
     /**
      * Constructs a new close index request for the specified index.
      */
-    public CloseIndexRequest(String... indices) {
+    public CloseIndexRequest(TimeValue masterNodeTimeout, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
     }

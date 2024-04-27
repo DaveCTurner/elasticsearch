@@ -1536,11 +1536,11 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
         IndicesOptions options = IndicesOptions.fromOptions(true, false, false, false);
         Tuple<TransportRequest, String> tuple = randomFrom(
             new Tuple<TransportRequest, String>(
-                new CloseIndexRequest("remote:foo").indicesOptions(options),
+                new CloseIndexRequest(masterNodeTimeout, "remote:foo").indicesOptions(options),
                 TransportCloseIndexAction.NAME
             ),
             new Tuple<TransportRequest, String>(
-                new DeleteIndexRequest("remote:foo").indicesOptions(options),
+                new DeleteIndexRequest("remote:foo", masterNodeTimeout).indicesOptions(options),
                 TransportDeleteIndexAction.TYPE.name()
             ),
             new Tuple<TransportRequest, String>(
@@ -1558,9 +1558,12 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     public void testNonRemotableRequestDoesNotAllowRemoteWildcardIndices() {
         IndicesOptions options = IndicesOptions.fromOptions(randomBoolean(), true, true, true);
         Tuple<TransportRequest, String> tuple = randomFrom(
-            new Tuple<TransportRequest, String>(new CloseIndexRequest("*:*").indicesOptions(options), TransportCloseIndexAction.NAME),
             new Tuple<TransportRequest, String>(
-                new DeleteIndexRequest("*:*").indicesOptions(options),
+                new CloseIndexRequest(masterNodeTimeout, "*:*").indicesOptions(options),
+                TransportCloseIndexAction.NAME
+            ),
+            new Tuple<TransportRequest, String>(
+                new DeleteIndexRequest("*:*", masterNodeTimeout).indicesOptions(options),
                 TransportDeleteIndexAction.TYPE.name()
             ),
             new Tuple<TransportRequest, String>(
@@ -1596,7 +1599,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
             assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
         }
         {
-            DeleteIndexRequest request = new DeleteIndexRequest("*");
+            DeleteIndexRequest request = new DeleteIndexRequest("*", masterNodeTimeout);
             List<String> indices = resolveIndices(request, authorizedIndices).getLocal();
             String[] expectedIndices = new String[] { "bar", "bar-closed", "foofoo", "foofoo-closed" };
             assertThat(indices, hasSize(expectedIndices.length));
