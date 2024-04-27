@@ -24,6 +24,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.mapper.DateFieldMapper;
@@ -56,12 +57,12 @@ public class GetDataStreamAction extends ActionType<GetDataStreamAction.Response
         private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, true, true, true, false, false, true, false);
         private boolean includeDefaults = false;
 
-        public Request(String[] names) {
+        public Request(TimeValue masterNodeTimeout, String[] names) {
             super(masterNodeTimeout);
             this.names = names;
         }
 
-        public Request(String[] names, boolean includeDefaults) {
+        public Request(TimeValue masterNodeTimeout, String[] names, boolean includeDefaults) {
             super(masterNodeTimeout);
             this.names = names;
             this.includeDefaults = includeDefaults;

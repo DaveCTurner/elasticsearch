@@ -45,6 +45,7 @@ public class DownsampleAction extends ActionType<AcknowledgedResponse> {
         private DownsampleConfig downsampleConfig;
 
         public Request(
+            final TimeValue masterNodeTimeout,
             final String sourceIndex,
             final String targetIndex,
             final TimeValue waitTimeout,
@@ -57,7 +58,7 @@ public class DownsampleAction extends ActionType<AcknowledgedResponse> {
             this.downsampleConfig = downsampleConfig;
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 

@@ -246,7 +246,7 @@ public abstract class TestCluster {
 
     public void wipeAllDataStreams() {
         if (size() > 0) {
-            var request = new DeleteDataStreamAction.Request("*");
+            var request = new DeleteDataStreamAction.Request(masterNodeTimeout, "*");
             request.indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
             try {
                 assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, request).actionGet());

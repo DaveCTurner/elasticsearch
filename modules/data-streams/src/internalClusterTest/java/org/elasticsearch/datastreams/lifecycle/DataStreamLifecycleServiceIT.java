@@ -127,13 +127,16 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
 
         putComposableIndexTemplate("id1", null, List.of("metrics-foo*"), null, null, lifecycle);
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         indexDocs(dataStreamName, 1);
 
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -153,13 +156,16 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         putComposableIndexTemplate("id1", null, List.of("metrics-foo*"), null, null, lifecycle);
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         indexDocs(dataStreamName, 1);
 
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -184,7 +190,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         putComposableIndexTemplate("id1", null, List.of("metrics-foo*"), null, null, lifecycle);
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         indexDocs(dataStreamName, 1);
@@ -232,7 +238,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         ).get();
 
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -250,7 +259,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         putComposableIndexTemplate("id1", null, List.of("metrics-foo*"), null, null, lifecycle);
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         client().admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
         client().admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
@@ -260,7 +269,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         updateLifecycle(dataStreamName, TimeValue.timeValueMillis(1));
         // Verify that the retention has changed for all backing indices
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -313,7 +325,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
                 });
         }
 
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         int finalGeneration = randomIntBetween(3, 4);
         for (int currentGeneration = 1; currentGeneration < finalGeneration; currentGeneration++) {
@@ -341,7 +353,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
             // run data stream lifecycle once
             dataStreamLifecycleService.run(clusterService.state());
             assertBusy(() -> {
-                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                    masterNodeTimeout,
+                    new String[] { dataStreamName }
+                );
                 GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                     .actionGet();
                 assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -395,14 +410,17 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         );
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         indexDocs(dataStreamName, 1);
 
         // let's allow one rollover to go through
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -436,6 +454,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
             assertThat(writeIndexRolloverError.error(), containsString("maximum normal shards open"));
 
             ExplainDataStreamLifecycleAction.Request explainRequest = new ExplainDataStreamLifecycleAction.Request(
+                masterNodeTimeout,
                 new String[] { dataStreamName }
             );
             ExplainDataStreamLifecycleAction.Response response = client().execute(ExplainDataStreamLifecycleAction.INSTANCE, explainRequest)
@@ -545,13 +564,16 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         );
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         indexDocs(dataStreamName, 1);
 
         // let's allow one rollover to go through
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -574,7 +596,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
             updateLifecycle(dataStreamName, TimeValue.timeValueSeconds(1));
 
             assertBusy(() -> {
-                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                    masterNodeTimeout,
+                    new String[] { dataStreamName }
+                );
                 GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                     .actionGet();
                 assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -644,7 +669,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
             updateIndexSettings(Settings.builder().put(READ_ONLY.settingName(), false), firstGenerationIndex);
 
             assertBusy(() -> {
-                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+                GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                    masterNodeTimeout,
+                    new String[] { dataStreamName }
+                );
                 GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                     .actionGet();
                 assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -707,13 +735,16 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         );
 
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         indexDocs(dataStreamName, 1);
 
         // let's allow one rollover to go through
         assertBusy(() -> {
-            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+            GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName }
+            );
             GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
                 .actionGet();
             assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));
@@ -792,7 +823,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
 
         putComposableIndexTemplate("id1", null, List.of("metrics-foo*"), null, null, lifecycle);
         String dataStreamName = "metrics-foo";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         indexDocs(dataStreamName, 10);
@@ -803,7 +834,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
 
             ExplainDataStreamLifecycleAction.Response dataStreamLifecycleExplainResponse = client().execute(
                 ExplainDataStreamLifecycleAction.INSTANCE,
-                new ExplainDataStreamLifecycleAction.Request(new String[] { writeIndex })
+                new ExplainDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { writeIndex })
             ).actionGet();
             assertThat(dataStreamLifecycleExplainResponse.getIndices().size(), is(1));
             for (ExplainIndexDataStreamLifecycle index : dataStreamLifecycleExplainResponse.getIndices()) {
@@ -836,7 +867,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
     }
 
     private static List<String> getBackingIndices(String dataStreamName) {
-        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStreamName });
+        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+            masterNodeTimeout,
+            new String[] { dataStreamName }
+        );
         GetDataStreamAction.Response getDataStreamResponse = client().execute(GetDataStreamAction.INSTANCE, getDataStreamRequest)
             .actionGet();
         assertThat(getDataStreamResponse.getDataStreams().size(), equalTo(1));

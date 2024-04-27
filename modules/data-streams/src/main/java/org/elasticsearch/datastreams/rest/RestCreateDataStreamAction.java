@@ -35,7 +35,7 @@ public class RestCreateDataStreamAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        CreateDataStreamAction.Request putDataStreamRequest = new CreateDataStreamAction.Request(request.param("name"));
+        CreateDataStreamAction.Request putDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, request.param("name"));
         return channel -> client.execute(CreateDataStreamAction.INSTANCE, putDataStreamRequest, new RestToXContentListener<>(channel));
     }
 }

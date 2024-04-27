@@ -17,6 +17,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -35,13 +36,13 @@ public class CreateDataStreamAction extends ActionType<AcknowledgedResponse> {
         private final String name;
         private final long startTime;
 
-        public Request(String name) {
+        public Request(TimeValue masterNodeTimeout, String name) {
             super(masterNodeTimeout);
             this.name = name;
             this.startTime = System.currentTimeMillis();
         }
 
-        public Request(String name, long startTime) {
+        public Request(TimeValue masterNodeTimeout, String name, long startTime) {
             super(masterNodeTimeout);
             this.name = name;
             this.startTime = startTime;

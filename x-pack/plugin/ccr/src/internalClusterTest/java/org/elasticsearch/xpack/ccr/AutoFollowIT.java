@@ -663,7 +663,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
         );
         assertAcked(leaderClient().execute(TransportPutComposableIndexTemplateAction.TYPE, request).get());
 
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(datastream);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, datastream);
         assertAcked(leaderClient().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get());
         leaderClient().prepareIndex(datastream)
             .setCreate(true)

@@ -81,7 +81,10 @@ public class AnalyticsCollectionService {
         assert (state.nodes().isLocalNodeElectedMaster());
 
         AnalyticsCollection collection = new AnalyticsCollection(request.getName());
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(collection.getEventDataStream());
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(
+            masterNodeTimeout,
+            collection.getEventDataStream()
+        );
 
         ActionListener<AcknowledgedResponse> createDataStreamListener = ActionListener.wrap(
             r -> listener.onResponse(new PutAnalyticsCollectionAction.Response(r.isAcknowledged(), request.getName())),
@@ -124,7 +127,10 @@ public class AnalyticsCollectionService {
         assert (state.nodes().isLocalNodeElectedMaster());
 
         AnalyticsCollection collection = new AnalyticsCollection(request.getCollectionName());
-        DeleteDataStreamAction.Request deleteDataStreamRequest = new DeleteDataStreamAction.Request(collection.getEventDataStream());
+        DeleteDataStreamAction.Request deleteDataStreamRequest = new DeleteDataStreamAction.Request(
+            masterNodeTimeout,
+            collection.getEventDataStream()
+        );
         ActionListener<AcknowledgedResponse> deleteDataStreamListener = ActionListener.wrap(listener::onResponse, (Exception e) -> {
             if (e instanceof ResourceNotFoundException) {
                 listener.onFailure(new ResourceNotFoundException("analytics collection [{}] does not exists", request.getCollectionName()));

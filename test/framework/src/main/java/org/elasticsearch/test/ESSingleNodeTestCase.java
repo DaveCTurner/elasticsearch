@@ -131,7 +131,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         assertThat(searchService.getActiveContexts(), equalTo(0));
         assertThat(searchService.getOpenScrollContexts(), equalTo(0));
         super.tearDown();
-        var deleteDataStreamsRequest = new DeleteDataStreamAction.Request("*");
+        var deleteDataStreamsRequest = new DeleteDataStreamAction.Request(masterNodeTimeout, "*");
         deleteDataStreamsRequest.indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
         try {
             assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, deleteDataStreamsRequest));

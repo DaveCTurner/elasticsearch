@@ -129,6 +129,7 @@ public class ProactiveStorageIT extends AutoscalingStorageIntegTestCase {
                     .build()
             )
         ).actionGet();
-        client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)).actionGet();
+        client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName))
+            .actionGet();
     }
 }

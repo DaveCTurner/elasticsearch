@@ -546,7 +546,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         };
         client().execute(
             DownsampleAction.INSTANCE,
-            new DownsampleAction.Request(sourceIndex, downsampleIndex, TIMEOUT, config),
+            new DownsampleAction.Request(masterNodeTimeout, sourceIndex, downsampleIndex, TIMEOUT, config),
             downsampleListener
         );
         assertBusy(() -> {
@@ -587,7 +587,10 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         downsample(sourceIndex, downsampleIndex, config);
         assertDownsampleIndex(sourceIndex, downsampleIndex, config);
 
-        var r = client().execute(GetDataStreamAction.INSTANCE, new GetDataStreamAction.Request(new String[] { dataStreamName })).get();
+        var r = client().execute(
+            GetDataStreamAction.INSTANCE,
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { dataStreamName })
+        ).get();
         assertEquals(1, r.getDataStreams().size());
         List<Index> indices = r.getDataStreams().get(0).getDataStream().getIndices();
         // Assert that the downsample index has not been added to the data stream
@@ -1089,7 +1092,10 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
 
     private void downsample(String sourceIndex, String downsampleIndex, DownsampleConfig config) {
         assertAcked(
-            client().execute(DownsampleAction.INSTANCE, new DownsampleAction.Request(sourceIndex, downsampleIndex, TIMEOUT, config))
+            client().execute(
+                DownsampleAction.INSTANCE,
+                new DownsampleAction.Request(masterNodeTimeout, sourceIndex, downsampleIndex, TIMEOUT, config)
+            )
         );
     }
 
@@ -1533,7 +1539,9 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
             dataStreamName + "_template"
         ).indexTemplate(template);
         assertAcked(client().execute(TransportPutComposableIndexTemplateAction.TYPE, request).actionGet());
-        assertAcked(client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)).get());
+        assertAcked(
+            client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName)).get()
+        );
         return dataStreamName;
     }
 

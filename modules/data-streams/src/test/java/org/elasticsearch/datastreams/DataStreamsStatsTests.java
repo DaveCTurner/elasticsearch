@@ -245,7 +245,9 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
                 )
             )
         );
-        assertAcked(client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)));
+        assertAcked(
+            client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName))
+        );
         createdDataStreams.add(dataStreamName);
         return dataStreamName;
     }
@@ -286,7 +288,12 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
     }
 
     private void deleteDataStream(String dataStreamName) {
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { dataStreamName })));
+        assertAcked(
+            client().execute(
+                DeleteDataStreamAction.INSTANCE,
+                new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { dataStreamName })
+            )
+        );
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,

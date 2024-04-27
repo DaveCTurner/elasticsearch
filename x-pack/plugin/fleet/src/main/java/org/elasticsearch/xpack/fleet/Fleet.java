@@ -300,6 +300,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
         if (dataStreamDescriptors.isEmpty() == false) {
             try {
                 Request request = new Request(
+                    masterNodeTimeout,
                     dataStreamDescriptors.stream().map(SystemDataStreamDescriptor::getDataStreamName).toArray(String[]::new)
                 );
                 request.indicesOptions(

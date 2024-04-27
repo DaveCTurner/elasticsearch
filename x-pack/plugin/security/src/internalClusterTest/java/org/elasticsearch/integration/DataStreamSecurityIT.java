@@ -68,7 +68,7 @@ public class DataStreamSecurityIT extends SecurityIntegTestCase {
         assertAcked(client.execute(TransportPutComposableIndexTemplateAction.TYPE, putTemplateRequest).actionGet());
 
         String dataStreamName = "logs-es";
-        var request = new CreateDataStreamAction.Request(dataStreamName);
+        var request = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         assertAcked(client.execute(CreateDataStreamAction.INSTANCE, request).actionGet());
         assertAcked(client.admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 

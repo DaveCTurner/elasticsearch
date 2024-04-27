@@ -40,6 +40,7 @@ public class RestDownsampleAction extends BaseRestHandler {
             config = DownsampleConfig.fromXContent(parser);
         }
         DownsampleAction.Request request = new DownsampleAction.Request(
+            masterNodeTimeout,
             sourceIndex,
             targetIndex,
             TimeValue.parseTimeValue(timeout, null, "wait_timeout"),

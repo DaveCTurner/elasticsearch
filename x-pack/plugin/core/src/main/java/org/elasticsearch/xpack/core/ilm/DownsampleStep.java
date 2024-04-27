@@ -90,8 +90,13 @@ public class DownsampleStep extends AsyncActionStep {
 
     void performDownsampleIndex(String indexName, String downsampleIndexName, ActionListener<Void> listener) {
         DownsampleConfig config = new DownsampleConfig(fixedInterval);
-        DownsampleAction.Request request = new DownsampleAction.Request(indexName, downsampleIndexName, waitTimeout, config)
-            .masterNodeTimeout(TimeValue.MAX_VALUE);
+        DownsampleAction.Request request = new DownsampleAction.Request(
+            masterNodeTimeout,
+            indexName,
+            downsampleIndexName,
+            waitTimeout,
+            config
+        ).masterNodeTimeout(TimeValue.MAX_VALUE);
         // Currently, DownsampleAction always acknowledges action was complete when no exceptions are thrown.
         getClient().execute(DownsampleAction.INSTANCE, request, listener.delegateFailureAndWrap((l, response) -> l.onResponse(null)));
     }

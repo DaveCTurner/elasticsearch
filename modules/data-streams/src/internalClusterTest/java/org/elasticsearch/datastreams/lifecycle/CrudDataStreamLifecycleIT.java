@@ -42,17 +42,17 @@ public class CrudDataStreamLifecycleIT extends ESIntegTestCase {
         putComposableIndexTemplate("id2", null, List.of("without-lifecycle*"), null, null, null);
         {
             String dataStreamName = "with-lifecycle-1";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
         {
             String dataStreamName = "with-lifecycle-2";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
         {
             String dataStreamName = "without-lifecycle";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
 
@@ -127,7 +127,7 @@ public class CrudDataStreamLifecycleIT extends ESIntegTestCase {
         putComposableIndexTemplate("id1", null, List.of("my-data-stream*"), null, null, null);
         // Create index without a lifecycle
         String dataStreamName = "my-data-stream";
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         {
@@ -200,17 +200,17 @@ public class CrudDataStreamLifecycleIT extends ESIntegTestCase {
         putComposableIndexTemplate("id2", null, List.of("without-lifecycle*"), null, null, null);
         {
             String dataStreamName = "with-lifecycle-1";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
         {
             String dataStreamName = "with-lifecycle-2";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
         {
             String dataStreamName = "with-lifecycle-3";
-            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
+            CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName);
             client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         }
 

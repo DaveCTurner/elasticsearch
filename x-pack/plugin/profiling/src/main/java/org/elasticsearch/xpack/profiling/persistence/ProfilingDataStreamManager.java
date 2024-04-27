@@ -141,7 +141,7 @@ public class ProfilingDataStreamManager extends AbstractProfilingPersistenceMana
     private void createDataStream(ProfilingDataStream dataStream, final ActionListener<? super ActionResponse> listener) {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            CreateDataStreamAction.Request request = new CreateDataStreamAction.Request(dataStream.getName());
+            CreateDataStreamAction.Request request = new CreateDataStreamAction.Request(masterNodeTimeout, dataStream.getName());
             request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),

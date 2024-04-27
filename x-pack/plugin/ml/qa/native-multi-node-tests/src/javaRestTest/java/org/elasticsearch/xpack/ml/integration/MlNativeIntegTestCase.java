@@ -467,7 +467,8 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
                     .build()
             )
         ).actionGet();
-        client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)).actionGet();
+        client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName))
+            .actionGet();
     }
 
     public static class MockPainlessScriptEngine extends MockScriptEngine {

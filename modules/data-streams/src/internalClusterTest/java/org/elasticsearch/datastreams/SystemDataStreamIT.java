@@ -344,6 +344,7 @@ public class SystemDataStreamIT extends ESIntegTestCase {
         public void cleanUpFeature(ClusterService clusterService, Client client, ActionListener<ResetFeatureStateStatus> listener) {
             Collection<SystemDataStreamDescriptor> dataStreamDescriptors = getSystemDataStreamDescriptors();
             final DeleteDataStreamAction.Request request = new DeleteDataStreamAction.Request(
+                masterNodeTimeout,
                 dataStreamDescriptors.stream()
                     .map(SystemDataStreamDescriptor::getDataStreamName)
                     .collect(Collectors.toList())

@@ -69,7 +69,7 @@ public class IndexTemplateRegistryRolloverIT extends ESIntegTestCase {
         registry.clusterChanged(new ClusterChangedEvent(IndexTemplateRegistryRolloverIT.class.getName(), state, state));
         assertBusy(() -> { assertTrue(clusterService.state().metadata().templatesV2().containsKey(TEST_INDEX_TEMPLATE_ID)); });
         String dsName = TEST_INDEX_PATTERN.replace('*', '1');
-        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dsName);
+        CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(masterNodeTimeout, dsName);
         AcknowledgedResponse acknowledgedResponse = client.execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
         assertTrue(acknowledgedResponse.isAcknowledged());
         assertNumberOfBackingIndices(1);
@@ -94,7 +94,10 @@ public class IndexTemplateRegistryRolloverIT extends ESIntegTestCase {
     }
 
     private DataStream getDataStream() {
-        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { TEST_INDEX_PATTERN });
+        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(
+            masterNodeTimeout,
+            new String[] { TEST_INDEX_PATTERN }
+        );
         GetDataStreamAction.Response getDataStreamResponse = client.execute(GetDataStreamAction.INSTANCE, getDataStreamRequest).actionGet();
         List<GetDataStreamAction.Response.DataStreamInfo> dataStreams = getDataStreamResponse.getDataStreams();
         assertThat(dataStreams, hasSize(1));

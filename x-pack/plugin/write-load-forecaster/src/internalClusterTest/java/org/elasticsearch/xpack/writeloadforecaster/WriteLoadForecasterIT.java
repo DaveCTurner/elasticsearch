@@ -161,7 +161,10 @@ public class WriteLoadForecasterIT extends ESIntegTestCase {
                 )
             )
         );
-        assertAcked(client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)).actionGet());
+        assertAcked(
+            client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(masterNodeTimeout, dataStreamName))
+                .actionGet()
+        );
 
         final int numberOfRollovers = randomIntBetween(5, 10);
         for (int i = 0; i < numberOfRollovers; i++) {

@@ -25,7 +25,7 @@ public class CreateDataStreamRequestTests extends AbstractWireSerializingTestCas
 
     @Override
     protected Request createTestInstance() {
-        return new Request(randomAlphaOfLength(8));
+        return new Request(masterNodeTimeout, randomAlphaOfLength(8));
     }
 
     @Override
@@ -34,13 +34,13 @@ public class CreateDataStreamRequestTests extends AbstractWireSerializingTestCas
     }
 
     public void testValidateRequest() {
-        CreateDataStreamAction.Request req = new CreateDataStreamAction.Request("my-data-stream");
+        CreateDataStreamAction.Request req = new CreateDataStreamAction.Request(masterNodeTimeout, "my-data-stream");
         ActionRequestValidationException e = req.validate();
         assertNull(e);
     }
 
     public void testValidateRequestWithoutName() {
-        CreateDataStreamAction.Request req = new CreateDataStreamAction.Request("");
+        CreateDataStreamAction.Request req = new CreateDataStreamAction.Request(masterNodeTimeout, "");
         ActionRequestValidationException e = req.validate();
         assertNotNull(e);
         assertThat(e.validationErrors().size(), equalTo(1));

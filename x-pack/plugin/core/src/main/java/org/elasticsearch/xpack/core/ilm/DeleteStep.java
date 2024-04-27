@@ -47,7 +47,10 @@ public class DeleteStep extends AsyncRetryDuringSnapshotActionStep {
             if (dataStream.getIndices().size() == 1 && dataStream.getWriteIndex().getName().equals(indexName)) {
                 // This is the last index in the data stream, the entire stream
                 // needs to be deleted, because we can't have an empty data stream
-                DeleteDataStreamAction.Request deleteReq = new DeleteDataStreamAction.Request(new String[] { dataStream.getName() });
+                DeleteDataStreamAction.Request deleteReq = new DeleteDataStreamAction.Request(
+                    masterNodeTimeout,
+                    new String[] { dataStream.getName() }
+                );
                 getClient().execute(
                     DeleteDataStreamAction.INSTANCE,
                     deleteReq,

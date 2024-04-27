@@ -38,7 +38,7 @@ public class RestExplainDataStreamLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) {
         String[] indices = Strings.splitStringByCommaToArray(restRequest.param("index"));
-        ExplainDataStreamLifecycleAction.Request explainRequest = new ExplainDataStreamLifecycleAction.Request(indices);
+        ExplainDataStreamLifecycleAction.Request explainRequest = new ExplainDataStreamLifecycleAction.Request(masterNodeTimeout, indices);
         explainRequest.includeDefaults(restRequest.paramAsBoolean("include_defaults", false));
         explainRequest.indicesOptions(IndicesOptions.fromRequest(restRequest, IndicesOptions.strictExpandOpen()));
         explainRequest.masterNodeTimeout(restRequest.paramAsTime("master_timeout", explainRequest.masterNodeTimeout()));

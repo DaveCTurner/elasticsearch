@@ -98,17 +98,17 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         DataStreamIT.putComposableIndexTemplate("t1", List.of("ds", "other-ds"));
 
-        CreateDataStreamAction.Request request = new CreateDataStreamAction.Request("ds");
+        CreateDataStreamAction.Request request = new CreateDataStreamAction.Request(masterNodeTimeout, "ds");
         AcknowledgedResponse response = client.execute(CreateDataStreamAction.INSTANCE, request).get();
         assertTrue(response.isAcknowledged());
 
-        request = new CreateDataStreamAction.Request("other-ds");
+        request = new CreateDataStreamAction.Request(masterNodeTimeout, "other-ds");
         response = client.execute(CreateDataStreamAction.INSTANCE, request).get();
         assertTrue(response.isAcknowledged());
 
         // Resolve backing index names after data streams have been created:
         // (these names have a date component, and running around midnight could lead to test failures otherwise)
-        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { "*" });
+        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" });
         GetDataStreamAction.Response getDataStreamResponse = client.execute(GetDataStreamAction.INSTANCE, getDataStreamRequest).actionGet();
         dsBackingIndexName = getDataStreamResponse.getDataStreams().get(0).getDataStream().getIndices().get(0).getName();
         otherDsBackingIndexName = getDataStreamResponse.getDataStreams().get(1).getDataStream().getIndices().get(0).getName();
@@ -150,7 +150,9 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         assertEquals(Collections.singletonList(dsBackingIndexName), getSnapshot(REPO, SNAPSHOT).indices());
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })));
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+        );
 
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
@@ -170,7 +172,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "ds" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" })
         ).get();
         assertEquals(1, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -231,7 +233,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             assertEquals(DOCUMENT_SOURCE, hits[0].getSourceAsMap());
         });
 
-        GetDataStreamAction.Request getDataSteamRequest = new GetDataStreamAction.Request(new String[] { "*" });
+        GetDataStreamAction.Request getDataSteamRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" });
         GetDataStreamAction.Response ds = client.execute(GetDataStreamAction.INSTANCE, getDataSteamRequest).get();
         assertThat(
             ds.getDataStreams().stream().map(e -> e.getDataStream().getName()).collect(Collectors.toList()),
@@ -286,7 +288,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             assertEquals(DOCUMENT_SOURCE, hits[0].getSourceAsMap());
         });
 
-        GetDataStreamAction.Request getDataSteamRequest = new GetDataStreamAction.Request(new String[] { "ds" });
+        GetDataStreamAction.Request getDataSteamRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" });
         GetDataStreamAction.Response ds = client.execute(GetDataStreamAction.INSTANCE, getDataSteamRequest).actionGet();
         assertThat(
             ds.getDataStreams().stream().map(e -> e.getDataStream().getName()).collect(Collectors.toList()),
@@ -344,7 +346,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
         }
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+                .get()
+        );
         assertAcked(
             client.admin()
                 .indices()
@@ -371,7 +376,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { dataStreamToSnapshot })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { dataStreamToSnapshot })
         ).get();
         assertEquals(1, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -396,7 +401,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             )
         );
 
-        DeleteDataStreamAction.Request r = new DeleteDataStreamAction.Request(new String[] { dataStreamToSnapshot });
+        DeleteDataStreamAction.Request r = new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { dataStreamToSnapshot });
         assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, r).get());
     }
 
@@ -409,7 +414,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(RestStatus.OK, status);
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+                .get()
+        );
         assertAcked(
             client.admin()
                 .indices()
@@ -432,7 +440,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "*" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" })
         ).get();
         assertEquals(2, ds.getDataStreams().size());
         assertThat(
@@ -462,7 +470,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             equalTo("{\"match_all\":{\"boost\":1.0}}")
         );
 
-        DeleteDataStreamAction.Request r = new DeleteDataStreamAction.Request(new String[] { "*" });
+        DeleteDataStreamAction.Request r = new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" });
         assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, r).get());
     }
 
@@ -475,7 +483,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(RestStatus.OK, status);
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+                .get()
+        );
         assertAcked(
             client.admin()
                 .indices()
@@ -497,7 +508,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "*" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" })
         ).get();
         assertEquals(2, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -529,7 +540,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             equalTo("{\"match_all\":{\"boost\":1.0}}")
         );
 
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })).get());
+        assertAcked(
+            client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+                .get()
+        );
     }
 
     public void testSnapshotAndRestoreIncludeAliasesFalse() throws Exception {
@@ -541,7 +555,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertEquals(RestStatus.OK, status);
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+                .get()
+        );
         assertAcked(
             client.admin()
                 .indices()
@@ -564,7 +581,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "*" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" })
         ).get();
         assertEquals(2, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -577,7 +594,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             .getAliases(new GetAliasesRequest(masterNodeTimeout, "*"))
             .actionGet();
         assertThat(getAliasesResponse.getDataStreamAliases(), anEmptyMap());
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })).get());
+        assertAcked(
+            client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+                .get()
+        );
     }
 
     public void testRename() throws Exception {
@@ -608,7 +628,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "ds2" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds2" })
         ).get();
         assertEquals(1, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -669,7 +689,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "other-ds2" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "other-ds2" })
         ).get();
         assertEquals(1, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -721,7 +741,8 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         );
 
         // delete data stream
-        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })).actionGet();
+        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+            .actionGet();
 
         // restore data stream attempting to rename the backing index
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
@@ -735,7 +756,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         assertThat(restoreSnapshotResponse.status(), is(RestStatus.OK));
 
-        GetDataStreamAction.Request getDSRequest = new GetDataStreamAction.Request(new String[] { "ds" });
+        GetDataStreamAction.Request getDSRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" });
         GetDataStreamAction.Response response = client.execute(GetDataStreamAction.INSTANCE, getDSRequest).actionGet();
         assertThat(response.getDataStreams().get(0).getDataStream().getIndices().get(0).getName(), is(dsBackingIndexName));
     }
@@ -770,7 +791,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertThat(restoreSnapshotResponse.status(), is(RestStatus.OK));
 
         // assert "ds" was restored as "test-ds" and the backing index has a valid name
-        GetDataStreamAction.Request getRenamedDS = new GetDataStreamAction.Request(new String[] { "test-ds" });
+        GetDataStreamAction.Request getRenamedDS = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "test-ds" });
         GetDataStreamAction.Response response = client.execute(GetDataStreamAction.INSTANCE, getRenamedDS).actionGet();
         assertThat(
             response.getDataStreams().get(0).getDataStream().getIndices().get(0).getName(),
@@ -778,7 +799,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         );
 
         // data stream "ds" should still exist in the system
-        GetDataStreamAction.Request getDSRequest = new GetDataStreamAction.Request(new String[] { "ds" });
+        GetDataStreamAction.Request getDSRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" });
         response = client.execute(GetDataStreamAction.INSTANCE, getDSRequest).actionGet();
         assertThat(response.getDataStreams().get(0).getDataStream().getIndices().get(0).getName(), is(dsBackingIndexName));
     }
@@ -808,7 +829,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         GetDataStreamAction.Response ds = client.execute(
             GetDataStreamAction.INSTANCE,
-            new GetDataStreamAction.Request(new String[] { "ds2" })
+            new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds2" })
         ).get();
         assertEquals(1, ds.getDataStreams().size());
         assertEquals(1, ds.getDataStreams().get(0).getDataStream().getIndices().size());
@@ -849,7 +870,9 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         RestStatus status = createSnapshotResponse.getSnapshotInfo().status();
         assertEquals(RestStatus.OK, status);
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })));
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+        );
 
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
@@ -860,7 +883,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         assertEquals(RestStatus.OK, restoreSnapshotResponse.status());
 
-        GetDataStreamAction.Request getRequest = new GetDataStreamAction.Request(new String[] { "ds" });
+        GetDataStreamAction.Request getRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" });
         expectThrows(ResourceNotFoundException.class, client.execute(GetDataStreamAction.INSTANCE, getRequest));
     }
 
@@ -875,7 +898,9 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             .get();
         assertThat(createSnapshotResponse.getSnapshotInfo().state(), Matchers.is(SnapshotState.SUCCESS));
 
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })));
+        assertAcked(
+            client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+        );
 
         final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, REPO, snapshotName)
             .get();
@@ -914,7 +939,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertDocCount(dataStream, 100L);
         // Resolve backing index name after the data stream has been created because it has a date component,
         // and running around midnight could lead to test failures otherwise
-        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(new String[] { dataStream });
+        GetDataStreamAction.Request getDataStreamRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { dataStream });
         GetDataStreamAction.Response getDataStreamResponse = client.execute(GetDataStreamAction.INSTANCE, getDataStreamRequest).actionGet();
         String backingIndexName = getDataStreamResponse.getDataStreams().get(0).getDataStream().getIndices().get(0).getName();
 
@@ -932,7 +957,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         // non-partial snapshots do not allow delete operations on data streams where snapshot has not been completed
         try {
             logger.info("--> delete index while non-partial snapshot is running");
-            client1.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { dataStream })).actionGet();
+            client1.execute(
+                DeleteDataStreamAction.INSTANCE,
+                new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { dataStream })
+            ).actionGet();
             fail("Expected deleting index to fail during snapshot");
         } catch (SnapshotInProgressException e) {
             assertThat(e.getMessage(), containsString("Cannot delete data streams that are being snapshotted: [" + dataStream));
@@ -1016,7 +1044,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         final SnapshotInfo snapshotInfo = assertSuccessful(snapshotFuture);
 
         assertThat(snapshotInfo.dataStreams(), hasItems("ds"));
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "ds" })).get());
+        assertAcked(
+            client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "ds" }))
+                .get()
+        );
 
         RestoreInfo restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
             .setWaitForCompletion(true)
@@ -1056,7 +1087,12 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             snapshotInfo.dataStreams(),
             not(hasItems("ds"))
         );
-        assertAcked(client().execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "other-ds" })));
+        assertAcked(
+            client().execute(
+                DeleteDataStreamAction.INSTANCE,
+                new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "other-ds" })
+            )
+        );
 
         RestoreInfo restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
             .setWaitForCompletion(true)
@@ -1092,7 +1128,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         createIndexWithContent(indexName);
         createFullSnapshot(REPO, snapshotName);
 
-        assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
+        assertAcked(
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, new String[] { "*" }))
+                .get()
+        );
         assertAcked(
             client.admin().indices().prepareDelete(masterNodeTimeout, "*").setIndicesOptions(IndicesOptions.lenientExpandOpenHidden()).get()
         );
@@ -1104,7 +1143,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             .get();
         assertEquals(RestStatus.OK, restoreSnapshotResponse.status());
 
-        GetDataStreamAction.Request getRequest = new GetDataStreamAction.Request(new String[] { "*" });
+        GetDataStreamAction.Request getRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { "*" });
         assertThat(client.execute(GetDataStreamAction.INSTANCE, getRequest).get().getDataStreams(), hasSize(2));
         assertNotNull(client.admin().indices().prepareGetIndex(masterNodeTimeout).setIndices(indexName).get());
     }
@@ -1112,10 +1151,10 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
     public void testRestoreDataStreamAliasWithConflictingDataStream() throws Exception {
         var snapshotName = "test-snapshot";
         createFullSnapshot(REPO, snapshotName);
-        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request("*")).actionGet();
+        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, "*")).actionGet();
         DataStreamIT.putComposableIndexTemplate("my-template", List.of("my-*"));
         try {
-            var request = new CreateDataStreamAction.Request("my-alias");
+            var request = new CreateDataStreamAction.Request(masterNodeTimeout, "my-alias");
             assertAcked(client.execute(CreateDataStreamAction.INSTANCE, request).actionGet());
             var e = expectThrows(
                 IllegalStateException.class,
@@ -1124,7 +1163,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             assertThat(e.getMessage(), containsString("data stream alias and data stream have the same name (my-alias)"));
         } finally {
             // Need to remove data streams in order to remove template
-            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request("*")).actionGet();
+            client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, "*")).actionGet();
             // Need to remove template, because base class doesn't remove composable index templates after each test (only legacy templates)
             client.execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
@@ -1136,7 +1175,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
     public void testRestoreDataStreamAliasWithConflictingIndicesAlias() throws Exception {
         var snapshotName = "test-snapshot";
         createFullSnapshot(REPO, snapshotName);
-        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request("*")).actionGet();
+        client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(masterNodeTimeout, "*")).actionGet();
         CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "my-index").alias(new Alias("my-alias"));
         assertAcked(client.admin().indices().create(createIndexRequest).actionGet());
 
