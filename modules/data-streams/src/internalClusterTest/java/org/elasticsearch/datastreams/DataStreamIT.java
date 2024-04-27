@@ -593,7 +593,7 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(dataStreamName, indicesAdmin().prepareOpen(masterNodeTimeout, dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareClose(masterNodeTimeout, dataStreamName), true);
         verifyResolvability(aliasToDataStream, indicesAdmin().prepareClose(masterNodeTimeout, aliasToDataStream), true);
-        verifyResolvability(dataStreamName, clusterAdmin().prepareSearchShards(dataStreamName), false);
+        verifyResolvability(dataStreamName, clusterAdmin().prepareSearchShards(masterNodeTimeout, dataStreamName), false);
         verifyResolvability(
             client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(masterNodeTimeout, dataStreamName))
         );
@@ -640,7 +640,7 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareClose(masterNodeTimeout, wildcardExpression), false);
-        verifyResolvability(wildcardExpression, clusterAdmin().prepareSearchShards(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, clusterAdmin().prepareSearchShards(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(
             client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(masterNodeTimeout, wildcardExpression))
         );
@@ -707,7 +707,7 @@ public class DataStreamIT extends ESIntegTestCase {
         );
         client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, deleteRequest).get();
 
-        GetComposableIndexTemplateAction.Request getReq = new GetComposableIndexTemplateAction.Request("id");
+        GetComposableIndexTemplateAction.Request getReq = new GetComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         Exception e3 = expectThrows(Exception.class, client().execute(GetComposableIndexTemplateAction.INSTANCE, getReq));
         maybeE = ExceptionsHelper.unwrapCausesAndSuppressed(e3, err -> err.getMessage().contains("index template matching [id] not found"));
         assertTrue(maybeE.isPresent());

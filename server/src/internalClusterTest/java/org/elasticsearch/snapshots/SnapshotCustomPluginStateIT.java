@@ -115,7 +115,7 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
         assertThat(createSnapshotResponse.getSnapshotInfo().totalShards(), equalTo(0));
         assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), equalTo(0));
         assertThat(getSnapshot("test-repo", "test-snap-no-global-state").state(), equalTo(SnapshotState.SUCCESS));
-        SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo")
+        SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
             .addSnapshots("test-snap-no-global-state")
             .get();
         assertThat(snapshotsStatusResponse.getSnapshots().size(), equalTo(1));
@@ -131,7 +131,9 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
         assertThat(createSnapshotResponse.getSnapshotInfo().totalShards(), equalTo(0));
         assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), equalTo(0));
         assertThat(getSnapshot("test-repo", "test-snap-with-global-state").state(), equalTo(SnapshotState.SUCCESS));
-        snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo").addSnapshots("test-snap-with-global-state").get();
+        snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
+            .addSnapshots("test-snap-with-global-state")
+            .get();
         assertThat(snapshotsStatusResponse.getSnapshots().size(), equalTo(1));
         snapshotStatus = snapshotsStatusResponse.getSnapshots().get(0);
         assertThat(snapshotStatus.includeGlobalState(), equalTo(true));
@@ -180,7 +182,7 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
 
         if (testPipeline) {
             logger.info("--> check that pipeline is restored");
-            GetPipelineResponse getPipelineResponse = clusterAdmin().prepareGetPipeline("barbaz").get();
+            GetPipelineResponse getPipelineResponse = clusterAdmin().prepareGetPipeline(masterNodeTimeout, "barbaz").get();
             assertTrue(getPipelineResponse.isFound());
         }
 
@@ -233,7 +235,7 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> check that global state wasn't restored but index was");
         getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates(masterNodeTimeout).get();
         assertIndexTemplateMissing(getIndexTemplatesResponse, "test-template");
-        assertFalse(clusterAdmin().prepareGetPipeline("barbaz").get().isFound());
+        assertFalse(clusterAdmin().prepareGetPipeline(masterNodeTimeout, "barbaz").get().isFound());
         assertNull(clusterAdmin().prepareGetStoredScript(masterNodeTimeout, "foobar").get().getSource());
         assertDocCount("test-idx", 100L);
     }

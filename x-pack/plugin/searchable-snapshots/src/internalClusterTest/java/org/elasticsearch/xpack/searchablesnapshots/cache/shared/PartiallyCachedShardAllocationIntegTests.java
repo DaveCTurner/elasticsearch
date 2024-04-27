@@ -109,7 +109,7 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseFrozenSearchab
         final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).clear().setRoutingTable(true).get().getState();
         assertTrue(state.toString(), state.routingTable().index(req.mountedIndexName()).allPrimaryShardsUnassigned());
 
-        final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+        final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
             .setPrimary(true)
             .setIndex(req.mountedIndexName())
             .setShard(0)
@@ -242,7 +242,7 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseFrozenSearchab
 
         assertBusy(() -> {
             try {
-                final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+                final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                     .setPrimary(true)
                     .setIndex(req.mountedIndexName())
                     .setShard(0)
@@ -267,7 +267,7 @@ public class PartiallyCachedShardAllocationIntegTests extends BaseFrozenSearchab
 
         // Still won't be allocated
         assertFalse(responseFuture.isDone());
-        final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+        final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
             .setPrimary(true)
             .setIndex(req.mountedIndexName())
             .setShard(0)

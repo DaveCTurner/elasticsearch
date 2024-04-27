@@ -173,7 +173,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         // shard should be failed due to a corrupted index
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)
@@ -219,7 +219,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         // there is only _stale_ primary (due to new allocation id)
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)
@@ -237,7 +237,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         clusterAdmin().prepareReroute(masterNodeTimeout).add(new AllocateStalePrimaryAllocationCommand(indexName, 0, nodeId, true)).get();
 
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)
@@ -331,7 +331,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         // all shards should be failed due to a corrupted translog
         assertBusy(() -> {
-            final UnassignedInfo unassignedInfo = clusterAdmin().prepareAllocationExplain()
+            final UnassignedInfo unassignedInfo = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)
@@ -392,7 +392,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
 
         // there is only _stale_ primary (due to new allocation id)
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)
@@ -412,7 +412,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             .get();
 
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(0)
                 .setPrimary(true)

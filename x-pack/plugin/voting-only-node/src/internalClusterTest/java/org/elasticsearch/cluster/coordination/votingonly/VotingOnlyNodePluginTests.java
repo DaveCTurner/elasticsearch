@@ -207,7 +207,7 @@ public class VotingOnlyNodePluginTests extends ESIntegTestCase {
         createIndex("test-idx-3");
         ensureGreen();
 
-        VerifyRepositoryResponse verifyResponse = clusterAdmin().prepareVerifyRepository("test-repo").get();
+        VerifyRepositoryResponse verifyResponse = clusterAdmin().prepareVerifyRepository(masterNodeTimeout, "test-repo").get();
         // only the da
         assertEquals(3, verifyResponse.getNodes().size());
         assertTrue(verifyResponse.getNodes().stream().noneMatch(nw -> nw.getName().equals(dedicatedVotingOnlyNode)));
@@ -231,7 +231,7 @@ public class VotingOnlyNodePluginTests extends ESIntegTestCase {
 
         List<SnapshotInfo> snapshotInfos = client.admin()
             .cluster()
-            .prepareGetSnapshots("test-repo")
+            .prepareGetSnapshots(masterNodeTimeout, "test-repo")
             .setSnapshots(randomFrom("test-snap", "_all", "*", "*-snap", "test*"))
             .get()
             .getSnapshots();

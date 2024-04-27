@@ -192,7 +192,7 @@ public class SearchProgressActionListenerIT extends ESSingleNodeTestCase {
             client.prepareIndex(indexName).setSource("number", i, "foo", "bar").get();
         }
         client.admin().indices().prepareRefresh("index-*").get();
-        ClusterSearchShardsResponse resp = client.admin().cluster().prepareSearchShards("index-*").get();
+        ClusterSearchShardsResponse resp = client.admin().cluster().prepareSearchShards(masterNodeTimeout, "index-*").get();
         return Arrays.stream(resp.getGroups()).map(e -> new SearchShard(null, e.getShardId())).sorted().toList();
     }
 }

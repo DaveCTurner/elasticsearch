@@ -62,7 +62,7 @@ public class SnapshotBlocksIT extends ESIntegTestCase {
         );
 
         logger.info("--> verify the repository");
-        VerifyRepositoryResponse verifyResponse = clusterAdmin().prepareVerifyRepository(REPOSITORY_NAME).get();
+        VerifyRepositoryResponse verifyResponse = clusterAdmin().prepareVerifyRepository(masterNodeTimeout, REPOSITORY_NAME).get();
         assertThat(verifyResponse.getNodes().size(), equalTo(cluster().numDataAndMasterNodes()));
 
         logger.info("--> create a snapshot");
@@ -167,7 +167,7 @@ public class SnapshotBlocksIT extends ESIntegTestCase {
         // This test checks that the Get Snapshot operation is never blocked, even if the cluster is read only.
         try {
             setClusterReadOnly(true);
-            GetSnapshotsResponse response = clusterAdmin().prepareGetSnapshots(REPOSITORY_NAME).get();
+            GetSnapshotsResponse response = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPOSITORY_NAME).get();
             assertThat(response.getSnapshots(), hasSize(1));
             assertThat(response.getSnapshots().get(0).snapshotId().getName(), equalTo(SNAPSHOT_NAME));
         } finally {
@@ -179,7 +179,9 @@ public class SnapshotBlocksIT extends ESIntegTestCase {
         // This test checks that the Snapshot Status operation is never blocked, even if the cluster is read only.
         try {
             setClusterReadOnly(true);
-            SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(REPOSITORY_NAME).setSnapshots(SNAPSHOT_NAME).get();
+            SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, REPOSITORY_NAME)
+                .setSnapshots(SNAPSHOT_NAME)
+                .get();
             assertThat(response.getSnapshots(), hasSize(1));
             assertThat(response.getSnapshots().get(0).getState().completed(), equalTo(true));
         } finally {

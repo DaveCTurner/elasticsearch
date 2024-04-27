@@ -117,7 +117,12 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         );
 
         assertThat(
-            clusterAdmin().prepareGetSnapshots(TEST_REPO_NAME).setSnapshots(snapshotName).get().getSnapshots().get(0).state(),
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, TEST_REPO_NAME)
+                .setSnapshots(snapshotName)
+                .get()
+                .getSnapshots()
+                .get(0)
+                .state(),
             equalTo(SnapshotState.SUCCESS)
         );
 
@@ -191,7 +196,12 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         );
 
         assertThat(
-            clusterAdmin().prepareGetSnapshots(TEST_REPO_NAME).setSnapshots(snapshotName).get().getSnapshots().get(0).state(),
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, TEST_REPO_NAME)
+                .setSnapshots(snapshotName)
+                .get()
+                .getSnapshots()
+                .get(0)
+                .state(),
             equalTo(SnapshotState.SUCCESS)
         );
 
@@ -211,7 +221,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         createDanglingIndex(repo, genericExec);
 
         logger.info("--> Execute repository cleanup");
-        final CleanupRepositoryResponse response = clusterAdmin().prepareCleanupRepository(TEST_REPO_NAME).get();
+        final CleanupRepositoryResponse response = clusterAdmin().prepareCleanupRepository(masterNodeTimeout, TEST_REPO_NAME).get();
         assertCleanupResponse(response, 3L, 1L);
     }
 
@@ -235,7 +245,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
             .get();
         assertTrue(blobContents.add(readIndexLatest(repository)));
 
-        clusterAdmin().prepareGetSnapshots(TEST_REPO_NAME).get();
+        clusterAdmin().prepareGetSnapshots(masterNodeTimeout, TEST_REPO_NAME).get();
         assertFalse(blobContents.add(readIndexLatest(repository)));
 
         final var createSnapshot2Response = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, randomIdentifier())

@@ -45,7 +45,10 @@ public class RestGetComposableIndexTemplateAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        final GetComposableIndexTemplateAction.Request getRequest = new GetComposableIndexTemplateAction.Request(request.param("name"));
+        final GetComposableIndexTemplateAction.Request getRequest = new GetComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            request.param("name")
+        );
 
         getRequest.local(request.paramAsBoolean("local", getRequest.local()));
         getRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRequest.masterNodeTimeout()));

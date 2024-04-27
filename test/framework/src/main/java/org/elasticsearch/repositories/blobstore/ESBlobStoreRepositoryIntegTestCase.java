@@ -371,7 +371,10 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
         logger.info("-->  delete snapshot {}:{}", repoName, snapshotName);
         assertAcked(clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, repoName, snapshotName).get());
 
-        expectThrows(SnapshotMissingException.class, () -> clusterAdmin().prepareGetSnapshots(repoName).setSnapshots(snapshotName).get());
+        expectThrows(
+            SnapshotMissingException.class,
+            () -> clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName).setSnapshots(snapshotName).get()
+        );
 
         expectThrows(
             SnapshotMissingException.class,

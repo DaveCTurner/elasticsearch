@@ -18,6 +18,7 @@ import org.elasticsearch.action.admin.indices.shards.IndicesShardStoresRequest;
 import org.elasticsearch.action.admin.indices.shards.IndicesShardStoresResponse;
 import org.elasticsearch.action.admin.indices.shards.TransportIndicesShardStoresAction;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateAckListener;
@@ -113,7 +114,9 @@ public class TransportClusterRerouteAction extends TransportMasterNodeAction<Clu
         transportService.sendRequest(
             transportService.getLocalNode(),
             TransportIndicesShardStoresAction.TYPE.name(),
-            new IndicesShardStoresRequest(masterNodeTimeout).indices(stalePrimaryAllocations.keySet().toArray(Strings.EMPTY_ARRAY)),
+            new IndicesShardStoresRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */).indices(
+                stalePrimaryAllocations.keySet().toArray(Strings.EMPTY_ARRAY)
+            ),
             new ActionListenerResponseHandler<>(listener.delegateFailureAndWrap((delegate, response) -> {
                 Map<String, Map<Integer, List<IndicesShardStoresResponse.StoreStatus>>> status = response.getStoreStatuses();
                 Exception e = null;

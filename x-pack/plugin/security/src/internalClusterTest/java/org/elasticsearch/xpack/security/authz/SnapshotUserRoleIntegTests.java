@@ -70,7 +70,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         // view repositories
         final GetRepositoriesResponse getRepositoriesResponse = client.admin()
             .cluster()
-            .prepareGetRepositories(randomFrom("*", "_all"))
+            .prepareGetRepositories(masterNodeTimeout, randomFrom("*", "_all"))
             .get();
         assertThat(getRepositoriesResponse.repositories().size(), is(1));
         assertThat(getRepositoriesResponse.repositories().get(0).name(), is("repo"));
@@ -93,7 +93,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         assertThat(snapshotResponse.getSnapshotInfo().state(), is(SnapshotState.SUCCESS));
         assertThat(snapshotResponse.getSnapshotInfo().indices(), containsInAnyOrder(INTERNAL_SECURITY_MAIN_INDEX_7, ordinaryIndex));
         // view snapshots for repo
-        final GetSnapshotsResponse getSnapshotResponse = client.admin().cluster().prepareGetSnapshots("repo").get();
+        final GetSnapshotsResponse getSnapshotResponse = client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "repo").get();
         assertThat(getSnapshotResponse.getSnapshots().size(), is(1));
         assertThat(getSnapshotResponse.getSnapshots().get(0).snapshotId().getName(), is("snap"));
         assertThat(getSnapshotResponse.getSnapshots().get(0).indices(), containsInAnyOrder(INTERNAL_SECURITY_MAIN_INDEX_7, ordinaryIndex));

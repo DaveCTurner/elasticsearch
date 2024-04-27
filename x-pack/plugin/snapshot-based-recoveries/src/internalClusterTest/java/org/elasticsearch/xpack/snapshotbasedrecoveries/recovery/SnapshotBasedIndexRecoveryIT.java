@@ -1562,7 +1562,9 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
     }
 
     private long getSnapshotSizeForIndex(String repository, String snapshot, String index) {
-        GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots(repository).addSnapshots(snapshot).get();
+        GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repository)
+            .addSnapshots(snapshot)
+            .get();
         for (SnapshotInfo snapshotInfo : getSnapshotsResponse.getSnapshots()) {
             SnapshotInfo.IndexSnapshotDetails indexSnapshotDetails = snapshotInfo.indexSnapshotDetails().get(index);
             assertThat(indexSnapshotDetails, is(notNullValue()));

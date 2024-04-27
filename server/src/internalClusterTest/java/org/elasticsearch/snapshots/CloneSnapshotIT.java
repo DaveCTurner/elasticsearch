@@ -133,7 +133,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         final String targetSnapshot = "target-snapshot";
         assertAcked(startClone(repoName, sourceSnapshot, targetSnapshot, indexName).get());
 
-        final List<SnapshotStatus> status = clusterAdmin().prepareSnapshotStatus(repoName)
+        final List<SnapshotStatus> status = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repoName)
             .setSnapshots(sourceSnapshot, targetSnapshot)
             .get()
             .getSnapshots();
@@ -171,7 +171,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         unblockNode(repoName, masterName);
         assertAcked(cloneFuture.get());
-        final List<SnapshotStatus> status = clusterAdmin().prepareSnapshotStatus(repoName)
+        final List<SnapshotStatus> status = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repoName)
             .setSnapshots(sourceSnapshot, targetSnapshot)
             .get()
             .getSnapshots();

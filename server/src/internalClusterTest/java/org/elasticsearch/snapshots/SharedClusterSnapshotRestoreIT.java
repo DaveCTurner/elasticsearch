@@ -156,7 +156,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
         createSnapshot("test-repo", "test-snap", Arrays.asList(indicesToSnapshot));
 
-        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots("test-repo")
+        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo")
             .setSnapshots(randomFrom("test-snap", "_all", "*", "*-snap", "test*"))
             .get()
             .getSnapshots();
@@ -436,7 +436,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             assertThat(snapshotInfo.totalShards(), greaterThan(snapshotInfo.successfulShards()));
 
             // Verify that snapshot status also contains the same failures
-            SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo")
+            SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                 .addSnapshots("test-snap")
                 .get();
             assertThat(snapshotsStatusResponse.getSnapshots().size(), equalTo(1));
@@ -1060,7 +1060,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertDocCount("test-idx", 100L);
 
         logger.info("--> list available shapshots");
-        GetSnapshotsResponse getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots("readonly-repo").get();
+        GetSnapshotsResponse getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "readonly-repo").get();
         assertThat(getSnapshotsResponse.getSnapshots().size(), equalTo(1));
 
         logger.info("--> try deleting snapshot");
@@ -1135,7 +1135,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         });
 
         logger.info("--> execution was blocked on node [{}], checking snapshot status with specified repository and snapshot", blockedNode);
-        SnapshotsStatusResponse response = client.admin().cluster().prepareSnapshotStatus("test-repo").get();
+        SnapshotsStatusResponse response = client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout, "test-repo").get();
         assertThat(response.getSnapshots().size(), equalTo(1));
         SnapshotStatus snapshotStatus = response.getSnapshots().get(0);
         assertThat(snapshotStatus.getState(), equalTo(State.STARTED));
@@ -1150,7 +1150,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("--> checking snapshot status for all currently running and snapshot with empty repository");
-        response = client.admin().cluster().prepareSnapshotStatus().get();
+        response = client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout).get();
         assertThat(response.getSnapshots().size(), equalTo(1));
         snapshotStatus = response.getSnapshots().get(0);
         assertThat(snapshotStatus.getState(), equalTo(State.STARTED));
@@ -1165,11 +1165,15 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("--> checking that _current returns the currently running snapshot");
-        GetSnapshotsResponse getResponse = client.admin().cluster().prepareGetSnapshots("test-repo").setCurrentSnapshot().get();
+        GetSnapshotsResponse getResponse = client.admin()
+            .cluster()
+            .prepareGetSnapshots(masterNodeTimeout, "test-repo")
+            .setCurrentSnapshot()
+            .get();
         assertThat(getResponse.getSnapshots().size(), equalTo(1));
         SnapshotInfo snapshotInfo = getResponse.getSnapshots().get(0);
         assertThat(snapshotInfo.state(), equalTo(SnapshotState.IN_PROGRESS));
-        snapshotStatus = client.admin().cluster().prepareSnapshotStatus().get().getSnapshots().get(0);
+        snapshotStatus = client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout).get().getSnapshots().get(0);
         assertThat(snapshotInfo.totalShards(), equalTo(snapshotStatus.getIndices().get("test-idx").getShardsStats().getTotalShards()));
         assertThat(snapshotInfo.successfulShards(), equalTo(snapshotStatus.getIndices().get("test-idx").getShardsStats().getDoneShards()));
         assertThat(snapshotInfo.shardFailures().size(), equalTo(0));
@@ -1182,7 +1186,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         logger.info("Number of failed shards [{}]", snapshotInfo.shardFailures().size());
 
         logger.info("--> checking snapshot status again after snapshot is done");
-        response = client.admin().cluster().prepareSnapshotStatus("test-repo").addSnapshots("test-snap").get();
+        response = client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout, "test-repo").addSnapshots("test-snap").get();
         snapshotStatus = response.getSnapshots().get(0);
         assertThat(snapshotStatus.getIndices().size(), equalTo(1));
         assertThat(snapshotStatus.includeGlobalState(), equalTo(false));
@@ -1195,25 +1199,31 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(indexStatus.getShards().size(), equalTo(snapshotInfo.totalShards()));
 
         logger.info("--> checking snapshot status after it is done with empty repository");
-        response = client.admin().cluster().prepareSnapshotStatus().get();
+        response = client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout).get();
         assertThat(response.getSnapshots().size(), equalTo(0));
 
         logger.info("--> checking that _current no longer returns the snapshot");
         assertThat(
-            client.admin().cluster().prepareGetSnapshots("test-repo").addSnapshots("_current").get().getSnapshots().isEmpty(),
+            client.admin()
+                .cluster()
+                .prepareGetSnapshots(masterNodeTimeout, "test-repo")
+                .addSnapshots("_current")
+                .get()
+                .getSnapshots()
+                .isEmpty(),
             equalTo(true)
         );
 
         // test that getting an unavailable snapshot status throws an exception if ignoreUnavailable is false on the request
         SnapshotMissingException ex = expectThrows(
             SnapshotMissingException.class,
-            client.admin().cluster().prepareSnapshotStatus("test-repo").addSnapshots("test-snap-doesnt-exist")
+            client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout, "test-repo").addSnapshots("test-snap-doesnt-exist")
         );
         assertEquals("[test-repo:test-snap-doesnt-exist] is missing", ex.getMessage());
         // test that getting an unavailable snapshot status does not throw an exception if ignoreUnavailable is true on the request
         response = client.admin()
             .cluster()
-            .prepareSnapshotStatus("test-repo")
+            .prepareSnapshotStatus(masterNodeTimeout, "test-repo")
             .addSnapshots("test-snap-doesnt-exist")
             .setIgnoreUnavailable(true)
             .get();
@@ -1222,7 +1232,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         // (available one should be returned)
         response = client.admin()
             .cluster()
-            .prepareSnapshotStatus("test-repo")
+            .prepareSnapshotStatus(masterNodeTimeout, "test-repo")
             .addSnapshots("test-snap", "test-snap-doesnt-exist")
             .setIgnoreUnavailable(true)
             .get();
@@ -1284,7 +1294,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         {
             SnapshotStatus snapshotStatus = client.admin()
                 .cluster()
-                .prepareSnapshotStatus("test-repo")
+                .prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                 .setSnapshots("test")
                 .get()
                 .getSnapshots()
@@ -1300,7 +1310,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         {
             SnapshotStatus snapshotStatus = client.admin()
                 .cluster()
-                .prepareSnapshotStatus("test-repo")
+                .prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                 .setSnapshots("test-1")
                 .get()
                 .getSnapshots()
@@ -1317,7 +1327,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         {
             SnapshotStatus snapshotStatus = client.admin()
                 .cluster()
-                .prepareSnapshotStatus("test-repo")
+                .prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                 .setSnapshots("test-2")
                 .get()
                 .getSnapshots()
@@ -1527,12 +1537,18 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             InvalidSnapshotNameException.class,
             client.admin().cluster().prepareCreateSnapshot(masterNodeTimeout, "test-repo", "_foo")
         );
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareGetSnapshots("test-repo").setSnapshots("_foo"));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "test-repo").setSnapshots("_foo")
+        );
         expectThrows(
             SnapshotMissingException.class,
             client.admin().cluster().prepareDeleteSnapshot(masterNodeTimeout, "test-repo", "_foo")
         );
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareSnapshotStatus("test-repo").setSnapshots("_foo"));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareSnapshotStatus(masterNodeTimeout, "test-repo").setSnapshots("_foo")
+        );
     }
 
     public void testListCorruptedSnapshot() throws Exception {
@@ -1567,7 +1583,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         logger.info("--> get snapshots request should return both snapshots");
         List<SnapshotInfo> snapshotInfos = client.admin()
             .cluster()
-            .prepareGetSnapshots("test-repo")
+            .prepareGetSnapshots(masterNodeTimeout, "test-repo")
             .setIgnoreUnavailable(true)
             .get()
             .getSnapshots();
@@ -1578,7 +1594,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
         final SnapshotException ex = expectThrows(
             SnapshotException.class,
-            client.admin().cluster().prepareGetSnapshots("test-repo").setIgnoreUnavailable(false)
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "test-repo").setIgnoreUnavailable(false)
         );
         assertThat(ex.getRepositoryName(), equalTo("test-repo"));
         assertThat(ex.getSnapshotName(), equalTo("test-snap-2"));
@@ -1607,12 +1623,14 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             outChan.truncate(randomInt(10));
         }
 
-        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(repoName).get().getSnapshots();
+        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName).get().getSnapshots();
         assertThat(snapshotInfos.size(), equalTo(1));
         assertThat(snapshotInfos.get(0).state(), equalTo(SnapshotState.SUCCESS));
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo(snapshotName));
 
-        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus(repoName).setSnapshots(snapshotName).get();
+        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repoName)
+            .setSnapshots(snapshotName)
+            .get();
         assertThat(snapshotStatusResponse.getSnapshots(), hasSize(1));
         assertThat(snapshotStatusResponse.getSnapshots().get(0).getSnapshot().getSnapshotId().getName(), equalTo(snapshotName));
 
@@ -1686,7 +1704,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             outChan.truncate(randomInt(10));
         }
 
-        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots("test-repo").get().getSnapshots();
+        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").get().getSnapshots();
         assertThat(snapshotInfos.size(), equalTo(1));
         assertThat(snapshotInfos.get(0).state(), equalTo(SnapshotState.SUCCESS));
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo("test-snap"));
@@ -1914,18 +1932,24 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("--> verify _all returns snapshot info");
-        GetSnapshotsResponse response = clusterAdmin().prepareGetSnapshots("test-repo").setSnapshots("_all").setVerbose(false).get();
+        GetSnapshotsResponse response = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo")
+            .setSnapshots("_all")
+            .setVerbose(false)
+            .get();
         assertEquals(indicesPerSnapshot.size(), response.getSnapshots().size());
         verifySnapshotInfo(response, indicesPerSnapshot);
 
         logger.info("--> verify wildcard returns snapshot info");
-        response = clusterAdmin().prepareGetSnapshots("test-repo").setSnapshots("test-snap-*").setVerbose(false).get();
+        response = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").setSnapshots("test-snap-*").setVerbose(false).get();
         assertEquals(indicesPerSnapshot.size(), response.getSnapshots().size());
         verifySnapshotInfo(response, indicesPerSnapshot);
 
         logger.info("--> verify individual requests return snapshot info");
         for (int i = 0; i < numSnapshots; i++) {
-            response = clusterAdmin().prepareGetSnapshots("test-repo").setSnapshots("test-snap-" + i).setVerbose(false).get();
+            response = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo")
+                .setSnapshots("test-snap-" + i)
+                .setVerbose(false)
+                .get();
             assertEquals(1, response.getSnapshots().size());
             verifySnapshotInfo(response, indicesPerSnapshot);
         }
@@ -2088,7 +2112,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
         logger.info("--> deleting all snapshots");
         clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, "test-repo", "test-snap-*", "*").get();
-        final GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots("test-repo").get();
+        final GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").get();
         assertThat(getSnapshotsResponse.getSnapshots(), empty());
     }
 
@@ -2120,7 +2144,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
         List<SnapshotInfo> snapshotInfos = client.admin()
             .cluster()
-            .prepareGetSnapshots(repoName)
+            .prepareGetSnapshots(masterNodeTimeout, repoName)
             .setSnapshots(randomFrom(snapName, "_all", "*", "*-snap", "test*"))
             .get()
             .getSnapshots();

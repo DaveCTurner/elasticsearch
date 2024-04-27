@@ -492,7 +492,7 @@ public abstract class AbstractIndexRecoveryIntegTestCase extends ESIntegTestCase
         );
 
         assertThat(
-            clusterAdmin().prepareGetSnapshots(REPO_NAME).setSnapshots(SNAP_NAME).get().getSnapshots().get(0).state(),
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPO_NAME).setSnapshots(SNAP_NAME).get().getSnapshots().get(0).state(),
             equalTo(SnapshotState.SUCCESS)
         );
     }

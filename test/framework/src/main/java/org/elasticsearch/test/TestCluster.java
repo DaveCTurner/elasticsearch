@@ -262,7 +262,10 @@ public abstract class TestCluster {
 
     public void wipeAllComposableIndexTemplates(Set<String> excludeTemplates) {
         if (size() > 0) {
-            var templates = client().execute(GetComposableIndexTemplateAction.INSTANCE, new GetComposableIndexTemplateAction.Request("*"))
+            var templates = client().execute(
+                GetComposableIndexTemplateAction.INSTANCE,
+                new GetComposableIndexTemplateAction.Request(masterNodeTimeout, "*")
+            )
                 .actionGet()
                 .indexTemplates()
                 .keySet()

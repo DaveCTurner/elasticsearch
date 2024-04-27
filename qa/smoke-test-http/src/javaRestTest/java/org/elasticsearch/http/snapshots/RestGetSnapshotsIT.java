@@ -96,7 +96,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
 
     private void doTestSortOrder(String repoName, Collection<String> allSnapshotNames, SortOrder order) throws IOException {
         final boolean includeIndexNames = randomBoolean();
-        final List<SnapshotInfo> defaultSorting = clusterAdmin().prepareGetSnapshots(repoName)
+        final List<SnapshotInfo> defaultSorting = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName)
             .setOrder(order)
             .setIncludeIndexNames(includeIndexNames)
             .get()
@@ -239,7 +239,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         final String repoName = "test-repo";
         AbstractSnapshotIntegTestCase.createRepository(logger, repoName, "fs");
         AbstractSnapshotIntegTestCase.createNSnapshots(logger, repoName, randomIntBetween(1, 5));
-        final List<SnapshotInfo> snapshotsWithoutPolicy = clusterAdmin().prepareGetSnapshots("*")
+        final List<SnapshotInfo> snapshotsWithoutPolicy = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "*")
             .setSnapshots("*")
             .setSort(SnapshotSortKey.NAME)
             .get()
@@ -276,7 +276,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         assertThat(getAllSnapshotsForPolicies("*"), is(List.of(withOtherPolicy, withPolicy)));
         assertThat(getAllSnapshotsForPolicies(policyName, otherPolicyName), is(List.of(withOtherPolicy, withPolicy)));
         assertThat(getAllSnapshotsForPolicies(policyName, otherPolicyName, "no-such-policy*"), is(List.of(withOtherPolicy, withPolicy)));
-        final List<SnapshotInfo> allSnapshots = clusterAdmin().prepareGetSnapshots("*")
+        final List<SnapshotInfo> allSnapshots = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "*")
             .setSnapshots("*")
             .setSort(SnapshotSortKey.NAME)
             .get()
@@ -293,7 +293,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         final SnapshotInfo snapshot2 = createFullSnapshotWithUniqueStartTime(repoName, "snapshot-2", startTimes);
         final SnapshotInfo snapshot3 = createFullSnapshotWithUniqueStartTime(repoName, "snapshot-3", startTimes);
 
-        final List<SnapshotInfo> allSnapshotInfo = clusterAdmin().prepareGetSnapshots(matchAllPattern())
+        final List<SnapshotInfo> allSnapshotInfo = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, matchAllPattern())
             .setSnapshots(matchAllPattern())
             .setSort(SnapshotSortKey.START_TIME)
             .get()
@@ -310,7 +310,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         assertThat(allAfterStartTimeAscending(startTime3), is(List.of(snapshot3)));
         assertThat(allAfterStartTimeAscending(startTime3 + 1), empty());
 
-        final List<SnapshotInfo> allSnapshotInfoDesc = clusterAdmin().prepareGetSnapshots(matchAllPattern())
+        final List<SnapshotInfo> allSnapshotInfoDesc = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, matchAllPattern())
             .setSnapshots(matchAllPattern())
             .setSort(SnapshotSortKey.START_TIME)
             .setOrder(SortOrder.DESC)

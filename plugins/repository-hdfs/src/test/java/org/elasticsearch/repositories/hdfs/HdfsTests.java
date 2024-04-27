@@ -86,7 +86,14 @@ public class HdfsTests extends ESSingleNodeTestCase {
         );
 
         assertThat(
-            client.admin().cluster().prepareGetSnapshots("test-repo").setSnapshots("test-snap").get().getSnapshots().get(0).state(),
+            client.admin()
+                .cluster()
+                .prepareGetSnapshots(masterNodeTimeout, "test-repo")
+                .setSnapshots("test-snap")
+                .get()
+                .getSnapshots()
+                .get(0)
+                .state(),
             equalTo(SnapshotState.SUCCESS)
         );
 

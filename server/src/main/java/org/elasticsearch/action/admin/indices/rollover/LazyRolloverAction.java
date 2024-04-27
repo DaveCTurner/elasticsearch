@@ -11,6 +11,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.datastreams.autosharding.DataStreamAutoShardingService;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.DataStream;
@@ -122,7 +123,11 @@ public final class LazyRolloverAction extends ActionType<RolloverResponse> {
             // We create a new rollover request to ensure that it doesn't contain any other parameters apart from the data stream name
             // This will provide a more resilient user experience
             RolloverTask rolloverTask = new RolloverTask(
-                new RolloverRequest(masterNodeTimeout, rolloverRequest.getRolloverTarget(), null),
+                new RolloverRequest(
+                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO copy from rolloverRequest? */,
+                    rolloverRequest.getRolloverTarget(),
+                    null
+                ),
                 null,
                 trialRolloverResponse,
                 null,

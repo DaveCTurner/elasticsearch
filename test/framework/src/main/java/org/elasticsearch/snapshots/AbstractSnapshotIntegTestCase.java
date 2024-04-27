@@ -144,11 +144,11 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
     @After
     public void assertRepoConsistency() {
         if (skipRepoConsistencyCheckReason == null) {
-            clusterAdmin().prepareGetRepositories().get().repositories().forEach(repositoryMetadata -> {
+            clusterAdmin().prepareGetRepositories(masterNodeTimeout).get().repositories().forEach(repositoryMetadata -> {
                 final String name = repositoryMetadata.name();
                 if (repositoryMetadata.settings().getAsBoolean(READONLY_SETTING_KEY, false) == false) {
                     clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, name, OLD_VERSION_SNAPSHOT_PREFIX + "*").get();
-                    clusterAdmin().prepareCleanupRepository(name).get();
+                    clusterAdmin().prepareCleanupRepository(masterNodeTimeout, name).get();
                 }
                 BlobStoreTestUtil.assertConsistency(getRepositoryOnMaster(name));
             });
@@ -680,7 +680,10 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
     }
 
     protected SnapshotInfo getSnapshot(String repository, String snapshot) {
-        final List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(repository).setSnapshots(snapshot).get().getSnapshots();
+        final List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repository)
+            .setSnapshots(snapshot)
+            .get()
+            .getSnapshots();
         assertThat(snapshotInfos, hasSize(1));
         return snapshotInfos.get(0);
     }
@@ -717,10 +720,12 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
                 .execute(snapshotsListener.delegateFailure((l, response) -> {
                     final SnapshotInfo snapshotInfoInResponse = response.getSnapshotInfo();
                     assertEquals(userMetadata, snapshotInfoInResponse.userMetadata());
-                    clusterAdmin().prepareGetSnapshots(repoName).setSnapshots(snapshot).execute(l.safeMap(getResponse -> {
-                        assertEquals(snapshotInfoInResponse, getResponse.getSnapshots().get(0));
-                        return response;
-                    }));
+                    clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName)
+                        .setSnapshots(snapshot)
+                        .execute(l.safeMap(getResponse -> {
+                            assertEquals(snapshotInfoInResponse, getResponse.getSnapshots().get(0));
+                            return response;
+                        }));
                 }));
         }
         for (CreateSnapshotResponse snapshotResponse : allSnapshotsDone.get()) {

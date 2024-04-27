@@ -65,9 +65,9 @@ public class CustomMetadataContextIT extends AbstractSnapshotIntegTestCase {
             .get();
 
         logger.info("make sure old repository wasn't restored");
-        ActionRequestBuilder<?, ?> builder = clusterAdmin().prepareGetRepositories("test-repo-1");
+        ActionRequestBuilder<?, ?> builder = clusterAdmin().prepareGetRepositories(masterNodeTimeout, "test-repo-1");
         expectThrows(RepositoryMissingException.class, builder);
-        assertThat(clusterAdmin().prepareGetRepositories("test-repo-2").get().repositories().size(), equalTo(1));
+        assertThat(clusterAdmin().prepareGetRepositories(masterNodeTimeout, "test-repo-2").get().repositories().size(), equalTo(1));
     }
 
     public void testShouldRestoreOnlySnapshotMetadata() throws Exception {

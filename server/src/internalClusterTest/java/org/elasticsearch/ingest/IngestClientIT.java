@@ -75,7 +75,7 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endObject()
         );
         clusterAdmin().preparePutPipeline(masterNodeTimeout, "_id", pipelineSource, XContentType.JSON).get();
-        GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline("_id").get();
+        GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline(masterNodeTimeout, "_id").get();
         assertThat(getResponse.isFound(), is(true));
         assertThat(getResponse.pipelines().size(), equalTo(1));
         assertThat(getResponse.pipelines().get(0).getId(), equalTo("_id"));
@@ -225,7 +225,7 @@ public class IngestClientIT extends ESIntegTestCase {
         PutPipelineRequest putPipelineRequest = new PutPipelineRequest(masterNodeTimeout, "_id", source, XContentType.JSON);
         clusterAdmin().putPipeline(putPipelineRequest).get();
 
-        GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline("_id").get();
+        GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline(masterNodeTimeout, "_id").get();
         assertThat(getResponse.isFound(), is(true));
         assertThat(getResponse.pipelines().size(), equalTo(1));
         assertThat(getResponse.pipelines().get(0).getId(), equalTo("_id"));
@@ -245,7 +245,7 @@ public class IngestClientIT extends ESIntegTestCase {
         AcknowledgedResponse response = clusterAdmin().deletePipeline(deletePipelineRequest).get();
         assertThat(response.isAcknowledged(), is(true));
 
-        getResponse = clusterAdmin().prepareGetPipeline("_id").get();
+        getResponse = clusterAdmin().prepareGetPipeline(masterNodeTimeout, "_id").get();
         assertThat(getResponse.isFound(), is(false));
         assertThat(getResponse.pipelines().size(), equalTo(0));
     }
@@ -267,7 +267,7 @@ public class IngestClientIT extends ESIntegTestCase {
         Exception e = expectThrows(ElasticsearchParseException.class, clusterAdmin().putPipeline(putPipelineRequest));
         assertThat(e.getMessage(), equalTo("processor [test] doesn't support one or more provided configuration parameters [unused]"));
 
-        GetPipelineResponse response = clusterAdmin().prepareGetPipeline("_id2").get();
+        GetPipelineResponse response = clusterAdmin().prepareGetPipeline(masterNodeTimeout, "_id2").get();
         assertFalse(response.isFound());
     }
 

@@ -330,7 +330,7 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
                 final String candidateNode = cluster.client(clientNode)
                     .admin()
                     .cluster()
-                    .prepareSearchShards(sourceIndex)
+                    .prepareSearchShards(masterNodeTimeout, sourceIndex)
                     .get()
                     .getNodes()[0].getName();
                 logger.info("Candidate node [" + candidateNode + "]");

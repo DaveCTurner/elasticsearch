@@ -220,7 +220,7 @@ public class BlobStoreIncrementalityIT extends AbstractSnapshotIntegTestCase {
         }, 30L, TimeUnit.SECONDS);
 
         final SnapshotInfo after = createFullSnapshot(repoName, "snapshot-after");
-        final int incrementalFileCount = clusterAdmin().prepareSnapshotStatus()
+        final int incrementalFileCount = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout)
             .setRepository(repoName)
             .setSnapshots(after.snapshotId().getName())
             .get()
@@ -252,7 +252,7 @@ public class BlobStoreIncrementalityIT extends AbstractSnapshotIntegTestCase {
     }
 
     private SnapshotStatus getStats(String repository, String snapshot) {
-        return clusterAdmin().prepareSnapshotStatus(repository).setSnapshots(snapshot).get().getSnapshots().get(0);
+        return clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repository).setSnapshots(snapshot).get().getSnapshots().get(0);
     }
 
     private void ensureRestoreSingleShardSuccessfully(String repo, String indexName, String snapshot, String indexSuffix) {

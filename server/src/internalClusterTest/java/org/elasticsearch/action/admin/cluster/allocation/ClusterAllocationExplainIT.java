@@ -158,7 +158,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
         // wait till we have passed any pending shard data fetching
         assertEquals(
             AllocationDecision.ALLOCATION_DELAYED,
-            clusterAdmin().prepareAllocationExplain()
+            clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex("idx")
                 .setShard(0)
                 .setPrimary(false)
@@ -1076,7 +1076,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
 
         // wait until the system has fetched shard data and we know there is no valid shard copy
         assertBusy(() -> {
-            ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex("idx")
                 .setShard(0)
                 .setPrimary(true)
@@ -1227,7 +1227,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
         throws Exception {
 
         ClusterAllocationExplanation explanation = admin().cluster()
-            .prepareAllocationExplain()
+            .prepareAllocationExplain(masterNodeTimeout)
             .setIndex("idx")
             .setShard(0)
             .setPrimary(primary)

@@ -92,7 +92,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         startDeleteSnapshot(repoName, snapshot).get();
 
         logger.info("--> make sure snapshot doesn't exist");
-        expectThrows(SnapshotMissingException.class, clusterAdmin().prepareGetSnapshots(repoName).addSnapshots(snapshot));
+        expectThrows(
+            SnapshotMissingException.class,
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName).addSnapshots(snapshot)
+        );
     }
 
     public void testConcurrentlyChangeRepositoryContents() throws Exception {
@@ -162,7 +165,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         startDeleteSnapshot(repoName, snapshot).get();
 
         logger.info("--> make sure snapshot doesn't exist");
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareGetSnapshots(repoName).addSnapshots(snapshot));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, repoName).addSnapshots(snapshot)
+        );
     }
 
     public void testFindDanglingLatestGeneration() throws Exception {
@@ -229,7 +235,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         assertThat(getRepositoryData(repoName).getGenId(), is(beforeMoveGen + 2));
 
         logger.info("--> make sure snapshot doesn't exist");
-        expectThrows(SnapshotMissingException.class, clusterAdmin().prepareGetSnapshots(repoName).addSnapshots(snapshot));
+        expectThrows(
+            SnapshotMissingException.class,
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName).addSnapshots(snapshot)
+        );
     }
 
     public void testHandlingMissingRootLevelSnapshotMetadata() throws Exception {
@@ -501,7 +510,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("-->  verifying snapshot state for [{}]", snapshot1);
-        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots("test-repo").get().getSnapshots();
+        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").get().getSnapshots();
         assertThat(snapshotInfos.size(), equalTo(1));
         assertThat(snapshotInfos.get(0).state(), equalTo(SnapshotState.SUCCESS));
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo(snapshot1));
@@ -576,7 +585,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
 
         logger.info("--> make sure snapshot doesn't exist");
 
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareGetSnapshots("test-repo").addSnapshots("test-snap-1"));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "test-repo").addSnapshots("test-snap-1")
+        );
 
         for (String index : indices) {
             assertTrue(Files.notExists(indicesPath.resolve(indexIds.get(index).getId())));
@@ -613,7 +625,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         startDeleteSnapshot("test-repo", "test-snap-1").get();
 
         logger.info("--> make sure snapshot doesn't exist");
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareGetSnapshots("test-repo").addSnapshots("test-snap-1"));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "test-repo").addSnapshots("test-snap-1")
+        );
     }
 
     public void testDeleteSnapshotWithCorruptedSnapshotFile() throws Exception {
@@ -654,7 +669,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         startDeleteSnapshot("test-repo", "test-snap-1").get();
 
         logger.info("--> make sure snapshot doesn't exist");
-        expectThrows(SnapshotMissingException.class, client.admin().cluster().prepareGetSnapshots("test-repo").addSnapshots("test-snap-1"));
+        expectThrows(
+            SnapshotMissingException.class,
+            client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "test-repo").addSnapshots("test-snap-1")
+        );
 
         logger.info("--> make sure that we can create the snapshot again");
         createSnapshotResponse = client.admin()
@@ -702,18 +720,23 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
             }
         }
 
-        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots("test-repo").get().getSnapshots();
+        List<SnapshotInfo> snapshotInfos = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").get().getSnapshots();
         assertThat(snapshotInfos.size(), equalTo(1));
         assertThat(snapshotInfos.get(0).state(), equalTo(SnapshotState.SUCCESS));
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo("test-snap"));
 
-        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo").setSnapshots("test-snap").get();
+        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
+            .setSnapshots("test-snap")
+            .get();
         assertThat(snapshotStatusResponse.getSnapshots(), hasSize(1));
         assertThat(snapshotStatusResponse.getSnapshots().get(0).getSnapshot().getSnapshotId().getName(), equalTo("test-snap"));
 
         assertAcked(startDeleteSnapshot("test-repo", "test-snap").get());
-        expectThrows(SnapshotMissingException.class, clusterAdmin().prepareGetSnapshots("test-repo").addSnapshots("test-snap"));
-        ActionRequestBuilder<?, ?> builder = clusterAdmin().prepareSnapshotStatus("test-repo").addSnapshots("test-snap");
+        expectThrows(
+            SnapshotMissingException.class,
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").addSnapshots("test-snap")
+        );
+        ActionRequestBuilder<?, ?> builder = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo").addSnapshots("test-snap");
         expectThrows(SnapshotMissingException.class, builder);
 
         createFullSnapshot("test-repo", "test-snap");

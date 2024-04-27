@@ -56,7 +56,7 @@ public class RepositoriesServiceIT extends ESIntegTestCase {
 
         final GetRepositoriesResponse originalGetRepositoriesResponse = client.admin()
             .cluster()
-            .prepareGetRepositories(repositoryName)
+            .prepareGetRepositories(masterNodeTimeout, repositoryName)
             .get();
 
         assertThat(originalGetRepositoriesResponse.repositories(), hasSize(1));
@@ -80,7 +80,7 @@ public class RepositoriesServiceIT extends ESIntegTestCase {
 
         final GetRepositoriesResponse updatedGetRepositoriesResponse = client.admin()
             .cluster()
-            .prepareGetRepositories(repositoryName)
+            .prepareGetRepositories(masterNodeTimeout, repositoryName)
             .get();
 
         assertThat(updatedGetRepositoriesResponse.repositories(), hasSize(1));

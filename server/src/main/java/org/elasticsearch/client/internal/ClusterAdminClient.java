@@ -316,7 +316,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Returns list of shards the given search would be executed on.
      */
-    ClusterSearchShardsRequestBuilder prepareSearchShards(String... indices);
+    ClusterSearchShardsRequestBuilder prepareSearchShards(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Registers a snapshot repository.
@@ -346,12 +346,12 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Gets repositories.
      */
-    GetRepositoriesRequestBuilder prepareGetRepositories(String... name);
+    GetRepositoriesRequestBuilder prepareGetRepositories(TimeValue masterNodeTimeout, String... name);
 
     /**
      * Cleans up repository.
      */
-    CleanupRepositoryRequestBuilder prepareCleanupRepository(String repository);
+    CleanupRepositoryRequestBuilder prepareCleanupRepository(TimeValue masterNodeTimeout, String repository);
 
     /**
      * Cleans up repository.
@@ -366,7 +366,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Verifies a repository.
      */
-    VerifyRepositoryRequestBuilder prepareVerifyRepository(String name);
+    VerifyRepositoryRequestBuilder prepareVerifyRepository(TimeValue masterNodeTimeout, String name);
 
     /**
      * Creates a new snapshot.
@@ -401,7 +401,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Get snapshots.
      */
-    GetSnapshotsRequestBuilder prepareGetSnapshots(String... repository);
+    GetSnapshotsRequestBuilder prepareGetSnapshots(TimeValue masterNodeTimeout, String... repository);
 
     /**
      * Delete snapshot.
@@ -436,12 +436,12 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Get snapshot status.
      */
-    SnapshotsStatusRequestBuilder prepareSnapshotStatus(String repository);
+    SnapshotsStatusRequestBuilder prepareSnapshotStatus(TimeValue masterNodeTimeout, String repository);
 
     /**
      * Get snapshot status.
      */
-    SnapshotsStatusRequestBuilder prepareSnapshotStatus();
+    SnapshotsStatusRequestBuilder prepareSnapshotStatus(TimeValue masterNodeTimeout);
 
     /**
      * Stores an ingest pipeline
@@ -481,7 +481,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Returns a stored ingest pipeline
      */
-    GetPipelineRequestBuilder prepareGetPipeline(String... ids);
+    GetPipelineRequestBuilder prepareGetPipeline(TimeValue masterNodeTimeout, String... ids);
 
     /**
      * Simulates an ingest pipeline
@@ -511,7 +511,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Explain the allocation of a shard
      */
-    ClusterAllocationExplainRequestBuilder prepareAllocationExplain();
+    ClusterAllocationExplainRequestBuilder prepareAllocationExplain(TimeValue masterNodeTimeout);
 
     /**
      * Store a script in the cluster state

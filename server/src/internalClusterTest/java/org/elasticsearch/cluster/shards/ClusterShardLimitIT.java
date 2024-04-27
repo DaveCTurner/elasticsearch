@@ -287,7 +287,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
 
         List<SnapshotInfo> snapshotInfos = client.admin()
             .cluster()
-            .prepareGetSnapshots("test-repo")
+            .prepareGetSnapshots(masterNodeTimeout, "test-repo")
             .setSnapshots("test-snap")
             .get()
             .getSnapshots();

@@ -65,13 +65,13 @@ public class BlobStoreRepositoryOperationPurposeIT extends AbstractSnapshotInteg
         }
 
         final var timeout = TimeValue.timeValueSeconds(10);
-        clusterAdmin().prepareCleanupRepository(repoName).get(timeout);
+        clusterAdmin().prepareCleanupRepository(masterNodeTimeout, repoName).get(timeout);
         clusterAdmin().prepareCloneSnapshot(masterNodeTimeout, repoName, "snap-0", "clone-0").setIndices("index-0").get(timeout);
 
         // restart to ensure that the reads which happen when starting a node on a nonempty repository use the expected purposes
         internalCluster().fullRestart();
 
-        clusterAdmin().prepareGetSnapshots(repoName).get(timeout);
+        clusterAdmin().prepareGetSnapshots(masterNodeTimeout, repoName).get(timeout);
 
         clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repoName, "clone-0")
             .setRenamePattern("index-0")

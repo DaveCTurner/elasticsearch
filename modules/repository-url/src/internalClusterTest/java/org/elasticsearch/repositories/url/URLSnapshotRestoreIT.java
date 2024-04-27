@@ -79,7 +79,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
 
         SnapshotState state = client.admin()
             .cluster()
-            .prepareGetSnapshots("test-repo")
+            .prepareGetSnapshots(masterNodeTimeout, "test-repo")
             .setSnapshots("test-snap")
             .get()
             .getSnapshots()
@@ -114,7 +114,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertHitCount(client.prepareSearch("test-idx").setSize(0), 100);
 
         logger.info("--> list available shapshots");
-        GetSnapshotsResponse getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots("url-repo").get();
+        GetSnapshotsResponse getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "url-repo").get();
         assertThat(getSnapshotsResponse.getSnapshots().size(), equalTo(1));
 
         logger.info("--> delete snapshot");
@@ -125,7 +125,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertAcked(deleteSnapshotResponse);
 
         logger.info("--> list available shapshot again, no snapshots should be returned");
-        getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots("url-repo").get();
+        getSnapshotsResponse = client.admin().cluster().prepareGetSnapshots(masterNodeTimeout, "url-repo").get();
         assertThat(getSnapshotsResponse.getSnapshots().size(), equalTo(0));
     }
 

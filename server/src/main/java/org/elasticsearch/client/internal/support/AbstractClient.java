@@ -823,7 +823,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterSearchShardsRequestBuilder prepareSearchShards(String... indices) {
+        public ClusterSearchShardsRequestBuilder prepareSearchShards(TimeValue masterNodeTimeout, String... indices) {
             return new ClusterSearchShardsRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
@@ -873,7 +873,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetSnapshotsRequestBuilder prepareGetSnapshots(String... repositories) {
+        public GetSnapshotsRequestBuilder prepareGetSnapshots(TimeValue masterNodeTimeout, String... repositories) {
             return new GetSnapshotsRequestBuilder(masterNodeTimeout, this, repositories);
         }
 
@@ -903,7 +903,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public VerifyRepositoryRequestBuilder prepareVerifyRepository(String name) {
+        public VerifyRepositoryRequestBuilder prepareVerifyRepository(TimeValue masterNodeTimeout, String name) {
             return new VerifyRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
@@ -913,12 +913,12 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetRepositoriesRequestBuilder prepareGetRepositories(String... name) {
+        public GetRepositoriesRequestBuilder prepareGetRepositories(TimeValue masterNodeTimeout, String... name) {
             return new GetRepositoriesRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
-        public CleanupRepositoryRequestBuilder prepareCleanupRepository(String repository) {
+        public CleanupRepositoryRequestBuilder prepareCleanupRepository(TimeValue masterNodeTimeout, String repository) {
             return new CleanupRepositoryRequestBuilder(masterNodeTimeout, this, repository);
         }
 
@@ -948,12 +948,12 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public SnapshotsStatusRequestBuilder prepareSnapshotStatus(String repository) {
+        public SnapshotsStatusRequestBuilder prepareSnapshotStatus(TimeValue masterNodeTimeout, String repository) {
             return new SnapshotsStatusRequestBuilder(masterNodeTimeout, this, repository);
         }
 
         @Override
-        public SnapshotsStatusRequestBuilder prepareSnapshotStatus() {
+        public SnapshotsStatusRequestBuilder prepareSnapshotStatus(TimeValue masterNodeTimeout) {
             return new SnapshotsStatusRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -998,7 +998,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetPipelineRequestBuilder prepareGetPipeline(String... ids) {
+        public GetPipelineRequestBuilder prepareGetPipeline(TimeValue masterNodeTimeout, String... ids) {
             return new GetPipelineRequestBuilder(masterNodeTimeout, this, ids);
         }
 
@@ -1028,7 +1028,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterAllocationExplainRequestBuilder prepareAllocationExplain() {
+        public ClusterAllocationExplainRequestBuilder prepareAllocationExplain(TimeValue masterNodeTimeout) {
             return new ClusterAllocationExplainRequestBuilder(masterNodeTimeout, this);
         }
 

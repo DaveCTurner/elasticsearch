@@ -256,7 +256,7 @@ public class SnapshotDisruptionIT extends AbstractSnapshotIntegTestCase {
     private void assertSnapshotExists(String repository, String snapshot) {
         GetSnapshotsResponse snapshotsStatusResponse = dataNodeClient().admin()
             .cluster()
-            .prepareGetSnapshots(repository)
+            .prepareGetSnapshots(masterNodeTimeout, repository)
             .setSnapshots(snapshot)
             .get();
         SnapshotInfo snapshotInfo = snapshotsStatusResponse.getSnapshots().get(0);

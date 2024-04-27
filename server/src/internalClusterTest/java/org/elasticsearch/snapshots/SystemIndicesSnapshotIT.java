@@ -109,8 +109,8 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertSnapshotSuccess(createSnapshotResponse);
 
         // check snapshot info for for which
-        clusterAdmin().prepareGetRepositories(REPO_NAME).get();
-        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(REPO_NAME)
+        clusterAdmin().prepareGetRepositories(masterNodeTimeout, REPO_NAME).get();
+        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPO_NAME)
             .get()
             .getSnapshots()
             .stream()
@@ -260,7 +260,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertSnapshotSuccess(createSnapshotResponse);
 
         // verify the correctness of the snapshot
-        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(REPO_NAME)
+        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPO_NAME)
             .get()
             .getSnapshots()
             .stream()
@@ -672,7 +672,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertSnapshotSuccess(createSnapshotResponse);
 
         // Verify that the system index was not included
-        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(REPO_NAME)
+        Set<String> snapshottedIndices = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPO_NAME)
             .get()
             .getSnapshots()
             .stream()
@@ -724,7 +724,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         // Now get the snapshot and do our checks
         assertBusy(() -> {
-            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots(REPO_NAME)
+            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, REPO_NAME)
                 .setSnapshots(partialSnapName)
                 .get();
             SnapshotInfo snapshotInfo = snapshotsStatusResponse.getSnapshots().get(0);

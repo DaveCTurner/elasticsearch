@@ -68,7 +68,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         assertFalse(response.isIndexFollowingStarted());
         final ClusterAllocationExplanation explanation = followerClient().admin()
             .cluster()
-            .prepareAllocationExplain()
+            .prepareAllocationExplain(masterNodeTimeout)
             .setIndex(followerIndex)
             .setShard(0)
             .setPrimary(true)

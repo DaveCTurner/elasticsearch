@@ -121,7 +121,7 @@ public class IngestRestartIT extends ESIntegTestCase {
             }""");
 
         Consumer<String> checkPipelineExists = (id) -> assertThat(
-            clusterAdmin().prepareGetPipeline(id).get().pipelines().get(0).getId(),
+            clusterAdmin().prepareGetPipeline(masterNodeTimeout, id).get().pipelines().get(0).getId(),
             equalTo(id)
         );
 

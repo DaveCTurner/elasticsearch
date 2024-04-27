@@ -59,7 +59,7 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
         final ActionFuture<CleanupRepositoryResponse> cleanupFuture = startBlockedCleanup("test-repo");
 
         logger.info("-->  sending another cleanup");
-        assertFutureThrows(clusterAdmin().prepareCleanupRepository("test-repo").execute(), IllegalStateException.class);
+        assertFutureThrows(clusterAdmin().prepareCleanupRepository(masterNodeTimeout, "test-repo").execute(), IllegalStateException.class);
 
         logger.info("-->  ensure cleanup is still in progress");
         final RepositoryCleanupInProgress cleanup = clusterAdmin().prepareState(masterNodeTimeout)
@@ -114,7 +114,7 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
         final ActionFuture<CleanupRepositoryResponse> future = internalCluster().nonMasterClient()
             .admin()
             .cluster()
-            .prepareCleanupRepository(repoName)
+            .prepareCleanupRepository(masterNodeTimeout, repoName)
             .execute();
 
         final String masterNode = internalCluster().getMasterName();
@@ -163,7 +163,7 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
         }
 
         logger.info("--> cleanup repository");
-        clusterAdmin().prepareCleanupRepository(repoName).get();
+        clusterAdmin().prepareCleanupRepository(masterNodeTimeout, repoName).get();
 
         BlobStoreTestUtil.assertConsistency(repository);
     }

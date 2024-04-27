@@ -548,7 +548,12 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
 
     private String explainAllocation(int shard) {
         return Strings.toString(
-            clusterAdmin().prepareAllocationExplain().setIndex(index).setShard(shard).setPrimary(true).get().getExplanation(),
+            clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
+                .setIndex(index)
+                .setShard(shard)
+                .setPrimary(true)
+                .get()
+                .getExplanation(),
             true,
             true
         );

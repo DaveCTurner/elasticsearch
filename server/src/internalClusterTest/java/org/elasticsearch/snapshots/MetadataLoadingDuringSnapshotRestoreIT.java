@@ -75,7 +75,7 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertIndexMetadataLoads("snap", "others", 0);
 
         // Getting a snapshot does not load any metadata
-        GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots("repository")
+        GetSnapshotsResponse getSnapshotsResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "repository")
             .addSnapshots("snap")
             .setVerbose(randomBoolean())
             .get();
@@ -85,7 +85,9 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertIndexMetadataLoads("snap", "others", 0);
 
         // Getting the status of a snapshot loads indices metadata but not global metadata
-        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus("repository").setSnapshots("snap").get();
+        SnapshotsStatusResponse snapshotStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "repository")
+            .setSnapshots("snap")
+            .get();
         assertThat(snapshotStatusResponse.getSnapshots(), hasSize(1));
         assertGlobalMetadataLoads("snap", 0);
         assertIndexMetadataLoads("snap", "docs", 1);

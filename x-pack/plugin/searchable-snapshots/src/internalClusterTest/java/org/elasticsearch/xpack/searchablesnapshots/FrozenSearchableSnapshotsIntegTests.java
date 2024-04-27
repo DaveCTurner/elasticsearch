@@ -236,7 +236,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         final RestoreSnapshotResponse restoreSnapshotResponse = client().execute(MountSearchableSnapshotAction.INSTANCE, req).get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
 
-        final Map<Integer, SnapshotIndexShardStatus> snapshotShards = clusterAdmin().prepareSnapshotStatus(fsRepoName)
+        final Map<Integer, SnapshotIndexShardStatus> snapshotShards = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, fsRepoName)
             .setSnapshots(snapshotInfo.snapshotId().getName())
             .get()
             .getSnapshots()
@@ -337,7 +337,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(1));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
 
-        final Decision diskDeciderDecision = clusterAdmin().prepareAllocationExplain()
+        final Decision diskDeciderDecision = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
             .setIndex(restoredIndexName)
             .setShard(0)
             .setPrimary(true)

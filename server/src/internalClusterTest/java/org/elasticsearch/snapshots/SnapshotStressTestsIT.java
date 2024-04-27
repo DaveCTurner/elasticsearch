@@ -840,7 +840,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                     logger.info("--> starting cleanup of [{}]", trackedRepository.repositoryName);
                     client.admin()
                         .cluster()
-                        .prepareCleanupRepository(trackedRepository.repositoryName)
+                        .prepareCleanupRepository(masterNodeTimeout, trackedRepository.repositoryName)
                         .execute(mustSucceed(cleanupRepositoryResponse -> {
                             final RepositoryCleanupResult result = cleanupRepositoryResponse.result();
                             if (result.bytes() > 0L || result.blobs() > 0L) {
@@ -850,7 +850,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                                 // concurrent operations on the repository.
                                 client.admin()
                                     .cluster()
-                                    .prepareCleanupRepository(trackedRepository.repositoryName)
+                                    .prepareCleanupRepository(masterNodeTimeout, trackedRepository.repositoryName)
                                     .execute(mustSucceed(secondCleanupRepositoryResponse -> {
                                         final RepositoryCleanupResult secondCleanupResult = secondCleanupRepositoryResponse.result();
                                         if (secondCleanupResult.blobs() == 1) {
@@ -1131,7 +1131,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 mustSucceed(
                     () -> client.admin()
                         .cluster()
-                        .prepareGetSnapshots(repositoryName)
+                        .prepareGetSnapshots(masterNodeTimeout, repositoryName)
                         .setCurrentSnapshot()
                         .execute(mustSucceed(getSnapshotsResponse -> {
                             if (getSnapshotsResponse.getSnapshots()
@@ -1678,7 +1678,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
             );
             client.admin()
                 .cluster()
-                .prepareGetSnapshots(trackedRepository.repositoryName)
+                .prepareGetSnapshots(masterNodeTimeout, trackedRepository.repositoryName)
                 .setSnapshots(snapshotName)
                 .execute(mustSucceed(getSnapshotsResponse -> {
                     assertThat(getSnapshotsResponse.getSnapshots(), hasSize(1));

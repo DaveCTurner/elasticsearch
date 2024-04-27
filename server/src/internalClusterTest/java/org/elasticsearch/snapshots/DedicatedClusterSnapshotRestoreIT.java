@@ -203,10 +203,13 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         }
 
         logger.info("--> making sure that snapshot no longer exists");
-        expectThrows(SnapshotMissingException.class, clusterAdmin().prepareGetSnapshots("test-repo").setSnapshots("test-snap"));
+        expectThrows(
+            SnapshotMissingException.class,
+            clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo").setSnapshots("test-snap")
+        );
 
         logger.info("--> trigger repository cleanup");
-        clusterAdmin().prepareCleanupRepository("test-repo").get();
+        clusterAdmin().prepareCleanupRepository(masterNodeTimeout, "test-repo").get();
 
         // Expect two or three files to remain in the repository:
         // (1) index-latest
@@ -289,7 +292,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 .setPartial(true)
                 .get();
             assertBusy(() -> {
-                SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo")
+                SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                     .setSnapshots("test-snap-2")
                     .get();
                 List<SnapshotStatus> snapshotStatuses = snapshotsStatusResponse.getSnapshots();
@@ -297,7 +300,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
                 logger.trace("current snapshot status [{}]", snapshotStatuses.get(0));
                 assertTrue(snapshotStatuses.get(0).getState().completed());
             }, 1, TimeUnit.MINUTES);
-            SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus("test-repo")
+            SnapshotsStatusResponse snapshotsStatusResponse = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                 .setSnapshots("test-snap-2")
                 .get();
             List<SnapshotStatus> snapshotStatuses = snapshotsStatusResponse.getSnapshots();
@@ -702,7 +705,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         // snapshot could be taken before or after a day rollover
         final String expression2 = IndexNameExpressionResolver.resolveDateMathExpression(snapshotName);
 
-        SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(repo)
+        SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repo)
             .setSnapshots(Sets.newHashSet(expression1, expression2).toArray(Strings.EMPTY_ARRAY))
             .setIgnoreUnavailable(true)
             .get();
@@ -728,7 +731,9 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         createRepository(repositoryName, "fs", repoPath);
         createFullSnapshot(repositoryName, snapshot0);
 
-        SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(repositoryName).setSnapshots(snapshot0).get();
+        SnapshotsStatusResponse response = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repositoryName)
+            .setSnapshots(snapshot0)
+            .get();
 
         List<SnapshotStatus> snapshots = response.getSnapshots();
 
@@ -764,7 +769,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         // drop 1st one to avoid miscalculation as snapshot reuses some files of prev snapshot
         assertAcked(startDeleteSnapshot(repositoryName, snapshot0).get());
 
-        response = clusterAdmin().prepareSnapshotStatus(repositoryName).setSnapshots(snapshot1).get();
+        response = clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, repositoryName).setSnapshots(snapshot1).get();
 
         final List<Path> snapshot1Files = scanSnapshotFolder(repoPath);
         final List<Path> snapshot1IndexMetaFiles = findRepoMetaBlobs(repoPath);
@@ -882,7 +887,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         logger.info("-->  wait for shard snapshots to show as failed");
         assertBusy(
             () -> assertThat(
-                clusterAdmin().prepareSnapshotStatus("test-repo")
+                clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                     .setSnapshots("test-snap")
                     .get()
                     .getSnapshots()
@@ -899,7 +904,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         disruption.stopDisrupting();
         // check that snapshot completes
         assertBusy(() -> {
-            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots("test-repo")
+            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo")
                 .setSnapshots("test-snap")
                 .setIgnoreUnavailable(true)
                 .get();
@@ -935,7 +940,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         logger.info("-->  wait for shard snapshot of first primary to show as failed");
         assertBusy(
             () -> assertThat(
-                clusterAdmin().prepareSnapshotStatus("test-repo")
+                clusterAdmin().prepareSnapshotStatus(masterNodeTimeout, "test-repo")
                     .setSnapshots("test-snap")
                     .get()
                     .getSnapshots()
@@ -953,7 +958,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
         // check that snapshot completes with both failed shards being accounted for in the snapshot result
         assertBusy(() -> {
-            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots("test-repo")
+            GetSnapshotsResponse snapshotsStatusResponse = clusterAdmin().prepareGetSnapshots(masterNodeTimeout, "test-repo")
                 .setSnapshots("test-snap")
                 .setIgnoreUnavailable(true)
                 .get();
@@ -1228,7 +1233,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
     public void testGetReposWithWildcard() {
         internalCluster().startMasterOnlyNode();
-        List<RepositoryMetadata> repositoryMetadata = clusterAdmin().prepareGetRepositories("*").get().repositories();
+        List<RepositoryMetadata> repositoryMetadata = clusterAdmin().prepareGetRepositories(masterNodeTimeout, "*").get().repositories();
         assertThat(repositoryMetadata, empty());
     }
 

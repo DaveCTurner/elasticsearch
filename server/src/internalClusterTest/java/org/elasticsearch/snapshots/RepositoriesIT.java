@@ -65,7 +65,10 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> verify the repository");
         int numberOfFiles = FileSystemUtils.files(location).length;
-        VerifyRepositoryResponse verifyRepositoryResponse = client.admin().cluster().prepareVerifyRepository("test-repo-1").get();
+        VerifyRepositoryResponse verifyRepositoryResponse = client.admin()
+            .cluster()
+            .prepareVerifyRepository(masterNodeTimeout, "test-repo-1")
+            .get();
         assertThat(verifyRepositoryResponse.getNodes().size(), equalTo(cluster().numDataAndMasterNodes()));
 
         logger.info("--> verify that we didn't leave any files as a result of verification");
@@ -101,7 +104,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> check that both repositories can be retrieved by getRepositories query");
         GetRepositoriesResponse repositoriesResponse = client.admin()
             .cluster()
-            .prepareGetRepositories(randomFrom("_all", "*", "test-repo-*"))
+            .prepareGetRepositories(masterNodeTimeout, randomFrom("_all", "*", "test-repo-*"))
             .get();
         assertThat(repositoriesResponse.repositories().size(), equalTo(2));
         assertThat(findRepository(repositoriesResponse.repositories(), "test-repo-1"), notNullValue());
@@ -123,13 +126,13 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> delete repository test-repo-1");
         client.admin().cluster().prepareDeleteRepository(masterNodeTimeout, "test-repo-1").get();
-        repositoriesResponse = client.admin().cluster().prepareGetRepositories().get();
+        repositoriesResponse = client.admin().cluster().prepareGetRepositories(masterNodeTimeout).get();
         assertThat(repositoriesResponse.repositories().size(), equalTo(1));
         assertThat(findRepository(repositoriesResponse.repositories(), "test-repo-2"), notNullValue());
 
         logger.info("--> delete repository test-repo-2");
         client.admin().cluster().prepareDeleteRepository(masterNodeTimeout, "test-repo-2").get();
-        repositoriesResponse = client.admin().cluster().prepareGetRepositories().get();
+        repositoriesResponse = client.admin().cluster().prepareGetRepositories(masterNodeTimeout).get();
         assertThat(repositoriesResponse.repositories().size(), equalTo(0));
     }
 
@@ -241,7 +244,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         );
 
         logger.info("-->  verifying repository");
-        ActionRequestBuilder<?, ?> builder1 = client.admin().cluster().prepareVerifyRepository("test-repo-1");
+        ActionRequestBuilder<?, ?> builder1 = client.admin().cluster().prepareVerifyRepository(masterNodeTimeout, "test-repo-1");
         expectThrows(RepositoryVerificationException.class, builder1);
 
         logger.info("-->  creating read-only repository that cannot read any files, but suppress verification - should be acked");
@@ -255,7 +258,7 @@ public class RepositoriesIT extends AbstractSnapshotIntegTestCase {
         );
 
         logger.info("-->  verifying repository");
-        ActionRequestBuilder<?, ?> builder = client.admin().cluster().prepareVerifyRepository("test-repo-2");
+        ActionRequestBuilder<?, ?> builder = client.admin().cluster().prepareVerifyRepository(masterNodeTimeout, "test-repo-2");
         expectThrows(RepositoryVerificationException.class, builder);
 
         Path location = randomRepoPath();

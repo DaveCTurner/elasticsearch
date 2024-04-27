@@ -991,7 +991,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
 
             final var detailsFuture = new PlainActionFuture<Void>();
             try (var listeners = new RefCountingListener(detailsFuture)) {
-                clusterAdmin().prepareAllocationExplain().execute(listeners.acquire(allocationExplainRef::set));
+                clusterAdmin().prepareAllocationExplain(masterNodeTimeout).execute(listeners.acquire(allocationExplainRef::set));
                 clusterAdmin().prepareState(masterNodeTimeout).execute(listeners.acquire(clusterStateRef::set));
                 client().execute(
                     TransportPendingClusterTasksAction.TYPE,

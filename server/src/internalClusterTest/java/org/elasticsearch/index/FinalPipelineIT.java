@@ -56,8 +56,12 @@ public class FinalPipelineIT extends ESIntegTestCase {
     public void cleanUpPipelines() {
         indicesAdmin().prepareDelete(masterNodeTimeout, "*").get();
 
-        final GetPipelineResponse response = clusterAdmin().prepareGetPipeline("default_pipeline", "final_pipeline", "request_pipeline")
-            .get();
+        final GetPipelineResponse response = clusterAdmin().prepareGetPipeline(
+            masterNodeTimeout,
+            "default_pipeline",
+            "final_pipeline",
+            "request_pipeline"
+        ).get();
         for (final PipelineConfiguration pipeline : response.pipelines()) {
             clusterAdmin().deletePipeline(new DeletePipelineRequest(masterNodeTimeout, pipeline.getId())).actionGet();
         }

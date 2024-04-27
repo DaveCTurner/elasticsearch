@@ -212,7 +212,7 @@ public class AllocationIdIT extends ESIntegTestCase {
 
     private void checkNoValidShardCopy(String indexName, ShardId shardId) throws Exception {
         assertBusy(() -> {
-            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
+            final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain(masterNodeTimeout)
                 .setIndex(indexName)
                 .setShard(shardId.id())
                 .setPrimary(true)

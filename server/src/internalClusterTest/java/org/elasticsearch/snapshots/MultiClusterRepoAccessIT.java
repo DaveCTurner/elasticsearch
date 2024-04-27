@@ -155,7 +155,7 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
 
         createIndexWithRandomDocs("test-idx-1", randomIntBetween(1, 100));
         createFullSnapshot(repoName, "snap-1");
-        final String repoUuid = clusterAdmin().prepareGetRepositories(repoName)
+        final String repoUuid = clusterAdmin().prepareGetRepositories(masterNodeTimeout, repoName)
             .get()
             .repositories()
             .stream()
@@ -178,7 +178,7 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
             secondCluster.client()
                 .admin()
                 .cluster()
-                .prepareGetRepositories(repoName)
+                .prepareGetRepositories(masterNodeTimeout, repoName)
                 .get()
                 .repositories()
                 .stream()
@@ -194,7 +194,7 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
         createRepository(repoName, "fs", repoPath);
         createFullSnapshot(repoName, "snap-1");
 
-        final String newRepoUuid = clusterAdmin().prepareGetRepositories(repoName)
+        final String newRepoUuid = clusterAdmin().prepareGetRepositories(masterNodeTimeout, repoName)
             .get()
             .repositories()
             .stream()
@@ -204,12 +204,13 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
             .uuid();
         assertThat(newRepoUuid, not(equalTo((repoUuid))));
 
-        secondCluster.client().admin().cluster().prepareGetSnapshots(repoName).get(); // force another read of the repo data
+        secondCluster.client().admin().cluster().prepareGetSnapshots(masterNodeTimeout, repoName).get(); // force another read of the repo
+                                                                                                         // data
         assertThat(
             secondCluster.client()
                 .admin()
                 .cluster()
-                .prepareGetRepositories(repoName)
+                .prepareGetRepositories(masterNodeTimeout, repoName)
                 .get()
                 .repositories()
                 .stream()
