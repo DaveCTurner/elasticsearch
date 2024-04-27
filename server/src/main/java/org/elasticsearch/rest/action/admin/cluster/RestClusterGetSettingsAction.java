@@ -89,7 +89,7 @@ public class RestClusterGetSettingsAction extends BaseRestHandler {
     }
 
     private RestChannelConsumer prepareLegacyRequest(final RestRequest request, final NodeClient client, final boolean renderDefaults) {
-        ClusterStateRequest clusterStateRequest = new ClusterStateRequest().routingTable(false).nodes(false);
+        ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout).routingTable(false).nodes(false);
         setUpRequestParams(clusterStateRequest, request);
         return channel -> client.admin()
             .cluster()

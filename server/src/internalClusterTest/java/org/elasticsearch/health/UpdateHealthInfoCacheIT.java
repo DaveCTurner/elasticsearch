@@ -136,7 +136,7 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
             .admin()
             .cluster()
             .updateSettings(
-                new ClusterUpdateSettingsRequest().persistentSettings(
+                new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
                     Settings.builder().put(LocalHealthMonitor.POLL_INTERVAL_SETTING.getKey(), TimeValue.timeValueSeconds(10))
                 )
             );

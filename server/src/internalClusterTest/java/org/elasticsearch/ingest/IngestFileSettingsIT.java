@@ -158,7 +158,7 @@ public class IngestFileSettingsIT extends ESIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).get();
 
         ReservedStateMetadata reservedState = clusterStateResponse.getState()
@@ -252,7 +252,7 @@ public class IngestFileSettingsIT extends ESIntegTestCase {
             var builder = XContentFactory.contentBuilder(JSON)
         ) {
             builder.map(parser.map());
-            return new PutPipelineRequest(id, BytesReference.bytes(builder), JSON);
+            return new PutPipelineRequest(masterNodeTimeout, id, BytesReference.bytes(builder), JSON);
         }
     }
 

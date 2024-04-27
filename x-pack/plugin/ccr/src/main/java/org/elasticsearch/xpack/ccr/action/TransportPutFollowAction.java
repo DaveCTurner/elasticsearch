@@ -187,9 +187,11 @@ public final class TransportPutFollowAction extends TransportMasterNodeAction<Pu
             .build();
 
         final String leaderClusterRepoName = CcrRepository.NAME_PREFIX + request.getRemoteCluster();
-        final RestoreSnapshotRequest restoreRequest = new RestoreSnapshotRequest(leaderClusterRepoName, CcrRepository.LATEST).indices(
-            request.getLeaderIndex()
-        )
+        final RestoreSnapshotRequest restoreRequest = new RestoreSnapshotRequest(
+            masterNodeTimeout,
+            leaderClusterRepoName,
+            CcrRepository.LATEST
+        ).indices(request.getLeaderIndex())
             .indicesOptions(request.indicesOptions())
             .renamePattern("^(.*)$")
             .renameReplacement(Matcher.quoteReplacement(request.getFollowerIndex()))

@@ -141,7 +141,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         // Follower primaries can be relocated to nodes without the remote cluster client role
         followerClient().admin()
             .indices()
-            .prepareUpdateSettings(followerIndex)
+            .prepareUpdateSettings(masterNodeTimeout, followerIndex)
             .setMasterNodeTimeout(TimeValue.MAX_VALUE)
             .setSettings(
                 Settings.builder()

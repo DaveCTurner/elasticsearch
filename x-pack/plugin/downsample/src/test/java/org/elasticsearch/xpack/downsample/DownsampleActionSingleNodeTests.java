@@ -393,7 +393,9 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         prepareSourceIndex(sourceIndex, true);
         downsample(sourceIndex, downsampleIndex, config);
 
-        GetIndexResponse indexSettingsResp = indicesAdmin().prepareGetIndex().addIndices(sourceIndex, downsampleIndex).get();
+        GetIndexResponse indexSettingsResp = indicesAdmin().prepareGetIndex(masterNodeTimeout)
+            .addIndices(sourceIndex, downsampleIndex)
+            .get();
         assertDownsampleIndexSettings(sourceIndex, downsampleIndex, indexSettingsResp);
         for (String key : settings.keySet()) {
             if (LifecycleSettings.LIFECYCLE_NAME_SETTING.getKey().equals(key)) {
@@ -549,7 +551,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         );
         assertBusy(() -> {
             try {
-                assertEquals(indicesAdmin().prepareGetIndex().addIndices(downsampleIndex).get().getIndices().length, 1);
+                assertEquals(indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(downsampleIndex).get().getIndices().length, 1);
             } catch (IndexNotFoundException e) {
                 fail("downsample index has not been created");
             }
@@ -1080,7 +1082,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
     private void prepareSourceIndex(final String sourceIndex, boolean blockWrite) {
         // Set the source index to read-only state
         assertAcked(
-            indicesAdmin().prepareUpdateSettings(sourceIndex)
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, sourceIndex)
                 .setSettings(Settings.builder().put(IndexMetadata.INDEX_BLOCKS_WRITE_SETTING.getKey(), blockWrite).build())
         );
     }
@@ -1109,7 +1111,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
     @SuppressWarnings("unchecked")
     private void assertDownsampleIndex(String sourceIndex, String downsampleIndex, DownsampleConfig config) throws Exception {
         // Retrieve field information for the metric fields
-        final GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(sourceIndex).get();
+        final GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, sourceIndex).get();
         final Map<String, Object> sourceIndexMappings = getMappingsResponse.mappings()
             .entrySet()
             .stream()
@@ -1137,7 +1139,9 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
 
         assertDownsampleIndexAggregations(sourceIndex, downsampleIndex, config, metricFields, labelFields);
 
-        GetIndexResponse indexSettingsResp = indicesAdmin().prepareGetIndex().addIndices(sourceIndex, downsampleIndex).get();
+        GetIndexResponse indexSettingsResp = indicesAdmin().prepareGetIndex(masterNodeTimeout)
+            .addIndices(sourceIndex, downsampleIndex)
+            .get();
         assertDownsampleIndexSettings(sourceIndex, downsampleIndex, indexSettingsResp);
 
         Map<String, Map<String, Object>> mappings = (Map<String, Map<String, Object>>) indexSettingsResp.getMappings()

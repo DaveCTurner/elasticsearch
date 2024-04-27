@@ -334,7 +334,7 @@ public class GeoIpDownloaderIT extends AbstractGeoIpIT {
         // This should trigger the database download.
         Setting<String> pipelineSetting = randomFrom(IndexSettings.FINAL_PIPELINE, IndexSettings.DEFAULT_PIPELINE);
         Settings indexSettings = Settings.builder().put(pipelineSetting.getKey(), pipelineId).build();
-        assertAcked(indicesAdmin().prepareUpdateSettings(indexIdentifier).setSettings(indexSettings).get());
+        assertAcked(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, indexIdentifier).setSettings(indexSettings).get());
         assertBusy(() -> {
             GeoIpTaskState state = getGeoIpTaskState();
             assertEquals(

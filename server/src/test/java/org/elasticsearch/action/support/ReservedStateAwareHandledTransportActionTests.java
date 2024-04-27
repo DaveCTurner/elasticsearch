@@ -56,7 +56,7 @@ public class ReservedStateAwareHandledTransportActionTests extends ESTestCase {
         handler.doExecute(mock(Task.class), new DummyRequest(), future);
         assertNotNull(future.actionGet());
 
-        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest().persistentSettings(
+        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
             Settings.builder().put("a", "a value").build()
         ).transientSettings(Settings.builder().put("e", "e value").build());
 
@@ -80,7 +80,7 @@ public class ReservedStateAwareHandledTransportActionTests extends ESTestCase {
             }
         })).getMessage().contains("with errors: [[a] set as read-only by [namespace_one], " + "[e] set as read-only by [namespace_two]"));
 
-        ClusterUpdateSettingsRequest okRequest = new ClusterUpdateSettingsRequest().persistentSettings(
+        ClusterUpdateSettingsRequest okRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
             Settings.builder().put("m", "m value").build()
         ).transientSettings(Settings.builder().put("n", "n value").build());
 

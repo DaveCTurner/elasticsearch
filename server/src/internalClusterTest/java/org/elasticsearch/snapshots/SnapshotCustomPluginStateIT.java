@@ -145,7 +145,7 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
 
         if (testPipeline) {
             logger.info("-->  delete test pipeline");
-            assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest("barbaz")).get());
+            assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest(masterNodeTimeout, "barbaz")).get());
         }
 
         if (testScript) {
@@ -210,7 +210,7 @@ public class SnapshotCustomPluginStateIT extends AbstractSnapshotIntegTestCase {
             cluster().wipeTemplates("test-template");
         }
         if (testPipeline) {
-            assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest("barbaz")).get());
+            assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest(masterNodeTimeout, "barbaz")).get());
         }
 
         if (testScript) {

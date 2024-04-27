@@ -46,6 +46,7 @@ public class RestCloneSnapshotAction extends BaseRestHandler {
         try (var parser = request.contentParser()) {
             final Map<String, Object> source = parser.map();
             final CloneSnapshotRequest cloneSnapshotRequest = new CloneSnapshotRequest(
+                masterNodeTimeout,
                 request.param("repository"),
                 request.param("snapshot"),
                 request.param("target_snapshot"),

@@ -134,7 +134,7 @@ public class AutoscalingFileSettingsIT extends AutoscalingIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).actionGet();
 
         ReservedStateMetadata reservedState = clusterStateResponse.getState()

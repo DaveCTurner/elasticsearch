@@ -9,13 +9,14 @@ package org.elasticsearch.action.admin.indices.template.get;
 
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class GetIndexTemplatesRequestBuilder extends MasterNodeReadOperationRequestBuilder<
     GetIndexTemplatesRequest,
     GetIndexTemplatesResponse,
     GetIndexTemplatesRequestBuilder> {
 
-    public GetIndexTemplatesRequestBuilder(ElasticsearchClient client, String... names) {
+    public GetIndexTemplatesRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... names) {
         super(client, GetIndexTemplatesAction.INSTANCE, new GetIndexTemplatesRequest(masterNodeTimeout, names));
     }
 }

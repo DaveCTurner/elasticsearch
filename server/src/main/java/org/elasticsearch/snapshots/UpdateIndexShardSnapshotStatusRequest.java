@@ -33,7 +33,12 @@ public class UpdateIndexShardSnapshotStatusRequest extends MasterNodeRequest<Upd
         status = SnapshotsInProgress.ShardSnapshotStatus.readFrom(in);
     }
 
-    public UpdateIndexShardSnapshotStatusRequest(Snapshot snapshot, ShardId shardId, SnapshotsInProgress.ShardSnapshotStatus status) {
+    public UpdateIndexShardSnapshotStatusRequest(
+        TimeValue masterNodeTimeout,
+        Snapshot snapshot,
+        ShardId shardId,
+        SnapshotsInProgress.ShardSnapshotStatus status
+    ) {
         super(masterNodeTimeout);
         this.snapshot = snapshot;
         this.shardId = shardId;

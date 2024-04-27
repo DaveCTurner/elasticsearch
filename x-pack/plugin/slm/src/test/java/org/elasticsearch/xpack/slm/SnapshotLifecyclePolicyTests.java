@@ -43,7 +43,9 @@ public class SnapshotLifecyclePolicyTests extends AbstractXContentSerializingTes
             SnapshotRetentionConfiguration.EMPTY
         );
         CreateSnapshotRequest request = p.toRequest();
-        CreateSnapshotRequest expected = new CreateSnapshotRequest().userMetadata(Collections.singletonMap("policy", "id"));
+        CreateSnapshotRequest expected = new CreateSnapshotRequest(masterNodeTimeout).userMetadata(
+            Collections.singletonMap("policy", "id")
+        );
 
         p = new SnapshotLifecyclePolicy("id", "name", "0 1 2 3 4 ? 2099", "repo", null, null);
         request = p.toRequest();

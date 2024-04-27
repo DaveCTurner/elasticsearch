@@ -570,21 +570,22 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(dataStreamName, indicesAdmin().prepareForceMerge(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareValidateQuery(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareRecoveries(dataStreamName), false);
-        verifyResolvability(dataStreamName, indicesAdmin().prepareGetAliases("dummy").addIndices(dataStreamName), false);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareGetAliases(masterNodeTimeout, "dummy").addIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetFieldMappings(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().preparePutMapping(masterNodeTimeout, dataStreamName).setSource("""
             {"_doc":{"properties": {"my_field":{"type":"keyword"}}}}""", XContentType.JSON), false);
-        verifyResolvability(dataStreamName, indicesAdmin().prepareGetMappings(dataStreamName), false);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareGetMappings(masterNodeTimeout, dataStreamName), false);
         verifyResolvability(
             dataStreamName,
-            indicesAdmin().prepareUpdateSettings(dataStreamName).setSettings(Settings.builder().put("index.number_of_replicas", 0)),
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, dataStreamName)
+                .setSettings(Settings.builder().put("index.number_of_replicas", 0)),
             false
         );
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetSettings(dataStreamName), false);
         verifyResolvability(dataStreamName, clusterAdmin().prepareHealth(dataStreamName), false);
         verifyResolvability(dataStreamName, clusterAdmin().prepareState().setIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, client().prepareFieldCaps(dataStreamName).setFields("*"), false);
-        verifyResolvability(dataStreamName, indicesAdmin().prepareGetIndex().addIndices(dataStreamName), false);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareOpen(masterNodeTimeout, dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareClose(masterNodeTimeout, dataStreamName), true);
         verifyResolvability(aliasToDataStream, indicesAdmin().prepareClose(masterNodeTimeout, aliasToDataStream), true);
@@ -615,21 +616,22 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, indicesAdmin().prepareForceMerge(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareValidateQuery(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareRecoveries(wildcardExpression), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetAliases(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetAliases(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetFieldMappings(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().preparePutMapping(masterNodeTimeout, wildcardExpression).setSource("""
             {"_doc":{"properties": {"my_field":{"type":"keyword"}}}}""", XContentType.JSON), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetMappings(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetMappings(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetSettings(wildcardExpression), false);
         verifyResolvability(
             wildcardExpression,
-            indicesAdmin().prepareUpdateSettings(wildcardExpression).setSettings(Settings.builder().put("index.number_of_replicas", 0)),
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, wildcardExpression)
+                .setSettings(Settings.builder().put("index.number_of_replicas", 0)),
             false
         );
         verifyResolvability(wildcardExpression, clusterAdmin().prepareHealth(wildcardExpression), false);
         verifyResolvability(wildcardExpression, clusterAdmin().prepareState().setIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, client().prepareFieldCaps(wildcardExpression).setFields("*"), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetIndex().addIndices(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareClose(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, clusterAdmin().prepareSearchShards(wildcardExpression), false);
@@ -1100,7 +1102,7 @@ public class DataStreamIT extends ESIntegTestCase {
             DataStreamTimestampFieldMapper.NAME,
             Map.of("enabled", true)
         );
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("logs-foobar").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "logs-foobar").get();
         assertThat(getMappingsResponse.getMappings().size(), equalTo(2));
         assertThat(getMappingsResponse.getMappings().get(backingIndex1).getSourceAsMap(), equalTo(expectedMapping));
         assertThat(getMappingsResponse.getMappings().get(backingIndex2).getSourceAsMap(), equalTo(expectedMapping));
@@ -1115,7 +1117,7 @@ public class DataStreamIT extends ESIntegTestCase {
             .setSource("{\"properties\":{\"my_field\":{\"type\":\"keyword\"}}}", XContentType.JSON)
             .get();
         // The mappings of all backing indices should be updated:
-        getMappingsResponse = indicesAdmin().prepareGetMappings("logs-foobar").get();
+        getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "logs-foobar").get();
         assertThat(getMappingsResponse.getMappings().size(), equalTo(2));
         assertThat(getMappingsResponse.getMappings().get(backingIndex1).getSourceAsMap(), equalTo(expectedMapping));
         assertThat(getMappingsResponse.getMappings().get(backingIndex2).getSourceAsMap(), equalTo(expectedMapping));
@@ -1487,7 +1489,7 @@ public class DataStreamIT extends ESIntegTestCase {
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
         // when querying a backing index then the data stream should be included as well.
-        ClusterStateRequest request = new ClusterStateRequest().indices(".ds-metrics-foo-*000001");
+        ClusterStateRequest request = new ClusterStateRequest(masterNodeTimeout).indices(".ds-metrics-foo-*000001");
         ClusterState state = clusterAdmin().state(request).get().getState();
         assertThat(state.metadata().dataStreams().size(), equalTo(1));
         assertThat(state.metadata().dataStreams().get("metrics-foo").getName(), equalTo("metrics-foo"));
@@ -1541,7 +1543,7 @@ public class DataStreamIT extends ESIntegTestCase {
                     .actionGet();
                 String newBackingIndexName = getDataStreamResponse.getDataStreams().get(0).getDataStream().getWriteIndex().getName();
                 assertThat(newBackingIndexName, backingIndexEqualTo("potato-biscuit", 2));
-                indicesAdmin().prepareGetIndex().addIndices(newBackingIndexName).get();
+                indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(newBackingIndexName).get();
             } catch (Exception e) {
                 logger.info("--> expecting second index to be created but it has not yet been created");
                 fail("expecting second index to exist");

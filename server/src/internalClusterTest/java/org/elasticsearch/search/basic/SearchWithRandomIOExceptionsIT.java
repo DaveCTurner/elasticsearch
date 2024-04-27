@@ -100,7 +100,9 @@ public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
         }
         ClusterHealthResponse clusterHealthResponse = clusterAdmin()
             // it's OK to timeout here
-            .health(new ClusterHealthRequest(new String[] {}).waitForYellowStatus().timeout(TimeValue.timeValueSeconds(5)))
+            .health(
+                new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForYellowStatus().timeout(TimeValue.timeValueSeconds(5))
+            )
             .get();
         final int numDocs;
         final boolean expectAllShardsFailed;

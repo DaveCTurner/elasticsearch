@@ -509,7 +509,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
         });
 
         logger.info("--> restoring index");
-        RestoreSnapshotRequest restoreReq = new RestoreSnapshotRequest(REPO, snapshotName);
+        RestoreSnapshotRequest restoreReq = new RestoreSnapshotRequest(masterNodeTimeout, REPO, snapshotName);
         restoreReq.indices(indexName);
         restoreReq.renamePattern("(.+)");
         restoreReq.renameReplacement("restored_$1");

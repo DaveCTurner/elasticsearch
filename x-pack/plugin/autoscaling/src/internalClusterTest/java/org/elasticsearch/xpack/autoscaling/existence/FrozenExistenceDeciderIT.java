@@ -141,7 +141,7 @@ public class FrozenExistenceDeciderIT extends AbstractFrozenAutoscalingIntegTest
         assertBusy(() -> {
             // cause a bit of cluster activity using an empty reroute call in case the `wait-for-index-colour` ILM step missed the
             // notification that partial-index is now GREEN.
-            client().admin().cluster().reroute(new ClusterRerouteRequest()).actionGet();
+            client().admin().cluster().reroute(new ClusterRerouteRequest(masterNodeTimeout)).actionGet();
             String[] indices = indices();
             assertThat(indices, arrayContaining(PARTIAL_INDEX_NAME));
             assertThat(indices, not(arrayContaining(INDEX_NAME)));
@@ -150,7 +150,7 @@ public class FrozenExistenceDeciderIT extends AbstractFrozenAutoscalingIntegTest
     }
 
     private String[] indices() {
-        return indicesAdmin().prepareGetIndex().addIndices("index").get().indices();
+        return indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices("index").get().indices();
     }
 
     private void assertMinimumCapacity(AutoscalingCapacity.AutoscalingResources resources) {

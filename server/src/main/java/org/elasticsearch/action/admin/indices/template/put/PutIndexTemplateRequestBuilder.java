@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -24,7 +25,7 @@ public class PutIndexTemplateRequestBuilder extends MasterNodeOperationRequestBu
     AcknowledgedResponse,
     PutIndexTemplateRequestBuilder> {
 
-    public PutIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
+    public PutIndexTemplateRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String name) {
         super(client, TransportPutIndexTemplateAction.TYPE, new PutIndexTemplateRequest(masterNodeTimeout, name));
     }
 

@@ -15,6 +15,7 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
@@ -47,12 +48,13 @@ public class CloneSnapshotRequest extends MasterNodeRequest<CloneSnapshotRequest
      * Creates a clone snapshot request for cloning the given source snapshot's indices into the given target snapshot on the given
      * repository.
      *
-     * @param repository repository that source snapshot belongs to and that the target snapshot will be created in
-     * @param source     source snapshot name
-     * @param target     target snapshot name
-     * @param indices    indices to clone from source to target
+     * @param masterNodeTimeout
+     * @param repository        repository that source snapshot belongs to and that the target snapshot will be created in
+     * @param source            source snapshot name
+     * @param target            target snapshot name
+     * @param indices           indices to clone from source to target
      */
-    public CloneSnapshotRequest(String repository, String source, String target, String[] indices) {
+    public CloneSnapshotRequest(TimeValue masterNodeTimeout, String repository, String source, String target, String[] indices) {
         super(masterNodeTimeout);
         this.repository = repository;
         this.source = source;

@@ -317,7 +317,7 @@ public class SniffConnectionStrategy extends RemoteConnectionStrategy {
                     sniffResponseHandler = new RemoteClusterNodesSniffResponseHandler(connection, listener, seedNodesSuppliers);
                 } else {
                     action = ClusterStateAction.NAME;
-                    final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+                    final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout);
                     clusterStateRequest.clear();
                     clusterStateRequest.nodes(true);
                     request = clusterStateRequest;

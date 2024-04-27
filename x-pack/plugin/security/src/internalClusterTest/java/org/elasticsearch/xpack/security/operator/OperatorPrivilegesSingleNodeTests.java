@@ -76,7 +76,7 @@ public class OperatorPrivilegesSingleNodeTests extends SecuritySingleNodeTestCas
 
     public void testNormalSuperuserWillFailToSetOperatorOnlySettings() {
         final Settings settings = Settings.builder().put(IPFilter.IP_FILTER_ENABLED_SETTING.getKey(), "null").build();
-        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest();
+        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         if (randomBoolean()) {
             clusterUpdateSettingsRequest.transientSettings(settings);
         } else {
@@ -97,7 +97,7 @@ public class OperatorPrivilegesSingleNodeTests extends SecuritySingleNodeTestCas
 
     public void testOperatorUserWillSucceedToSetOperatorOnlySettings() {
         final Client client = createOperatorClient();
-        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest();
+        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         final Settings settings = Settings.builder().put(IPFilter.IP_FILTER_ENABLED_SETTING.getKey(), false).build();
         final boolean useTransientSetting = randomBoolean();
         try {
@@ -108,7 +108,7 @@ public class OperatorPrivilegesSingleNodeTests extends SecuritySingleNodeTestCas
             }
             client.execute(ClusterUpdateSettingsAction.INSTANCE, clusterUpdateSettingsRequest).actionGet();
         } finally {
-            final ClusterUpdateSettingsRequest clearSettingsRequest = new ClusterUpdateSettingsRequest();
+            final ClusterUpdateSettingsRequest clearSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
             final Settings clearSettings = Settings.builder().putNull(IPFilter.IP_FILTER_ENABLED_SETTING.getKey()).build();
             if (useTransientSetting) {
                 clearSettingsRequest.transientSettings(clearSettings);

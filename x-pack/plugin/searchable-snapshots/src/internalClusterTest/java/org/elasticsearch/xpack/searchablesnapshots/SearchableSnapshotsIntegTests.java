@@ -254,17 +254,17 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         );
 
         if (deletedBeforeMount) {
-            assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
+            assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(0));
             assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(restoredIndexName, aliasName));
         } else if (indexName.equals(restoredIndexName) == false) {
-            assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(1));
+            assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(1));
             assertAcked(
                 indicesAdmin().prepareAliases(masterNodeTimeout)
                     .addAliasAction(IndicesAliasesRequest.AliasActions.remove().index(indexName).alias(aliasName).mustExist(true))
                     .addAlias(restoredIndexName, aliasName)
             );
         }
-        assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(1));
+        assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(1));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
 
         internalCluster().fullRestart();
@@ -335,7 +335,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         assertFalse(clonedIndexSettings.hasValue(IndexModule.INDEX_RECOVERY_TYPE_SETTING.getKey()));
 
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, restoredIndexName));
-        assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
+        assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(0));
         assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(clonedIndexName, aliasName));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
     }

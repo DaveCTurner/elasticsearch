@@ -13,6 +13,7 @@ import org.elasticsearch.cluster.routing.allocation.command.AllocationCommand;
 import org.elasticsearch.cluster.routing.allocation.command.AllocationCommands;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -34,7 +35,7 @@ public class ClusterRerouteRequest extends AcknowledgedRequest<ClusterRerouteReq
         retryFailed = in.readBoolean();
     }
 
-    public ClusterRerouteRequest() {
+    public ClusterRerouteRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 

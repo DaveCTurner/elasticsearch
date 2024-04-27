@@ -201,7 +201,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
     }
 
     private void setDurability(IndexShard shard, Translog.Durability durability) {
-        indicesAdmin().prepareUpdateSettings(shard.shardId().getIndexName())
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, shard.shardId().getIndexName())
             .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), durability.name()).build())
             .get();
         assertEquals(durability, shard.getTranslogDurability());
@@ -213,7 +213,9 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         );
         IndexService indexService = getInstanceFromNode(IndicesService.class).indexService(resolveIndex("test"));
         assertEquals(200, indexService.getIndexSettings().getSettings().getAsInt(IndexMetadata.SETTING_PRIORITY, 0).intValue());
-        indicesAdmin().prepareUpdateSettings("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_PRIORITY, 400).build()).get();
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
+            .setSettings(Settings.builder().put(IndexMetadata.SETTING_PRIORITY, 400).build())
+            .get();
         assertEquals(400, indexService.getIndexSettings().getSettings().getAsInt(IndexMetadata.SETTING_PRIORITY, 0).intValue());
     }
 
@@ -295,7 +297,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
 
         logger.info("--> updating data_path to [{}] for index [{}]", newIndexDataPath, index);
         assertAcked(
-            indicesAdmin().prepareUpdateSettings(index)
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, index)
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_DATA_PATH, newIndexDataPath.toAbsolutePath().toString()).build())
                 .setIndicesOptions(IndicesOptions.fromOptions(true, false, true, true))
         );
@@ -322,7 +324,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         IndexService test = indicesService.indexService(resolveIndex("test"));
         IndexShard shard = test.getShardOrNull(0);
         assertFalse(shard.shouldPeriodicallyFlush());
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(
                 Settings.builder()
                     .put(
@@ -364,7 +366,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
             translog.stats().getUncommittedOperations(),
             translog.getGeneration()
         );
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(
                 Settings.builder()
                     .put(IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(), new ByteSizeValue(size, ByteSizeUnit.BYTES))
@@ -449,7 +451,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
             // size of the operation plus header and footer
             settings = Settings.builder().put("index.translog.generation_threshold_size", "117b").build();
         }
-        indicesAdmin().prepareUpdateSettings("test").setSettings(settings).get();
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test").setSettings(settings).get();
         prepareIndex("test").setId("0").setSource("{}", XContentType.JSON).setRefreshPolicy(randomBoolean() ? IMMEDIATE : NONE).get();
         assertFalse(shard.shouldPeriodicallyFlush());
         final AtomicBoolean running = new AtomicBoolean(true);
@@ -516,7 +518,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         final IndexService indexService = createIndex("test");
         ensureGreen();
         Settings settings = Settings.builder().put("index.translog.flush_threshold_size", "" + between(200, 300) + "b").build();
-        indicesAdmin().prepareUpdateSettings("test").setSettings(settings).get();
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test").setSettings(settings).get();
         final int numDocs = between(10, 100);
         for (int i = 0; i < numDocs; i++) {
             prepareIndex("test").setId(Integer.toString(i)).setSource("{}", XContentType.JSON).get();
@@ -528,7 +530,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         });
         assertBusy(() -> assertThat(indexService.getShard(0).shouldPeriodicallyFlush(), equalTo(false)));
         settings = Settings.builder().put("index.translog.flush_threshold_size", (String) null).build();
-        indicesAdmin().prepareUpdateSettings("test").setSettings(settings).get();
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test").setSettings(settings).get();
 
         prepareIndex("test").setId(UUIDs.randomBase64UUID()).setSource("{}", XContentType.JSON).get();
         indicesAdmin().prepareFlush("test").setForce(randomBoolean()).setWaitIfOngoing(true).get();

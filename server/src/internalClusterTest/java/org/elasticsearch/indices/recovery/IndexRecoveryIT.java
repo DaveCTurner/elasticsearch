@@ -1946,7 +1946,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareUpdateSettings(indexName)
+                .prepareUpdateSettings(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 1))
         );
 

@@ -257,7 +257,7 @@ public class SnapshotLifecyclePolicy implements SimpleDiffable<SnapshotLifecycle
      * generated at this time based on any date math expressions in the "name" field.
      */
     public CreateSnapshotRequest toRequest() {
-        CreateSnapshotRequest req = new CreateSnapshotRequest(repository, generateSnapshotName(this.name));
+        CreateSnapshotRequest req = new CreateSnapshotRequest(masterNodeTimeout, repository, generateSnapshotName(this.name));
         Map<String, Object> mergedConfiguration = configuration == null ? new HashMap<>() : new HashMap<>(configuration);
         @SuppressWarnings("unchecked")
         Map<String, Object> metadata = (Map<String, Object>) mergedConfiguration.get("metadata");

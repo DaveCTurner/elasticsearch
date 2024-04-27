@@ -14,6 +14,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -38,7 +39,7 @@ public class ClusterUpdateSettingsRequest extends AcknowledgedRequest<ClusterUpd
     private static final ObjectParser<ClusterUpdateSettingsRequest, Void> PARSER = new ObjectParser<>(
         "cluster_update_settings_request",
         false,
-        ClusterUpdateSettingsRequest::new
+        () -> new ClusterUpdateSettingsRequest(masterNodeTimeout)
     );
 
     static {
@@ -55,7 +56,7 @@ public class ClusterUpdateSettingsRequest extends AcknowledgedRequest<ClusterUpd
         persistentSettings = readSettingsFromStream(in);
     }
 
-    public ClusterUpdateSettingsRequest() {
+    public ClusterUpdateSettingsRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 

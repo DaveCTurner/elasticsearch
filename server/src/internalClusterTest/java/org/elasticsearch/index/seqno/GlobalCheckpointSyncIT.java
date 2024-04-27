@@ -74,7 +74,7 @@ public class GlobalCheckpointSyncIT extends ESIntegTestCase {
             TimeValue.timeValueHours(24),
             client -> client.admin()
                 .indices()
-                .prepareUpdateSettings("test")
+                .prepareUpdateSettings(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
                 .get(),
             client -> {}

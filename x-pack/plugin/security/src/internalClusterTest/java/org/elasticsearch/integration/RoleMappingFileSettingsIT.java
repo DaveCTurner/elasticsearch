@@ -206,7 +206,7 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).get();
 
         ReservedStateMetadata reservedState = clusterStateResponse.getState()
@@ -228,7 +228,7 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
             equalTo("50mb")
         );
 
-        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest().persistentSettings(
+        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
             Settings.builder().put(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "1234kb")
         );
         assertEquals(
@@ -285,7 +285,7 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(savedClusterState.v2().get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(savedClusterState.v2().get())
         ).get();
 
         assertNull(
@@ -345,7 +345,7 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(savedClusterState.v2().get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(savedClusterState.v2().get())
         ).get();
 
         assertNull(
@@ -404,7 +404,7 @@ public class RoleMappingFileSettingsIT extends NativeRealmIntegTestCase {
         assertFalse(response.hasMappings());
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(savedClusterState.v2().get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(savedClusterState.v2().get())
         ).get();
 
         assertNull(

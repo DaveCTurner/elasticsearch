@@ -185,7 +185,7 @@ public class CloseWhileRelocatingShardsIT extends ESIntegTestCase {
                 }
             }
 
-            assertAcked(clusterAdmin().reroute(new ClusterRerouteRequest().commands(commands)).get());
+            assertAcked(clusterAdmin().reroute(new ClusterRerouteRequest(masterNodeTimeout).commands(commands)).get());
 
             // start index closing threads
             final List<Thread> threads = new ArrayList<>();

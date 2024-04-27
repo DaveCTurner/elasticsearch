@@ -189,7 +189,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertTrue(response.isFollowIndexShardsAcked());
             assertTrue(response.isIndexFollowingStarted());
 
-            ClusterHealthRequest healthRequest = new ClusterHealthRequest("index2").waitForNoRelocatingShards(true);
+            ClusterHealthRequest healthRequest = new ClusterHealthRequest(masterNodeTimeout, "index2").waitForNoRelocatingShards(true);
             ClusterIndexHealth indexHealth = followerClient().admin().cluster().health(healthRequest).get().getIndices().get("index2");
             for (ClusterShardHealth shardHealth : indexHealth.getShards().values()) {
                 if (waitOnAll) {
@@ -337,7 +337,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertFalse(response.isIndexFollowingStarted());
 
         // Check that the index exists, would throw index not found exception if the index is missing
-        followerClient().admin().indices().prepareGetIndex().addIndices("index2").get();
+        followerClient().admin().indices().prepareGetIndex(masterNodeTimeout).addIndices("index2").get();
         ensureFollowerGreen(true, "index2");
 
         final Map<ShardId, Long> firstBatchNumDocsPerShard = new HashMap<>();
@@ -379,7 +379,12 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         }
 
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), firstBatchNumDocs));
-        MappingMetadata mappingMetadata = followerClient().admin().indices().prepareGetMappings("index2").get().getMappings().get("index2");
+        MappingMetadata mappingMetadata = followerClient().admin()
+            .indices()
+            .prepareGetMappings(masterNodeTimeout, "index2")
+            .get()
+            .getMappings()
+            .get("index2");
         assertThat(XContentMapValues.extractValue("properties.f.type", mappingMetadata.sourceAsMap()), equalTo("integer"));
         assertThat(XContentMapValues.extractValue("properties.k", mappingMetadata.sourceAsMap()), nullValue());
 
@@ -390,7 +395,12 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         }
 
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), firstBatchNumDocs + secondBatchNumDocs));
-        mappingMetadata = followerClient().admin().indices().prepareGetMappings("index2").get().getMappings().get("index2");
+        mappingMetadata = followerClient().admin()
+            .indices()
+            .prepareGetMappings(masterNodeTimeout, "index2")
+            .get()
+            .getMappings()
+            .get("index2");
         assertThat(XContentMapValues.extractValue("properties.f.type", mappingMetadata.sourceAsMap()), equalTo("integer"));
         assertThat(XContentMapValues.extractValue("properties.k.type", mappingMetadata.sourceAsMap()), equalTo("long"));
         pauseFollow("index2");
@@ -418,7 +428,12 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertBusy(() -> assertHitCount(followerClient().prepareSearch("index2"), 1));
         pauseFollow("index2");
 
-        MappingMetadata mappingMetadata = followerClient().admin().indices().prepareGetMappings("index2").get().getMappings().get("index2");
+        MappingMetadata mappingMetadata = followerClient().admin()
+            .indices()
+            .prepareGetMappings(masterNodeTimeout, "index2")
+            .get()
+            .getMappings()
+            .get("index2");
         assertThat(XContentMapValues.extractValue("properties.f.type", mappingMetadata.sourceAsMap()), equalTo("long"));
         assertThat(XContentMapValues.extractValue("properties.k", mappingMetadata.sourceAsMap()), nullValue());
     }
@@ -1049,7 +1064,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
     public void testLeaderIndexRed() throws Exception {
         try {
-            ClusterUpdateSettingsRequest updateSettingsRequest = new ClusterUpdateSettingsRequest();
+            ClusterUpdateSettingsRequest updateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
             updateSettingsRequest.persistentSettings(Settings.builder().put("cluster.routing.allocation.enable", "none"));
             assertAcked(leaderClient().admin().cluster().updateSettings(updateSettingsRequest).actionGet());
             assertAcked(
@@ -1075,7 +1090,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(ESIntegTestCase.indexExists("index2", followerClient()), is(false));
         } finally {
             // Always unset allocation enable setting to avoid other assertions from failing too when this test fails:
-            ClusterUpdateSettingsRequest updateSettingsRequest = new ClusterUpdateSettingsRequest();
+            ClusterUpdateSettingsRequest updateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
             updateSettingsRequest.persistentSettings(Settings.builder().put("cluster.routing.allocation.enable", (String) null));
             assertAcked(leaderClient().admin().cluster().updateSettings(updateSettingsRequest).actionGet());
         }
@@ -1575,7 +1590,9 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         logger.info("Indexing [{}] docs while updating remote config", firstBatchNumDocs);
         try (BackgroundIndexer indexer = new BackgroundIndexer("index1", leaderClient(), firstBatchNumDocs, randomIntBetween(1, 5))) {
 
-            ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest().masterNodeTimeout(TimeValue.MAX_VALUE);
+            ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout).masterNodeTimeout(
+                TimeValue.MAX_VALUE
+            );
             String address = getLeaderCluster().getDataNodeInstance(TransportService.class).boundAddress().publishAddress().toString();
             Setting<Compression.Enabled> compress = RemoteClusterService.REMOTE_CLUSTER_COMPRESS.getConcreteSettingForNamespace(
                 "leader_cluster"
@@ -1612,7 +1629,9 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
             assertMaxSeqNoOfUpdatesIsTransferred(resolveLeaderIndex("index1"), resolveFollowerIndex("index2"), numberOfPrimaryShards);
         } finally {
-            ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest().masterNodeTimeout(TimeValue.MAX_VALUE);
+            ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout).masterNodeTimeout(
+                TimeValue.MAX_VALUE
+            );
             String address = getLeaderCluster().getDataNodeInstance(TransportService.class).boundAddress().publishAddress().toString();
             Setting<Compression.Enabled> compress = RemoteClusterService.REMOTE_CLUSTER_COMPRESS.getConcreteSettingForNamespace(
                 "leader_cluster"

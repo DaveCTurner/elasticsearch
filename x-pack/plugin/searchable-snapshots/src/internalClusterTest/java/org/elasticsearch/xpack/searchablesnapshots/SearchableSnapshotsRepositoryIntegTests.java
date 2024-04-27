@@ -247,7 +247,9 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
 
         final IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareUpdateSettings(mounted).setSettings(deleteSnapshotIndexSettings(deleteSnapshot == false)).get()
+            () -> indicesAdmin().prepareUpdateSettings(masterNodeTimeout, mounted)
+                .setSettings(deleteSnapshotIndexSettings(deleteSnapshot == false))
+                .get()
         );
         assertThat(
             exception.getMessage(),

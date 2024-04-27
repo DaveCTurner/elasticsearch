@@ -117,7 +117,9 @@ public class LifecycleOperationSnapshotTests extends ESSingleNodeTestCase {
         // Restore snapshot
         client().execute(
             TransportRestoreSnapshotAction.TYPE,
-            new RestoreSnapshotRequest("repo", snapshotName).includeGlobalState(true).indices(Strings.EMPTY_ARRAY).waitForCompletion(true)
+            new RestoreSnapshotRequest(masterNodeTimeout, "repo", snapshotName).includeGlobalState(true)
+                .indices(Strings.EMPTY_ARRAY)
+                .waitForCompletion(true)
         ).get();
 
         assertBusy(() -> assertThat(ilmMode(), equalTo(OperationMode.STOPPED)));

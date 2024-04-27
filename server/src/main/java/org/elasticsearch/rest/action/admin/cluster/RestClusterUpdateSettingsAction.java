@@ -43,7 +43,7 @@ public class RestClusterUpdateSettingsAction extends BaseRestHandler {
     @Override
     @SuppressWarnings("unchecked")
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest();
+        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         clusterUpdateSettingsRequest.ackTimeout(request.paramAsTime("timeout", clusterUpdateSettingsRequest.ackTimeout()));
         clusterUpdateSettingsRequest.masterNodeTimeout(
             request.paramAsTime("master_timeout", clusterUpdateSettingsRequest.masterNodeTimeout())

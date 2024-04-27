@@ -80,7 +80,7 @@ public class TransportSearchFailuresIT extends ESIntegTestCase {
 
         logger.info("Running Cluster Health");
         ClusterHealthResponse clusterHealth = clusterAdmin().health(
-            new ClusterHealthRequest("test").waitForYellowStatus()
+            new ClusterHealthRequest(masterNodeTimeout, "test").waitForYellowStatus()
                 .waitForNoRelocatingShards(true)
                 .waitForEvents(Priority.LANGUID)
                 .waitForActiveShards(test.totalNumShards)

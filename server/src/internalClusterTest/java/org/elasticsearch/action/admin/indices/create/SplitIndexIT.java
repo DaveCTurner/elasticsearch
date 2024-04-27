@@ -337,7 +337,10 @@ public class SplitIndexIT extends ESIntegTestCase {
     }
 
     private static IndexMetadata indexMetadata(final Client client, final String index) {
-        final ClusterStateResponse clusterStateResponse = client.admin().cluster().state(new ClusterStateRequest()).actionGet();
+        final ClusterStateResponse clusterStateResponse = client.admin()
+            .cluster()
+            .state(new ClusterStateRequest(masterNodeTimeout))
+            .actionGet();
         return clusterStateResponse.getState().metadata().index(index);
     }
 

@@ -72,7 +72,11 @@ public class BulkFailureRetryIT extends MlNativeAutodetectIntegTestCase {
         AtomicReference<AcknowledgedResponse> acknowledgedResponseHolder = new AtomicReference<>();
         AtomicReference<Exception> exceptionHolder = new AtomicReference<>();
         blockingCall(
-            listener -> client().admin().indices().prepareUpdateSettings(resultsIndex).setSettings(settings).execute(listener),
+            listener -> client().admin()
+                .indices()
+                .prepareUpdateSettings(masterNodeTimeout, resultsIndex)
+                .setSettings(settings)
+                .execute(listener),
             acknowledgedResponseHolder,
             exceptionHolder
         );
@@ -86,7 +90,11 @@ public class BulkFailureRetryIT extends MlNativeAutodetectIntegTestCase {
         AtomicReference<AcknowledgedResponse> acknowledgedResponseHolder = new AtomicReference<>();
         AtomicReference<Exception> exceptionHolder = new AtomicReference<>();
         blockingCall(
-            listener -> client().admin().indices().prepareUpdateSettings(resultsIndex).setSettings(settings).execute(listener),
+            listener -> client().admin()
+                .indices()
+                .prepareUpdateSettings(masterNodeTimeout, resultsIndex)
+                .setSettings(settings)
+                .execute(listener),
             acknowledgedResponseHolder,
             exceptionHolder
         );

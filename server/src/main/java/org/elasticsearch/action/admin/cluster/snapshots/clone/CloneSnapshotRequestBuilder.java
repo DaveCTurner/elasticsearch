@@ -20,7 +20,11 @@ public class CloneSnapshotRequestBuilder extends MasterNodeOperationRequestBuild
     CloneSnapshotRequestBuilder> {
 
     public CloneSnapshotRequestBuilder(ElasticsearchClient client, String repository, String source, String target) {
-        super(client, TransportCloneSnapshotAction.TYPE, new CloneSnapshotRequest(repository, source, target, Strings.EMPTY_ARRAY));
+        super(
+            client,
+            TransportCloneSnapshotAction.TYPE,
+            new CloneSnapshotRequest(masterNodeTimeout, repository, source, target, Strings.EMPTY_ARRAY)
+        );
     }
 
     /**

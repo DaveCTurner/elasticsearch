@@ -144,13 +144,13 @@ public class CrossClustersQueryIT extends AbstractMultiClustersTestCase {
         // Use single replicas for the target indices, to make sure we hit the same set of target nodes
         client(LOCAL_CLUSTER).admin()
             .indices()
-            .prepareUpdateSettings("logs-1")
+            .prepareUpdateSettings(masterNodeTimeout, "logs-1")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).put("index.routing.rebalance.enable", "none"))
             .get();
         waitForNoInitializingShards(client(LOCAL_CLUSTER), TimeValue.timeValueSeconds(30), "logs-1");
         client(REMOTE_CLUSTER).admin()
             .indices()
-            .prepareUpdateSettings("logs-2")
+            .prepareUpdateSettings(masterNodeTimeout, "logs-2")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).put("index.routing.rebalance.enable", "none"))
             .get();
         waitForNoInitializingShards(client(REMOTE_CLUSTER), TimeValue.timeValueSeconds(30), "logs-2");

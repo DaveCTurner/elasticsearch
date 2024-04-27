@@ -795,7 +795,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         assertBusy(() -> {
             try {
-                indicesAdmin().prepareGetIndex().addIndices(writeIndexPrefix + "000002").get();
+                indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(writeIndexPrefix + "000002").get();
             } catch (Exception e) {
                 logger.info("--> expecting second index to be created but it has not yet been created");
                 fail("expecting second index to exist");
@@ -814,7 +814,7 @@ public class RolloverIT extends ESIntegTestCase {
         });
 
         // We should *NOT* have a third index, it should have rolled over *exactly* once
-        expectThrows(Exception.class, indicesAdmin().prepareGetIndex().addIndices(writeIndexPrefix + "000003"));
+        expectThrows(Exception.class, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(writeIndexPrefix + "000003"));
     }
 
     public void testRolloverConcurrently() throws Exception {

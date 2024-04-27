@@ -144,7 +144,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         prepareCreate("growing-should-fail", indexSettings(firstShardCount, 0)).get();
 
         try {
-            indicesAdmin().prepareUpdateSettings("growing-should-fail")
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "growing-should-fail")
                 .setSettings(Settings.builder().put("number_of_replicas", dataNodes))
                 .get();
             fail("shouldn't be able to increase the number of replicas");
@@ -199,7 +199,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
                 .build()
         );
         try {
-            indicesAdmin().prepareUpdateSettings(randomFrom("_all", "test-*", "*-index"))
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, randomFrom("_all", "test-*", "*-index"))
                 .setSettings(Settings.builder().put("number_of_replicas", dataNodes - 1))
                 .get();
             fail("should not have been able to increase shards above limit");
@@ -239,7 +239,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         // Since a request with preserve_existing can't change the number of
         // replicas, we should never get an error here.
         assertAcked(
-            indicesAdmin().prepareUpdateSettings("test-index")
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test-index")
                 .setPreserveExisting(true)
                 .setSettings(Settings.builder().put("number_of_replicas", dataNodes))
         );

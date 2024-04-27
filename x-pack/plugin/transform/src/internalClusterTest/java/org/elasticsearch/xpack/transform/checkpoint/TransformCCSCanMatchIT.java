@@ -158,7 +158,7 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
             client.admin().indices().prepareClose(masterNodeTimeout, index).get();
             client.admin()
                 .indices()
-                .prepareUpdateSettings(index)
+                .prepareUpdateSettings(masterNodeTimeout, index)
                 .setSettings(Settings.builder().put(IndexMetadata.INDEX_BLOCKS_WRITE_SETTING.getKey(), true).build())
                 .get();
             client.admin().indices().prepareOpen(masterNodeTimeout, index).get();

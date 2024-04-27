@@ -1610,7 +1610,7 @@ public class AuthorizationServiceTests extends ESTestCase {
 
         AuditUtil.getOrGenerateRequestId(threadContext);
 
-        TransportRequest request = new ClusterHealthRequest();
+        TransportRequest request = new ClusterHealthRequest(masterNodeTimeout);
 
         ElasticsearchSecurityException securityException = expectThrows(
             ElasticsearchSecurityException.class,
@@ -2143,7 +2143,10 @@ public class AuthorizationServiceTests extends ESTestCase {
         }
 
         // we should allow waiting for the health of the index or any index if the user has this permission
-        ClusterHealthRequest request = new ClusterHealthRequest(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7));
+        ClusterHealthRequest request = new ClusterHealthRequest(
+            masterNodeTimeout,
+            randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7)
+        );
         authorize(authentication, TransportClusterHealthAction.NAME, request);
         verify(auditTrail).accessGranted(
             eq(requestId),
@@ -2154,7 +2157,7 @@ public class AuthorizationServiceTests extends ESTestCase {
         );
 
         // multiple indices
-        request = new ClusterHealthRequest(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7, "foo", "bar");
+        request = new ClusterHealthRequest(masterNodeTimeout, SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7, "foo", "bar");
         authorize(authentication, TransportClusterHealthAction.NAME, request);
         verify(auditTrail).accessGranted(
             eq(requestId),
@@ -2283,13 +2286,13 @@ public class AuthorizationServiceTests extends ESTestCase {
         requests.add(
             new Tuple<>(
                 TransportClusterHealthAction.NAME,
-                new ClusterHealthRequest(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7))
+                new ClusterHealthRequest(masterNodeTimeout, randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7))
             )
         );
         requests.add(
             new Tuple<>(
                 TransportClusterHealthAction.NAME,
-                new ClusterHealthRequest(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7), "foo", "bar")
+                new ClusterHealthRequest(masterNodeTimeout, randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7), "foo", "bar")
             )
         );
 

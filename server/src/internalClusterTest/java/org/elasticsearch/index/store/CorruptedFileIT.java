@@ -179,7 +179,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
          */
         setReplicaCount(2, "test");
         ClusterHealthResponse health = clusterAdmin().health(
-            new ClusterHealthRequest("test").waitForGreenStatus()
+            new ClusterHealthRequest(masterNodeTimeout, "test").waitForGreenStatus()
                 // sometimes due to cluster rebalancing and random settings default timeout is just not enough.
                 .timeout(TimeValue.timeValueMinutes(5))
                 .waitForNoRelocatingShards(true)
@@ -286,11 +286,11 @@ public class CorruptedFileIT extends ESIntegTestCase {
         clusterAdmin().prepareReroute().get();
 
         boolean didClusterTurnRed = waitUntil(() -> {
-            ClusterHealthStatus test = clusterAdmin().health(new ClusterHealthRequest("test")).actionGet().getStatus();
+            ClusterHealthStatus test = clusterAdmin().health(new ClusterHealthRequest(masterNodeTimeout, "test")).actionGet().getStatus();
             return test == ClusterHealthStatus.RED;
         }, 5, TimeUnit.MINUTES);// sometimes on slow nodes the replication / recovery is just dead slow
 
-        final ClusterHealthResponse response = clusterAdmin().health(new ClusterHealthRequest("test")).get();
+        final ClusterHealthResponse response = clusterAdmin().health(new ClusterHealthRequest(masterNodeTimeout, "test")).get();
 
         if (response.getStatus() != ClusterHealthStatus.RED) {
             logger.info("Cluster turned red in busy loop: {}", didClusterTurnRed);
@@ -507,7 +507,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
     }
 
     private void assertThatAllShards(String index, Consumer<IndexShardRoutingTable> verifier) {
-        var clusterStateResponse = clusterAdmin().state(new ClusterStateRequest().routingTable(true)).actionGet();
+        var clusterStateResponse = clusterAdmin().state(new ClusterStateRequest(masterNodeTimeout).routingTable(true)).actionGet();
         var indexRoutingTable = clusterStateResponse.getState().getRoutingTable().index(index);
         for (int shardId = 0; shardId < indexRoutingTable.size(); shardId++) {
             verifier.accept(indexRoutingTable.shard(shardId));

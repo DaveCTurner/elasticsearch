@@ -108,7 +108,9 @@ public class SettingsListenerIT extends ESIntegTestCase {
         }
 
         try {
-            indicesAdmin().prepareUpdateSettings("other").setSettings(Settings.builder().put("index.test.new.setting", -5)).get();
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "other")
+                .setSettings(Settings.builder().put("index.test.new.setting", -5))
+                .get();
             fail();
         } catch (IllegalArgumentException ex) {
             assertEquals("Failed to parse value [-5] for setting [index.test.new.setting] must be >= -1", ex.getMessage());

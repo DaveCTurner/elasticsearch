@@ -448,7 +448,7 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
 
         // randomly reroute
         if (rarely()) {
-            state = cluster.reroute(state, new ClusterRerouteRequest());
+            state = cluster.reroute(state, new ClusterRerouteRequest(masterNodeTimeout));
         }
 
         // randomly start and fail allocated shards

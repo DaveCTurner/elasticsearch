@@ -199,7 +199,10 @@ public class OldRepositoryAccessIT extends ESRestTestCase {
         }
         Request createRepo = new Request("PUT", "/_snapshot/" + repoName);
         createRepo.setJsonEntity(
-            Strings.toString(new PutRepositoryRequest().type(sourceOnlyRepository ? "source" : "fs").settings(repoSettingsBuilder.build()))
+            Strings.toString(
+                new PutRepositoryRequest(masterNodeTimeout).type(sourceOnlyRepository ? "source" : "fs")
+                    .settings(repoSettingsBuilder.build())
+            )
         );
         assertAcknowledged(client().performRequest(createRepo));
 
@@ -279,7 +282,9 @@ public class OldRepositoryAccessIT extends ESRestTestCase {
         // restore index
         Request restoreRequest = new Request("POST", "/_snapshot/" + repoName + "/" + snapshotName + "/_restore");
         restoreRequest.setJsonEntity(
-            Strings.toString(new RestoreSnapshotRequest().indices(indexName).renamePattern("(.+)").renameReplacement("restored_$1"))
+            Strings.toString(
+                new RestoreSnapshotRequest(masterNodeTimeout).indices(indexName).renamePattern("(.+)").renameReplacement("restored_$1")
+            )
         );
         restoreRequest.addParameter("wait_for_completion", "true");
         Response restoreResponse = client().performRequest(restoreRequest);

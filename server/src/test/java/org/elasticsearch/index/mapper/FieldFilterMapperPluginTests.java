@@ -53,12 +53,14 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
     }
 
     public void testGetMappings() {
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings().get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout).get();
         assertExpectedMappings(getMappingsResponse.mappings());
     }
 
     public void testGetIndex() {
-        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex().setFeatures(GetIndexRequest.Feature.MAPPINGS).get();
+        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex(masterNodeTimeout)
+            .setFeatures(GetIndexRequest.Feature.MAPPINGS)
+            .get();
         assertExpectedMappings(getIndexResponse.mappings());
     }
 
@@ -70,7 +72,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
         assertFieldMappings(mappings.get("filtered"), FILTERED_FLAT_FIELDS);
         // double check that submitting the filtered mappings to an unfiltered index leads to the same get field mappings output
         // as the one coming from a filtered index with same mappings
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("filtered").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "filtered").get();
         MappingMetadata filtered = getMappingsResponse.getMappings().get("filtered");
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(filtered.getSourceAsMap()));
         GetFieldMappingsResponse response = indicesAdmin().prepareGetFieldMappings("test").setFields("*").get();
@@ -97,7 +99,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
         assertFieldCaps(filtered, filteredFields);
         // double check that submitting the filtered mappings to an unfiltered index leads to the same field_caps output
         // as the one coming from a filtered index with same mappings
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("filtered").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "filtered").get();
         MappingMetadata filteredMapping = getMappingsResponse.getMappings().get("filtered");
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(filteredMapping.getSourceAsMap()));
         FieldCapabilitiesResponse test = client().fieldCaps(new FieldCapabilitiesRequest().fields("*").indices("test")).actionGet();
@@ -154,7 +156,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
     private void assertMappingsAreValid(Map<String, Object> sourceAsMap) {
         // check that the returned filtered mappings are still valid mappings by submitting them and retrieving them back
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(sourceAsMap));
-        GetMappingsResponse testMappingsResponse = indicesAdmin().prepareGetMappings("test").get();
+        GetMappingsResponse testMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "test").get();
         assertEquals(1, testMappingsResponse.getMappings().size());
         // the mappings are returned unfiltered for this index, yet they are the same as the previous ones that were returned filtered
         assertFiltered(testMappingsResponse.getMappings().get("test"));

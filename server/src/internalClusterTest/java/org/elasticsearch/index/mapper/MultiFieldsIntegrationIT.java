@@ -36,7 +36,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
     public void testMultiFields() throws Exception {
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createTypeSource()));
 
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
         assertThat(mappingMetadata, not(nullValue()));
         Map<String, Object> mappingSource = mappingMetadata.sourceAsMap();
@@ -52,7 +52,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
 
         assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "my-index").setSource(createPutMappingSource()));
 
-        getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
+        getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "my-index").get();
         mappingMetadata = getMappingsResponse.mappings().get("my-index");
         assertThat(mappingMetadata, not(nullValue()));
         mappingSource = mappingMetadata.sourceAsMap();
@@ -73,7 +73,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
     public void testGeoPointMultiField() throws Exception {
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("geo_point")));
 
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
         assertThat(mappingMetadata, not(nullValue()));
         Map<String, Object> mappingSource = mappingMetadata.sourceAsMap();
@@ -101,7 +101,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
     public void testCompletionMultiField() throws Exception {
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("completion")));
 
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
         assertThat(mappingMetadata, not(nullValue()));
         Map<String, Object> mappingSource = mappingMetadata.sourceAsMap();
@@ -122,7 +122,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
     public void testIpMultiField() throws Exception {
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("ip")));
 
-        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
+        GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout, "my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
         assertThat(mappingMetadata, not(nullValue()));
         Map<String, Object> mappingSource = mappingMetadata.sourceAsMap();

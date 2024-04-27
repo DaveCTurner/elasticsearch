@@ -79,7 +79,7 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
     }
 
     private static ClusterUpdateSettingsRequest createTestItem() {
-        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest();
+        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         request.persistentSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         request.transientSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         return request;

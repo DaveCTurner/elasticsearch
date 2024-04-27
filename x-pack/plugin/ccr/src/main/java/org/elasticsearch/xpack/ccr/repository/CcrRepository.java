@@ -163,7 +163,7 @@ public class CcrRepository extends AbstractLifecycleComponent implements Reposit
             threadPool.getThreadContext(),
             l -> getRemoteClusterClient().execute(
                 ClusterStateAction.REMOTE_TYPE,
-                new ClusterStateRequest().clear().metadata(true).nodes(true).masterNodeTimeout(TimeValue.MAX_VALUE),
+                new ClusterStateRequest(masterNodeTimeout).clear().metadata(true).nodes(true).masterNodeTimeout(TimeValue.MAX_VALUE),
                 l.map(ClusterStateResponse::getState)
             )
         );

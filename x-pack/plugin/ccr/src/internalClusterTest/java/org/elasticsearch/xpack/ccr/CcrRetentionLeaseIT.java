@@ -118,7 +118,9 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         final String followerIndex,
         final int numberOfDocuments
     ) throws IOException {
-        final ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest().masterNodeTimeout(TimeValue.MAX_VALUE);
+        final ClusterUpdateSettingsRequest settingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout).masterNodeTimeout(
+            TimeValue.MAX_VALUE
+        );
         final String chunkSize = new ByteSizeValue(randomFrom(4, 128, 1024), ByteSizeUnit.KB).getStringRep();
         settingsRequest.persistentSettings(Settings.builder().put(CcrSettings.RECOVERY_CHUNK_SIZE.getKey(), chunkSize));
         assertAcked(followerClient().admin().cluster().updateSettings(settingsRequest).actionGet());
@@ -151,7 +153,7 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         final Settings.Builder settingsBuilder = Settings.builder()
             .put(IndexMetadata.SETTING_INDEX_PROVIDED_NAME, followerIndex)
             .put(CcrSettings.CCR_FOLLOWING_INDEX_SETTING.getKey(), true);
-        return new RestoreSnapshotRequest(leaderClusterRepoName, CcrRepository.LATEST).indexSettings(settingsBuilder)
+        return new RestoreSnapshotRequest(masterNodeTimeout, leaderClusterRepoName, CcrRepository.LATEST).indexSettings(settingsBuilder)
             .indices(leaderIndex)
             .indicesOptions(indicesOptions)
             .renamePattern("^(.*)$")

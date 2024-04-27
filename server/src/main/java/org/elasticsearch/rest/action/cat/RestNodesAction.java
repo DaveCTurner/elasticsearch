@@ -84,7 +84,7 @@ public class RestNodesAction extends AbstractCatAction {
 
         final boolean fullId = request.paramAsBoolean("full_id", false);
 
-        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout);
         clusterStateRequest.clear().nodes(true);
         clusterStateRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterStateRequest.masterNodeTimeout()));
 

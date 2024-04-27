@@ -14,9 +14,10 @@ import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.core.TimeValue;
 
 public class ResizeRequestBuilder extends AcknowledgedRequestBuilder<ResizeRequest, CreateIndexResponse, ResizeRequestBuilder> {
-    public ResizeRequestBuilder(ElasticsearchClient client) {
+    public ResizeRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, ResizeAction.INSTANCE, new ResizeRequest(masterNodeTimeout));
     }
 

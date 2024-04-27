@@ -10,13 +10,14 @@ package org.elasticsearch.action.admin.indices.template.delete;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class DeleteIndexTemplateRequestBuilder extends MasterNodeOperationRequestBuilder<
     DeleteIndexTemplateRequest,
     AcknowledgedResponse,
     DeleteIndexTemplateRequestBuilder> {
 
-    public DeleteIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
+    public DeleteIndexTemplateRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String name) {
         super(client, TransportDeleteIndexTemplateAction.TYPE, new DeleteIndexTemplateRequest(masterNodeTimeout, name));
     }
 

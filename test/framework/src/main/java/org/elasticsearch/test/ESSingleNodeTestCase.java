@@ -160,7 +160,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
             metadata.transientSettings().size(),
             equalTo(0)
         );
-        GetIndexResponse indices = indicesAdmin().prepareGetIndex()
+        GetIndexResponse indices = indicesAdmin().prepareGetIndex(masterNodeTimeout)
             .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
             .addIndices("*")
             .get();
@@ -370,7 +370,9 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         // Wait for the index to be allocated so that cluster state updates don't override
         // changes that would have been done locally
         ClusterHealthResponse health = clusterAdmin().health(
-            new ClusterHealthRequest(index).waitForYellowStatus().waitForEvents(Priority.LANGUID).waitForNoRelocatingShards(true)
+            new ClusterHealthRequest(masterNodeTimeout, index).waitForYellowStatus()
+                .waitForEvents(Priority.LANGUID)
+                .waitForNoRelocatingShards(true)
         ).actionGet();
         assertThat(health.getStatus(), lessThanOrEqualTo(ClusterHealthStatus.YELLOW));
         assertThat("Cluster must be a single node cluster", health.getNumberOfDataNodes(), equalTo(1));
@@ -379,7 +381,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
     }
 
     public Index resolveIndex(String index) {
-        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex().setIndices(index).get();
+        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex(masterNodeTimeout).setIndices(index).get();
         assertTrue("index " + index + " not found", getIndexResponse.getSettings().containsKey(index));
         String uuid = getIndexResponse.getSettings().get(index).get(IndexMetadata.SETTING_INDEX_UUID);
         return new Index(index, uuid);
@@ -414,7 +416,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
      */
     public ClusterHealthStatus ensureGreen(TimeValue timeout, String... indices) {
         ClusterHealthResponse actionGet = clusterAdmin().health(
-            new ClusterHealthRequest(indices).timeout(timeout)
+            new ClusterHealthRequest(masterNodeTimeout, indices).timeout(timeout)
                 .waitForGreenStatus()
                 .waitForEvents(Priority.LANGUID)
                 .waitForNoRelocatingShards(true)
@@ -447,8 +449,9 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
      * inspired by {@link ESRestTestCase}
      */
     protected void ensureNoInitializingShards() {
-        ClusterHealthResponse actionGet = clusterAdmin().health(new ClusterHealthRequest("_all").waitForNoInitializingShards(true))
-            .actionGet();
+        ClusterHealthResponse actionGet = clusterAdmin().health(
+            new ClusterHealthRequest(masterNodeTimeout, "_all").waitForNoInitializingShards(true)
+        ).actionGet();
 
         assertFalse("timed out waiting for shards to initialize", actionGet.isTimedOut());
     }

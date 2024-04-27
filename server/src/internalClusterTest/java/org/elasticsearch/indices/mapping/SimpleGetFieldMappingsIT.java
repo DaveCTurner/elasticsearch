@@ -196,7 +196,7 @@ public class SimpleGetFieldMappingsIT extends ESIntegTestCase {
 
         try {
             enableIndexBlock("test", SETTING_BLOCKS_METADATA);
-            assertBlocked(indicesAdmin().prepareGetMappings(), INDEX_METADATA_BLOCK);
+            assertBlocked(indicesAdmin().prepareGetMappings(masterNodeTimeout), INDEX_METADATA_BLOCK);
         } finally {
             disableIndexBlock("test", SETTING_BLOCKS_METADATA);
         }

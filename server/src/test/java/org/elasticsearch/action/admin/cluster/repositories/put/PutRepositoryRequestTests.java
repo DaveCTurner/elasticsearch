@@ -27,7 +27,7 @@ public class PutRepositoryRequestTests extends ESTestCase {
     @SuppressWarnings("unchecked")
     public void testCreateRepositoryToXContent() throws IOException {
         Map<String, String> mapParams = new HashMap<>();
-        PutRepositoryRequest request = new PutRepositoryRequest();
+        PutRepositoryRequest request = new PutRepositoryRequest(masterNodeTimeout);
         String repoName = "test";
         request.name(repoName);
         mapParams.put("name", repoName);

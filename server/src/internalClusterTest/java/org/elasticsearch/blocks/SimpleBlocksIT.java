@@ -162,7 +162,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                     enableIndexBlock("test", block.settingName());
 
                     // Adding a block is not blocked
-                    AcknowledgedResponse addBlockResponse = indicesAdmin().prepareAddBlock(otherBlock, "test").get();
+                    AcknowledgedResponse addBlockResponse = indicesAdmin().prepareAddBlock(masterNodeTimeout, otherBlock, "test").get();
                     assertAcked(addBlockResponse);
                 } finally {
                     disableIndexBlock("test", otherBlock.settingName());
@@ -177,9 +177,9 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                     // Adding a block is blocked when there is a metadata block and the new block to be added is not a metadata block
                     if (block.getBlock().contains(ClusterBlockLevel.METADATA_WRITE)
                         && otherBlock.getBlock().contains(ClusterBlockLevel.METADATA_WRITE) == false) {
-                        assertBlocked(indicesAdmin().prepareAddBlock(otherBlock, "test"));
+                        assertBlocked(indicesAdmin().prepareAddBlock(masterNodeTimeout, otherBlock, "test"));
                     } else {
-                        assertAcked(indicesAdmin().prepareAddBlock(otherBlock, "test"));
+                        assertAcked(indicesAdmin().prepareAddBlock(masterNodeTimeout, otherBlock, "test"));
                         success = true;
                     }
                 } finally {
@@ -193,7 +193,10 @@ public class SimpleBlocksIT extends ESIntegTestCase {
     }
 
     public void testAddBlockToMissingIndex() {
-        IndexNotFoundException e = expectThrows(IndexNotFoundException.class, indicesAdmin().prepareAddBlock(randomAddableBlock(), "test"));
+        IndexNotFoundException e = expectThrows(
+            IndexNotFoundException.class,
+            indicesAdmin().prepareAddBlock(masterNodeTimeout, randomAddableBlock(), "test")
+        );
         assertThat(e.getMessage(), is("no such index [test]"));
     }
 
@@ -201,7 +204,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
         createIndex("test1");
         final IndexNotFoundException e = expectThrows(
             IndexNotFoundException.class,
-            indicesAdmin().prepareAddBlock(randomAddableBlock(), "test1", "test2")
+            indicesAdmin().prepareAddBlock(masterNodeTimeout, randomAddableBlock(), "test1", "test2")
         );
         assertThat(e.getMessage(), is("no such index [test2]"));
     }
@@ -210,7 +213,11 @@ public class SimpleBlocksIT extends ESIntegTestCase {
         createIndex("test1");
         final APIBlock block = randomAddableBlock();
         try {
-            assertBusy(() -> assertAcked(indicesAdmin().prepareAddBlock(block, "test1", "test2").setIndicesOptions(lenientExpandOpen())));
+            assertBusy(
+                () -> assertAcked(
+                    indicesAdmin().prepareAddBlock(masterNodeTimeout, block, "test1", "test2").setIndicesOptions(lenientExpandOpen())
+                )
+            );
             assertIndexHasBlock(block, "test1");
         } finally {
             disableIndexBlock("test1", block);
@@ -220,20 +227,23 @@ public class SimpleBlocksIT extends ESIntegTestCase {
     public void testAddBlockNoIndex() {
         final ActionRequestValidationException e = expectThrows(
             ActionRequestValidationException.class,
-            indicesAdmin().prepareAddBlock(randomAddableBlock())
+            indicesAdmin().prepareAddBlock(masterNodeTimeout, randomAddableBlock())
         );
         assertThat(e.getMessage(), containsString("index is missing"));
     }
 
     public void testAddBlockNullIndex() {
-        expectThrows(NullPointerException.class, () -> indicesAdmin().prepareAddBlock(randomAddableBlock(), (String[]) null));
+        expectThrows(
+            NullPointerException.class,
+            () -> indicesAdmin().prepareAddBlock(masterNodeTimeout, randomAddableBlock(), (String[]) null)
+        );
     }
 
     public void testCannotAddReadOnlyAllowDeleteBlock() {
         createIndex("test1");
         final ActionRequestValidationException e = expectThrows(
             ActionRequestValidationException.class,
-            indicesAdmin().prepareAddBlock(APIBlock.READ_ONLY_ALLOW_DELETE, "test1")
+            indicesAdmin().prepareAddBlock(masterNodeTimeout, APIBlock.READ_ONLY_ALLOW_DELETE, "test1")
         );
         assertThat(e.getMessage(), containsString("read_only_allow_delete block is for internal use only"));
     }
@@ -253,7 +263,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
 
         final APIBlock block = randomAddableBlock();
         try {
-            AddIndexBlockResponse response = indicesAdmin().prepareAddBlock(block, indexName).get();
+            AddIndexBlockResponse response = indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName).get();
             assertTrue("Add block [" + block + "] to index [" + indexName + "] not acknowledged: " + response, response.isAcknowledged());
             assertIndexHasBlock(block, indexName);
         } finally {
@@ -280,10 +290,10 @@ public class SimpleBlocksIT extends ESIntegTestCase {
         }
         final APIBlock block = randomAddableBlock();
         try {
-            assertAcked(indicesAdmin().prepareAddBlock(block, indexName));
+            assertAcked(indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName));
             assertIndexHasBlock(block, indexName);
             // Second add block should be acked too, even if it was a METADATA block
-            assertAcked(indicesAdmin().prepareAddBlock(block, indexName));
+            assertAcked(indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName));
             assertIndexHasBlock(block, indexName);
         } finally {
             disableIndexBlock(indexName, block);
@@ -303,7 +313,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
 
         final APIBlock block = randomAddableBlock();
         try {
-            assertAcked(indicesAdmin().prepareAddBlock(block, indexName));
+            assertAcked(indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName));
             assertIndexHasBlock(block, indexName);
         } finally {
             disableIndexBlock(indexName, block);
@@ -333,7 +343,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                 threads[i] = new Thread(() -> {
                     safeAwait(startClosing);
                     try {
-                        indicesAdmin().prepareAddBlock(block, indexName).get();
+                        indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName).get();
                         assertIndexHasBlock(block, indexName);
                     } catch (final ClusterBlockException e) {
                         assertThat(e.blocks(), hasSize(1));
@@ -371,7 +381,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                 });
 
                 waitForDocs(randomIntBetween(10, 50), indexer);
-                final AddIndexBlockResponse response = indicesAdmin().prepareAddBlock(block, indexName).get();
+                final AddIndexBlockResponse response = indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexName).get();
                 assertTrue(
                     "Add block [" + block + "] to index [" + indexName + "] not acknowledged: " + response,
                     response.isAcknowledged()
@@ -436,7 +446,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                 threads.add(new Thread(() -> {
                     safeAwait(latch);
                     try {
-                        indicesAdmin().prepareAddBlock(block, indexToBlock).get();
+                        indicesAdmin().prepareAddBlock(masterNodeTimeout, block, indexToBlock).get();
                     } catch (final Exception e) {
                         exceptionConsumer.accept(e);
                     }

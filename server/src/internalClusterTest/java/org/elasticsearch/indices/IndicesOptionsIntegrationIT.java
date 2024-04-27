@@ -491,7 +491,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     public void testPutAlias() throws Exception {
         createIndex("foobar");
         verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("foobar", "foobar_alias"), false);
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
 
     }
 
@@ -499,16 +499,16 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         createIndex("foo", "foobar", "bar", "barbaz");
 
         verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("foo*", "foobar_alias"), false);
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foo").get().getAliases().isEmpty());
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
-        assertTrue(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("bar").get().getAliases().isEmpty());
-        assertTrue(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("barbaz").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("foo").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
+        assertTrue(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("bar").get().getAliases().isEmpty());
+        assertTrue(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("barbaz").get().getAliases().isEmpty());
 
         verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("*", "foobar_alias"), false);
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foo").get().getAliases().isEmpty());
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("bar").get().getAliases().isEmpty());
-        assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("barbaz").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("foo").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("bar").get().getAliases().isEmpty());
+        assertFalse(indicesAdmin().prepareGetAliases(masterNodeTimeout, "foobar_alias").setIndices("barbaz").get().getAliases().isEmpty());
 
     }
 
@@ -521,26 +521,26 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         }
 
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "foo").setSource("field", "type=text"), false);
-        assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "foo").get().mappings().get("foo"), notNullValue());
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "b*").setSource("field", "type=text"), false);
-        assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "bar").get().mappings().get("bar"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "barbaz").get().mappings().get("barbaz"), notNullValue());
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "_all").setSource("field", "type=text"), false);
-        assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("foobar").get().mappings().get("foobar"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "foo").get().mappings().get("foo"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "foobar").get().mappings().get("foobar"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "bar").get().mappings().get("bar"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "barbaz").get().mappings().get("barbaz"), notNullValue());
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout).setSource("field", "type=text"), false);
-        assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("foobar").get().mappings().get("foobar"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
-        assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "foo").get().mappings().get("foo"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "foobar").get().mappings().get("foobar"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "bar").get().mappings().get("bar"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "barbaz").get().mappings().get("barbaz"), notNullValue());
 
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "c*").setSource("field", "type=text"), true);
 
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "barbaz").get());
         verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "barbaz").setSource("field", "type=text"), false);
-        assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
+        assertThat(indicesAdmin().prepareGetMappings(masterNodeTimeout, "barbaz").get().mappings().get("barbaz"), notNullValue());
     }
 
     public static final class TestPlugin extends Plugin {
@@ -568,16 +568,16 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     public void testUpdateSettings() throws Exception {
-        verify(indicesAdmin().prepareUpdateSettings("foo").setSettings(Settings.builder().put("a", "b")), true);
-        verify(indicesAdmin().prepareUpdateSettings("_all").setSettings(Settings.builder().put("a", "b")), true);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "foo").setSettings(Settings.builder().put("a", "b")), true);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "_all").setSettings(Settings.builder().put("a", "b")), true);
 
         createIndex("foo", "foobar", "bar", "barbaz");
         ensureGreen();
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "_all").get());
 
-        verify(indicesAdmin().prepareUpdateSettings("foo").setSettings(Settings.builder().put("a", "b")), false);
-        verify(indicesAdmin().prepareUpdateSettings("bar*").setSettings(Settings.builder().put("a", "b")), false);
-        verify(indicesAdmin().prepareUpdateSettings("_all").setSettings(Settings.builder().put("c", "d")), false);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "foo").setSettings(Settings.builder().put("a", "b")), false);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "bar*").setSettings(Settings.builder().put("a", "b")), false);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "_all").setSettings(Settings.builder().put("c", "d")), false);
 
         GetSettingsResponse settingsResponse = indicesAdmin().prepareGetSettings("foo").get();
         assertThat(settingsResponse.getSetting("foo", "index.a"), equalTo("b"));
@@ -592,11 +592,11 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
 
         assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "_all").get());
         try {
-            verify(indicesAdmin().prepareUpdateSettings("barbaz").setSettings(Settings.builder().put("e", "f")), false);
+            verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "barbaz").setSettings(Settings.builder().put("e", "f")), false);
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage(), startsWith("Can't update non dynamic settings [[index.e]] for open indices [[barbaz"));
         }
-        verify(indicesAdmin().prepareUpdateSettings("baz*").setSettings(Settings.builder().put("a", "b")), true);
+        verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "baz*").setSettings(Settings.builder().put("a", "b")), true);
     }
 
     static SearchRequestBuilder search(String... indices) {
@@ -640,7 +640,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     static GetAliasesRequestBuilder getAliases(String... indices) {
-        return indicesAdmin().prepareGetAliases("dummy").addIndices(indices);
+        return indicesAdmin().prepareGetAliases(masterNodeTimeout, "dummy").addIndices(indices);
     }
 
     static GetFieldMappingsRequestBuilder getFieldMapping(String... indices) {
@@ -648,7 +648,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     static GetMappingsRequestBuilder getMapping(String... indices) {
-        return indicesAdmin().prepareGetMappings(indices);
+        return indicesAdmin().prepareGetMappings(masterNodeTimeout, indices);
     }
 
     static GetSettingsRequestBuilder getSettings(String... indices) {

@@ -169,7 +169,7 @@ public class SearchIdleIT extends ESSingleNodeTestCase {
 
         // now disable background refresh and make sure the refresh happens
         CountDownLatch updateSettingsLatch = new CountDownLatch(1);
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), -1).build())
             .execute(ActionListener.running(updateSettingsLatch::countDown));
         assertHitCount(client().prepareSearch(), 2);

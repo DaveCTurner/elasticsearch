@@ -337,7 +337,8 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
 
         logger.info("--> wait until all nodes are back online");
         clusterAdmin().health(
-            new ClusterHealthRequest(new String[] {}).waitForEvents(Priority.LANGUID).waitForNodes(Integer.toString(numNodes))
+            new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForEvents(Priority.LANGUID)
+                .waitForNodes(Integer.toString(numNodes))
         ).actionGet();
 
         logger.info("--> waiting for green status");
@@ -372,7 +373,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         } else {
             internalCluster().startNode();
             clusterAdmin().health(
-                new ClusterHealthRequest(new String[] {}).waitForGreenStatus()
+                new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForGreenStatus()
                     .waitForEvents(Priority.LANGUID)
                     .waitForNoRelocatingShards(true)
                     .waitForNodes("2")
@@ -449,7 +450,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         } else {
             internalCluster().startNode();
             clusterAdmin().health(
-                new ClusterHealthRequest(new String[] {}).waitForGreenStatus()
+                new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForGreenStatus()
                     .waitForEvents(Priority.LANGUID)
                     .waitForNoRelocatingShards(true)
                     .waitForNodes("2")
@@ -497,7 +498,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         } else {
             internalCluster().startNode();
             clusterAdmin().health(
-                new ClusterHealthRequest(new String[] {}).waitForGreenStatus()
+                new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForGreenStatus()
                     .waitForEvents(Priority.LANGUID)
                     .waitForNoRelocatingShards(true)
                     .waitForNodes("2")

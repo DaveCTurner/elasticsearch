@@ -164,7 +164,7 @@ public class NetworkDisruptionIT extends ESIntegTestCase {
         source.sendRequest(
             target.getLocalNode(),
             TransportClusterHealthAction.NAME,
-            new ClusterHealthRequest(),
+            new ClusterHealthRequest(masterNodeTimeout),
             new TransportResponseHandler<>() {
                 private AtomicBoolean responded = new AtomicBoolean();
 

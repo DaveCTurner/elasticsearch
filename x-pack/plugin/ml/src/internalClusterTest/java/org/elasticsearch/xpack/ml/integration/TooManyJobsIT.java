@@ -147,9 +147,10 @@ public class TooManyJobsIT extends BaseMlIntegTestCase {
         boolean expectMemoryLimitBeforeCountLimit = maxJobsPerNodeDueToMemoryLimit < maxNumberOfJobsPerNode;
         for (int i = 1; i <= (clusterWideMaxNumberOfJobs + 1); i++) {
             if (i == 2 && testDynamicChange) {
-                ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest().persistentSettings(
-                    Settings.builder().put(MachineLearning.MAX_OPEN_JOBS_PER_NODE.getKey(), maxNumberOfJobsPerNode).build()
-                );
+                ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout)
+                    .persistentSettings(
+                        Settings.builder().put(MachineLearning.MAX_OPEN_JOBS_PER_NODE.getKey(), maxNumberOfJobsPerNode).build()
+                    );
                 client().execute(ClusterUpdateSettingsAction.INSTANCE, clusterUpdateSettingsRequest).actionGet();
             }
             Job.Builder job = createJob("max-number-of-jobs-limit-job-" + Integer.toString(i), jobModelMemoryLimit);

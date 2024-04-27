@@ -370,7 +370,7 @@ public class EsqlActionTaskIT extends AbstractPausableIntegTestCase {
             EsqlQueryRequest request = AbstractEsqlIntegTestCase.syncRequestOnLatestVersion();
             client().admin()
                 .indices()
-                .prepareUpdateSettings("test")
+                .prepareUpdateSettings(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put("index.routing.allocation.include._name", dataNode).build())
                 .get();
             ensureYellowAndNoInitializingShards("test");

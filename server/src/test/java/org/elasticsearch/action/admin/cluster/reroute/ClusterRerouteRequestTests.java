@@ -79,7 +79,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
     }
 
     private ClusterRerouteRequest randomRequest() {
-        ClusterRerouteRequest request = new ClusterRerouteRequest();
+        ClusterRerouteRequest request = new ClusterRerouteRequest(masterNodeTimeout);
         int commands = between(0, 10);
         for (int i = 0; i < commands; i++) {
             request.add(randomFrom(RANDOM_COMMAND_GENERATORS).get());
@@ -96,7 +96,7 @@ public class ClusterRerouteRequestTests extends ESTestCase {
             assertEquals(request, request);
             assertEquals(request.hashCode(), request.hashCode());
 
-            ClusterRerouteRequest copy = new ClusterRerouteRequest().add(
+            ClusterRerouteRequest copy = new ClusterRerouteRequest(masterNodeTimeout).add(
                 request.getCommands().commands().toArray(new AllocationCommand[0])
             );
             AcknowledgedRequest<ClusterRerouteRequest> clusterRerouteRequestAcknowledgedRequest = copy.dryRun(request.dryRun())

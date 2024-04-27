@@ -160,7 +160,7 @@ public class HttpExporterSslIT extends MonitoringIntegTestCase {
     }
 
     private ActionFuture<ClusterUpdateSettingsResponse> setVerificationMode(String name, SslVerificationMode mode) {
-        final ClusterUpdateSettingsRequest updateSettings = new ClusterUpdateSettingsRequest();
+        final ClusterUpdateSettingsRequest updateSettings = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         final String verificationModeName = randomBoolean() ? mode.name() : mode.name().toLowerCase(Locale.ROOT);
         final Settings settings = Settings.builder()
             .put("xpack.monitoring.exporters." + name + ".type", HttpExporter.TYPE)

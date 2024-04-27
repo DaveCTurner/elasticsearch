@@ -38,7 +38,7 @@ public class CreateSnapshotRequestTests extends ESTestCase {
         String repo = randomAlphaOfLength(5);
         String snap = randomAlphaOfLength(10);
 
-        CreateSnapshotRequest original = new CreateSnapshotRequest(repo, snap);
+        CreateSnapshotRequest original = new CreateSnapshotRequest(masterNodeTimeout, repo, snap);
 
         if (randomBoolean()) {
             List<String> indices = new ArrayList<>();
@@ -106,7 +106,11 @@ public class CreateSnapshotRequestTests extends ESTestCase {
                 .createParser(NamedXContentRegistry.EMPTY, null, BytesReference.bytes(builder).streamInput())
         ) {
             Map<String, Object> map = parser.mapOrdered();
-            CreateSnapshotRequest processed = new CreateSnapshotRequest((String) map.get("repository"), (String) map.get("snapshot"));
+            CreateSnapshotRequest processed = new CreateSnapshotRequest(
+                masterNodeTimeout,
+                (String) map.get("repository"),
+                (String) map.get("snapshot")
+            );
             processed.waitForCompletion(original.waitForCompletion());
             processed.masterNodeTimeout(original.masterNodeTimeout());
             processed.source(map);
@@ -162,7 +166,7 @@ public class CreateSnapshotRequestTests extends ESTestCase {
     }
 
     private CreateSnapshotRequest createSnapshotRequestWithMetadata(Map<String, Object> metadata) {
-        return new CreateSnapshotRequest(randomAlphaOfLength(5), randomAlphaOfLength(5)).indices(randomAlphaOfLength(5))
+        return new CreateSnapshotRequest(masterNodeTimeout, randomAlphaOfLength(5), randomAlphaOfLength(5)).indices(randomAlphaOfLength(5))
             .userMetadata(metadata);
     }
 }

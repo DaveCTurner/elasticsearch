@@ -59,7 +59,7 @@ public class BulkIntegrationIT extends ESIntegTestCase {
         bulkBuilder.add(bulkAction.getBytes(StandardCharsets.UTF_8), 0, bulkAction.length(), null, XContentType.JSON);
         bulkBuilder.get();
         assertBusy(() -> {
-            GetMappingsResponse mappingsResponse = indicesAdmin().prepareGetMappings().get();
+            GetMappingsResponse mappingsResponse = indicesAdmin().prepareGetMappings(masterNodeTimeout).get();
             assertTrue(mappingsResponse.getMappings().containsKey("logstash-2014.03.30"));
         });
     }
@@ -147,7 +147,11 @@ public class BulkIntegrationIT extends ESIntegTestCase {
             .endArray()
             .endObject();
 
-        assertAcked(clusterAdmin().putPipeline(new PutPipelineRequest(pipelineId, BytesReference.bytes(pipeline), XContentType.JSON)));
+        assertAcked(
+            clusterAdmin().putPipeline(
+                new PutPipelineRequest(masterNodeTimeout, pipelineId, BytesReference.bytes(pipeline), XContentType.JSON)
+            )
+        );
     }
 
     /** This test ensures that index deletion makes indexing fail quickly, not wait on the index that has disappeared */

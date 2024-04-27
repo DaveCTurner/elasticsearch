@@ -403,7 +403,7 @@ public class ComponentTemplatesFileSettingsIT extends ESIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).actionGet();
 
         Map<String, ComposableIndexTemplate> allTemplates = clusterStateResponse.getState().metadata().templatesV2();

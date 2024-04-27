@@ -41,7 +41,7 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
 
     public void testGetMappingsWhereThereAreNone() {
         createIndex("index");
-        GetMappingsResponse response = indicesAdmin().prepareGetMappings().get();
+        GetMappingsResponse response = indicesAdmin().prepareGetMappings(masterNodeTimeout).get();
         assertThat(response.mappings().containsKey("index"), equalTo(true));
         assertEquals(MappingMetadata.EMPTY_MAPPINGS, response.mappings().get("index"));
     }
@@ -69,19 +69,19 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
 
         // Get all mappings
-        GetMappingsResponse response = indicesAdmin().prepareGetMappings().get();
+        GetMappingsResponse response = indicesAdmin().prepareGetMappings(masterNodeTimeout).get();
         assertThat(response.mappings().size(), equalTo(2));
         assertThat(response.mappings().get("indexa"), notNullValue());
         assertThat(response.mappings().get("indexb"), notNullValue());
 
         // Get all mappings, via wildcard support
-        response = indicesAdmin().prepareGetMappings("*").get();
+        response = indicesAdmin().prepareGetMappings(masterNodeTimeout, "*").get();
         assertThat(response.mappings().size(), equalTo(2));
         assertThat(response.mappings().get("indexa"), notNullValue());
         assertThat(response.mappings().get("indexb"), notNullValue());
 
         // Get mappings in indexa
-        response = indicesAdmin().prepareGetMappings("indexa").get();
+        response = indicesAdmin().prepareGetMappings(masterNodeTimeout, "indexa").get();
         assertThat(response.mappings().size(), equalTo(1));
         assertThat(response.mappings().get("indexa"), notNullValue());
     }
@@ -93,7 +93,7 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
         for (String block : Arrays.asList(SETTING_BLOCKS_READ, SETTING_BLOCKS_WRITE, SETTING_READ_ONLY)) {
             try {
                 enableIndexBlock("test", block);
-                GetMappingsResponse response = indicesAdmin().prepareGetMappings().get();
+                GetMappingsResponse response = indicesAdmin().prepareGetMappings(masterNodeTimeout).get();
                 assertThat(response.mappings().size(), equalTo(1));
                 assertNotNull(response.mappings().get("test"));
             } finally {
@@ -103,7 +103,7 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
 
         try {
             enableIndexBlock("test", SETTING_BLOCKS_METADATA);
-            assertBlocked(indicesAdmin().prepareGetMappings(), INDEX_METADATA_BLOCK);
+            assertBlocked(indicesAdmin().prepareGetMappings(masterNodeTimeout), INDEX_METADATA_BLOCK);
         } finally {
             disableIndexBlock("test", SETTING_BLOCKS_METADATA);
         }

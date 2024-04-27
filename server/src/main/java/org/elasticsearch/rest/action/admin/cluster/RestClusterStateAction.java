@@ -78,7 +78,7 @@ public class RestClusterStateAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout);
         clusterStateRequest.indicesOptions(IndicesOptions.fromRequest(request, clusterStateRequest.indicesOptions()));
         clusterStateRequest.local(request.paramAsBoolean("local", clusterStateRequest.local()));
         clusterStateRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterStateRequest.masterNodeTimeout()));

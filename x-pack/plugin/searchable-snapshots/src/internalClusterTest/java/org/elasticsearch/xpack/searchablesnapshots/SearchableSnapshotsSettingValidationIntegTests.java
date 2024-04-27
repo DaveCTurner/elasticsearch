@@ -54,7 +54,7 @@ public class SearchableSnapshotsSettingValidationIntegTests extends BaseFrozenSe
     public void testCannotRemoveWriteBlock() {
         final IllegalArgumentException iae = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareUpdateSettings(indexName)
+            () -> indicesAdmin().prepareUpdateSettings(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put(IndexMetadata.INDEX_BLOCKS_WRITE_SETTING.getKey(), false))
                 .get()
         );

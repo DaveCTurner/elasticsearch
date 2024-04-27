@@ -60,7 +60,7 @@ public class RestClusterHealthAction extends BaseRestHandler {
 
     public static ClusterHealthRequest fromRequest(final RestRequest request) {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        final ClusterHealthRequest clusterHealthRequest = new ClusterHealthRequest(indices);
+        final ClusterHealthRequest clusterHealthRequest = new ClusterHealthRequest(masterNodeTimeout, indices);
         clusterHealthRequest.indicesOptions(IndicesOptions.fromRequest(request, clusterHealthRequest.indicesOptions()));
         clusterHealthRequest.local(request.paramAsBoolean("local", clusterHealthRequest.local()));
         clusterHealthRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterHealthRequest.masterNodeTimeout()));

@@ -520,7 +520,9 @@ public class ClusterSettingsIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test"));
 
         try {
-            indicesAdmin().prepareUpdateSettings("test").setSettings(Settings.builder().put("index.refresh_interval", "10")).get();
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
+                .setSettings(Settings.builder().put("index.refresh_interval", "10"))
+                .get();
             fail("Expected IllegalArgumentException");
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage(), containsString("[index.refresh_interval] with value [10]"));

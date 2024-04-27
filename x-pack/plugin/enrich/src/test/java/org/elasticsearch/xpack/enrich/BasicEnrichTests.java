@@ -111,7 +111,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
                 }
               ]
             }""", policyName, MATCH_FIELD, maxMatches);
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).actionGet();
 
         BulkRequest bulkRequest = new BulkRequest("my-index");
@@ -204,7 +209,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
                 }
               ]
             }""", policyName, matchField);
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).actionGet();
 
         BulkRequest bulkRequest = new BulkRequest("my-index");
@@ -255,7 +265,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
                 {
                   "processors": [ { "enrich": { "policy_name": "%s", "field": "key", "target_field": "target" } } ]
                 }""", policyName);
-            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+            PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+                masterNodeTimeout,
+                pipelineName,
+                new BytesArray(pipelineBody),
+                XContentType.JSON
+            );
             clusterAdmin().putPipeline(putPipelineRequest).actionGet();
         }
 
@@ -313,7 +328,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
             {
               "processors": [ { "enrich": { "policy_name": "%s", "field": "key", "target_field": "target" } } ]
             }""", policyName);
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).actionGet();
 
         BulkRequest bulkRequest = new BulkRequest("my-index");
@@ -356,7 +376,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
                 {"processors": [{"enrich": {"policy_name":"%s", "field": "{{indirection1}}", "target_field": "{{indirection2}}"}}]}""",
             policyName
         );
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).actionGet();
 
         IndexRequest indexRequest = new IndexRequest("my-index").id("1")
@@ -395,7 +420,12 @@ public class BasicEnrichTests extends ESSingleNodeTestCase {
             + "\", \"field\": \"email\", \"target_field\": \"users\"}},"
             + "{ \"foreach\": {\"field\":\"users\", \"processor\":{\"append\":{\"field\":\"matched2\",\"value\":\"{{_ingest._value}}\"}}}}"
             + "]}";
-        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest putPipelineRequest = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(putPipelineRequest).actionGet();
 
         for (int i = 0; i < 5; i++) {

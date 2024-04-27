@@ -489,7 +489,7 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
         prepareIndex("test_index").setId("4").setSource("type", "typeY", "field", "D value").get();
         prepareIndex("test_index").setId("5").setSource("type", "typeZ", "field", "E value").get();
 
-        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases().setIndices("test_index").get();
+        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases(masterNodeTimeout).setIndices("test_index").get();
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));
         assertThat(getAliasesResponse.getAliases().get("test_index").size(), equalTo(4));
 
@@ -535,7 +535,7 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index"));
         ensureGreen();
 
-        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases().setIndices("test_index").get();
+        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases(masterNodeTimeout).setIndices("test_index").get();
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));
         assertThat(getAliasesResponse.getAliases().get("test_index").size(), equalTo(1));
 
@@ -571,7 +571,7 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index"));
         ensureGreen();
 
-        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases().setIndices("test_index").get();
+        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases(masterNodeTimeout).setIndices("test_index").get();
         assertThat(getAliasesResponse.getAliases().size(), equalTo(1));
         assertThat(getAliasesResponse.getAliases().get("test_index").size(), equalTo(3));
 
@@ -683,7 +683,7 @@ public class SimpleIndexTemplateIT extends ESIntegTestCase {
 
         ensureGreen();
 
-        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases().addIndices("test").get();
+        GetAliasesResponse getAliasesResponse = indicesAdmin().prepareGetAliases(masterNodeTimeout).addIndices("test").get();
         assertThat(getAliasesResponse.getAliases().get("test").size(), equalTo(4));
 
         for (AliasMetadata aliasMetadata : getAliasesResponse.getAliases().get("test")) {

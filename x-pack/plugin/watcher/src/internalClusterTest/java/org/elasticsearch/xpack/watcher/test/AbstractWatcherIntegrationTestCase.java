@@ -266,7 +266,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
     }
 
     public void replaceWatcherIndexWithRandomlyNamedIndex(String originalIndexOrAlias, String to) {
-        GetIndexResponse index = indicesAdmin().prepareGetIndex().setIndices(originalIndexOrAlias).get();
+        GetIndexResponse index = indicesAdmin().prepareGetIndex(masterNodeTimeout).setIndices(originalIndexOrAlias).get();
         MappingMetadata mapping = index.getMappings().get(index.getIndices()[0]);
 
         Settings settings = index.getSettings().get(index.getIndices()[0]);
@@ -280,9 +280,12 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
         ensureGreen(to);
 
         AtomicReference<String> originalIndex = new AtomicReference<>(originalIndexOrAlias);
-        boolean watchesIsAlias = indicesAdmin().prepareGetAliases(originalIndexOrAlias).get().getAliases().isEmpty() == false;
+        boolean watchesIsAlias = indicesAdmin().prepareGetAliases(masterNodeTimeout, originalIndexOrAlias)
+            .get()
+            .getAliases()
+            .isEmpty() == false;
         if (watchesIsAlias) {
-            GetAliasesResponse aliasesResponse = indicesAdmin().prepareGetAliases(originalIndexOrAlias).get();
+            GetAliasesResponse aliasesResponse = indicesAdmin().prepareGetAliases(masterNodeTimeout, originalIndexOrAlias).get();
             assertEquals(1, aliasesResponse.getAliases().size());
             aliasesResponse.getAliases().entrySet().forEach((aliasRecord) -> {
                 assertEquals(1, aliasRecord.getValue().size());

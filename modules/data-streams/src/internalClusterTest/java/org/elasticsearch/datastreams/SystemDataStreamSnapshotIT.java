@@ -90,7 +90,7 @@ public class SystemDataStreamSnapshotIT extends AbstractSnapshotIntegTestCase {
         }
 
         {
-            GetIndexResponse indicesRemaining = indicesAdmin().prepareGetIndex().addIndices("_all").get();
+            GetIndexResponse indicesRemaining = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices("_all").get();
             assertThat(indicesRemaining.indices(), arrayWithSize(0));
             assertSystemDataStreamDoesNotExist();
         }
@@ -203,7 +203,7 @@ public class SystemDataStreamSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "my-index"));
 
         {
-            GetIndexResponse indicesRemaining = indicesAdmin().prepareGetIndex().addIndices("_all").get();
+            GetIndexResponse indicesRemaining = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices("_all").get();
             assertThat(indicesRemaining.indices(), arrayWithSize(0));
         }
 

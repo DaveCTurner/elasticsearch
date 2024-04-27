@@ -158,7 +158,13 @@ public class StableMasterDisruptionIT extends ESIntegTestCase {
     private void ensureNoMaster(String node) throws Exception {
         assertBusy(
             () -> assertNull(
-                client(node).admin().cluster().state(new ClusterStateRequest().local(true)).get().getState().nodes().getMasterNode()
+                client(node).admin()
+                    .cluster()
+                    .state(new ClusterStateRequest(masterNodeTimeout).local(true))
+                    .get()
+                    .getState()
+                    .nodes()
+                    .getMasterNode()
             )
         );
     }

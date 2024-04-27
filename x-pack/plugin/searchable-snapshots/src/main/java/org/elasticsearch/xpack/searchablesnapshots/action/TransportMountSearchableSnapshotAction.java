@@ -240,7 +240,7 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
             client.admin()
                 .cluster()
                 .restoreSnapshot(
-                    new RestoreSnapshotRequest(repoName, snapName)
+                    new RestoreSnapshotRequest(masterNodeTimeout, repoName, snapName)
                         // Restore the single index specified
                         .indices(indexName)
                         // Always rename it to the desired mounted index name

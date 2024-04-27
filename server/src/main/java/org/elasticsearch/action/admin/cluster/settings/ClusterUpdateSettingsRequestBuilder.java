@@ -24,7 +24,7 @@ public class ClusterUpdateSettingsRequestBuilder extends AcknowledgedRequestBuil
     ClusterUpdateSettingsRequestBuilder> {
 
     public ClusterUpdateSettingsRequestBuilder(ElasticsearchClient client) {
-        super(client, ClusterUpdateSettingsAction.INSTANCE, new ClusterUpdateSettingsRequest());
+        super(client, ClusterUpdateSettingsAction.INSTANCE, new ClusterUpdateSettingsRequest(masterNodeTimeout));
     }
 
     /**

@@ -389,7 +389,10 @@ public final class TransformInternalIndex {
     }
 
     private static void waitForLatestVersionedIndexShardsActive(Client client, ActionListener<Void> listener) {
-        ClusterHealthRequest request = new ClusterHealthRequest(TransformInternalIndexConstants.LATEST_INDEX_VERSIONED_NAME)
+        ClusterHealthRequest request = new ClusterHealthRequest(
+            masterNodeTimeout,
+            TransformInternalIndexConstants.LATEST_INDEX_VERSIONED_NAME
+        )
             // cluster health does not wait for active shards per default
             .waitForActiveShards(ActiveShardCount.ONE);
         ActionListener<ClusterHealthResponse> innerListener = ActionListener.wrap(r -> listener.onResponse(null), listener::onFailure);

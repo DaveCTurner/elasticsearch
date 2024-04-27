@@ -1969,7 +1969,7 @@ public abstract class ESRestTestCase extends ESTestCase {
         final Request request = newXContentRequest(
             HttpMethod.PUT,
             "/_snapshot/" + repository,
-            new PutRepositoryRequest(repository).type(type).settings(settings)
+            new PutRepositoryRequest(masterNodeTimeout, repository).type(type).settings(settings)
         );
         request.addParameter("verify", Boolean.toString(verify));
 

@@ -143,7 +143,9 @@ public class AllocationIdIT extends ESIntegTestCase {
     }
 
     public void checkHealthStatus(String indexName, ClusterHealthStatus healthStatus) {
-        final ClusterHealthStatus indexHealthStatus = clusterAdmin().health(new ClusterHealthRequest(indexName)).actionGet().getStatus();
+        final ClusterHealthStatus indexHealthStatus = clusterAdmin().health(new ClusterHealthRequest(masterNodeTimeout, indexName))
+            .actionGet()
+            .getStatus();
         assertThat(indexHealthStatus, is(healthStatus));
     }
 

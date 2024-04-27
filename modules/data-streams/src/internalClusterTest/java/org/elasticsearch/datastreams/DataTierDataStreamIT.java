@@ -49,7 +49,7 @@ public class DataTierDataStreamIT extends ESIntegTestCase {
             .setWaitForActiveShards(0)
             .get()
             .getIndex();
-        var idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(dsIndexName);
+        var idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(dsIndexName);
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo(DataTier.DATA_HOT));
 
         logger.info("--> waiting for {} to be yellow", index);
@@ -61,7 +61,7 @@ public class DataTierDataStreamIT extends ESIntegTestCase {
         // new index name should have the rolled over name
         assertNotEquals(dsIndexName, rolledOverIndexName);
 
-        idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(rolledOverIndexName);
+        idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(rolledOverIndexName);
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo(DataTier.DATA_HOT));
     }
 

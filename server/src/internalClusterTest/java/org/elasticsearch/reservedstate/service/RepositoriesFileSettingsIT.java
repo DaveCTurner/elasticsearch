@@ -239,7 +239,7 @@ public class RepositoriesFileSettingsIT extends ESIntegTestCase {
             var bis = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
             var parser = JSON.xContent().createParser(XContentParserConfiguration.EMPTY, bis)
         ) {
-            return new PutRepositoryRequest(name).source(parser.map());
+            return new PutRepositoryRequest(masterNodeTimeout, name).source(parser.map());
         }
     }
 }

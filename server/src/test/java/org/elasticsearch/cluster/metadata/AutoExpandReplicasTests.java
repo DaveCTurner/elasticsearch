@@ -143,7 +143,7 @@ public class AutoExpandReplicasTests extends ESTestCase {
                     state,
                     state.routingTable().index("index").shard(0).shardsWithState(ShardRoutingState.INITIALIZING)
                 );
-                state = cluster.reroute(state, new ClusterRerouteRequest());
+                state = cluster.reroute(state, new ClusterRerouteRequest(masterNodeTimeout));
             }
 
             IndexShardRoutingTable preTable = state.routingTable().index("index").shard(0);

@@ -495,7 +495,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
                 // prevent a sequence-number-based recovery from being possible
                 client(primaryNode).admin()
                     .indices()
-                    .prepareUpdateSettings("test")
+                    .prepareUpdateSettings(masterNodeTimeout, "test")
                     .setSettings(
                         Settings.builder()
                             .put(IndexSettings.INDEX_SOFT_DELETES_RETENTION_OPERATIONS_SETTING.getKey(), 0)

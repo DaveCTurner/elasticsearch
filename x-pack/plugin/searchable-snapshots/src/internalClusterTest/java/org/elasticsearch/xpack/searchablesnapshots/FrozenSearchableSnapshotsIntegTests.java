@@ -321,17 +321,17 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         );
 
         if (deletedBeforeMount) {
-            assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
+            assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(0));
             assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(restoredIndexName, aliasName));
         } else if (indexName.equals(restoredIndexName) == false) {
-            assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(1));
+            assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(1));
             assertAcked(
                 indicesAdmin().prepareAliases(masterNodeTimeout)
                     .addAliasAction(IndicesAliasesRequest.AliasActions.remove().index(indexName).alias(aliasName).mustExist(true))
                     .addAlias(restoredIndexName, aliasName)
             );
         }
-        assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(1));
+        assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(1));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
 
         final Decision diskDeciderDecision = clusterAdmin().prepareAllocationExplain()
@@ -425,7 +425,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         assertFalse(clonedIndexSettings.hasValue(IndexModule.INDEX_RECOVERY_TYPE_SETTING.getKey()));
 
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, restoredIndexName));
-        assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
+        assertThat(indicesAdmin().prepareGetAliases(masterNodeTimeout, aliasName).get().getAliases().size(), equalTo(0));
         assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(clonedIndexName, aliasName));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
     }
@@ -580,7 +580,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
 
         ensureGreen(restoredIndexName);
 
-        UpdateSettingsRequestBuilder settingsRequest = indicesAdmin().prepareUpdateSettings(restoredIndexName);
+        UpdateSettingsRequestBuilder settingsRequest = indicesAdmin().prepareUpdateSettings(masterNodeTimeout, restoredIndexName);
         settingsRequest.setSettings(Settings.builder().putNull(DataTier.TIER_PREFERENCE));
         indicesAdmin().updateSettings(settingsRequest.request()).actionGet();
 

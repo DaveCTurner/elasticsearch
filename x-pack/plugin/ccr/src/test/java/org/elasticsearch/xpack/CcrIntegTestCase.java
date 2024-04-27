@@ -411,7 +411,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
         String color = clusterHealthStatus.name().toLowerCase(Locale.ROOT);
         String method = "ensure" + Strings.capitalize(color);
 
-        ClusterHealthRequest healthRequest = new ClusterHealthRequest(indices).timeout(timeout)
+        ClusterHealthRequest healthRequest = new ClusterHealthRequest(masterNodeTimeout, indices).timeout(timeout)
             .waitForStatus(clusterHealthStatus)
             .waitForEvents(Priority.LANGUID)
             .waitForNoRelocatingShards(true)
@@ -450,14 +450,14 @@ public abstract class CcrIntegTestCase extends ESTestCase {
     }
 
     protected final Index resolveLeaderIndex(String index) {
-        GetIndexResponse getIndexResponse = leaderClient().admin().indices().prepareGetIndex().setIndices(index).get();
+        GetIndexResponse getIndexResponse = leaderClient().admin().indices().prepareGetIndex(masterNodeTimeout).setIndices(index).get();
         assertTrue("index " + index + " not found", getIndexResponse.getSettings().containsKey(index));
         String uuid = getIndexResponse.getSettings().get(index).get(IndexMetadata.SETTING_INDEX_UUID);
         return new Index(index, uuid);
     }
 
     protected final Index resolveFollowerIndex(String index) {
-        GetIndexResponse getIndexResponse = followerClient().admin().indices().prepareGetIndex().setIndices(index).get();
+        GetIndexResponse getIndexResponse = followerClient().admin().indices().prepareGetIndex(masterNodeTimeout).setIndices(index).get();
         assertTrue("index " + index + " not found", getIndexResponse.getSettings().containsKey(index));
         String uuid = getIndexResponse.getSettings().get(index).get(IndexMetadata.SETTING_INDEX_UUID);
         return new Index(index, uuid);

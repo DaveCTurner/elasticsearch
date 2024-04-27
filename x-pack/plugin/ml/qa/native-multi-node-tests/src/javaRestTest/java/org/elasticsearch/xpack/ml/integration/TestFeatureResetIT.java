@@ -114,7 +114,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         cleanUp();
         for (String pipeline : createdPipelines) {
             try {
-                client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(pipeline)).actionGet();
+                client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(masterNodeTimeout, pipeline)).actionGet();
             } catch (Exception ex) {
                 logger.warn(() -> "error cleaning up pipeline [" + pipeline + "]", ex);
             }
@@ -130,13 +130,18 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         for (int i = 0; i < 100; i++) {
             indexDocForInference("feature_reset_inference_pipeline");
         }
-        client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest("feature_reset_inference_pipeline")).actionGet();
+        client().execute(
+            DeletePipelineTransportAction.TYPE,
+            new DeletePipelineRequest(masterNodeTimeout, "feature_reset_inference_pipeline")
+        ).actionGet();
         createdPipelines.remove("feature_reset_inference_pipeline");
 
         assertBusy(() -> assertThat(countInferenceProcessors(clusterAdmin().prepareState().get().getState()), equalTo(0)));
         client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
         assertBusy(() -> {
-            List<String> indices = Arrays.asList(client().admin().indices().prepareGetIndex().addIndices(".ml*").get().indices());
+            List<String> indices = Arrays.asList(
+                client().admin().indices().prepareGetIndex(masterNodeTimeout).addIndices(".ml*").get().indices()
+            );
             assertThat(indices.toString(), indices, is(empty()));
         });
         assertThat(isResetMode(), is(false));
@@ -158,8 +163,10 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
                 "Unable to reset machine learning feature as there are ingest pipelines still referencing trained machine learning models"
             )
         );
-        client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest("feature_reset_failure_inference_pipeline"))
-            .actionGet();
+        client().execute(
+            DeletePipelineTransportAction.TYPE,
+            new DeletePipelineRequest(masterNodeTimeout, "feature_reset_failure_inference_pipeline")
+        ).actionGet();
         createdPipelines.remove("feature_reset_failure_inference_pipeline");
         assertThat(isResetMode(), is(false));
     }
@@ -168,7 +175,9 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         createModelDeployment();
         client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
         assertBusy(() -> {
-            List<String> indices = Arrays.asList(client().admin().indices().prepareGetIndex().addIndices(".ml*").get().indices());
+            List<String> indices = Arrays.asList(
+                client().admin().indices().prepareGetIndex(masterNodeTimeout).addIndices(".ml*").get().indices()
+            );
             assertThat(indices.toString(), indices, is(empty()));
         });
         assertThat(isResetMode(), is(false));
@@ -293,7 +302,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
     }
 
     private void putTrainedModelIngestPipeline(String pipelineId) throws Exception {
-        client().execute(PutPipelineTransportAction.TYPE, new PutPipelineRequest(pipelineId, new BytesArray("""
+        client().execute(PutPipelineTransportAction.TYPE, new PutPipelineRequest(masterNodeTimeout, pipelineId, new BytesArray("""
             {
                 "processors": [
                   {

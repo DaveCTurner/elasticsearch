@@ -46,7 +46,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
             """;
         var resp = client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         assertTrue(resp.isAcknowledged());
-        var mappingsResp = client().admin().indices().prepareGetMappings("test").get();
+        var mappingsResp = client().admin().indices().prepareGetMappings(masterNodeTimeout, "test").get();
         var mappingMetadata = mappingsResp.getMappings().get("test");
         var fieldType = XContentMapValues.extractValue("properties.field.type", mappingMetadata.getSourceAsMap());
         assertThat(fieldType, equalTo(NonDynamicFieldMapper.NAME));
@@ -152,7 +152,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
         var resp = client().prepareIndex("test1").setSource("field", "hello world").get();
         assertThat(resp.status(), equalTo(RestStatus.CREATED));
 
-        var mappingsResp = client().admin().indices().prepareGetMappings("test1").get();
+        var mappingsResp = client().admin().indices().prepareGetMappings(masterNodeTimeout, "test1").get();
         var mappingMetadata = mappingsResp.getMappings().get("test1");
         var fieldType = XContentMapValues.extractValue("properties.field.type", mappingMetadata.getSourceAsMap());
         assertThat(fieldType, equalTo(NonDynamicFieldMapper.NAME));

@@ -159,8 +159,8 @@ public class MetadataIndexStateServiceBatchingTests extends ESSingleNodeTestCase
         block1.run(); // wait for block
 
         // fire off some closes
-        final var future1 = indicesAdmin().prepareAddBlock(APIBlock.WRITE, "test-1").execute();
-        final var future2 = indicesAdmin().prepareAddBlock(APIBlock.WRITE, "test-2", "test-3").execute();
+        final var future1 = indicesAdmin().prepareAddBlock(masterNodeTimeout, APIBlock.WRITE, "test-1").execute();
+        final var future2 = indicesAdmin().prepareAddBlock(masterNodeTimeout, APIBlock.WRITE, "test-2", "test-3").execute();
 
         // check the queue for the first add-block tasks (the add-index-block tasks)
         assertThat(findPendingTasks(masterService, "add-index-block-[write]"), hasSize(2));

@@ -290,28 +290,28 @@ public class DocumentAndFieldLevelSecurityTests extends SecurityIntegTestCase {
         {
             GetMappingsResponse getMappingsResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user1", USERS_PASSWD))
-            ).admin().indices().prepareGetMappings("test").get();
+            ).admin().indices().prepareGetMappings(masterNodeTimeout, "test").get();
             assertExpectedMetadataFields(getMappingsResponse.getMappings(), "field1");
         }
 
         {
             GetMappingsResponse getMappingsResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user2", USERS_PASSWD))
-            ).admin().indices().prepareGetMappings("test").get();
+            ).admin().indices().prepareGetMappings(masterNodeTimeout, "test").get();
             assertExpectedMetadataFields(getMappingsResponse.getMappings(), "field2");
         }
 
         {
             GetMappingsResponse getMappingsResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user3", USERS_PASSWD))
-            ).admin().indices().prepareGetMappings("test").get();
+            ).admin().indices().prepareGetMappings(masterNodeTimeout, "test").get();
             assertExpectedMetadataFields(getMappingsResponse.getMappings(), "field1");
         }
 
         {
             GetMappingsResponse getMappingsResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user4", USERS_PASSWD))
-            ).admin().indices().prepareGetMappings("test").get();
+            ).admin().indices().prepareGetMappings(masterNodeTimeout, "test").get();
             assertExpectedMetadataFields(getMappingsResponse.getMappings(), "field1", "field2");
         }
     }
@@ -324,25 +324,25 @@ public class DocumentAndFieldLevelSecurityTests extends SecurityIntegTestCase {
         {
             GetIndexResponse getIndexResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user1", USERS_PASSWD))
-            ).admin().indices().prepareGetIndex().setIndices("test").get();
+            ).admin().indices().prepareGetIndex(masterNodeTimeout).setIndices("test").get();
             assertExpectedMetadataFields(getIndexResponse.getMappings(), "field1");
         }
         {
             GetIndexResponse getIndexResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user2", USERS_PASSWD))
-            ).admin().indices().prepareGetIndex().setIndices("test").get();
+            ).admin().indices().prepareGetIndex(masterNodeTimeout).setIndices("test").get();
             assertExpectedMetadataFields(getIndexResponse.getMappings(), "field2");
         }
         {
             GetIndexResponse getIndexResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user3", USERS_PASSWD))
-            ).admin().indices().prepareGetIndex().setIndices("test").get();
+            ).admin().indices().prepareGetIndex(masterNodeTimeout).setIndices("test").get();
             assertExpectedMetadataFields(getIndexResponse.getMappings(), "field1");
         }
         {
             GetIndexResponse getIndexResponse = client().filterWithHeader(
                 Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("user4", USERS_PASSWD))
-            ).admin().indices().prepareGetIndex().setIndices("test").get();
+            ).admin().indices().prepareGetIndex(masterNodeTimeout).setIndices("test").get();
             assertExpectedMetadataFields(getIndexResponse.getMappings(), "field1", "field2");
         }
     }

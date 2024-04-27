@@ -12,9 +12,10 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 
 public class RolloverRequestBuilder extends MasterNodeOperationRequestBuilder<RolloverRequest, RolloverResponse, RolloverRequestBuilder> {
-    public RolloverRequestBuilder(ElasticsearchClient client) {
+    public RolloverRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout));
     }
 

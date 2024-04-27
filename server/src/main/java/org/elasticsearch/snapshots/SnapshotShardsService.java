@@ -653,7 +653,7 @@ public final class SnapshotShardsService extends AbstractLifecycleComponent impl
     /** Updates the shard snapshot status by sending a {@link UpdateIndexShardSnapshotStatusRequest} to the master node */
     private void sendSnapshotShardUpdate(final Snapshot snapshot, final ShardId shardId, final ShardSnapshotStatus status) {
         remoteFailedRequestDeduplicator.executeOnce(
-            new UpdateIndexShardSnapshotStatusRequest(snapshot, shardId, status),
+            new UpdateIndexShardSnapshotStatusRequest(masterNodeTimeout, snapshot, shardId, status),
             new ActionListener<>() {
                 @Override
                 public void onResponse(Void aVoid) {

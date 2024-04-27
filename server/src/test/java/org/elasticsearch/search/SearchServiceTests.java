@@ -464,7 +464,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
             // ok
         }
 
-        expectThrows(IndexNotFoundException.class, () -> indicesAdmin().prepareGetIndex().setIndices("index").get());
+        expectThrows(IndexNotFoundException.class, () -> indicesAdmin().prepareGetIndex(masterNodeTimeout).setIndices("index").get());
 
         assertEquals(0, service.getActiveContexts());
 
@@ -1127,7 +1127,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
 
         IllegalArgumentException iae = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareUpdateSettings("throttled_threadpool_index")
+            () -> indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "throttled_threadpool_index")
                 .setSettings(Settings.builder().put(IndexSettings.INDEX_SEARCH_THROTTLED.getKey(), false))
                 .get()
         );

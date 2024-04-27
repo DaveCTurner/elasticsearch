@@ -159,7 +159,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertTrue(indexService.getRefreshTask().mustReschedule());
 
         // now disable
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), -1))
             .get();
         assertNotSame(refreshTask, indexService.getRefreshTask());
@@ -167,7 +167,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertFalse(refreshTask.isScheduled());
 
         // set it to 100ms
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "100ms"))
             .get();
         assertNotSame(refreshTask, indexService.getRefreshTask());
@@ -179,7 +179,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertEquals(100, refreshTask.getInterval().millis());
 
         // set it to 200ms
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "200ms"))
             .get();
         assertNotSame(refreshTask, indexService.getRefreshTask());
@@ -191,7 +191,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertEquals(200, refreshTask.getInterval().millis());
 
         // set it to 200ms again
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "200ms"))
             .get();
         assertSame(refreshTask, indexService.getRefreshTask());
@@ -277,7 +277,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         IndexShard shard = indexService.getShard(0);
         prepareIndex("test").setId("0").setSource("{\"foo\": \"bar\"}", XContentType.JSON).get();
         // now disable the refresh
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), -1))
             .get();
         // when we update we reschedule the existing task AND fire off an async refresh to make sure we make everything visible
@@ -295,7 +295,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertFalse(refreshTask.isClosed());
         // refresh every millisecond
         prepareIndex("test").setId("1").setSource("{\"foo\": \"bar\"}", XContentType.JSON).get();
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_REFRESH_INTERVAL_SETTING.getKey(), "1ms"))
             .get();
         assertTrue(refreshTask.isClosed());
@@ -338,7 +338,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         ensureGreen("test");
         assertNull(indexService.getFsyncTask());
 
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.ASYNC))
             .get();
 
@@ -349,12 +349,12 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         final IndexShard shard = indexService.getShard(0);
         assertBusy(() -> assertFalse(shard.isSyncNeeded()));
 
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
         assertNull(indexService.getFsyncTask());
 
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.ASYNC))
             .get();
         assertNotNull(indexService.getFsyncTask());
@@ -444,7 +444,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
             .put(IndexSettings.INDEX_TRANSLOG_SYNC_INTERVAL_SETTING.getKey(), "5s")
             .put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.ASYNC.name());
 
-        indicesAdmin().prepareUpdateSettings("test").setSettings(builder).get();
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test").setSettings(builder).get();
 
         assertNotNull(indexService.getFsyncTask());
         assertTrue(indexService.getFsyncTask().mustReschedule());
@@ -453,7 +453,7 @@ public class IndexServiceTests extends ESSingleNodeTestCase {
         assertEquals("5s", indexMetadata.getSettings().get(IndexSettings.INDEX_TRANSLOG_SYNC_INTERVAL_SETTING.getKey()));
 
         indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
-        indicesAdmin().prepareUpdateSettings("test")
+        indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
             .setSettings(Settings.builder().put(IndexSettings.INDEX_TRANSLOG_SYNC_INTERVAL_SETTING.getKey(), "20s"))
             .get();
         indexMetadata = clusterAdmin().prepareState().get().getState().metadata().index("test");

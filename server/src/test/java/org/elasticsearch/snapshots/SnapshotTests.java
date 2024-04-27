@@ -43,14 +43,14 @@ public class SnapshotTests extends ESTestCase {
     }
 
     public void testCreateSnapshotRequestDescrptions() {
-        CreateSnapshotRequest createSnapshotRequest = new CreateSnapshotRequest();
+        CreateSnapshotRequest createSnapshotRequest = new CreateSnapshotRequest(masterNodeTimeout);
         createSnapshotRequest.snapshot("snapshot_name");
         createSnapshotRequest.repository("repo_name");
         assertEquals("snapshot [repo_name:snapshot_name]", createSnapshotRequest.getDescription());
     }
 
     public void testRestoreSnapshotRequestDescrptions() {
-        RestoreSnapshotRequest restoreSnapshotRequest = new RestoreSnapshotRequest();
+        RestoreSnapshotRequest restoreSnapshotRequest = new RestoreSnapshotRequest(masterNodeTimeout);
         restoreSnapshotRequest.snapshot("snapshot_name");
         restoreSnapshotRequest.repository("repo_name");
         assertEquals("snapshot [repo_name:snapshot_name]", restoreSnapshotRequest.getDescription());

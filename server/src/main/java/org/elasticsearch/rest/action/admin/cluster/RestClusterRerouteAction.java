@@ -93,7 +93,7 @@ public class RestClusterRerouteAction extends BaseRestHandler {
     }
 
     public static ClusterRerouteRequest createRequest(RestRequest request) throws IOException {
-        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest();
+        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest(masterNodeTimeout);
         clusterRerouteRequest.dryRun(request.paramAsBoolean("dry_run", clusterRerouteRequest.dryRun()));
         clusterRerouteRequest.explain(request.paramAsBoolean("explain", clusterRerouteRequest.explain()));
         clusterRerouteRequest.ackTimeout(request.paramAsTime("timeout", clusterRerouteRequest.ackTimeout()));

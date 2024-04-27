@@ -199,7 +199,7 @@ public class EnrichMultiNodeIT extends ESIntegTestCase {
         var getTaskRequest = new GetTaskRequest().setTaskId(executePolicyResponse.getTaskId()).setWaitForCompletion(true);
         clusterAdmin().getTask(getTaskRequest).actionGet();
 
-        var discoNodes = clusterAdmin().state(new ClusterStateRequest()).actionGet().getState().nodes();
+        var discoNodes = clusterAdmin().state(new ClusterStateRequest(masterNodeTimeout)).actionGet().getState().nodes();
         assertThat(discoNodes.get(executePolicyResponse.getTaskId().getNodeId()).isMasterNode(), is(false));
     }
 
@@ -226,7 +226,7 @@ public class EnrichMultiNodeIT extends ESIntegTestCase {
         var getTaskRequest = new GetTaskRequest().setTaskId(executePolicyResponse.getTaskId()).setWaitForCompletion(true);
         clusterAdmin().getTask(getTaskRequest).actionGet();
 
-        var discoNodes = clusterAdmin().state(new ClusterStateRequest()).actionGet().getState().nodes();
+        var discoNodes = clusterAdmin().state(new ClusterStateRequest(masterNodeTimeout)).actionGet().getState().nodes();
         assertThat(executePolicyResponse.getTaskId().getNodeId(), not(equalTo(discoNodes.getMasterNodeId())));
     }
 
@@ -350,7 +350,12 @@ public class EnrichMultiNodeIT extends ESIntegTestCase {
             {
               "processors": [ { "enrich": { "policy_name": "%s", "field": "%s", "target_field": "user" } } ]
             }""", policyName, MATCH_FIELD);
-        PutPipelineRequest request = new PutPipelineRequest(pipelineName, new BytesArray(pipelineBody), XContentType.JSON);
+        PutPipelineRequest request = new PutPipelineRequest(
+            masterNodeTimeout,
+            pipelineName,
+            new BytesArray(pipelineBody),
+            XContentType.JSON
+        );
         clusterAdmin().putPipeline(request).actionGet();
     }
 }

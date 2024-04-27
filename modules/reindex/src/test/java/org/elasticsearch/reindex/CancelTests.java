@@ -250,7 +250,7 @@ public class CancelTests extends ReindexTestCase {
             equalTo("update-by-query [" + INDEX + "]")
         );
 
-        assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest("set-processed")).get());
+        assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest(masterNodeTimeout, "set-processed")).get());
     }
 
     public void testDeleteByQueryCancel() throws Exception {
@@ -298,7 +298,7 @@ public class CancelTests extends ReindexTestCase {
             equalTo("update-by-query [" + INDEX + "]")
         );
 
-        assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest("set-processed")).get());
+        assertAcked(clusterAdmin().deletePipeline(new DeletePipelineRequest(masterNodeTimeout, "set-processed")).get());
     }
 
     public void testDeleteByQueryCancelWithWorkers() throws Exception {

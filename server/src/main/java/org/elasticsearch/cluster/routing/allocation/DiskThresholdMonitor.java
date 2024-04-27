@@ -457,7 +457,7 @@ public class DiskThresholdMonitor {
         Settings readOnlySettings = readOnly ? READ_ONLY_ALLOW_DELETE_SETTINGS : NOT_READ_ONLY_ALLOW_DELETE_SETTINGS;
         client.admin()
             .indices()
-            .prepareUpdateSettings(indicesToUpdate.toArray(Strings.EMPTY_ARRAY))
+            .prepareUpdateSettings(masterNodeTimeout, indicesToUpdate.toArray(Strings.EMPTY_ARRAY))
             .setSettings(readOnlySettings)
             .origin("disk-threshold-monitor")
             .execute(
@@ -495,7 +495,7 @@ public class DiskThresholdMonitor {
         if (indicesToRelease.isEmpty() == false) {
             client.admin()
                 .indices()
-                .prepareUpdateSettings(indicesToRelease.toArray(Strings.EMPTY_ARRAY))
+                .prepareUpdateSettings(masterNodeTimeout, indicesToRelease.toArray(Strings.EMPTY_ARRAY))
                 .setSettings(NOT_READ_ONLY_ALLOW_DELETE_SETTINGS)
                 .origin("disk-threshold-monitor")
                 .execute(wrappedListener.map(r -> null));

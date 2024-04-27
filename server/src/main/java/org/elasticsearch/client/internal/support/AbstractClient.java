@@ -1110,7 +1110,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetAliasesRequestBuilder prepareGetAliases(String... aliases) {
+        public GetAliasesRequestBuilder prepareGetAliases(TimeValue masterNodeTimeout, String... aliases) {
             return new GetAliasesRequestBuilder(masterNodeTimeout, this, aliases);
         }
 
@@ -1130,7 +1130,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetIndexRequestBuilder prepareGetIndex() {
+        public GetIndexRequestBuilder prepareGetIndex(TimeValue masterNodeTimeout) {
             return new GetIndexRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -1200,7 +1200,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public AddIndexBlockRequestBuilder prepareAddBlock(APIBlock block, String... indices) {
+        public AddIndexBlockRequestBuilder prepareAddBlock(TimeValue masterNodeTimeout, APIBlock block, String... indices) {
             return new AddIndexBlockRequestBuilder(masterNodeTimeout, this, block, indices);
         }
 
@@ -1240,7 +1240,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetMappingsRequestBuilder prepareGetMappings(String... indices) {
+        public GetMappingsRequestBuilder prepareGetMappings(TimeValue masterNodeTimeout, String... indices) {
             return new GetMappingsRequestBuilder(masterNodeTimeout, this, indices);
         }
 
@@ -1360,7 +1360,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public UpdateSettingsRequestBuilder prepareUpdateSettings(String... indices) {
+        public UpdateSettingsRequestBuilder prepareUpdateSettings(TimeValue masterNodeTimeout, String... indices) {
             return new UpdateSettingsRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
@@ -1401,7 +1401,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public PutIndexTemplateRequestBuilder preparePutTemplate(String name) {
-            return new PutIndexTemplateRequestBuilder(this, name);
+            return new PutIndexTemplateRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
@@ -1411,7 +1411,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetIndexTemplatesRequestBuilder prepareGetTemplates(String... names) {
-            return new GetIndexTemplatesRequestBuilder(this, names);
+            return new GetIndexTemplatesRequestBuilder(masterNodeTimeout, this, names);
         }
 
         @Override
@@ -1421,7 +1421,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public DeleteIndexTemplateRequestBuilder prepareDeleteTemplate(String name) {
-            return new DeleteIndexTemplateRequestBuilder(this, name);
+            return new DeleteIndexTemplateRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
@@ -1441,12 +1441,12 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetSettingsRequestBuilder prepareGetSettings(String... indices) {
-            return new GetSettingsRequestBuilder(this, indices);
+            return new GetSettingsRequestBuilder(masterNodeTimeout, this, indices);
         }
 
         @Override
         public ResizeRequestBuilder prepareResizeIndex(TimeValue masterNodeTimeout, String sourceIndex, String targetIndex) {
-            return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex)
+            return new ResizeRequestBuilder(masterNodeTimeout, this).setSourceIndex(sourceIndex)
                 .setTargetIndex(new CreateIndexRequest(masterNodeTimeout, targetIndex))
                 .setMasterNodeTimeout(masterNodeTimeout);
         }
@@ -1458,7 +1458,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public RolloverRequestBuilder prepareRolloverIndex(String alias) {
-            return new RolloverRequestBuilder(this).setRolloverTarget(alias);
+            return new RolloverRequestBuilder(masterNodeTimeout, this).setRolloverTarget(alias);
         }
 
         @Override

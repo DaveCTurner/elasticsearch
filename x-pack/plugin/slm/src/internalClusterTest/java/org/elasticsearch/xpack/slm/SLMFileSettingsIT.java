@@ -192,7 +192,7 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).get();
 
         var reservedState = clusterStateResponse.getState().metadata().reservedStateMetadata().get(FileSettingsService.NAMESPACE);
@@ -205,7 +205,7 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
             equalTo("50mb")
         );
 
-        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest().persistentSettings(
+        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
             Settings.builder().put(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "1234kb")
         );
         assertEquals(
@@ -247,7 +247,7 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
         }
 
         logger.info("--> create snapshot manually");
-        var request = new CreateSnapshotRequest("repo", "file-snap").waitForCompletion(true);
+        var request = new CreateSnapshotRequest(masterNodeTimeout, "repo", "file-snap").waitForCompletion(true);
         var response = clusterAdmin().createSnapshot(request).get();
         RestStatus status = response.getSnapshotInfo().status();
         assertEquals(RestStatus.OK, status);
@@ -306,7 +306,7 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).actionGet();
 
         assertThat(clusterStateResponse.getState().metadata().persistentSettings().get("search.allow_expensive_queries"), nullValue());

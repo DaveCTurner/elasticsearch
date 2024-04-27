@@ -98,7 +98,7 @@ public class ParentTaskAssigningClientTests extends ESTestCase {
                 expectThrows(
                     UnsupportedOperationException.class,
                     () -> PlainActionFuture.<ClusterStateResponse, Exception>get(
-                        fut -> remoteClusterClient.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(), fut)
+                        fut -> remoteClusterClient.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(masterNodeTimeout), fut)
                     )
                 ).getMessage()
             );

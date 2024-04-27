@@ -70,7 +70,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
 
         indicesAdmin().prepareCreate(masterNodeTimeout, index).setWaitForActiveShards(0).get();
 
-        Settings idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(index);
+        Settings idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(index);
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo(DataTier.DATA_CONTENT));
 
         // index should be red
@@ -243,7 +243,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
             )
             .get();
 
-        var replicas = indicesAdmin().prepareGetIndex()
+        var replicas = indicesAdmin().prepareGetIndex(masterNodeTimeout)
             .setIndices(index)
             .get()
             .getSetting(index, INDEX_NUMBER_OF_REPLICAS_SETTING.getKey());
@@ -256,7 +256,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
         updateDesiredNodes(desiredNodesWithoutColdTier);
 
         assertBusy(() -> {
-            var newReplicaCount = indicesAdmin().prepareGetIndex()
+            var newReplicaCount = indicesAdmin().prepareGetIndex(masterNodeTimeout)
                 .setIndices(index)
                 .get()
                 .getSetting(index, INDEX_NUMBER_OF_REPLICAS_SETTING.getKey());
@@ -275,7 +275,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
             .setSettings(Settings.builder().put(DataTier.TIER_PREFERENCE, DataTier.DATA_WARM))
             .get();
 
-        Settings idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(index);
+        Settings idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(index);
         assertThat(idxSettings.get(DataTier.TIER_PREFERENCE), equalTo(DataTier.DATA_WARM));
 
         // index should be yellow
@@ -292,7 +292,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
             .setSettings(Settings.builder().putNull(DataTier.TIER_PREFERENCE)) // will be overridden to data_content
             .get();
 
-        Settings idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(index);
+        Settings idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(index);
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo("data_content"));
 
         // index should be yellow
@@ -318,7 +318,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
             )
             .get();
 
-        indicesAdmin().prepareAddBlock(IndexMetadata.APIBlock.READ_ONLY, index).get();
+        indicesAdmin().prepareAddBlock(masterNodeTimeout, IndexMetadata.APIBlock.READ_ONLY, index).get();
         indicesAdmin().prepareResizeIndex(masterNodeTimeout, index, index + "-shrunk")
             .setResizeType(ResizeType.SHRINK)
             .setSettings(
@@ -328,7 +328,11 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
 
         ensureGreen(index + "-shrunk");
 
-        Settings idxSettings = indicesAdmin().prepareGetIndex().addIndices(index + "-shrunk").get().getSettings().get(index + "-shrunk");
+        Settings idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout)
+            .addIndices(index + "-shrunk")
+            .get()
+            .getSettings()
+            .get(index + "-shrunk");
         // It should inherit the setting of its originator
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo(DataTier.DATA_WARM));
 
@@ -348,7 +352,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
 
         indicesAdmin().prepareCreate(masterNodeTimeout, index).setWaitForActiveShards(0).get();
 
-        Settings idxSettings = indicesAdmin().prepareGetIndex().addIndices(index).get().getSettings().get(index);
+        Settings idxSettings = indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(index).get().getSettings().get(index);
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo("data_content"));
 
         // index should be yellow

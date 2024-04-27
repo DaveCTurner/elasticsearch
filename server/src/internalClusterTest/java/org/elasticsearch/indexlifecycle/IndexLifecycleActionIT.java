@@ -84,7 +84,9 @@ public class IndexLifecycleActionIT extends ESIntegTestCase {
         clusterAdmin().prepareReroute().get();
 
         clusterHealth = clusterAdmin().health(
-            new ClusterHealthRequest(new String[] {}).waitForGreenStatus().waitForNodes("2").waitForNoRelocatingShards(true)
+            new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForGreenStatus()
+                .waitForNodes("2")
+                .waitForNoRelocatingShards(true)
         ).actionGet();
         assertThat(clusterHealth.isTimedOut(), equalTo(false));
         assertThat(clusterHealth.getStatus(), equalTo(ClusterHealthStatus.GREEN));

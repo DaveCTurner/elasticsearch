@@ -101,7 +101,7 @@ public abstract class ProfilingTestCase extends ESIntegTestCase {
     }
 
     protected void updateProfilingTemplatesEnabled(boolean newValue) {
-        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest();
+        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(masterNodeTimeout);
         request.persistentSettings(Settings.builder().put(ProfilingPlugin.PROFILING_TEMPLATES_ENABLED.getKey(), newValue).build());
         ClusterUpdateSettingsResponse response = clusterAdmin().updateSettings(request).actionGet();
         assertTrue("Update of profiling templates enabled setting is not acknowledged", response.isAcknowledged());

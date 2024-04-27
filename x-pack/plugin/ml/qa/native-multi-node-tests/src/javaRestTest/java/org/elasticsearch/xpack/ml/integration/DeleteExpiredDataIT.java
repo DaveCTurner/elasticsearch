@@ -137,7 +137,7 @@ public class DeleteExpiredDataIT extends MlNativeAutodetectIntegTestCase {
             .get();
         refresh();
 
-        GetIndexResponse getIndexResponse = client().admin().indices().prepareGetIndex().setIndices(".ml-state*").get();
+        GetIndexResponse getIndexResponse = client().admin().indices().prepareGetIndex(masterNodeTimeout).setIndices(".ml-state*").get();
         assertThat(
             Strings.toString(getIndexResponse),
             getIndexResponse.getIndices(),
@@ -147,7 +147,7 @@ public class DeleteExpiredDataIT extends MlNativeAutodetectIntegTestCase {
         client().execute(DeleteExpiredDataAction.INSTANCE, new DeleteExpiredDataAction.Request()).get();
         refresh();
 
-        getIndexResponse = client().admin().indices().prepareGetIndex().setIndices(".ml-state*").get();
+        getIndexResponse = client().admin().indices().prepareGetIndex(masterNodeTimeout).setIndices(".ml-state*").get();
         assertThat(
             Strings.toString(getIndexResponse),
             getIndexResponse.getIndices(),

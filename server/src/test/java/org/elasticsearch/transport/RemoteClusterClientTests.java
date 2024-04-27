@@ -102,7 +102,7 @@ public class RemoteClusterClientTests extends ESTestCase {
                 ClusterStateResponse clusterStateResponse = PlainActionFuture.get(
                     future -> client.execute(
                         ClusterStateAction.REMOTE_TYPE,
-                        new ClusterStateRequest(),
+                        new ClusterStateRequest(masterNodeTimeout),
                         ActionListener.runBefore(
                             future,
                             () -> assertTrue(Thread.currentThread().getName().contains('[' + TEST_THREAD_POOL_NAME + ']'))
@@ -180,7 +180,7 @@ public class RemoteClusterClientTests extends ESTestCase {
                         )
                     );
                     ClusterStateResponse clusterStateResponse = PlainActionFuture.get(
-                        f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(), f)
+                        f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(masterNodeTimeout), f)
                     );
                     assertNotNull(clusterStateResponse);
                     assertEquals("foo_bar_cluster", clusterStateResponse.getState().getClusterName().value());
@@ -269,7 +269,7 @@ public class RemoteClusterClientTests extends ESTestCase {
                     expectThrows(
                         ConnectTransportException.class,
                         () -> PlainActionFuture.<ClusterStateResponse, RuntimeException>get(
-                            f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(), f)
+                            f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(masterNodeTimeout), f)
                         )
                     );
                 } finally {
@@ -280,7 +280,7 @@ public class RemoteClusterClientTests extends ESTestCase {
                 assertBusy(() -> {
                     try {
                         PlainActionFuture.<ClusterStateResponse, RuntimeException>get(
-                            f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(), f)
+                            f -> client.execute(ClusterStateAction.REMOTE_TYPE, new ClusterStateRequest(masterNodeTimeout), f)
                         );
                     } catch (ConnectTransportException e) {
                         // keep retrying on this exception, the goal is to check that we eventually reconnect

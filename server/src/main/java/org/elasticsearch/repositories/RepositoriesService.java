@@ -466,7 +466,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
          * @param name the repository name
          */
         public UnregisterRepositoryTask(String name) {
-            this(new DeleteRepositoryRequest(name), null);
+            this(new DeleteRepositoryRequest(masterNodeTimeout, name), null);
         }
 
         @Override

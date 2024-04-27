@@ -50,7 +50,7 @@ public class DesiredBalanceShutdownIT extends ESIntegTestCase {
                 logger.info("--> excluding index from [{}] and concurrently starting replacement with [{}]", oldNodeName, newNodeName);
 
                 final PlainActionFuture<AcknowledgedResponse> excludeFuture = new PlainActionFuture<>();
-                indicesAdmin().prepareUpdateSettings(INDEX)
+                indicesAdmin().prepareUpdateSettings(masterNodeTimeout, INDEX)
                     .setSettings(
                         Settings.builder()
                             .put(IndexMetadata.INDEX_ROUTING_EXCLUDE_GROUP_PREFIX + "._name", oldNodeName)

@@ -839,7 +839,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * updates the settings for an index
      */
     public static void updateIndexSettings(Settings.Builder settingsBuilder, String... index) {
-        UpdateSettingsRequestBuilder settingsRequest = indicesAdmin().prepareUpdateSettings(index);
+        UpdateSettingsRequestBuilder settingsRequest = indicesAdmin().prepareUpdateSettings(masterNodeTimeout, index);
         settingsRequest.setSettings(settingsBuilder);
         assertAcked(settingsRequest.get());
     }
@@ -958,7 +958,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
         String color = clusterHealthStatus.name().toLowerCase(Locale.ROOT);
         String method = "ensure" + Strings.capitalize(color);
 
-        ClusterHealthRequest healthRequest = new ClusterHealthRequest(indices).timeout(timeout)
+        ClusterHealthRequest healthRequest = new ClusterHealthRequest(masterNodeTimeout, indices).timeout(timeout)
             .waitForStatus(clusterHealthStatus)
             .waitForEvents(Priority.LANGUID)
             .waitForNoRelocatingShards(true)
@@ -1048,7 +1048,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * using the cluster health API.
      */
     public ClusterHealthStatus waitForRelocation(ClusterHealthStatus status) {
-        ClusterHealthRequest request = new ClusterHealthRequest(new String[] {}).waitForNoRelocatingShards(true)
+        ClusterHealthRequest request = new ClusterHealthRequest(masterNodeTimeout, new String[] {}).waitForNoRelocatingShards(true)
             .waitForEvents(Priority.LANGUID);
         if (status != null) {
             request.waitForStatus(status);
@@ -1543,7 +1543,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
     public static boolean indexExists(String index, Client client) {
         GetIndexResponse getIndexResponse = client.admin()
             .indices()
-            .prepareGetIndex()
+            .prepareGetIndex(masterNodeTimeout)
             .setIndices(index)
             .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED)
             .get();
@@ -1758,7 +1758,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             // the read-only-allow-delete block isn't supported by the add block API so we must use the update settings API here.
             updateIndexSettings(Settings.builder().put(block, true), index);
         } else {
-            indicesAdmin().prepareAddBlock(IndexMetadata.APIBlock.fromSetting(block), index).get();
+            indicesAdmin().prepareAddBlock(masterNodeTimeout, IndexMetadata.APIBlock.fromSetting(block), index).get();
         }
     }
 
@@ -2500,14 +2500,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     public static Index resolveIndex(String index) {
-        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex().setIndices(index).get();
+        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex(masterNodeTimeout).setIndices(index).get();
         assertTrue("index " + index + " not found", getIndexResponse.getSettings().containsKey(index));
         String uuid = getIndexResponse.getSettings().get(index).get(IndexMetadata.SETTING_INDEX_UUID);
         return new Index(index, uuid);
     }
 
     public static String resolveCustomDataPath(String index) {
-        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex().setIndices(index).get();
+        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex(masterNodeTimeout).setIndices(index).get();
         assertTrue("index " + index + " not found", getIndexResponse.getSettings().containsKey(index));
         return getIndexResponse.getSettings().get(index).get(IndexMetadata.SETTING_DATA_PATH);
     }

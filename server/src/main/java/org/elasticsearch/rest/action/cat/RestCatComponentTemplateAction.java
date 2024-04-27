@@ -73,7 +73,7 @@ public class RestCatComponentTemplateAction extends AbstractCatAction {
     @Override
     protected BaseRestHandler.RestChannelConsumer doCatRequest(RestRequest request, NodeClient client) {
         final String matchPattern = request.hasParam("name") ? request.param("name") : null;
-        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+        final ClusterStateRequest clusterStateRequest = new ClusterStateRequest(masterNodeTimeout);
         clusterStateRequest.clear().metadata(true);
         clusterStateRequest.local(request.paramAsBoolean("local", clusterStateRequest.local()));
         clusterStateRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterStateRequest.masterNodeTimeout()));

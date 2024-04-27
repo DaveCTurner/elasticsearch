@@ -100,7 +100,7 @@ public class CreateSnapshotStep extends AsyncRetryDuringSnapshotActionStep {
             );
             return;
         }
-        CreateSnapshotRequest request = new CreateSnapshotRequest(snapshotRepository, snapshotName);
+        CreateSnapshotRequest request = new CreateSnapshotRequest(masterNodeTimeout, snapshotRepository, snapshotName);
         request.indices(indexName);
         // this is safe as the snapshot creation will still be async, it's just that the listener will be notified when the snapshot is
         // complete

@@ -252,6 +252,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
         assertBusy(() -> {
             assertTrue(annotationsIndexExists(AnnotationIndex.LATEST_INDEX_NAME));
             Map<String, List<AliasMetadata>> aliases = indicesAdmin().prepareGetAliases(
+                masterNodeTimeout,
                 AnnotationIndex.READ_ALIAS_NAME,
                 AnnotationIndex.WRITE_ALIAS_NAME
             ).setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN).get().getAliases();
@@ -322,7 +323,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
     }
 
     private boolean annotationsIndexExists(String expectedName) {
-        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex()
+        GetIndexResponse getIndexResponse = indicesAdmin().prepareGetIndex(masterNodeTimeout)
             .setIndices(AnnotationIndex.LATEST_INDEX_NAME)
             .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN)
             .get();
@@ -332,6 +333,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
     private int numberOfAnnotationsAliases() {
         int count = 0;
         Map<String, List<AliasMetadata>> aliases = indicesAdmin().prepareGetAliases(
+            masterNodeTimeout,
             AnnotationIndex.READ_ALIAS_NAME,
             AnnotationIndex.WRITE_ALIAS_NAME,
             AnnotationIndex.LATEST_INDEX_NAME

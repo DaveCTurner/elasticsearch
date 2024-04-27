@@ -166,7 +166,7 @@ public class FileSettingsServiceIT extends ESIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).actionGet();
 
         assertThat(
@@ -174,7 +174,7 @@ public class FileSettingsServiceIT extends ESIntegTestCase {
             equalTo(expectedBytesPerSec)
         );
 
-        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest().persistentSettings(
+        ClusterUpdateSettingsRequest req = new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(
             Settings.builder().put(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "1234kb")
         );
         assertEquals(
@@ -252,7 +252,7 @@ public class FileSettingsServiceIT extends ESIntegTestCase {
         logger.info("--> restart master");
         internalCluster().restartNode(masterNode);
 
-        final ClusterStateResponse clusterStateResponse = clusterAdmin().state(new ClusterStateRequest()).actionGet();
+        final ClusterStateResponse clusterStateResponse = clusterAdmin().state(new ClusterStateRequest(masterNodeTimeout)).actionGet();
         assertEquals(
             1,
             clusterStateResponse.getState()
@@ -296,7 +296,7 @@ public class FileSettingsServiceIT extends ESIntegTestCase {
         assertTrue(awaitSuccessful);
 
         final ClusterStateResponse clusterStateResponse = clusterAdmin().state(
-            new ClusterStateRequest().waitForMetadataVersion(metadataVersion.get())
+            new ClusterStateRequest(masterNodeTimeout).waitForMetadataVersion(metadataVersion.get())
         ).actionGet();
 
         assertThat(clusterStateResponse.getState().metadata().persistentSettings().get("search.allow_expensive_queries"), nullValue());

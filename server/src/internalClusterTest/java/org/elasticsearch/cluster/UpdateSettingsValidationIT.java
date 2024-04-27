@@ -41,7 +41,9 @@ public class UpdateSettingsValidationIT extends ESIntegTestCase {
         assertThat(healthResponse.getIndices().get("test").getActiveShards(), equalTo(test.numPrimaries));
 
         try {
-            indicesAdmin().prepareUpdateSettings("test").setSettings(Settings.builder().put("index.refresh_interval", "")).get();
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
+                .setSettings(Settings.builder().put("index.refresh_interval", ""))
+                .get();
             fail();
         } catch (IllegalArgumentException ex) {
             logger.info("Error message: [{}]", ex.getMessage());

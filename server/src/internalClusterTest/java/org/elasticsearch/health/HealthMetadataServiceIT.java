@@ -253,7 +253,7 @@ public class HealthMetadataServiceIT extends ESIntegTestCase {
         internalCluster.client()
             .admin()
             .cluster()
-            .updateSettings(new ClusterUpdateSettingsRequest().persistentSettings(settings))
+            .updateSettings(new ClusterUpdateSettingsRequest(masterNodeTimeout).persistentSettings(settings))
             .actionGet();
     }
 

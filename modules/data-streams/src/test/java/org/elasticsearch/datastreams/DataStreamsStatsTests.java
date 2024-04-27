@@ -135,7 +135,10 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
         );
 
         assertBusy(
-            () -> assertNotEquals(ClusterHealthStatus.RED, clusterAdmin().health(new ClusterHealthRequest()).actionGet().getStatus())
+            () -> assertNotEquals(
+                ClusterHealthStatus.RED,
+                clusterAdmin().health(new ClusterHealthRequest(masterNodeTimeout)).actionGet().getStatus()
+            )
         );
 
         DataStreamsStatsAction.Response stats = getDataStreamsStats();

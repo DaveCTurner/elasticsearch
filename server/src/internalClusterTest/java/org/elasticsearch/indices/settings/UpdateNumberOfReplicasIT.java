@@ -424,7 +424,7 @@ public class UpdateNumberOfReplicasIT extends ESIntegTestCase {
         final long settingsVersion = clusterAdmin().prepareState().get().getState().metadata().index("test").getSettingsVersion();
         final int value = randomIntBetween(-10, -1);
         try {
-            indicesAdmin().prepareUpdateSettings("test")
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, value))
                 .get();
             fail("should have thrown an exception about the replica shard count");
@@ -441,7 +441,7 @@ public class UpdateNumberOfReplicasIT extends ESIntegTestCase {
         createIndex("test-index", Settings.builder().put("index.number_of_replicas", 0).build());
         final IndicesOptions options = IndicesOptions.DEFAULT;
         assertAcked(
-            indicesAdmin().prepareUpdateSettings("non-existent-*")
+            indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "non-existent-*")
                 .setSettings(Settings.builder().put("index.number_of_replicas", 1))
                 .setIndicesOptions(options)
         );

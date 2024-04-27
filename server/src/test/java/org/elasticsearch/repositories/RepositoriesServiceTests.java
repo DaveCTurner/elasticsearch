@@ -202,7 +202,7 @@ public class RepositoriesServiceTests extends ESTestCase {
 
     public void testRegisterRepositoryFailsForUnknownType() {
         var repoName = randomAlphaOfLengthBetween(10, 25);
-        var request = new PutRepositoryRequest().name(repoName).type("unknown");
+        var request = new PutRepositoryRequest(masterNodeTimeout).name(repoName).type("unknown");
 
         repositoriesService.registerRepository(request, new ActionListener<>() {
             @Override
@@ -281,7 +281,7 @@ public class RepositoriesServiceTests extends ESTestCase {
         assertThat(repo, isA(InvalidRepository.class));
 
         // 2. repository creation successfully when current node become master node and repository is put again
-        var request = new PutRepositoryRequest().name(repoName).type(TestRepository.TYPE);
+        var request = new PutRepositoryRequest(masterNodeTimeout).name(repoName).type(TestRepository.TYPE);
 
         repositoriesService.registerRepository(request, new ActionListener<>() {
             @Override
@@ -314,7 +314,10 @@ public class RepositoriesServiceTests extends ESTestCase {
     }
 
     private void assertThrowsOnRegister(String repoName) {
-        expectThrows(RepositoryException.class, () -> repositoriesService.registerRepository(new PutRepositoryRequest(repoName), null));
+        expectThrows(
+            RepositoryException.class,
+            () -> repositoriesService.registerRepository(new PutRepositoryRequest(masterNodeTimeout, repoName), null)
+        );
     }
 
     private static class TestRepository implements Repository {

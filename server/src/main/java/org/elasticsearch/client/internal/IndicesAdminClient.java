@@ -236,10 +236,11 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Adds a block to an index
      *
-     * @param block   The block to add
-     * @param indices The name of the indices to add the block to
+     * @param masterNodeTimeout
+     * @param block             The block to add
+     * @param indices           The name of the indices to add the block to
      */
-    AddIndexBlockRequestBuilder prepareAddBlock(APIBlock block, String... indices);
+    AddIndexBlockRequestBuilder prepareAddBlock(TimeValue masterNodeTimeout, APIBlock block, String... indices);
 
     /**
      * Adds a block to an index
@@ -333,7 +334,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Get the complete mappings of one or more types
      */
-    GetMappingsRequestBuilder prepareGetMappings(String... indices);
+    GetMappingsRequestBuilder prepareGetMappings(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Get the mappings of specific fields
@@ -410,7 +411,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Get specific index aliases that exists in particular indices and / or by name.
      */
-    GetAliasesRequestBuilder prepareGetAliases(String... aliases);
+    GetAliasesRequestBuilder prepareGetAliases(TimeValue masterNodeTimeout, String... aliases);
 
     /**
      * Get index metadata for particular indices.
@@ -430,7 +431,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Get index metadata for particular indices.
      */
-    GetIndexRequestBuilder prepareGetIndex();
+    GetIndexRequestBuilder prepareGetIndex(TimeValue masterNodeTimeout);
 
     /**
      * Clear indices cache.
@@ -472,7 +473,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Update indices settings.
      */
-    UpdateSettingsRequestBuilder prepareUpdateSettings(String... indices);
+    UpdateSettingsRequestBuilder prepareUpdateSettings(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Analyze text under the provided index.

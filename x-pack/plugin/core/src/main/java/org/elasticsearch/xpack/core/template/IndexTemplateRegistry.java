@@ -726,6 +726,7 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
             PutPipelineRequest request = new PutPipelineRequest(
+                masterNodeTimeout,
                 pipelineConfig.getId(),
                 pipelineConfig.loadConfig(),
                 pipelineConfig.getXContentType()

@@ -61,7 +61,7 @@ public class TestFeatureLicenseTrackingIT extends MlSingleNodeTestCase {
     public void cleanup() throws Exception {
         for (String pipeline : createdPipelines) {
             try {
-                client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(pipeline)).actionGet();
+                client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(masterNodeTimeout, pipeline)).actionGet();
             } catch (Exception ex) {
                 logger.warn(() -> "error cleaning up pipeline [" + pipeline + "]", ex);
             }
@@ -170,7 +170,7 @@ public class TestFeatureLicenseTrackingIT extends MlSingleNodeTestCase {
             assertThat(lastUsage.toInstant(), lessThan(recentUsage.toInstant()));
         });
 
-        client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(pipelineId)).actionGet();
+        client().execute(DeletePipelineTransportAction.TYPE, new DeletePipelineRequest(masterNodeTimeout, pipelineId)).actionGet();
         createdPipelines.remove(pipelineId);
 
         // Make sure that feature usage keeps the last usage once the model is removed
@@ -211,18 +211,21 @@ public class TestFeatureLicenseTrackingIT extends MlSingleNodeTestCase {
     }
 
     private void putTrainedModelIngestPipeline(String pipelineId, String modelId) throws Exception {
-        client().execute(PutPipelineTransportAction.TYPE, new PutPipelineRequest(pipelineId, new BytesArray(Strings.format("""
-            {
-                "processors": [
-                  {
-                    "inference": {
-                      "inference_config": {"classification":{}},
-                      "model_id": "%s",
-                      "field_map": {}
-                    }
-                  }
-                ]
-              }""", modelId)), XContentType.JSON)).actionGet();
+        client().execute(
+            PutPipelineTransportAction.TYPE,
+            new PutPipelineRequest(masterNodeTimeout, pipelineId, new BytesArray(Strings.format("""
+                {
+                    "processors": [
+                      {
+                        "inference": {
+                          "inference_config": {"classification":{}},
+                          "model_id": "%s",
+                          "field_map": {}
+                        }
+                      }
+                    ]
+                  }""", modelId)), XContentType.JSON)
+        ).actionGet();
     }
 
 }

@@ -393,7 +393,7 @@ public class JobResultsProvider {
             addTermsMapping(indexMappings, indexName, termFields, listener);
         }, listener::onFailure);
 
-        GetMappingsRequest getMappingsRequest = client.admin().indices().prepareGetMappings(indexName).request();
+        GetMappingsRequest getMappingsRequest = client.admin().indices().prepareGetMappings(masterNodeTimeout, indexName).request();
         executeAsyncWithOrigin(
             client.threadPool().getThreadContext(),
             ML_ORIGIN,

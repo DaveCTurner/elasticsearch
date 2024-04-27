@@ -626,7 +626,7 @@ public class EnrichPolicyRunner implements Runnable {
     }
 
     private void waitForIndexGreen(final String destinationIndexName) {
-        ClusterHealthRequest request = new ClusterHealthRequest(destinationIndexName).waitForGreenStatus();
+        ClusterHealthRequest request = new ClusterHealthRequest(masterNodeTimeout, destinationIndexName).waitForGreenStatus();
         enrichOriginClient().admin()
             .cluster()
             .health(request, listener.delegateFailureAndWrap((l, r) -> updateEnrichPolicyAlias(destinationIndexName)));

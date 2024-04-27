@@ -74,7 +74,7 @@ public class EqlDataLoader {
             Request createRepo = new Request("PUT", "/_snapshot/" + cfg.getProperty("gcs_repo_name"));
             createRepo.setJsonEntity(
                 Strings.toString(
-                    new PutRepositoryRequest().type("gcs")
+                    new PutRepositoryRequest(masterNodeTimeout).type("gcs")
                         .settings(
                             Settings.builder()
                                 .put("bucket", cfg.getProperty("gcs_bucket_name"))

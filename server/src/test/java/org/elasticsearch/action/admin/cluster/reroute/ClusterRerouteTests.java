@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.not;
 public class ClusterRerouteTests extends ESAllocationTestCase {
 
     public void testSerializeRequest() throws IOException {
-        ClusterRerouteRequest req = new ClusterRerouteRequest();
+        ClusterRerouteRequest req = new ClusterRerouteRequest(masterNodeTimeout);
         req.setRetryFailed(randomBoolean());
         req.dryRun(randomBoolean());
         req.explain(randomBoolean());
@@ -86,7 +86,7 @@ public class ClusterRerouteTests extends ESAllocationTestCase {
         var responseRef = new AtomicReference<ClusterRerouteResponse>();
         var responseActionListener = ActionTestUtils.assertNoFailureListener(responseRef::set);
 
-        var request = new ClusterRerouteRequest().dryRun(true);
+        var request = new ClusterRerouteRequest(masterNodeTimeout).dryRun(true);
         var task = new TransportClusterRerouteAction.ClusterRerouteResponseAckedClusterStateUpdateTask(
             logger,
             allocationService,
@@ -112,7 +112,7 @@ public class ClusterRerouteTests extends ESAllocationTestCase {
         );
         ClusterState clusterState = createInitialClusterState(allocationService);
 
-        var req = new ClusterRerouteRequest().dryRun(false);
+        var req = new ClusterRerouteRequest(masterNodeTimeout).dryRun(false);
         var task = new TransportClusterRerouteAction.ClusterRerouteResponseAckedClusterStateUpdateTask(
             logger,
             allocationService,

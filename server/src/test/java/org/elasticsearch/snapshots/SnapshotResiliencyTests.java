@@ -348,7 +348,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             ignored -> client().admin()
                 .cluster()
                 .restoreSnapshot(
-                    new RestoreSnapshotRequest(repoName, snapshotName).waitForCompletion(true),
+                    new RestoreSnapshotRequest(masterNodeTimeout, repoName, snapshotName).waitForCompletion(true),
                     restoreSnapshotResponseListener
                 )
         );
@@ -705,7 +705,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             createOtherSnapshotResponseStepListener,
             createSnapshotResponse -> client().admin()
                 .cluster()
-                .deleteSnapshot(new DeleteSnapshotRequest(repoName, "*"), deleteSnapshotStepListener)
+                .deleteSnapshot(new DeleteSnapshotRequest(masterNodeTimeout, repoName, "*"), deleteSnapshotStepListener)
         );
 
         deterministicTaskQueue.runAllRunnableTasks();
@@ -773,7 +773,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 () -> client().admin()
                     .cluster()
                     .restoreSnapshot(
-                        new RestoreSnapshotRequest(repoName, secondSnapshotName).waitForCompletion(true)
+                        new RestoreSnapshotRequest(masterNodeTimeout, repoName, secondSnapshotName).waitForCompletion(true)
                             .renamePattern("(.+)")
                             .renameReplacement("restored_$1"),
                         restoreSnapshotResponseListener
@@ -1020,7 +1020,9 @@ public class SnapshotResiliencyTests extends ESTestCase {
 
         continueOrDie(
             createRepoAndIndex(repoName, index, shards),
-            createIndexResponse -> client().admin().cluster().state(new ClusterStateRequest(), clusterStateResponseStepListener)
+            createIndexResponse -> client().admin()
+                .cluster()
+                .state(new ClusterStateRequest(masterNodeTimeout), clusterStateResponseStepListener)
         );
 
         continueOrDie(clusterStateResponseStepListener, clusterStateResponse -> {
@@ -1032,7 +1034,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 @Override
                 public void run() {
                     final SubscribableListener<ClusterStateResponse> updatedClusterStateResponseStepListener = new SubscribableListener<>();
-                    masterAdminClient.cluster().state(new ClusterStateRequest(), updatedClusterStateResponseStepListener);
+                    masterAdminClient.cluster().state(new ClusterStateRequest(masterNodeTimeout), updatedClusterStateResponseStepListener);
                     continueOrDie(updatedClusterStateResponseStepListener, updatedClusterState -> {
                         final ShardRouting shardRouting = updatedClusterState.getState()
                             .routingTable()
@@ -1049,13 +1051,16 @@ public class SnapshotResiliencyTests extends ESTestCase {
                                     createdSnapshot.set(true);
                                     testClusterNodes.randomDataNodeSafe().client.admin()
                                         .cluster()
-                                        .deleteSnapshot(new DeleteSnapshotRequest(repoName, snapshotName), ActionListener.noop());
+                                        .deleteSnapshot(
+                                            new DeleteSnapshotRequest(masterNodeTimeout, repoName, snapshotName),
+                                            ActionListener.noop()
+                                        );
                                 }));
                             scheduleNow(
                                 () -> testClusterNodes.randomMasterNodeSafe().client.admin()
                                     .cluster()
                                     .reroute(
-                                        new ClusterRerouteRequest().add(
+                                        new ClusterRerouteRequest(masterNodeTimeout).add(
                                             new AllocateEmptyPrimaryAllocationCommand(
                                                 index,
                                                 shardRouting.shardId().id(),
@@ -1135,7 +1140,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
             createSnapshotResponse -> client().admin()
                 .cluster()
                 .restoreSnapshot(
-                    new RestoreSnapshotRequest(repoName, snapshotName).renamePattern(index)
+                    new RestoreSnapshotRequest(masterNodeTimeout, repoName, snapshotName).renamePattern(index)
                         .renameReplacement(restoredIndex)
                         .waitForCompletion(true),
                     restoreSnapshotResponseStepListener

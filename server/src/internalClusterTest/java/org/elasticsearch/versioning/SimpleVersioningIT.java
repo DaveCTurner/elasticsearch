@@ -208,7 +208,7 @@ public class SimpleVersioningIT extends ESIntegTestCase {
         HashMap<String, Object> newSettings = new HashMap<>();
         newSettings.put("index.gc_deletes", "42");
         try {
-            client().admin().indices().prepareUpdateSettings("test").setSettings(newSettings).get();
+            client().admin().indices().prepareUpdateSettings(masterNodeTimeout, "test").setSettings(newSettings).get();
             fail("did not hit expected exception");
         } catch (IllegalArgumentException iae) {
             // expected
