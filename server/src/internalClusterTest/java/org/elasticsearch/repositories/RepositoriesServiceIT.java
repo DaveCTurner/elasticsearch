@@ -46,7 +46,13 @@ public class RepositoriesServiceIT extends ESIntegTestCase {
 
         final Settings.Builder repoSettings = Settings.builder().put("location", randomRepoPath());
 
-        assertAcked(client.admin().cluster().preparePutRepository(repositoryName).setType(FsRepository.TYPE).setSettings(repoSettings));
+        assertAcked(
+            client.admin()
+                .cluster()
+                .preparePutRepository(masterNodeTimeout, repositoryName)
+                .setType(FsRepository.TYPE)
+                .setSettings(repoSettings)
+        );
 
         final GetRepositoriesResponse originalGetRepositoriesResponse = client.admin()
             .cluster()
@@ -64,7 +70,13 @@ public class RepositoriesServiceIT extends ESIntegTestCase {
         final boolean updated = randomBoolean();
         final String updatedRepositoryType = updated ? "mock" : FsRepository.TYPE;
 
-        assertAcked(client.admin().cluster().preparePutRepository(repositoryName).setType(updatedRepositoryType).setSettings(repoSettings));
+        assertAcked(
+            client.admin()
+                .cluster()
+                .preparePutRepository(masterNodeTimeout, repositoryName)
+                .setType(updatedRepositoryType)
+                .setSettings(repoSettings)
+        );
 
         final GetRepositoriesResponse updatedGetRepositoriesResponse = client.admin()
             .cluster()
@@ -82,6 +94,12 @@ public class RepositoriesServiceIT extends ESIntegTestCase {
         // check that a noop update does not verify. Since the new data node does not share the same `path.repo`, verification will fail if
         // it runs.
         internalCluster().startDataOnlyNode(Settings.builder().put(Environment.PATH_REPO_SETTING.getKey(), createTempDir()).build());
-        assertAcked(client.admin().cluster().preparePutRepository(repositoryName).setType(updatedRepositoryType).setSettings(repoSettings));
+        assertAcked(
+            client.admin()
+                .cluster()
+                .preparePutRepository(masterNodeTimeout, repositoryName)
+                .setType(updatedRepositoryType)
+                .setSettings(repoSettings)
+        );
     }
 }

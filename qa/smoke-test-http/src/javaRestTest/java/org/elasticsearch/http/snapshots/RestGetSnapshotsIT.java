@@ -248,7 +248,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         final String policyName = "some-policy";
         final SnapshotInfo withPolicy = AbstractSnapshotIntegTestCase.assertSuccessful(
             logger,
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotWithPolicy)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotWithPolicy)
                 .setUserMetadata(Map.of(SnapshotsService.POLICY_ID_METADATA_FIELD, policyName))
                 .setWaitForCompletion(true)
                 .execute()
@@ -268,7 +268,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
         final String otherPolicyName = "other-policy";
         final SnapshotInfo withOtherPolicy = AbstractSnapshotIntegTestCase.assertSuccessful(
             logger,
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotWithOtherPolicy)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotWithOtherPolicy)
                 .setUserMetadata(Map.of(SnapshotsService.POLICY_ID_METADATA_FIELD, otherPolicyName))
                 .setWaitForCompletion(true)
                 .execute()
@@ -331,7 +331,7 @@ public class RestGetSnapshotsIT extends AbstractSnapshotRestTestCase {
             final SnapshotInfo snapshotInfo = AbstractSnapshotIntegTestCase.createFullSnapshot(logger, repoName, snapshotName);
             if (forbiddenStartTimes.contains(snapshotInfo.startTime())) {
                 logger.info("--> snapshot start time collided");
-                assertAcked(clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).get());
+                assertAcked(clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, repoName, snapshotName).get());
             } else {
                 assertTrue(forbiddenStartTimes.add(snapshotInfo.startTime()));
                 return snapshotInfo;

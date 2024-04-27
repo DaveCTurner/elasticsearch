@@ -222,7 +222,7 @@ public class BasicWatcherTests extends AbstractWatcherIntegrationTestCase {
     public void testConditionSearchWithIndexedTemplate() throws Exception {
         SearchSourceBuilder searchSourceBuilder = searchSource().query(matchQuery("level", "a"));
         assertAcked(
-            clusterAdmin().preparePutStoredScript()
+            clusterAdmin().preparePutStoredScript(masterNodeTimeout)
                 .setId("my-template")
                 .setContent(
                     BytesReference.bytes(

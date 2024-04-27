@@ -378,7 +378,7 @@ public class SplitIndexIT extends ESIntegTestCase {
             ensureGreen();
             assertNoResizeSourceIndexSettings("target");
 
-            final ClusterState state = clusterAdmin().prepareState().get().getState();
+            final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
             DiscoveryNode mergeNode = state.nodes().get(state.getRoutingTable().index("target").shard(0).primaryShard().currentNodeId());
             logger.info("split node {}", mergeNode);
 

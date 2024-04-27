@@ -294,7 +294,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
                 new FreezeRequest("idx*").setFreeze(false).indicesOptions(IndicesOptions.strictExpand())
             )
         );
-        ClusterStateResponse stateResponse = clusterAdmin().prepareState().get();
+        ClusterStateResponse stateResponse = clusterAdmin().prepareState(masterNodeTimeout).get();
         assertEquals(IndexMetadata.State.CLOSE, stateResponse.getState().getMetadata().index("idx-closed").getState());
         assertEquals(IndexMetadata.State.OPEN, stateResponse.getState().getMetadata().index("idx").getState());
         assertHitCount(client().prepareSearch(), 1L);
@@ -484,14 +484,20 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
             )
         );
         assertIndexFrozen("idx");
-        assertEquals(IndexMetadata.State.CLOSE, clusterAdmin().prepareState().get().getState().metadata().index("idx-close").getState());
+        assertEquals(
+            IndexMetadata.State.CLOSE,
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index("idx-close").getState()
+        );
     }
 
     public void testUnfreezeClosedIndex() {
         createIndex("idx", Settings.builder().put("index.number_of_shards", 1).build());
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("idx")).actionGet());
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
-        assertEquals(IndexMetadata.State.CLOSE, clusterAdmin().prepareState().get().getState().metadata().index("idx").getState());
+        assertEquals(
+            IndexMetadata.State.CLOSE,
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index("idx").getState()
+        );
         expectThrows(
             IndexNotFoundException.class,
             client().execute(
@@ -506,7 +512,10 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
         );
         // we don't resolve to closed indices
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("idx").setFreeze(false)).actionGet());
-        assertEquals(IndexMetadata.State.OPEN, clusterAdmin().prepareState().get().getState().metadata().index("idx").getState());
+        assertEquals(
+            IndexMetadata.State.OPEN,
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index("idx").getState()
+        );
     }
 
     public void testFreezeIndexIncreasesIndexSettingsVersion() {
@@ -514,12 +523,17 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
         createIndex(index, indexSettings(1, 0).build());
         prepareIndex(index).setSource("field", "value").get();
 
-        final long settingsVersion = clusterAdmin().prepareState().get().getState().metadata().index(index).getSettingsVersion();
+        final long settingsVersion = clusterAdmin().prepareState(masterNodeTimeout)
+            .get()
+            .getState()
+            .metadata()
+            .index(index)
+            .getSettingsVersion();
 
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest(index)).actionGet());
         assertIndexFrozen(index);
         assertThat(
-            clusterAdmin().prepareState().get().getState().metadata().index(index).getSettingsVersion(),
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index(index).getSettingsVersion(),
             greaterThan(settingsVersion)
         );
     }
@@ -536,7 +550,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
 
         final IndicesService indicesService = getInstanceFromNode(IndicesService.class);
         assertBusy(() -> {
-            final Index index = clusterAdmin().prepareState().get().getState().metadata().index(indexName).getIndex();
+            final Index index = clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index(indexName).getIndex();
             final IndexService indexService = indicesService.indexService(index);
             assertThat(indexService.hasShard(0), is(true));
             assertThat(indexService.getShard(0).getLastKnownGlobalCheckpoint(), greaterThanOrEqualTo(nbNoOps - 1L));
@@ -559,7 +573,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest(indexName)).actionGet());
         assertIndexFrozen(indexName);
 
-        final IndexMetadata indexMetadata = clusterAdmin().prepareState().get().getState().metadata().index(indexName);
+        final IndexMetadata indexMetadata = clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index(indexName);
         final IndexService indexService = getInstanceFromNode(IndicesService.class).indexService(indexMetadata.getIndex());
         for (int i = 0; i < indexMetadata.getNumberOfShards(); i++) {
             final IndexShard indexShard = indexService.getShardOrNull(i);
@@ -622,7 +636,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
 
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("index")).actionGet());
 
-        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState()
+        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState(masterNodeTimeout)
             .get()
             .getState()
             .metadata()
@@ -654,7 +668,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
 
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("index")).actionGet());
 
-        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState()
+        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState(masterNodeTimeout)
             .get()
             .getState()
             .metadata()

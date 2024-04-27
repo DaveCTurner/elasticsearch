@@ -307,7 +307,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                 .setSettings(Settings.builder().put("index.routing.allocation.include._name", "nothing").build())
         );
 
-        final ClusterState clusterState = clusterAdmin().prepareState().get().getState();
+        final ClusterState clusterState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         assertThat(clusterState.metadata().indices().get(indexName).getState(), is(IndexMetadata.State.OPEN));
         assertThat(clusterState.routingTable().allShards().allMatch(ShardRouting::unassigned), is(true));
 
@@ -414,7 +414,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
             }
             indices[i] = indexName;
         }
-        assertThat(clusterAdmin().prepareState().get().getState().metadata().indices().size(), equalTo(indices.length));
+        assertThat(clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().indices().size(), equalTo(indices.length));
 
         final List<Thread> threads = new ArrayList<>();
         final CountDownLatch latch = new CountDownLatch(1);
@@ -472,7 +472,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
     }
 
     static void assertIndexHasBlock(APIBlock block, final String... indices) {
-        final ClusterState clusterState = clusterAdmin().prepareState().get().getState();
+        final ClusterState clusterState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         for (String index : indices) {
             final IndexMetadata indexMetadata = clusterState.metadata().indices().get(index);
             final Settings indexSettings = indexMetadata.getSettings();

@@ -238,7 +238,7 @@ public class CancelTests extends ReindexTestCase {
                   "test" : {}
               } ]
             }""");
-        assertAcked(clusterAdmin().preparePutPipeline("set-processed", pipeline, XContentType.JSON).get());
+        assertAcked(clusterAdmin().preparePutPipeline(masterNodeTimeout, "set-processed", pipeline, XContentType.JSON).get());
 
         testCancel(
             UpdateByQueryAction.INSTANCE,
@@ -286,7 +286,7 @@ public class CancelTests extends ReindexTestCase {
                   "test" : {}
               } ]
             }""");
-        assertAcked(clusterAdmin().preparePutPipeline("set-processed", pipeline, XContentType.JSON).get());
+        assertAcked(clusterAdmin().preparePutPipeline(masterNodeTimeout, "set-processed", pipeline, XContentType.JSON).get());
 
         testCancel(
             UpdateByQueryAction.INSTANCE,

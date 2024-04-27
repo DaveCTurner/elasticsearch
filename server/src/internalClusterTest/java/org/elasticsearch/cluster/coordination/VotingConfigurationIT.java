@@ -44,7 +44,7 @@ public class VotingConfigurationIT extends ESIntegTestCase {
 
         logger.info("--> excluding master node {}", originalMaster);
         client().execute(TransportAddVotingConfigExclusionsAction.TYPE, new AddVotingConfigExclusionsRequest(originalMaster)).get();
-        clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).get();
+        clusterAdmin().prepareHealth(masterNodeTimeout).setWaitForEvents(Priority.LANGUID).get();
         assertNotEquals(originalMaster, internalCluster().getMasterName());
     }
 
@@ -60,7 +60,7 @@ public class VotingConfigurationIT extends ESIntegTestCase {
             internalCluster().client()
                 .admin()
                 .cluster()
-                .prepareHealth()
+                .prepareHealth(masterNodeTimeout)
                 .setWaitForNodes("4")
                 .setWaitForEvents(Priority.LANGUID)
                 .get()
@@ -71,7 +71,7 @@ public class VotingConfigurationIT extends ESIntegTestCase {
         final ClusterState clusterState = internalCluster().client()
             .admin()
             .cluster()
-            .prepareState()
+            .prepareState(masterNodeTimeout)
             .clear()
             .setNodes(true)
             .setMetadata(true)
@@ -111,7 +111,7 @@ public class VotingConfigurationIT extends ESIntegTestCase {
             internalCluster().client()
                 .admin()
                 .cluster()
-                .prepareHealth()
+                .prepareHealth(masterNodeTimeout)
                 .setWaitForNodes("3")
                 .setWaitForEvents(Priority.LANGUID)
                 .get()
@@ -121,7 +121,7 @@ public class VotingConfigurationIT extends ESIntegTestCase {
         final ClusterState newClusterState = internalCluster().client()
             .admin()
             .cluster()
-            .prepareState()
+            .prepareState(masterNodeTimeout)
             .clear()
             .setNodes(true)
             .setMetadata(true)

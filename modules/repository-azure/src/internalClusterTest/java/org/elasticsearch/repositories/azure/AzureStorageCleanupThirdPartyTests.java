@@ -88,7 +88,7 @@ public class AzureStorageCleanupThirdPartyTests extends AbstractThirdPartyReposi
 
     @Override
     protected void createRepository(String repoName) {
-        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(repoName)
+        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(masterNodeTimeout, repoName)
             .setType("azure")
             .setSettings(
                 Settings.builder()

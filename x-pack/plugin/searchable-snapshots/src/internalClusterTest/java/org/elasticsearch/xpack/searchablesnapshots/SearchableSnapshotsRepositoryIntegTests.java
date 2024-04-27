@@ -71,7 +71,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
         }
 
         assertAcked(
-            clusterAdmin().preparePutRepository(repositoryName)
+            clusterAdmin().preparePutRepository(masterNodeTimeout, repositoryName)
                 .setType(FsRepository.TYPE)
                 .setSettings(
                     Settings.builder()
@@ -86,12 +86,13 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
             final String snapshotWithMountedIndices = snapshotName + "-with-mounted-indices";
             createSnapshot(repositoryName, snapshotWithMountedIndices, Arrays.asList(mountedIndices));
             assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, mountedIndices));
-            assertAcked(clusterAdmin().prepareDeleteRepository(repositoryName));
+            assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repositoryName));
 
             updatedRepositoryName = repositoryName + "-with-mounted-indices";
             createRepository(updatedRepositoryName, FsRepository.TYPE, repositorySettings, randomBoolean());
 
             final RestoreSnapshotResponse restoreResponse = clusterAdmin().prepareRestoreSnapshot(
+                masterNodeTimeout,
                 updatedRepositoryName,
                 snapshotWithMountedIndices
             ).setWaitForCompletion(true).setIndices(mountedIndices).get();
@@ -103,7 +104,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
         for (int i = 0; i < nbMountedIndices; i++) {
             RepositoryConflictException exception = expectThrows(
                 RepositoryConflictException.class,
-                () -> clusterAdmin().prepareDeleteRepository(updatedRepositoryName).get()
+                () -> clusterAdmin().prepareDeleteRepository(masterNodeTimeout, updatedRepositoryName).get()
             );
             assertThat(
                 exception.getMessage(),
@@ -118,7 +119,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
             assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, mountedIndices[i]));
         }
 
-        assertAcked(clusterAdmin().prepareDeleteRepository(updatedRepositoryName));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, updatedRepositoryName));
     }
 
     public void testMountIndexWithDeletionOfSnapshotFailsIfNotSingleIndexSnapshot() throws Exception {
@@ -301,7 +302,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
         logger.info("--> restoring snapshot of searchable snapshot index [{}] should be conflicting", mountedIndex);
         final SnapshotRestoreException exception = expectThrows(
             SnapshotRestoreException.class,
-            () -> clusterAdmin().prepareRestoreSnapshot(repository, snapshotOfMountedIndex)
+            () -> clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repository, snapshotOfMountedIndex)
                 .setIndices(mountedIndex)
                 .setWaitForCompletion(true)
                 .get()
@@ -362,7 +363,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
             : randomSubsetOf(randomIntBetween(1, nbMountedIndices), mountedIndices);
         final SnapshotRestoreException exception = expectThrows(
             SnapshotRestoreException.class,
-            () -> clusterAdmin().prepareRestoreSnapshot(repository, snapshotOfMountedIndices)
+            () -> clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repository, snapshotOfMountedIndices)
                 .setIndices(restorables.toArray(String[]::new))
                 .setIndexSettings(deleteSnapshotIndexSettings(deleteSnapshot == false))
                 .setRenameReplacement("restored-with-different-setting-$1")
@@ -382,7 +383,11 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
             )
         );
 
-        final RestoreSnapshotResponse restoreResponse = clusterAdmin().prepareRestoreSnapshot(repository, snapshotOfMountedIndices)
+        final RestoreSnapshotResponse restoreResponse = clusterAdmin().prepareRestoreSnapshot(
+            masterNodeTimeout,
+            repository,
+            snapshotOfMountedIndices
+        )
             .setIndices(restorables.toArray(String[]::new))
             .setIndexSettings(indexSettings)
             .setRenameReplacement("restored-with-same-setting-$1")

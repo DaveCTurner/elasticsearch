@@ -149,7 +149,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
 
         // Cancel/delete the snapshot
         try {
-            clusterAdmin().prepareDeleteSnapshot(REPO, snapshotName).get();
+            clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, REPO, snapshotName).get();
         } catch (SnapshotMissingException e) {
             // ignore
         }
@@ -247,7 +247,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
             // Check that the snapshot created by the policy has been removed by retention
             assertBusy(() -> {
                 // Trigger a cluster state update so that it re-checks for a snapshot in progress
-                clusterAdmin().prepareReroute().get();
+                clusterAdmin().prepareReroute(masterNodeTimeout).get();
                 logger.info("--> waiting for snapshot to be deleted");
                 try {
                     SnapshotsStatusResponse s = getSnapshotStatus(completedSnapshotName);
@@ -261,7 +261,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
             assertBusy(() -> {
                 try {
                     logger.info("--> cancelling snapshot {}", secondSnapName);
-                    clusterAdmin().prepareDeleteSnapshot(REPO, secondSnapName).get();
+                    clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, REPO, secondSnapName).get();
                 } catch (ConcurrentSnapshotExecutionException e) {
                     logger.info("--> attempted to stop second snapshot", e);
                     // just wait and retry
@@ -350,7 +350,7 @@ public class SLMSnapshotBlockingIntegTests extends AbstractSnapshotIntegTestCase
                 logger.info("-->  stopping random data node, which should cause shards to go missing");
                 internalCluster().stopRandomDataNode();
                 assertBusy(
-                    () -> assertEquals(ClusterHealthStatus.RED, clusterAdmin().prepareHealth().get().getStatus()),
+                    () -> assertEquals(ClusterHealthStatus.RED, clusterAdmin().prepareHealth(masterNodeTimeout).get().getStatus()),
                     30,
                     TimeUnit.SECONDS
                 );

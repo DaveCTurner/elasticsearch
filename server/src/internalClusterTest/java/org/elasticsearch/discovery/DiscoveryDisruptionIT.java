@@ -157,7 +157,7 @@ public class DiscoveryDisruptionIT extends AbstractDisruptionTestCase {
 
         isolateAllNodes.stopDisrupting();
 
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         if (state.metadata().hasIndex("test") == false) {
             fail("index 'test' was lost. current cluster state: " + state);
         }

@@ -118,16 +118,16 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
         secondCluster.client()
             .admin()
             .cluster()
-            .preparePutRepository(repoNameOnSecondCluster)
+            .preparePutRepository(masterNodeTimeout, repoNameOnSecondCluster)
             .setType("fs")
             .setSettings(Settings.builder().put("location", repoPath))
             .get();
-        secondCluster.client().admin().cluster().prepareDeleteSnapshot(repoNameOnSecondCluster, "snap-1").get();
-        secondCluster.client().admin().cluster().prepareDeleteSnapshot(repoNameOnSecondCluster, "snap-2").get();
+        secondCluster.client().admin().cluster().prepareDeleteSnapshot(masterNodeTimeout, repoNameOnSecondCluster, "snap-1").get();
+        secondCluster.client().admin().cluster().prepareDeleteSnapshot(masterNodeTimeout, repoNameOnSecondCluster, "snap-2").get();
 
         final SnapshotException sne = expectThrows(
             SnapshotException.class,
-            clusterAdmin().prepareCreateSnapshot(repoNameOnFirstCluster, "snap-4").setWaitForCompletion(true)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoNameOnFirstCluster, "snap-4").setWaitForCompletion(true)
         );
         assertThat(sne.getMessage(), containsString("failed to update snapshot in repository"));
         final RepositoryException cause = (RepositoryException) sne.getCause();
@@ -138,11 +138,11 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
                     + repoNameOnFirstCluster
                     + "] concurrent modification of the index-N file, expected current generation [2] but it was not found in "
                     + "the repository. The last cluster to write to this repository was ["
-                    + secondCluster.client().admin().cluster().prepareState().get().getState().metadata().clusterUUID()
+                    + secondCluster.client().admin().cluster().prepareState(masterNodeTimeout).get().getState().metadata().clusterUUID()
                     + "] at generation [4]."
             )
         );
-        assertAcked(clusterAdmin().prepareDeleteRepository(repoNameOnFirstCluster).get());
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoNameOnFirstCluster).get());
         createRepository(repoNameOnFirstCluster, "fs", repoPath);
         createFullSnapshot(repoNameOnFirstCluster, "snap-5");
     }
@@ -170,7 +170,7 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
             secondCluster.client()
                 .admin()
                 .cluster()
-                .preparePutRepository(repoName)
+                .preparePutRepository(masterNodeTimeout, repoName)
                 .setType("fs")
                 .setSettings(Settings.builder().put("location", repoPath).put(READONLY_SETTING_KEY, true))
         );
@@ -189,7 +189,7 @@ public class MultiClusterRepoAccessIT extends AbstractSnapshotIntegTestCase {
             equalTo(repoUuid)
         );
 
-        assertAcked(clusterAdmin().prepareDeleteRepository(repoName));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName));
         IOUtils.rm(internalCluster().getCurrentMasterNodeInstance(Environment.class).resolveRepoFile(repoPath.toString()));
         createRepository(repoName, "fs", repoPath);
         createFullSnapshot(repoName, "snap-1");

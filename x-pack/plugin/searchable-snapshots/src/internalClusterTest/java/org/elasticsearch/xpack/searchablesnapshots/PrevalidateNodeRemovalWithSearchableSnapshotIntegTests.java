@@ -52,7 +52,7 @@ public class PrevalidateNodeRemovalWithSearchableSnapshotIntegTests extends Base
         // Make sure the searchable snapshot index is red
         internalCluster().stopNode(node1);
         assertBusy(() -> {
-            ClusterHealthResponse healthResponse = clusterAdmin().prepareHealth(restoredIndexName)
+            ClusterHealthResponse healthResponse = clusterAdmin().prepareHealth(masterNodeTimeout, restoredIndexName)
                 .setWaitForStatus(ClusterHealthStatus.RED)
                 .setWaitForEvents(Priority.LANGUID)
                 .execute()

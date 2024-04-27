@@ -247,12 +247,12 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         ensureGreen("test1");
         waitForRelocation();
 
-        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository("dummy-repo")
+        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(masterNodeTimeout, "dummy-repo")
             .setType("fs")
             .setSettings(Settings.builder().put("location", randomRepoPath()))
             .get();
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
-        clusterAdmin().prepareCreateSnapshot("dummy-repo", "snap1").setWaitForCompletion(true).get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "dummy-repo", "snap1").setWaitForCompletion(true).get();
 
         verify(snapshot("snap2", "test1", "test2"), true);
         verify(restore("snap1", "test1", "test2"), true);
@@ -364,12 +364,12 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         ensureGreen("foobar");
         waitForRelocation();
 
-        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository("dummy-repo")
+        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(masterNodeTimeout, "dummy-repo")
             .setType("fs")
             .setSettings(Settings.builder().put("location", randomRepoPath()))
             .get();
         assertThat(putRepositoryResponse.isAcknowledged(), equalTo(true));
-        clusterAdmin().prepareCreateSnapshot("dummy-repo", "snap1").setWaitForCompletion(true).get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "dummy-repo", "snap1").setWaitForCompletion(true).get();
 
         IndicesOptions options = IndicesOptions.fromOptions(false, false, true, false);
         verify(snapshot("snap2", "foo*", "bar*").setIndicesOptions(options), true);
@@ -656,11 +656,11 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     private static CreateSnapshotRequestBuilder snapshot(String name, String... indices) {
-        return clusterAdmin().prepareCreateSnapshot("dummy-repo", name).setWaitForCompletion(true).setIndices(indices);
+        return clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "dummy-repo", name).setWaitForCompletion(true).setIndices(indices);
     }
 
     private static RestoreSnapshotRequestBuilder restore(String name, String... indices) {
-        return clusterAdmin().prepareRestoreSnapshot("dummy-repo", name)
+        return clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "dummy-repo", name)
             .setRenamePattern("(.+)")
             .setRenameReplacement("$1-copy-" + name)
             .setWaitForCompletion(true)

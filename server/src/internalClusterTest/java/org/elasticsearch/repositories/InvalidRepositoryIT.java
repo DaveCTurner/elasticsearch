@@ -137,7 +137,9 @@ public class InvalidRepositoryIT extends ESIntegTestCase {
 
     private void createRepository(String name, String type, Settings.Builder settings) {
         // create
-        assertAcked(clusterAdmin().preparePutRepository(name).setType(type).setVerify(false).setSettings(settings).get());
+        assertAcked(
+            clusterAdmin().preparePutRepository(masterNodeTimeout, name).setType(type).setVerify(false).setSettings(settings).get()
+        );
         // get
         final GetRepositoriesResponse updatedGetRepositoriesResponse = clusterAdmin().prepareGetRepositories(name).get();
         // assert

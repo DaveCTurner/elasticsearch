@@ -203,7 +203,7 @@ public class MultiFeatureMigrationIT extends AbstractFeatureMigrationIntegTest {
         assertTrue("the second plugin's pre-migration hook wasn't actually called", secondPluginPreMigrationHookCalled.get());
         assertTrue("the second plugin's post-migration hook wasn't actually called", secondPluginPostMigrationHookCalled.get());
 
-        Metadata finalMetadata = clusterAdmin().prepareState().get().getState().metadata();
+        Metadata finalMetadata = clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata();
         // Check that the results metadata is what we expect
         FeatureMigrationResults currentResults = finalMetadata.custom(FeatureMigrationResults.TYPE);
         assertThat(currentResults, notNullValue());

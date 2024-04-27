@@ -46,7 +46,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertAcked(
             client.admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType(FsRepository.TYPE)
                 .setSettings(
                     Settings.builder()
@@ -69,7 +69,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         logger.info("--> snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setIndices("test-idx")
             .get();
@@ -94,7 +94,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertAcked(
             client.admin()
                 .cluster()
-                .preparePutRepository("url-repo")
+                .preparePutRepository(masterNodeTimeout, "url-repo")
                 .setType(URLRepository.TYPE)
                 .setSettings(
                     Settings.builder()
@@ -105,7 +105,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         logger.info("--> restore index after deletion");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("url-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "url-repo", "test-snap")
             .setWaitForCompletion(true)
             .setIndices("test-idx")
             .get();
@@ -118,7 +118,10 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertThat(getSnapshotsResponse.getSnapshots().size(), equalTo(1));
 
         logger.info("--> delete snapshot");
-        AcknowledgedResponse deleteSnapshotResponse = client.admin().cluster().prepareDeleteSnapshot("test-repo", "test-snap").get();
+        AcknowledgedResponse deleteSnapshotResponse = client.admin()
+            .cluster()
+            .prepareDeleteSnapshot(masterNodeTimeout, "test-repo", "test-snap")
+            .get();
         assertAcked(deleteSnapshotResponse);
 
         logger.info("--> list available shapshot again, no snapshots should be returned");
@@ -130,7 +133,7 @@ public class URLSnapshotRestoreIT extends ESIntegTestCase {
         assertAcked(
             client().admin()
                 .cluster()
-                .preparePutRepository("url-repo")
+                .preparePutRepository(masterNodeTimeout, "url-repo")
                 .setType(URLRepository.TYPE)
                 .setVerify(false)
                 .setSettings(Settings.builder().put(URLRepository.URL_SETTING.getKey(), "http://localhost/"))

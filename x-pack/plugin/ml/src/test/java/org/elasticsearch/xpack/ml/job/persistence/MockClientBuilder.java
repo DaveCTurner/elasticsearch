@@ -74,7 +74,7 @@ public class MockClientBuilder {
         PlainActionFuture<ClusterHealthResponse> actionFuture = mock(PlainActionFuture.class);
         ClusterHealthRequestBuilder clusterHealthRequestBuilder = mock(ClusterHealthRequestBuilder.class);
 
-        when(clusterAdminClient.prepareHealth()).thenReturn(clusterHealthRequestBuilder);
+        when(clusterAdminClient.prepareHealth(masterNodeTimeout)).thenReturn(clusterHealthRequestBuilder);
         when(clusterHealthRequestBuilder.setWaitForYellowStatus()).thenReturn(clusterHealthRequestBuilder);
         when(clusterHealthRequestBuilder.execute()).thenReturn(actionFuture);
         when(actionFuture.actionGet()).thenReturn(mock(ClusterHealthResponse.class));

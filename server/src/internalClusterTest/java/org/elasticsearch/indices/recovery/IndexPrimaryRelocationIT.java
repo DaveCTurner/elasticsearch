@@ -52,7 +52,7 @@ public class IndexPrimaryRelocationIT extends ESIntegTestCase {
         };
         indexingThread.start();
 
-        ClusterState initialState = clusterAdmin().prepareState().get().getState();
+        ClusterState initialState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         DiscoveryNode[] dataNodes = initialState.getNodes().getDataNodes().values().toArray(DiscoveryNode[]::new);
         DiscoveryNode relocationSource = initialState.getNodes()
             .getDataNodes()
@@ -63,10 +63,10 @@ public class IndexPrimaryRelocationIT extends ESIntegTestCase {
                 relocationTarget = randomFrom(dataNodes);
             }
             logger.info("--> [iteration {}] relocating from {} to {} ", i, relocationSource.getName(), relocationTarget.getName());
-            clusterAdmin().prepareReroute()
+            clusterAdmin().prepareReroute(masterNodeTimeout)
                 .add(new MoveAllocationCommand("test", 0, relocationSource.getId(), relocationTarget.getId()))
                 .get();
-            ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth()
+            ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth(masterNodeTimeout)
                 .setTimeout(TimeValue.timeValueSeconds(60))
                 .setWaitForEvents(Priority.LANGUID)
                 .setWaitForNoRelocatingShards(true)
@@ -78,7 +78,7 @@ public class IndexPrimaryRelocationIT extends ESIntegTestCase {
                     "timed out waiting for relocation iteration [" + i + "]",
                     ReferenceDocs.LOGGING
                 );
-                final ClusterState clusterState = clusterAdmin().prepareState().get().getState();
+                final ClusterState clusterState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
                 logger.info("timed out for waiting for relocation iteration [{}] \ncluster state {}", i, clusterState);
                 finished.set(true);
                 indexingThread.join();

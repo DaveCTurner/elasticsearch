@@ -108,7 +108,7 @@ public class CloseFollowerIndexIT extends CcrIntegTestCase {
         AcknowledgedResponse response = followerClient().admin().indices().close(closeIndexRequest).get();
         assertThat(response.isAcknowledged(), is(true));
 
-        ClusterState clusterState = followerClient().admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = followerClient().admin().cluster().prepareState(masterNodeTimeout).get().getState();
         assertThat(clusterState.metadata().index("index2").getState(), is(IndexMetadata.State.CLOSE));
         assertThat(clusterState.getBlocks().hasIndexBlock("index2", MetadataIndexStateService.INDEX_CLOSED_BLOCK), is(true));
 
@@ -124,7 +124,7 @@ public class CloseFollowerIndexIT extends CcrIntegTestCase {
                 .get()
         );
 
-        clusterState = followerClient().admin().cluster().prepareState().get().getState();
+        clusterState = followerClient().admin().cluster().prepareState(masterNodeTimeout).get().getState();
         assertThat(clusterState.metadata().index("index2").getState(), is(IndexMetadata.State.OPEN));
         assertThat(clusterState.getBlocks().hasIndexBlockWithId("index2", MetadataIndexStateService.INDEX_CLOSED_BLOCK_ID), is(false));
         ensureFollowerGreen("index2");

@@ -341,7 +341,7 @@ public abstract class BaseSearchableSnapshotsIntegTestCase extends AbstractSnaps
     }
 
     protected DiscoveryNodes getDiscoveryNodes() {
-        return clusterAdmin().prepareState().clear().setNodes(true).get().getState().nodes();
+        return clusterAdmin().prepareState(masterNodeTimeout).clear().setNodes(true).get().getState().nodes();
     }
 
     protected void assertExecutorIsIdle(String executorName) throws Exception {

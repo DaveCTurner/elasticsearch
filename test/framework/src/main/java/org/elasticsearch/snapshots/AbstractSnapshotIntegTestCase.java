@@ -147,7 +147,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
             clusterAdmin().prepareGetRepositories().get().repositories().forEach(repositoryMetadata -> {
                 final String name = repositoryMetadata.name();
                 if (repositoryMetadata.settings().getAsBoolean(READONLY_SETTING_KEY, false) == false) {
-                    clusterAdmin().prepareDeleteSnapshot(name, OLD_VERSION_SNAPSHOT_PREFIX + "*").get();
+                    clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, name, OLD_VERSION_SNAPSHOT_PREFIX + "*").get();
                     clusterAdmin().prepareCleanupRepository(name).get();
                 }
                 BlobStoreTestUtil.assertConsistency(getRepositoryOnMaster(name));
@@ -318,7 +318,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
 
     public static void createRepository(Logger logger, String repoName, String type, Settings.Builder settings, boolean verify) {
         logger.info("--> creating or updating repository [{}] [{}]", repoName, type);
-        assertAcked(clusterAdmin().preparePutRepository(repoName).setVerify(verify).setType(type).setSettings(settings));
+        assertAcked(clusterAdmin().preparePutRepository(masterNodeTimeout, repoName).setVerify(verify).setType(type).setSettings(settings));
     }
 
     protected void createRepository(String repoName, String type, Settings.Builder settings) {
@@ -342,7 +342,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
     }
 
     protected void deleteRepository(String repoName) {
-        assertAcked(clusterAdmin().prepareDeleteRepository(repoName));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName));
     }
 
     public static Settings.Builder randomRepositorySettings() {
@@ -381,10 +381,11 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
     protected String initWithSnapshotVersion(String repoName, Path repoPath, IndexVersion version) throws Exception {
         assertThat("This hack only works on an empty repository", getRepositoryData(repoName).getSnapshotIds(), empty());
         final String oldVersionSnapshot = OLD_VERSION_SNAPSHOT_PREFIX + version.id();
-        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, oldVersionSnapshot)
-            .setIndices("does-not-exist-for-sure-*")
-            .setWaitForCompletion(true)
-            .get();
+        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            repoName,
+            oldVersionSnapshot
+        ).setIndices("does-not-exist-for-sure-*").setWaitForCompletion(true).get();
         final SnapshotInfo snapshotInfo = createSnapshotResponse.getSnapshotInfo();
         assertThat(snapshotInfo.totalShards(), is(0));
 
@@ -442,7 +443,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
         final RepositoryMetadata repoMetadata = blobStoreRepository.getMetadata();
         if (BlobStoreRepository.CACHE_REPOSITORY_DATA.get(repoMetadata.settings())) {
             logger.info("--> recreating repository to clear caches");
-            assertAcked(clusterAdmin().prepareDeleteRepository(repoName));
+            assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName));
             createRepository(repoName, repoMetadata.type(), Settings.builder().put(repoMetadata.settings()));
         }
         return oldVersionSnapshot;
@@ -454,7 +455,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
 
     public static SnapshotInfo createFullSnapshot(Logger logger, String repoName, String snapshotName) {
         logger.info("--> creating full snapshot [{}] in [{}]", snapshotName, repoName);
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName)
             .setIncludeGlobalState(true)
             .setWaitForCompletion(true)
             .get();
@@ -466,7 +467,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
 
     protected SnapshotInfo createSnapshot(String repositoryName, String snapshot, List<String> indices, List<String> featureStates) {
         logger.info("--> creating snapshot [{}] of {} in [{}]", snapshot, indices, repositoryName);
-        final CreateSnapshotResponse response = clusterAdmin().prepareCreateSnapshot(repositoryName, snapshot)
+        final CreateSnapshotResponse response = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repositoryName, snapshot)
             .setIndices(indices.toArray(Strings.EMPTY_ARRAY))
             .setWaitForCompletion(true)
             .setFeatureStates(featureStates.toArray(Strings.EMPTY_ARRAY))
@@ -518,7 +519,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
      * @param metadata     snapshot metadata to write (as returned by {@link SnapshotInfo#userMetadata()})
      */
     protected void addBwCFailedSnapshot(String repoName, String snapshotName, Map<String, Object> metadata) throws Exception {
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final RepositoriesMetadata repositoriesMetadata = state.metadata().custom(RepositoriesMetadata.TYPE);
         assertNotNull(repositoriesMetadata);
         final RepositoryMetadata initialRepoMetadata = repositoriesMetadata.repository(repoName);
@@ -604,7 +605,10 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
         boolean partial
     ) {
         logger.info("--> creating full snapshot [{}] to repo [{}]", snapshotName, repoName);
-        return clusterAdmin().prepareCreateSnapshot(repoName, snapshotName).setWaitForCompletion(true).setPartial(partial).execute();
+        return clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName)
+            .setWaitForCompletion(true)
+            .setPartial(partial)
+            .execute();
     }
 
     protected void awaitNumberOfSnapshotsInProgress(int count) throws Exception {
@@ -642,12 +646,15 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
 
     protected ActionFuture<AcknowledgedResponse> startDeleteSnapshot(String repoName, String snapshotName) {
         logger.info("--> deleting snapshot [{}] from repo [{}]", snapshotName, repoName);
-        return clusterAdmin().prepareDeleteSnapshot(repoName, snapshotName).execute();
+        return clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, repoName, snapshotName).execute();
     }
 
     protected ActionFuture<AcknowledgedResponse> startDeleteSnapshots(String repoName, List<String> snapshotNames, String viaNode) {
         logger.info("--> deleting snapshots {} from repo [{}]", snapshotNames, repoName);
-        return client(viaNode).admin().cluster().prepareDeleteSnapshot(repoName, snapshotNames.toArray(Strings.EMPTY_ARRAY)).execute();
+        return client(viaNode).admin()
+            .cluster()
+            .prepareDeleteSnapshot(masterNodeTimeout, repoName, snapshotNames.toArray(Strings.EMPTY_ARRAY))
+            .execute();
     }
 
     protected static void updateClusterState(final Function<ClusterState, ClusterState> updater) throws Exception {
@@ -704,7 +711,7 @@ public abstract class AbstractSnapshotIntegTestCase extends ESIntegTestCase {
             final String snapshot = prefix + i;
             snapshotNames.add(snapshot);
             final Map<String, Object> userMetadata = randomUserMetadata();
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshot)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshot)
                 .setWaitForCompletion(true)
                 .setUserMetadata(userMetadata)
                 .execute(snapshotsListener.delegateFailure((l, response) -> {

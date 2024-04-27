@@ -62,7 +62,7 @@ public class SearchUsageStatsIT extends ESIntegTestCase {
             getRestClient().performRequest(request);
         }
         {
-            assertAcked(clusterAdmin().preparePutStoredScript().setId("testTemplate").setContent(new BytesArray("""
+            assertAcked(clusterAdmin().preparePutStoredScript(masterNodeTimeout).setId("testTemplate").setContent(new BytesArray("""
                 {
                   "script": {
                     "lang": "mustache",

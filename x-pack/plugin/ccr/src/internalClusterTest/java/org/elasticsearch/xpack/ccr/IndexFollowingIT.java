@@ -146,7 +146,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
         followerClient().admin()
             .cluster()
-            .prepareUpdateSettings()
+            .prepareUpdateSettings(masterNodeTimeout)
             .setMasterNodeTimeout(TimeValue.MAX_VALUE)
             .setPersistentSettings(
                 Settings.builder()
@@ -1416,7 +1416,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             // we have to remove the retention leases on the leader shards to ensure the follower falls behind
             final ClusterStateResponse followerIndexClusterState = followerClient().admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setMetadata(true)
                 .setIndices("index2")
@@ -1424,7 +1424,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             final String followerUUID = followerIndexClusterState.getState().metadata().index("index2").getIndexUUID();
             final ClusterStateResponse leaderIndexClusterState = leaderClient().admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setMetadata(true)
                 .setIndices("index1")
@@ -1433,7 +1433,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
             final RoutingTable leaderRoutingTable = leaderClient().admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setIndices("index1")
                 .setRoutingTable(true)
@@ -1732,7 +1732,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
 
     private CheckedRunnable<Exception> assertTask(final int numberOfPrimaryShards, final Map<ShardId, Long> numDocsPerShard) {
         return () -> {
-            final ClusterState clusterState = followerClient().admin().cluster().prepareState().get().getState();
+            final ClusterState clusterState = followerClient().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             final PersistentTasksCustomMetadata taskMetadata = clusterState.getMetadata().custom(PersistentTasksCustomMetadata.TYPE);
             assertNotNull(taskMetadata);
 

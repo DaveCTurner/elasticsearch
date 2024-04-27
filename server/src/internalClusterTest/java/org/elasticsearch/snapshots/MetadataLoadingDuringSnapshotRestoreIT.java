@@ -94,7 +94,7 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "docs", "others"));
 
         // Restoring a snapshot loads indices metadata but not the global state
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("repository", "snap")
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "repository", "snap")
             .setWaitForCompletion(true)
             .get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
@@ -105,7 +105,7 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "docs"));
 
         // Restoring a snapshot with selective indices loads only required index metadata
-        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("repository", "snap")
+        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "repository", "snap")
             .setIndices("docs")
             .setWaitForCompletion(true)
             .get();
@@ -117,7 +117,7 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "docs", "others"));
 
         // Restoring a snapshot including the global state loads it with the index metadata
-        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("repository", "snap")
+        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "repository", "snap")
             .setIndices("docs", "oth*")
             .setRestoreGlobalState(true)
             .setWaitForCompletion(true)
@@ -128,7 +128,7 @@ public class MetadataLoadingDuringSnapshotRestoreIT extends AbstractSnapshotInte
         assertIndexMetadataLoads("snap", "others", 3);
 
         // Deleting a snapshot does not load the global metadata state but loads each index metadata
-        assertAcked(clusterAdmin().prepareDeleteSnapshot("repository", "snap").get());
+        assertAcked(clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, "repository", "snap").get());
         assertGlobalMetadataLoads("snap", 1);
         assertIndexMetadataLoads("snap", "docs", 4);
         assertIndexMetadataLoads("snap", "others", 3);

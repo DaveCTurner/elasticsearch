@@ -135,7 +135,12 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
             Settings masterDataPathSettings = internalCluster().dataPathSettings(internalCluster().getMasterName());
             internalCluster().stopCurrentMasterNode();
             assertBusy(() -> {
-                ClusterState state = client(mlAndDataNode).admin().cluster().prepareState().setLocal(true).get().getState();
+                ClusterState state = client(mlAndDataNode).admin()
+                    .cluster()
+                    .prepareState(masterNodeTimeout)
+                    .setLocal(true)
+                    .get()
+                    .getState();
                 assertNull(state.nodes().getMasterNodeId());
             });
             logger.info("Restarting dedicated master node");

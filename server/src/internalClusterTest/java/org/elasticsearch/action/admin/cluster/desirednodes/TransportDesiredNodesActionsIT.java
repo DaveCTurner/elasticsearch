@@ -264,7 +264,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
             future.actionGet();
         }
 
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final DesiredNodes latestDesiredNodes = DesiredNodes.latestFromClusterState(state);
         assertThat(latestDesiredNodes, is(nullValue()));
     }

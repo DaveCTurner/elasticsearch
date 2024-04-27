@@ -51,11 +51,11 @@ public abstract class ESFsBasedRepositoryIntegTestCase extends ESBlobStoreReposi
         final String snapshotName = randomName();
         logger.info("-->  create snapshot {}:{}", repoName, snapshotName);
         assertSuccessfulSnapshot(
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotName).setWaitForCompletion(true).setIndices(indexName)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName).setWaitForCompletion(true).setIndices(indexName)
         );
 
         assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, indexName));
-        assertAcked(clusterAdmin().prepareDeleteRepository(repoName));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName));
 
         final Path deletedPath;
         try (Stream<Path> contents = Files.list(repoPath.resolve("indices"))) {
@@ -69,7 +69,9 @@ public abstract class ESFsBasedRepositoryIntegTestCase extends ESBlobStoreReposi
 
         final ElasticsearchException exception = expectThrows(
             ElasticsearchException.class,
-            () -> clusterAdmin().prepareRestoreSnapshot(repoName, snapshotName).setWaitForCompletion(randomBoolean()).get()
+            () -> clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
+                .setWaitForCompletion(randomBoolean())
+                .get()
         );
         assertThat(exception.getRootCause(), instanceOf(NoSuchFileException.class));
 

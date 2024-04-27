@@ -223,7 +223,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         assertFalse(
             client("cluster_a").admin()
                 .cluster()
-                .prepareHealth("prod")
+                .prepareHealth(masterNodeTimeout, "prod")
                 .setWaitForYellowStatus()
                 .setTimeout(TimeValue.timeValueSeconds(10))
                 .get()

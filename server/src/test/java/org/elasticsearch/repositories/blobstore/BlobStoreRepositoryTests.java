@@ -91,7 +91,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         logger.info("-->  creating repository");
         AcknowledgedResponse putRepositoryResponse = client.admin()
             .cluster()
-            .preparePutRepository(TEST_REPO_NAME)
+            .preparePutRepository(masterNodeTimeout, TEST_REPO_NAME)
             .setType(REPO_TYPE)
             .setSettings(Settings.builder().put(node().settings()).put("location", location))
             .get();
@@ -111,7 +111,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         logger.info("--> create first snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot(TEST_REPO_NAME, "test-snap-1")
+            .prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, "test-snap-1")
             .setWaitForCompletion(true)
             .setIndices(indexName)
             .get();
@@ -120,7 +120,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         logger.info("--> create second snapshot");
         createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot(TEST_REPO_NAME, "test-snap-2")
+            .prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, "test-snap-2")
             .setWaitForCompletion(true)
             .setIndices(indexName)
             .get();
@@ -241,7 +241,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
             RepositoryException.class,
             () -> client.admin()
                 .cluster()
-                .preparePutRepository(TEST_REPO_NAME)
+                .preparePutRepository(masterNodeTimeout, TEST_REPO_NAME)
                 .setType(REPO_TYPE)
                 .setSettings(
                     Settings.builder()
@@ -271,10 +271,11 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         );
 
         final long beforeStartTime = getInstanceFromNode(ThreadPool.class).absoluteTimeInMillis();
-        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repositoryName, "test-snap-1")
-            .setWaitForCompletion(true)
-            .setPartial(true)
-            .get();
+        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            repositoryName,
+            "test-snap-1"
+        ).setWaitForCompletion(true).setPartial(true).get();
         final long afterEndTime = System.currentTimeMillis();
 
         assertThat(createSnapshotResponse.getSnapshotInfo().state(), equalTo(SnapshotState.PARTIAL));
@@ -332,7 +333,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         }
         AcknowledgedResponse putRepositoryResponse = client.admin()
             .cluster()
-            .preparePutRepository(TEST_REPO_NAME)
+            .preparePutRepository(masterNodeTimeout, TEST_REPO_NAME)
             .setType(REPO_TYPE)
             .setSettings(repoSettings)
             .setVerify(false) // prevent eager reading of repo data
@@ -349,7 +350,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
     @After
     public void removeRepo() {
         try {
-            client().admin().cluster().prepareDeleteRepository(TEST_REPO_NAME).get(TimeValue.timeValueSeconds(10));
+            client().admin().cluster().prepareDeleteRepository(masterNodeTimeout, TEST_REPO_NAME).get(TimeValue.timeValueSeconds(10));
         } catch (RepositoryMissingException e) {
             // ok, not all tests create the test repo
         }

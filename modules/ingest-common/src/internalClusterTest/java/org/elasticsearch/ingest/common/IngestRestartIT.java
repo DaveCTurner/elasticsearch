@@ -64,7 +64,7 @@ public class IngestRestartIT extends ESIntegTestCase {
         internalCluster().ensureAtLeastNumDataNodes(1);
         internalCluster().startMasterOnlyNode();
         final String pipelineId = "foo";
-        clusterAdmin().preparePutPipeline(pipelineId, new BytesArray(Strings.format("""
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineId, new BytesArray(Strings.format("""
             {
               "processors": [
                 {
@@ -125,8 +125,8 @@ public class IngestRestartIT extends ESIntegTestCase {
             equalTo(id)
         );
 
-        clusterAdmin().preparePutPipeline(pipelineIdWithScript, pipelineWithScript, XContentType.JSON).get();
-        clusterAdmin().preparePutPipeline(pipelineIdWithoutScript, pipelineWithoutScript, XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineIdWithScript, pipelineWithScript, XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineIdWithoutScript, pipelineWithoutScript, XContentType.JSON).get();
 
         checkPipelineExists.accept(pipelineIdWithScript);
         checkPipelineExists.accept(pipelineIdWithoutScript);
@@ -179,7 +179,7 @@ public class IngestRestartIT extends ESIntegTestCase {
     public void testPipelineWithScriptProcessorThatHasStoredScript() throws Exception {
         internalCluster().startNode();
 
-        clusterAdmin().preparePutStoredScript().setId("1").setContent(new BytesArray(Strings.format("""
+        clusterAdmin().preparePutStoredScript(masterNodeTimeout).setId("1").setContent(new BytesArray(Strings.format("""
             {"script": {"lang": "%s", "source": "my_script"} }
             """, MockScriptEngine.NAME)), XContentType.JSON).get();
         BytesReference pipeline = new BytesArray("""
@@ -189,7 +189,7 @@ public class IngestRestartIT extends ESIntegTestCase {
                   {"script" : {"id": "1"}}
               ]
             }""");
-        clusterAdmin().preparePutPipeline("_id", pipeline, XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, "_id", pipeline, XContentType.JSON).get();
 
         prepareIndex("index").setId("1").setSource("x", 0).setPipeline("_id").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).get();
 
@@ -223,7 +223,7 @@ public class IngestRestartIT extends ESIntegTestCase {
                   {"set" : {"field": "y", "value": 0}}
               ]
             }""");
-        clusterAdmin().preparePutPipeline("_id", pipeline, XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, "_id", pipeline, XContentType.JSON).get();
 
         prepareIndex("index").setId("1").setSource("x", 0).setPipeline("_id").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).get();
 
@@ -261,7 +261,7 @@ public class IngestRestartIT extends ESIntegTestCase {
               ]
             }""");
         final TimeValue timeout = TimeValue.timeValueSeconds(10);
-        client().admin().cluster().preparePutPipeline("test_pipeline", pipeline, XContentType.JSON).get(timeout);
+        client().admin().cluster().preparePutPipeline(masterNodeTimeout, "test_pipeline", pipeline, XContentType.JSON).get(timeout);
         client().admin()
             .indices()
             .preparePutTemplate(masterNodeTimeout, "pipeline_template")

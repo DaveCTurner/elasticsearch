@@ -1058,7 +1058,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
             logger.info("--> close the index, now the replica is stale");
             assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
 
-            final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth("idx")
+            final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth(masterNodeTimeout, "idx")
                 .setTimeout(TimeValue.timeValueSeconds(30))
                 .setWaitForActiveShards(ActiveShardCount.ONE)
                 .setWaitForNoInitializingShards(true)
@@ -1267,7 +1267,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
         if (state == IndexMetadata.State.CLOSE) {
             assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
 
-            final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth("idx")
+            final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth(masterNodeTimeout, "idx")
                 .setTimeout(TimeValue.timeValueSeconds(30))
                 .setWaitForActiveShards(activeShardCount)
                 .setWaitForEvents(Priority.LANGUID)
@@ -1288,13 +1288,13 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
     }
 
     private String primaryNodeName() {
-        ClusterState clusterState = admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = admin().cluster().prepareState(masterNodeTimeout).get().getState();
         String nodeId = clusterState.getRoutingTable().index("idx").shard(0).primaryShard().currentNodeId();
         return clusterState.getRoutingNodes().node(nodeId).node().getName();
     }
 
     private DiscoveryNode replicaNode() {
-        ClusterState clusterState = admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = admin().cluster().prepareState(masterNodeTimeout).get().getState();
         String nodeId = clusterState.getRoutingTable().index("idx").shard(0).replicaShards().get(0).currentNodeId();
         return clusterState.getRoutingNodes().node(nodeId).node();
     }

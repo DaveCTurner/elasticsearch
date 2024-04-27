@@ -58,7 +58,12 @@ public class SearchableSnapshotShutdownIntegTests extends BaseSearchableSnapshot
         final Set<String> indexNodes = restoredIndexNames.stream()
             .flatMap(index -> internalCluster().nodesInclude(index).stream())
             .collect(Collectors.toSet());
-        final ClusterState state = clusterAdmin().prepareState().clear().setRoutingTable(true).setNodes(true).get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout)
+            .clear()
+            .setRoutingTable(true)
+            .setNodes(true)
+            .get()
+            .getState();
         final Map<String, String> nodeNameToId = state.getNodes()
             .stream()
             .collect(Collectors.toMap(DiscoveryNode::getName, DiscoveryNode::getId));

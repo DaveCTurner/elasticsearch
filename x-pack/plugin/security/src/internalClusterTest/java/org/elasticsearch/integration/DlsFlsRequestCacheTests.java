@@ -348,7 +348,7 @@ public class DlsFlsRequestCacheTests extends SecuritySingleNodeTestCase {
     private void prepareIndices() {
         final Client client = client();
 
-        assertAcked(client.admin().cluster().preparePutStoredScript().setId("my-script").setContent(new BytesArray("""
+        assertAcked(client.admin().cluster().preparePutStoredScript(masterNodeTimeout).setId("my-script").setContent(new BytesArray("""
             {"script":{"source":"{\\"match\\":{\\"username\\":\\"{{_user.username}}\\"}}","lang":"mustache"}}"""), XContentType.JSON));
 
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, DLS_INDEX).addAlias(new Alias("dls-alias")).get());

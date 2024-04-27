@@ -582,8 +582,8 @@ public class DataStreamIT extends ESIntegTestCase {
             false
         );
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetSettings(masterNodeTimeout, dataStreamName), false);
-        verifyResolvability(dataStreamName, clusterAdmin().prepareHealth(dataStreamName), false);
-        verifyResolvability(dataStreamName, clusterAdmin().prepareState().setIndices(dataStreamName), false);
+        verifyResolvability(dataStreamName, clusterAdmin().prepareHealth(masterNodeTimeout, dataStreamName), false);
+        verifyResolvability(dataStreamName, clusterAdmin().prepareState(masterNodeTimeout).setIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, client().prepareFieldCaps(dataStreamName).setFields("*"), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareOpen(masterNodeTimeout, dataStreamName), false);
@@ -628,8 +628,8 @@ public class DataStreamIT extends ESIntegTestCase {
                 .setSettings(Settings.builder().put("index.number_of_replicas", 0)),
             false
         );
-        verifyResolvability(wildcardExpression, clusterAdmin().prepareHealth(wildcardExpression), false);
-        verifyResolvability(wildcardExpression, clusterAdmin().prepareState().setIndices(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, clusterAdmin().prepareHealth(masterNodeTimeout, wildcardExpression), false);
+        verifyResolvability(wildcardExpression, clusterAdmin().prepareState(masterNodeTimeout).setIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, client().prepareFieldCaps(wildcardExpression).setFields("*"), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetIndex(masterNodeTimeout).addIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(masterNodeTimeout, wildcardExpression), false);

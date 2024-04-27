@@ -44,7 +44,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         assertAcked(
             client.admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(
                     Settings.builder()
@@ -75,7 +75,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         logger.info("--> snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setIndices("test-idx-*", "-test-idx-3")
             .get();
@@ -111,7 +111,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
@@ -127,14 +127,14 @@ public class HdfsTests extends ESSingleNodeTestCase {
         logger.info("--> restore one index after deletion");
         restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setIndices("test-idx-*", "-test-idx-2")
             .get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
         ensureGreen();
         assertThat(count(client, "test-idx-1"), equalTo(100L));
-        ClusterState clusterState = client.admin().cluster().prepareState().get().getState();
+        ClusterState clusterState = client.admin().cluster().prepareState(masterNodeTimeout).get().getState();
         assertThat(clusterState.getMetadata().hasIndex("test-idx-1"), equalTo(true));
         assertThat(clusterState.getMetadata().hasIndex("test-idx-2"), equalTo(false));
         final BlobStoreRepository repo = (BlobStoreRepository) getInstanceFromNode(RepositoriesService.class).repository("test-repo");
@@ -143,7 +143,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
     public void testMissingUri() {
         try {
-            clusterAdmin().preparePutRepository("test-repo").setType("hdfs").setSettings(Settings.EMPTY).get();
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo").setType("hdfs").setSettings(Settings.EMPTY).get();
             fail();
         } catch (RepositoryException e) {
             assertTrue(e.getCause() instanceof IllegalArgumentException);
@@ -153,7 +153,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
     public void testEmptyUri() {
         try {
-            clusterAdmin().preparePutRepository("test-repo")
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "/path").build())
                 .get();
@@ -166,7 +166,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
     public void testNonHdfsUri() {
         try {
-            clusterAdmin().preparePutRepository("test-repo")
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "file:///").build())
                 .get();
@@ -179,7 +179,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
     public void testPathSpecifiedInHdfs() {
         try {
-            clusterAdmin().preparePutRepository("test-repo")
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "hdfs:///some/path").build())
                 .get();
@@ -192,7 +192,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
     public void testMissingPath() {
         try {
-            clusterAdmin().preparePutRepository("test-repo")
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "hdfs:///").build())
                 .get();
@@ -207,7 +207,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         try {
             client().admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "hdfs:///").put("replication_factor", "0").put("path", "foo").build())
                 .get();
@@ -222,7 +222,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         try {
             client().admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(Settings.builder().put("uri", "hdfs:///").put("replication_factor", "32768").put("path", "foo").build())
                 .get();
@@ -237,7 +237,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         try {
             client().admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(
                     Settings.builder()
@@ -259,7 +259,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         try {
             client().admin()
                 .cluster()
-                .preparePutRepository("test-repo")
+                .preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("hdfs")
                 .setSettings(
                     Settings.builder()

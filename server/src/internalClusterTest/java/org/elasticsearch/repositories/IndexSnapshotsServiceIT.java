@@ -137,7 +137,7 @@ public class IndexSnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
             final SnapshotInfo snapshotInfo = createSnapshot(repoName, Strings.format("snap-%03d", i), snapshotIndices);
             if (snapshotInfo.indices().contains(indexName)) {
                 lastSnapshot = snapshotInfo;
-                ClusterStateResponse clusterStateResponse = admin().cluster().prepareState().get();
+                ClusterStateResponse clusterStateResponse = admin().cluster().prepareState(masterNodeTimeout).get();
                 IndexMetadata indexMetadata = clusterStateResponse.getState().metadata().index(indexName);
                 expectedIndexMetadataId = IndexMetaDataGenerations.buildUniqueIdentifier(indexMetadata);
             }
@@ -145,7 +145,7 @@ public class IndexSnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
 
         if (useBwCFormat) {
             // Reload the RepositoryData so we don't use cached data that wasn't serialized
-            assertAcked(clusterAdmin().prepareDeleteRepository(repoName).get());
+            assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName).get());
             createRepository(repoName, "fs", repoPath);
         }
 
@@ -176,10 +176,11 @@ public class IndexSnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
         blockAllDataNodes(fsRepoName);
 
         final String snapshotName = "snap-1";
-        final ActionFuture<CreateSnapshotResponse> snapshotFuture = clusterAdmin().prepareCreateSnapshot(fsRepoName, snapshotName)
-            .setIndices(indexName)
-            .setWaitForCompletion(true)
-            .execute();
+        final ActionFuture<CreateSnapshotResponse> snapshotFuture = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            fsRepoName,
+            snapshotName
+        ).setIndices(indexName).setWaitForCompletion(true).execute();
 
         waitForBlockOnAnyDataNode(fsRepoName);
 
@@ -292,7 +293,7 @@ public class IndexSnapshotsServiceIT extends AbstractSnapshotIntegTestCase {
             ((MockRepository) repositoriesService.repository(repoName)).setBlockAndFailOnWriteSnapFiles();
         }
 
-        clusterAdmin().prepareCreateSnapshot(repoName, "snap")
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, "snap")
             .setIndices(indexName)
             .setWaitForCompletion(false)
             .setFeatureStates(NO_FEATURE_STATES_VALUE)

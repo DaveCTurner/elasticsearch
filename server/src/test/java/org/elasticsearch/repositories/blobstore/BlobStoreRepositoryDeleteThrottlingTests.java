@@ -172,28 +172,28 @@ public class BlobStoreRepositoryDeleteThrottlingTests extends ESSingleNodeTestCa
         assertAcked(
             client().admin()
                 .cluster()
-                .preparePutRepository(TEST_REPO_NAME)
+                .preparePutRepository(masterNodeTimeout, TEST_REPO_NAME)
                 .setType(FsRepository.TYPE)
                 .setSettings(Settings.builder().put("location", repoPath))
         );
 
-        client().admin().cluster().prepareCreateSnapshot(TEST_REPO_NAME, "snapshot-1").setWaitForCompletion(true).get();
-        client().admin().cluster().prepareCreateSnapshot(TEST_REPO_NAME, "snapshot-2").setWaitForCompletion(true).get();
+        client().admin().cluster().prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, "snapshot-1").setWaitForCompletion(true).get();
+        client().admin().cluster().prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, "snapshot-2").setWaitForCompletion(true).get();
 
-        assertAcked(client().admin().cluster().prepareDeleteRepository(TEST_REPO_NAME));
+        assertAcked(client().admin().cluster().prepareDeleteRepository(masterNodeTimeout, TEST_REPO_NAME));
 
         // Now delete one of the snapshots using the test repo implementation which verifies the throttling behaviour
 
         assertAcked(
             client().admin()
                 .cluster()
-                .preparePutRepository(TEST_REPO_NAME)
+                .preparePutRepository(masterNodeTimeout, TEST_REPO_NAME)
                 .setType(TEST_REPO_TYPE)
                 .setSettings(Settings.builder().put("location", repoPath))
         );
 
-        assertAcked(client().admin().cluster().prepareDeleteSnapshot(TEST_REPO_NAME, "snapshot-1").get());
+        assertAcked(client().admin().cluster().prepareDeleteSnapshot(masterNodeTimeout, TEST_REPO_NAME, "snapshot-1").get());
 
-        assertAcked(client().admin().cluster().prepareDeleteRepository(TEST_REPO_NAME));
+        assertAcked(client().admin().cluster().prepareDeleteRepository(masterNodeTimeout, TEST_REPO_NAME));
     }
 }

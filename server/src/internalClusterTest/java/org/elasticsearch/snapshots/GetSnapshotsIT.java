@@ -410,7 +410,7 @@ public class GetSnapshotsIT extends AbstractSnapshotIntegTestCase {
         final String snapshotWithPolicy = "snapshot-with-policy";
         final String policyName = "some-policy";
         final SnapshotInfo withPolicy = assertSuccessful(
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotWithPolicy)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotWithPolicy)
                 .setUserMetadata(Map.of(SnapshotsService.POLICY_ID_METADATA_FIELD, policyName))
                 .setWaitForCompletion(true)
                 .execute()
@@ -429,7 +429,7 @@ public class GetSnapshotsIT extends AbstractSnapshotIntegTestCase {
         final String snapshotWithOtherPolicy = "snapshot-with-other-policy";
         final String otherPolicyName = "other-policy";
         final SnapshotInfo withOtherPolicy = assertSuccessful(
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotWithOtherPolicy)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotWithOtherPolicy)
                 .setUserMetadata(Map.of(SnapshotsService.POLICY_ID_METADATA_FIELD, otherPolicyName))
                 .setWaitForCompletion(true)
                 .execute()

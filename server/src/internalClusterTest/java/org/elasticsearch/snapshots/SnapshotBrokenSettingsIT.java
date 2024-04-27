@@ -36,14 +36,14 @@ public class SnapshotBrokenSettingsIT extends AbstractSnapshotIntegTestCase {
         Client client = client();
         Consumer<String> setSettingValue = value -> client.admin()
             .cluster()
-            .prepareUpdateSettings()
+            .prepareUpdateSettings(masterNodeTimeout)
             .setPersistentSettings(Settings.builder().put(BrokenSettingPlugin.BROKEN_SETTING.getKey(), value))
             .get();
 
         Consumer<String> assertSettingValue = value -> assertThat(
             client.admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .setRoutingTable(false)
                 .setNodes(false)
                 .get()
@@ -70,7 +70,11 @@ public class SnapshotBrokenSettingsIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore snapshot");
         final IllegalArgumentException ex = expectThrows(
             IllegalArgumentException.class,
-            client.admin().cluster().prepareRestoreSnapshot("test-repo", "test-snap").setRestoreGlobalState(true).setWaitForCompletion(true)
+            client.admin()
+                .cluster()
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
+                .setRestoreGlobalState(true)
+                .setWaitForCompletion(true)
         );
         assertEquals(BrokenSettingPlugin.EXCEPTION.getMessage(), ex.getMessage());
 

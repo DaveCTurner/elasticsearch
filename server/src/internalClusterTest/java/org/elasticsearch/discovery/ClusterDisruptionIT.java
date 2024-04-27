@@ -231,7 +231,7 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
                 // is the super-connected node and recovery source and target are on opposite sides of the bridge
                 if (disruptionScheme instanceof NetworkDisruption networkDisruption
                     && networkDisruption.getDisruptedLinks() instanceof Bridge) {
-                    assertBusy(() -> assertAcked(clusterAdmin().prepareReroute().setRetryFailed(true)));
+                    assertBusy(() -> assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout).setRetryFailed(true)));
                 }
                 ensureGreen("test");
 
@@ -290,7 +290,9 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         NetworkDisruption scheme = addRandomDisruptionType(partitions);
         scheme.startDisrupting();
         ensureStableCluster(2, notIsolatedNode);
-        assertFalse(client(notIsolatedNode).admin().cluster().prepareHealth("test").setWaitForYellowStatus().get().isTimedOut());
+        assertFalse(
+            client(notIsolatedNode).admin().cluster().prepareHealth(masterNodeTimeout, "test").setWaitForYellowStatus().get().isTimedOut()
+        );
 
         DocWriteResponse indexResponse = internalCluster().client(notIsolatedNode).prepareIndex("test").setSource("field", "value").get();
         assertThat(indexResponse.getVersion(), equalTo(1L));
@@ -421,12 +423,12 @@ public class ClusterDisruptionIT extends AbstractDisruptionTestCase {
         });
 
         assertBusy(() -> {
-            assertFalse(internalCluster().client(masterNode).admin().cluster().prepareHealth().get().isTimedOut());
+            assertFalse(internalCluster().client(masterNode).admin().cluster().prepareHealth(masterNodeTimeout).get().isTimedOut());
             assertTrue(
                 internalCluster().client(masterNode)
                     .admin()
                     .cluster()
-                    .prepareHealth()
+                    .prepareHealth(masterNodeTimeout)
                     .setWaitForNodes("2")
                     .setTimeout(TimeValue.timeValueSeconds(2))
                     .get()

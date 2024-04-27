@@ -62,7 +62,9 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
         internalCluster().restartNode(nodeToRestartName, new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
-                assertBusy(() -> assertThat(clusterAdmin().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1)));
+                assertBusy(
+                    () -> assertThat(clusterAdmin().prepareHealth(masterNodeTimeout).get().getDelayedUnassignedShards(), equalTo(1))
+                );
                 return super.onNodeStopped(nodeName);
             }
         });
@@ -129,7 +131,9 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
         internalCluster().restartNode(nodeToRestartName, new InternalTestCluster.RestartCallback() {
             @Override
             public Settings onNodeStopped(String nodeName) throws Exception {
-                assertBusy(() -> { assertThat(clusterAdmin().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1)); });
+                assertBusy(
+                    () -> { assertThat(clusterAdmin().prepareHealth(masterNodeTimeout).get().getDelayedUnassignedShards(), equalTo(1)); }
+                );
                 return super.onNodeStopped(nodeName);
             }
         });
@@ -204,7 +208,7 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
         internalCluster().stopNode(nodeToRestartName);
 
         // Verify that the shard's allocation is delayed
-        assertBusy(() -> { assertThat(clusterAdmin().prepareHealth().get().getDelayedUnassignedShards(), equalTo(1)); });
+        assertBusy(() -> { assertThat(clusterAdmin().prepareHealth(masterNodeTimeout).get().getDelayedUnassignedShards(), equalTo(1)); });
 
         return nodeToRestartId;
     }
@@ -219,13 +223,13 @@ public class NodeShutdownDelayedAllocationIT extends ESIntegTestCase {
     }
 
     private String findIdOfNodeWithShard() {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         List<ShardRouting> startedShards = RoutingNodesHelper.shardsWithState(state.getRoutingNodes(), ShardRoutingState.STARTED);
         return randomFrom(startedShards).currentNodeId();
     }
 
     private String findNodeNameFromId(String id) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         return state.nodes().get(id).getName();
     }
 }

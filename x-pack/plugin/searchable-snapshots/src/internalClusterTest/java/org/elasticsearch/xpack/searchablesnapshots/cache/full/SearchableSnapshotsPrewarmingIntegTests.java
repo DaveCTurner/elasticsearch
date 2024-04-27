@@ -153,14 +153,18 @@ public class SearchableSnapshotsPrewarmingIntegTests extends ESSingleNodeTestCas
         }
 
         logger.debug("--> registering repository");
-        assertAcked(clusterAdmin().preparePutRepository("repository").setType(FsRepository.TYPE).setSettings(repositorySettings.build()));
+        assertAcked(
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "repository")
+                .setType(FsRepository.TYPE)
+                .setSettings(repositorySettings.build())
+        );
 
         logger.debug("--> snapshotting indices");
-        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot("repository", "snapshot")
-            .setIncludeGlobalState(false)
-            .setIndices("index-*")
-            .setWaitForCompletion(true)
-            .get();
+        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            "repository",
+            "snapshot"
+        ).setIncludeGlobalState(false).setIndices("index-*").setWaitForCompletion(true).get();
 
         final int totalShards = shardsPerIndex.values().stream().mapToInt(i -> i).sum();
         assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), equalTo(totalShards));
@@ -172,11 +176,14 @@ public class SearchableSnapshotsPrewarmingIntegTests extends ESSingleNodeTestCas
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*"));
 
         logger.debug("--> deleting repository");
-        assertAcked(clusterAdmin().prepareDeleteRepository("repository"));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, "repository"));
 
         logger.debug("--> registering tracking repository");
         assertAcked(
-            clusterAdmin().preparePutRepository("repository").setType("tracking").setVerify(false).setSettings(repositorySettings.build())
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "repository")
+                .setType("tracking")
+                .setVerify(false)
+                .setSettings(repositorySettings.build())
         );
 
         TrackingRepositoryPlugin tracker = getTrackingRepositoryPlugin();

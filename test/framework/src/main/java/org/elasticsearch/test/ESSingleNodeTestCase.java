@@ -88,7 +88,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         // we must wait for the node to actually be up and running. otherwise the node might have started,
         // elected itself master but might not yet have removed the
         // SERVICE_UNAVAILABLE/1/state not recovered / initialized block
-        ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth().setWaitForGreenStatus().get();
+        ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth(masterNodeTimeout).setWaitForGreenStatus().get();
         assertFalse(clusterHealthResponse.isTimedOut());
         indicesAdmin().preparePutTemplate(masterNodeTimeout, "one_shard_index_template")
             .setPatterns(Collections.singletonList("*"))
@@ -149,7 +149,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         assertAcked(
             indicesAdmin().prepareDelete(masterNodeTimeout, "*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN).get()
         );
-        Metadata metadata = clusterAdmin().prepareState().get().getState().getMetadata();
+        Metadata metadata = clusterAdmin().prepareState(masterNodeTimeout).get().getState().getMetadata();
         assertThat(
             "test leaves persistent cluster metadata behind: " + metadata.persistentSettings().keySet(),
             metadata.persistentSettings().size(),
@@ -424,7 +424,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         if (actionGet.isTimedOut()) {
             logger.info(
                 "ensureGreen timed out, cluster state:\n{}\n{}",
-                clusterAdmin().prepareState().get().getState(),
+                clusterAdmin().prepareState(masterNodeTimeout).get().getState(),
                 ESIntegTestCase.getClusterPendingTasks(client())
             );
             assertThat("timed out waiting for green state", actionGet.isTimedOut(), equalTo(false));

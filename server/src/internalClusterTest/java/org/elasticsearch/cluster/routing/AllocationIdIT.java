@@ -107,11 +107,15 @@ public class AllocationIdIT extends ESIntegTestCase {
         checkNoValidShardCopy(indexName, shardId);
 
         // allocate stale primary
-        client(node1).admin().cluster().prepareReroute().add(new AllocateStalePrimaryAllocationCommand(indexName, 0, node1, true)).get();
+        client(node1).admin()
+            .cluster()
+            .prepareReroute(masterNodeTimeout)
+            .add(new AllocateStalePrimaryAllocationCommand(indexName, 0, node1, true))
+            .get();
 
         // allocation fails due to corruption marker
         assertBusy(() -> {
-            final ClusterState state = clusterAdmin().prepareState().get().getState();
+            final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
             final ShardRouting shardRouting = state.routingTable().index(indexName).shard(shardId.id()).primaryShard();
             assertThat(shardRouting.state(), equalTo(ShardRoutingState.UNASSIGNED));
             assertThat(shardRouting.unassignedInfo().getReason(), equalTo(UnassignedInfo.Reason.ALLOCATION_FAILED));
@@ -128,7 +132,7 @@ public class AllocationIdIT extends ESIntegTestCase {
         checkNoValidShardCopy(indexName, shardId);
 
         // no any valid shard is there; have to invoke AllocateStalePrimary again
-        clusterAdmin().prepareReroute().add(new AllocateStalePrimaryAllocationCommand(indexName, 0, node1, true)).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).add(new AllocateStalePrimaryAllocationCommand(indexName, 0, node1, true)).get();
 
         ensureYellow(indexName);
 
@@ -171,7 +175,7 @@ public class AllocationIdIT extends ESIntegTestCase {
     }
 
     private Set<String> getAllocationIds(String indexName) {
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         return state.metadata().index(indexName).inSyncAllocationIds(0);
     }
 
@@ -183,7 +187,14 @@ public class AllocationIdIT extends ESIntegTestCase {
 
     private String historyUUID(String node, String indexName) {
         final ShardStats[] shards = client(node).admin().indices().prepareStats(indexName).clear().get().getShards();
-        final String nodeId = client(node).admin().cluster().prepareState().get().getState().nodes().resolveNode(node).getId();
+        final String nodeId = client(node).admin()
+            .cluster()
+            .prepareState(masterNodeTimeout)
+            .get()
+            .getState()
+            .nodes()
+            .resolveNode(node)
+            .getId();
         assertThat(shards.length, greaterThan(0));
         final Set<String> historyUUIDs = Arrays.stream(shards)
             .filter(shard -> shard.getShardRouting().currentNodeId().equals(nodeId))

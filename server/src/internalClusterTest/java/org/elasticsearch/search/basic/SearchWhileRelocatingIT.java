@@ -118,13 +118,13 @@ public class SearchWhileRelocatingIT extends ESIntegTestCase {
                 threads[j].start();
             }
             allowNodes("test", between(1, 3));
-            clusterAdmin().prepareReroute().get();
+            clusterAdmin().prepareReroute(masterNodeTimeout).get();
             stop.set(true);
             for (int j = 0; j < threads.length; j++) {
                 threads[j].join();
             }
             // this might time out on some machines if they are really busy and you hit lots of throttling
-            ClusterHealthResponse resp = clusterAdmin().prepareHealth()
+            ClusterHealthResponse resp = clusterAdmin().prepareHealth(masterNodeTimeout)
                 .setWaitForYellowStatus()
                 .setWaitForNoRelocatingShards(true)
                 .setWaitForEvents(Priority.LANGUID)

@@ -178,7 +178,7 @@ public class ManyNestedPipelinesIT extends ESIntegTestCase {
             }
             """;
         String pipeline = Strings.format(pipelineTemplate, nextPipelineId);
-        clusterAdmin().preparePutPipeline(pipelineId, new BytesArray(pipeline), XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineId, new BytesArray(pipeline), XContentType.JSON).get();
     }
 
     private void createLastPipeline(String prefix, int number) {
@@ -195,6 +195,6 @@ public class ManyNestedPipelinesIT extends ESIntegTestCase {
                 ]
             }
             """;
-        clusterAdmin().preparePutPipeline(pipelineId, new BytesArray(pipeline), XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineId, new BytesArray(pipeline), XContentType.JSON).get();
     }
 }

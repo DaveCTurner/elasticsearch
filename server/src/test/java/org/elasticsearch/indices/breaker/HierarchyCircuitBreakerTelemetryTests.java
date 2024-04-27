@@ -108,7 +108,9 @@ public class HierarchyCircuitBreakerTelemetryTests extends ESIntegTestCase {
             // NOTE: we start with empty circuitBreakerSettings to allow cluster formation
             masterNodeName = internalCluster().startMasterOnlyNode(Settings.EMPTY);
             dataNodeName = internalCluster().startDataOnlyNode(Settings.EMPTY);
-            assertTrue(clusterAdmin().prepareUpdateSettings().setPersistentSettings(circuitBreakerSettings).get().isAcknowledged());
+            assertTrue(
+                clusterAdmin().prepareUpdateSettings(masterNodeTimeout).setPersistentSettings(circuitBreakerSettings).get().isAcknowledged()
+            );
             assertTrue(
                 client().admin()
                     .indices()

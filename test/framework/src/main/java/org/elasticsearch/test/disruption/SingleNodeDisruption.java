@@ -71,7 +71,7 @@ public abstract class SingleNodeDisruption implements ServiceDisruptionScheme {
             testCluster.client()
                 .admin()
                 .cluster()
-                .prepareHealth()
+                .prepareHealth(masterNodeTimeout)
                 .setWaitForNodes(String.valueOf(testCluster.size()))
                 .setWaitForNoRelocatingShards(true)
                 .get()

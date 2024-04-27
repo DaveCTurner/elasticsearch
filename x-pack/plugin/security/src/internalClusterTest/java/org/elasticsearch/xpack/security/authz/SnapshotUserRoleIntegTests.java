@@ -46,7 +46,9 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
     public void setupClusterBeforeSnapshot() throws IOException {
         logger.info("-->  creating repository");
         assertAcked(
-            clusterAdmin().preparePutRepository("repo").setType("fs").setSettings(Settings.builder().put("location", randomRepoPath()))
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "repo")
+                .setType("fs")
+                .setSettings(Settings.builder().put("location", randomRepoPath()))
         );
 
         logger.info("-->  creating ordinary index");
@@ -83,7 +85,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         // create snapshot that includes restricted indices
         final CreateSnapshotResponse snapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("repo", "snap")
+            .prepareCreateSnapshot(masterNodeTimeout, "repo", "snap")
             .setIndices(randomFrom("_all", "*"))
             .setIndicesOptions(IndicesOptions.strictExpandHidden())
             .setWaitForCompletion(true)
@@ -127,7 +129,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         assertThrowsAuthorizationException(
             () -> client.admin()
                 .cluster()
-                .preparePutRepository("some_other_repo")
+                .preparePutRepository(masterNodeTimeout, "some_other_repo")
                 .setType("fs")
                 .setSettings(Settings.builder().put("location", randomRepoPath()))
                 .get(),
@@ -136,18 +138,24 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         );
         // try delete repo
         assertThrowsAuthorizationException(
-            () -> client.admin().cluster().prepareDeleteRepository("repo").get(),
+            () -> client.admin().cluster().prepareDeleteRepository(masterNodeTimeout, "repo").get(),
             "cluster:admin/repository/delete",
             "snapshot_user"
         );
         // try fumble with snapshots
         assertThrowsAuthorizationException(
-            () -> client.admin().cluster().prepareRestoreSnapshot("repo", randomAlphaOfLength(4).toLowerCase(Locale.ROOT)).get(),
+            () -> client.admin()
+                .cluster()
+                .prepareRestoreSnapshot(masterNodeTimeout, "repo", randomAlphaOfLength(4).toLowerCase(Locale.ROOT))
+                .get(),
             "cluster:admin/snapshot/restore",
             "snapshot_user"
         );
         assertThrowsAuthorizationException(
-            () -> client.admin().cluster().prepareDeleteSnapshot("repo", randomAlphaOfLength(4).toLowerCase(Locale.ROOT)).get(),
+            () -> client.admin()
+                .cluster()
+                .prepareDeleteSnapshot(masterNodeTimeout, "repo", randomAlphaOfLength(4).toLowerCase(Locale.ROOT))
+                .get(),
             "cluster:admin/snapshot/delete",
             "snapshot_user"
         );

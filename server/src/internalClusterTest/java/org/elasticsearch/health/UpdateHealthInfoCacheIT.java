@@ -143,6 +143,15 @@ public class UpdateHealthInfoCacheIT extends ESIntegTestCase {
     }
 
     private static Map<String, DiscoveryNode> getNodes(InternalTestCluster internalCluster) {
-        return internalCluster.client().admin().cluster().prepareState().clear().setNodes(true).get().getState().getNodes().getNodes();
+        return internalCluster.client()
+            .admin()
+            .cluster()
+            .prepareState(masterNodeTimeout)
+            .clear()
+            .setNodes(true)
+            .get()
+            .getState()
+            .getNodes()
+            .getNodes();
     }
 }

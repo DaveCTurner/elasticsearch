@@ -243,7 +243,7 @@ public class ShardSnapshotsServiceIT extends ESIntegTestCase {
             );
 
             assertAcked(
-                clusterAdmin().preparePutRepository(failingRepo.v1())
+                clusterAdmin().preparePutRepository(masterNodeTimeout, failingRepo.v1())
                     .setType(FailingRepoPlugin.TYPE)
                     .setVerify(false)
                     .setSettings(Settings.builder().put(repoFailureType, true).put("location", failingRepo.v2()))
@@ -284,13 +284,13 @@ public class ShardSnapshotsServiceIT extends ESIntegTestCase {
     }
 
     private ShardId getShardIdForIndex(String indexName) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         return state.routingTable().index(indexName).shard(0).shardId();
     }
 
     private void createRepository(String repositoryName, String type, Path location, boolean recoveryEnabledRepo) {
         assertAcked(
-            clusterAdmin().preparePutRepository(repositoryName)
+            clusterAdmin().preparePutRepository(masterNodeTimeout, repositoryName)
                 .setType(type)
                 .setVerify(false)
                 .setSettings(
@@ -302,6 +302,6 @@ public class ShardSnapshotsServiceIT extends ESIntegTestCase {
     }
 
     private void createSnapshot(String repoName, String snapshotName, String index) {
-        clusterAdmin().prepareCreateSnapshot(repoName, snapshotName).setWaitForCompletion(true).setIndices(index).get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName).setWaitForCompletion(true).setIndices(index).get();
     }
 }

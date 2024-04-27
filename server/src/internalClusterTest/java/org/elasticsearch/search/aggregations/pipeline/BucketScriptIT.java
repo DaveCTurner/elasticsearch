@@ -515,7 +515,7 @@ public class BucketScriptIT extends ESIntegTestCase {
 
     public void testStoredScript() {
         assertAcked(
-            clusterAdmin().preparePutStoredScript()
+            clusterAdmin().preparePutStoredScript(masterNodeTimeout)
                 .setId("my_script")
                 // Script source is not interpreted but it references a pre-defined script from CustomScriptPlugin
                 .setContent(

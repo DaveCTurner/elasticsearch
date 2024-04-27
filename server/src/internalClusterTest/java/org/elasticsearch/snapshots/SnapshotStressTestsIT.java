@@ -88,7 +88,12 @@ import static org.hamcrest.Matchers.notNullValue;
 public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
     public void testRandomActivities() throws InterruptedException {
-        final DiscoveryNodes discoveryNodes = clusterAdmin().prepareState().clear().setNodes(true).get().getState().nodes();
+        final DiscoveryNodes discoveryNodes = clusterAdmin().prepareState(masterNodeTimeout)
+            .clear()
+            .setNodes(true)
+            .get()
+            .getState()
+            .nodes();
         new TrackedCluster(internalCluster(), nodeNames(discoveryNodes.getMasterNodes()), nodeNames(discoveryNodes.getDataNodes())).run();
         disableRepoConsistencyCheck("have not necessarily written to all repositories");
     }
@@ -351,14 +356,20 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
             if (failedPermitAcquisitions.isEmpty() == false) {
                 logger.warn("--> failed to acquire all permits: {}", failedPermitAcquisitions);
-                logger.info("--> current cluster state:\n{}", Strings.toString(clusterAdmin().prepareState().get().getState(), true, true));
+                logger.info(
+                    "--> current cluster state:\n{}",
+                    Strings.toString(clusterAdmin().prepareState(masterNodeTimeout).get().getState(), true, true)
+                );
                 fail("failed to acquire all permits: " + failedPermitAcquisitions);
             }
             logger.info("--> acquired all permits");
 
             if (ThreadPool.terminate(threadPool, 30, TimeUnit.SECONDS) == false) {
                 logger.warn("--> threadpool termination timed out");
-                logger.info("--> current cluster state:\n{}", Strings.toString(clusterAdmin().prepareState().get().getState(), true, true));
+                logger.info(
+                    "--> current cluster state:\n{}",
+                    Strings.toString(clusterAdmin().prepareState(masterNodeTimeout).get().getState(), true, true)
+                );
             }
         }
 
@@ -378,7 +389,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         logger.warn("--> failed to acquire permit [{}]", label);
                         logger.info(
                             "--> current cluster state:\n{}",
-                            Strings.toString(clusterAdmin().prepareState().get().getState(), true, true)
+                            Strings.toString(clusterAdmin().prepareState(masterNodeTimeout).get().getState(), true, true)
                         );
                         HotThreads.logLocalHotThreads(
                             logger,
@@ -574,6 +585,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 closeIndicesStep.addListener(mustSucceed(ignored1 -> deleteIndicesStep.addListener(mustSucceed(ignored2 -> {
 
                     final RestoreSnapshotRequestBuilder restoreSnapshotRequestBuilder = clusterAdmin().prepareRestoreSnapshot(
+                        masterNodeTimeout,
                         snapshotInfo.repository(),
                         snapshotInfo.snapshotId().getName()
                     );
@@ -706,7 +718,12 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                         client.admin()
                             .cluster()
-                            .prepareCloneSnapshot(trackedSnapshot.trackedRepository.repositoryName, trackedSnapshot.snapshotName, cloneName)
+                            .prepareCloneSnapshot(
+                                masterNodeTimeout,
+                                trackedSnapshot.trackedRepository.repositoryName,
+                                trackedSnapshot.snapshotName,
+                                cloneName
+                            )
                             .setIndices(indexNames.toArray(new String[0]))
                             .execute(mustSucceed(acknowledgedResponse -> {
                                 Releasables.close(releaseAll);
@@ -754,7 +771,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                     client.admin()
                         .cluster()
-                        .prepareDeleteSnapshot(targetRepository.repositoryName, snapshotNames.toArray(new String[0]))
+                        .prepareDeleteSnapshot(masterNodeTimeout, targetRepository.repositoryName, snapshotNames.toArray(new String[0]))
                         .execute(mustSucceed(acknowledgedResponse -> {
                             assertTrue(acknowledgedResponse.isAcknowledged());
                             for (String snapshotName : snapshotNames) {
@@ -928,6 +945,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         );
 
                         final CreateSnapshotRequestBuilder createSnapshotRequestBuilder = clusterAdmin().prepareCreateSnapshot(
+                            masterNodeTimeout,
                             trackedRepository.repositoryName,
                             snapshotName
                         );
@@ -1019,6 +1037,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                     );
 
                     final CreateSnapshotRequestBuilder createSnapshotRequestBuilder = clusterAdmin().prepareCreateSnapshot(
+                        masterNodeTimeout,
                         trackedRepository.repositoryName,
                         snapshotName
                     ).setPartial(true);
@@ -1039,7 +1058,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
 
                             final DeleteSnapshotRequestBuilder deleteSnapshotRequestBuilder = abortClient.admin()
                                 .cluster()
-                                .prepareDeleteSnapshot(trackedRepository.repositoryName, snapshotName);
+                                .prepareDeleteSnapshot(masterNodeTimeout, trackedRepository.repositoryName, snapshotName);
 
                             final Releasable abortReleasable = abortReleasables.transfer();
 
@@ -1349,7 +1368,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                 logger.info("--> put repo [{}]", repositoryName);
                 client.admin()
                     .cluster()
-                    .preparePutRepository(repositoryName)
+                    .preparePutRepository(masterNodeTimeout, repositoryName)
                     .setType(FsRepository.TYPE)
                     .setSettings(Settings.builder().put(FsRepository.LOCATION_SETTING.getKey(), location))
                     .setVerify(nodeMightRestart == false)
@@ -1386,11 +1405,12 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
                         final Releasable releaseAll = localReleasables.transfer();
 
                         logger.info("--> delete repo [{}]", repositoryName);
-                        clusterAdmin().prepareDeleteRepository(repositoryName).execute(mustSucceed(acknowledgedResponse -> {
-                            assertTrue(acknowledgedResponse.isAcknowledged());
-                            logger.info("--> finished delete repo [{}]", repositoryName);
-                            putRepositoryAndContinue(client, nodeMightRestart, releaseAll);
-                        }));
+                        clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repositoryName)
+                            .execute(mustSucceed(acknowledgedResponse -> {
+                                assertTrue(acknowledgedResponse.isAcknowledged());
+                                logger.info("--> finished delete repo [{}]", repositoryName);
+                                putRepositoryAndContinue(client, nodeMightRestart, releaseAll);
+                            }));
 
                         replacingRepo = true;
                     } finally {
@@ -1548,7 +1568,7 @@ public class SnapshotStressTestsIT extends AbstractSnapshotIntegTestCase {
     // Prepares a health request with twice the default (30s) timeout that waits for all cluster tasks to finish as well as all cluster
     // nodes before returning
     private static ClusterHealthRequestBuilder prepareClusterHealthRequest(String... targetIndexNames) {
-        return clusterAdmin().prepareHealth(targetIndexNames)
+        return clusterAdmin().prepareHealth(masterNodeTimeout, targetIndexNames)
             .setTimeout(TimeValue.timeValueSeconds(60))
             .setWaitForNodes(Integer.toString(internalCluster().getNodeNames().length))
             .setWaitForEvents(Priority.LANGUID);

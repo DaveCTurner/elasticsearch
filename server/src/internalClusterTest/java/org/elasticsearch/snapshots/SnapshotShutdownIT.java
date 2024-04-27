@@ -215,7 +215,7 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         // flush master queue to ensure the completion is applied everywhere
         safeAwait(
             SubscribableListener.<ClusterHealthResponse>newForked(
-                l -> client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).execute(l)
+                l -> client().admin().cluster().prepareHealth(masterNodeTimeout).setWaitForEvents(Priority.LANGUID).execute(l)
             )
         );
 

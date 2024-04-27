@@ -432,9 +432,9 @@ public abstract class CcrIntegTestCase extends ESTestCase {
                     follower cluster tasks:
                     {}""",
                 method,
-                leaderClient().admin().cluster().prepareState().get().getState(),
+                leaderClient().admin().cluster().prepareState(masterNodeTimeout).get().getState(),
                 ESIntegTestCase.getClusterPendingTasks(leaderClient()),
-                followerClient().admin().cluster().prepareState().get().getState(),
+                followerClient().admin().cluster().prepareState(masterNodeTimeout).get().getState(),
                 ESIntegTestCase.getClusterPendingTasks(followerClient())
             );
             HotThreads.logLocalHotThreads(logger, Level.INFO, "hot threads at timeout", ReferenceDocs.LOGGING);
@@ -501,7 +501,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
                 empty()
             );
 
-            final ClusterState clusterState = followerClient().admin().cluster().prepareState().get().getState();
+            final ClusterState clusterState = followerClient().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             PersistentTasksCustomMetadata tasks = clusterState.metadata().custom(PersistentTasksCustomMetadata.TYPE);
             Collection<PersistentTasksCustomMetadata.PersistentTask<?>> ccrTasks = tasks.tasks()
                 .stream()
@@ -660,7 +660,7 @@ public abstract class CcrIntegTestCase extends ESTestCase {
     }
 
     private Map<Integer, List<DocIdSeqNoAndSource>> getDocIdAndSeqNos(InternalTestCluster cluster, String index) throws IOException {
-        final ClusterState state = cluster.client().admin().cluster().prepareState().get().getState();
+        final ClusterState state = cluster.client().admin().cluster().prepareState(masterNodeTimeout).get().getState();
         List<ShardRouting> shardRoutings = state.routingTable().allShards(index);
         Randomness.shuffle(shardRoutings);
         final Map<Integer, List<DocIdSeqNoAndSource>> docs = new HashMap<>();

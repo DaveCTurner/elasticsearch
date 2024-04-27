@@ -201,7 +201,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         waitNoPendingTasksOnAll();
 
         String nodeId = null;
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (Map.Entry<String, DiscoveryNode> cursor : nodes.getNodes().entrySet()) {
             final String name = cursor.getValue().getName();
@@ -234,7 +234,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             );
         });
 
-        clusterAdmin().prepareReroute().add(new AllocateStalePrimaryAllocationCommand(indexName, 0, nodeId, true)).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).add(new AllocateStalePrimaryAllocationCommand(indexName, 0, nodeId, true)).get();
 
         assertBusy(() -> {
             final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
@@ -376,7 +376,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         });
 
         String primaryNodeId = null;
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (Map.Entry<String, DiscoveryNode> cursor : nodes.getNodes().entrySet()) {
             final String name = cursor.getValue().getName();
@@ -407,7 +407,9 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
             );
         });
 
-        clusterAdmin().prepareReroute().add(new AllocateStalePrimaryAllocationCommand(indexName, 0, primaryNodeId, true)).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout)
+            .add(new AllocateStalePrimaryAllocationCommand(indexName, 0, primaryNodeId, true))
+            .get();
 
         assertBusy(() -> {
             final ClusterAllocationExplanation explanation = clusterAdmin().prepareAllocationExplain()
@@ -563,7 +565,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
         ensureGreen(indexName);
 
         final Map<String, String> nodeNameToNodeId = new HashMap<>();
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final DiscoveryNodes nodes = state.nodes();
         for (Map.Entry<String, DiscoveryNode> cursor : nodes.getNodes().entrySet()) {
             nodeNameToNodeId.put(cursor.getValue().getName(), cursor.getKey());
@@ -608,7 +610,7 @@ public class RemoveCorruptedShardDataCommandIT extends ESIntegTestCase {
     }
 
     private Path getPathToShardData(String indexName, String dirSuffix) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         GroupShardsIterator<ShardIterator> shardIterators = state.getRoutingTable()
             .activePrimaryShardsGrouped(new String[] { indexName }, false);
         List<ShardIterator> iterators = iterableAsArrayList(shardIterators);

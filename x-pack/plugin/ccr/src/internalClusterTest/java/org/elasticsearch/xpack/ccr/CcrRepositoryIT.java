@@ -172,14 +172,14 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         ClusterStateResponse leaderState = leaderClient().admin()
             .cluster()
-            .prepareState()
+            .prepareState(masterNodeTimeout)
             .clear()
             .setMetadata(true)
             .setIndices(leaderIndex)
             .get();
         ClusterStateResponse followerState = followerClient().admin()
             .cluster()
-            .prepareState()
+            .prepareState(masterNodeTimeout)
             .clear()
             .setMetadata(true)
             .setIndices(followerIndex)

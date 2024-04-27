@@ -70,7 +70,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         final String snapshot = "test-snap";
 
         logger.info("--> creating snapshot");
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, snapshot)
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshot)
             .setWaitForCompletion(true)
             .setIndices("test-idx-1")
             .get();
@@ -87,7 +87,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         assertRepositoryBlocked(repoName, snapshot);
 
         logger.info("--> recreate repository with same settings in order to reset corrupted state");
-        assertAcked(clusterAdmin().preparePutRepository(repoName).setType("fs").setSettings(settings));
+        assertAcked(clusterAdmin().preparePutRepository(masterNodeTimeout, repoName).setType("fs").setSettings(settings));
 
         startDeleteSnapshot(repoName, snapshot).get();
 
@@ -118,7 +118,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> creating snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot(repoName, snapshot)
+            .prepareCreateSnapshot(masterNodeTimeout, repoName, snapshot)
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -143,13 +143,13 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("--> remove repository");
-        assertAcked(client.admin().cluster().prepareDeleteRepository(repoName));
+        assertAcked(client.admin().cluster().prepareDeleteRepository(masterNodeTimeout, repoName));
 
         logger.info("--> recreate repository");
         assertAcked(
             client.admin()
                 .cluster()
-                .preparePutRepository(repoName)
+                .preparePutRepository(masterNodeTimeout, repoName)
                 .setType("fs")
                 .setSettings(
                     Settings.builder()
@@ -184,7 +184,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         final String snapshot = "test-snap";
 
         logger.info("--> creating snapshot");
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, snapshot)
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshot)
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -252,10 +252,11 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         for (int i = 0; i < snapshots; ++i) {
             // Workaround to simulate BwC situation: taking a snapshot without indices here so that we don't create any new version shard
             // generations (the existence of which would short-circuit checks for the repo containing old version snapshots)
-            CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, snapshotPrefix + i)
-                .setIndices()
-                .setWaitForCompletion(true)
-                .get();
+            CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+                masterNodeTimeout,
+                repoName,
+                snapshotPrefix + i
+            ).setIndices().setWaitForCompletion(true).get();
             assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), is(0));
             assertThat(
                 createSnapshotResponse.getSnapshotInfo().successfulShards(),
@@ -353,7 +354,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> creating snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot(repoName, snapshot)
+            .prepareCreateSnapshot(masterNodeTimeout, repoName, snapshot)
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -372,7 +373,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
 
         final String otherRepoName = "other-repo";
         assertAcked(
-            clusterAdmin().preparePutRepository(otherRepoName)
+            clusterAdmin().preparePutRepository(masterNodeTimeout, otherRepoName)
                 .setType("fs")
                 .setVerify(false) // don't try and load the repo data, since it is corrupt
                 .setSettings(Settings.builder().put("location", repo).put("compress", false))
@@ -451,7 +452,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         );
 
         logger.info("--> recreating repository to clear caches");
-        clusterAdmin().prepareDeleteRepository(repoName).get();
+        clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repoName).get();
         createRepository(repoName, "fs", repoPath);
 
         createFullSnapshot(repoName, "snapshot-2");
@@ -509,7 +510,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         logger.info("-->  restoring snapshot [{}]", snapshot1);
-        clusterAdmin().prepareRestoreSnapshot("test-repo", snapshot1)
+        clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", snapshot1)
             .setRestoreGlobalState(randomBoolean())
             .setWaitForCompletion(true)
             .get();
@@ -525,7 +526,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
 
         final String snapshot2 = "test-snap-2";
         logger.info("-->  creating snapshot [{}]", snapshot2);
-        final SnapshotInfo snapshotInfo2 = clusterAdmin().prepareCreateSnapshot("test-repo", snapshot2)
+        final SnapshotInfo snapshotInfo2 = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "test-repo", snapshot2)
             .setWaitForCompletion(true)
             .get()
             .getSnapshotInfo();
@@ -549,7 +550,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> creating snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap-1")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-1")
             .setWaitForCompletion(true)
             .setIndices(indices)
             .get();
@@ -595,7 +596,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> creating snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap-1")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-1")
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -635,7 +636,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> creating snapshot");
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap-1")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-1")
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -658,7 +659,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> make sure that we can create the snapshot again");
         createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap-1")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-1")
             .setWaitForCompletion(true)
             .setIndices("test-idx-*")
             .get();
@@ -729,7 +730,10 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         indexRandom(true, prepareIndex("test-idx-1").setSource("foo", "bar"), prepareIndex("test-idx-2").setSource("foo", "bar"));
 
         logger.info("--> creating snapshot");
-        clusterAdmin().prepareCreateSnapshot("test-repo", "test-snap-1").setWaitForCompletion(true).setIndices("test-idx-*").get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-1")
+            .setWaitForCompletion(true)
+            .setIndices("test-idx-*")
+            .get();
 
         logger.info("--> deleting shard level index file");
         final Path indicesPath = repo.resolve("indices");
@@ -744,7 +748,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         }
 
         logger.info("--> creating another snapshot");
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot("test-repo", "test-snap-2")
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap-2")
             .setWaitForCompletion(true)
             .setIndices("test-idx-1")
             .get();
@@ -758,9 +762,11 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
                 + "because it uses snap-*.data files and not the index-N to determine what files to restore"
         );
         indicesAdmin().prepareDelete(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap-1")
-            .setWaitForCompletion(true)
-            .get();
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(
+            masterNodeTimeout,
+            "test-repo",
+            "test-snap-1"
+        ).setWaitForCompletion(true).get();
         assertEquals(0, restoreSnapshotResponse.getRestoreInfo().failedShards());
     }
 
@@ -783,14 +789,14 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         logger.info("--> try to delete snapshot");
         final RepositoryException ex = expectThrows(
             RepositoryException.class,
-            clusterAdmin().prepareDeleteSnapshot(repo, existingSnapshot)
+            clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, repo, existingSnapshot)
         );
         assertThat(ex.getMessage(), containsString("concurrent modification of the index-N file"));
 
         logger.info("--> try to create snapshot");
         final RepositoryException ex2 = expectThrows(
             RepositoryException.class,
-            clusterAdmin().prepareCreateSnapshot(repo, existingSnapshot)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repo, existingSnapshot)
         );
         assertThat(ex2.getMessage(), containsString("The repository has been disabled to prevent data corruption"));
 

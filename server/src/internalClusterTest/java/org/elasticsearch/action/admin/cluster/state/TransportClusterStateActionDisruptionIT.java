@@ -45,7 +45,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
 
     public void testNonLocalRequestAlwaysFindsMaster() throws Exception {
         runRepeatedlyWhileChangingMaster(() -> {
-            final ClusterStateRequestBuilder clusterStateRequestBuilder = clusterAdmin().prepareState()
+            final ClusterStateRequestBuilder clusterStateRequestBuilder = clusterAdmin().prepareState(masterNodeTimeout)
                 .clear()
                 .setNodes(true)
                 .setMasterNodeTimeout(TimeValue.timeValueMillis(100));
@@ -64,7 +64,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
             final String node = randomFrom(internalCluster().getNodeNames());
             final DiscoveryNodes discoveryNodes = client(node).admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setLocal(true)
                 .setNodes(true)
@@ -92,7 +92,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
             final long waitForMetadataVersion = randomLongBetween(Math.max(1, metadataVersion - 3), metadataVersion + 5);
             final ClusterStateRequestBuilder clusterStateRequestBuilder = client(node).admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setNodes(true)
                 .setMetadata(true)
@@ -124,7 +124,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
             final long waitForMetadataVersion = randomLongBetween(Math.max(1, metadataVersion - 3), metadataVersion + 5);
             final ClusterStateResponse clusterStateResponse = client(node).admin()
                 .cluster()
-                .prepareState()
+                .prepareState(masterNodeTimeout)
                 .clear()
                 .setLocal(true)
                 .setMetadata(true)
@@ -148,7 +148,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
 
         assertBusy(
             () -> assertThat(
-                clusterAdmin().prepareState()
+                clusterAdmin().prepareState(masterNodeTimeout)
                     .clear()
                     .setMetadata(true)
                     .get()
@@ -179,7 +179,7 @@ public class TransportClusterStateActionDisruptionIT extends ESIntegTestCase {
                 assertAcked(
                     client(nonMasterNode).admin()
                         .cluster()
-                        .prepareUpdateSettings()
+                        .prepareUpdateSettings(masterNodeTimeout)
                         .setPersistentSettings(Settings.builder().put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), value))
                 );
             }

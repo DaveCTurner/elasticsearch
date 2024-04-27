@@ -1933,7 +1933,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
             try {
                 ClusterUpdateSettingsResponse response = client().admin()
                     .cluster()
-                    .prepareUpdateSettings()
+                    .prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(Settings.builder().put(SEARCH_WORKER_THREADS_ENABLED.getKey(), false).build())
                     .get();
                 assertTrue(response.isAcknowledged());
@@ -1944,7 +1944,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
                 // reset original default setting
                 client().admin()
                     .cluster()
-                    .prepareUpdateSettings()
+                    .prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(Settings.builder().putNull(SEARCH_WORKER_THREADS_ENABLED.getKey()).build())
                     .get();
                 try (SearchContext searchContext = service.createContext(readerContext, request, task, ResultsType.DFS, randomBoolean())) {
@@ -2082,7 +2082,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
             try {
                 ClusterUpdateSettingsResponse response = client().admin()
                     .cluster()
-                    .prepareUpdateSettings()
+                    .prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(Settings.builder().put(QUERY_PHASE_PARALLEL_COLLECTION_ENABLED.getKey(), false).build())
                     .get();
                 assertTrue(response.isAcknowledged());
@@ -2105,7 +2105,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
                 // Reset to the original default setting and check to ensure it takes effect.
                 client().admin()
                     .cluster()
-                    .prepareUpdateSettings()
+                    .prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(Settings.builder().putNull(QUERY_PHASE_PARALLEL_COLLECTION_ENABLED.getKey()).build())
                     .get();
                 {

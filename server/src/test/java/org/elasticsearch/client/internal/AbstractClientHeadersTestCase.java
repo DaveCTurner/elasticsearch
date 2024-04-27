@@ -102,7 +102,7 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
         client.prepareDelete("idx", "id").execute(new AssertingActionListener<>(TransportDeleteAction.NAME, client.threadPool()));
         client.admin()
             .cluster()
-            .prepareDeleteStoredScript("id")
+            .prepareDeleteStoredScript(masterNodeTimeout, "id")
             .execute(new AssertingActionListener<>(TransportDeleteStoredScriptAction.TYPE.name(), client.threadPool()));
         client.prepareIndex("idx")
             .setId("id")
@@ -116,11 +116,11 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
             .execute(new AssertingActionListener<>(TransportClusterStatsAction.TYPE.name(), client.threadPool()));
         client.admin()
             .cluster()
-            .prepareCreateSnapshot("repo", "bck")
+            .prepareCreateSnapshot(masterNodeTimeout, "repo", "bck")
             .execute(new AssertingActionListener<>(TransportCreateSnapshotAction.TYPE.name(), client.threadPool()));
         client.admin()
             .cluster()
-            .prepareReroute()
+            .prepareReroute(masterNodeTimeout)
             .execute(new AssertingActionListener<>(TransportClusterRerouteAction.TYPE.name(), client.threadPool()));
 
         // choosing arbitrary indices admin actions to test

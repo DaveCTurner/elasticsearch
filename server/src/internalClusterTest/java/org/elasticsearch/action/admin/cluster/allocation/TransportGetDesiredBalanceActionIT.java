@@ -51,7 +51,7 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         for (var entry : shardsMap.entrySet()) {
             Integer shardId = entry.getKey();
             DesiredBalanceResponse.DesiredShards desiredShards = entry.getValue();
-            IndexShardRoutingTable shardRoutingTable = clusterAdmin().prepareState()
+            IndexShardRoutingTable shardRoutingTable = clusterAdmin().prepareState(masterNodeTimeout)
                 .get()
                 .getState()
                 .routingTable()
@@ -88,7 +88,7 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         for (var entry : shardsMap.entrySet()) {
             Integer shardId = entry.getKey();
             DesiredBalanceResponse.DesiredShards desiredShards = entry.getValue();
-            IndexShardRoutingTable shardRoutingTable = clusterAdmin().prepareState()
+            IndexShardRoutingTable shardRoutingTable = clusterAdmin().prepareState(masterNodeTimeout)
                 .get()
                 .getState()
                 .routingTable()

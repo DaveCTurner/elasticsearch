@@ -127,7 +127,7 @@ public class RestIndicesAction extends AbstractCatAction {
 
                 client.admin()
                     .cluster()
-                    .prepareState()
+                    .prepareState(masterNodeTimeout)
                     .clear()
                     .setMetadata(true)
                     .setRoutingTable(true)

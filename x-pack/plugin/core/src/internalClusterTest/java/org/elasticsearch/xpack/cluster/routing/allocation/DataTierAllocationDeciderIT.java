@@ -74,7 +74,10 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
         assertThat(DataTier.TIER_PREFERENCE_SETTING.get(idxSettings), equalTo(DataTier.DATA_CONTENT));
 
         // index should be red
-        assertThat(clusterAdmin().prepareHealth(index).get().getIndices().get(index).getStatus(), equalTo(ClusterHealthStatus.RED));
+        assertThat(
+            clusterAdmin().prepareHealth(masterNodeTimeout, index).get().getIndices().get(index).getStatus(),
+            equalTo(ClusterHealthStatus.RED)
+        );
 
         if (randomBoolean()) {
             logger.info("--> starting content node");
@@ -535,7 +538,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
     }
 
     private DiscoveryNode getPrimaryShardAssignedNode(int shard) {
-        final var state = clusterAdmin().prepareState().get().getState();
+        final var state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final var routingTable = state.routingTable().index(index).shard(shard);
         final var primaryShard = routingTable.primaryShard();
         final var discoveryNode = state.nodes().get(primaryShard.currentNodeId());

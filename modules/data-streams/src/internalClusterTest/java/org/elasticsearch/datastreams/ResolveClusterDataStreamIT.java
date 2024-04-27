@@ -403,7 +403,7 @@ public class ResolveClusterDataStreamIT extends AbstractMultiClustersTestCase {
         assertFalse(
             client(REMOTE_CLUSTER_2).admin()
                 .cluster()
-                .prepareHealth(remoteIndex2)
+                .prepareHealth(masterNodeTimeout, remoteIndex2)
                 .setWaitForYellowStatus()
                 .setTimeout(TimeValue.timeValueSeconds(10))
                 .get()

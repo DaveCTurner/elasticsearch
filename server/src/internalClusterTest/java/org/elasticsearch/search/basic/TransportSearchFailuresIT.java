@@ -74,7 +74,7 @@ public class TransportSearchFailuresIT extends ESIntegTestCase {
 
         allowNodes("test", 2);
         assertThat(
-            clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForNodes(">=2").get().isTimedOut(),
+            clusterAdmin().prepareHealth(masterNodeTimeout).setWaitForEvents(Priority.LANGUID).setWaitForNodes(">=2").get().isTimedOut(),
             equalTo(false)
         );
 

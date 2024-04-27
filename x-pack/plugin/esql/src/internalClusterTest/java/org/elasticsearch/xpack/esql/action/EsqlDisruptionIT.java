@@ -123,7 +123,7 @@ public class EsqlDisruptionIT extends EsqlActionIT {
         try {
             internalCluster().clearDisruptionScheme(false);
             ensureFullyConnectedCluster();
-            assertBusy(() -> assertAcked(clusterAdmin().prepareReroute().setRetryFailed(true)), 1, TimeUnit.MINUTES);
+            assertBusy(() -> assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout).setRetryFailed(true)), 1, TimeUnit.MINUTES);
             ensureYellow();
         } catch (Exception e) {
             throw new AssertionError(e);

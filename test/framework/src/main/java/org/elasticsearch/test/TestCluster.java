@@ -152,7 +152,7 @@ public abstract class TestCluster {
                 // Happens if `action.destructive_requires_name` is set to true
                 // which is the case in the CloseIndexDisableCloseAllTests
                 if ("_all".equals(indices[0])) {
-                    ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState().get();
+                    ClusterStateResponse clusterStateResponse = client().admin().cluster().prepareState(masterNodeTimeout).get();
                     ArrayList<String> concreteIndices = new ArrayList<>();
                     for (IndexMetadata indexMetadata : clusterStateResponse.getState().metadata()) {
                         concreteIndices.add(indexMetadata.getIndex().getName());
@@ -218,22 +218,25 @@ public abstract class TestCluster {
                 for (String repository : repositories) {
                     ActionListener.run(
                         listeners.acquire(),
-                        l -> client().admin().cluster().prepareDeleteRepository(repository).execute(new ActionListener<>() {
-                            @Override
-                            public void onResponse(AcknowledgedResponse acknowledgedResponse) {
-                                l.onResponse(null);
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                if (e instanceof RepositoryMissingException) {
-                                    // ignore
+                        l -> client().admin()
+                            .cluster()
+                            .prepareDeleteRepository(masterNodeTimeout, repository)
+                            .execute(new ActionListener<>() {
+                                @Override
+                                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
                                     l.onResponse(null);
-                                } else {
-                                    l.onFailure(e);
                                 }
-                            }
-                        })
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    if (e instanceof RepositoryMissingException) {
+                                        // ignore
+                                        l.onResponse(null);
+                                    } else {
+                                        l.onFailure(e);
+                                    }
+                                }
+                            })
                     );
                 }
             }

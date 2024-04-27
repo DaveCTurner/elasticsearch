@@ -68,7 +68,7 @@ public class SecurityFeatureStateIntegTests extends AbstractPrivilegeTestCase {
     public void testSecurityFeatureStateSnapshotAndRestore() throws Exception {
         // set up a snapshot repository
         final String repositoryName = "test-repo";
-        clusterAdmin().preparePutRepository(repositoryName)
+        clusterAdmin().preparePutRepository(masterNodeTimeout, repositoryName)
             .setType("fs")
             .setSettings(Settings.builder().put("location", repositoryLocation))
             .get();
@@ -105,7 +105,7 @@ public class SecurityFeatureStateIntegTests extends AbstractPrivilegeTestCase {
 
         // snapshot state
         final String snapshotName = "security-state";
-        clusterAdmin().prepareCreateSnapshot(repositoryName, snapshotName)
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repositoryName, snapshotName)
             .setIndices("test_index")
             .setFeatureStates("LocalStateSecurity")
             .get();
@@ -131,7 +131,7 @@ public class SecurityFeatureStateIntegTests extends AbstractPrivilegeTestCase {
         client().admin().indices().prepareClose(masterNodeTimeout, "test_index").get();
 
         // restore state
-        clusterAdmin().prepareRestoreSnapshot(repositoryName, snapshotName)
+        clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repositoryName, snapshotName)
             .setFeatureStates("LocalStateSecurity")
             .setIndices("test_index")
             .setWaitForCompletion(true)

@@ -128,7 +128,7 @@ public class CrossClustersQueryIT extends AbstractMultiClustersTestCase {
     void waitForNoInitializingShards(Client client, TimeValue timeout, String... indices) {
         ClusterHealthResponse resp = client.admin()
             .cluster()
-            .prepareHealth(indices)
+            .prepareHealth(masterNodeTimeout, indices)
             .setWaitForEvents(Priority.LANGUID)
             .setWaitForNoRelocatingShards(true)
             .setWaitForNoInitializingShards(true)

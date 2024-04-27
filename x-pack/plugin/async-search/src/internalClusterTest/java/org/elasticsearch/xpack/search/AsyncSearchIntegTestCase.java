@@ -145,7 +145,7 @@ public abstract class AsyncSearchIntegTestCase extends ESIntegTestCase {
      */
     protected void restartTaskNode(String id, String indexName) throws Exception {
         AsyncExecutionId searchId = AsyncExecutionId.decode(id);
-        final ClusterStateResponse clusterState = clusterAdmin().prepareState().clear().setNodes(true).get();
+        final ClusterStateResponse clusterState = clusterAdmin().prepareState(masterNodeTimeout).clear().setNodes(true).get();
         DiscoveryNode node = clusterState.getState().nodes().get(searchId.getTaskId().getNodeId());
 
         // Temporarily stop garbage collection, making sure to wait for any in-flight tasks to complete

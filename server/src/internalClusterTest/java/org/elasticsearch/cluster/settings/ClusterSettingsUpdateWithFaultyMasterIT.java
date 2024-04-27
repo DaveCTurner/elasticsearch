@@ -55,7 +55,7 @@ public class ClusterSettingsUpdateWithFaultyMasterIT extends ESIntegTestCase {
         logger.info("--> updating cluster settings");
         var future = client(masterNode).admin()
             .cluster()
-            .prepareUpdateSettings()
+            .prepareUpdateSettings(masterNodeTimeout)
             .setPersistentSettings(Settings.builder().put(BlockingClusterSettingTestPlugin.TEST_BLOCKING_SETTING.getKey(), true).build())
             .setMasterNodeTimeout(TimeValue.timeValueMillis(100L))
             .execute();

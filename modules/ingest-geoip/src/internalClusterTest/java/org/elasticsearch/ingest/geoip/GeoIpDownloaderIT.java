@@ -613,7 +613,7 @@ public class GeoIpDownloaderIT extends AbstractGeoIpIT {
             builder.endObject();
             bytes = BytesReference.bytes(builder);
         }
-        assertAcked(clusterAdmin().preparePutPipeline(pipelineId, bytes, XContentType.JSON).get());
+        assertAcked(clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineId, bytes, XContentType.JSON).get());
     }
 
     /**
@@ -658,7 +658,7 @@ public class GeoIpDownloaderIT extends AbstractGeoIpIT {
             builder.endObject();
             bytes = BytesReference.bytes(builder);
         }
-        assertAcked(clusterAdmin().preparePutPipeline(pipelineId, bytes, XContentType.JSON).get());
+        assertAcked(clusterAdmin().preparePutPipeline(masterNodeTimeout, pipelineId, bytes, XContentType.JSON).get());
     }
 
     private List<Path> getGeoIpTmpDirs() throws IOException {

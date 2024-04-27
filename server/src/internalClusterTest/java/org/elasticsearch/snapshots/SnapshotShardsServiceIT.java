@@ -48,7 +48,7 @@ public class SnapshotShardsServiceIT extends AbstractSnapshotIntegTestCase {
         String blockedNode = blockNodeWithIndex("test-repo", "test-index");
         dataNodeClient().admin()
             .cluster()
-            .prepareCreateSnapshot("test-repo", "test-snap")
+            .prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(false)
             .setIndices("test-index")
             .get();

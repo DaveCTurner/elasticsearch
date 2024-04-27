@@ -176,7 +176,10 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> snapshot");
         final SnapshotInfo snapshotInfo = assertSuccessful(
-            clusterAdmin().prepareCreateSnapshot("test-repo", "test-snap").setIndices().setWaitForCompletion(true).execute()
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, "test-repo", "test-snap")
+                .setIndices()
+                .setWaitForCompletion(true)
+                .execute()
         );
         assertThat(snapshotInfo.totalShards(), is(0));
 
@@ -220,7 +223,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
         final ActionFuture<CreateSnapshotResponse> responseSnapshotOne = internalCluster().masterClient()
             .admin()
             .cluster()
-            .prepareCreateSnapshot(repoName, snapshotOne)
+            .prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotOne)
             .setWaitForCompletion(true)
             .execute();
 
@@ -255,9 +258,11 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
         blockDataNode(repoName, dataNodeTwo);
 
         final String snapshotTwo = "snap-2";
-        final ActionFuture<CreateSnapshotResponse> responseSnapshotTwo = clusterAdmin().prepareCreateSnapshot(repoName, snapshotTwo)
-            .setWaitForCompletion(true)
-            .execute();
+        final ActionFuture<CreateSnapshotResponse> responseSnapshotTwo = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            repoName,
+            snapshotTwo
+        ).setWaitForCompletion(true).execute();
 
         waitForBlock(dataNodeTwo, repoName);
 
@@ -321,7 +326,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
             assertAcked(
                 client.admin()
                     .cluster()
-                    .preparePutRepository(repoName)
+                    .preparePutRepository(masterNodeTimeout, repoName)
                     .setType("fs")
                     .setSettings(Settings.builder().put("location", repoPath).build())
             );
@@ -339,7 +344,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
                 logger.info("--> create snapshot with index {} and name {} in repository {}", snapshotIndex, snapshotName, repoName);
                 CreateSnapshotResponse createSnapshotResponse = client.admin()
                     .cluster()
-                    .prepareCreateSnapshot(repoName, snapshotName)
+                    .prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName)
                     .setWaitForCompletion(true)
                     .setIndices(indexName)
                     .get();
@@ -520,7 +525,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
         final String initialBlockedNode = blockNodeWithIndex(repositoryName, indexName);
         client.admin()
             .cluster()
-            .prepareCreateSnapshot(repositoryName, "snap-on-empty-repo")
+            .prepareCreateSnapshot(masterNodeTimeout, repositoryName, "snap-on-empty-repo")
             .setWaitForCompletion(false)
             .setIndices(indexName)
             .get();
@@ -542,7 +547,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
             final String snapshotName = randomAlphaOfLength(8).toLowerCase(Locale.ROOT);
             CreateSnapshotResponse createSnapshotResponse = client.admin()
                 .cluster()
-                .prepareCreateSnapshot(repositoryName, snapshotName)
+                .prepareCreateSnapshot(masterNodeTimeout, repositoryName, snapshotName)
                 .setWaitForCompletion(true)
                 .setIndices(indexName)
                 .get();
@@ -562,7 +567,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
         final String blockedNode = blockNodeWithIndex(repositoryName, indexName);
         client.admin()
             .cluster()
-            .prepareCreateSnapshot(repositoryName, inProgressSnapshot)
+            .prepareCreateSnapshot(masterNodeTimeout, repositoryName, inProgressSnapshot)
             .setWaitForCompletion(false)
             .setIndices(indexName)
             .get();
@@ -643,7 +648,7 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
             createsListener.map(ignored -> null)
         );
         for (final var snapshotName : snapshotNames) {
-            clusterAdmin().prepareCreateSnapshot(repoName, snapshotName)
+            clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, snapshotName)
                 .setWaitForCompletion(waitForCompletion)
                 .execute(createsGroupedListener);
         }
@@ -696,9 +701,11 @@ public class SnapshotStatusApisIT extends AbstractSnapshotIntegTestCase {
         indexRandomDocs("test-idx", 10);
         ensureGreen();
         blockAllDataNodes("test-repo");
-        final ActionFuture<CreateSnapshotResponse> snapshotResponseFuture = clusterAdmin().prepareCreateSnapshot("test-repo", "test-snap")
-            .setWaitForCompletion(true)
-            .execute();
+        final ActionFuture<CreateSnapshotResponse> snapshotResponseFuture = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            "test-repo",
+            "test-snap"
+        ).setWaitForCompletion(true).execute();
         try {
             waitForBlockOnAnyDataNode("test-repo");
             final List<SnapshotStatus> snapshotStatus = clusterAdmin().prepareSnapshotStatus("test-repo")

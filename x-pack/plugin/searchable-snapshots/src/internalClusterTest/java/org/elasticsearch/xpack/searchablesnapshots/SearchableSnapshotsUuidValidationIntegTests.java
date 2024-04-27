@@ -112,7 +112,7 @@ public class SearchableSnapshotsUuidValidationIntegTests extends BaseFrozenSearc
         final RestoreBlockingActionFilter restoreBlockingActionFilter = getBlockingActionFilter();
         restoreBlockingActionFilter.awaitExecution();
 
-        assertAcked(clusterAdmin().prepareDeleteSnapshot(fsRepoName, snapshotName).get());
+        assertAcked(clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, fsRepoName, snapshotName).get());
         createFullSnapshot(fsRepoName, snapshotName);
 
         assertFalse(responseFuture.isDone());

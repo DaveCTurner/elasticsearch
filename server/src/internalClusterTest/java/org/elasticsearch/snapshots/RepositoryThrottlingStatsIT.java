@@ -57,7 +57,7 @@ public class RepositoryThrottlingStatsIT extends AbstractSnapshotIntegTestCase {
         createSnapshot("test-repo", "test-snap", Collections.singletonList("test-idx"));
 
         logger.info("--> restore from snapshot");
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setRenamePattern("test-")
             .setRenameReplacement("test2-")
             .setWaitForCompletion(true)

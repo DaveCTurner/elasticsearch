@@ -185,7 +185,11 @@ public class CorruptedFileIT extends ESIntegTestCase {
                 .waitForNoRelocatingShards(true)
         ).actionGet();
         if (health.isTimedOut()) {
-            logger.info("cluster state:\n{}\n{}", clusterAdmin().prepareState().get().getState(), getClusterPendingTasks());
+            logger.info(
+                "cluster state:\n{}\n{}",
+                clusterAdmin().prepareState(masterNodeTimeout).get().getState(),
+                getClusterPendingTasks()
+            );
             assertThat("timed out waiting for green state", health.isTimedOut(), equalTo(false));
         }
         assertThat(health.getStatus(), equalTo(ClusterHealthStatus.GREEN));
@@ -283,7 +287,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
          * we corrupted the primary shard - now lets make sure we never recover from it successfully
          */
         setReplicaCount(1, "test");
-        clusterAdmin().prepareReroute().get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).get();
 
         boolean didClusterTurnRed = waitUntil(() -> {
             ClusterHealthStatus test = clusterAdmin().health(new ClusterHealthRequest(masterNodeTimeout, "test")).actionGet().getStatus();
@@ -294,10 +298,14 @@ public class CorruptedFileIT extends ESIntegTestCase {
 
         if (response.getStatus() != ClusterHealthStatus.RED) {
             logger.info("Cluster turned red in busy loop: {}", didClusterTurnRed);
-            logger.info("cluster state:\n{}\n{}", clusterAdmin().prepareState().get().getState(), getClusterPendingTasks());
+            logger.info(
+                "cluster state:\n{}\n{}",
+                clusterAdmin().prepareState(masterNodeTimeout).get().getState(),
+                getClusterPendingTasks()
+            );
         }
         assertThat(response.getStatus(), is(ClusterHealthStatus.RED));
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         GroupShardsIterator<ShardIterator> shardIterators = state.getRoutingTable()
             .activePrimaryShardsGrouped(new String[] { "test" }, false);
         for (ShardIterator iterator : shardIterators) {
@@ -367,7 +375,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
                 .put("index.routing.allocation.include._name", primariesNode.getName() + "," + unluckyNode.getName()),
             "test"
         );
-        clusterAdmin().prepareReroute().get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).get();
         hasCorrupted.await();
         corrupt.set(false);
         ensureGreen();
@@ -492,7 +500,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
                 .put("index.routing.allocation.exclude._name", unluckyNode.getName()),
             "test"
         );
-        clusterAdmin().prepareReroute().setRetryFailed(true).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).setRetryFailed(true).get();
         ensureGreen("test");
         assertThatAllShards("test", shard -> {
             assertThat(shard.primaryShard().currentNodeId(), not(equalTo(unluckyNode.getId())));
@@ -552,7 +560,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
         // it snapshots and that will write a new segments.X+1 file
         logger.info("-->  creating repository");
         assertAcked(
-            clusterAdmin().preparePutRepository("test-repo")
+            clusterAdmin().preparePutRepository(masterNodeTimeout, "test-repo")
                 .setType("fs")
                 .setSettings(
                     Settings.builder()
@@ -562,10 +570,11 @@ public class CorruptedFileIT extends ESIntegTestCase {
                 )
         );
         logger.info("--> snapshot");
-        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot("test-repo", "test-snap")
-            .setWaitForCompletion(true)
-            .setIndices("test")
-            .get();
+        final CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            "test-repo",
+            "test-snap"
+        ).setWaitForCompletion(true).setIndices("test").get();
         final SnapshotState snapshotState = createSnapshotResponse.getSnapshotInfo().state();
         logger.info("--> snapshot terminated with state " + snapshotState);
         final List<Path> files = listShardFiles(shardRouting);
@@ -652,7 +661,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
     }
 
     private int numShards(String... index) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         GroupShardsIterator<?> shardIterators = state.getRoutingTable().activePrimaryShardsGrouped(index, false);
         return shardIterators.size();
     }
@@ -679,7 +688,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
     }
 
     private ShardRouting corruptRandomPrimaryFile(final boolean includePerCommitFiles) throws IOException {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         Index test = state.metadata().index("test").getIndex();
         GroupShardsIterator<ShardIterator> shardIterators = state.getRoutingTable()
             .activePrimaryShardsGrouped(new String[] { "test" }, false);
@@ -735,7 +744,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
 
     public List<Path> listShardFiles(ShardRouting routing) throws IOException {
         NodesStatsResponse nodeStatses = clusterAdmin().prepareNodesStats(routing.currentNodeId()).setFs(true).get();
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final Index test = state.metadata().index("test").getIndex();
         assertThat(routing.toString(), nodeStatses.getNodes().size(), equalTo(1));
         List<Path> files = new ArrayList<>();

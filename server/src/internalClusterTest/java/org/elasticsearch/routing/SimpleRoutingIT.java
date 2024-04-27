@@ -49,7 +49,7 @@ public class SimpleRoutingIT extends ESIntegTestCase {
     }
 
     public String findNonMatchingRoutingValue(String index, String id) {
-        ClusterState state = clusterAdmin().prepareState().all().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).all().get().getState();
         IndexMetadata metadata = state.metadata().index(index);
         IndexMetadata withoutRoutingRequired = IndexMetadata.builder(metadata).putMapping("{}").build();
         IndexRouting indexRouting = IndexRouting.fromIndexMetadata(withoutRoutingRequired);

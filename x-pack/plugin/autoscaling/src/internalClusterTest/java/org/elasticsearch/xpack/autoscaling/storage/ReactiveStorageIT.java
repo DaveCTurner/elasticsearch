@@ -328,7 +328,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         long enoughSpaceForColocation = used + LOW_WATERMARK_BYTES;
         setTotalSpace(dataNode1Name, enoughSpaceForColocation);
         setTotalSpace(dataNode2Name, enoughSpaceForColocation);
-        assertAcked(clusterAdmin().prepareReroute());
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout));
         waitForRelocation();
 
         // Ensure that the relocated shard index files are removed from the data 2 node,
@@ -374,7 +374,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
             equalTo(requiredSpaceForShrink + ReactiveStorageDeciderService.NODE_DISK_OVERHEAD)
         );
 
-        assertThat(clusterAdmin().prepareHealth(shrinkName).get().getUnassignedShards(), equalTo(1));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, shrinkName).get().getUnassignedShards(), equalTo(1));
 
         // test that the required amount is enough.
         // Adjust the amount since autoscaling calculates a node size to stay below low watermark though the shard can be
@@ -382,10 +382,10 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         long tooLittleSpaceForShrink = requiredSpaceForShrink - Math.min(LOW_WATERMARK_BYTES - HIGH_WATERMARK_BYTES, used) - 1;
         assert tooLittleSpaceForShrink <= requiredSpaceForShrink;
         setTotalSpace(dataNode1Name, tooLittleSpaceForShrink);
-        assertAcked(clusterAdmin().prepareReroute());
-        assertThat(clusterAdmin().prepareHealth(shrinkName).get().getUnassignedShards(), equalTo(1));
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, shrinkName).get().getUnassignedShards(), equalTo(1));
         setTotalSpace(dataNode1Name, tooLittleSpaceForShrink + 1);
-        assertAcked(clusterAdmin().prepareReroute());
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout));
         ensureGreen();
 
         indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get();
@@ -484,7 +484,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
             equalTo(requiredSpaceForClone + ReactiveStorageDeciderService.NODE_DISK_OVERHEAD)
         );
 
-        assertThat(clusterAdmin().prepareHealth(cloneName).get().getUnassignedShards(), equalTo(resizedShardCount));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, cloneName).get().getUnassignedShards(), equalTo(resizedShardCount));
 
         // test that the required amount is enough.
         // Adjust the amount since autoscaling calculates a node size to stay below low watermark though the shard can be
@@ -492,10 +492,10 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         long tooLittleSpaceForClone = requiredSpaceForClone - Math.min(LOW_WATERMARK_BYTES - HIGH_WATERMARK_BYTES, used) - 1;
         assert tooLittleSpaceForClone <= requiredSpaceForClone;
         setTotalSpace(dataNode1Name, tooLittleSpaceForClone);
-        assertAcked(clusterAdmin().prepareReroute());
-        assertThat(clusterAdmin().prepareHealth(cloneName).get().getUnassignedShards(), equalTo(resizedShardCount));
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, cloneName).get().getUnassignedShards(), equalTo(resizedShardCount));
         setTotalSpace(dataNode1Name, requiredSpaceForClone);
-        assertAcked(clusterAdmin().prepareReroute());
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout));
         ensureGreen();
 
         indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get();

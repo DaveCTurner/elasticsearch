@@ -150,7 +150,10 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
     }
 
     private void assertMasterNode(Client client, String node) {
-        assertThat(client.admin().cluster().prepareState().get().getState().nodes().getMasterNode().getName(), equalTo(node));
+        assertThat(
+            client.admin().cluster().prepareState(masterNodeTimeout).get().getState().nodes().getMasterNode().getName(),
+            equalTo(node)
+        );
     }
 
     private void writeJSONFile(String node, String json) throws Exception {
@@ -273,7 +276,7 @@ public class SLMFileSettingsIT extends AbstractSnapshotIntegTestCase {
 
         // Cancel/delete the snapshot
         try {
-            clusterAdmin().prepareDeleteSnapshot(REPO, snapshotName).get();
+            clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, REPO, snapshotName).get();
         } catch (SnapshotMissingException e) {
             // ignore
         }

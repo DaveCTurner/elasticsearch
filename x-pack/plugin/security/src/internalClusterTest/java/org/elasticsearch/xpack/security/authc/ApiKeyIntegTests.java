@@ -305,7 +305,7 @@ public class ApiKeyIntegTests extends SecurityIntegTestCase {
             () -> client().filterWithHeader(authorizationHeaders)
                 .admin()
                 .cluster()
-                .prepareUpdateSettings()
+                .prepareUpdateSettings(masterNodeTimeout)
                 .setPersistentSettings(Settings.builder().put(IPFilter.IP_FILTER_ENABLED_SETTING.getKey(), true))
                 .get()
         );

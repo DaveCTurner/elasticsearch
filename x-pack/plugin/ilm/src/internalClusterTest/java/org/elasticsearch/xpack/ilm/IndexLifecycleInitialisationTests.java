@@ -177,7 +177,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
             new CreateIndexRequest(masterNodeTimeout, "test").settings(settings)
         ).actionGet();
         assertAcked(createIndexResponse);
-        ClusterState clusterState = clusterAdmin().prepareState().get().getState();
+        ClusterState clusterState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node1);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(1));
         assertBusy(() -> { assertTrue(indexExists("test")); });
@@ -185,7 +185,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         assertThat(indexLifecycleService.getScheduler().jobCount(), equalTo(1));
         assertNotNull(indexLifecycleService.getScheduledJob());
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = clusterAdmin().prepareState()
+            LifecycleExecutionState lifecycleState = clusterAdmin().prepareState(masterNodeTimeout)
                 .get()
                 .getState()
                 .getMetadata()
@@ -414,13 +414,13 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
         ).actionGet();
         assertAcked(createIndexResponse);
 
-        ClusterState clusterState = clusterAdmin().prepareState().get().getState();
+        ClusterState clusterState = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         RoutingNode routingNodeEntry1 = clusterState.getRoutingNodes().node(node2);
         assertThat(routingNodeEntry1.numberOfShardsWithState(STARTED), equalTo(1));
 
         assertBusy(() -> assertTrue(indexExists("test")));
         assertBusy(() -> {
-            LifecycleExecutionState lifecycleState = clusterAdmin().prepareState()
+            LifecycleExecutionState lifecycleState = clusterAdmin().prepareState(masterNodeTimeout)
                 .get()
                 .getState()
                 .getMetadata()

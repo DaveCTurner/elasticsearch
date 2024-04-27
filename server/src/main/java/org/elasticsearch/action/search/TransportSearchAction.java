@@ -754,11 +754,10 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                         );
                     } else {
                         // does not do a can-match
-                        ClusterSearchShardsRequest searchShardsRequest = new ClusterSearchShardsRequest(masterNodeTimeout, indices)
-                            .indicesOptions(indicesOptions)
-                            .local(true)
-                            .preference(preference)
-                            .routing(routing);
+                        ClusterSearchShardsRequest searchShardsRequest = new ClusterSearchShardsRequest(
+                            TimeValue.timeValueSeconds(30) /* local request, timeout is not relevant */,
+                            indices
+                        ).indicesOptions(indicesOptions).local(true).preference(preference).routing(routing);
                         transportService.sendRequest(
                             connection,
                             TransportClusterSearchShardsAction.TYPE.name(),

@@ -46,7 +46,12 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
 
         internalCluster().startNode(nonDataNode());
         assertThat(
-            clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForNodes("2").setLocal(true).get().isTimedOut(),
+            clusterAdmin().prepareHealth(masterNodeTimeout)
+                .setWaitForEvents(Priority.LANGUID)
+                .setWaitForNodes("2")
+                .setLocal(true)
+                .get()
+                .isTimedOut(),
             equalTo(false)
         );
 
@@ -61,7 +66,12 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
         // now, start a node data, and see that it gets with shards
         internalCluster().startNode(dataNode());
         assertThat(
-            clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForNodes("3").setLocal(true).get().isTimedOut(),
+            clusterAdmin().prepareHealth(masterNodeTimeout)
+                .setWaitForEvents(Priority.LANGUID)
+                .setWaitForNodes("3")
+                .setLocal(true)
+                .get()
+                .isTimedOut(),
             equalTo(false)
         );
 
@@ -75,7 +85,9 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
             new CreateIndexRequest(masterNodeTimeout, "test").settings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
                 .waitForActiveShards(ActiveShardCount.NONE)
         ).actionGet();
-        final ClusterHealthResponse healthResponse1 = clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).get();
+        final ClusterHealthResponse healthResponse1 = clusterAdmin().prepareHealth(masterNodeTimeout)
+            .setWaitForEvents(Priority.LANGUID)
+            .get();
         assertThat(healthResponse1.isTimedOut(), equalTo(false));
         assertThat(healthResponse1.getStatus(), equalTo(ClusterHealthStatus.RED));
         assertThat(healthResponse1.getActiveShards(), equalTo(0));
@@ -83,7 +95,7 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
         internalCluster().startNode(dataNode());
 
         assertThat(
-            clusterAdmin().prepareHealth()
+            clusterAdmin().prepareHealth(masterNodeTimeout)
                 .setWaitForEvents(Priority.LANGUID)
                 .setWaitForNodes("2")
                 .setWaitForGreenStatus()
@@ -100,14 +112,16 @@ public class SimpleDataNodesIT extends ESIntegTestCase {
                 Settings.builder().put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-all")
             ).waitForActiveShards(ActiveShardCount.NONE)
         ).actionGet();
-        final ClusterHealthResponse healthResponse1 = clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).get();
+        final ClusterHealthResponse healthResponse1 = clusterAdmin().prepareHealth(masterNodeTimeout)
+            .setWaitForEvents(Priority.LANGUID)
+            .get();
         assertThat(healthResponse1.isTimedOut(), equalTo(false));
         assertThat(healthResponse1.getStatus(), equalTo(ClusterHealthStatus.RED));
         assertThat(healthResponse1.getActiveShards(), equalTo(0));
 
         internalCluster().startNode();
         internalCluster().startNode();
-        clusterAdmin().prepareReroute().setRetryFailed(true).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).setRetryFailed(true).get();
     }
 
 }

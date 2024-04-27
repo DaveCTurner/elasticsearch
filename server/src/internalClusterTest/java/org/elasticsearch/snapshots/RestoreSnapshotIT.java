@@ -94,14 +94,14 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         RestoreSnapshotResponse restoreSnapshotResponse1 = client.admin()
             .cluster()
-            .prepareRestoreSnapshot(repoName, snapshotName1)
+            .prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName1)
             .setWaitForCompletion(false)
             .setRenamePattern(indexName1)
             .setRenameReplacement(restoredIndexName1)
             .get();
         RestoreSnapshotResponse restoreSnapshotResponse2 = client.admin()
             .cluster()
-            .prepareRestoreSnapshot(repoName, snapshotName2)
+            .prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName2)
             .setWaitForCompletion(false)
             .setRenamePattern(indexName2)
             .setRenameReplacement(restoredIndexName2)
@@ -138,7 +138,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         ActionFuture<RestoreSnapshotResponse> restoreSnapshotResponse1 = client.admin()
             .cluster()
-            .prepareRestoreSnapshot(repoName, snapshotName)
+            .prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
             .setIndices(indexName1)
             .setRenamePattern(indexName1)
             .setRenameReplacement(restoredIndexName1)
@@ -148,7 +148,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         ActionFuture<RestoreSnapshotResponse> restoreSnapshotResponse2 = client.admin()
             .cluster()
-            .prepareRestoreSnapshot(repoName, snapshotName)
+            .prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
             .setIndices(sameSourceIndex ? indexName1 : indexName2)
             .setRenamePattern(sameSourceIndex ? indexName1 : indexName2)
             .setRenameReplacement(restoredIndexName2)
@@ -205,7 +205,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
             RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
                 .cluster()
-                .prepareRestoreSnapshot(repoName, snapshotName)
+                .prepareRestoreSnapshot(masterNodeTimeout, repoName, snapshotName)
                 .setWaitForCompletion(false)
                 .setRenamePattern(indexName)
                 .setRenameReplacement(restoredIndexName)
@@ -234,7 +234,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
             }
         }
 
-        final IndexMetadata indexMetadata = clusterAdmin().prepareState()
+        final IndexMetadata indexMetadata = clusterAdmin().prepareState(masterNodeTimeout)
             .clear()
             .setIndices(indexName)
             .setMetadata(true)
@@ -253,13 +253,15 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
 
-        final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
-            .setWaitForCompletion(true)
-            .get();
+        final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(
+            masterNodeTimeout,
+            "test-repo",
+            "test-snap"
+        ).setWaitForCompletion(true).get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().successfulShards(), equalTo(numPrimaries));
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
 
-        final IndexMetadata restoredIndexMetadata = clusterAdmin().prepareState()
+        final IndexMetadata restoredIndexMetadata = clusterAdmin().prepareState(masterNodeTimeout)
             .clear()
             .setIndices(indexName)
             .setMetadata(true)
@@ -307,13 +309,19 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         indicesAdmin().prepareClose(masterNodeTimeout, "test-idx").get();
 
         logger.info("--> restore all indices from the snapshot");
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
         logger.info("--> assert that old mapping is restored");
-        MappingMetadata mappings = clusterAdmin().prepareState().get().getState().getMetadata().getIndices().get("test-idx").mapping();
+        MappingMetadata mappings = clusterAdmin().prepareState(masterNodeTimeout)
+            .get()
+            .getState()
+            .getMetadata()
+            .getIndices()
+            .get("test-idx")
+            .mapping();
         assertThat(mappings.sourceAsMap().toString(), containsString("baz"));
         assertThat(mappings.sourceAsMap().toString(), not(containsString("foo")));
 
@@ -348,7 +356,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertTrue(indicesAdmin().prepareGetAliases(masterNodeTimeout, "alias-1").get().getAliases().isEmpty());
 
         logger.info("--> restore snapshot with aliases");
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setRestoreGlobalState(true)
             .get();
@@ -373,7 +381,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertTrue(indicesAdmin().prepareGetAliases(masterNodeTimeout, "alias-1").get().getAliases().isEmpty());
 
         logger.info("--> restore snapshot without aliases");
-        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
+        restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setRestoreGlobalState(true)
             .setIncludeAliases(false)
@@ -425,7 +433,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertIndexTemplateMissing(getIndexTemplatesResponse, "test-template");
 
         logger.info("--> restore cluster state");
-        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
+        RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .setRestoreGlobalState(true)
             .get();
@@ -462,7 +470,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore indices with different names");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setRenamePattern("(.+)")
             .setRenameReplacement("$1-copy")
             .setWaitForCompletion(true)
@@ -478,7 +486,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> and try to restore these indices again");
         restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setRenamePattern("(.+)")
             .setRenameReplacement("$1-copy")
             .setWaitForCompletion(true)
@@ -494,7 +502,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore indices with different names");
         restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setRenamePattern("(.+-2)")
             .setRenameReplacement("$1-copy")
             .setWaitForCompletion(true)
@@ -508,7 +516,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setRenamePattern("(.+)")
                 .setRenameReplacement("same-name")
                 .setWaitForCompletion(true)
@@ -522,7 +530,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setRenamePattern("test-idx-2")
                 .setRenameReplacement("test-idx-1")
                 .setWaitForCompletion(true)
@@ -536,7 +544,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setIndices("test-idx-1")
                 .setRenamePattern(".+")
                 .setRenameReplacement("__WRONG__")
@@ -551,7 +559,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setIndices("test-idx-1")
                 .setRenamePattern(".+")
                 .setRenameReplacement("alias-3")
@@ -566,7 +574,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setIndices("test-idx-1")
                 .setRenamePattern("test-idx")
                 .setRenameReplacement("alias")
@@ -581,7 +589,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         try {
             client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setIndices("test-idx-1", "test-idx-2")
                 .setRenamePattern("test-idx-1")
                 .setRenameReplacement("alias-2")
@@ -595,7 +603,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> try renaming indices into existing alias of itself, but don't restore aliases ");
         restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setIndices("test-idx-1")
             .setRenamePattern("test-idx")
             .setRenameReplacement("alias")
@@ -624,7 +632,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         updateClusterSettings(Settings.builder().put(INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey(), "100b"));
         ActionFuture<RestoreSnapshotResponse> restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setWaitForCompletion(true)
             .execute();
 
@@ -697,7 +705,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> try restoring while changing the number of shards - should fail");
         ActionRequestBuilder<?, ?> builder1 = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setIgnoreIndexSettings("index.analysis.*")
             .setIndexSettings(newIncorrectIndexSettings)
             .setWaitForCompletion(true);
@@ -710,7 +718,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
             .build();
         ActionRequestBuilder<?, ?> builder = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setIgnoreIndexSettings("index.analysis.*")
             .setIndexSettings(newIncorrectReplicasIndexSettings)
             .setWaitForCompletion(true);
@@ -719,7 +727,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore index with correct settings from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setIgnoreIndexSettings("index.analysis.*")
             .setIndexSettings(newIndexSettings)
             .setWaitForCompletion(true)
@@ -742,7 +750,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore index with correct settings from the snapshot");
         restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot("test-repo", "test-snap")
+            .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
             .setIgnoreIndexSettings("*") // delete everything we can delete
             .setIndexSettings(newIndexSettings)
             .setWaitForCompletion(true)
@@ -817,13 +825,20 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
             RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
                 .cluster()
-                .prepareRestoreSnapshot("test-repo", "test-snap")
+                .prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
                 .setIndexSettings(changedSettings)
                 .setWaitForCompletion(true)
                 .get();
             assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
-            ClusterBlocks blocks = client.admin().cluster().prepareState().clear().setBlocks(true).get().getState().blocks();
+            ClusterBlocks blocks = client.admin()
+                .cluster()
+                .prepareState(masterNodeTimeout)
+                .clear()
+                .setBlocks(true)
+                .get()
+                .getState()
+                .blocks();
             // compute current index settings (as we cannot query them if they contain SETTING_BLOCKS_METADATA)
             Settings mergedSettings = Settings.builder().put(initialSettings).put(changedSettings).build();
             logger.info("--> merged block settings {}", mergedSettings);
@@ -869,7 +884,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         createSnapshot("test-repo", "snapshot-0", Collections.singletonList("test-index"));
         final SnapshotRestoreException restoreError = expectThrows(
             SnapshotRestoreException.class,
-            clusterAdmin().prepareRestoreSnapshot("test-repo", "snapshot-0")
+            clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "snapshot-0")
                 .setIndexSettings(Settings.builder().put(INDEX_SOFT_DELETES_SETTING.getKey(), false))
                 .setRenamePattern("test-index")
                 .setRenameReplacement("new-index")
@@ -885,7 +900,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         final String oldSnapshot = initWithSnapshotVersion(repoName, repoPath, oldVersion);
         final SnapshotRestoreException snapshotRestoreException = expectThrows(
             SnapshotRestoreException.class,
-            clusterAdmin().prepareRestoreSnapshot(repoName, oldSnapshot)
+            clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repoName, oldSnapshot)
         );
         assertThat(
             snapshotRestoreException.getMessage(),
@@ -916,11 +931,11 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         final Logger logger = LogManager.getLogger(FileRestoreContext.class);
         Loggers.addAppender(logger, mockAppender);
         try {
-            final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(repoName, snapshotName)
-                .setIndices(indexName)
-                .setRestoreGlobalState(false)
-                .setWaitForCompletion(true)
-                .get();
+            final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(
+                masterNodeTimeout,
+                repoName,
+                snapshotName
+            ).setIndices(indexName).setRestoreGlobalState(false).setWaitForCompletion(true).get();
             assertEquals(0, restoreSnapshotResponse.getRestoreInfo().failedShards());
             mockAppender.assertAllExpectationsMatched();
         } finally {

@@ -28,7 +28,7 @@ public class ShardStateIT extends ESIntegTestCase {
         logger.info("--> disabling allocation to capture shard failure");
         disableAllocation("test");
 
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         final int shard = randomBoolean() ? 0 : 1;
         final String nodeId = state.routingTable().index("test").shard(shard).primaryShard().currentNodeId();
         final String node = state.nodes().get(nodeId).getName();
@@ -38,7 +38,9 @@ public class ShardStateIT extends ESIntegTestCase {
 
         logger.info("--> waiting for a yellow index");
         // we can't use ensureYellow since that one is just as happy with a GREEN status.
-        assertBusy(() -> assertThat(clusterAdmin().prepareHealth("test").get().getStatus(), equalTo(ClusterHealthStatus.YELLOW)));
+        assertBusy(
+            () -> assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, "test").get().getStatus(), equalTo(ClusterHealthStatus.YELLOW))
+        );
 
         final long term0 = shard == 0 ? 2 : 1;
         final long term1 = shard == 1 ? 2 : 1;
@@ -53,7 +55,7 @@ public class ShardStateIT extends ESIntegTestCase {
     protected void assertPrimaryTerms(long shard0Term, long shard1Term) {
         for (String node : internalCluster().getNodeNames()) {
             logger.debug("--> asserting primary terms terms on [{}]", node);
-            ClusterState state = client(node).admin().cluster().prepareState().setLocal(true).get().getState();
+            ClusterState state = client(node).admin().cluster().prepareState(masterNodeTimeout).setLocal(true).get().getState();
             IndexMetadata metadata = state.metadata().index("test");
             assertThat(metadata.primaryTerm(0), equalTo(shard0Term));
             assertThat(metadata.primaryTerm(1), equalTo(shard1Term));

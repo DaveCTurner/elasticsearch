@@ -95,6 +95,7 @@ import org.elasticsearch.action.ingest.SimulatePipelineRequestBuilder;
 import org.elasticsearch.action.ingest.SimulatePipelineResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -124,7 +125,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * The health of the cluster.
      */
-    ClusterHealthRequestBuilder prepareHealth(String... indices);
+    ClusterHealthRequestBuilder prepareHealth(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * The state of the cluster.
@@ -145,7 +146,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * The state of the cluster.
      */
-    ClusterStateRequestBuilder prepareState();
+    ClusterStateRequestBuilder prepareState(TimeValue masterNodeTimeout);
 
     /**
      * Updates settings in the cluster.
@@ -160,7 +161,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Update settings in the cluster.
      */
-    ClusterUpdateSettingsRequestBuilder prepareUpdateSettings();
+    ClusterUpdateSettingsRequestBuilder prepareUpdateSettings(TimeValue masterNodeTimeout);
 
     /**
      * Reroutes allocation of shards. Advance API.
@@ -175,7 +176,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Update settings in the cluster.
      */
-    ClusterRerouteRequestBuilder prepareReroute();
+    ClusterRerouteRequestBuilder prepareReroute(TimeValue masterNodeTimeout);
 
     /**
      * Nodes info of the cluster.
@@ -325,7 +326,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Registers a snapshot repository.
      */
-    PutRepositoryRequestBuilder preparePutRepository(String name);
+    PutRepositoryRequestBuilder preparePutRepository(TimeValue masterNodeTimeout, String name);
 
     /**
      * Unregisters a repository.
@@ -335,7 +336,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Unregisters a repository.
      */
-    DeleteRepositoryRequestBuilder prepareDeleteRepository(String name);
+    DeleteRepositoryRequestBuilder prepareDeleteRepository(TimeValue masterNodeTimeout, String name);
 
     /**
      * Gets repositories.
@@ -380,12 +381,12 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Creates a new snapshot.
      */
-    CreateSnapshotRequestBuilder prepareCreateSnapshot(String repository, String name);
+    CreateSnapshotRequestBuilder prepareCreateSnapshot(TimeValue masterNodeTimeout, String repository, String name);
 
     /**
      * Clones a snapshot.
      */
-    CloneSnapshotRequestBuilder prepareCloneSnapshot(String repository, String source, String target);
+    CloneSnapshotRequestBuilder prepareCloneSnapshot(TimeValue masterNodeTimeout, String repository, String source, String target);
 
     /**
      * Clones a snapshot.
@@ -410,7 +411,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Delete snapshot.
      */
-    DeleteSnapshotRequestBuilder prepareDeleteSnapshot(String repository, String... snapshot);
+    DeleteSnapshotRequestBuilder prepareDeleteSnapshot(TimeValue masterNodeTimeout, String repository, String... snapshot);
 
     /**
      * Restores a snapshot.
@@ -425,7 +426,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Restores a snapshot.
      */
-    RestoreSnapshotRequestBuilder prepareRestoreSnapshot(String repository, String snapshot);
+    RestoreSnapshotRequestBuilder prepareRestoreSnapshot(TimeValue masterNodeTimeout, String repository, String snapshot);
 
     /**
      * Get snapshot status.
@@ -455,7 +456,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Stores an ingest pipeline
      */
-    PutPipelineRequestBuilder preparePutPipeline(String id, BytesReference source, XContentType xContentType);
+    PutPipelineRequestBuilder preparePutPipeline(TimeValue masterNodeTimeout, String id, BytesReference source, XContentType xContentType);
 
     /**
      * Deletes a stored ingest pipeline
@@ -470,7 +471,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Deletes a stored ingest pipeline
      */
-    DeletePipelineRequestBuilder prepareDeletePipeline(String id);
+    DeletePipelineRequestBuilder prepareDeletePipeline(TimeValue masterNodeTimeout, String id);
 
     /**
      * Returns a stored ingest pipeline
@@ -515,7 +516,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Store a script in the cluster state
      */
-    PutStoredScriptRequestBuilder preparePutStoredScript();
+    PutStoredScriptRequestBuilder preparePutStoredScript(TimeValue masterNodeTimeout);
 
     /**
      * Delete a script from the cluster state
@@ -525,7 +526,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Delete a script from the cluster state
      */
-    DeleteStoredScriptRequestBuilder prepareDeleteStoredScript(String id);
+    DeleteStoredScriptRequestBuilder prepareDeleteStoredScript(TimeValue masterNodeTimeout, String id);
 
     /**
      * Store a script in the cluster state
@@ -535,7 +536,7 @@ public interface ClusterAdminClient extends ElasticsearchClient {
     /**
      * Get a script from the cluster state
      */
-    GetStoredScriptRequestBuilder prepareGetStoredScript(String id);
+    GetStoredScriptRequestBuilder prepareGetStoredScript(TimeValue masterNodeTimeout, String id);
 
     /**
      * Get a script from the cluster state

@@ -173,7 +173,10 @@ public class SnapshotsAndFileSettingsIT extends AbstractSnapshotIntegTestCase {
         Files.delete(fs.watchedFile());
 
         logger.info("--> restore global state from the snapshot");
-        clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap").setRestoreGlobalState(true).setWaitForCompletion(true).get();
+        clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
+            .setRestoreGlobalState(true)
+            .setWaitForCompletion(true)
+            .get();
 
         ensureGreen();
 
@@ -286,7 +289,10 @@ public class SnapshotsAndFileSettingsIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> restore global state from the snapshot");
         var removedReservedState = removedReservedClusterStateListener(masterNode);
 
-        clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap").setRestoreGlobalState(true).setWaitForCompletion(true).get();
+        clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, "test-repo", "test-snap")
+            .setRestoreGlobalState(true)
+            .setWaitForCompletion(true)
+            .get();
 
         ensureGreen();
 

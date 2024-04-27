@@ -796,7 +796,7 @@ public class TokenAuthIntegTests extends SecurityIntegTestCase {
     }
 
     public void testMetadataIsNotSentToClient() {
-        ClusterStateResponse clusterStateResponse = clusterAdmin().prepareState().setCustoms(true).get();
+        ClusterStateResponse clusterStateResponse = clusterAdmin().prepareState(masterNodeTimeout).setCustoms(true).get();
         assertFalse(clusterStateResponse.getState().customs().containsKey(TokenMetadata.TYPE));
     }
 

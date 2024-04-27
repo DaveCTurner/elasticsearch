@@ -130,14 +130,14 @@ public abstract class AbstractEsqlIntegTestCase extends ESIntegTestCase {
     protected void setRequestCircuitBreakerLimit(ByteSizeValue limit) {
         if (limit != null) {
             assertAcked(
-                clusterAdmin().prepareUpdateSettings()
+                clusterAdmin().prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(
                         Settings.builder().put(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey(), limit).build()
                     )
             );
         } else {
             assertAcked(
-                clusterAdmin().prepareUpdateSettings()
+                clusterAdmin().prepareUpdateSettings(masterNodeTimeout)
                     .setPersistentSettings(
                         Settings.builder().putNull(HierarchyCircuitBreakerService.REQUEST_CIRCUIT_BREAKER_LIMIT_SETTING.getKey()).build()
                     )

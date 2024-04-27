@@ -281,7 +281,7 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
     }
 
     protected boolean upgradeMode() {
-        ClusterState masterClusterState = clusterAdmin().prepareState().all().get().getState();
+        ClusterState masterClusterState = clusterAdmin().prepareState(masterNodeTimeout).all().get().getState();
         MlMetadata mlMetadata = MlMetadata.getMlMetadata(masterClusterState);
         return mlMetadata.isUpgradeMode();
     }
@@ -409,7 +409,7 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
                 new NamedWriteableRegistry.Entry(AutoscalingDeciderResult.Reason.class, MlScalingReason.NAME, MlScalingReason::new)
             );
             final NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(entries);
-            ClusterState masterClusterState = clusterAdmin().prepareState().all().get().getState();
+            ClusterState masterClusterState = clusterAdmin().prepareState(masterNodeTimeout).all().get().getState();
             byte[] masterClusterStateBytes = ClusterState.Builder.toBytes(masterClusterState);
             // remove local node reference
             masterClusterState = ClusterState.Builder.fromBytes(masterClusterStateBytes, null, namedWriteableRegistry);
@@ -417,7 +417,13 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
             int masterClusterStateSize = ClusterState.Builder.toBytes(masterClusterState).length;
             String masterId = masterClusterState.nodes().getMasterNodeId();
             for (Client client : cluster().getClients()) {
-                ClusterState localClusterState = client.admin().cluster().prepareState().all().setLocal(true).get().getState();
+                ClusterState localClusterState = client.admin()
+                    .cluster()
+                    .prepareState(masterNodeTimeout)
+                    .all()
+                    .setLocal(true)
+                    .get()
+                    .getState();
                 byte[] localClusterStateBytes = ClusterState.Builder.toBytes(localClusterState);
                 // remove local node reference
                 localClusterState = ClusterState.Builder.fromBytes(localClusterStateBytes, null, namedWriteableRegistry);

@@ -70,11 +70,14 @@ public class ShardsAvailabilityHealthIndicatorServiceIT extends ESIntegTestCase 
         var repositoryName = "repository";
         var snapshotName = randomIdentifier();
         assertAcked(
-            clusterAdmin().preparePutRepository(repositoryName)
+            clusterAdmin().preparePutRepository(masterNodeTimeout, repositoryName)
                 .setType("fs")
                 .setSettings(Settings.builder().put("location", randomRepoPath()))
         );
-        clusterAdmin().prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(true).get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repositoryName, snapshotName)
+            .setIndices(index)
+            .setWaitForCompletion(true)
+            .get();
         if (randomBoolean()) {
             assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, index));
         } else {
@@ -83,7 +86,10 @@ public class ShardsAvailabilityHealthIndicatorServiceIT extends ESIntegTestCase 
         ensureGreen();
 
         assertHealthDuring(equalTo(GREEN), () -> {
-            clusterAdmin().prepareRestoreSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(true).get();
+            clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, repositoryName, snapshotName)
+                .setIndices(index)
+                .setWaitForCompletion(true)
+                .get();
             ensureGreen(index);
         });
     }

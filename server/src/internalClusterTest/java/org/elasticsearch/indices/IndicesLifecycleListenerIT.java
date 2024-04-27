@@ -95,7 +95,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
             fail("should have thrown an exception during creation");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("failing on purpose"));
-            assertFalse(clusterAdmin().prepareState().get().getState().routingTable().hasIndex("failed"));
+            assertFalse(clusterAdmin().prepareState(masterNodeTimeout).get().getState().routingTable().hasIndex("failed"));
         }
     }
 
@@ -115,10 +115,10 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
                     throw new RuntimeException("FAIL");
                 }
             });
-        clusterAdmin().prepareReroute().add(new MoveAllocationCommand("index1", 0, node1, node2)).get();
+        clusterAdmin().prepareReroute(masterNodeTimeout).add(new MoveAllocationCommand("index1", 0, node1, node2)).get();
         ensureGreen("index1");
 
-        var state = clusterAdmin().prepareState().get().getState();
+        var state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         logger.info("Final routing is {}", state.getRoutingNodes().toString());
         var shard = state.routingTable().index("index1").shard(0).primaryShard();
         assertThat(shard, notNullValue());
@@ -142,7 +142,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
         updateIndexSettings(Settings.builder().put(INDEX_ROUTING_EXCLUDE_GROUP_PREFIX + "._name", node1), "index1");
         ensureGreen("index1");
 
-        var state = clusterAdmin().prepareState().get().getState();
+        var state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         logger.info("Final routing is {}", state.getRoutingNodes().toString());
         var shard = state.routingTable().index("index1").shard(0).primaryShard();
         assertThat(shard, notNullValue());
@@ -165,7 +165,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
             fail("should have thrown an exception");
         } catch (ElasticsearchException e) {
             assertTrue(e.getMessage().contains("failing on purpose"));
-            ClusterStateResponse resp = clusterAdmin().prepareState().get();
+            ClusterStateResponse resp = clusterAdmin().prepareState(masterNodeTimeout).get();
             assertFalse(resp.getState().routingTable().indicesRouting().keySet().contains("failed"));
         }
 

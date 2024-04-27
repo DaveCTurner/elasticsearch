@@ -142,7 +142,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
             previousTerms = new HashMap<>();
         }
         final Map<String, long[]> result = new HashMap<>();
-        final ClusterState state = clusterAdmin().prepareState().get().getState();
+        final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         for (IndexMetadata indexMetadata : state.metadata().indices().values()) {
             final String index = indexMetadata.getIndex().getName();
             final long[] previous = previousTerms.get(index);
@@ -364,7 +364,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
             assertHitCount(prepareSearch().setSize(0).setQuery(matchAllQuery()), 2);
         }
 
-        String metadataUuid = clusterAdmin().prepareState().execute().get().getState().getMetadata().clusterUUID();
+        String metadataUuid = clusterAdmin().prepareState(masterNodeTimeout).execute().get().getState().getMetadata().clusterUUID();
         assertThat(metadataUuid, not(equalTo("_na_")));
 
         logger.info("--> closing first node, and indexing more data to the second node");
@@ -420,13 +420,16 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         logger.info("--> running cluster_health (wait for the shards to startup)");
         ensureGreen();
 
-        assertThat(clusterAdmin().prepareState().execute().get().getState().getMetadata().clusterUUID(), equalTo(metadataUuid));
+        assertThat(
+            clusterAdmin().prepareState(masterNodeTimeout).execute().get().getState().getMetadata().clusterUUID(),
+            equalTo(metadataUuid)
+        );
 
         for (int i = 0; i < 10; i++) {
             assertHitCount(prepareSearch().setSize(0).setQuery(matchAllQuery()), 3);
         }
 
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         assertThat(state.metadata().templates().get("template_1").patterns(), equalTo(Collections.singletonList("te*")));
         assertThat(state.metadata().index("test").getAliases().get("test_alias"), notNullValue());
         assertThat(state.metadata().index("test").getAliases().get("test_alias").filter(), notNullValue());

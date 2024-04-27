@@ -92,7 +92,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
         indexDocs(logger, "data-1", numDocs, twoWeeksAgo, oneWeekAgo);
 
         client().admin().indices().prepareCreate(masterNodeTimeout, "data-2").setMapping("time", "type=date").get();
-        clusterAdmin().prepareHealth("data-1", "data-2").setWaitForYellowStatus().get();
+        clusterAdmin().prepareHealth(masterNodeTimeout, "data-1", "data-2").setWaitForYellowStatus().get();
         long numDocs2 = randomIntBetween(32, 2048);
         indexDocs(logger, "data-2", numDocs2, oneWeekAgo, now);
 
@@ -138,7 +138,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
         long twoWeeksAgo = oneWeekAgo - 604800000;
         indexDocs(logger, "datafeed_data_stream", numDocs, twoWeeksAgo, oneWeekAgo);
 
-        clusterAdmin().prepareHealth("datafeed_data_stream").setWaitForYellowStatus().get();
+        clusterAdmin().prepareHealth(masterNodeTimeout, "datafeed_data_stream").setWaitForYellowStatus().get();
 
         Job.Builder job = createScheduledJob("lookback-data-stream-job");
         PutJobAction.Response putJobResponse = putJob(job);
@@ -321,7 +321,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
             Intervals.alignToCeil(oneWeekAgo, intervalMillis),
             Intervals.alignToFloor(now, intervalMillis)
         );
-        clusterAdmin().prepareHealth(indexName).setWaitForYellowStatus().get();
+        clusterAdmin().prepareHealth(masterNodeTimeout, indexName).setWaitForYellowStatus().get();
 
         String scrollJobId = "stop-restart-scroll";
         Job.Builder scrollJob = createScheduledJob(scrollJobId);

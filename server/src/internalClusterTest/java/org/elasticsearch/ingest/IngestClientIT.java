@@ -74,7 +74,7 @@ public class IngestClientIT extends ESIntegTestCase {
                 .endArray()
                 .endObject()
         );
-        clusterAdmin().preparePutPipeline("_id", pipelineSource, XContentType.JSON).get();
+        clusterAdmin().preparePutPipeline(masterNodeTimeout, "_id", pipelineSource, XContentType.JSON).get();
         GetPipelineResponse getResponse = clusterAdmin().prepareGetPipeline("_id").get();
         assertThat(getResponse.isFound(), is(true));
         assertThat(getResponse.pipelines().size(), equalTo(1));
@@ -118,7 +118,7 @@ public class IngestClientIT extends ESIntegTestCase {
         assertThat(simulateDocumentBaseResult.getFailure(), nullValue());
 
         // cleanup
-        AcknowledgedResponse deletePipelineResponse = clusterAdmin().prepareDeletePipeline("_id").get();
+        AcknowledgedResponse deletePipelineResponse = clusterAdmin().prepareDeletePipeline(masterNodeTimeout, "_id").get();
         assertTrue(deletePipelineResponse.isAcknowledged());
     }
 
@@ -169,7 +169,7 @@ public class IngestClientIT extends ESIntegTestCase {
         }
 
         // cleanup
-        AcknowledgedResponse deletePipelineResponse = clusterAdmin().prepareDeletePipeline("_id").get();
+        AcknowledgedResponse deletePipelineResponse = clusterAdmin().prepareDeletePipeline(masterNodeTimeout, "_id").get();
         assertTrue(deletePipelineResponse.isAcknowledged());
     }
 

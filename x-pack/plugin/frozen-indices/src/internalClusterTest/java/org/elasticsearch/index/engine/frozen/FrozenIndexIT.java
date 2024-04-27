@@ -84,28 +84,31 @@ public class FrozenIndexIT extends ESIntegTestCase {
 
         final String excludeSetting = INDEX_ROUTING_EXCLUDE_GROUP_SETTING.getConcreteSettingForNamespace("_name").getKey();
         updateIndexSettings(Settings.builder().put(excludeSetting, nodeNames.get(0)), "index");
-        assertAcked(clusterAdmin().prepareReroute().add(new CancelAllocationCommand("index", 0, nodeNames.get(0), true)));
-        assertThat(clusterAdmin().prepareHealth("index").get().getUnassignedShards(), equalTo(1));
+        assertAcked(clusterAdmin().prepareReroute(masterNodeTimeout).add(new CancelAllocationCommand("index", 0, nodeNames.get(0), true)));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, "index").get().getUnassignedShards(), equalTo(1));
 
         assertThat(client().prepareDelete("index", indexResponse.getId()).get().status(), equalTo(RestStatus.OK));
 
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("index").waitForActiveShards(ActiveShardCount.ONE)));
 
         assertThat(
-            clusterAdmin().prepareState().get().getState().metadata().index("index").getTimestampRange(),
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().metadata().index("index").getTimestampRange(),
             sameInstance(IndexLongFieldRange.EMPTY)
         );
 
         internalCluster().stopNode(nodeNames.get(1));
-        assertThat(clusterAdmin().prepareHealth("index").get().getUnassignedShards(), equalTo(2));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, "index").get().getUnassignedShards(), equalTo(2));
         updateIndexSettings(Settings.builder().putNull(excludeSetting), "index");
-        assertThat(clusterAdmin().prepareHealth("index").get().getUnassignedShards(), equalTo(2));
+        assertThat(clusterAdmin().prepareHealth(masterNodeTimeout, "index").get().getUnassignedShards(), equalTo(2));
 
-        assertAcked(clusterAdmin().prepareReroute().add(new AllocateStalePrimaryAllocationCommand("index", 0, nodeNames.get(0), true)));
+        assertAcked(
+            clusterAdmin().prepareReroute(masterNodeTimeout)
+                .add(new AllocateStalePrimaryAllocationCommand("index", 0, nodeNames.get(0), true))
+        );
 
         ensureYellowAndNoInitializingShards("index");
 
-        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState()
+        final IndexLongFieldRange timestampFieldRange = clusterAdmin().prepareState(masterNodeTimeout)
             .get()
             .getState()
             .metadata()
@@ -159,7 +162,7 @@ public class FrozenIndexIT extends ESIntegTestCase {
                 )
         );
 
-        final Index index = clusterAdmin().prepareState()
+        final Index index = clusterAdmin().prepareState(masterNodeTimeout)
             .clear()
             .setIndices("index")
             .setMetadata(true)

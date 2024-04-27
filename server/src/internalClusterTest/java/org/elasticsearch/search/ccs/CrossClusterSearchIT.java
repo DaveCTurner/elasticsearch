@@ -701,7 +701,7 @@ public class CrossClusterSearchIT extends AbstractMultiClustersTestCase {
         assertFalse(
             client(REMOTE_CLUSTER).admin()
                 .cluster()
-                .prepareHealth(remoteIndex)
+                .prepareHealth(masterNodeTimeout, remoteIndex)
                 .setWaitForYellowStatus()
                 .setTimeout(TimeValue.timeValueSeconds(10))
                 .get()

@@ -71,7 +71,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
     @Override
     public void tearDown() throws Exception {
         deleteAndAssertEmpty(getRepository().basePath());
-        clusterAdmin().prepareDeleteRepository(TEST_REPO_NAME).get();
+        clusterAdmin().prepareDeleteRepository(masterNodeTimeout, TEST_REPO_NAME).get();
         super.tearDown();
     }
 
@@ -105,10 +105,11 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         final String snapshotName = "test-snap-" + System.currentTimeMillis();
 
         logger.info("--> snapshot");
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(TEST_REPO_NAME, snapshotName)
-            .setWaitForCompletion(true)
-            .setIndices("test-idx-*", "-test-idx-3")
-            .get();
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            TEST_REPO_NAME,
+            snapshotName
+        ).setWaitForCompletion(true).setIndices("test-idx-*", "-test-idx-3").get();
         assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), greaterThan(0));
         assertThat(
             createSnapshotResponse.getSnapshotInfo().successfulShards(),
@@ -120,7 +121,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
             equalTo(SnapshotState.SUCCESS)
         );
 
-        assertTrue(clusterAdmin().prepareDeleteSnapshot(TEST_REPO_NAME, snapshotName).get().isAcknowledged());
+        assertTrue(clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, TEST_REPO_NAME, snapshotName).get().isAcknowledged());
     }
 
     public void testListChildren() {
@@ -178,10 +179,11 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         final String snapshotName = "test-snap-" + System.currentTimeMillis();
 
         logger.info("--> snapshot");
-        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(TEST_REPO_NAME, snapshotName)
-            .setWaitForCompletion(true)
-            .setIndices("test-idx-*", "-test-idx-3")
-            .get();
+        CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+            masterNodeTimeout,
+            TEST_REPO_NAME,
+            snapshotName
+        ).setWaitForCompletion(true).setIndices("test-idx-*", "-test-idx-3").get();
         assertThat(createSnapshotResponse.getSnapshotInfo().successfulShards(), greaterThan(0));
         assertThat(
             createSnapshotResponse.getSnapshotInfo().successfulShards(),
@@ -201,7 +203,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         createDanglingIndex(repo, genericExec);
 
         logger.info("--> deleting a snapshot to trigger repository cleanup");
-        clusterAdmin().prepareDeleteSnapshot(TEST_REPO_NAME, snapshotName).get();
+        clusterAdmin().prepareDeleteSnapshot(masterNodeTimeout, TEST_REPO_NAME, snapshotName).get();
 
         BlobStoreTestUtil.assertConsistency(repo);
 
@@ -228,7 +230,7 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         final var repository = getRepository();
         final var blobContents = new HashSet<BytesReference>();
 
-        final var createSnapshot1Response = clusterAdmin().prepareCreateSnapshot(TEST_REPO_NAME, randomIdentifier())
+        final var createSnapshot1Response = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, randomIdentifier())
             .setWaitForCompletion(true)
             .get();
         assertTrue(blobContents.add(readIndexLatest(repository)));
@@ -236,15 +238,27 @@ public abstract class AbstractThirdPartyRepositoryTestCase extends ESSingleNodeT
         clusterAdmin().prepareGetSnapshots(TEST_REPO_NAME).get();
         assertFalse(blobContents.add(readIndexLatest(repository)));
 
-        final var createSnapshot2Response = clusterAdmin().prepareCreateSnapshot(TEST_REPO_NAME, randomIdentifier())
+        final var createSnapshot2Response = clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, TEST_REPO_NAME, randomIdentifier())
             .setWaitForCompletion(true)
             .get();
         assertTrue(blobContents.add(readIndexLatest(repository)));
 
-        assertAcked(clusterAdmin().prepareDeleteSnapshot(TEST_REPO_NAME, createSnapshot1Response.getSnapshotInfo().snapshotId().getName()));
+        assertAcked(
+            clusterAdmin().prepareDeleteSnapshot(
+                masterNodeTimeout,
+                TEST_REPO_NAME,
+                createSnapshot1Response.getSnapshotInfo().snapshotId().getName()
+            )
+        );
         assertTrue(blobContents.add(readIndexLatest(repository)));
 
-        assertAcked(clusterAdmin().prepareDeleteSnapshot(TEST_REPO_NAME, createSnapshot2Response.getSnapshotInfo().snapshotId().getName()));
+        assertAcked(
+            clusterAdmin().prepareDeleteSnapshot(
+                masterNodeTimeout,
+                TEST_REPO_NAME,
+                createSnapshot2Response.getSnapshotInfo().snapshotId().getName()
+            )
+        );
         assertTrue(blobContents.add(readIndexLatest(repository)));
     }
 

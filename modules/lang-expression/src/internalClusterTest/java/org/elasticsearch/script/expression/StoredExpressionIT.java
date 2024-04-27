@@ -39,7 +39,7 @@ public class StoredExpressionIT extends ESIntegTestCase {
     }
 
     public void testAllOpsDisabledIndexedScripts() throws IOException {
-        clusterAdmin().preparePutStoredScript().setId("script1").setContent(new BytesArray("""
+        clusterAdmin().preparePutStoredScript(masterNodeTimeout).setId("script1").setContent(new BytesArray("""
             {"script": {"lang": "expression", "source": "2"} }"""), XContentType.JSON).get();
         prepareIndex("test").setId("1").setSource("{\"theField\":\"foo\"}", XContentType.JSON).get();
         try {

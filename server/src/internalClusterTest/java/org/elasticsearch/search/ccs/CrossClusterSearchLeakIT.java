@@ -110,7 +110,7 @@ public class CrossClusterSearchLeakIT extends AbstractMultiClustersTestCase {
         assertFalse(
             client("cluster_a").admin()
                 .cluster()
-                .prepareHealth("prod")
+                .prepareHealth(masterNodeTimeout, "prod")
                 .setWaitForYellowStatus()
                 .setTimeout(TimeValue.timeValueSeconds(10))
                 .get()
@@ -169,7 +169,7 @@ public class CrossClusterSearchLeakIT extends AbstractMultiClustersTestCase {
 
             settings.put("cluster.remote." + clusterAlias + ".mode", "proxy");
             settings.put("cluster.remote." + clusterAlias + ".proxy_address", seedAddress);
-            client().admin().cluster().prepareUpdateSettings().setPersistentSettings(settings).get();
+            client().admin().cluster().prepareUpdateSettings(masterNodeTimeout).setPersistentSettings(settings).get();
         }
     }
 }

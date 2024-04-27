@@ -88,7 +88,7 @@ public class ClusterSearchShardsIT extends ESIntegTestCase {
             .addAliasAction(AliasActions.add().index("test1").alias("routing_alias").routing("ABC"))
             .addAliasAction(AliasActions.add().index("test2").alias("routing_alias").routing("EFG"))
             .get();
-        clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
+        clusterAdmin().prepareHealth(masterNodeTimeout).setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         ClusterSearchShardsResponse response = clusterAdmin().prepareSearchShards("routing_alias").get();
         assertThat(response.getGroups().length, equalTo(2));

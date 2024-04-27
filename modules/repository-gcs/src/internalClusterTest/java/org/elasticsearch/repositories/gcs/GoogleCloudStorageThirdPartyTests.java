@@ -71,7 +71,7 @@ public class GoogleCloudStorageThirdPartyTests extends AbstractThirdPartyReposit
 
     @Override
     protected void createRepository(final String repoName) {
-        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(repoName)
+        AcknowledgedResponse putRepositoryResponse = clusterAdmin().preparePutRepository(masterNodeTimeout, repoName)
             .setType("gcs")
             .setSettings(
                 Settings.builder()

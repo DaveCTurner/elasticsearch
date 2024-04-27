@@ -188,7 +188,7 @@ public class DataTierShardAvailabilityHealthIndicatorIT extends ESIntegTestCase 
     }
 
     private String findNodeWithShard(final String indexName, final int shard, final boolean primary) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         List<ShardRouting> startedShards = RoutingNodesHelper.shardsWithState(state.getRoutingNodes(), ShardRoutingState.STARTED);
         startedShards = startedShards.stream()
             .filter(shardRouting -> shardRouting.getIndexName().equals(indexName))

@@ -128,7 +128,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         }
         // Empty follower primaries must be assigned to nodes with the remote cluster client role
         assertBusy(() -> {
-            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState().get().getState();
+            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             final IndexRoutingTable indexRoutingTable = state.routingTable().index(followerIndex);
             for (int i = 0; i < indexRoutingTable.size(); i++) {
                 IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(i);
@@ -150,7 +150,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
             )
             .get();
         assertBusy(() -> {
-            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState().get().getState();
+            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             final IndexRoutingTable indexRoutingTable = state.routingTable().index(followerIndex);
             for (int shardId = 0; shardId < indexRoutingTable.size(); shardId++) {
                 IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(shardId);
@@ -167,7 +167,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         getFollowerCluster().fullRestart();
         ensureFollowerGreen(followerIndex);
         assertBusy(() -> {
-            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState().get().getState();
+            final ClusterState state = getFollowerCluster().client().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             final IndexRoutingTable indexRoutingTable = state.routingTable().index(followerIndex);
             for (int shardId = 0; shardId < indexRoutingTable.size(); shardId++) {
                 IndexShardRoutingTable shardRoutingTable = indexRoutingTable.shard(shardId);

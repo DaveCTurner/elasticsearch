@@ -95,7 +95,7 @@ public abstract class ProfilingTestCase extends ESIntegTestCase {
 
     protected void waitForIndices(Collection<String> indices) throws Exception {
         assertBusy(() -> {
-            ClusterState state = clusterAdmin().prepareState().get().getState();
+            ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
             assertTrue("Timed out waiting for indices to be created", state.metadata().indices().keySet().containsAll(indices));
         });
     }

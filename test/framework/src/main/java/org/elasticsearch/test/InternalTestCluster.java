@@ -1236,7 +1236,7 @@ public final class InternalTestCluster extends TestCluster {
         assertFalse(
             client().admin()
                 .cluster()
-                .prepareHealth()
+                .prepareHealth(masterNodeTimeout)
                 .setWaitForEvents(Priority.LANGUID)
                 .setWaitForNodes(Integer.toString(expectedNodes.size()))
                 .get(TimeValue.timeValueSeconds(40))
@@ -1477,7 +1477,7 @@ public final class InternalTestCluster extends TestCluster {
      */
     public void assertSameDocIdsOnShards() throws Exception {
         assertBusy(() -> {
-            ClusterState state = client().admin().cluster().prepareState().get().getState();
+            ClusterState state = client().admin().cluster().prepareState(masterNodeTimeout).get().getState();
             for (var indexRoutingTable : state.routingTable().indicesRouting().values()) {
                 for (int i = 0; i < indexRoutingTable.size(); i++) {
                     IndexShardRoutingTable indexShardRoutingTable = indexRoutingTable.shard(i);
@@ -2008,7 +2008,7 @@ public final class InternalTestCluster extends TestCluster {
     public String getMasterName(@Nullable String viaNode) {
         try {
             Client client = viaNode != null ? client(viaNode) : client();
-            return client.admin().cluster().prepareState().get().getState().nodes().getMasterNode().getName();
+            return client.admin().cluster().prepareState(masterNodeTimeout).get().getState().nodes().getMasterNode().getName();
         } catch (Exception e) {
             logger.warn("Can't fetch cluster state", e);
             throw new RuntimeException("Can't get master node " + e.getMessage(), e);

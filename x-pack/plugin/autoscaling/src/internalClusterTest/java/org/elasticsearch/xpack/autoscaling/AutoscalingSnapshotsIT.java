@@ -36,7 +36,11 @@ public class AutoscalingSnapshotsIT extends AutoscalingIntegTestCase {
     public void setup() throws Exception {
         Path location = randomRepoPath();
         logger.info("--> creating repository [{}] [{}]", REPO, "fs");
-        assertAcked(clusterAdmin().preparePutRepository(REPO).setType("fs").setSettings(Settings.builder().put("location", location)));
+        assertAcked(
+            clusterAdmin().preparePutRepository(masterNodeTimeout, REPO)
+                .setType("fs")
+                .setSettings(Settings.builder().put("location", location))
+        );
     }
 
     public void testAutoscalingPolicyWillNotBeRestored() {
@@ -47,7 +51,7 @@ public class AutoscalingSnapshotsIT extends AutoscalingIntegTestCase {
 
         CreateSnapshotResponse createSnapshotResponse = client.admin()
             .cluster()
-            .prepareCreateSnapshot(REPO, SNAPSHOT)
+            .prepareCreateSnapshot(masterNodeTimeout, REPO, SNAPSHOT)
             .setWaitForCompletion(true)
             .setIncludeGlobalState(true)
             .get();
@@ -67,7 +71,7 @@ public class AutoscalingSnapshotsIT extends AutoscalingIntegTestCase {
 
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()
-            .prepareRestoreSnapshot(REPO, SNAPSHOT)
+            .prepareRestoreSnapshot(masterNodeTimeout, REPO, SNAPSHOT)
             .setWaitForCompletion(true)
             .setRestoreGlobalState(true)
             .get();

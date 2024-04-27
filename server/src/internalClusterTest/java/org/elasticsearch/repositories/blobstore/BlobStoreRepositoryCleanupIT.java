@@ -62,7 +62,10 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
         assertFutureThrows(clusterAdmin().prepareCleanupRepository("test-repo").execute(), IllegalStateException.class);
 
         logger.info("-->  ensure cleanup is still in progress");
-        final RepositoryCleanupInProgress cleanup = clusterAdmin().prepareState().get().getState().custom(RepositoryCleanupInProgress.TYPE);
+        final RepositoryCleanupInProgress cleanup = clusterAdmin().prepareState(masterNodeTimeout)
+            .get()
+            .getState()
+            .custom(RepositoryCleanupInProgress.TYPE);
         assertTrue(cleanup.hasCleanupInProgress());
 
         logger.info("-->  unblocking master node");
@@ -85,7 +88,7 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
         createRepository(repoName, "mock");
 
         logger.info("-->  snapshot");
-        clusterAdmin().prepareCreateSnapshot(repoName, "test-snap").setWaitForCompletion(true).get();
+        clusterAdmin().prepareCreateSnapshot(masterNodeTimeout, repoName, "test-snap").setWaitForCompletion(true).get();
 
         final BlobStoreRepository repository = getRepositoryOnMaster(repoName);
 
@@ -128,9 +131,11 @@ public class BlobStoreRepositoryCleanupIT extends AbstractSnapshotIntegTestCase 
 
         logger.info("--> create three snapshots");
         for (int i = 0; i < 3; ++i) {
-            CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(repoName, "test-snap-" + i)
-                .setWaitForCompletion(true)
-                .get();
+            CreateSnapshotResponse createSnapshotResponse = clusterAdmin().prepareCreateSnapshot(
+                masterNodeTimeout,
+                repoName,
+                "test-snap-" + i
+            ).setWaitForCompletion(true).get();
             assertThat(createSnapshotResponse.getSnapshotInfo().state(), is(SnapshotState.SUCCESS));
         }
 

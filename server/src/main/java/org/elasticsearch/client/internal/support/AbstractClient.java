@@ -670,7 +670,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterHealthRequestBuilder prepareHealth(String... indices) {
+        public ClusterHealthRequestBuilder prepareHealth(TimeValue masterNodeTimeout, String... indices) {
             return new ClusterHealthRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
@@ -685,7 +685,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterStateRequestBuilder prepareState() {
+        public ClusterStateRequestBuilder prepareState(TimeValue masterNodeTimeout) {
             return new ClusterStateRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -700,7 +700,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterRerouteRequestBuilder prepareReroute() {
+        public ClusterRerouteRequestBuilder prepareReroute(TimeValue masterNodeTimeout) {
             return new ClusterRerouteRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -718,7 +718,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ClusterUpdateSettingsRequestBuilder prepareUpdateSettings() {
+        public ClusterUpdateSettingsRequestBuilder prepareUpdateSettings(TimeValue masterNodeTimeout) {
             return new ClusterUpdateSettingsRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -833,7 +833,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public PutRepositoryRequestBuilder preparePutRepository(String name) {
+        public PutRepositoryRequestBuilder preparePutRepository(TimeValue masterNodeTimeout, String name) {
             return new PutRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
@@ -848,12 +848,17 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public CreateSnapshotRequestBuilder prepareCreateSnapshot(String repository, String name) {
+        public CreateSnapshotRequestBuilder prepareCreateSnapshot(TimeValue masterNodeTimeout, String repository, String name) {
             return new CreateSnapshotRequestBuilder(masterNodeTimeout, this, repository, name);
         }
 
         @Override
-        public CloneSnapshotRequestBuilder prepareCloneSnapshot(String repository, String source, String target) {
+        public CloneSnapshotRequestBuilder prepareCloneSnapshot(
+            TimeValue masterNodeTimeout,
+            String repository,
+            String source,
+            String target
+        ) {
             return new CloneSnapshotRequestBuilder(masterNodeTimeout, this, repository, source, target);
         }
 
@@ -878,7 +883,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeleteSnapshotRequestBuilder prepareDeleteSnapshot(String repository, String... names) {
+        public DeleteSnapshotRequestBuilder prepareDeleteSnapshot(TimeValue masterNodeTimeout, String repository, String... names) {
             return new DeleteSnapshotRequestBuilder(masterNodeTimeout, this, repository, names);
         }
 
@@ -888,7 +893,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeleteRepositoryRequestBuilder prepareDeleteRepository(String name) {
+        public DeleteRepositoryRequestBuilder prepareDeleteRepository(TimeValue masterNodeTimeout, String name) {
             return new DeleteRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
@@ -933,7 +938,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public RestoreSnapshotRequestBuilder prepareRestoreSnapshot(String repository, String snapshot) {
+        public RestoreSnapshotRequestBuilder prepareRestoreSnapshot(TimeValue masterNodeTimeout, String repository, String snapshot) {
             return new RestoreSnapshotRequestBuilder(masterNodeTimeout, this, repository, snapshot);
         }
 
@@ -963,7 +968,12 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public PutPipelineRequestBuilder preparePutPipeline(String id, BytesReference source, XContentType xContentType) {
+        public PutPipelineRequestBuilder preparePutPipeline(
+            TimeValue masterNodeTimeout,
+            String id,
+            BytesReference source,
+            XContentType xContentType
+        ) {
             return new PutPipelineRequestBuilder(masterNodeTimeout, this, id, source, xContentType);
         }
 
@@ -978,7 +988,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeletePipelineRequestBuilder prepareDeletePipeline(String id) {
+        public DeletePipelineRequestBuilder prepareDeletePipeline(TimeValue masterNodeTimeout, String id) {
             return new DeletePipelineRequestBuilder(masterNodeTimeout, this, id);
         }
 
@@ -1028,12 +1038,12 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetStoredScriptRequestBuilder prepareGetStoredScript(String id) {
+        public GetStoredScriptRequestBuilder prepareGetStoredScript(TimeValue masterNodeTimeout, String id) {
             return new GetStoredScriptRequestBuilder(masterNodeTimeout, this).setId(id);
         }
 
         @Override
-        public PutStoredScriptRequestBuilder preparePutStoredScript() {
+        public PutStoredScriptRequestBuilder preparePutStoredScript(TimeValue masterNodeTimeout) {
             return new PutStoredScriptRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -1049,7 +1059,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeleteStoredScriptRequestBuilder prepareDeleteStoredScript(String id) {
+        public DeleteStoredScriptRequestBuilder prepareDeleteStoredScript(TimeValue masterNodeTimeout, String id) {
             return new DeleteStoredScriptRequestBuilder(masterNodeTimeout, client).setId(id);
         }
     }

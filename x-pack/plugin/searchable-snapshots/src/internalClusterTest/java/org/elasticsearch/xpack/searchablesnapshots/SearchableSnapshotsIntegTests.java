@@ -138,7 +138,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         assertShardFolders(indexName, false);
 
         assertThat(
-            clusterAdmin().prepareState()
+            clusterAdmin().prepareState(masterNodeTimeout)
                 .clear()
                 .setMetadata(true)
                 .setIndices(indexName)
@@ -244,7 +244,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         assertBusy(() -> assertShardFolders(restoredIndexName, true), 30, TimeUnit.SECONDS);
 
         assertThat(
-            clusterAdmin().prepareState()
+            clusterAdmin().prepareState(masterNodeTimeout)
                 .clear()
                 .setMetadata(true)
                 .setIndices(restoredIndexName)
@@ -278,7 +278,9 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         internalCluster().ensureAtLeastNumDataNodes(2);
 
-        final DiscoveryNode dataNode = randomFrom(clusterAdmin().prepareState().get().getState().nodes().getDataNodes().values());
+        final DiscoveryNode dataNode = randomFrom(
+            clusterAdmin().prepareState(masterNodeTimeout).get().getState().nodes().getDataNodes().values()
+        );
 
         updateIndexSettings(
             Settings.builder()
@@ -291,7 +293,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         );
 
         assertFalse(
-            clusterAdmin().prepareHealth(restoredIndexName)
+            clusterAdmin().prepareHealth(masterNodeTimeout, restoredIndexName)
                 .setWaitForNoRelocatingShards(true)
                 .setWaitForEvents(Priority.LANGUID)
                 .get()
@@ -622,7 +624,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
             assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
             ensureGreen(restoredIndexName);
 
-            final ClusterState state = clusterAdmin().prepareState().clear().setRoutingTable(true).get().getState();
+            final ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).clear().setRoutingTable(true).get().getState();
             assertThat(
                 state.toString(),
                 state.routingTable().index(restoredIndexName).shard(0).size(),
@@ -726,7 +728,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         mountSnapshot(repositoryName, snapshotOne.getName(), indexName, indexName, Settings.EMPTY);
         ensureGreen(indexName);
 
-        final IndexLongFieldRange timestampRange = clusterAdmin().prepareState()
+        final IndexLongFieldRange timestampRange = clusterAdmin().prepareState(masterNodeTimeout)
             .clear()
             .setMetadata(true)
             .setIndices(indexName)
@@ -792,7 +794,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
                     SnapshotsService.INDEX_GEN_IN_REPO_DATA_VERSION
                 )
             );
-            assertAcked(clusterAdmin().prepareDeleteRepository(tmpRepositoryName));
+            assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, tmpRepositoryName));
             createRepository(repositoryName, "fs", repoPath);
         }
 
@@ -860,13 +862,16 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
             // Rename the repository containing the actual data.
             final String newRepositoryName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
-            assertAcked(clusterAdmin().prepareDeleteRepository(repositoryName));
+            assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, repositoryName));
             final Settings.Builder settings = Settings.builder().put(repositoryMetadata.settings());
             if (randomBoolean()) {
                 settings.put(READONLY_SETTING_KEY, "true");
             }
             assertAcked(
-                clusterAdmin().preparePutRepository(newRepositoryName).setType("fs").setSettings(settings).setVerify(randomBoolean())
+                clusterAdmin().preparePutRepository(masterNodeTimeout, newRepositoryName)
+                    .setType("fs")
+                    .setSettings(settings)
+                    .setVerify(randomBoolean())
             );
             restoreRepositoryName = backupRepositoryName.equals(repositoryName) ? newRepositoryName : backupRepositoryName;
         } else {
@@ -875,7 +880,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         logger.info("--> starting to restore snapshot-2");
         assertThat(
-            clusterAdmin().prepareRestoreSnapshot(restoreRepositoryName, snapshotTwo.getName())
+            clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, restoreRepositoryName, snapshotTwo.getName())
                 .setIndices(restoredIndexName)
                 .get()
                 .status(),
@@ -958,11 +963,14 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         // Clear out data & the repo that contains it
         final RepositoryMetadata dataRepoMetadata = clusterAdmin().prepareGetRepositories(dataRepoName).get().repositories().get(0);
         assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, restoredIndexName));
-        assertAcked(clusterAdmin().prepareDeleteRepository(dataRepoName));
+        assertAcked(clusterAdmin().prepareDeleteRepository(masterNodeTimeout, dataRepoName));
 
         // Restore the backup snapshot
         assertThat(
-            clusterAdmin().prepareRestoreSnapshot(backupRepoName, backupSnapshot.getName()).setIndices(restoredIndexName).get().status(),
+            clusterAdmin().prepareRestoreSnapshot(masterNodeTimeout, backupRepoName, backupSnapshot.getName())
+                .setIndices(restoredIndexName)
+                .get()
+                .status(),
             equalTo(RestStatus.ACCEPTED)
         );
 
@@ -995,7 +1003,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         assertBusy(() -> {
             final RestoreInProgress restoreInProgress = RestoreInProgress.get(
-                clusterAdmin().prepareState().clear().setCustoms(true).get().getState()
+                clusterAdmin().prepareState(masterNodeTimeout).clear().setCustoms(true).get().getState()
             );
             assertTrue(Strings.toString(restoreInProgress, true, true), restoreInProgress.isEmpty());
         });
@@ -1006,7 +1014,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
         if (randomBoolean()) {
             settings.put(READONLY_SETTING_KEY, "true");
         }
-        assertAcked(clusterAdmin().preparePutRepository(newRepositoryName).setType("fs").setSettings(settings));
+        assertAcked(clusterAdmin().preparePutRepository(masterNodeTimeout, newRepositoryName).setType("fs").setSettings(settings));
 
         ensureGreen(restoredIndexName);
         assertTotalHits(restoredIndexName, originalAllHits, originalBarHits);

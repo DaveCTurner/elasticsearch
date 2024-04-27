@@ -440,7 +440,7 @@ public class NodeShutdownShardsIT extends ESIntegTestCase {
     }
 
     private String findIdOfNodeWithPrimaryShard(String indexName) {
-        ClusterState state = clusterAdmin().prepareState().get().getState();
+        ClusterState state = clusterAdmin().prepareState(masterNodeTimeout).get().getState();
         List<ShardRouting> startedShards = RoutingNodesHelper.shardsWithState(state.getRoutingNodes(), ShardRoutingState.STARTED);
         return startedShards.stream()
             .filter(ShardRouting::primary)
@@ -469,7 +469,7 @@ public class NodeShutdownShardsIT extends ESIntegTestCase {
     }
 
     private void assertIndexPrimaryShardsAreAllocatedOnNode(String indexName, String nodeId) {
-        var state = clusterAdmin().prepareState().clear().setRoutingTable(true).get().getState();
+        var state = clusterAdmin().prepareState(masterNodeTimeout).clear().setRoutingTable(true).get().getState();
         var indexRoutingTable = state.routingTable().index(indexName);
         for (int p = 0; p < indexRoutingTable.size(); p++) {
             var primaryShard = indexRoutingTable.shard(p).primaryShard();
@@ -489,7 +489,7 @@ public class NodeShutdownShardsIT extends ESIntegTestCase {
     }
 
     private void assertIndexReplicaShardsAreNotAllocated(String indexName) {
-        var state = clusterAdmin().prepareState().clear().setRoutingTable(true).get().getState();
+        var state = clusterAdmin().prepareState(masterNodeTimeout).clear().setRoutingTable(true).get().getState();
         var indexRoutingTable = state.routingTable().index(indexName);
         for (int p = 0; p < indexRoutingTable.size(); p++) {
             for (ShardRouting replicaShard : indexRoutingTable.shard(p).replicaShards()) {
