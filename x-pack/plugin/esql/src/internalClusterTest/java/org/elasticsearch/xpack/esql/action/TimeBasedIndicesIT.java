@@ -23,7 +23,9 @@ public class TimeBasedIndicesIT extends AbstractEsqlIntegTestCase {
 
     public void testFilter() {
         long epoch = System.currentTimeMillis();
-        assertAcked(client().admin().indices().prepareCreate("test").setMapping("@timestamp", "type=date", "value", "type=long"));
+        assertAcked(
+            client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping("@timestamp", "type=date", "value", "type=long")
+        );
         BulkRequestBuilder bulk = client().prepareBulk("test").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         int oldDocs = between(10, 100);
         for (int i = 0; i < oldDocs; i++) {

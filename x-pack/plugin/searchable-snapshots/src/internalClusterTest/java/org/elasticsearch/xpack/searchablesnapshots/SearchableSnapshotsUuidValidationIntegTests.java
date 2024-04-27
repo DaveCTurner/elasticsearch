@@ -123,7 +123,7 @@ public class SearchableSnapshotsUuidValidationIntegTests extends BaseFrozenSearc
             containsString("snapshot UUID mismatch")
         );
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
     }
 
     private static RestoreBlockingActionFilter getBlockingActionFilter() {

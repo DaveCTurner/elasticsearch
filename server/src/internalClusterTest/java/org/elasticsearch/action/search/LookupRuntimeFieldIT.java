@@ -32,7 +32,7 @@ public class LookupRuntimeFieldIT extends ESIntegTestCase {
 
     @Before
     public void populateIndex() throws Exception {
-        indicesAdmin().prepareCreate("authors")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "authors")
             .setMapping("author", "type=keyword", "joined", "type=date,format=yyyy-MM-dd")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .get();
@@ -46,7 +46,7 @@ public class LookupRuntimeFieldIT extends ESIntegTestCase {
         }
         indicesAdmin().prepareRefresh("authors").get();
 
-        indicesAdmin().prepareCreate("publishers")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "publishers")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .get();
         client().prepareBulk("publishers")
@@ -54,28 +54,31 @@ public class LookupRuntimeFieldIT extends ESIntegTestCase {
             .add(new IndexRequest().id("p2").source("name", "The second publisher", "city", "Toronto"))
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
             .get();
-        indicesAdmin().prepareCreate("books").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)).setMapping("""
-            {
-                "properties": {
-                    "title": {"type": "text"},
-                    "author_id": {"type": "keyword"},
-                    "genre": {"type": "keyword"},
-                    "published_date": {
-                        "type": "date",
-                        "format": "yyyy-MM-dd"
-                    }
-                },
-                "runtime": {
-                    "author": {
-                        "type": "lookup",
-                        "target_index": "authors",
-                        "input_field": "author_id",
-                        "target_field": "author",
-                        "fetch_fields": ["first_name", "last_name"]
+        indicesAdmin().prepareCreate(masterNodeTimeout, "books")
+            .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
+            .setMapping("""
+                {
+                    "properties": {
+                        "title": {"type": "text"},
+                        "author_id": {"type": "keyword"},
+                        "genre": {"type": "keyword"},
+                        "published_date": {
+                            "type": "date",
+                            "format": "yyyy-MM-dd"
+                        }
+                    },
+                    "runtime": {
+                        "author": {
+                            "type": "lookup",
+                            "target_index": "authors",
+                            "input_field": "author_id",
+                            "target_field": "author",
+                            "fetch_fields": ["first_name", "last_name"]
+                        }
                     }
                 }
-            }
-            """).get();
+                """)
+            .get();
         List<Map<String, Object>> books = List.of(
             Map.of(
                 "title",

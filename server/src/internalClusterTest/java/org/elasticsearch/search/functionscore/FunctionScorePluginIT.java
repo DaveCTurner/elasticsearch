@@ -49,7 +49,7 @@ public class FunctionScorePluginIT extends ESIntegTestCase {
     }
 
     public void testPlugin() throws Exception {
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setMapping(
                 jsonBuilder().startObject()
                     .startObject("_doc")

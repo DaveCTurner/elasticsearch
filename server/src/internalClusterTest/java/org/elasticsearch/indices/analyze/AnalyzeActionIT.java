@@ -113,7 +113,7 @@ public class AnalyzeActionIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test").addAlias(new Alias("alias")));
         ensureGreen();
 
-        indicesAdmin().preparePutMapping("test").setSource("simple", "type=text,analyzer=simple").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("simple", "type=text,analyzer=simple").get();
 
         for (int i = 0; i < 10; i++) {
             final AnalyzeRequestBuilder requestBuilder = indicesAdmin().prepareAnalyze("THIS IS A TEST");
@@ -156,7 +156,9 @@ public class AnalyzeActionIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test").addAlias(new Alias("alias")));
         ensureGreen();
 
-        indicesAdmin().preparePutMapping("test").setSource("simple", "type=text,analyzer=simple,position_increment_gap=100").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
+            .setSource("simple", "type=text,analyzer=simple,position_increment_gap=100")
+            .get();
 
         String[] texts = new String[] { "THIS IS A TEST", "THE SECOND TEXT" };
 
@@ -246,7 +248,9 @@ public class AnalyzeActionIT extends ESIntegTestCase {
     public void testDetailAnalyzeWithMultiValues() throws Exception {
         assertAcked(prepareCreate("test").addAlias(new Alias("alias")));
         ensureGreen();
-        indicesAdmin().preparePutMapping("test").setSource("simple", "type=text,analyzer=simple,position_increment_gap=100").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
+            .setSource("simple", "type=text,analyzer=simple,position_increment_gap=100")
+            .get();
 
         String[] texts = new String[] { "THIS IS A TEST", "THE SECOND TEXT" };
         AnalyzeAction.Response analyzeResponse = indicesAdmin().prepareAnalyze()

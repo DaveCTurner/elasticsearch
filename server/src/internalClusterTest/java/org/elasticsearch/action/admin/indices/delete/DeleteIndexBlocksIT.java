@@ -35,7 +35,7 @@ public class DeleteIndexBlocksIT extends ESIntegTestCase {
         ensureGreen("test");
         try {
             setClusterReadOnly(true);
-            assertBlocked(indicesAdmin().prepareDelete("test"), Metadata.CLUSTER_READ_ONLY_BLOCK);
+            assertBlocked(indicesAdmin().prepareDelete(masterNodeTimeout, "test"), Metadata.CLUSTER_READ_ONLY_BLOCK);
         } finally {
             setClusterReadOnly(false);
         }
@@ -51,7 +51,7 @@ public class DeleteIndexBlocksIT extends ESIntegTestCase {
             assertSearchHits(prepareSearch(), "1");
             assertBlocked(prepareIndex("test").setId("2").setSource("foo", "bar"), IndexMetadata.INDEX_READ_ONLY_ALLOW_DELETE_BLOCK);
             assertSearchHits(prepareSearch(), "1");
-            assertAcked(indicesAdmin().prepareDelete("test"));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test"));
         } finally {
             Settings settings = Settings.builder().putNull(IndexMetadata.SETTING_READ_ONLY_ALLOW_DELETE).build();
             assertAcked(
@@ -90,7 +90,7 @@ public class DeleteIndexBlocksIT extends ESIntegTestCase {
                 Metadata.CLUSTER_READ_ONLY_ALLOW_DELETE_BLOCK
             );
             assertSearchHits(prepareSearch(), "1");
-            assertAcked(indicesAdmin().prepareDelete("test"));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test"));
         } finally {
             updateClusterSettings(Settings.builder().putNull(Metadata.SETTING_READ_ONLY_ALLOW_DELETE_SETTING.getKey()));
         }

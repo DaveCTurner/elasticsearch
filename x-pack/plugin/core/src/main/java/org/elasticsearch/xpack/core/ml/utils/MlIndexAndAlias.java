@@ -245,7 +245,7 @@ public final class MlIndexAndAlias {
         ActionListener<Boolean> listener
     ) {
         logger.info("About to create first concrete index [{}] with alias [{}]", index, alias);
-        CreateIndexRequestBuilder requestBuilder = client.admin().indices().prepareCreate(index);
+        CreateIndexRequestBuilder requestBuilder = client.admin().indices().prepareCreate(masterNodeTimeout, index);
         if (addAlias) {
             requestBuilder.addAlias(new Alias(alias).isHidden(true));
         }

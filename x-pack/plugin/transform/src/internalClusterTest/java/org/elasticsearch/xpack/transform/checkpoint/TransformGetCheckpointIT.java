@@ -42,7 +42,7 @@ public class TransformGetCheckpointIT extends TransformSingleNodeTestCase {
         final int indices = randomIntBetween(1, 5);
 
         for (int i = 0; i < indices; ++i) {
-            indicesAdmin().prepareCreate(indexNamePrefix + i).setSettings(indexSettings(shards, 1)).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexNamePrefix + i).setSettings(indexSettings(shards, 1)).get();
         }
 
         final GetCheckpointAction.Request request = new GetCheckpointAction.Request(
@@ -110,7 +110,7 @@ public class TransformGetCheckpointIT extends TransformSingleNodeTestCase {
         final int docsToCreatePerShard = randomIntBetween(0, 10);
 
         for (int i = 0; i < indices; ++i) {
-            indicesAdmin().prepareCreate(indexNamePrefix + i)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexNamePrefix + i)
                 .setSettings(indexSettings(shards, 1))
                 .setMapping("field", "type=long", "@timestamp", "type=date")
                 .get();
@@ -167,7 +167,7 @@ public class TransformGetCheckpointIT extends TransformSingleNodeTestCase {
         final int shards = 5;
 
         for (int i = 0; i < indices; ++i) {
-            indicesAdmin().prepareCreate(indexNamePrefix + i).setSettings(indexSettings(shards, 0)).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexNamePrefix + i).setSettings(indexSettings(shards, 0)).get();
         }
 
         final GetCheckpointAction.Request request = new GetCheckpointAction.Request(

@@ -1122,7 +1122,7 @@ public class ClassificationIT extends MlNativeDataFrameAnalyticsIntegTestCase {
                 throw new ElasticsearchException(ex);
             }
         } else {
-            client().admin().indices().prepareCreate(index).setMapping(mapping).get();
+            client().admin().indices().prepareCreate(masterNodeTimeout, index).setMapping(mapping).get();
         }
     }
 

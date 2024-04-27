@@ -304,7 +304,7 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
         Metadata meta = gwMetaState.getMetadata();
         assertNotNull(meta);
         assertNotNull(meta.index("test"));
-        assertAcked(client().admin().indices().prepareDelete("test"));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, "test"));
 
         assertFalse(firstPath.exists());
 
@@ -317,7 +317,7 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
         client().admin().indices().prepareFlush("test").get();
         assertHitCount(client().prepareSearch("test"), 1);
         IndexMetadata secondMetadata = clusterService.state().metadata().index("test");
-        assertAcked(client().admin().indices().prepareClose("test"));
+        assertAcked(client().admin().indices().prepareClose(masterNodeTimeout, "test"));
         ShardPath secondPath = ShardPath.loadShardPath(
             logger,
             getNodeEnvironment(),
@@ -329,7 +329,7 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
         expectThrows(IllegalStateException.class, () -> indicesService.deleteIndexStore("boom", secondMetadata));
         assertTrue(secondPath.exists());
 
-        assertAcked(client().admin().indices().prepareOpen("test"));
+        assertAcked(client().admin().indices().prepareOpen(masterNodeTimeout, "test"));
         ensureGreen("test");
     }
 
@@ -366,7 +366,7 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
             indicesService.addPendingDelete(index, indexSettings);
         }
 
-        assertAcked(client().admin().indices().prepareClose("test"));
+        assertAcked(client().admin().indices().prepareClose(masterNodeTimeout, "test"));
         assertTrue(shardPath.exists());
         ensureGreen("test");
 
@@ -390,7 +390,7 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
             assertTrue(indicesService.hasUncompletedPendingDeletes());
         }
 
-        assertAcked(client().admin().indices().prepareDelete("test"));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, "test"));
         assertBusy(() -> {
             try {
                 indicesService.processPendingDeletes(index, indexSettings, TimeValue.timeValueMillis(0));

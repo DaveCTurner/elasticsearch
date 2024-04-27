@@ -164,9 +164,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Creates an index using an explicit request allowing to specify the settings of the index.
      *
-     * @param index The index name to create
+     * @param masterNodeTimeout
+     * @param index             The index name to create
      */
-    CreateIndexRequestBuilder prepareCreate(String index);
+    CreateIndexRequestBuilder prepareCreate(TimeValue masterNodeTimeout, String index);
 
     /**
      * Deletes an index based on the index name.
@@ -187,9 +188,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Deletes an index based on the index name.
      *
-     * @param indices The indices to delete. Use "_all" to delete all indices.
+     * @param masterNodeTimeout
+     * @param indices           The indices to delete. Use "_all" to delete all indices.
      */
-    DeleteIndexRequestBuilder prepareDelete(String... indices);
+    DeleteIndexRequestBuilder prepareDelete(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Closes an index based on the index name.
@@ -210,9 +212,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Closes one or more indices based on their index name.
      *
-     * @param indices The name of the indices to close
+     * @param masterNodeTimeout
+     * @param indices           The name of the indices to close
      */
-    CloseIndexRequestBuilder prepareClose(String... indices);
+    CloseIndexRequestBuilder prepareClose(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Open an index based on the index name.
@@ -249,9 +252,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Opens one or more indices based on their index name.
      *
-     * @param indices The name of the indices to open
+     * @param masterNodeTimeout
+     * @param indices           The name of the indices to open
      */
-    OpenIndexRequestBuilder prepareOpen(String... indices);
+    OpenIndexRequestBuilder prepareOpen(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Explicitly refresh one or more indices (making the content indexed since the last refresh searchable).
@@ -365,7 +369,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Add mapping definition for a type into one or more indices.
      */
-    PutMappingRequestBuilder preparePutMapping(String... indices);
+    PutMappingRequestBuilder preparePutMapping(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Allows to add/remove aliases from indices.

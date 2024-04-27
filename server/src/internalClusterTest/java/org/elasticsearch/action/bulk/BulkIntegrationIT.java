@@ -70,12 +70,15 @@ public class BulkIntegrationIT extends ESIntegTestCase {
      */
     public void testBulkWithWriteIndexAndRouting() {
         Map<String, Integer> twoShardsSettings = Collections.singletonMap(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 2);
-        indicesAdmin().prepareCreate("index1").addAlias(new Alias("alias1").indexRouting("0")).setSettings(twoShardsSettings).get();
-        indicesAdmin().prepareCreate("index2")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index1")
+            .addAlias(new Alias("alias1").indexRouting("0"))
+            .setSettings(twoShardsSettings)
+            .get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index2")
             .addAlias(new Alias("alias1").indexRouting("0").writeIndex(randomFrom(false, null)))
             .setSettings(twoShardsSettings)
             .get();
-        indicesAdmin().prepareCreate("index3")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index3")
             .addAlias(new Alias("alias1").indexRouting("1").writeIndex(true))
             .setSettings(twoShardsSettings)
             .get();
@@ -173,7 +176,7 @@ public class BulkIntegrationIT extends ESIntegTestCase {
         }
         ensureGreen(index);
         assertBusy(() -> assertThat(docID.get(), greaterThanOrEqualTo(1)));
-        assertAcked(indicesAdmin().prepareDelete(index));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, index));
         stopped.set(true);
         for (Thread thread : threads) {
             thread.join(ReplicationRequest.DEFAULT_TIMEOUT.millis() / 2);

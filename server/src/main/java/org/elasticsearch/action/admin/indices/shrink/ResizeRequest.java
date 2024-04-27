@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -73,11 +74,11 @@ public class ResizeRequest extends AcknowledgedRequest<ResizeRequest> implements
         }
     }
 
-    ResizeRequest() {
+    ResizeRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
-    public ResizeRequest(String targetIndex, String sourceIndex) {
+    public ResizeRequest(TimeValue masterNodeTimeout, String targetIndex, String sourceIndex) {
         super(masterNodeTimeout);
         this.targetIndexRequest = new CreateIndexRequest(masterNodeTimeout, targetIndex);
         this.sourceIndex = sourceIndex;

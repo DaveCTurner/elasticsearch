@@ -165,7 +165,7 @@ public class CoreEsqlActionIT extends ESIntegTestCase {
 
     private void createAndPopulateIndex(String indexName) {
         var client = client().admin().indices();
-        var CreateRequest = client.prepareCreate(indexName)
+        var CreateRequest = client.prepareCreate(masterNodeTimeout, indexName)
             .setSettings(Settings.builder().put("index.number_of_shards", 1))
             .setMapping("item", "type=long", "cost", "type=double", "color", "type=keyword", "sale", "type=date");
         assertAcked(CreateRequest);

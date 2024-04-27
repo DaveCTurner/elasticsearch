@@ -46,7 +46,7 @@ public abstract class RestResizeHandler extends BaseRestHandler {
                 throw new IllegalArgumentException("parameter [copy_settings] can not be explicitly set to [false]");
             }
         }
-        final ResizeRequest resizeRequest = new ResizeRequest(request.param("target"), request.param("index"));
+        final ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, request.param("target"), request.param("index"));
         resizeRequest.setResizeType(getResizeType());
         request.applyContentParser(resizeRequest::fromXContent);
         resizeRequest.ackTimeout(request.paramAsTime("timeout", resizeRequest.ackTimeout()));

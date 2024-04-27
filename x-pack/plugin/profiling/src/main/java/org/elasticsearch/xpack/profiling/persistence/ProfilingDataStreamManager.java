@@ -92,7 +92,7 @@ public class ProfilingDataStreamManager extends AbstractProfilingPersistenceMana
         logger.debug("rolling over data stream [{}].", dataStream);
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            RolloverRequest request = new RolloverRequest(dataStream.getName(), null);
+            RolloverRequest request = new RolloverRequest(masterNodeTimeout, dataStream.getName(), null);
             request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),

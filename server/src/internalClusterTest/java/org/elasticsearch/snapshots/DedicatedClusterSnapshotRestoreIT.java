@@ -255,7 +255,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         assertAcked(prepareCreate("test-idx-closed", 1, indexSettingsNoReplicas(4)));
         indexRandomDocs("test-idx-all", 100);
         indexRandomDocs("test-idx-closed", 100);
-        assertAcked(indicesAdmin().prepareClose("test-idx-closed"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test-idx-closed"));
 
         logger.info("--> create an index that will have no allocated shards");
         assertAcked(
@@ -327,7 +327,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             assertThat(getSnapshot("test-repo", "test-snap-2").state(), equalTo(SnapshotState.PARTIAL));
         }
 
-        assertAcked(indicesAdmin().prepareClose("test-idx-all"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test-idx-all"));
 
         logger.info("--> restore incomplete snapshot - should fail");
         assertFutureThrows(
@@ -410,7 +410,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         createSnapshot("test-repo", "test-snap-1", Collections.singletonList("test-idx"));
 
         logger.info("--> close the index");
-        assertAcked(indicesAdmin().prepareClose("test-idx"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test-idx"));
 
         logger.info("--> shutdown one of the nodes that should make half of the shards unavailable");
         internalCluster().restartRandomDataNode(new InternalTestCluster.RestartCallback() {
@@ -652,8 +652,8 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         createSnapshot(repo, snapshot, Collections.singletonList(shrunkIdx));
 
         logger.info("--> delete index and stop the data node");
-        assertAcked(indicesAdmin().prepareDelete(sourceIdx).get());
-        assertAcked(indicesAdmin().prepareDelete(shrunkIdx).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, sourceIdx).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, shrunkIdx).get());
         internalCluster().stopRandomDataNode();
         clusterAdmin().prepareHealth().setTimeout(TimeValue.timeValueSeconds(30)).setWaitForNodes("1");
 
@@ -1000,7 +1000,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         // Wait for green so the close does not fail in the edge case of coinciding with a shard recovery that hasn't fully synced yet
         ensureGreen();
         logger.debug("-->  close index {}", indexName);
-        assertAcked(indicesAdmin().prepareClose(indexName));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
 
         logger.debug("--> restore index {} from snapshot", indexName);
         RestoreSnapshotResponse restoreResponse = clusterAdmin().prepareRestoreSnapshot(repoName, snapshotName)
@@ -1126,7 +1126,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
             .setIndices(indexName)
             .get();
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         awaitNoMoreRunningOperations();
         SnapshotInfo snapshotInfo = getSnapshot(repoName, "test-snap");
@@ -1150,7 +1150,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         final ActionFuture<CreateSnapshotResponse> snapshotResponse = startFullSnapshot(repoName, snapshot, true);
         waitForBlock(dataNode, repoName);
 
-        assertAcked(indicesAdmin().prepareDelete(firstIndex));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, firstIndex));
 
         unblockNode(repoName, dataNode);
 
@@ -1180,7 +1180,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
         Thread.sleep(200);
 
         logger.info("--> delete index");
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         for (Future<Void> future : futures) {
             future.get(30, TimeUnit.SECONDS);

@@ -71,7 +71,7 @@ public class DeleteExpiredDataIT extends MlNativeAutodetectIntegTestCase {
 
     @Before
     public void setUpData() {
-        client().admin().indices().prepareCreate(DATA_INDEX).setMapping("time", "type=date,format=epoch_millis").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, DATA_INDEX).setMapping("time", "type=date,format=epoch_millis").get();
 
         // We are going to create 3 days of data ending 1 hr ago
         long latestBucketTime = System.currentTimeMillis() - TimeValue.timeValueHours(1).millis();
@@ -96,7 +96,7 @@ public class DeleteExpiredDataIT extends MlNativeAutodetectIntegTestCase {
 
     @After
     public void tearDownData() {
-        client().admin().indices().prepareDelete(DATA_INDEX).get();
+        client().admin().indices().prepareDelete(masterNodeTimeout, DATA_INDEX).get();
         cleanUp();
     }
 
@@ -124,13 +124,17 @@ public class DeleteExpiredDataIT extends MlNativeAutodetectIntegTestCase {
      * +------------------+--------+----------+-------------------------+
      */
     public void testDeleteExpiredDataActionDeletesEmptyStateIndices() throws Exception {
-        client().admin().indices().prepareCreate(".ml-state").get();
-        client().admin().indices().prepareCreate(".ml-state-000001").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, ".ml-state").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, ".ml-state-000001").get();
         prepareIndex(".ml-state-000001").setSource("field_1", "value_1").get();
-        client().admin().indices().prepareCreate(".ml-state-000003").get();
-        client().admin().indices().prepareCreate(".ml-state-000005").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, ".ml-state-000003").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, ".ml-state-000005").get();
         prepareIndex(".ml-state-000005").setSource("field_5", "value_5").get();
-        client().admin().indices().prepareCreate(".ml-state-000007").addAlias(new Alias(".ml-state-write").isHidden(true)).get();
+        client().admin()
+            .indices()
+            .prepareCreate(masterNodeTimeout, ".ml-state-000007")
+            .addAlias(new Alias(".ml-state-write").isHidden(true))
+            .get();
         refresh();
 
         GetIndexResponse getIndexResponse = client().admin().indices().prepareGetIndex().setIndices(".ml-state*").get();

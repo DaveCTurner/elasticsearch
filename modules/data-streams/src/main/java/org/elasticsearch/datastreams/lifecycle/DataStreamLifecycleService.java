@@ -1353,7 +1353,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
         String dataStream,
         TimeValue dataRetention
     ) {
-        RolloverRequest rolloverRequest = new RolloverRequest(dataStream, null).masterNodeTimeout(TimeValue.MAX_VALUE);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, dataStream, null).masterNodeTimeout(TimeValue.MAX_VALUE);
         rolloverRequest.setConditions(rolloverConfiguration.resolveRolloverConditions(dataRetention));
         return rolloverRequest;
     }

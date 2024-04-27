@@ -54,12 +54,12 @@ public class CCSFieldCapabilitiesIT extends AbstractMultiClustersTestCase {
         final Client localClient = client(LOCAL_CLUSTER);
         final Client remoteClient = client("remote_cluster");
         String localIndex = "local_test";
-        assertAcked(localClient.admin().indices().prepareCreate(localIndex).setSettings(indexSettings));
+        assertAcked(localClient.admin().indices().prepareCreate(masterNodeTimeout, localIndex).setSettings(indexSettings));
         localClient.prepareIndex(localIndex).setId("1").setSource("foo", "bar").get();
         localClient.admin().indices().prepareRefresh(localIndex).get();
 
         String remoteErrorIndex = "remote_test_error";
-        assertAcked(remoteClient.admin().indices().prepareCreate(remoteErrorIndex).setSettings(indexSettings));
+        assertAcked(remoteClient.admin().indices().prepareCreate(masterNodeTimeout, remoteErrorIndex).setSettings(indexSettings));
         remoteClient.prepareIndex(remoteErrorIndex).setId("2").setSource("foo", "bar").get();
         remoteClient.admin().indices().prepareRefresh(remoteErrorIndex).get();
 
@@ -93,7 +93,7 @@ public class CCSFieldCapabilitiesIT extends AbstractMultiClustersTestCase {
         assertEquals("I throw because I choose to.", ex.getMessage());
 
         // add an index that doesn't fail to the remote
-        assertAcked(remoteClient.admin().indices().prepareCreate("okay_remote_index"));
+        assertAcked(remoteClient.admin().indices().prepareCreate(masterNodeTimeout, "okay_remote_index"));
         remoteClient.prepareIndex("okay_remote_index").setId("2").setSource("foo", "bar").get();
         remoteClient.admin().indices().prepareRefresh("okay_remote_index").get();
 
@@ -115,7 +115,7 @@ public class CCSFieldCapabilitiesIT extends AbstractMultiClustersTestCase {
 
     public void testFailedToConnectToRemoteCluster() throws Exception {
         String localIndex = "local_index";
-        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(localIndex));
+        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, localIndex));
         client(LOCAL_CLUSTER).prepareIndex(localIndex).setId("1").setSource("foo", "bar").get();
         client(LOCAL_CLUSTER).admin().indices().prepareRefresh(localIndex).get();
         cluster("remote_cluster").close();

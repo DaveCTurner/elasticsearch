@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class UpdateSettingsIT extends ESIntegTestCase {
     public void testInvalidUpdateOnClosedIndex() {
         createIndex("test");
-        assertAcked(indicesAdmin().prepareClose("test").get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test").get());
         IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
             indicesAdmin().prepareUpdateSettings("test")
@@ -197,7 +197,7 @@ public class UpdateSettingsIT extends ESIntegTestCase {
         for (int i = 0; i < 2; i++) {
             if (i == 1) {
                 // now do it on a closed index
-                indicesAdmin().prepareClose("test").get();
+                indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
             }
 
             iae = expectThrows(
@@ -334,7 +334,7 @@ public class UpdateSettingsIT extends ESIntegTestCase {
             .get();
         assertThat(health.isTimedOut(), equalTo(false));
 
-        indicesAdmin().prepareClose("test").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
 
         indicesAdmin().prepareUpdateSettings("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 1)).get();
 
@@ -538,15 +538,15 @@ public class UpdateSettingsIT extends ESIntegTestCase {
     private void runTestDefaultNumberOfReplicasTest(final boolean closeIndex) {
         if (randomBoolean()) {
             assertAcked(
-                indicesAdmin().prepareCreate("test")
+                indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                     .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, randomIntBetween(1, 8)))
             );
         } else {
-            assertAcked(indicesAdmin().prepareCreate("test"));
+            assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test"));
         }
 
         if (closeIndex) {
-            assertAcked(indicesAdmin().prepareClose("test"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
         }
 
         /*
@@ -567,7 +567,10 @@ public class UpdateSettingsIT extends ESIntegTestCase {
     public void testNoopUpdate() {
         internalCluster().ensureAtLeastNumDataNodes(2);
         final ClusterService clusterService = internalCluster().getAnyMasterNodeInstance(ClusterService.class);
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
+        );
 
         ClusterState currentState = clusterService.state();
         assertAcked(

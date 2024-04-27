@@ -112,7 +112,7 @@ public class HierarchyCircuitBreakerTelemetryTests extends ESIntegTestCase {
             assertTrue(
                 client().admin()
                     .indices()
-                    .prepareCreate("test")
+                    .prepareCreate(masterNodeTimeout, "test")
                     .setSettings(
                         Settings.builder()
                             .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)

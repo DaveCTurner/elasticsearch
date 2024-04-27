@@ -139,7 +139,7 @@ public class GeoPointScriptDocValuesIT extends ESSingleNodeTestCase {
             .startObject("location")
             .field("type", "geo_point");
         xContentBuilder.endObject().endObject().endObject().endObject();
-        assertAcked(client().admin().indices().prepareCreate("test").setMapping(xContentBuilder));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(xContentBuilder));
         ensureGreen();
     }
 

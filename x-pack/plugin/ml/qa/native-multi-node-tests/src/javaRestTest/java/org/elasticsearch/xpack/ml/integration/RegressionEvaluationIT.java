@@ -138,7 +138,9 @@ public class RegressionEvaluationIT extends MlNativeDataFrameAnalyticsIntegTestC
     }
 
     private static void createHousesIndex(String indexName) {
-        indicesAdmin().prepareCreate(indexName).setMapping(PRICE_FIELD, "type=double", PRICE_PREDICTION_FIELD, "type=double").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
+            .setMapping(PRICE_FIELD, "type=double", PRICE_PREDICTION_FIELD, "type=double")
+            .get();
     }
 
     private static void indexHousesData(String indexName) {

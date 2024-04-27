@@ -51,7 +51,7 @@ public class RolloverRequestTests extends ESTestCase {
     }
 
     public void testConditionsParsing() throws Exception {
-        final RolloverRequest request = new RolloverRequest(randomAlphaOfLength(10), randomAlphaOfLength(10));
+        final RolloverRequest request = new RolloverRequest(masterNodeTimeout, randomAlphaOfLength(10), randomAlphaOfLength(10));
         final XContentBuilder builder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("conditions")
@@ -97,7 +97,7 @@ public class RolloverRequestTests extends ESTestCase {
     }
 
     public void testParsingWithIndexSettings() throws Exception {
-        final RolloverRequest request = new RolloverRequest(randomAlphaOfLength(10), randomAlphaOfLength(10));
+        final RolloverRequest request = new RolloverRequest(masterNodeTimeout, randomAlphaOfLength(10), randomAlphaOfLength(10));
         final XContentBuilder builder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("conditions")
@@ -132,7 +132,7 @@ public class RolloverRequestTests extends ESTestCase {
     }
 
     public void testTypelessMappingParsing() throws Exception {
-        final RolloverRequest request = new RolloverRequest(randomAlphaOfLength(10), randomAlphaOfLength(10));
+        final RolloverRequest request = new RolloverRequest(masterNodeTimeout, randomAlphaOfLength(10), randomAlphaOfLength(10));
         final XContentBuilder builder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("mappings")
@@ -160,7 +160,7 @@ public class RolloverRequestTests extends ESTestCase {
     }
 
     public void testSerialize() throws Exception {
-        RolloverRequest originalRequest = new RolloverRequest("alias-index", "new-index-name");
+        RolloverRequest originalRequest = new RolloverRequest(masterNodeTimeout, "alias-index", "new-index-name");
         originalRequest.setConditions(
             RolloverConditions.newBuilder()
                 .addMaxIndexDocsCondition(randomNonNegativeLong())
@@ -205,7 +205,7 @@ public class RolloverRequestTests extends ESTestCase {
     }
 
     public void testUnknownFields() throws IOException {
-        final RolloverRequest request = new RolloverRequest();
+        final RolloverRequest request = new RolloverRequest(masterNodeTimeout);
         XContentType xContentType = randomFrom(XContentType.values());
         final XContentBuilder builder = XContentFactory.contentBuilder(xContentType);
         builder.startObject();
@@ -225,7 +225,7 @@ public class RolloverRequestTests extends ESTestCase {
 
     public void testValidation() {
         {
-            RolloverRequest rolloverRequest = new RolloverRequest();
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout);
             assertNotNull(rolloverRequest.getCreateIndexRequest());
             ActionRequestValidationException validationException = rolloverRequest.validate();
             assertNotNull(validationException);
@@ -234,7 +234,7 @@ public class RolloverRequestTests extends ESTestCase {
         }
 
         {
-            RolloverRequest rolloverRequest = new RolloverRequest("alias-index", "new-index-name");
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "alias-index", "new-index-name");
             rolloverRequest.setConditions(RolloverConditions.newBuilder().addMinIndexDocsCondition(1L).build());
             ActionRequestValidationException validationException = rolloverRequest.validate();
             assertNotNull(validationException);
@@ -246,7 +246,7 @@ public class RolloverRequestTests extends ESTestCase {
         }
 
         {
-            RolloverRequest rolloverRequest = new RolloverRequest("alias-index", "new-index-name");
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "alias-index", "new-index-name");
             if (randomBoolean()) {
                 rolloverRequest.setConditions(
                     RolloverConditions.newBuilder()
@@ -260,7 +260,7 @@ public class RolloverRequestTests extends ESTestCase {
         }
 
         {
-            RolloverRequest rolloverRequest = new RolloverRequest("alias-index", "new-index-name");
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "alias-index", "new-index-name");
             rolloverRequest.setIndicesOptions(
                 IndicesOptions.builder(rolloverRequest.indicesOptions())
                     .failureStoreOptions(new IndicesOptions.FailureStoreOptions(true, true))
@@ -276,7 +276,7 @@ public class RolloverRequestTests extends ESTestCase {
         }
 
         {
-            RolloverRequest rolloverRequest = new RolloverRequest("alias-index", "new-index-name");
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "alias-index", "new-index-name");
             rolloverRequest.setIndicesOptions(
                 IndicesOptions.builder(rolloverRequest.indicesOptions())
                     .failureStoreOptions(new IndicesOptions.FailureStoreOptions(false, true))
@@ -323,7 +323,7 @@ public class RolloverRequestTests extends ESTestCase {
                 RestApiVersion.V_7
             )
         ) {
-            final RolloverRequest request = new RolloverRequest(randomAlphaOfLength(10), randomAlphaOfLength(10));
+            final RolloverRequest request = new RolloverRequest(masterNodeTimeout, randomAlphaOfLength(10), randomAlphaOfLength(10));
             request.fromXContent(true, parser);
             Map<String, Condition<?>> conditions = request.getConditions().getConditions();
             assertThat(conditions.size(), equalTo(2));
@@ -353,7 +353,7 @@ public class RolloverRequestTests extends ESTestCase {
                 RestApiVersion.V_7
             )
         ) {
-            final RolloverRequest request = new RolloverRequest(randomAlphaOfLength(10), randomAlphaOfLength(10));
+            final RolloverRequest request = new RolloverRequest(masterNodeTimeout, randomAlphaOfLength(10), randomAlphaOfLength(10));
             expectThrows(IllegalArgumentException.class, () -> request.fromXContent(false, parser));
         }
     }

@@ -122,7 +122,7 @@ public final class LazyRolloverAction extends ActionType<RolloverResponse> {
             // We create a new rollover request to ensure that it doesn't contain any other parameters apart from the data stream name
             // This will provide a more resilient user experience
             RolloverTask rolloverTask = new RolloverTask(
-                new RolloverRequest(rolloverRequest.getRolloverTarget(), null),
+                new RolloverRequest(masterNodeTimeout, rolloverRequest.getRolloverTarget(), null),
                 null,
                 trialRolloverResponse,
                 null,

@@ -267,7 +267,10 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
             });
         }
 
-        var rolloverResponse = client().admin().indices().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet();
+        var rolloverResponse = client().admin()
+            .indices()
+            .rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null))
+            .actionGet();
         assertThat(rolloverResponse.isRolledOver(), is(true));
         String sourceIndex = rolloverResponse.getOldIndex();
 

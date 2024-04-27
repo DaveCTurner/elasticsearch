@@ -49,7 +49,7 @@ public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
      * with the default IndicesOptions inherited from BroadcastOperationRequest this will raise an exception
      */
     public void testRequestOnClosedIndex() {
-        client().admin().indices().prepareClose("test").get();
+        client().admin().indices().prepareClose(masterNodeTimeout, "test").get();
         try {
             client().admin().indices().prepareSegments("test").get();
             fail("Expected IndexClosedException");
@@ -62,7 +62,7 @@ public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
      * setting the "ignoreUnavailable" option prevents IndexClosedException
      */
     public void testRequestOnClosedIndexIgnoreUnavailable() {
-        client().admin().indices().prepareClose("test").get();
+        client().admin().indices().prepareClose(masterNodeTimeout, "test").get();
         IndicesOptions defaultOptions = new IndicesSegmentsRequest().indicesOptions();
         IndicesOptions testOptions = IndicesOptions.fromOptions(true, true, true, false, defaultOptions);
         IndicesSegmentResponse rsp = client().admin().indices().prepareSegments("test").setIndicesOptions(testOptions).get();
@@ -73,13 +73,13 @@ public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
      * by default IndicesOptions setting IndicesSegmentsRequest should not throw exception when no index present
      */
     public void testAllowNoIndex() {
-        client().admin().indices().prepareDelete("test").get();
+        client().admin().indices().prepareDelete(masterNodeTimeout, "test").get();
         IndicesSegmentResponse rsp = client().admin().indices().prepareSegments().get();
         assertEquals(0, rsp.getIndices().size());
     }
 
     public void testRequestOnClosedIndexWithVectorFormats() {
-        client().admin().indices().prepareClose("test").get();
+        client().admin().indices().prepareClose(masterNodeTimeout, "test").get();
         try {
             client().admin().indices().prepareSegments("test").includeVectorFormatInfo(true).get();
             fail("Expected IndexClosedException");
@@ -89,13 +89,13 @@ public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
     }
 
     public void testAllowNoIndexWithVectorFormats() {
-        client().admin().indices().prepareDelete("test").get();
+        client().admin().indices().prepareDelete(masterNodeTimeout, "test").get();
         IndicesSegmentResponse rsp = client().admin().indices().prepareSegments().includeVectorFormatInfo(true).get();
         assertEquals(0, rsp.getIndices().size());
     }
 
     public void testRequestOnClosedIndexIgnoreUnavailableWithVectorFormats() {
-        client().admin().indices().prepareClose("test").get();
+        client().admin().indices().prepareClose(masterNodeTimeout, "test").get();
         IndicesOptions defaultOptions = new IndicesSegmentsRequest().indicesOptions();
         IndicesOptions testOptions = IndicesOptions.fromOptions(true, true, true, false, defaultOptions);
         IndicesSegmentResponse rsp = client().admin()

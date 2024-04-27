@@ -159,7 +159,7 @@ public class GeoShapeScriptDocValuesIT extends ESSingleNodeTestCase {
             .startObject("location")
             .field("type", "geo_shape");
         xContentBuilder.endObject().endObject().endObject().endObject();
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(xContentBuilder));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(xContentBuilder));
         ensureGreen();
     }
 

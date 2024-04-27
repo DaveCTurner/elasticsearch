@@ -68,10 +68,14 @@ public class ShapeQueryOverShapeTests extends ShapeQueryTestCase {
         super.setUp();
 
         // create test index
-        assertAcked(indicesAdmin().prepareCreate(INDEX).setMapping(FIELD, "type=shape", "alias", "type=alias,path=" + FIELD).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
+                .setMapping(FIELD, "type=shape", "alias", "type=alias,path=" + FIELD)
+                .get()
+        );
         // create index that ignores malformed geometry
         assertAcked(
-            indicesAdmin().prepareCreate(IGNORE_MALFORMED_INDEX)
+            indicesAdmin().prepareCreate(masterNodeTimeout, IGNORE_MALFORMED_INDEX)
                 .setMapping(FIELD, "type=shape,ignore_malformed=true", "_source", "enabled=false")
         );
         ensureGreen();
@@ -125,7 +129,7 @@ public class ShapeQueryOverShapeTests extends ShapeQueryTestCase {
         String indexName = "shapes_index";
         String searchIndex = "search_index";
         createIndex(indexName);
-        indicesAdmin().prepareCreate(searchIndex).setMapping("location", "type=shape").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, searchIndex).setMapping("location", "type=shape").get();
 
         String location = """
             "location" : {"type":"polygon", "coordinates":[[[-10,-10],[10,-10],[10,10],[-10,10],[-10,-10]]]}""";
@@ -252,7 +256,7 @@ public class ShapeQueryOverShapeTests extends ShapeQueryTestCase {
 
     public void testContainsShapeQuery() {
 
-        indicesAdmin().prepareCreate("test_contains").setMapping("location", "type=shape").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test_contains").setMapping("location", "type=shape").get();
 
         String doc = """
             {"location" : {"type":"envelope", "coordinates":[ [-100.0, 100.0], [100.0, -100.0]]}}""";

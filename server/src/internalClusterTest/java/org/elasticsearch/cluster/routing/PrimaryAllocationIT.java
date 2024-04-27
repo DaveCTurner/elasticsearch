@@ -88,7 +88,8 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         internalCluster().startDataOnlyNodes(2);
 
         assertAcked(
-            indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 1).put("index.global_checkpoint_sync.interval", "1s"))
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(indexSettings(1, 1).put("index.global_checkpoint_sync.interval", "1s"))
         );
         ensureGreen();
 
@@ -243,7 +244,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
             .collect(Collectors.toSet());
         createStaleReplicaScenario(master);
         if (randomBoolean()) {
-            assertAcked(indicesAdmin().prepareClose("test").setWaitForActiveShards(0));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test").setWaitForActiveShards(0));
         }
         boolean useStaleReplica = randomBoolean(); // if true, use stale replica, otherwise a completely empty copy
         logger.info("--> explicitly promote old primary shard");
@@ -379,7 +380,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
 
     public void testForcePrimaryShardIfAllocationDecidersSayNoAfterIndexCreation() throws ExecutionException, InterruptedException {
         String node = internalCluster().startNode();
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(indexSettings(1, 0).put("index.routing.allocation.exclude._name", node))
             .get();
@@ -394,7 +395,8 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
         internalCluster().startDataOnlyNode(Settings.EMPTY);
         assertAcked(
-            indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 1).put("index.unassigned.node_left.delayed_timeout", "0ms"))
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(indexSettings(1, 1).put("index.unassigned.node_left.delayed_timeout", "0ms"))
         );
         String replicaNode = internalCluster().startDataOnlyNode(Settings.EMPTY);
         ensureGreen("test");
@@ -423,7 +425,8 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         internalCluster().startMasterOnlyNode(Settings.EMPTY);
         internalCluster().startDataOnlyNode(Settings.EMPTY);
         assertAcked(
-            indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 1).put("index.unassigned.node_left.delayed_timeout", "0ms"))
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(indexSettings(1, 1).put("index.unassigned.node_left.delayed_timeout", "0ms"))
         );
         String replicaNode = internalCluster().startDataOnlyNode(Settings.EMPTY);
         ensureGreen("test");

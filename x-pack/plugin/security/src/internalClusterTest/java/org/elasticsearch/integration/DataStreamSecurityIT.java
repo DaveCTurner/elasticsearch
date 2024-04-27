@@ -70,7 +70,7 @@ public class DataStreamSecurityIT extends SecurityIntegTestCase {
         String dataStreamName = "logs-es";
         var request = new CreateDataStreamAction.Request(dataStreamName);
         assertAcked(client.execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-        assertAcked(client.admin().indices().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+        assertAcked(client.admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 
         var indicesStatsResponse = client.admin().indices().stats(new IndicesStatsRequest()).actionGet();
         assertThat(indicesStatsResponse.getIndices().size(), equalTo(2));

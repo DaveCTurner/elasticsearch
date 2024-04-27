@@ -69,7 +69,7 @@ public class ExceptionRetryIT extends ESIntegTestCase {
         Client client = internalCluster().coordOnlyNodeClient();
         NodesStatsResponse nodeStats = clusterAdmin().prepareNodesStats().get();
         NodeStats unluckyNode = randomFrom(nodeStats.getNodes().stream().filter((s) -> s.getNode().canContainData()).toList());
-        assertAcked(indicesAdmin().prepareCreate("index").setSettings(indexSettings(5, 1)));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "index").setSettings(indexSettings(5, 1)));
         ensureGreen("index");
         logger.info("unlucky node: {}", unluckyNode.getNode());
         // create a transport service that throws a ConnectTransportException for one bulk request and therefore triggers a retry.

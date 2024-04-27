@@ -203,14 +203,14 @@ public class BlobStoreIncrementalityIT extends AbstractSnapshotIntegTestCase {
         final long beforeSegmentCount = beforeIndexDetails.getMaxSegmentsPerShard();
 
         // reactivate merges
-        assertAcked(indicesAdmin().prepareClose(indexName).get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName).get());
         updateIndexSettings(
             Settings.builder()
                 .put(MergePolicyConfig.INDEX_MERGE_POLICY_SEGMENTS_PER_TIER_SETTING.getKey(), "2")
                 .put(MergePolicyConfig.INDEX_MERGE_ENABLED, "true"),
             indexName
         );
-        assertAcked(indicesAdmin().prepareOpen(indexName).get());
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, indexName).get());
         assertEquals(0, indicesAdmin().prepareForceMerge(indexName).setFlush(true).get().getFailedShards());
 
         // wait for merges to reduce segment count
@@ -238,7 +238,7 @@ public class BlobStoreIncrementalityIT extends AbstractSnapshotIntegTestCase {
         logger.info("--> asserting that index [{}] contains [{}] documents", index, expectedCount);
         assertDocCount(index, expectedCount);
         logger.info("--> deleting index [{}]", index);
-        assertThat(indicesAdmin().prepareDelete(index).get().isAcknowledged(), is(true));
+        assertThat(indicesAdmin().prepareDelete(masterNodeTimeout, index).get().isAcknowledged(), is(true));
     }
 
     private void assertTwoIdenticalShardSnapshots(String repo, String indexName, String snapshot1, String snapshot2) {

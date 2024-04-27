@@ -322,7 +322,9 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
         List<String> deleteIndices = randomSubsetOf(randomIntBetween(0, indexCount), indexNames);
         if (deleteIndices.size() > 0) {
             logger.info("-->  delete indices {}", deleteIndices);
-            assertAcked(client().admin().indices().prepareDelete(deleteIndices.toArray(new String[deleteIndices.size()])));
+            assertAcked(
+                client().admin().indices().prepareDelete(masterNodeTimeout, deleteIndices.toArray(new String[deleteIndices.size()]))
+            );
         }
 
         Set<String> closeIndices = new HashSet<>(Arrays.asList(indexNames));
@@ -342,7 +344,7 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
             // Wait for green so the close does not fail in the edge case of coinciding with a shard recovery that hasn't fully synced yet
             ensureGreen();
             logger.info("-->  close indices {}", closeIndices);
-            assertAcked(client().admin().indices().prepareClose(closeIndices.toArray(new String[closeIndices.size()])));
+            assertAcked(client().admin().indices().prepareClose(masterNodeTimeout, closeIndices.toArray(new String[closeIndices.size()])));
         }
 
         if (recreateRepositoryBeforeRestore) {
@@ -379,7 +381,7 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
         int[] docCounts = new int[iterationCount];
         String indexName = randomName();
         String snapshotName = randomName();
-        assertAcked(client().admin().indices().prepareCreate(indexName).get());
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, indexName).get());
         for (int i = 0; i < iterationCount; i++) {
             if (randomBoolean() && i > 0) { // don't delete on the first iteration
                 int docCount = docCounts[i - 1];
@@ -407,7 +409,7 @@ public abstract class ESBlobStoreRepositoryIntegTestCase extends ESIntegTestCase
             // Wait for green so the close does not fail in the edge case of coinciding with a shard recovery that hasn't fully synced yet
             ensureGreen();
             logger.info("-->  close index");
-            assertAcked(client().admin().indices().prepareClose(indexName));
+            assertAcked(client().admin().indices().prepareClose(masterNodeTimeout, indexName));
 
             logger.info("--> restore index from the snapshot");
             assertSuccessfulRestore(

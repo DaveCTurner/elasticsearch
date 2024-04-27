@@ -150,7 +150,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
             }
 
             mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, firstGenerationMeta, shards);
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 
             ClusterState clusterStateAfterRollover = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
             DataStream dataStream = clusterStateAfterRollover.getMetadata().dataStreams().get(dataStreamName);
@@ -199,7 +199,8 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
             }
             mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, secondGenerationMeta, shards);
 
-            RolloverResponse response = indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet();
+            RolloverResponse response = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null))
+                .actionGet();
             assertAcked(response);
             Map<String, Boolean> conditionStatus = response.getConditionStatus();
             // empty rollover executed
@@ -243,7 +244,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
                 }
                 mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, thirdGenIndex, shards);
 
-                RolloverRequest request = new RolloverRequest(dataStreamName, null);
+                RolloverRequest request = new RolloverRequest(masterNodeTimeout, dataStreamName, null);
                 request.setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1_000_000L).build());
                 RolloverResponse response = indicesAdmin().rolloverIndex(request).actionGet();
                 assertAcked(response);
@@ -308,7 +309,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
             }
 
             mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, firstGenerationMeta, shards);
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 
             ClusterState clusterStateAfterRollover = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
             DataStream dataStream = clusterStateAfterRollover.getMetadata().dataStreams().get(dataStreamName);
@@ -345,7 +346,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
                 }
                 mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, secondGenerationIndex, shards);
 
-                RolloverRequest request = new RolloverRequest(dataStreamName, null);
+                RolloverRequest request = new RolloverRequest(masterNodeTimeout, dataStreamName, null);
                 // adding condition that does NOT match
                 request.setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1_000_000L).build());
                 RolloverResponse response = indicesAdmin().rolloverIndex(request).actionGet();
@@ -356,7 +357,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
 
                 // let's rollover with a condition that does match and test that the number of shards is reduced to 2
                 indexDocs(dataStreamName, 100);
-                request = new RolloverRequest(dataStreamName, null);
+                request = new RolloverRequest(masterNodeTimeout, dataStreamName, null);
                 // adding condition that does NOT match
                 request.setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1L).build());
                 response = indicesAdmin().rolloverIndex(request).actionGet();
@@ -428,7 +429,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
             }
 
             mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, firstGenerationMeta, shards);
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 
             ClusterState clusterStateAfterRollover = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
             DataStream dataStream = clusterStateAfterRollover.getMetadata().dataStreams().get(dataStreamName);
@@ -468,7 +469,7 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
 
                 mockStatsForIndex(clusterStateBeforeRollover, assignedShardNodeId, secondGenIndex, shards);
 
-                RolloverRequest request = new RolloverRequest(dataStreamName, null);
+                RolloverRequest request = new RolloverRequest(masterNodeTimeout, dataStreamName, null);
                 request.lazy(true);
                 assertAcked(indicesAdmin().rolloverIndex(request).actionGet());
 

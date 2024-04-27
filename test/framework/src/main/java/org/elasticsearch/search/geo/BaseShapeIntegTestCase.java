@@ -229,7 +229,12 @@ public abstract class BaseShapeIntegTestCase<T extends AbstractGeometryQueryBuil
         mapping.endObject().endObject().endObject();
 
         // create index
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(settings(randomSupportedVersion()).build()).setMapping(mapping).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(settings(randomSupportedVersion()).build())
+                .setMapping(mapping)
+                .get()
+        );
         ensureGreen();
 
         String source = """
@@ -278,7 +283,7 @@ public abstract class BaseShapeIntegTestCase<T extends AbstractGeometryQueryBuil
         mapping.endObject().endObject().endObject();
 
         final IndexVersion version = randomSupportedVersion();
-        CreateIndexRequestBuilder mappingRequest = indicesAdmin().prepareCreate("shapes")
+        CreateIndexRequestBuilder mappingRequest = indicesAdmin().prepareCreate(masterNodeTimeout, "shapes")
             .setMapping(mapping)
             .setSettings(settings(version).build());
         mappingRequest.get();
@@ -434,7 +439,7 @@ public abstract class BaseShapeIntegTestCase<T extends AbstractGeometryQueryBuil
         getGeoShapeMapping(xContentBuilder);
         xContentBuilder.field("ignore_malformed", true).endObject().endObject().endObject().endObject();
 
-        client().admin().indices().prepareCreate("countries").setSettings(settings).setMapping(xContentBuilder).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "countries").setSettings(settings).setMapping(xContentBuilder).get();
         BulkResponse bulk = client().prepareBulk().add(bulkAction, 0, bulkAction.length, null, xContentBuilder.contentType()).get();
 
         for (BulkItemResponse item : bulk.getItems()) {

@@ -61,7 +61,7 @@ public class SearchableSnapshotsLicenseIntegTests extends BaseFrozenSearchableSn
         createIndex(indexName);
         createFullSnapshot(repoName, snapshotName);
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         final MountSearchableSnapshotRequest req = new MountSearchableSnapshotRequest(
             indexName,

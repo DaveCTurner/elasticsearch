@@ -129,7 +129,7 @@ public class IndexStatsIT extends ESIntegTestCase {
 
     public void testFieldDataStats() {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(settingsBuilder().put("index.number_of_shards", 2))
                 .setMapping("field", "type=text,fielddata=true", "field2", "type=text,fielddata=true")
         );
@@ -232,7 +232,7 @@ public class IndexStatsIT extends ESIntegTestCase {
 
     public void testClearAllCaches() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(settingsBuilder().put("index.number_of_replicas", 0).put("index.number_of_shards", 2))
                 .setMapping("field", "type=text,fielddata=true")
         );
@@ -317,7 +317,7 @@ public class IndexStatsIT extends ESIntegTestCase {
 
     public void testQueryCache() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "idx")
                 .setSettings(Settings.builder().put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
         );
         ensureGreen();

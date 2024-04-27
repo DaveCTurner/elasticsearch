@@ -78,7 +78,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         internalCluster().startNode();
 
         logger.info("--> creating test index, with meta routing");
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setMapping(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -130,7 +130,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         prepareIndex("test").setId("1").setSource("field1", "value1").get();
 
         logger.info("--> closing test index...");
-        assertAcked(indicesAdmin().prepareClose("test"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
 
         stateResponse = clusterAdmin().prepareState().get();
         assertThat(stateResponse.getState().metadata().index("test").getState(), equalTo(IndexMetadata.State.CLOSE));
@@ -153,7 +153,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         ensureGreen();
 
         logger.info("--> opening the first index again...");
-        assertAcked(indicesAdmin().prepareOpen("test"));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
 
         logger.info("--> verifying that the state is green");
         ensureGreen();
@@ -171,7 +171,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         assertThat(getResponse.isExists(), equalTo(true));
 
         logger.info("--> closing test index...");
-        assertAcked(indicesAdmin().prepareClose("test"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
         stateResponse = clusterAdmin().prepareState().get();
         assertThat(stateResponse.getState().metadata().index("test").getState(), equalTo(IndexMetadata.State.CLOSE));
         assertThat(stateResponse.getState().routingTable().index("test"), notNullValue());
@@ -194,7 +194,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         }
 
         logger.info("--> opening index...");
-        indicesAdmin().prepareOpen("test").get();
+        indicesAdmin().prepareOpen(masterNodeTimeout, "test").get();
 
         logger.info("--> waiting for green status");
         ensureGreen();
@@ -222,7 +222,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         internalCluster().startNode(nonDataNode());
 
         logger.info("--> create an index");
-        indicesAdmin().prepareCreate("test").setWaitForActiveShards(ActiveShardCount.NONE).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setWaitForActiveShards(ActiveShardCount.NONE).get();
 
         logger.info("--> restarting master node");
         internalCluster().fullRestart(new RestartCallback() {
@@ -249,7 +249,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         internalCluster().startDataOnlyNode();
 
         logger.info("--> create an index");
-        indicesAdmin().prepareCreate("test").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").get();
 
         prepareIndex("test").setSource("field1", "value1").get();
     }
@@ -277,14 +277,14 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
         }
 
         logger.info("--> closing test index...");
-        assertAcked(indicesAdmin().prepareClose("test"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
 
         ClusterStateResponse stateResponse = clusterAdmin().prepareState().get();
         assertThat(stateResponse.getState().metadata().index("test").getState(), equalTo(IndexMetadata.State.CLOSE));
         assertThat(stateResponse.getState().routingTable().index("test"), notNullValue());
 
         logger.info("--> opening the index...");
-        indicesAdmin().prepareOpen("test").get();
+        indicesAdmin().prepareOpen(masterNodeTimeout, "test").get();
 
         logger.info("--> waiting for green status");
         health = clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().setWaitForNodes("2").get();
@@ -328,7 +328,7 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
                 final String otherNode = nodes.get(0);
                 logger.info("--> delete index and verify it is deleted");
                 final Client client = client(otherNode);
-                client.admin().indices().prepareDelete(indexName).get();
+                client.admin().indices().prepareDelete(masterNodeTimeout, indexName).get();
                 assertFalse(indexExists(indexName, client));
                 logger.info("--> index deleted");
                 return super.onNodeStopped(nodeName);
@@ -408,13 +408,13 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
                 assertThat(shardRoutingTable.primaryShard().unassignedInfo().getNumFailedAllocations(), greaterThan(0));
             }
         }, 60, TimeUnit.SECONDS);
-        indicesAdmin().prepareClose("test").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
 
         state = clusterAdmin().prepareState().get().getState();
         assertEquals(IndexMetadata.State.CLOSE, state.getMetadata().index(metadata.getIndex()).getState());
         assertEquals("boolean", state.getMetadata().index(metadata.getIndex()).getSettings().get("archived.index.similarity.BM25.type"));
         // try to open it with the broken setting - fail again!
-        ElasticsearchException ex = expectThrows(ElasticsearchException.class, indicesAdmin().prepareOpen("test"));
+        ElasticsearchException ex = expectThrows(ElasticsearchException.class, indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
         assertEquals(ex.getMessage(), "Failed to verify index " + metadata.getIndex());
         assertNotNull(ex.getCause());
         assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
@@ -477,10 +477,10 @@ public class GatewayIndexStateIT extends ESIntegTestCase {
                 assertThat(shardRoutingTable.primaryShard().unassignedInfo().getNumFailedAllocations(), greaterThan(0));
             }
         }, 60, TimeUnit.SECONDS);
-        indicesAdmin().prepareClose("test").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
 
         // try to open it with the broken setting - fail again!
-        ElasticsearchException ex = expectThrows(ElasticsearchException.class, indicesAdmin().prepareOpen("test"));
+        ElasticsearchException ex = expectThrows(ElasticsearchException.class, indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
         assertEquals(ex.getMessage(), "Failed to verify index " + metadata.getIndex());
         assertNotNull(ex.getCause());
         assertEquals(MapperParsingException.class, ex.getCause().getClass());

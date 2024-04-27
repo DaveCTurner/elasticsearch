@@ -84,7 +84,7 @@ public abstract class AbstractPausableIntegTestCase extends AbstractEsqlIntegTes
         mapping.endObject();
         client().admin()
             .indices()
-            .prepareCreate("test")
+            .prepareCreate(masterNodeTimeout, "test")
             .setSettings(Map.of("number_of_shards", 1, "number_of_replicas", 0))
             .setMapping(mapping.endObject())
             .get();

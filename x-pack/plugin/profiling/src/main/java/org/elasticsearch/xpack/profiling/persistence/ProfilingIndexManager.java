@@ -152,7 +152,7 @@ public class ProfilingIndexManager extends AbstractProfilingPersistenceManager<P
         logger.debug("rolling over to index [{}] for alias [{}].", newIndex, alias);
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            RolloverRequest request = new RolloverRequest(alias, newIndex);
+            RolloverRequest request = new RolloverRequest(masterNodeTimeout, alias, newIndex);
             request.masterNodeTimeout(TimeValue.timeValueMinutes(1));
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),

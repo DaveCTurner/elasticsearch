@@ -78,7 +78,7 @@ public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
         if (createIndexWithoutErrors) {
             Settings.Builder settings = Settings.builder().put("index.number_of_replicas", numberOfReplicas());
             logger.info("creating index: [test] using settings: [{}]", settings.build());
-            indicesAdmin().prepareCreate("test").setSettings(settings).setMapping(mapping).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(settings).setMapping(mapping).get();
             numInitialDocs = between(10, 100);
             ensureGreen();
             for (int i = 0; i < numInitialDocs; i++) {
@@ -86,8 +86,8 @@ public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
             }
             indicesAdmin().prepareRefresh("test").execute().get();
             indicesAdmin().prepareFlush("test").execute().get();
-            indicesAdmin().prepareClose("test").execute().get();
-            indicesAdmin().prepareOpen("test").execute().get();
+            indicesAdmin().prepareClose(masterNodeTimeout, "test").execute().get();
+            indicesAdmin().prepareOpen(masterNodeTimeout, "test").execute().get();
         } else {
             Settings.Builder settings = Settings.builder()
                 .put("index.number_of_replicas", randomIntBetween(0, 1))
@@ -96,7 +96,7 @@ public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
                 // we cannot expect that the index will be valid
                 .put(MockFSDirectoryFactory.RANDOM_IO_EXCEPTION_RATE_ON_OPEN_SETTING.getKey(), exceptionOnOpenRate);
             logger.info("creating index: [test] using settings: [{}]", settings.build());
-            indicesAdmin().prepareCreate("test").setSettings(settings).setMapping(mapping).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(settings).setMapping(mapping).get();
         }
         ClusterHealthResponse clusterHealthResponse = clusterAdmin()
             // it's OK to timeout here
@@ -192,8 +192,8 @@ public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
 
         if (createIndexWithoutErrors) {
             // check the index still contains the records that we indexed without errors
-            indicesAdmin().prepareClose("test").execute().get();
-            indicesAdmin().prepareOpen("test").execute().get();
+            indicesAdmin().prepareClose(masterNodeTimeout, "test").execute().get();
+            indicesAdmin().prepareOpen(masterNodeTimeout, "test").execute().get();
             ensureGreen();
             assertHitCountAndNoFailures(prepareSearch().setQuery(QueryBuilders.matchQuery("test", "init")), numInitialDocs);
         }

@@ -63,7 +63,7 @@ public class DateMathExpressionIntegTests extends SecurityIntegTestCase {
         Client client = client().filterWithHeader(Collections.singletonMap("Authorization", basicAuthHeaderValue("user1", USERS_PASSWD)));
 
         if (randomBoolean()) {
-            CreateIndexResponse response = client.admin().indices().prepareCreate(expression).get();
+            CreateIndexResponse response = client.admin().indices().prepareCreate(masterNodeTimeout, expression).get();
             assertThat(response.isAcknowledged(), is(true));
         }
         DocWriteResponse response = client.prepareIndex(expression)
@@ -105,7 +105,7 @@ public class DateMathExpressionIntegTests extends SecurityIntegTestCase {
         assertTrue(multiGetResponse.getResponses()[0].getResponse().isExists());
         assertEquals(expectedIndexName, multiGetResponse.getResponses()[0].getResponse().getIndex());
 
-        AcknowledgedResponse deleteIndexResponse = client.admin().indices().prepareDelete(expression).get();
+        AcknowledgedResponse deleteIndexResponse = client.admin().indices().prepareDelete(masterNodeTimeout, expression).get();
         assertThat(deleteIndexResponse.isAcknowledged(), is(true));
     }
 

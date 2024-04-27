@@ -15,7 +15,7 @@ import org.elasticsearch.common.settings.Settings;
 
 public class RolloverRequestBuilder extends MasterNodeOperationRequestBuilder<RolloverRequest, RolloverResponse, RolloverRequestBuilder> {
     public RolloverRequestBuilder(ElasticsearchClient client) {
-        super(client, RolloverAction.INSTANCE, new RolloverRequest());
+        super(client, RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout));
     }
 
     public RolloverRequestBuilder setRolloverTarget(String rolloverTarget) {

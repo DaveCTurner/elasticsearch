@@ -36,7 +36,11 @@ import static org.hamcrest.Matchers.nullValue;
 public class HiddenIndexIT extends ESIntegTestCase {
 
     public void testHiddenIndexSearch() {
-        assertAcked(indicesAdmin().prepareCreate("hidden-index").setSettings(Settings.builder().put("index.hidden", true).build()).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "hidden-index")
+                .setSettings(Settings.builder().put("index.hidden", true).build())
+                .get()
+        );
         prepareIndex("hidden-index").setSource("foo", "bar").setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
 
         // default not visible to wildcard expansion
@@ -66,7 +70,11 @@ public class HiddenIndexIT extends ESIntegTestCase {
         );
 
         // implicit based on use of pattern starting with . and a wildcard
-        assertAcked(indicesAdmin().prepareCreate(".hidden-index").setSettings(Settings.builder().put("index.hidden", true).build()).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, ".hidden-index")
+                .setSettings(Settings.builder().put("index.hidden", true).build())
+                .get()
+        );
         prepareIndex(".hidden-index").setSource("foo", "bar").setRefreshPolicy(RefreshPolicy.IMMEDIATE).get();
         assertResponse(prepareSearch(randomFrom(".*", ".hidden-*")).setSize(1000).setQuery(QueryBuilders.matchAllQuery()), response -> {
             boolean matchedHidden = Arrays.stream(response.getHits().getHits()).anyMatch(hit -> ".hidden-index".equals(hit.getIndex()));
@@ -94,7 +102,10 @@ public class HiddenIndexIT extends ESIntegTestCase {
             indicesAdmin().preparePutTemplate("unused_template").setPatterns(List.of("not_used")).setMapping("foobar", "type=text")
         );
 
-        assertAcked(indicesAdmin().prepareCreate("a_hidden_index").setSettings(Settings.builder().put("index.hidden", true).build()));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "a_hidden_index")
+                .setSettings(Settings.builder().put("index.hidden", true).build())
+        );
 
         GetMappingsResponse mappingsResponse = indicesAdmin().prepareGetMappings("a_hidden_index").get();
         assertThat(mappingsResponse.mappings().size(), is(1));
@@ -131,7 +142,7 @@ public class HiddenIndexIT extends ESIntegTestCase {
                 .setMapping("foo", "type=text")
                 .setSettings(Settings.builder().put("index.hidden", true).build())
         );
-        assertAcked(indicesAdmin().prepareCreate("my_hidden_pattern1").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my_hidden_pattern1").get());
         GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings("my_hidden_pattern1").get();
         assertThat(getSettingsResponse.getSetting("my_hidden_pattern1", "index.hidden"), is("true"));
     }
@@ -142,7 +153,11 @@ public class HiddenIndexIT extends ESIntegTestCase {
         final String hiddenAlias = "alias-hidden";
         final String dotHiddenAlias = ".alias-hidden";
 
-        assertAcked(indicesAdmin().prepareCreate(hiddenIndex).setSettings(Settings.builder().put("index.hidden", true).build()).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, hiddenIndex)
+                .setSettings(Settings.builder().put("index.hidden", true).build())
+                .get()
+        );
 
         assertAcked(
             indicesAdmin().prepareAliases(masterNodeTimeout)

@@ -227,7 +227,7 @@ public class UpdateMappingTests extends ESSingleNodeTestCase {
     }
 
     public void testMappingVersion() {
-        createIndex("test", client().admin().indices().prepareCreate("test"));
+        createIndex("test", client().admin().indices().prepareCreate(masterNodeTimeout, "test"));
         final ClusterService clusterService = getInstanceFromNode(ClusterService.class);
         {
             final long previousVersion = clusterService.state().metadata().index("test").getMappingVersion();

@@ -53,7 +53,7 @@ public class ConnectorSecretsIndexService {
      * @return The {@link SystemIndexDescriptor} for the Connector Secrets system index.
      */
     public static SystemIndexDescriptor getSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
 
         String templateSource = TemplateUtils.loadTemplate(
             "/connector-secrets.json",

@@ -79,7 +79,8 @@ public class DownsampleDataStreamTests extends ESSingleNodeTestCase {
         putComposableIndexTemplate("1", List.of(dataStreamName));
         client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)).actionGet();
         indexDocs(dataStreamName, 10, Instant.now().toEpochMilli());
-        final RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get();
+        final RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null))
+            .get();
         // NOTE: here we calculate a delay to index documents because the next data stream write index is created with a start time of
         // (about) two hours in the future. As a result, we need to have documents whose @timestamp is in the future to avoid documents
         // being indexed in the old data stream backing index.

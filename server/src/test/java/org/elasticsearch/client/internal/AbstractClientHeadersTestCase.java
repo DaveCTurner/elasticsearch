@@ -126,7 +126,7 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
         // choosing arbitrary indices admin actions to test
         client.admin()
             .indices()
-            .prepareCreate("idx")
+            .prepareCreate(masterNodeTimeout, "idx")
             .execute(new AssertingActionListener<>(TransportCreateIndexAction.TYPE.name(), client.threadPool()));
         client.admin().indices().prepareStats().execute(new AssertingActionListener<>(IndicesStatsAction.NAME, client.threadPool()));
         client.admin()
@@ -152,7 +152,7 @@ public abstract class AbstractClientHeadersTestCase extends ESTestCase {
 
         client.admin()
             .indices()
-            .prepareCreate("idx")
+            .prepareCreate(masterNodeTimeout, "idx")
             .execute(new AssertingActionListener<>(TransportCreateIndexAction.TYPE.name(), expected, client.threadPool()));
     }
 

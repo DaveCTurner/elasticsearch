@@ -56,7 +56,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
 
         final boolean closed = randomBoolean();
         if (closed) {
-            assertAcked(indicesAdmin().prepareClose("test"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
             ensureGreen("test");
         }
 
@@ -76,7 +76,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
         }
 
         if (closed) {
-            assertAcked(indicesAdmin().prepareOpen("test"));
+            assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
         }
 
         indicesAdmin().prepareRefresh().get();
@@ -137,7 +137,7 @@ public class FilteringAllocationIT extends ESIntegTestCase {
 
         final boolean closed = randomBoolean();
         if (closed) {
-            assertAcked(indicesAdmin().prepareClose("test"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
             ensureGreen("test");
         }
 
@@ -208,11 +208,11 @@ public class FilteringAllocationIT extends ESIntegTestCase {
             Strings.collectionToCommaDelimitedString(includeNodes)
         );
         ensureStableCluster(6);
-        indicesAdmin().prepareCreate("test").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").get();
         ensureGreen("test");
 
         if (randomBoolean()) {
-            assertAcked(indicesAdmin().prepareClose("test"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
         }
 
         Settings exclude = Settings.builder()

@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.cluster.metadata.IndexMetadata.APIBlock;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for add index block request
@@ -21,7 +22,7 @@ public class AddIndexBlockRequestBuilder extends AcknowledgedRequestBuilder<
     AddIndexBlockResponse,
     AddIndexBlockRequestBuilder> {
 
-    public AddIndexBlockRequestBuilder(ElasticsearchClient client, APIBlock block, String... indices) {
+    public AddIndexBlockRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, APIBlock block, String... indices) {
         super(client, TransportAddIndexBlockAction.TYPE, new AddIndexBlockRequest(masterNodeTimeout, block, indices));
     }
 

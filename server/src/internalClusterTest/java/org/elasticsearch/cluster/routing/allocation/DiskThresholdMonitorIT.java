@@ -67,7 +67,7 @@ public class DiskThresholdMonitorIT extends DiskUsageIntegTestCase {
                 .build()
         );
         // ensure we have a system index on the data node too.
-        assertAcked(indicesAdmin().prepareCreate(TaskResultsService.TASK_INDEX));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, TaskResultsService.TASK_INDEX));
 
         getTestFileStore(dataNodeName).setTotalSpace(1L);
         refreshClusterInfo();
@@ -119,7 +119,7 @@ public class DiskThresholdMonitorIT extends DiskUsageIntegTestCase {
                 .build()
         );
         // ensure we have a system index on the data node too.
-        assertAcked(indicesAdmin().prepareCreate(TaskResultsService.TASK_INDEX));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, TaskResultsService.TASK_INDEX));
 
         getTestFileStore(dataNodeName).setTotalSpace(1L);
         refreshClusterInfo();

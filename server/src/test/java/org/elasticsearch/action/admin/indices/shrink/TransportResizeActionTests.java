@@ -82,7 +82,7 @@ public class TransportResizeActionTests extends ESTestCase {
             expectThrows(
                 IllegalStateException.class,
                 () -> TransportResizeAction.prepareCreateIndexRequest(
-                    new ResizeRequest("target", "source"),
+                    new ResizeRequest(masterNodeTimeout, "target", "source"),
                     state,
                     "target",
                     new ResizeNumberOfShardsCalculator.ShrinkShardsCalculator(
@@ -94,7 +94,7 @@ public class TransportResizeActionTests extends ESTestCase {
         );
 
         assertTrue(expectThrows(IllegalStateException.class, () -> {
-            ResizeRequest req = new ResizeRequest("target", "source");
+            ResizeRequest req = new ResizeRequest(masterNodeTimeout, "target", "source");
             req.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_shards", 4));
             TransportResizeAction.prepareCreateIndexRequest(
                 req,
@@ -108,7 +108,7 @@ public class TransportResizeActionTests extends ESTestCase {
         }).getMessage().startsWith("Can't merge index with more than [2147483519] docs - too many documents in shards "));
 
         IllegalArgumentException softDeletesError = expectThrows(IllegalArgumentException.class, () -> {
-            ResizeRequest req = new ResizeRequest("target", "source");
+            ResizeRequest req = new ResizeRequest(masterNodeTimeout, "target", "source");
             req.getTargetIndexRequest().settings(Settings.builder().put("index.soft_deletes.enabled", false));
             TransportResizeAction.prepareCreateIndexRequest(
                 req,
@@ -147,7 +147,7 @@ public class TransportResizeActionTests extends ESTestCase {
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
 
         TransportResizeAction.prepareCreateIndexRequest(
-            new ResizeRequest("target", "source"),
+            new ResizeRequest(masterNodeTimeout, "target", "source"),
             clusterState.metadata().index("source"),
             "target",
             new ResizeNumberOfShardsCalculator.ShrinkShardsCalculator(
@@ -176,7 +176,7 @@ public class TransportResizeActionTests extends ESTestCase {
         routingTable = ESAllocationTestCase.startInitializingShardsAndReroute(service, clusterState, "source").routingTable();
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
 
-        ResizeRequest resizeRequest = new ResizeRequest("target", "source");
+        ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, "target", "source");
         resizeRequest.setResizeType(ResizeType.SPLIT);
         resizeRequest.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_shards", 2).build());
         IndexMetadata indexMetadata = clusterState.metadata().index("source");
@@ -219,7 +219,7 @@ public class TransportResizeActionTests extends ESTestCase {
         routingTable = ESAllocationTestCase.startInitializingShardsAndReroute(service, clusterState, "source").routingTable();
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
 
-        ResizeRequest resizeRequest = new ResizeRequest("target", "source");
+        ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, "target", "source");
         resizeRequest.setResizeType(ResizeType.SPLIT);
         resizeRequest.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_shards", numShards * 2).build());
         TransportResizeAction.prepareCreateIndexRequest(
@@ -268,7 +268,7 @@ public class TransportResizeActionTests extends ESTestCase {
         clusterState = ClusterState.builder(clusterState).routingTable(routingTable).build();
         int numSourceShards = clusterState.metadata().index(indexName).getNumberOfShards();
         DocsStats stats = new DocsStats(between(0, (IndexWriter.MAX_DOCS) / numSourceShards), between(1, 1000), between(1, 10000));
-        ResizeRequest target = new ResizeRequest("target", indexName);
+        ResizeRequest target = new ResizeRequest(masterNodeTimeout, "target", indexName);
         final ActiveShardCount activeShardCount = randomBoolean() ? ActiveShardCount.ALL : ActiveShardCount.ONE;
         target.setWaitForActiveShards(activeShardCount);
         CreateIndexClusterStateUpdateRequest request = TransportResizeAction.prepareCreateIndexRequest(
@@ -295,7 +295,7 @@ public class TransportResizeActionTests extends ESTestCase {
             randomIntBetween(0, 10),
             Settings.builder().put("index.blocks.write", true).build()
         ).metadata().index("source");
-        ResizeRequest resizeRequest = new ResizeRequest("target", "source");
+        ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, "target", "source");
         resizeRequest.setMaxPrimaryShardSize(ByteSizeValue.ofBytes(10));
         resizeRequest.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_shards", 2).build());
         assertTrue(
@@ -335,7 +335,7 @@ public class TransportResizeActionTests extends ESTestCase {
         DocsStats stats = new DocsStats(between(0, (IndexWriter.MAX_DOCS) / numSourceShards), between(1, 1000), between(1, 10000));
 
         // each shard's storage will not be greater than the `max_primary_shard_size`
-        ResizeRequest target1 = new ResizeRequest("target", "source");
+        ResizeRequest target1 = new ResizeRequest(masterNodeTimeout, "target", "source");
         target1.setMaxPrimaryShardSize(ByteSizeValue.ofBytes(2));
         StoreStats storeStats = new StoreStats(10, between(0, 100), between(1, 100));
         final int targetIndexShardsNum1 = 5;
@@ -356,7 +356,7 @@ public class TransportResizeActionTests extends ESTestCase {
 
         // if `max_primary_shard_size` is less than the single shard size of the source index,
         // the shards number of the target index will be equal to the source index's shards number
-        ResizeRequest target2 = new ResizeRequest("target2", "source");
+        ResizeRequest target2 = new ResizeRequest(masterNodeTimeout, "target2", "source");
         target2.setMaxPrimaryShardSize(ByteSizeValue.ofBytes(1));
         StoreStats storeStats2 = new StoreStats(100, between(0, 100), between(1, 100));
         final int targetIndexShardsNum2 = 10;

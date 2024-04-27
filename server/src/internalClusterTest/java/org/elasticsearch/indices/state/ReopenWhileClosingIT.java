@@ -66,12 +66,12 @@ public class ReopenWhileClosingIT extends ESIntegTestCase {
         final CountDownLatch block = new CountDownLatch(1);
         final Releasable releaseBlock = interceptVerifyShardBeforeCloseActions(indexName, block::countDown);
 
-        ActionFuture<CloseIndexResponse> closeIndexResponse = indicesAdmin().prepareClose(indexName).execute();
+        ActionFuture<CloseIndexResponse> closeIndexResponse = indicesAdmin().prepareClose(masterNodeTimeout, indexName).execute();
         assertTrue("Waiting for index to have a closing blocked", block.await(60, TimeUnit.SECONDS));
         assertIndexIsBlocked(indexName);
         assertFalse(closeIndexResponse.isDone());
 
-        assertAcked(indicesAdmin().prepareOpen(indexName));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, indexName));
 
         releaseBlock.close();
         assertFalse(closeIndexResponse.get().isAcknowledged());
@@ -91,13 +91,13 @@ public class ReopenWhileClosingIT extends ESIntegTestCase {
         final CountDownLatch block = new CountDownLatch(1);
         final Releasable releaseBlock = interceptVerifyShardBeforeCloseActions(randomFrom(indices), block::countDown);
 
-        ActionFuture<CloseIndexResponse> closeIndexResponse = indicesAdmin().prepareClose("index-*").execute();
+        ActionFuture<CloseIndexResponse> closeIndexResponse = indicesAdmin().prepareClose(masterNodeTimeout, "index-*").execute();
         assertTrue("Waiting for index to have a closing blocked", block.await(60, TimeUnit.SECONDS));
         assertFalse(closeIndexResponse.isDone());
         indices.forEach(ReopenWhileClosingIT::assertIndexIsBlocked);
 
         final List<String> reopenedIndices = randomSubsetOf(randomIntBetween(1, indices.size()), indices);
-        assertAcked(indicesAdmin().prepareOpen(reopenedIndices.toArray(Strings.EMPTY_ARRAY)));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, reopenedIndices.toArray(Strings.EMPTY_ARRAY)));
 
         releaseBlock.close();
         assertFalse(closeIndexResponse.get().isAcknowledged());

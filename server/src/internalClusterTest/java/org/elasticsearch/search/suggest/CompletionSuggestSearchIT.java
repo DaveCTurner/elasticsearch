@@ -657,7 +657,7 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
             .get();
         ensureGreen(INDEX);
 
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(INDEX)
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, INDEX)
             .setSource(
                 jsonBuilder().startObject()
                     .startObject("_doc")
@@ -909,9 +909,9 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
 
     public void testThatStatsAreWorking() throws Exception {
         String otherField = "testOtherField";
-        indicesAdmin().prepareCreate(INDEX).setSettings(indexSettings(2, 0)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, INDEX).setSettings(indexSettings(2, 0)).get();
         ensureGreen();
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(INDEX)
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, INDEX)
             .setSource(
                 jsonBuilder().startObject()
                     .startObject("_doc")
@@ -1248,7 +1248,9 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
         mapping = mapping.endObject().endObject().endObject().endObject();
 
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX).setSettings(Settings.builder().put(indexSettings()).put(settings)).setMapping(mapping)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
+                .setSettings(Settings.builder().put(indexSettings()).put(settings))
+                .setMapping(mapping)
         );
     }
 
@@ -1289,7 +1291,7 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
     // see #3596
     public void testVeryLongInput() throws IOException {
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("_doc")
@@ -1316,7 +1318,7 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
     // see #3648
     public void testReservedChars() throws IOException {
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("_doc")
@@ -1351,7 +1353,7 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
     // see #5930
     public void testIssue5930() throws IOException {
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("_doc")
@@ -1471,7 +1473,9 @@ public class CompletionSuggestSearchIT extends ESIntegTestCase {
 
         String index = "test";
         assertAcked(
-            indicesAdmin().prepareCreate(index).setSettings(Settings.builder().put("index.number_of_shards", 2)).setMapping(mapping)
+            indicesAdmin().prepareCreate(masterNodeTimeout, index)
+                .setSettings(Settings.builder().put("index.number_of_shards", 2))
+                .setMapping(mapping)
         );
 
         int numDocs = 2;

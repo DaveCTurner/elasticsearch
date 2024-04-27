@@ -150,7 +150,7 @@ public class EnrichIT extends AbstractEsqlIntegTestCase {
     public void setupEnrichPolicies() {
         client().admin()
             .indices()
-            .prepareCreate("songs")
+            .prepareCreate(masterNodeTimeout, "songs")
             .setMapping("song_id", "type=keyword", "title", "type=keyword", "artist", "type=keyword", "length", "type=double")
             .get();
         record Song(String id, String title, String artist, double length) {
@@ -168,7 +168,7 @@ public class EnrichIT extends AbstractEsqlIntegTestCase {
         client().admin().indices().prepareRefresh("songs").get();
         client().execute(PutEnrichPolicyAction.INSTANCE, new PutEnrichPolicyAction.Request("songs", policy)).actionGet();
         client().execute(ExecuteEnrichPolicyAction.INSTANCE, new ExecuteEnrichPolicyAction.Request("songs")).actionGet();
-        assertAcked(client().admin().indices().prepareDelete("songs"));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, "songs"));
     }
 
     @After
@@ -190,7 +190,7 @@ public class EnrichIT extends AbstractEsqlIntegTestCase {
         );
         client().admin()
             .indices()
-            .prepareCreate("listens")
+            .prepareCreate(masterNodeTimeout, "listens")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
             .setMapping("timestamp", "type=long", "song_id", "type=keyword", "duration", "type=double")
             .get();
@@ -393,7 +393,7 @@ public class EnrichIT extends AbstractEsqlIntegTestCase {
         var artists = Map.of("s1", "Eagles", "s2", "Linkin Park", "s3", "Linkin Park", "s4", "Disturbed");
         client().admin()
             .indices()
-            .prepareCreate("many_docs")
+            .prepareCreate(masterNodeTimeout, "many_docs")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
             .setMapping("song_id", "type=keyword")
             .get();

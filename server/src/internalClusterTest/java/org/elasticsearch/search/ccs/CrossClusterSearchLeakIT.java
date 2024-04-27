@@ -69,7 +69,7 @@ public class CrossClusterSearchLeakIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client(LOCAL_CLUSTER).admin()
                 .indices()
-                .prepareCreate("demo")
+                .prepareCreate(masterNodeTimeout, "demo")
                 .setMapping("f", "type=keyword")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 3)))
         );
@@ -98,7 +98,7 @@ public class CrossClusterSearchLeakIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client("cluster_a").admin()
                 .indices()
-                .prepareCreate("prod")
+                .prepareCreate(masterNodeTimeout, "prod")
                 .setMapping("f", "type=keyword")
                 .setSettings(
                     Settings.builder()

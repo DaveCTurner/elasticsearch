@@ -39,7 +39,9 @@ public class ClusterSearchShardsIT extends ESIntegTestCase {
     }
 
     public void testSingleShardAllocation() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 0).put("index.routing.allocation.include.tag", "A")).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+            .setSettings(indexSettings(1, 0).put("index.routing.allocation.include.tag", "A"))
+            .get();
         ensureGreen();
         ClusterSearchShardsResponse response = clusterAdmin().prepareSearchShards("test").get();
         assertThat(response.getGroups().length, equalTo(1));
@@ -60,7 +62,9 @@ public class ClusterSearchShardsIT extends ESIntegTestCase {
     }
 
     public void testMultipleShardsSingleNodeAllocation() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(indexSettings(4, 0).put("index.routing.allocation.include.tag", "A")).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+            .setSettings(indexSettings(4, 0).put("index.routing.allocation.include.tag", "A"))
+            .get();
         ensureGreen();
 
         ClusterSearchShardsResponse response = clusterAdmin().prepareSearchShards("test").get();

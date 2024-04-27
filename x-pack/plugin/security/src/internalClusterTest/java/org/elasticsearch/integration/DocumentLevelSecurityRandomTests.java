@@ -92,7 +92,7 @@ public class DocumentLevelSecurityRandomTests extends SecurityIntegTestCase {
     }
 
     public void testDuelWithAliasFilters() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=text", "field2", "type=text"));
 
         List<IndexRequestBuilder> requests = new ArrayList<>(numberOfRoles);
         IndicesAliasesRequestBuilder builder = indicesAdmin().prepareAliases(masterNodeTimeout);

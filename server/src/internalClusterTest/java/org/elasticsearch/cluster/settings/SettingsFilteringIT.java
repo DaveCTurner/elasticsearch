@@ -70,7 +70,7 @@ public class SettingsFilteringIT extends ESIntegTestCase {
 
     public void testSettingsFiltering() {
         assertAcked(
-            indicesAdmin().prepareCreate("test-idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx")
                 .setSettings(
                     Settings.builder()
                         .put("filter_test.foo", "test")

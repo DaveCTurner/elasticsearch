@@ -128,7 +128,7 @@ public class SecurityFeatureStateIntegTests extends AbstractPrivilegeTestCase {
             containsString("action [" + TransportIndexAction.NAME + "] is unauthorized for user [" + LOCAL_TEST_USER_NAME + "]")
         );
 
-        client().admin().indices().prepareClose("test_index").get();
+        client().admin().indices().prepareClose(masterNodeTimeout, "test_index").get();
 
         // restore state
         clusterAdmin().prepareRestoreSnapshot(repositoryName, snapshotName)

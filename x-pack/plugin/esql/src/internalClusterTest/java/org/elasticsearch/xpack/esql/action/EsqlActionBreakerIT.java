@@ -114,7 +114,7 @@ public class EsqlActionBreakerIT extends EsqlActionIT {
     public void testBreaker() {
         client().admin()
             .indices()
-            .prepareCreate("test_breaker")
+            .prepareCreate(masterNodeTimeout, "test_breaker")
             .setMapping("foo", "type=keyword", "bar", "type=keyword")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).put("index.routing.rebalance.enable", "none"))
             .get();

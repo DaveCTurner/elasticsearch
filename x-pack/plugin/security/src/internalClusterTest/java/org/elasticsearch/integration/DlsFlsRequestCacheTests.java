@@ -351,21 +351,28 @@ public class DlsFlsRequestCacheTests extends SecuritySingleNodeTestCase {
         assertAcked(client.admin().cluster().preparePutStoredScript().setId("my-script").setContent(new BytesArray("""
             {"script":{"source":"{\\"match\\":{\\"username\\":\\"{{_user.username}}\\"}}","lang":"mustache"}}"""), XContentType.JSON));
 
-        assertAcked(indicesAdmin().prepareCreate(DLS_INDEX).addAlias(new Alias("dls-alias")).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, DLS_INDEX).addAlias(new Alias("dls-alias")).get());
         client.prepareIndex(DLS_INDEX).setId("101").setSource("number", 101, "letter", "A").get();
         client.prepareIndex(DLS_INDEX).setId("102").setSource("number", 102, "letter", "B").get();
 
-        assertAcked(indicesAdmin().prepareCreate(FLS_INDEX).addAlias(new Alias("fls-alias")).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, FLS_INDEX).addAlias(new Alias("fls-alias")).get());
         client.prepareIndex(FLS_INDEX).setId("201").setSource("public", "X", "private", "x").get();
         client.prepareIndex(FLS_INDEX).setId("202").setSource("public", "Y", "private", "y").get();
 
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX).addAlias(new Alias(ALIAS1)).addAlias(new Alias(ALIAS2)).addAlias(new Alias(ALL_ALIAS))
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
+                .addAlias(new Alias(ALIAS1))
+                .addAlias(new Alias(ALIAS2))
+                .addAlias(new Alias(ALL_ALIAS))
         );
         client.prepareIndex(INDEX).setId("1").setSource("number", 1, "letter", "a", "private", "sesame_1", "public", "door_1").get();
         client.prepareIndex(INDEX).setId("2").setSource("number", 2, "letter", "b", "private", "sesame_2", "public", "door_2").get();
 
-        assertAcked(indicesAdmin().prepareCreate(DLS_TEMPLATE_ROLE_QUERY_INDEX).addAlias(new Alias(DLS_TEMPLATE_ROLE_QUERY_ALIAS)).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, DLS_TEMPLATE_ROLE_QUERY_INDEX)
+                .addAlias(new Alias(DLS_TEMPLATE_ROLE_QUERY_ALIAS))
+                .get()
+        );
         client.prepareIndex(DLS_TEMPLATE_ROLE_QUERY_INDEX).setId("1").setSource("username", DLS_TEMPLATE_ROLE_QUERY_USER_1).get();
         client.prepareIndex(DLS_TEMPLATE_ROLE_QUERY_INDEX).setId("2").setSource("username", DLS_TEMPLATE_ROLE_QUERY_USER_2).get();
 

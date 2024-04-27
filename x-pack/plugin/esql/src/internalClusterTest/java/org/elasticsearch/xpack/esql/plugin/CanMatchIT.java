@@ -47,7 +47,7 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
         ElasticsearchAssertions.assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("events_2022")
+                .prepareCreate(masterNodeTimeout, "events_2022")
                 .setMapping("@timestamp", "type=date,format=yyyy-MM-dd", "uid", "type=keyword")
         );
         client().prepareBulk("events_2022")
@@ -57,7 +57,10 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
             .add(new IndexRequest().source("@timestamp", "2022-12-15", "uid", "u1"))
             .get();
         ElasticsearchAssertions.assertAcked(
-            client().admin().indices().prepareCreate("events_2023").setMapping("@timestamp", "type=date", "uid", "type=keyword")
+            client().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "events_2023")
+                .setMapping("@timestamp", "type=date", "uid", "type=keyword")
         );
         client().prepareBulk("events_2023")
             .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
@@ -124,7 +127,7 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
         ElasticsearchAssertions.assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("employees")
+                .prepareCreate(masterNodeTimeout, "employees")
                 .setMapping("emp_no", "type=long", "dept", "type=keyword", "hired", "type=date,format=yyyy-MM-dd", "salary", "type=double")
         );
         client().prepareBulk("employees")
@@ -212,7 +215,7 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
         ElasticsearchAssertions.assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("events")
+                .prepareCreate(masterNodeTimeout, "events")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)
@@ -229,7 +232,7 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
         ElasticsearchAssertions.assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("logs")
+                .prepareCreate(masterNodeTimeout, "logs")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0)

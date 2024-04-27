@@ -89,7 +89,7 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
         // before we rollover we update the index template to remove the start/end time boundaries (they're there just to ease with
         // testing so DSL doesn't have to wait for the end_time to lapse)
         putTSDBIndexTemplate(client(), dataStreamName, null, null, lifecycle);
-        client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+        client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
         // DSL runs every second and it has to tail forcemerge the index (2 seconds) and mark it as read-only (2s) before it starts
         // downsampling. This sleep here tries to get as close as possible to having disruption during the downsample execution.
@@ -110,7 +110,9 @@ public class DataStreamLifecycleDownsampleDisruptionIT extends ESIntegTestCase {
                 GetSettingsResponse getSettingsResponse = cluster.client()
                     .admin()
                     .indices()
-                    .getSettings(new GetSettingsRequest().indices(targetIndex).indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN))
+                    .getSettings(
+                        new GetSettingsRequest(masterNodeTimeout).indices(targetIndex).indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN)
+                    )
                     .actionGet();
                 Settings indexSettings = getSettingsResponse.getIndexToSettings().get(targetIndex);
                 assertThat(indexSettings, is(notNullValue()));

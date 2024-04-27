@@ -75,7 +75,7 @@ public class ReloadAnalyzerTests extends ESSingleNodeTestCase {
         final Path synonymsFile = setupResourceFile(synonymsFileName, "foo, baz");
 
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX_NAME)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME)
                 .setSettings(
                     indexSettings(5, 0).put("analysis.analyzer." + SYNONYM_ANALYZER_NAME + ".tokenizer", "standard")
                         .putList("analysis.analyzer." + SYNONYM_ANALYZER_NAME + ".filter", "lowercase", "synonym_filter")
@@ -148,7 +148,7 @@ public class ReloadAnalyzerTests extends ESSingleNodeTestCase {
         final String INDEX_NAME = "test";
         final String SYNONYM_ANALYZER_NAME = "synonym_in_multiplexer_analyzer";
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX_NAME)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME)
                 .setSettings(
                     indexSettings(5, 0).put("analysis.analyzer." + SYNONYM_ANALYZER_NAME + ".tokenizer", "whitespace")
                         .putList("analysis.analyzer." + SYNONYM_ANALYZER_NAME + ".filter", "my_multiplexer")
@@ -227,7 +227,7 @@ public class ReloadAnalyzerTests extends ESSingleNodeTestCase {
 
         MapperException ex = expectThrows(
             MapperException.class,
-            () -> indicesAdmin().prepareCreate(INDEX_NAME)
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME)
                 .setSettings(
                     indexSettings(5, 0).put("analysis.analyzer." + analyzerName + ".tokenizer", "standard")
                         .putList("analysis.analyzer." + analyzerName + ".filter", "lowercase", "synonym_filter")
@@ -248,7 +248,7 @@ public class ReloadAnalyzerTests extends ESSingleNodeTestCase {
         // same for synonym filters in multiplexer chain
         ex = expectThrows(
             MapperException.class,
-            () -> indicesAdmin().prepareCreate(INDEX_NAME)
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME)
                 .setSettings(
                     indexSettings(5, 0).put("analysis.analyzer." + analyzerName + ".tokenizer", "whitespace")
                         .putList("analysis.analyzer." + analyzerName + ".filter", "my_multiplexer")
@@ -276,7 +276,7 @@ public class ReloadAnalyzerTests extends ESSingleNodeTestCase {
         final String INDEX_NAME = "test";
         final String analyzerName = "keyword_maker_analyzer";
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX_NAME)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME)
                 .setSettings(
                     indexSettings(5, 0).put("analysis.analyzer." + analyzerName + ".tokenizer", "whitespace")
                         .putList("analysis.analyzer." + analyzerName + ".filter", "keyword_marker_filter", "stemmer")

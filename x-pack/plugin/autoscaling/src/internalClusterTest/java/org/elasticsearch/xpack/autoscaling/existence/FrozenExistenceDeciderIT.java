@@ -108,7 +108,7 @@ public class FrozenExistenceDeciderIT extends AbstractFrozenAutoscalingIntegTest
             .put(SETTING_NUMBER_OF_REPLICAS, 1)
             .put(LifecycleSettings.LIFECYCLE_NAME, "policy")
             .build();
-        CreateIndexResponse res = indicesAdmin().prepareCreate(INDEX_NAME).setSettings(settings).get();
+        CreateIndexResponse res = indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME).setSettings(settings).get();
         assertTrue(res.isAcknowledged());
         logger.info("-> created index");
 

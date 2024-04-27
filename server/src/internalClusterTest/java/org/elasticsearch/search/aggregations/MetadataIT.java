@@ -26,7 +26,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFa
 public class MetadataIT extends ESIntegTestCase {
 
     public void testMetadataSetOnAggregationResult() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("idx").setMapping("name", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "idx").setMapping("name", "type=keyword").get());
         IndexRequestBuilder[] builders = new IndexRequestBuilder[randomInt(30)];
         for (int i = 0; i < builders.length; i++) {
             String name = "name_" + randomIntBetween(1, 10);

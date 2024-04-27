@@ -278,7 +278,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
 
         // Remove the index and alias...
         assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).removeAlias(concreteIndex, INDEX_NAME).get());
-        assertAcked(indicesAdmin().prepareDelete(concreteIndex));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, concreteIndex));
 
         // ...so that we can check that the they will still be auto-created again,
         // but this time with updated settings
@@ -370,8 +370,9 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
 
         assertThat(sourceAsMap, equalTo(XContentHelper.convertToMap(XContentType.JSON.xContent(), expectedMappings, false)));
 
-        final GetSettingsResponse getSettingsResponse = indicesAdmin().getSettings(new GetSettingsRequest().indices(INDEX_NAME))
-            .actionGet();
+        final GetSettingsResponse getSettingsResponse = indicesAdmin().getSettings(
+            new GetSettingsRequest(masterNodeTimeout).indices(INDEX_NAME)
+        ).actionGet();
 
         final Settings actual = getSettingsResponse.getIndexToSettings().get(concreteIndex);
 

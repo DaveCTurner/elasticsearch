@@ -453,7 +453,11 @@ public class JobResultsProvider {
 
         try (XContentBuilder termFieldsMapping = JsonXContent.contentBuilder()) {
             createTermFieldsMapping(termFieldsMapping, termFields);
-            final PutMappingRequest request = client.admin().indices().preparePutMapping(indexName).setSource(termFieldsMapping).request();
+            final PutMappingRequest request = client.admin()
+                .indices()
+                .preparePutMapping(masterNodeTimeout, indexName)
+                .setSource(termFieldsMapping)
+                .request();
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
                 ML_ORIGIN,

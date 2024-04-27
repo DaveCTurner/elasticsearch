@@ -206,7 +206,10 @@ public class SamlServiceProviderIndex implements Closeable {
             return;
         }
         final String template = TemplateUtils.loadTemplate(TEMPLATE_RESOURCE, Version.CURRENT.toString(), TEMPLATE_VERSION_SUBSTITUTE);
-        final PutIndexTemplateRequest request = new PutIndexTemplateRequest(TEMPLATE_NAME).source(template, XContentType.JSON);
+        final PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout, TEMPLATE_NAME).source(
+            template,
+            XContentType.JSON
+        );
         client.admin().indices().putTemplate(request, listener.delegateFailureAndWrap((l, response) -> {
             logger.info("Installed template [{}]", TEMPLATE_NAME);
             l.onResponse(true);

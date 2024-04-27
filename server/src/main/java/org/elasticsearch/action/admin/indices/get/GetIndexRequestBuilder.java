@@ -11,10 +11,11 @@ package org.elasticsearch.action.admin.indices.get;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest.Feature;
 import org.elasticsearch.action.support.master.info.ClusterInfoRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class GetIndexRequestBuilder extends ClusterInfoRequestBuilder<GetIndexRequest, GetIndexResponse, GetIndexRequestBuilder> {
 
-    public GetIndexRequestBuilder(ElasticsearchClient client, String... indices) {
+    public GetIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... indices) {
         super(client, GetIndexAction.INSTANCE, new GetIndexRequest(masterNodeTimeout).indices(indices));
     }
 

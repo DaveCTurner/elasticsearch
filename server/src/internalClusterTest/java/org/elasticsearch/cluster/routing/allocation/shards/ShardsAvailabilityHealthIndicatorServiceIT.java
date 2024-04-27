@@ -76,9 +76,9 @@ public class ShardsAvailabilityHealthIndicatorServiceIT extends ESIntegTestCase 
         );
         clusterAdmin().prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(true).get();
         if (randomBoolean()) {
-            assertAcked(indicesAdmin().prepareDelete(index));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, index));
         } else {
-            assertAcked(indicesAdmin().prepareClose(index));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, index));
         }
         ensureGreen();
 
@@ -115,9 +115,9 @@ public class ShardsAvailabilityHealthIndicatorServiceIT extends ESIntegTestCase 
         ensureGreen(index);
 
         assertHealthDuring(equalTo(GREEN), () -> {
-            indicesAdmin().prepareClose(index).get();
+            indicesAdmin().prepareClose(masterNodeTimeout, index).get();
             ensureGreen(index);
-            indicesAdmin().prepareClose(index).get();
+            indicesAdmin().prepareClose(masterNodeTimeout, index).get();
             ensureGreen(index);
         });
     }

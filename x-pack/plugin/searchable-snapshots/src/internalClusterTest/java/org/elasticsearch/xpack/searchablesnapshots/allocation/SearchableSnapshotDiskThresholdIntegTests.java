@@ -205,7 +205,7 @@ public class SearchableSnapshotDiskThresholdIntegTests extends DiskUsageIntegTes
         createSnapshot(repositoryName, snapshot, nbIndices);
 
         final Map<String, Long> indicesStoresSizes = sizeOfShardsStores("index-*");
-        assertAcked(indicesAdmin().prepareDelete("index-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*"));
 
         // The test completes reliably successfully only when we do a full copy, we can overcommit on SHARED_CACHE
         final Storage storage = FULL_COPY;
@@ -286,7 +286,7 @@ public class SearchableSnapshotDiskThresholdIntegTests extends DiskUsageIntegTes
         createSnapshot(repositoryName, snapshotName, nbIndices);
 
         Map<String, Long> indicesStoresSizes = sizeOfShardsStores("index-*");
-        assertAcked(indicesAdmin().prepareDelete("index-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*"));
 
         String coldNodeName = internalCluster().startNode(
             Settings.builder().put(NodeRoleSettings.NODE_ROLES_SETTING.getKey(), DiscoveryNodeRole.DATA_COLD_NODE_ROLE.roleName()).build()

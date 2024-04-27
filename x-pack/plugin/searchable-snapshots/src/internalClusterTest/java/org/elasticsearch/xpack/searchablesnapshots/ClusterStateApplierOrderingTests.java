@@ -58,7 +58,7 @@ public class ClusterStateApplierOrderingTests extends BaseSearchableSnapshotsInt
         assertThat(snapshotInfo.successfulShards(), greaterThan(0));
         assertThat(snapshotInfo.successfulShards(), equalTo(snapshotInfo.totalShards()));
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         Settings.Builder indexSettingsBuilder = Settings.builder()
             .put(SearchableSnapshots.SNAPSHOT_CACHE_ENABLED_SETTING.getKey(), false)

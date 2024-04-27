@@ -576,7 +576,7 @@ public class AsyncSearchActionIT extends AsyncSearchIntegTestCase {
         }
 
         // remove the async search index
-        indicesAdmin().prepareDelete(XPackPlugin.ASYNC_RESULTS_INDEX).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, XPackPlugin.ASYNC_RESULTS_INDEX).get();
 
         Exception exc = expectThrows(Exception.class, () -> getAsyncSearch(responseId));
         Throwable cause = exc instanceof ExecutionException

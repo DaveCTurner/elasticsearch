@@ -131,7 +131,7 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate(leaderIndex)
+                .prepareCreate(masterNodeTimeout, leaderIndex)
                 .setMasterNodeTimeout(TimeValue.MAX_VALUE)
                 .setSource(leaderIndexSettings, XContentType.JSON)
         );
@@ -403,7 +403,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         final String followerIndex = "follower";
         final int numberOfShards = randomIntBetween(1, 4);
         final String leaderIndexSettings = getIndexSettings(numberOfShards, 0);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -503,7 +509,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         final String followerIndex = "follower";
         final int numberOfShards = randomIntBetween(1, 4);
         final String leaderIndexSettings = getIndexSettings(numberOfShards, 0);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -598,7 +610,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -618,7 +636,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -685,7 +709,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -806,7 +836,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -833,7 +869,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -940,7 +982,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
             TimeValue.timeValueMillis(200).getStringRep()
         );
         final String leaderIndexSettings = getIndexSettings(numberOfShards, numberOfReplicas, additionalIndexSettings);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
@@ -1032,7 +1080,13 @@ public class CcrRetentionLeaseIT extends CcrIntegTestCase {
         final String followerIndex = "follower";
         final int numberOfShards = randomIntBetween(1, 4);
         final String leaderIndexSettings = getIndexSettings(numberOfShards, 0);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON).get());
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, leaderIndex)
+                .setSource(leaderIndexSettings, XContentType.JSON)
+                .get()
+        );
         ensureLeaderYellow(leaderIndex);
         final PutFollowAction.Request followRequest = putFollow(leaderIndex, followerIndex);
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();

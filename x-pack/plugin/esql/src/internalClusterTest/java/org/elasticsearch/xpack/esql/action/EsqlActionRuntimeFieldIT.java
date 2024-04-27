@@ -109,7 +109,7 @@ public class EsqlActionRuntimeFieldIT extends AbstractEsqlIntegTestCase {
             mapping.endObject();
         }
         mapping.endObject();
-        client().admin().indices().prepareCreate("test").setMapping(mapping.endObject()).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping.endObject()).get();
 
         BulkRequestBuilder bulk = client().prepareBulk().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         for (int i = 0; i < SIZE; i++) {

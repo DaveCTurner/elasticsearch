@@ -59,8 +59,8 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
     }
 
     public void testSimpleGetMappings() throws Exception {
-        indicesAdmin().prepareCreate("indexa").setMapping(getMappingForType()).get();
-        indicesAdmin().prepareCreate("indexb").setMapping(getMappingForType()).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "indexa").setMapping(getMappingForType()).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "indexb").setMapping(getMappingForType()).get();
 
         ClusterHealthResponse clusterHealth = clusterAdmin().prepareHealth()
             .setWaitForEvents(Priority.LANGUID)
@@ -87,7 +87,7 @@ public class SimpleGetMappingsIT extends ESIntegTestCase {
     }
 
     public void testGetMappingsWithBlocks() throws IOException {
-        indicesAdmin().prepareCreate("test").setMapping(getMappingForType()).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(getMappingForType()).get();
         ensureGreen();
 
         for (String block : Arrays.asList(SETTING_BLOCKS_READ, SETTING_BLOCKS_WRITE, SETTING_READ_ONLY)) {

@@ -71,7 +71,7 @@ public class WatcherExecutorServiceBenchmark {
 
         public static void main(String[] args) throws Exception {
             start();
-            client.admin().indices().prepareCreate("test").get();
+            client.admin().indices().prepareCreate(masterNodeTimeout, "test").get();
             client.prepareIndex().setIndex("test").setId("1").setSource("{}", XContentType.JSON).get();
 
             int numAlerts = 1000;

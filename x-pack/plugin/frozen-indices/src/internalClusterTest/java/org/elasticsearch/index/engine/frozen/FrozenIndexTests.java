@@ -228,7 +228,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
 
         if (randomBoolean()) {
             // sometimes close it
-            assertAcked(indicesAdmin().prepareClose("index").get());
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "index").get());
         }
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("index")).actionGet());
         {
@@ -287,7 +287,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
         createIndex("idx-closed", Settings.builder().put("index.number_of_shards", 1).build());
         prepareIndex("idx-closed").setId("1").setSource("field", "value").setRefreshPolicy(IMMEDIATE).get();
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("idx")).actionGet());
-        assertAcked(indicesAdmin().prepareClose("idx-closed").get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx-closed").get());
         assertAcked(
             client().execute(
                 FreezeIndexAction.INSTANCE,
@@ -474,7 +474,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
     public void testIgnoreUnavailable() {
         createIndex("idx", Settings.builder().put("index.number_of_shards", 1).build());
         createIndex("idx-close", Settings.builder().put("index.number_of_shards", 1).build());
-        assertAcked(indicesAdmin().prepareClose("idx-close"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx-close"));
         assertAcked(
             client().execute(
                 FreezeIndexAction.INSTANCE,
@@ -490,7 +490,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
     public void testUnfreezeClosedIndex() {
         createIndex("idx", Settings.builder().put("index.number_of_shards", 1).build());
         assertAcked(client().execute(FreezeIndexAction.INSTANCE, new FreezeRequest("idx")).actionGet());
-        assertAcked(indicesAdmin().prepareClose("idx"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
         assertEquals(IndexMetadata.State.CLOSE, clusterAdmin().prepareState().get().getState().metadata().index("idx").getState());
         expectThrows(
             IndexNotFoundException.class,

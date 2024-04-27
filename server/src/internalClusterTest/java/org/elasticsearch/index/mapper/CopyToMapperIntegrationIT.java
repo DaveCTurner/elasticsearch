@@ -27,7 +27,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 public class CopyToMapperIntegrationIT extends ESIntegTestCase {
     public void testDynamicTemplateCopyTo() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test-idx").setMapping(createDynamicTemplateMapping()));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx").setMapping(createDynamicTemplateMapping()));
 
         int recordCount = between(1, 200);
 
@@ -64,7 +64,7 @@ public class CopyToMapperIntegrationIT extends ESIntegTestCase {
                 .endObject()
                 .endObject()
         );
-        assertAcked(indicesAdmin().prepareCreate("test-idx").setMapping(mapping));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx").setMapping(mapping));
         prepareIndex("test-idx").setId("1").setSource("foo", "bar").get();
         indicesAdmin().prepareRefresh("test-idx").get();
         assertHitCount(prepareSearch("test-idx").setQuery(QueryBuilders.termQuery("root.top.child", "bar")), 1L);

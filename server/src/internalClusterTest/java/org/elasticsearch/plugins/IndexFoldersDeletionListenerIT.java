@@ -92,7 +92,7 @@ public class IndexFoldersDeletionListenerIT extends ESIntegTestCase {
             assertNoDeletions(shardsByNode.getKey());
         }
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
         assertPendingDeletesProcessed();
 
         assertBusy(() -> {
@@ -230,7 +230,7 @@ public class IndexFoldersDeletionListenerIT extends ESIntegTestCase {
         internalCluster().stopNode(stoppedNode);
         ensureStableCluster(3 + 1, masterNode);
 
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         final String restartedNode = internalCluster().startNode(stoppedNodeDataPathSettings);
         ensureStableCluster(4 + 1, masterNode);
@@ -270,13 +270,13 @@ public class IndexFoldersDeletionListenerIT extends ESIntegTestCase {
         ensureStableCluster(1, masterNode);
 
         logger.debug("--> deleting leftover indices");
-        assertAcked(indicesAdmin().prepareDelete("index-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*"));
 
         final String indexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
 
         logger.debug("--> creating a new index [{}]", indexName);
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(indexSettings(1, 0).put("index.routing.allocation.enable", EnableAllocationDecider.Allocation.NONE).build())
                 .setWaitForActiveShards(ActiveShardCount.NONE)
         );

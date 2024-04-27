@@ -114,7 +114,7 @@ public class SearchPreferenceIT extends ESIntegTestCase {
     }
 
     public void testSimplePreference() {
-        indicesAdmin().prepareCreate("test").setSettings("{\"number_of_replicas\": 1}", XContentType.JSON).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings("{\"number_of_replicas\": 1}", XContentType.JSON).get();
         ensureGreen();
 
         prepareIndex("test").setSource("field1", "value1").get();
@@ -268,7 +268,7 @@ public class SearchPreferenceIT extends ESIntegTestCase {
 
         assertSearchesSpecificNode("test", customPreference, nodeId);
 
-        assertAcked(indicesAdmin().prepareDelete("test2"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test2"));
 
         assertSearchesSpecificNode("test", customPreference, nodeId);
     }

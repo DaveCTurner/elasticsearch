@@ -186,7 +186,7 @@ public class HistogramIT extends ESIntegTestCase {
         addExpectedBucket(6, 1, 5, 1);
         addExpectedBucket(7, 1, 5, 1);
 
-        assertAcked(indicesAdmin().prepareCreate("sort_idx").setMapping(SINGLE_VALUED_FIELD_NAME, "type=double").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "sort_idx").setMapping(SINGLE_VALUED_FIELD_NAME, "type=double").get());
         for (int i = 1; i <= 3; i++) {
             builders.add(
                 prepareIndex("sort_idx").setSource(

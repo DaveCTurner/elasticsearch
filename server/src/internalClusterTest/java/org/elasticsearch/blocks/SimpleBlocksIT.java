@@ -106,7 +106,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
 
     private void canCreateIndex(String index) {
         try {
-            CreateIndexResponse r = indicesAdmin().prepareCreate(index).get();
+            CreateIndexResponse r = indicesAdmin().prepareCreate(masterNodeTimeout, index).get();
             assertThat(r, notNullValue());
         } catch (ClusterBlockException e) {
             fail();
@@ -115,7 +115,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
 
     private void canNotCreateIndex(String index) {
         try {
-            indicesAdmin().prepareCreate(index).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, index).get();
             fail();
         } catch (ClusterBlockException e) {
             // all is well
@@ -426,7 +426,7 @@ public class SimpleBlocksIT extends ESIntegTestCase {
                 threads.add(new Thread(() -> {
                     safeAwait(latch);
                     try {
-                        assertAcked(indicesAdmin().prepareDelete(indexToDelete));
+                        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexToDelete));
                     } catch (final Exception e) {
                         exceptionConsumer.accept(e);
                     }

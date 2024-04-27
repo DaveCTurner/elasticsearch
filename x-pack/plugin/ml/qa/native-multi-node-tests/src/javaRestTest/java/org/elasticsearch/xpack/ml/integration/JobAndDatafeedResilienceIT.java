@@ -63,7 +63,7 @@ public class JobAndDatafeedResilienceIT extends MlNativeAutodetectIntegTestCase 
     }
 
     public void testStopStartedDatafeedWithMissingConfig() throws Exception {
-        client().admin().indices().prepareCreate(index).setMapping("time", "type=date", "value", "type=long").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, index).setMapping("time", "type=date", "value", "type=long").get();
         final String jobId = "job-with-missing-datafeed-with-config";
         Job.Builder job = createJob(jobId, TimeValue.timeValueMinutes(5), "count", null);
 
@@ -134,7 +134,7 @@ public class JobAndDatafeedResilienceIT extends MlNativeAutodetectIntegTestCase 
     }
 
     public void testGetDatafeedStats() throws Exception {
-        client().admin().indices().prepareCreate(index).setMapping("time", "type=date", "value", "type=long").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, index).setMapping("time", "type=date", "value", "type=long").get();
         final String jobId1 = "job-with-datafeed-missing-config-stats";
         final String jobId2 = "job-with-datafeed-config-stats";
 

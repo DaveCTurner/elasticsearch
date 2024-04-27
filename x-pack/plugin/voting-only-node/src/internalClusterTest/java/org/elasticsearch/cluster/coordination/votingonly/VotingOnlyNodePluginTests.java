@@ -229,7 +229,7 @@ public class VotingOnlyNodePluginTests extends ESIntegTestCase {
         assertThat(snapshotInfo.version(), Matchers.equalTo(IndexVersion.current()));
 
         logger.info("--> close indices");
-        client.admin().indices().prepareClose("test-idx-1", "test-idx-2").get();
+        client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()

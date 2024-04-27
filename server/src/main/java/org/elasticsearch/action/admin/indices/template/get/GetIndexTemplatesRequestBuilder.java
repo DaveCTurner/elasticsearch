@@ -16,6 +16,6 @@ public class GetIndexTemplatesRequestBuilder extends MasterNodeReadOperationRequ
     GetIndexTemplatesRequestBuilder> {
 
     public GetIndexTemplatesRequestBuilder(ElasticsearchClient client, String... names) {
-        super(client, GetIndexTemplatesAction.INSTANCE, new GetIndexTemplatesRequest(names));
+        super(client, GetIndexTemplatesAction.INSTANCE, new GetIndexTemplatesRequest(masterNodeTimeout, names));
     }
 }

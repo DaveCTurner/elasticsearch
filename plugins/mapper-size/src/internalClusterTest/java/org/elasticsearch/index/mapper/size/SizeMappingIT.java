@@ -41,7 +41,7 @@ public class SizeMappingIT extends ESIntegTestCase {
         String index = "foo";
 
         XContentBuilder builder = jsonBuilder().startObject().startObject("_size").field("enabled", true).endObject().endObject();
-        assertAcked(indicesAdmin().prepareCreate(index).setMapping(builder));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, index).setMapping(builder));
 
         // check mapping again
         assertSizeMappingEnabled(index, true);
@@ -54,7 +54,9 @@ public class SizeMappingIT extends ESIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(index).setSource(updateMappingBuilder).get();
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, index)
+            .setSource(updateMappingBuilder)
+            .get();
         assertAcked(putMappingResponse);
 
         // make sure size field is still in mapping
@@ -65,7 +67,7 @@ public class SizeMappingIT extends ESIntegTestCase {
         String index = "foo";
 
         XContentBuilder builder = jsonBuilder().startObject().startObject("_size").field("enabled", true).endObject().endObject();
-        assertAcked(indicesAdmin().prepareCreate(index).setMapping(builder));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, index).setMapping(builder));
 
         // check mapping again
         assertSizeMappingEnabled(index, true);
@@ -76,7 +78,9 @@ public class SizeMappingIT extends ESIntegTestCase {
             .field("enabled", false)
             .endObject()
             .endObject();
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(index).setSource(updateMappingBuilder).get();
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, index)
+            .setSource(updateMappingBuilder)
+            .get();
         assertAcked(putMappingResponse);
 
         // make sure size field is still in mapping

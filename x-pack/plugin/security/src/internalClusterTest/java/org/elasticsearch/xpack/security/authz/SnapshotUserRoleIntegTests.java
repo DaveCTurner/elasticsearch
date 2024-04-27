@@ -119,7 +119,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
         );
         // try create index
         assertThrowsAuthorizationException(
-            () -> client.admin().indices().prepareCreate(ordinaryIndex + "2").get(),
+            () -> client.admin().indices().prepareCreate(masterNodeTimeout, ordinaryIndex + "2").get(),
             "indices:admin/create",
             "snapshot_user"
         );
@@ -172,7 +172,7 @@ public class SnapshotUserRoleIntegTests extends NativeRealmIntegTestCase {
             );
 
             assertThrowsAuthorizationException(
-                () -> client.admin().indices().prepareDelete(indexToTest).get(),
+                () -> client.admin().indices().prepareDelete(masterNodeTimeout, indexToTest).get(),
                 "indices:admin/delete",
                 "snapshot_user"
             );

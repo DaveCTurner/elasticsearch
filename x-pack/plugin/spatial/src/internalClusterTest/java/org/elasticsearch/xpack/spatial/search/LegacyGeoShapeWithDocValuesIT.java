@@ -54,7 +54,7 @@ public class LegacyGeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
     public void testMappingUpdate() {
         // create index
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(settings(randomSupportedVersion()).build())
                 .setMapping("shape", "type=geo_shape,strategy=recursive")
         );
@@ -71,7 +71,7 @@ public class LegacyGeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
 
         IllegalArgumentException e = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().preparePutMapping("test").setSource(update, XContentType.JSON).get()
+            () -> indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource(update, XContentType.JSON).get()
         );
         assertThat(e.getMessage(), containsString("mapper [shape] of type [geo_shape] cannot change strategy from [recursive] to [BKD]"));
     }

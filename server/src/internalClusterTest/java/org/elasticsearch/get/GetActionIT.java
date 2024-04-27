@@ -221,13 +221,15 @@ public class GetActionIT extends ESIntegTestCase {
     }
 
     public void testGetWithAliasPointingToMultipleIndices() {
-        indicesAdmin().prepareCreate("index1").addAlias(new Alias("alias1").indexRouting("0")).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index1").addAlias(new Alias("alias1").indexRouting("0")).get();
         if (randomBoolean()) {
-            indicesAdmin().prepareCreate("index2")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "index2")
                 .addAlias(new Alias("alias1").indexRouting("0").writeIndex(randomFrom(false, null)))
                 .get();
         } else {
-            indicesAdmin().prepareCreate("index3").addAlias(new Alias("alias1").indexRouting("1").writeIndex(true)).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, "index3")
+                .addAlias(new Alias("alias1").indexRouting("1").writeIndex(true))
+                .get();
         }
         DocWriteResponse indexResponse = prepareIndex("index1").setId("id").setSource(Collections.singletonMap("foo", "bar")).get();
         assertThat(indexResponse.status().getStatus(), equalTo(RestStatus.CREATED.getStatus()));

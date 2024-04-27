@@ -46,7 +46,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         prepareIndex("test").setId("1").setSource("field1", "value1").get();
 
         logger.info("--> closing test index...");
-        assertAcked(indicesAdmin().prepareClose("test"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
 
         stateResponse = clusterAdmin().prepareState().get();
         assertThat(stateResponse.getState().metadata().index("test").getState(), equalTo(IndexMetadata.State.CLOSE));
@@ -61,7 +61,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         }
 
         logger.info("--> opening index...");
-        assertAcked(indicesAdmin().prepareOpen("test"));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
 
         logger.info("--> waiting for green status");
         ensureGreen();
@@ -81,7 +81,7 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
 
     public void testFastCloseAfterCreateContinuesCreateAfterOpen() {
         logger.info("--> creating test index that cannot be allocated");
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(Settings.builder().put("index.routing.allocation.include.tag", "no_such_node").build())
             .get();
@@ -90,12 +90,12 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         assertThat(health.isTimedOut(), equalTo(false));
         assertThat(health.getStatus(), equalTo(ClusterHealthStatus.RED));
 
-        assertAcked(indicesAdmin().prepareClose("test").setWaitForActiveShards(ActiveShardCount.NONE));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test").setWaitForActiveShards(ActiveShardCount.NONE));
 
         logger.info("--> updating test index settings to allow allocation");
         updateIndexSettings(Settings.builder().put("index.routing.allocation.include.tag", ""), "test");
 
-        indicesAdmin().prepareOpen("test").get();
+        indicesAdmin().prepareOpen(masterNodeTimeout, "test").get();
 
         logger.info("--> waiting for green status");
         ensureGreen();
@@ -117,14 +117,14 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
     public void testConsistencyAfterIndexCreationFailure() {
         logger.info("--> deleting test index....");
         try {
-            indicesAdmin().prepareDelete("test").get();
+            indicesAdmin().prepareDelete(masterNodeTimeout, "test").get();
         } catch (IndexNotFoundException ex) {
             // Ignore
         }
 
         logger.info("--> creating test index with invalid settings ");
         try {
-            indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("number_of_shards", "bad")).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("number_of_shards", "bad")).get();
             fail();
         } catch (IllegalArgumentException ex) {
             assertEquals("Failed to parse value [bad] for setting [index.number_of_shards]", ex.getMessage());
@@ -132,6 +132,6 @@ public class SimpleIndexStateIT extends ESIntegTestCase {
         }
 
         logger.info("--> creating test index with valid settings ");
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("number_of_shards", 1)));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("number_of_shards", 1)));
     }
 }

@@ -94,7 +94,7 @@ public class TimeSeriesTsidHashCardinalityIT extends ESSingleNodeTestCase {
         mapping.startObject("gauge").field("type", "double").field("time_series_metric", "gauge").endObject();
         mapping.endObject().endObject().endObject();
         assertAcked(
-            indicesAdmin().prepareCreate(beforeIndex)
+            indicesAdmin().prepareCreate(masterNodeTimeout, beforeIndex)
                 .setSettings(
                     settings.put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), IndexVersions.NEW_INDEXVERSION_FORMAT).build()
                 )
@@ -103,7 +103,7 @@ public class TimeSeriesTsidHashCardinalityIT extends ESSingleNodeTestCase {
         );
 
         assertAcked(
-            indicesAdmin().prepareCreate(afterIndex)
+            indicesAdmin().prepareCreate(masterNodeTimeout, afterIndex)
                 .setSettings(
                     settings.put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), IndexVersions.TIME_SERIES_ID_HASHING).build()
                 )

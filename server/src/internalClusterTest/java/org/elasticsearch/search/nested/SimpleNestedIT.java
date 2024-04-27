@@ -1544,7 +1544,7 @@ public class SimpleNestedIT extends ESIntegTestCase {
         assertThat(clusterStatsResponse.getIndicesStats().getSegments().getBitsetMemoryInBytes(), equalTo(0L));
 
         // Now add nested mapping
-        assertAcked(indicesAdmin().preparePutMapping("test").setSource("array1", "type=nested"));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("array1", "type=nested"));
 
         XContentBuilder builder = jsonBuilder().startObject()
             .startArray("array1")
@@ -1575,7 +1575,7 @@ public class SimpleNestedIT extends ESIntegTestCase {
         clusterStatsResponse = clusterAdmin().prepareClusterStats().get();
         assertThat(clusterStatsResponse.getIndicesStats().getSegments().getBitsetMemoryInBytes(), greaterThan(0L));
 
-        assertAcked(indicesAdmin().prepareDelete("test"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test"));
         clusterStatsResponse = clusterAdmin().prepareClusterStats().get();
         assertThat(clusterStatsResponse.getIndicesStats().getSegments().getBitsetMemoryInBytes(), equalTo(0L));
     }

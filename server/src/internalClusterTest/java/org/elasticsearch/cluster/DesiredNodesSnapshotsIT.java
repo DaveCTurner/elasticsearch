@@ -35,7 +35,7 @@ public class DesiredNodesSnapshotsIT extends AbstractSnapshotIntegTestCase {
         final var snapshotName = "snapshot";
         createFullSnapshot(repositoryName, snapshotName);
 
-        indicesAdmin().prepareDelete(indexName).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get();
 
         final var updateDesiredNodesWithNewHistoryRequest = randomUpdateDesiredNodesRequest();
         final var updateDesiredNodesResponse = updateDesiredNodes(updateDesiredNodesWithNewHistoryRequest);

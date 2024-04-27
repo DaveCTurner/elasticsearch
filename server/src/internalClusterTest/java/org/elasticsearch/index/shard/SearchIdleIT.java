@@ -215,7 +215,7 @@ public class SearchIdleIT extends ESSingleNodeTestCase {
     public void testSearchIdleStats() throws InterruptedException {
         int searchIdleAfter = randomIntBetween(2, 5);
         final String indexName = randomAlphaOfLength(5).toLowerCase(Locale.ROOT);
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(
                 Settings.builder()
                     .put(IndexSettings.INDEX_SEARCH_IDLE_AFTER.getKey(), searchIdleAfter + "s")

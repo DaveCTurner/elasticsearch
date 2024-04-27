@@ -305,7 +305,7 @@ public abstract class BasePointShapeQueryTestCase<T extends AbstractGeometryQuer
                 .endObject()
                 .endObject()
         );
-        client().admin().indices().prepareCreate(indexedShapeIndex).setMapping(queryShapesMapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, indexedShapeIndex).setMapping(queryShapesMapping).get();
         ensureGreen();
 
         prepareIndex(indexedShapeIndex).setId("shape1")

@@ -110,7 +110,7 @@ public class FlushIT extends ESIntegTestCase {
                 .build()
         );
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(
                     indexSettings(1, 1).put(
                         IndexSettings.INDEX_TRANSLOG_SYNC_INTERVAL_SETTING.getKey(),

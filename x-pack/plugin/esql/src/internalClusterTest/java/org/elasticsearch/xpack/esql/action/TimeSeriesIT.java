@@ -26,7 +26,7 @@ public class TimeSeriesIT extends AbstractEsqlIntegTestCase {
         Settings settings = Settings.builder().put("mode", "time_series").putList("routing_path", List.of("pod")).build();
         client().admin()
             .indices()
-            .prepareCreate("pods")
+            .prepareCreate(masterNodeTimeout, "pods")
             .setSettings(settings)
             .setMapping(
                 "@timestamp",

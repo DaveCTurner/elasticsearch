@@ -64,7 +64,7 @@ public abstract class BaseShapeQueryTestCase<T extends AbstractGeometryQueryBuil
             .endObject()
             .endObject()
             .endObject();
-        client().admin().indices().prepareCreate(indexName).setMapping(xcb).setSettings(settings).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, indexName).setMapping(xcb).setSettings(settings).get();
     }
 
     public void testFieldAlias() throws IOException {
@@ -83,7 +83,7 @@ public abstract class BaseShapeQueryTestCase<T extends AbstractGeometryQueryBuil
                 .endObject()
         );
 
-        client().admin().indices().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         MultiPoint multiPoint = GeometryTestUtils.randomMultiPoint(false);
@@ -309,7 +309,7 @@ public abstract class BaseShapeQueryTestCase<T extends AbstractGeometryQueryBuil
             .endObject()
             .endObject();
         String mapping = Strings.toString(xcb);
-        client().admin().indices().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("blakely")

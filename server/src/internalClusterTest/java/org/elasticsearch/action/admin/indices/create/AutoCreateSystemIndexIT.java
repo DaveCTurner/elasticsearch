@@ -63,7 +63,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
     @After
     public void afterEach() {
         assertAcked(indicesAdmin().prepareDeleteTemplate("*").get());
-        indicesAdmin().prepareDelete(PRIMARY_INDEX_NAME);
+        indicesAdmin().prepareDelete(masterNodeTimeout, PRIMARY_INDEX_NAME);
     }
 
     public void testAutoCreatePrimaryIndex() throws Exception {

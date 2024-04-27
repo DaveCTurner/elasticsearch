@@ -49,7 +49,7 @@ public class SimpleValidateQueryIT extends ESIntegTestCase {
     public void testSimpleValidateQuery() throws Exception {
         createIndex("test");
         ensureGreen();
-        indicesAdmin().preparePutMapping("test")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -108,7 +108,7 @@ public class SimpleValidateQueryIT extends ESIntegTestCase {
     public void testExplainValidateQueryTwoNodes() throws IOException {
         createIndex("test", Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 2).build());
         ensureGreen();
-        indicesAdmin().preparePutMapping("test")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -243,7 +243,7 @@ public class SimpleValidateQueryIT extends ESIntegTestCase {
     }
 
     public void testExplainWithRewriteValidateQuery() {
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setMapping("field", "type=text,analyzer=whitespace")
             .setSettings(Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 1))
             .get();
@@ -287,7 +287,7 @@ public class SimpleValidateQueryIT extends ESIntegTestCase {
     }
 
     public void testExplainWithRewriteValidateQueryAllShards() {
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setMapping("field", "type=text,analyzer=whitespace")
             .setSettings(Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 2).put("index.number_of_routing_shards", 2))
             .get();
@@ -367,7 +367,7 @@ public class SimpleValidateQueryIT extends ESIntegTestCase {
     }
 
     public void testExplainTermsQueryWithLookup() {
-        indicesAdmin().prepareCreate("twitter")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "twitter")
             .setMapping("user", "type=integer", "followers", "type=integer")
             .setSettings(Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 2).put("index.number_of_routing_shards", 2))
             .get();

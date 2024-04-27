@@ -25,7 +25,7 @@ public class FieldStatsProviderRefreshTests extends ESSingleNodeTestCase {
 
     public void testQueryRewriteOnRefresh() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "index")
                 .setMapping("s", "type=text")
                 .setSettings(indexSettings(1, 0).put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
         );

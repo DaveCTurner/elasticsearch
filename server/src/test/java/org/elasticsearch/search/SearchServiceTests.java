@@ -280,7 +280,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
         SearchService service = getInstanceFromNode(SearchService.class);
 
         assertEquals(1, service.getActiveContexts());
-        assertAcked(indicesAdmin().prepareDelete("index"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index"));
         assertEquals(0, service.getActiveContexts());
     }
 
@@ -430,7 +430,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
         MockSearchService service = (MockSearchService) getInstanceFromNode(SearchService.class);
         service.setOnPutContext(context -> {
             if (context.indexShard() == indexShard) {
-                assertAcked(indicesAdmin().prepareDelete("index"));
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index"));
             }
         });
 
@@ -1442,7 +1442,7 @@ public class SearchServiceTests extends ESSingleNodeTestCase {
             searchers[i].start();
         }
         latch.await();
-        indicesAdmin().prepareDelete("test").get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, "test").get();
         stopped.set(true);
         for (Thread searcher : searchers) {
             searcher.join();

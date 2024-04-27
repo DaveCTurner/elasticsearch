@@ -1111,7 +1111,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetAliasesRequestBuilder prepareGetAliases(String... aliases) {
-            return new GetAliasesRequestBuilder(this, aliases);
+            return new GetAliasesRequestBuilder(masterNodeTimeout, this, aliases);
         }
 
         @Override
@@ -1131,7 +1131,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetIndexRequestBuilder prepareGetIndex() {
-            return new GetIndexRequestBuilder(this);
+            return new GetIndexRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -1155,7 +1155,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public CreateIndexRequestBuilder prepareCreate(String index) {
+        public CreateIndexRequestBuilder prepareCreate(TimeValue masterNodeTimeout, String index) {
             return new CreateIndexRequestBuilder(masterNodeTimeout, this, index);
         }
 
@@ -1170,7 +1170,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeleteIndexRequestBuilder prepareDelete(String... indices) {
+        public DeleteIndexRequestBuilder prepareDelete(TimeValue masterNodeTimeout, String... indices) {
             return new DeleteIndexRequestBuilder(masterNodeTimeout, this, indices);
         }
 
@@ -1185,7 +1185,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public CloseIndexRequestBuilder prepareClose(String... indices) {
+        public CloseIndexRequestBuilder prepareClose(TimeValue masterNodeTimeout, String... indices) {
             return new CloseIndexRequestBuilder(masterNodeTimeout, this, indices);
         }
 
@@ -1201,7 +1201,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public AddIndexBlockRequestBuilder prepareAddBlock(APIBlock block, String... indices) {
-            return new AddIndexBlockRequestBuilder(this, block, indices);
+            return new AddIndexBlockRequestBuilder(masterNodeTimeout, this, block, indices);
         }
 
         @Override
@@ -1210,7 +1210,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public OpenIndexRequestBuilder prepareOpen(String... indices) {
+        public OpenIndexRequestBuilder prepareOpen(TimeValue masterNodeTimeout, String... indices) {
             return new OpenIndexRequestBuilder(masterNodeTimeout, this, indices);
         }
 
@@ -1241,7 +1241,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetMappingsRequestBuilder prepareGetMappings(String... indices) {
-            return new GetMappingsRequestBuilder(this, indices);
+            return new GetMappingsRequestBuilder(masterNodeTimeout, this, indices);
         }
 
         @Override
@@ -1270,7 +1270,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public PutMappingRequestBuilder preparePutMapping(String... indices) {
+        public PutMappingRequestBuilder preparePutMapping(TimeValue masterNodeTimeout, String... indices) {
             return new PutMappingRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
@@ -1361,7 +1361,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public UpdateSettingsRequestBuilder prepareUpdateSettings(String... indices) {
-            return new UpdateSettingsRequestBuilder(this).setIndices(indices);
+            return new UpdateSettingsRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
         @Override

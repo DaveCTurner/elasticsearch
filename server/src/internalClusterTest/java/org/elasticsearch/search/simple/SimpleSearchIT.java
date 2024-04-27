@@ -95,7 +95,7 @@ public class SimpleSearchIT extends ESIntegTestCase {
     public void testSimpleIp() throws Exception {
         createIndex("test");
 
-        indicesAdmin().preparePutMapping("test")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -123,7 +123,7 @@ public class SimpleSearchIT extends ESIntegTestCase {
     public void testIpCidr() throws Exception {
         createIndex("test");
 
-        indicesAdmin().preparePutMapping("test")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test")
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -217,7 +217,7 @@ public class SimpleSearchIT extends ESIntegTestCase {
     public void testRangeQueryKeyword() throws Exception {
         createIndex("test");
 
-        indicesAdmin().preparePutMapping("test").setSource("field", "type=keyword").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("field", "type=keyword").get();
 
         prepareIndex("test").setId("0").setSource("field", "").get();
         prepareIndex("test").setId("1").setSource("field", "A").get();

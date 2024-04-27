@@ -506,7 +506,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo(snapshot1));
 
         logger.info("-->  deleting index [{}]", indexName);
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         logger.info("-->  restoring snapshot [{}]", snapshot1);
         clusterAdmin().prepareRestoreSnapshot("test-repo", snapshot1)
@@ -757,7 +757,7 @@ public class CorruptedBlobStoreRepositoryIT extends AbstractSnapshotIntegTestCas
             "--> restoring the first snapshot, the repository should not have lost any shard data despite deleting index-N, "
                 + "because it uses snap-*.data files and not the index-N to determine what files to restore"
         );
-        indicesAdmin().prepareDelete("test-idx-1", "test-idx-2").get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap-1")
             .setWaitForCompletion(true)
             .get();

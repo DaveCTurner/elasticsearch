@@ -41,7 +41,11 @@ public class BucketCorrelationAggregationIT extends MlSingleNodeTestCase {
         int[] isCat = new int[10000];
         int[] isDog = new int[10000];
 
-        client().admin().indices().prepareCreate("data").setMapping("metric", "type=double", "term", "type=keyword").get();
+        client().admin()
+            .indices()
+            .prepareCreate(masterNodeTimeout, "data")
+            .setMapping("metric", "type=double", "term", "type=keyword")
+            .get();
         BulkRequestBuilder bulkRequestBuilder = client().prepareBulk("data");
         for (int i = 0; i < 5000; i++) {
             IndexRequest indexRequest = new IndexRequest("data");

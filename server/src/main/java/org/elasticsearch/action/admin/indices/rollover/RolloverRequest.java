@@ -17,6 +17,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.RestApiVersion;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -100,7 +101,7 @@ public class RolloverRequest extends AcknowledgedRequest<RolloverRequest> implem
     private boolean lazy;
     private RolloverConditions conditions = new RolloverConditions();
     // the index name "_na_" is never read back, what matters are settings, mappings and aliases
-    private CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
+    private final CreateIndexRequest createIndexRequest;
     private IndicesOptions indicesOptions = IndicesOptions.strictSingleIndexNoExpandForbidClosed();
 
     public RolloverRequest(StreamInput in) throws IOException {
@@ -120,12 +121,13 @@ public class RolloverRequest extends AcknowledgedRequest<RolloverRequest> implem
         }
     }
 
-    RolloverRequest() {
+    RolloverRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
+        createIndexRequest = new CreateIndexRequest(masterNodeTimeout, "_na_");
     }
 
-    public RolloverRequest(String rolloverTarget, String newIndexName) {
-        super(masterNodeTimeout);
+    public RolloverRequest(TimeValue masterNodeTimeout, String rolloverTarget, String newIndexName) {
+        this(masterNodeTimeout);
         this.rolloverTarget = rolloverTarget;
         this.newIndexName = newIndexName;
     }

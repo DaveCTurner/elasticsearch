@@ -61,7 +61,7 @@ public class SqlSearchPageTimeoutIT extends AbstractSqlIntegTestCase {
     }
 
     private void setupTestIndex() {
-        assertAcked(indicesAdmin().prepareCreate("test").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").get());
         client().prepareBulk()
             .add(new IndexRequest("test").id("1").source("field", "bar"))
             .add(new IndexRequest("test").id("2").source("field", "baz"))

@@ -184,7 +184,7 @@ public class TimeSeriesDimensionsLimitIT extends ESIntegTestCase {
             settings.put(MapperService.INDEX_MAPPING_DIMENSION_FIELDS_LIMIT_SETTING.getKey(), dimensionsFieldLimit);
         }
 
-        indicesAdmin().prepareCreate("test").setSettings(settings.build()).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(settings.build()).setMapping(mapping).get();
     }
 
 }

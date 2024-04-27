@@ -58,7 +58,7 @@ public class ExplainDataFrameAnalyticsIT extends MlNativeDataFrameAnalyticsInteg
 
         String sourceIndex = "test-source-query-is-applied";
 
-        indicesAdmin().prepareCreate(sourceIndex)
+        indicesAdmin().prepareCreate(masterNodeTimeout, sourceIndex)
             .setMapping(
                 "numeric_1",
                 "type=double",
@@ -242,7 +242,7 @@ public class ExplainDataFrameAnalyticsIT extends MlNativeDataFrameAnalyticsInteg
                     }
                   }
                 }""";
-        client().admin().indices().prepareCreate(sourceIndex).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, sourceIndex).setMapping(mapping).get();
         BulkRequestBuilder bulkRequestBuilder = client().prepareBulk().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         for (int i = 0; i < 10; i++) {
             Object[] source = new Object[] { "mapped_field", i };

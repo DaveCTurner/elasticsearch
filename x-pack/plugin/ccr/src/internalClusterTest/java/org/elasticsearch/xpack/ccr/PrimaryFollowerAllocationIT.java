@@ -51,7 +51,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate(leaderIndex)
+                .prepareCreate(masterNodeTimeout, leaderIndex)
                 .setSource(getIndexSettings(between(1, 2), between(0, 1)), XContentType.JSON)
         );
         final PutFollowAction.Request putFollowRequest = putFollow(leaderIndex, followerIndex);
@@ -104,7 +104,7 @@ public class PrimaryFollowerAllocationIT extends CcrIntegTestCase {
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate(leaderIndex)
+                .prepareCreate(masterNodeTimeout, leaderIndex)
                 .setSource(getIndexSettings(between(1, 2), between(0, 1)), XContentType.JSON)
         );
         final PutFollowAction.Request putFollowRequest = putFollow(leaderIndex, followerIndex);

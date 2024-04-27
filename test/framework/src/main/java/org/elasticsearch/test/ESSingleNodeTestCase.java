@@ -146,7 +146,9 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         assertAcked(client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, deleteComposableIndexTemplateRequest).actionGet());
         var deleteComponentTemplateRequest = new TransportDeleteComponentTemplateAction.Request("*");
         assertAcked(client().execute(TransportDeleteComponentTemplateAction.TYPE, deleteComponentTemplateRequest).actionGet());
-        assertAcked(indicesAdmin().prepareDelete("*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN).get());
+        assertAcked(
+            indicesAdmin().prepareDelete(masterNodeTimeout, "*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN).get()
+        );
         Metadata metadata = clusterAdmin().prepareState().get().getState().getMetadata();
         assertThat(
             "test leaves persistent cluster metadata behind: " + metadata.persistentSettings().keySet(),
@@ -345,7 +347,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
      * Create a new index on the singleton node with the provided index settings.
      */
     protected IndexService createIndex(String index, Settings settings, XContentBuilder mappings) {
-        CreateIndexRequestBuilder createIndexRequestBuilder = indicesAdmin().prepareCreate(index).setSettings(settings);
+        CreateIndexRequestBuilder createIndexRequestBuilder = indicesAdmin().prepareCreate(masterNodeTimeout, index).setSettings(settings);
         if (mappings != null) {
             createIndexRequestBuilder.setMapping(mappings);
         }
@@ -356,7 +358,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
      * Create a new index on the singleton node with the provided index settings.
      */
     protected IndexService createIndex(String index, Settings settings, String type, String... mappings) {
-        CreateIndexRequestBuilder createIndexRequestBuilder = indicesAdmin().prepareCreate(index).setSettings(settings);
+        CreateIndexRequestBuilder createIndexRequestBuilder = indicesAdmin().prepareCreate(masterNodeTimeout, index).setSettings(settings);
         if (type != null) {
             createIndexRequestBuilder.setMapping(mappings);
         }

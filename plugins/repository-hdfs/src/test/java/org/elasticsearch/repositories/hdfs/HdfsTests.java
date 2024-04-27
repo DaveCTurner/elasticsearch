@@ -106,7 +106,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
         assertThat(count(client, "test-idx-3"), equalTo(50L));
 
         logger.info("--> close indices");
-        client.admin().indices().prepareClose("test-idx-1", "test-idx-2").get();
+        client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
@@ -123,7 +123,7 @@ public class HdfsTests extends ESSingleNodeTestCase {
 
         // Test restore after index deletion
         logger.info("--> delete indices");
-        client().admin().indices().prepareDelete("test-idx-1", "test-idx-2").get();
+        client().admin().indices().prepareDelete(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
         logger.info("--> restore one index after deletion");
         restoreSnapshotResponse = client.admin()
             .cluster()

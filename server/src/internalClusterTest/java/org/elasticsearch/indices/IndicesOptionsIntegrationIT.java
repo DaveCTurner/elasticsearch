@@ -130,7 +130,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         // pre-closing. with lots of replicas this will fail.
         ensureGreen();
 
-        assertAcked(indicesAdmin().prepareClose("test1"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test1"));
 
         IndicesOptions options = IndicesOptions.strictExpandOpenAndForbidClosed();
         verify(search("test1").setIndicesOptions(options), true);
@@ -168,7 +168,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         verify(getMapping("test1").setIndicesOptions(options), false);
         verify(getSettings("test1").setIndicesOptions(options), false);
 
-        assertAcked(indicesAdmin().prepareOpen("test1"));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "test1"));
         ensureYellow();
 
         options = IndicesOptions.strictExpandOpenAndForbidClosed();
@@ -416,7 +416,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         createIndex("test1", "test2");
         ensureGreen();
         verify(search("test1", "test2"), false);
-        assertAcked(indicesAdmin().prepareClose("test2").get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test2").get());
 
         verify(search("test1", "test2"), true);
 
@@ -433,55 +433,55 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         ensureGreen();
 
         // if there are no indices to open/close and allow_no_indices=true (default), the open/close is a no-op
-        verify(indicesAdmin().prepareClose("bar*"), false);
-        verify(indicesAdmin().prepareClose("bar*"), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "bar*"), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "bar*"), false);
 
-        verify(indicesAdmin().prepareClose("foo*"), false);
-        verify(indicesAdmin().prepareClose("foo*"), false);
-        verify(indicesAdmin().prepareClose("_all"), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "foo*"), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "foo*"), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "_all"), false);
 
-        verify(indicesAdmin().prepareOpen("bar*"), false);
-        verify(indicesAdmin().prepareOpen("_all"), false);
-        verify(indicesAdmin().prepareOpen("_all"), false);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "bar*"), false);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "_all"), false);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "_all"), false);
 
         // if there are no indices to open/close throw an exception
         IndicesOptions openIndicesOptions = IndicesOptions.fromOptions(false, false, false, true);
         IndicesOptions closeIndicesOptions = IndicesOptions.fromOptions(false, false, true, false);
 
-        verify(indicesAdmin().prepareClose("bar*").setIndicesOptions(closeIndicesOptions), false);
-        verify(indicesAdmin().prepareClose("bar*").setIndicesOptions(closeIndicesOptions), true);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "bar*").setIndicesOptions(closeIndicesOptions), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "bar*").setIndicesOptions(closeIndicesOptions), true);
 
-        verify(indicesAdmin().prepareClose("foo*").setIndicesOptions(closeIndicesOptions), false);
-        verify(indicesAdmin().prepareClose("foo*").setIndicesOptions(closeIndicesOptions), true);
-        verify(indicesAdmin().prepareClose("_all").setIndicesOptions(closeIndicesOptions), true);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "foo*").setIndicesOptions(closeIndicesOptions), false);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "foo*").setIndicesOptions(closeIndicesOptions), true);
+        verify(indicesAdmin().prepareClose(masterNodeTimeout, "_all").setIndicesOptions(closeIndicesOptions), true);
 
-        verify(indicesAdmin().prepareOpen("bar*").setIndicesOptions(openIndicesOptions), false);
-        verify(indicesAdmin().prepareOpen("_all").setIndicesOptions(openIndicesOptions), false);
-        verify(indicesAdmin().prepareOpen("_all").setIndicesOptions(openIndicesOptions), true);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "bar*").setIndicesOptions(openIndicesOptions), false);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "_all").setIndicesOptions(openIndicesOptions), false);
+        verify(indicesAdmin().prepareOpen(masterNodeTimeout, "_all").setIndicesOptions(openIndicesOptions), true);
     }
 
     public void testDeleteIndex() throws Exception {
         createIndex("foobar");
 
-        verify(indicesAdmin().prepareDelete("foo"), true);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "foo"), true);
         assertThat(indexExists("foobar"), equalTo(true));
-        verify(indicesAdmin().prepareDelete("foobar"), false);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "foobar"), false);
         assertThat(indexExists("foobar"), equalTo(false));
     }
 
     public void testDeleteIndexWildcard() throws Exception {
-        verify(indicesAdmin().prepareDelete("_all"), false);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "_all"), false);
 
         createIndex("foo", "foobar", "bar", "barbaz");
 
-        verify(indicesAdmin().prepareDelete("foo*"), false);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "foo*"), false);
         assertThat(indexExists("foobar"), equalTo(false));
         assertThat(indexExists("bar"), equalTo(true));
         assertThat(indexExists("barbaz"), equalTo(true));
 
-        verify(indicesAdmin().prepareDelete("foo*"), false);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "foo*"), false);
 
-        verify(indicesAdmin().prepareDelete("_all"), false);
+        verify(indicesAdmin().prepareDelete(masterNodeTimeout, "_all"), false);
         assertThat(indexExists("foo"), equalTo(false));
         assertThat(indexExists("foobar"), equalTo(false));
         assertThat(indexExists("bar"), equalTo(false));
@@ -513,33 +513,33 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     public void testPutMapping() throws Exception {
-        verify(indicesAdmin().preparePutMapping("foo").setSource("field", "type=text"), true);
-        verify(indicesAdmin().preparePutMapping("_all").setSource("field", "type=text"), true);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "foo").setSource("field", "type=text"), true);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "_all").setSource("field", "type=text"), true);
 
         for (String index : Arrays.asList("foo", "foobar", "bar", "barbaz")) {
             assertAcked(prepareCreate(index));
         }
 
-        verify(indicesAdmin().preparePutMapping("foo").setSource("field", "type=text"), false);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "foo").setSource("field", "type=text"), false);
         assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
-        verify(indicesAdmin().preparePutMapping("b*").setSource("field", "type=text"), false);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "b*").setSource("field", "type=text"), false);
         assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
-        verify(indicesAdmin().preparePutMapping("_all").setSource("field", "type=text"), false);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "_all").setSource("field", "type=text"), false);
         assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("foobar").get().mappings().get("foobar"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
-        verify(indicesAdmin().preparePutMapping().setSource("field", "type=text"), false);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout).setSource("field", "type=text"), false);
         assertThat(indicesAdmin().prepareGetMappings("foo").get().mappings().get("foo"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("foobar").get().mappings().get("foobar"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("bar").get().mappings().get("bar"), notNullValue());
         assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
 
-        verify(indicesAdmin().preparePutMapping("c*").setSource("field", "type=text"), true);
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "c*").setSource("field", "type=text"), true);
 
-        assertAcked(indicesAdmin().prepareClose("barbaz").get());
-        verify(indicesAdmin().preparePutMapping("barbaz").setSource("field", "type=text"), false);
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "barbaz").get());
+        verify(indicesAdmin().preparePutMapping(masterNodeTimeout, "barbaz").setSource("field", "type=text"), false);
         assertThat(indicesAdmin().prepareGetMappings("barbaz").get().mappings().get("barbaz"), notNullValue());
     }
 
@@ -573,7 +573,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
 
         createIndex("foo", "foobar", "bar", "barbaz");
         ensureGreen();
-        assertAcked(indicesAdmin().prepareClose("_all").get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "_all").get());
 
         verify(indicesAdmin().prepareUpdateSettings("foo").setSettings(Settings.builder().put("a", "b")), false);
         verify(indicesAdmin().prepareUpdateSettings("bar*").setSettings(Settings.builder().put("a", "b")), false);
@@ -590,7 +590,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         assertThat(settingsResponse.getSetting("bar", "index.c"), equalTo("d"));
         assertThat(settingsResponse.getSetting("barbaz", "index.c"), equalTo("d"));
 
-        assertAcked(indicesAdmin().prepareOpen("_all").get());
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "_all").get());
         try {
             verify(indicesAdmin().prepareUpdateSettings("barbaz").setSettings(Settings.builder().put("e", "f")), false);
         } catch (IllegalArgumentException e) {

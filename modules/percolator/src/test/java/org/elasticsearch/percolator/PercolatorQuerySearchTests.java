@@ -76,7 +76,7 @@ public class PercolatorQuerySearchTests extends ESSingleNodeTestCase {
     }
 
     public void testPercolateScriptQuery() throws IOException {
-        indicesAdmin().prepareCreate("index").setMapping("query", "type=percolator").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index").setMapping("query", "type=percolator").get();
         prepareIndex("index").setId("1")
             .setSource(
                 jsonBuilder().startObject()
@@ -123,7 +123,7 @@ public class PercolatorQuerySearchTests extends ESSingleNodeTestCase {
             .endObject();
         createIndex(
             "test",
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 // to avoid normal document from being cached by BitsetFilterCache
                 .setSettings(Settings.builder().put(BitsetFilterCache.INDEX_LOAD_RANDOM_ACCESS_FILTERS_EAGERLY_SETTING.getKey(), false))
                 .setMapping(mapping)
@@ -214,7 +214,7 @@ public class PercolatorQuerySearchTests extends ESSingleNodeTestCase {
             mapping.endObject();
         }
         mapping.endObject();
-        createIndex("test", indicesAdmin().prepareCreate("test").setMapping(mapping));
+        createIndex("test", indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping));
         Script script = new Script(ScriptType.INLINE, MockScriptPlugin.NAME, "use_fielddata_please", Collections.emptyMap());
         prepareIndex("test").setId("q1")
             .setSource(
@@ -352,7 +352,7 @@ public class PercolatorQuerySearchTests extends ESSingleNodeTestCase {
               }
             }
             """;
-        indicesAdmin().prepareCreate("houses").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "houses").setMapping(mapping).get();
         String source = """
             {
               "my_query" : {

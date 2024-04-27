@@ -90,6 +90,6 @@ public class SyntheticSourceIT extends AbstractEsqlIntegTestCase {
         }
         mapping.endObject();
 
-        assertAcked(client().admin().indices().prepareCreate("test").setMapping(mapping));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping));
     }
 }

@@ -96,7 +96,7 @@ public class AsyncTaskServiceTests extends ESSingleNodeTestCase {
         }
 
         // Delete the index, so we can test subsequent auto-create behaviour
-        assertAcked(client().admin().indices().prepareDelete(index));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, index));
 
         // Subsequent response deletes throw a (wrapped) index not found exception
         {

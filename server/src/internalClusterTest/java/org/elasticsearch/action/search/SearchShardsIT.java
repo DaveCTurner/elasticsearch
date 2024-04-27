@@ -45,7 +45,8 @@ public class SearchShardsIT extends ESIntegTestCase {
         for (int i = 0; i < indicesWithData; i++) {
             String index = "index-with-data-" + i;
             ElasticsearchAssertions.assertAcked(
-                indicesAdmin().prepareCreate(index).setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
+                indicesAdmin().prepareCreate(masterNodeTimeout, index)
+                    .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
             );
             int numDocs = randomIntBetween(1, 10);
             for (int j = 0; j < numDocs; j++) {
@@ -57,7 +58,8 @@ public class SearchShardsIT extends ESIntegTestCase {
         for (int i = 0; i < indicesWithoutData; i++) {
             String index = "index-without-data-" + i;
             ElasticsearchAssertions.assertAcked(
-                indicesAdmin().prepareCreate(index).setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
+                indicesAdmin().prepareCreate(masterNodeTimeout, index)
+                    .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
             );
         }
         // Range query
@@ -112,7 +114,7 @@ public class SearchShardsIT extends ESIntegTestCase {
         for (int i = 0; i < numIndices; i++) {
             String index = "index-" + i;
             ElasticsearchAssertions.assertAcked(
-                indicesAdmin().prepareCreate(index)
+                indicesAdmin().prepareCreate(masterNodeTimeout, index)
                     .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             );
             int numDocs = randomIntBetween(10, 1000);
@@ -166,7 +168,7 @@ public class SearchShardsIT extends ESIntegTestCase {
                 String index = "index-" + i;
                 int numShards = between(1, 5);
                 ElasticsearchAssertions.assertAcked(
-                    indicesAdmin().prepareCreate(index)
+                    indicesAdmin().prepareCreate(masterNodeTimeout, index)
                         .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numShards))
                 );
                 totalShards += numShards;

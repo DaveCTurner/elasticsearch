@@ -47,7 +47,11 @@ public class ShardChangesTests extends ESSingleNodeTestCase {
 
     // this emulates what the CCR persistent task will do for pulling
     public void testGetOperationsBasedOnGlobalSequenceId() throws Exception {
-        client().admin().indices().prepareCreate("index").setSettings(Settings.builder().put("index.number_of_shards", 1)).get();
+        client().admin()
+            .indices()
+            .prepareCreate(masterNodeTimeout, "index")
+            .setSettings(Settings.builder().put("index.number_of_shards", 1))
+            .get();
 
         prepareIndex("index").setId("1").setSource("{}", XContentType.JSON).get();
         prepareIndex("index").setId("2").setSource("{}", XContentType.JSON).get();
@@ -102,7 +106,7 @@ public class ShardChangesTests extends ESSingleNodeTestCase {
     }
 
     public void testMissingOperations() throws Exception {
-        indicesAdmin().prepareCreate("index")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index")
             .setSettings(
                 indexSettings(1, 0).put("index.soft_deletes.retention.operations", 0)
                     .put(IndexService.RETENTION_LEASE_SYNC_INTERVAL_SETTING.getKey(), "200ms")

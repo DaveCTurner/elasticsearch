@@ -136,7 +136,7 @@ public class SnapshotBlocksIT extends ESIntegTestCase {
     }
 
     public void testRestoreSnapshotWithBlocks() {
-        assertAcked(indicesAdmin().prepareDelete(INDEX_NAME, OTHER_INDEX_NAME));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, INDEX_NAME, OTHER_INDEX_NAME));
         assertFalse(indexExists(INDEX_NAME));
         assertFalse(indexExists(OTHER_INDEX_NAME));
 

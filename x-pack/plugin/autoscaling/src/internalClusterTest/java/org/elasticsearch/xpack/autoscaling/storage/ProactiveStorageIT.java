@@ -58,7 +58,7 @@ public class ProactiveStorageIT extends AutoscalingStorageIntegTestCase {
                     )
                     .toArray(IndexRequestBuilder[]::new)
             );
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dsName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dsName, null)).actionGet());
         }
         forceMerge();
         refresh();

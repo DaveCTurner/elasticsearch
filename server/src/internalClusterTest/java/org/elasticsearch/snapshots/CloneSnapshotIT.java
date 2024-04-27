@@ -128,7 +128,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         indexRandomDocs(indexName, randomIntBetween(20, 100));
         if (randomBoolean()) {
-            assertAcked(indicesAdmin().prepareDelete(indexName));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
         }
         final String targetSnapshot = "target-snapshot";
         assertAcked(startClone(repoName, sourceSnapshot, targetSnapshot, indexName).get());
@@ -306,7 +306,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
         final String sourceSnapshot = "source-snapshot";
         createFullSnapshot(repoName, sourceSnapshot);
 
-        assertAcked(indicesAdmin().prepareDelete(indexBlocked).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexBlocked).get());
 
         final String targetSnapshot1 = "target-snapshot";
         blockMasterOnShardClone(repoName);
@@ -699,7 +699,7 @@ public class CloneSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         final String sourceSnapshot = "source-snapshot";
         createFullSnapshot(repoName, sourceSnapshot);
-        assertAcked(indicesAdmin().prepareDelete(testIndex).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, testIndex).get());
 
         final MockRepository repo = getRepositoryOnMaster(repoName);
         repo.setBlockOnceOnReadSnapshotInfoIfAlreadyBlocked();

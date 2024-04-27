@@ -71,7 +71,11 @@ public class GeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
     public void testMappingUpdate() {
         // create index
         IndexVersion version = randomSupportedVersion();
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(settings(version).build()).setMapping("shape", "type=geo_shape"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(settings(version).build())
+                .setMapping("shape", "type=geo_shape")
+        );
         ensureGreen();
 
         String update = """
@@ -87,7 +91,7 @@ public class GeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
         if (version.before(IndexVersions.V_8_0_0)) {
             IllegalArgumentException e = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().preparePutMapping("test").setSource(update, XContentType.JSON).get()
+                () -> indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource(update, XContentType.JSON).get()
             );
             assertThat(
                 e.getMessage(),
@@ -96,7 +100,7 @@ public class GeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
         } else {
             MapperParsingException e = expectThrows(
                 MapperParsingException.class,
-                () -> indicesAdmin().preparePutMapping("test").setSource(update, XContentType.JSON).get()
+                () -> indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource(update, XContentType.JSON).get()
             );
             assertThat(
                 e.getMessage(),
@@ -107,7 +111,8 @@ public class GeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
 
     public void testPercolatorGeoQueries() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test").setMapping("id", "type=keyword", "field1", "type=geo_shape", "query", "type=percolator")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("id", "type=keyword", "field1", "type=geo_shape", "query", "type=percolator")
         );
 
         prepareIndex("test").setId("1")
@@ -164,7 +169,12 @@ public class GeoShapeWithDocValuesIT extends GeoShapeIntegTestCase {
         mapping.endObject().endObject().endObject();
 
         // create index
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(settings(randomSupportedVersion()).build()).setMapping(mapping).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(settings(randomSupportedVersion()).build())
+                .setMapping(mapping)
+                .get()
+        );
         ensureGreen();
 
         String source = """

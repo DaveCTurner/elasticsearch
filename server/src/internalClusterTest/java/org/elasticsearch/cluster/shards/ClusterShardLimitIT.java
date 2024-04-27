@@ -123,7 +123,10 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
                 .setSettings(indexSettings(counts.getFailingIndexShards(), counts.getFailingIndexReplicas()))
         );
 
-        final IllegalArgumentException e = expectThrows(IllegalArgumentException.class, indicesAdmin().prepareCreate("should-fail"));
+        final IllegalArgumentException e = expectThrows(
+            IllegalArgumentException.class,
+            indicesAdmin().prepareCreate(masterNodeTimeout, "should-fail")
+        );
         verifyException(dataNodes, counts, e);
         ClusterState clusterState = clusterAdmin().prepareState().get().getState();
         assertFalse(clusterState.getMetadata().hasIndex("should-fail"));
@@ -340,7 +343,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForGreenStatus().get();
         assertFalse(healthResponse.isTimedOut());
 
-        AcknowledgedResponse closeIndexResponse = client.admin().indices().prepareClose("test-index-1").get();
+        AcknowledgedResponse closeIndexResponse = client.admin().indices().prepareClose(masterNodeTimeout, "test-index-1").get();
         assertTrue(closeIndexResponse.isAcknowledged());
 
         // Fill up the cluster
@@ -355,7 +358,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         );
 
         try {
-            client.admin().indices().prepareOpen("test-index-1").get();
+            client.admin().indices().prepareOpen(masterNodeTimeout, "test-index-1").get();
             fail("should not have been able to open index");
         } catch (IllegalArgumentException e) {
             verifyException(dataNodes, counts, e);

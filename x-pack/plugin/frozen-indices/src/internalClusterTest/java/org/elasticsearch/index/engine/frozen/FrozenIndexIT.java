@@ -212,7 +212,7 @@ public class FrozenIndexIT extends ESIntegTestCase {
         final String assignedNode = randomFrom(dataNodes);
         final String indexName = "test";
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5))
@@ -279,7 +279,7 @@ public class FrozenIndexIT extends ESIntegTestCase {
 
         final String pitId = client().execute(TransportOpenPointInTimeAction.TYPE, openPointInTimeRequest).actionGet().getPointInTimeId();
         try {
-            indicesAdmin().prepareDelete("index-1").get();
+            indicesAdmin().prepareDelete(masterNodeTimeout, "index-1").get();
             // Return partial results if allow partial search result is allowed
             assertResponse(
                 prepareSearch().setAllowPartialSearchResults(true).setPointInTime(new PointInTimeBuilder(pitId)),

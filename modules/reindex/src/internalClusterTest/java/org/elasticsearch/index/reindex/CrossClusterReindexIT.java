@@ -53,7 +53,7 @@ public class CrossClusterReindexIT extends AbstractMultiClustersTestCase {
     }
 
     public void testReindexFromRemoteGivenIndexExists() throws Exception {
-        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate("source-index-001"));
+        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "source-index-001"));
         final int docsNumber = indexDocs(client(REMOTE_CLUSTER), "source-index-001");
 
         final String sourceIndexInRemote = REMOTE_CLUSTER + ":" + "source-index-001";
@@ -68,7 +68,7 @@ public class CrossClusterReindexIT extends AbstractMultiClustersTestCase {
     }
 
     public void testReindexFromRemoteGivenSameIndexNames() throws Exception {
-        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate("test-index-001"));
+        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "test-index-001"));
         final int docsNumber = indexDocs(client(REMOTE_CLUSTER), "test-index-001");
 
         final String sourceIndexInRemote = REMOTE_CLUSTER + ":" + "test-index-001";
@@ -83,7 +83,7 @@ public class CrossClusterReindexIT extends AbstractMultiClustersTestCase {
     }
 
     public void testReindexManyTimesFromRemoteGivenSameIndexNames() throws Exception {
-        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate("test-index-001"));
+        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "test-index-001"));
         final long docsNumber = indexDocs(client(REMOTE_CLUSTER), "test-index-001");
 
         final String sourceIndexInRemote = REMOTE_CLUSTER + ":" + "test-index-001";
@@ -129,7 +129,7 @@ public class CrossClusterReindexIT extends AbstractMultiClustersTestCase {
     }
 
     public void testReindexFromRemoteGivenSimpleDateMathIndexName() throws InterruptedException {
-        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate("datemath-2001-01-02"));
+        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "datemath-2001-01-02"));
         final int docsNumber = indexDocs(client(REMOTE_CLUSTER), "datemath-2001-01-02");
 
         final String sourceIndexInRemote = REMOTE_CLUSTER + ":" + "<datemath-{2001-01-01||+1d{yyyy-MM-dd}}>";
@@ -144,7 +144,7 @@ public class CrossClusterReindexIT extends AbstractMultiClustersTestCase {
     }
 
     public void testReindexFromRemoteGivenComplexDateMathIndexName() throws InterruptedException {
-        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate("datemath-2001-01-01-14"));
+        assertAcked(client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "datemath-2001-01-01-14"));
         final int docsNumber = indexDocs(client(REMOTE_CLUSTER), "datemath-2001-01-01-14");
 
         // Remote name contains `:` symbol twice

@@ -22,7 +22,7 @@ public class ConcurrentSearchSingleNodeTests extends ESSingleNodeTestCase {
     private final boolean concurrentSearch = randomBoolean();
 
     public void testConcurrentSearch() throws IOException {
-        client().admin().indices().prepareCreate("index").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "index").get();
         IndicesService indicesService = getInstanceFromNode(IndicesService.class);
         IndexService indexService = indicesService.iterator().next();
         IndexShard shard = indexService.getShard(0);

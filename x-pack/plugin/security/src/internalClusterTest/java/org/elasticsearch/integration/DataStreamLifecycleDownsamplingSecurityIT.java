@@ -164,7 +164,7 @@ public class DataStreamLifecycleDownsamplingSecurityIT extends SecurityIntegTest
         // before we rollover we update the index template to remove the start/end time boundaries (they're there just to ease with
         // testing so DSL doesn't have to wait for the end_time to lapse)
         putTSDBIndexTemplate(client(), dataStreamName, null, null, lifecycle);
-        client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+        client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
         assertBusy(() -> {
             assertNoAuthzErrors();
@@ -217,7 +217,7 @@ public class DataStreamLifecycleDownsamplingSecurityIT extends SecurityIntegTest
             // this means that only one round of downsampling will execute due to an optimisation we have in DSL to execute the last
             // matching round
             masterDataStreamLifecycleService.setNowSupplier(() -> Instant.now().plus(50, ChronoUnit.DAYS).toEpochMilli());
-            client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+            client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
             assertBusy(() -> {
                 assertNoAuthzErrors();

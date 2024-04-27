@@ -159,9 +159,9 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
 
         final boolean deletedBeforeMount = randomBoolean();
         if (deletedBeforeMount) {
-            assertAcked(indicesAdmin().prepareDelete(indexName));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
         } else {
-            assertAcked(indicesAdmin().prepareClose(indexName));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
         }
 
         logger.info("--> restoring partial index [{}] with cache enabled", restoredIndexName);
@@ -424,7 +424,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         assertFalse(clonedIndexSettings.hasValue(SearchableSnapshots.SNAPSHOT_INDEX_ID_SETTING.getKey()));
         assertFalse(clonedIndexSettings.hasValue(IndexModule.INDEX_RECOVERY_TYPE_SETTING.getKey()));
 
-        assertAcked(indicesAdmin().prepareDelete(restoredIndexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, restoredIndexName));
         assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
         assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(clonedIndexName, aliasName));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
@@ -432,7 +432,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
 
     public void testRequestCacheOnFrozen() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test-index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test-index")
                 .setMapping("f", "type=date")
                 .setSettings(indexSettings(1, 0).put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
         );
@@ -447,7 +447,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
 
         createFullSnapshot("repo", "snap");
 
-        assertAcked(indicesAdmin().prepareDelete("test-index"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test-index"));
 
         logger.info("--> restoring index [{}]", "test-index");
 
@@ -526,7 +526,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
         );
 
         // shut down shard and check that cache entries are actually removed
-        indicesAdmin().prepareClose("test-index").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test-index").get();
         ensureGreen("test-index");
 
         for (IndicesService indicesService : internalCluster().getInstances(IndicesService.class)) {
@@ -557,7 +557,7 @@ public class FrozenSearchableSnapshotsIntegTests extends BaseFrozenSearchableSna
 
         assertShardFolders(indexName, false);
 
-        assertAcked(indicesAdmin().prepareClose(indexName));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
         logger.info("--> restoring partial index [{}] with cache enabled", restoredIndexName);
 
         Settings.Builder indexSettingsBuilder = Settings.builder().put(SearchableSnapshots.SNAPSHOT_CACHE_ENABLED_SETTING.getKey(), true);

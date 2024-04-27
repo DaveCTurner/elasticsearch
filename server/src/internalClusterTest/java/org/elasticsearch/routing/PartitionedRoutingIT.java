@@ -32,7 +32,7 @@ public class PartitionedRoutingIT extends ESIntegTestCase {
             for (int partitionSize = 1; partitionSize < shards; partitionSize++) {
                 String index = "index_" + shards + "_" + partitionSize;
 
-                indicesAdmin().prepareCreate(index)
+                indicesAdmin().prepareCreate(masterNodeTimeout, index)
                     .setSettings(
                         Settings.builder()
                             .put("index.number_of_shards", shards)
@@ -62,7 +62,7 @@ public class PartitionedRoutingIT extends ESIntegTestCase {
         int currentShards = originalShards;
         String index = "index_" + currentShards;
 
-        indicesAdmin().prepareCreate(index)
+        indicesAdmin().prepareCreate(masterNodeTimeout, index)
             .setSettings(
                 indexSettings(currentShards, numberOfReplicas()).put("index.number_of_routing_shards", currentShards)
                     .put("index.routing_partition_size", partitionSize)

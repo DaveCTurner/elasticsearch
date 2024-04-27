@@ -60,7 +60,7 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
     }
 
     public void testDynamicUpdates() throws Exception {
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setSettings(indexSettings(1, 0).put(MapperService.INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), Long.MAX_VALUE))
             .get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
@@ -98,12 +98,12 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
     }
 
     public void testUpdateMappingWithoutType() {
-        indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 0)).setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings(1, 0)).setMapping("""
             {"properties":{"body":{"type":"text"}}}
             """).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping("test").setSource("""
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
             {"properties":{"date":{"type":"integer"}}}
             """, XContentType.JSON).get();
 
@@ -118,7 +118,7 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
         createIndex("test", 1, 0);
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping("test").setSource("""
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
             {"properties":{"date":{"type":"integer"}}}""", XContentType.JSON).get();
 
         assertThat(putMappingResponse.isAcknowledged(), equalTo(true));
@@ -129,13 +129,13 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
     }
 
     public void testUpdateMappingWithConflicts() {
-        indicesAdmin().prepareCreate("test").setSettings(indexSettings(2, 0)).setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings(2, 0)).setMapping("""
             {"properties":{"body":{"type":"text"}}}
             """).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         try {
-            indicesAdmin().preparePutMapping("test").setSource("""
+            indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
                 {"_doc":{"properties":{"body":{"type":"integer"}}}}
                 """, XContentType.JSON).get();
             fail("Expected MergeMappingException");
@@ -145,11 +145,11 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
     }
 
     public void testUpdateMappingWithNormsConflicts() {
-        indicesAdmin().prepareCreate("test").setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {"properties":{"body":{"type":"text", "norms": false }}}
             """).get();
         try {
-            indicesAdmin().preparePutMapping("test").setSource("""
+            indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
                 {"_doc":{"properties":{"body":{"type":"text", "norms": true }}}}
                 """, XContentType.JSON).get();
             fail("Expected MergeMappingException");
@@ -162,11 +162,11 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
     Second regression test for https://github.com/elastic/elasticsearch/issues/3381
      */
     public void testUpdateMappingNoChanges() {
-        indicesAdmin().prepareCreate("test").setSettings(indexSettings(2, 0)).setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings(2, 0)).setMapping("""
             {"properties":{"body":{"type":"text"}}}""").get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
-        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping("test").setSource("""
+        AcknowledgedResponse putMappingResponse = indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
             {"_doc":{"properties":{"body":{"type":"text"}}}}
             """, XContentType.JSON).get();
 
@@ -203,7 +203,7 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
 
                         AcknowledgedResponse response = client1.admin()
                             .indices()
-                            .preparePutMapping(indexName)
+                            .preparePutMapping(masterNodeTimeout, indexName)
                             .setSource(
                                 JsonXContent.contentBuilder()
                                     .startObject()
@@ -253,7 +253,7 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
         for (String block : Arrays.asList(SETTING_BLOCKS_READ, SETTING_BLOCKS_WRITE)) {
             try {
                 enableIndexBlock("test", block);
-                assertAcked(indicesAdmin().preparePutMapping("test").setSource("""
+                assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
                     {"properties":{"date":{"type":"integer"}}}
                     """, XContentType.JSON));
             } finally {
@@ -264,7 +264,7 @@ public class UpdateMappingIntegrationIT extends ESIntegTestCase {
         for (String block : Arrays.asList(SETTING_READ_ONLY, SETTING_BLOCKS_METADATA)) {
             try {
                 enableIndexBlock("test", block);
-                assertBlocked(indicesAdmin().preparePutMapping("test").setSource("""
+                assertBlocked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
                     {"properties":{"date":{"type":"integer"}}}
                     """, XContentType.JSON));
             } finally {

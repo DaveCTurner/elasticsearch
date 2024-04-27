@@ -259,7 +259,7 @@ public class MlNodeShutdownIT extends BaseMlIntegTestCase {
     }
 
     private void createSourceData() {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(50, 100);
         long now = System.currentTimeMillis();
         long weekAgo = now - 604800000;

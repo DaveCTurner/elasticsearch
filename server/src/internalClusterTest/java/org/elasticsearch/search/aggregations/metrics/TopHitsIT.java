@@ -1198,7 +1198,8 @@ public class TopHitsIT extends ESIntegTestCase {
                 equalTo(3L)
             );
         } finally {
-            assertAcked(indicesAdmin().prepareDelete("cache_test_idx")); // delete this - if we use tests.iters it would fail
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "cache_test_idx")); // delete this - if we use tests.iters it would
+                                                                                            // fail
         }
     }
 

@@ -67,7 +67,7 @@ public class SearchSliceIT extends ESIntegTestCase {
                 .endObject()
         );
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put("number_of_shards", numberOfShards).put("index.max_slices_per_scroll", 10000))
                 .setMapping(mapping)
         );

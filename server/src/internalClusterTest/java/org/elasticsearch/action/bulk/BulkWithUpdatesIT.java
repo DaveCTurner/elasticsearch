@@ -633,7 +633,7 @@ public class BulkWithUpdatesIT extends ESIntegTestCase {
         client().bulk(bulkRequest).get();
         assertHitCount(prepareSearch("bulkindex*"), 3);
 
-        assertBusy(() -> assertAcked(indicesAdmin().prepareClose("bulkindex2")));
+        assertBusy(() -> assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "bulkindex2")));
 
         BulkRequest bulkRequest2 = new BulkRequest();
         bulkRequest2.add(new IndexRequest("bulkindex1").id("1").source(Requests.INDEX_CONTENT_TYPE, "text", "hallo1"))
@@ -653,7 +653,7 @@ public class BulkWithUpdatesIT extends ESIntegTestCase {
         createIndex("bulkindex1");
 
         prepareIndex("bulkindex1").setId("1").setSource("text", "test").get();
-        assertBusy(() -> assertAcked(indicesAdmin().prepareClose("bulkindex1")));
+        assertBusy(() -> assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "bulkindex1")));
 
         BulkRequest bulkRequest = new BulkRequest().setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         bulkRequest.add(new IndexRequest("bulkindex1").id("1").source(Requests.INDEX_CONTENT_TYPE, "text", "hallo1"))

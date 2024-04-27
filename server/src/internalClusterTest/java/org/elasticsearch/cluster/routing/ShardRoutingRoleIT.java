@@ -334,9 +334,9 @@ public class ShardRoutingRoleIT extends ESIntegTestCase {
             );
 
             if (randomBoolean()) {
-                assertAcked(indicesAdmin().prepareDelete(INDEX_NAME));
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, INDEX_NAME));
             } else {
-                assertAcked(indicesAdmin().prepareClose(INDEX_NAME));
+                assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, INDEX_NAME));
                 ensureGreen(INDEX_NAME);
             }
 
@@ -594,7 +594,7 @@ public class ShardRoutingRoleIT extends ESIntegTestCase {
             ensureGreen(INDEX_NAME);
             assertEngineTypes();
 
-            assertAcked(indicesAdmin().prepareClose(INDEX_NAME));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, INDEX_NAME));
             ensureGreen(INDEX_NAME);
             assertEngineTypes();
         } finally {

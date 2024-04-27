@@ -52,7 +52,7 @@ public class ResizeRequestTests extends AbstractWireSerializingTestCase<ResizeRe
 
     private void runTestCopySettingsValidation(final Boolean copySettings, final Consumer<Supplier<ResizeRequest>> consumer) {
         consumer.accept(() -> {
-            final ResizeRequest request = new ResizeRequest();
+            final ResizeRequest request = new ResizeRequest(masterNodeTimeout);
             request.setCopySettings(copySettings);
             return request;
         });
@@ -60,19 +60,19 @@ public class ResizeRequestTests extends AbstractWireSerializingTestCase<ResizeRe
 
     public void testToXContent() throws IOException {
         {
-            ResizeRequest request = new ResizeRequest("target", "source");
+            ResizeRequest request = new ResizeRequest(masterNodeTimeout, "target", "source");
             String actualRequestBody = Strings.toString(request);
             assertEquals("{\"settings\":{},\"aliases\":{}}", actualRequestBody);
         }
         {
-            ResizeRequest request = new ResizeRequest("target", "source");
+            ResizeRequest request = new ResizeRequest(masterNodeTimeout, "target", "source");
             request.setMaxPrimaryShardSize(new ByteSizeValue(100, ByteSizeUnit.MB));
             String actualRequestBody = Strings.toString(request);
             assertEquals("""
                 {"settings":{},"aliases":{},"max_primary_shard_size":"100mb"}""", actualRequestBody);
         }
         {
-            ResizeRequest request = new ResizeRequest();
+            ResizeRequest request = new ResizeRequest(masterNodeTimeout);
             CreateIndexRequest target = new CreateIndexRequest(masterNodeTimeout, "target");
             Alias alias = new Alias("test_alias");
             alias.routing("1");
@@ -116,6 +116,7 @@ public class ResizeRequestTests extends AbstractWireSerializingTestCase<ResizeRe
         BytesReference originalBytes = toShuffledXContent(resizeRequest, xContentType, EMPTY_PARAMS, humanReadable);
 
         ResizeRequest parsedResizeRequest = new ResizeRequest(
+            masterNodeTimeout,
             randomValueOtherThan(resizeRequest.getTargetIndexRequest().index(), () -> randomAlphaOfLength(5)),
             randomValueOtherThan(resizeRequest.getSourceIndex(), () -> randomAlphaOfLength(5))
         );
@@ -162,7 +163,11 @@ public class ResizeRequestTests extends AbstractWireSerializingTestCase<ResizeRe
 
     @Override
     protected ResizeRequest createTestInstance() {
-        ResizeRequest resizeRequest = new ResizeRequest(randomAlphaOfLengthBetween(3, 10), randomAlphaOfLengthBetween(3, 10));
+        ResizeRequest resizeRequest = new ResizeRequest(
+            masterNodeTimeout,
+            randomAlphaOfLengthBetween(3, 10),
+            randomAlphaOfLengthBetween(3, 10)
+        );
         if (randomBoolean()) {
             resizeRequest.setTargetIndex(RandomCreateIndexGenerator.randomCreateIndexRequest());
         }

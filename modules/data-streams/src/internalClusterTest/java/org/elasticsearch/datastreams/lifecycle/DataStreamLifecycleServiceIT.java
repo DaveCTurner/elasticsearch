@@ -243,8 +243,8 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         String dataStreamName = "metrics-foo";
         CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName);
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
-        client().admin().indices().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet();
-        client().admin().indices().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet();
+        client().admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
+        client().admin().indices().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
         int finalGeneration = 3;
 
         // Update the lifecycle of the data stream
@@ -728,7 +728,8 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         ByteSizeValue targetFloor = DATA_STREAM_MERGE_POLICY_TARGET_FLOOR_SEGMENT_SETTING.get(clusterSettings);
 
         assertBusy(() -> {
-            GetSettingsRequest getSettingsRequest = new GetSettingsRequest().indices(firstGenerationIndex).includeDefaults(true);
+            GetSettingsRequest getSettingsRequest = new GetSettingsRequest(masterNodeTimeout).indices(firstGenerationIndex)
+                .includeDefaults(true);
             GetSettingsResponse getSettingsResponse = client().execute(GetSettingsAction.INSTANCE, getSettingsRequest).actionGet();
             assertThat(
                 getSettingsResponse.getSetting(firstGenerationIndex, MergePolicyConfig.INDEX_MERGE_POLICY_MERGE_FACTOR_SETTING.getKey()),
@@ -762,7 +763,8 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         String secondGenerationIndex = getBackingIndices(dataStreamName).get(1);
         // check the 2nd generation index picked up the new setting values
         assertBusy(() -> {
-            GetSettingsRequest getSettingsRequest = new GetSettingsRequest().indices(secondGenerationIndex).includeDefaults(true);
+            GetSettingsRequest getSettingsRequest = new GetSettingsRequest(masterNodeTimeout).indices(secondGenerationIndex)
+                .includeDefaults(true);
             GetSettingsResponse getSettingsResponse = client().execute(GetSettingsAction.INSTANCE, getSettingsRequest).actionGet();
             assertThat(
                 getSettingsResponse.getSetting(secondGenerationIndex, MergePolicyConfig.INDEX_MERGE_POLICY_MERGE_FACTOR_SETTING.getKey()),

@@ -480,7 +480,7 @@ public class IndexAliasesIT extends ESIntegTestCase {
         logger.info("--> creating indices");
         createIndex("test1", "test2", "test3");
 
-        assertAcked(indicesAdmin().preparePutMapping("test1", "test2", "test3").setSource("name", "type=text"));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test1", "test2", "test3").setSource("name", "type=text"));
 
         ensureGreen();
 
@@ -876,7 +876,10 @@ public class IndexAliasesIT extends ESIntegTestCase {
         createIndex("foobarbaz");
         createIndex("bazbar");
 
-        assertAcked(indicesAdmin().preparePutMapping("foobar", "test", "test123", "foobarbaz", "bazbar").setSource("field", "type=text"));
+        assertAcked(
+            indicesAdmin().preparePutMapping(masterNodeTimeout, "foobar", "test", "test123", "foobarbaz", "bazbar")
+                .setSource("field", "type=text")
+        );
         ensureGreen();
 
         logger.info("--> creating aliases [alias1, alias2]");
@@ -1300,7 +1303,7 @@ public class IndexAliasesIT extends ESIntegTestCase {
     }
 
     public void testRemoveIndexAndReplaceWithAlias() throws InterruptedException, ExecutionException {
-        assertAcked(indicesAdmin().prepareCreate("test"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test"));
         indexRandom(true, prepareIndex("test_2").setId("test").setSource("test", "test"));
         assertAliasesVersionIncreases(
             "test_2",
@@ -1440,7 +1443,7 @@ public class IndexAliasesIT extends ESIntegTestCase {
         final String indexName = "index-name";
         final IllegalArgumentException iae = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().prepareCreate(indexName).addAlias(new Alias(indexName))
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName).addAlias(new Alias(indexName))
         );
         assertEquals("alias name [" + indexName + "] self-conflicts with index name", iae.getMessage());
     }

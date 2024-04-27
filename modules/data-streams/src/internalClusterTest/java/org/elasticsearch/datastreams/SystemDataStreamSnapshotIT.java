@@ -200,7 +200,7 @@ public class SystemDataStreamSnapshotIT extends AbstractSnapshotIntegTestCase {
             assertTrue(response.isAcknowledged());
         }
 
-        assertAcked(indicesAdmin().prepareDelete("my-index"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "my-index"));
 
         {
             GetIndexResponse indicesRemaining = indicesAdmin().prepareGetIndex().addIndices("_all").get();

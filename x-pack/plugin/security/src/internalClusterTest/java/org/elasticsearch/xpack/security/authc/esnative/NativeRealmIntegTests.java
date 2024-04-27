@@ -527,7 +527,11 @@ public class NativeRealmIntegTests extends NativeRealmIntegTestCase {
         // authn fails
         final ElasticsearchSecurityException e = expectThrows(
             ElasticsearchSecurityException.class,
-            () -> client().filterWithHeader(Collections.singletonMap("Authorization", token)).admin().indices().prepareCreate("idx").get()
+            () -> client().filterWithHeader(Collections.singletonMap("Authorization", token))
+                .admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "idx")
+                .get()
         );
         assertThat(e.status(), is(RestStatus.UNAUTHORIZED));
         // users and roles are missing
@@ -559,7 +563,7 @@ public class NativeRealmIntegTests extends NativeRealmIntegTestCase {
         CreateIndexResponse createIndexResponse = client().filterWithHeader(Collections.singletonMap("Authorization", token))
             .admin()
             .indices()
-            .prepareCreate("idx")
+            .prepareCreate(masterNodeTimeout, "idx")
             .get();
         assertThat(createIndexResponse.isAcknowledged(), is(true));
         assertAcked(clusterAdmin().prepareDeleteRepository("test-repo"));

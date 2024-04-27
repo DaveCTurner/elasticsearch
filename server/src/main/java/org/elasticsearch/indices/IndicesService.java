@@ -74,6 +74,7 @@ import org.elasticsearch.core.IOUtils;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.Releasable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.core.UpdateForV9;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.ShardLock;
 import org.elasticsearch.env.ShardLockObtainFailedException;
@@ -879,7 +880,7 @@ public class IndicesService extends AbstractLifecycleComponent
         indexShard.startRecovery(recoveryState, recoveryTargetService, recoveryListener, repositoriesService, (mapping, listener) -> {
             assert recoveryState.getRecoverySource().getType() == RecoverySource.Type.LOCAL_SHARDS
                 : "mapping update consumer only required by local shards recovery";
-            AcknowledgedRequest<PutMappingRequest> putMappingRequestAcknowledgedRequest = new PutMappingRequest(masterNodeTimeout)
+            AcknowledgedRequest<PutMappingRequest> putMappingRequestAcknowledgedRequest = new PutMappingRequest(PUT_MAPPING_TIMEOUT)
                 .setConcreteIndex(shardRouting.index())
                 .setConcreteIndex(shardRouting.index()) // concrete index - no name clash, it uses uuid
                 .source(mapping.source().string(), XContentType.JSON);
@@ -888,11 +889,14 @@ public class IndicesService extends AbstractLifecycleComponent
                 featureService.clusterHasFeature(clusterService.state(), SUPPORTS_AUTO_PUT)
                     ? TransportAutoPutMappingAction.TYPE
                     : TransportPutMappingAction.TYPE,
-                putMappingRequestAcknowledgedRequest.ackTimeout(TimeValue.MAX_VALUE).masterNodeTimeout(TimeValue.MAX_VALUE),
+                putMappingRequestAcknowledgedRequest.ackTimeout(TimeValue.MAX_VALUE),
                 new RefCountAwareThreadedActionListener<>(threadPool.generic(), listener.map(ignored -> null))
             );
         }, this, clusterStateVersion);
     }
+
+    @UpdateForV9 // Use MINUS_ONE for infinite timeout now that this is fully supported
+    private static final TimeValue PUT_MAPPING_TIMEOUT = TimeValue.MAX_VALUE;
 
     @Override
     public void removeIndex(final Index index, final IndexRemovalReason reason, final String extraInfo) {

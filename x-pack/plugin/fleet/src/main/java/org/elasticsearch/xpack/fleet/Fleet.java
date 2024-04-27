@@ -132,7 +132,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetActionsSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-actions.json", FLEET_ACTIONS_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()
@@ -150,7 +150,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetAgentsSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-agents.json", FLEET_AGENTS_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()
@@ -168,7 +168,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetEnrollmentApiKeysSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(
             loadTemplateSource("/fleet-enrollment-api-keys.json", FLEET_ENROLLMENT_API_KEYS_MAPPINGS_VERSION),
             XContentType.JSON
@@ -189,7 +189,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetSecretsSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-secrets.json", FLEET_SECRETS_MAPPINGS_VERSION), XContentType.JSON);
         return SystemIndexDescriptor.builder()
             .setType(Type.INTERNAL_MANAGED)
@@ -205,7 +205,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetPoliciesSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-policies.json", FLEET_POLICIES_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()
@@ -223,7 +223,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetPoliciesLeaderSystemIndexDescriptor() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-policies-leader.json", FLEET_POLICIES_LEADER_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()
@@ -241,7 +241,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetServersSystemIndexDescriptors() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-servers.json", FLEET_SERVERS_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()
@@ -259,7 +259,7 @@ public class Fleet extends Plugin implements SystemIndexPlugin {
     }
 
     private static SystemIndexDescriptor fleetArtifactsSystemIndexDescriptors() {
-        PutIndexTemplateRequest request = new PutIndexTemplateRequest();
+        PutIndexTemplateRequest request = new PutIndexTemplateRequest(masterNodeTimeout);
         request.source(loadTemplateSource("/fleet-artifacts.json", FLEET_ARTIFACTS_MAPPINGS_VERSION), XContentType.JSON);
 
         return SystemIndexDescriptor.builder()

@@ -41,7 +41,7 @@ public class SearchReplicaSelectionIT extends ESIntegTestCase {
         // We grab a client directly to avoid using a randomizing client that might set a search preference.
         Client client = internalCluster().coordOnlyNodeClient();
 
-        client.admin().indices().prepareCreate("test").setSettings(indexSettings(1, 2)).get();
+        client.admin().indices().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings(1, 2)).get();
         ensureGreen();
 
         client.prepareIndex("test").setSource("field", "value").get();

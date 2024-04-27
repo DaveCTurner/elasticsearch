@@ -67,7 +67,7 @@ public class IndicesStatsTests extends ESSingleNodeTestCase {
             .endObject()
             .endObject();
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping(mapping)
                 .setSettings(Settings.builder().put("index.store.type", storeType.getSettingsKey()))
         );

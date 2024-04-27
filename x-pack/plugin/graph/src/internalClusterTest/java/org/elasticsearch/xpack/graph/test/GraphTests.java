@@ -76,7 +76,7 @@ public class GraphTests extends ESSingleNodeTestCase {
     public void setUp() throws Exception {
         super.setUp();
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(indexSettings(2, 0))
                 .setMapping("decade", "type=keyword", "people", "type=keyword", "description", "type=text,fielddata=true")
         );

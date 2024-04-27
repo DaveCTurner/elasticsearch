@@ -114,7 +114,7 @@ public class DataTiersMigrationsTests extends ESIntegTestCase {
             .put(SETTING_NUMBER_OF_REPLICAS, 1)
             .put(LifecycleSettings.LIFECYCLE_NAME, policy)
             .build();
-        CreateIndexResponse res = indicesAdmin().prepareCreate(managedIndex).setSettings(settings).get();
+        CreateIndexResponse res = indicesAdmin().prepareCreate(masterNodeTimeout, managedIndex).setSettings(settings).get();
         assertTrue(res.isAcknowledged());
 
         assertBusy(() -> {
@@ -175,7 +175,7 @@ public class DataTiersMigrationsTests extends ESIntegTestCase {
             .put(SETTING_NUMBER_OF_REPLICAS, 1)
             .put(LifecycleSettings.LIFECYCLE_NAME, policy)
             .build();
-        CreateIndexResponse res = indicesAdmin().prepareCreate(managedIndex).setSettings(settings).get();
+        CreateIndexResponse res = indicesAdmin().prepareCreate(masterNodeTimeout, managedIndex).setSettings(settings).get();
         assertTrue(res.isAcknowledged());
 
         assertBusy(() -> {

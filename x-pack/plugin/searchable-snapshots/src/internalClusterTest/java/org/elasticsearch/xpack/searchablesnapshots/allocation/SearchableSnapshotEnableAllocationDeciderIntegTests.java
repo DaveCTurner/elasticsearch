@@ -68,7 +68,7 @@ public class SearchableSnapshotEnableAllocationDeciderIntegTests extends BaseSea
         createRepository(repositoryName, "mock");
 
         final SnapshotId snapshotId = createSnapshot(repositoryName, "snapshot-1", List.of(indexName)).snapshotId();
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
         return mountSnapshot(repositoryName, snapshotId.getName(), indexName, Settings.EMPTY);
     }
 

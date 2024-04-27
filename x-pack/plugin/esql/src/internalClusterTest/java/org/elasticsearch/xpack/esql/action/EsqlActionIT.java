@@ -718,7 +718,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate(indexName)
+                .prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(
                     Settings.builder()
                         .put(IndexSettings.INDEX_SEARCH_IDLE_AFTER.getKey(), 0)
@@ -786,7 +786,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate(indexName)
+                .prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
         );
         ensureYellow(indexName);
@@ -826,7 +826,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate(indexName)
+                .prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
                 .setMapping("val", "type=long", "tag", "type=keyword")
         );
@@ -912,7 +912,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
             assertAcked(
                 client().admin()
                     .indices()
-                    .prepareCreate(indexName)
+                    .prepareCreate(masterNodeTimeout, indexName)
                     .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
                     .setMapping("data", "type=long", "count", "type=long")
             );
@@ -972,7 +972,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("test_overlapping_index_patterns_1")
+                .prepareCreate(masterNodeTimeout, "test_overlapping_index_patterns_1")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
                 .setMapping("field", "type=long")
         );
@@ -985,7 +985,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("test_overlapping_index_patterns_2")
+                .prepareCreate(masterNodeTimeout, "test_overlapping_index_patterns_2")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
                 .setMapping("field", "type=keyword")
         );
@@ -1009,7 +1009,13 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     }
 
     public void testEmptyIndex() {
-        assertAcked(client().admin().indices().prepareCreate("test_empty").setMapping("k", "type=keyword", "v", "type=long").get());
+        assertAcked(
+            client().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "test_empty")
+                .setMapping("k", "type=keyword", "v", "type=long")
+                .get()
+        );
         try (EsqlQueryResponse results = run("from test_empty")) {
             assertThat(results.columns(), equalTo(List.of(new ColumnInfo("k", "keyword"), new ColumnInfo("v", "long"))));
             assertThat(getValuesList(results), empty());
@@ -1187,7 +1193,9 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
 
     public void testGroupingMultiValueByOrdinals() {
         String indexName = "test-ordinals";
-        assertAcked(client().admin().indices().prepareCreate(indexName).setMapping("kw", "type=keyword", "v", "type=long").get());
+        assertAcked(
+            client().admin().indices().prepareCreate(masterNodeTimeout, indexName).setMapping("kw", "type=keyword", "v", "type=long").get()
+        );
         int numDocs = randomIntBetween(10, 200);
         for (int i = 0; i < numDocs; i++) {
             Map<String, Object> source = new HashMap<>();
@@ -1226,10 +1234,16 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
 
     public void testUnsupportedTypesOrdinalGrouping() {
         assertAcked(
-            client().admin().indices().prepareCreate("index-1").setMapping("f1", "type=keyword", "f2", "type=keyword", "v", "type=long")
+            client().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "index-1")
+                .setMapping("f1", "type=keyword", "f2", "type=keyword", "v", "type=long")
         );
         assertAcked(
-            client().admin().indices().prepareCreate("index-2").setMapping("f1", "type=object", "f2", "type=keyword", "v", "type=long")
+            client().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "index-2")
+                .setMapping("f1", "type=object", "f2", "type=keyword", "v", "type=long")
         );
         Map<String, Long> groups = new HashMap<>();
         int numDocs = randomIntBetween(10, 20);
@@ -1258,8 +1272,8 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     }
 
     public void testFilterNestedFields() {
-        assertAcked(client().admin().indices().prepareCreate("index-1").setMapping("file.name", "type=keyword"));
-        assertAcked(client().admin().indices().prepareCreate("index-2").setMapping("file", "type=keyword"));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "index-1").setMapping("file.name", "type=keyword"));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "index-2").setMapping("file", "type=keyword"));
         try (var resp = run("from index-1,index-2 | where file.name is not null")) {
             var valuesList = getValuesList(resp);
             assertEquals(2, resp.columns().size());
@@ -1280,14 +1294,14 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("index-1")
+                .prepareCreate(masterNodeTimeout, "index-1")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node1))
                 .setMapping("field_1", "type=integer")
         );
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("index-2")
+                .prepareCreate(masterNodeTimeout, "index-2")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node2))
                 .setMapping("field_2", "type=integer")
         );
@@ -1321,14 +1335,14 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("foo-index")
+                .prepareCreate(masterNodeTimeout, "foo-index")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node1))
                 .setMapping("foo_int", "type=integer", "foo_long", "type=long", "foo_float", "type=float", "foo_double", "type=double")
         );
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("bar-index")
+                .prepareCreate(masterNodeTimeout, "bar-index")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node2))
                 .setMapping("bar_int", "type=integer", "bar_long", "type=long", "bar_float", "type=float", "bar_double", "type=double")
         );
@@ -1360,14 +1374,14 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("foo-index")
+                .prepareCreate(masterNodeTimeout, "foo-index")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node1))
                 .setMapping("foo_int", "type=integer", "foo_long", "type=long", "foo_float", "type=float", "foo_double", "type=double")
         );
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("bar-index")
+                .prepareCreate(masterNodeTimeout, "bar-index")
                 .setSettings(Settings.builder().put("index.routing.allocation.require._name", node2))
                 .setMapping("bar_int", "type=integer", "bar_long", "type=long", "bar_float", "type=float", "bar_double", "type=double")
         );
@@ -1381,7 +1395,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     }
 
     public void testCountTextField() {
-        assertAcked(client().admin().indices().prepareCreate("test_count").setMapping("name", "type=text"));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "test_count").setMapping("name", "type=text"));
         int numDocs = between(10, 1000);
         Set<String> names = new HashSet<>();
         for (int i = 0; i < numDocs; i++) {
@@ -1432,7 +1446,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
 
     public void testQueryOnEmptyDataIndex() {
         createIndex("empty_data-test", Settings.EMPTY);
-        assertAcked(client().admin().indices().prepareCreate("empty_data-test2").setMapping("name", "type=text"));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "empty_data-test2").setMapping("name", "type=text"));
         IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty_data-test").alias("alias-empty_data-test"))
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty_data-test2").alias("alias-empty_data-test"));
@@ -1518,7 +1532,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate(indexName)
+                .prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put("index.number_of_shards", ESTestCase.randomIntBetween(1, 3)))
                 .setMapping(builder)
         );
@@ -1581,7 +1595,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate(indexName)
+                .prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(Settings.builder().put(additionalSettings).put("index.number_of_shards", ESTestCase.randomIntBetween(1, 5)))
                 .setMapping(
                     "data",

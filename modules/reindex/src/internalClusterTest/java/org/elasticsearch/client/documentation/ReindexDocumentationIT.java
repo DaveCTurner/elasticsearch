@@ -63,7 +63,7 @@ public class ReindexDocumentationIT extends ESIntegTestCase {
 
     @Before
     public void setup() {
-        indicesAdmin().prepareCreate(INDEX_NAME).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, INDEX_NAME).get();
     }
 
     @SuppressWarnings("unused")
@@ -82,9 +82,9 @@ public class ReindexDocumentationIT extends ESIntegTestCase {
     @SuppressWarnings("unused")
     public void testUpdateByQuery() {
         Client client = client();
-        client.admin().indices().prepareCreate("foo").get();
-        client.admin().indices().prepareCreate("bar").get();
-        client.admin().indices().preparePutMapping(INDEX_NAME).setSource("cat", "type=keyword").get();
+        client.admin().indices().prepareCreate(masterNodeTimeout, "foo").get();
+        client.admin().indices().prepareCreate(masterNodeTimeout, "bar").get();
+        client.admin().indices().preparePutMapping(masterNodeTimeout, INDEX_NAME).setSource("cat", "type=keyword").get();
         {
             // tag::update-by-query
             UpdateByQueryRequestBuilder updateByQuery =
@@ -230,7 +230,7 @@ public class ReindexDocumentationIT extends ESIntegTestCase {
     @SuppressWarnings("unused")
     public void testDeleteByQuery() {
         Client client = client();
-        client.admin().indices().prepareCreate("persons").get();
+        client.admin().indices().prepareCreate(masterNodeTimeout, "persons").get();
 
         // tag::delete-by-query-sync
         BulkByScrollResponse response =

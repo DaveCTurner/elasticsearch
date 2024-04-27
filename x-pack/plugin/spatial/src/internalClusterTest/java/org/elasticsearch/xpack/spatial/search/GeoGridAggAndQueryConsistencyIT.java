@@ -98,7 +98,7 @@ public class GeoGridAggAndQueryConsistencyIT extends ESIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        indicesAdmin().prepareCreate("test").setMapping(xcb).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(xcb).get();
 
         BulkRequestBuilder builder = client().prepareBulk();
         builder.add(
@@ -146,7 +146,7 @@ public class GeoGridAggAndQueryConsistencyIT extends ESIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        indicesAdmin().prepareCreate("test").setMapping(xcb).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(xcb).get();
 
         BulkRequestBuilder builder = client().prepareBulk();
         builder.add(
@@ -247,7 +247,7 @@ public class GeoGridAggAndQueryConsistencyIT extends ESIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        indicesAdmin().prepareCreate("test").setMapping(xcb).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(xcb).get();
 
         Point queryPoint = GeometryTestUtils.randomPoint();
         String[] tiles = new String[maxPrecision + 1];

@@ -401,7 +401,7 @@ public class SearchQueryIT extends ESIntegTestCase {
     }
 
     public void testIdsQueryTestsIdIndexed() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test"));
 
         indexRandom(
             true,
@@ -422,7 +422,7 @@ public class SearchQueryIT extends ESIntegTestCase {
     public void testTermIndexQuery() throws Exception {
         String[] indexNames = { "test1", "test2" };
         for (String indexName : indexNames) {
-            assertAcked(indicesAdmin().prepareCreate(indexName));
+            assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, indexName));
 
             indexRandom(true, prepareIndex(indexName).setId(indexName + "1").setSource("field1", "value1"));
 
@@ -1505,7 +1505,7 @@ public class SearchQueryIT extends ESIntegTestCase {
 
     public void testDateProvidedAsNumber() throws InterruptedException {
         createIndex("test");
-        assertAcked(indicesAdmin().preparePutMapping("test").setSource("field", "type=date,format=epoch_millis").get());
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("field", "type=date,format=epoch_millis").get());
         indexRandom(
             true,
             prepareIndex("test").setId("1").setSource("field", 1000000000001L),

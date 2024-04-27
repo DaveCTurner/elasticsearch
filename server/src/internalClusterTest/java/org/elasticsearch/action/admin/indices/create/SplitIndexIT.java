@@ -85,7 +85,7 @@ public class SplitIndexIT extends ESIntegTestCase {
         assumeFalse("https://github.com/elastic/elasticsearch/issues/33857", Constants.WINDOWS);
 
         splitToN(1, 5, 10);
-        indicesAdmin().prepareDelete("*").get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, "*").get();
         int randomSplit = randomIntBetween(2, 6);
         splitToN(1, randomSplit, randomSplit * 2);
     }

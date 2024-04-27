@@ -25,7 +25,7 @@ public class PutIndexTemplateRequestBuilder extends MasterNodeOperationRequestBu
     PutIndexTemplateRequestBuilder> {
 
     public PutIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
-        super(client, TransportPutIndexTemplateAction.TYPE, new PutIndexTemplateRequest(name));
+        super(client, TransportPutIndexTemplateAction.TYPE, new PutIndexTemplateRequest(masterNodeTimeout, name));
     }
 
     /**

@@ -113,8 +113,8 @@ public class WatcherScheduleEngineBenchmark {
                 throw new IllegalStateException("This benchmark needs one extra data only node running outside this benchmark");
             }
 
-            client.admin().indices().prepareDelete("_all").get();
-            client.admin().indices().prepareCreate("test").get();
+            client.admin().indices().prepareDelete(masterNodeTimeout, "_all").get();
+            client.admin().indices().prepareCreate(masterNodeTimeout, "test").get();
             client.prepareIndex().setIndex("test").setId("1").setSource("{}", XContentType.JSON).get();
 
             System.out.println("===============> indexing [" + numWatches + "] watches");
@@ -161,7 +161,7 @@ public class WatcherScheduleEngineBenchmark {
             try (Node node = new MockNode(settings, Arrays.asList(LocalStateWatcher.class))) {
                 final Client client = node.client();
                 client.admin().cluster().prepareHealth().setWaitForNodes("2").get();
-                client.admin().indices().prepareDelete(HistoryStoreField.DATA_STREAM + "*").get();
+                client.admin().indices().prepareDelete(masterNodeTimeout, HistoryStoreField.DATA_STREAM + "*").get();
                 client.admin().cluster().prepareHealth(Watch.INDEX, "test").setWaitForYellowStatus().get();
 
                 Clock clock = node.injector().getInstance(Clock.class);

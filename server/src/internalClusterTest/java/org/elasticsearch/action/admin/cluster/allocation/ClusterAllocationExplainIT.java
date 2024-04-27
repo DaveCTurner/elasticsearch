@@ -1056,7 +1056,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
             indexData();
         } else {
             logger.info("--> close the index, now the replica is stale");
-            assertAcked(indicesAdmin().prepareClose("idx"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
 
             final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth("idx")
                 .setTimeout(TimeValue.timeValueSeconds(30))
@@ -1256,7 +1256,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
 
         logger.info("--> creating a {} index with {} primary, {} replicas", state, numPrimaries, numReplicas);
         assertAcked(
-            indicesAdmin().prepareCreate("idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "idx")
                 .setSettings(indexSettings(numPrimaries, numReplicas).put(settings))
                 .setWaitForActiveShards(activeShardCount)
         );
@@ -1265,7 +1265,7 @@ public final class ClusterAllocationExplainIT extends ESIntegTestCase {
             indexData();
         }
         if (state == IndexMetadata.State.CLOSE) {
-            assertAcked(indicesAdmin().prepareClose("idx"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "idx"));
 
             final ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth("idx")
                 .setTimeout(TimeValue.timeValueSeconds(30))

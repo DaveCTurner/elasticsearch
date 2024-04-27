@@ -84,14 +84,14 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     public void testLookbackOnly() throws Exception {
-        client().admin().indices().prepareCreate("data-1").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data-1").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(32, 2048);
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
         long twoWeeksAgo = oneWeekAgo - 604800000;
         indexDocs(logger, "data-1", numDocs, twoWeeksAgo, oneWeekAgo);
 
-        client().admin().indices().prepareCreate("data-2").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data-2").setMapping("time", "type=date").get();
         clusterAdmin().prepareHealth("data-1", "data-2").setWaitForYellowStatus().get();
         long numDocs2 = randomIntBetween(32, 2048);
         indexDocs(logger, "data-2", numDocs2, oneWeekAgo, now);
@@ -168,7 +168,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     public void testLookbackOnlyRuntimeMapping() throws Exception {
-        client().admin().indices().prepareCreate("data-1").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data-1").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(32, 2048);
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
@@ -226,7 +226,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
 
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/63973")
     public void testDatafeedTimingStats_DatafeedRecreated() throws Exception {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(32, 2048);
         Instant now = Instant.now();
         indexDocs(logger, "data", numDocs, now.minus(Duration.ofDays(14)).toEpochMilli(), now.toEpochMilli());
@@ -260,7 +260,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     public void testDatafeedTimingStats_QueryDelayUpdated_TimingStatsNotReset() throws Exception {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(32, 2048);
         Instant now = Instant.now();
         indexDocs(logger, "data", numDocs, now.minus(Duration.ofDays(14)).toEpochMilli(), now.toEpochMilli());
@@ -293,7 +293,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     public void testStopAndRestartCompositeDatafeed() throws Exception {
         updateClusterSettings(Settings.builder().put("logger.org.elasticsearch.xpack.ml.datafeed", "TRACE"));
         String indexName = "stop-restart-data";
-        client().admin().indices().prepareCreate("stop-restart-data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "stop-restart-data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(32, 2048);
         final long intervalMillis = TimeValue.timeValueHours(1).millis();
         long now = System.currentTimeMillis();
@@ -505,7 +505,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
         String datafeedId = jobId + "-datafeed";
         boolean useForce = randomBoolean();
 
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(1024, 2048);
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
@@ -685,7 +685,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
      * put the job into the "failed" state.
      */
     public void testStopLookbackFollowedByProcessKill() throws Exception {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs = randomIntBetween(1024, 2048);
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
@@ -731,7 +731,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     private void startRealtime(String jobId, Integer maxEmptySearches) throws Exception {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long now = System.currentTimeMillis();
         long numDocs1;
         if (maxEmptySearches == null) {
@@ -781,7 +781,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     public void testStartDatafeed_GivenTimeout_Returns408() throws Exception {
-        client().admin().indices().prepareCreate("data-1").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data-1").setMapping("time", "type=date").get();
         long numDocs = 100;
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
@@ -815,7 +815,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
     }
 
     public void testStartDatafeed_GivenNegativeStartTime_Returns408() throws Exception {
-        client().admin().indices().prepareCreate("data-1").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data-1").setMapping("time", "type=date").get();
         long numDocs = 100;
         long now = System.currentTimeMillis();
         long oneWeekAgo = now - 604800000;
@@ -861,7 +861,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
                 }
               }
             }""";
-        client().admin().indices().prepareCreate(index).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, index).setMapping(mapping).get();
 
         DataDescription.Builder dataDescription = new DataDescription.Builder();
 

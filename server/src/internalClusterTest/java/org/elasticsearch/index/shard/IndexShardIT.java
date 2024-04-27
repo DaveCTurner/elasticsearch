@@ -208,7 +208,9 @@ public class IndexShardIT extends ESSingleNodeTestCase {
     }
 
     public void testUpdatePriority() {
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_PRIORITY, 200)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put(IndexMetadata.SETTING_PRIORITY, 200))
+        );
         IndexService indexService = getInstanceFromNode(IndicesService.class).indexService(resolveIndex("test"));
         assertEquals(200, indexService.getIndexSettings().getSettings().getAsInt(IndexMetadata.SETTING_PRIORITY, 0).intValue());
         indicesAdmin().prepareUpdateSettings("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_PRIORITY, 400).build()).get();
@@ -224,13 +226,13 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         ensureGreen("test");
         prepareIndex("test").setId("1").setSource("{}", XContentType.JSON).setRefreshPolicy(IMMEDIATE).get();
         assertHitCount(client().prepareSearch("test"), 1L);
-        indicesAdmin().prepareDelete("test").get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, "test").get();
         assertAllIndicesRemovedAndDeletionCompleted(Collections.singleton(getInstanceFromNode(IndicesService.class)));
         assertPathHasBeenCleared(idxPath);
     }
 
     public void testExpectedShardSizeIsPresent() throws InterruptedException {
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(indexSettings(1, 0)));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings(1, 0)));
         for (int i = 0; i < 50; i++) {
             prepareIndex("test").setSource("{}", XContentType.JSON).get();
         }
@@ -261,9 +263,9 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         assertHitCount(client().prepareSearch(index).setSize(0), 1L);
 
         logger.info("--> closing the index [{}]", index);
-        assertAcked(indicesAdmin().prepareClose(index));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, index));
         logger.info("--> index closed, re-opening...");
-        assertAcked(indicesAdmin().prepareOpen(index));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, index));
         logger.info("--> index re-opened");
         ensureGreen(index);
 
@@ -271,7 +273,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
 
         // Now, try closing and changing the settings
         logger.info("--> closing the index [{}] before updating data_path", index);
-        assertAcked(indicesAdmin().prepareClose(index));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, index));
 
         final Path newIndexDataPath = sharedDataPath.resolve("end-" + randomAlphaOfLength(10));
         IOUtils.rm(newIndexDataPath);
@@ -299,13 +301,13 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         );
 
         logger.info("--> settings updated and files moved, re-opening index");
-        assertAcked(indicesAdmin().prepareOpen(index));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, index));
         logger.info("--> index re-opened");
         ensureGreen(index);
 
         assertHitCount(client().prepareSearch(index).setSize(0), 1L);
 
-        assertAcked(indicesAdmin().prepareDelete(index));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, index));
         assertAllIndicesRemovedAndDeletionCompleted(Collections.singleton(getInstanceFromNode(IndicesService.class)));
         assertPathHasBeenCleared(newIndexDataPath.toAbsolutePath());
     }
@@ -725,7 +727,7 @@ public class IndexShardIT extends ESSingleNodeTestCase {
         createIndex(indexName, indexSettings(1, 0).build());
         ensureGreen();
 
-        assertAcked(indicesAdmin().prepareClose(indexName));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
 
         final ClusterService clusterService = getInstanceFromNode(ClusterService.class);
         final ClusterState clusterState = clusterService.state();

@@ -167,7 +167,7 @@ public class SetUpgradeModeIT extends MlNativeAutodetectIntegTestCase {
     }
 
     private void startRealtime(String jobId) throws Exception {
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
         long numDocs1 = randomIntBetween(32, 2048);
         long now = System.currentTimeMillis();
         long lastWeek = now - 604800000;

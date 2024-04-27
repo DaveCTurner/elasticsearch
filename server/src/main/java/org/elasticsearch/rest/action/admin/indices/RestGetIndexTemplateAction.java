@@ -56,7 +56,7 @@ public class RestGetIndexTemplateAction extends BaseRestHandler {
         }
         final String[] names = Strings.splitStringByCommaToArray(request.param("name"));
 
-        final GetIndexTemplatesRequest getIndexTemplatesRequest = new GetIndexTemplatesRequest(names);
+        final GetIndexTemplatesRequest getIndexTemplatesRequest = new GetIndexTemplatesRequest(masterNodeTimeout, names);
 
         getIndexTemplatesRequest.local(request.paramAsBoolean("local", getIndexTemplatesRequest.local()));
         getIndexTemplatesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getIndexTemplatesRequest.masterNodeTimeout()));

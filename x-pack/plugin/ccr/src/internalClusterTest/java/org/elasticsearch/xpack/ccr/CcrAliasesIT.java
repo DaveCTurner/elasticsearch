@@ -65,7 +65,7 @@ public class CcrAliasesIT extends CcrIntegTestCase {
             builder.endObject();
             aliases = BytesReference.bytes(builder).utf8ToString();
         }
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader").setSource(aliases, XContentType.JSON));
+        assertAcked(leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "leader").setSource(aliases, XContentType.JSON));
         final PutFollowAction.Request followRequest = putFollow("leader", "follower");
         followerClient().execute(PutFollowAction.INSTANCE, followRequest).get();
 
@@ -105,7 +105,7 @@ public class CcrAliasesIT extends CcrIntegTestCase {
      */
     private <E extends Exception> void runAddAliasTest(final Boolean isWriteIndex, final CheckedConsumer<String, E> postAssertions)
         throws Exception {
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader"));
+        assertAcked(leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "leader"));
         final PutFollowAction.Request followRequest = putFollow("leader", "follower");
         // we set a low poll timeout so that shard changes requests are responded to quickly even without indexing
         followRequest.getParameters().setReadPollTimeout(TimeValue.timeValueMillis(100));
@@ -146,7 +146,7 @@ public class CcrAliasesIT extends CcrIntegTestCase {
     }
 
     public void testAddMultipleAliasesAtOnce() throws Exception {
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader"));
+        assertAcked(leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "leader"));
         final PutFollowAction.Request followRequest = putFollow("leader", "follower");
         // we set a low poll timeout so that shard changes requests are responded to quickly even without indexing
         followRequest.getParameters().setReadPollTimeout(TimeValue.timeValueMillis(100));
@@ -171,7 +171,7 @@ public class CcrAliasesIT extends CcrIntegTestCase {
     }
 
     public void testAddMultipleAliasesSequentially() throws Exception {
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader"));
+        assertAcked(leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "leader"));
         final PutFollowAction.Request followRequest = putFollow("leader", "follower");
         // we set a low poll timeout so that shard changes requests are responded to quickly even without indexing
         followRequest.getParameters().setReadPollTimeout(TimeValue.timeValueMillis(100));
@@ -224,7 +224,7 @@ public class CcrAliasesIT extends CcrIntegTestCase {
     }
 
     public void testStress() throws Exception {
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader"));
+        assertAcked(leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "leader"));
         final PutFollowAction.Request followRequest = putFollow("leader", "follower");
         // we set a low poll timeout so that shard changes requests are responded to quickly even without indexing
         followRequest.getParameters().setReadPollTimeout(TimeValue.timeValueMillis(100));

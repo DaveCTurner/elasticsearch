@@ -112,7 +112,11 @@ public class CategorizeTextAggregationIT extends BaseMlIntegTestCase {
     }
 
     private void createSourceData() {
-        client().admin().indices().prepareCreate(DATA_INDEX).setMapping("time", "type=date,format=epoch_millis", "msg", "type=text").get();
+        client().admin()
+            .indices()
+            .prepareCreate(masterNodeTimeout, DATA_INDEX)
+            .setMapping("time", "type=date,format=epoch_millis", "msg", "type=text")
+            .get();
 
         long nowMillis = System.currentTimeMillis();
 

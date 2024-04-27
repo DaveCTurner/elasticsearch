@@ -261,7 +261,7 @@ public class BlobStoreRepositoryTests extends ESSingleNodeTestCase {
         ensureGreen("green-index");
 
         assertAcked(
-            indicesAdmin().prepareCreate("red-index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "red-index")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.INDEX_ROUTING_EXCLUDE_GROUP_SETTING.getConcreteSettingForNamespace("_name").getKey(), "*")

@@ -20,12 +20,12 @@ import static org.hamcrest.Matchers.not;
 public class SimilarityIT extends ESIntegTestCase {
     public void testCustomBM25Similarity() throws Exception {
         try {
-            indicesAdmin().prepareDelete("test").get();
+            indicesAdmin().prepareDelete(masterNodeTimeout, "test").get();
         } catch (Exception e) {
             // ignore
         }
 
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setMapping(
                 jsonBuilder().startObject()
                     .startObject("_doc")

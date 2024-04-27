@@ -157,7 +157,7 @@ public class DateHistogramIT extends ESIntegTestCase {
         addExpectedBucket(date(1, 6), 1, 5, 1);
         addExpectedBucket(date(1, 7), 1, 5, 1);
 
-        assertAcked(indicesAdmin().prepareCreate("sort_idx").setMapping("date", "type=date").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "sort_idx").setMapping("date", "type=date").get());
         for (int i = 1; i <= 3; i++) {
             builders.add(
                 prepareIndex("sort_idx").setSource(
@@ -1339,7 +1339,7 @@ public class DateHistogramIT extends ESIntegTestCase {
     }
 
     public void testDSTBoundaryIssue9491() throws InterruptedException, ExecutionException {
-        assertAcked(indicesAdmin().prepareCreate("test9491").setMapping("d", "type=date").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test9491").setMapping("d", "type=date").get());
         indexRandom(
             true,
             prepareIndex("test9491").setSource("d", "2014-10-08T13:00:00Z"),
@@ -1363,7 +1363,7 @@ public class DateHistogramIT extends ESIntegTestCase {
     }
 
     public void testIssue8209() throws InterruptedException, ExecutionException {
-        assertAcked(indicesAdmin().prepareCreate("test8209").setMapping("d", "type=date").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test8209").setMapping("d", "type=date").get());
         indexRandom(
             true,
             prepareIndex("test8209").setSource("d", "2014-01-01T00:00:00Z"),
@@ -1434,7 +1434,7 @@ public class DateHistogramIT extends ESIntegTestCase {
      */
     public void testRewriteTimeZone_EpochMillisFormat() throws InterruptedException, ExecutionException {
         String index = "test31392";
-        assertAcked(indicesAdmin().prepareCreate(index).setMapping("d", "type=date,format=epoch_millis").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, index).setMapping("d", "type=date,format=epoch_millis").get());
         indexRandom(true, prepareIndex(index).setSource("d", "1477954800000"));
         ensureSearchable(index);
         assertNoFailuresAndResponse(

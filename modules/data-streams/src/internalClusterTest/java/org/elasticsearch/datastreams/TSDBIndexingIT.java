@@ -185,7 +185,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
         }
 
         // rollover
-        var rolloverRequest = new RolloverRequest("k8s", null);
+        var rolloverRequest = new RolloverRequest(masterNodeTimeout, "k8s", null);
         var rolloverResponse = indicesAdmin().rolloverIndex(rolloverRequest).actionGet();
         var newBackingIndexName = rolloverResponse.getNewIndex();
 

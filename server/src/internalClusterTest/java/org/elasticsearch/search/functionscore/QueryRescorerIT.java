@@ -176,7 +176,11 @@ public class QueryRescorerIT extends ESIntegTestCase {
             .endObject()
             .endObject();
 
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(mapping).setSettings(builder.put("index.number_of_shards", 1)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping(mapping)
+                .setSettings(builder.put("index.number_of_shards", 1))
+        );
 
         prepareIndex("test").setId("1").setSource("field1", "massachusetts avenue boston massachusetts").get();
         prepareIndex("test").setId("2").setSource("field1", "lexington avenue boston massachusetts").get();
@@ -267,7 +271,11 @@ public class QueryRescorerIT extends ESIntegTestCase {
             .endObject()
             .endObject();
 
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(mapping).setSettings(builder.put("index.number_of_shards", 1)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping(mapping)
+                .setSettings(builder.put("index.number_of_shards", 1))
+        );
 
         prepareIndex("test").setId("3").setSource("field1", "massachusetts").get();
         prepareIndex("test").setId("6").setSource("field1", "massachusetts avenue lexington massachusetts").get();
@@ -347,7 +355,11 @@ public class QueryRescorerIT extends ESIntegTestCase {
             .endObject()
             .endObject();
 
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(mapping).setSettings(builder.put("index.number_of_shards", 1)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping(mapping)
+                .setSettings(builder.put("index.number_of_shards", 1))
+        );
 
         prepareIndex("test").setId("3").setSource("field1", "massachusetts").get();
         prepareIndex("test").setId("6").setSource("field1", "massachusetts avenue lexington massachusetts").get();

@@ -127,7 +127,7 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
     public void testStatsClosedBackingIndexDataStream() throws Exception {
         String dataStreamName = createDataStream();
         createDocument(dataStreamName);
-        assertTrue(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get().isAcknowledged());
+        assertTrue(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).get().isAcknowledged());
         assertTrue(
             indicesAdmin().close(new CloseIndexRequest(masterNodeTimeout, ".ds-" + dataStreamName + "-*-000001"))
                 .actionGet()
@@ -171,7 +171,7 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
     public void testStatsRolledDataStream() throws Exception {
         String dataStreamName = createDataStream();
         long timestamp = createDocument(dataStreamName);
-        assertTrue(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get().isAcknowledged());
+        assertTrue(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).get().isAcknowledged());
         timestamp = max(timestamp, createDocument(dataStreamName));
 
         DataStreamsStatsAction.Response stats = getDataStreamsStats();

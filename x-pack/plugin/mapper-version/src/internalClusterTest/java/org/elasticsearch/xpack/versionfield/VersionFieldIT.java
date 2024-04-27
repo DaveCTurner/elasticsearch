@@ -43,7 +43,7 @@ public class VersionFieldIT extends ESSingleNodeTestCase {
         String indexName = "test";
         createIndex(indexName);
 
-        indicesAdmin().preparePutMapping(indexName)
+        indicesAdmin().preparePutMapping(masterNodeTimeout, indexName)
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()
@@ -87,7 +87,7 @@ public class VersionFieldIT extends ESSingleNodeTestCase {
         String indexName = "test";
         createIndex(indexName);
 
-        indicesAdmin().preparePutMapping(indexName)
+        indicesAdmin().preparePutMapping(masterNodeTimeout, indexName)
             .setSource(
                 XContentFactory.jsonBuilder()
                     .startObject()

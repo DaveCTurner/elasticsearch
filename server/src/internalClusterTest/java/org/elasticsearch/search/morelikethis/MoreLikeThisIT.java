@@ -263,7 +263,7 @@ public class MoreLikeThisIT extends ESIntegTestCase {
         String indexName = "foo";
         String aliasName = "foo_name";
 
-        indicesAdmin().prepareCreate(indexName).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName).get();
         indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(indexName, aliasName).get();
 
         assertThat(ensureGreen(), equalTo(ClusterHealthStatus.GREEN));
@@ -290,7 +290,7 @@ public class MoreLikeThisIT extends ESIntegTestCase {
     }
 
     public void testMoreLikeThisIssue2197() throws Exception {
-        indicesAdmin().prepareCreate("foo").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "foo").get();
         prepareIndex("foo").setId("1")
             .setSource(jsonBuilder().startObject().startObject("foo").field("bar", "boz").endObject().endObject())
             .get();
@@ -303,7 +303,7 @@ public class MoreLikeThisIT extends ESIntegTestCase {
 
     // Issue #2489
     public void testMoreLikeWithCustomRouting() throws Exception {
-        indicesAdmin().prepareCreate("foo").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "foo").get();
         ensureGreen();
 
         prepareIndex("foo").setId("1")

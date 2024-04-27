@@ -156,7 +156,7 @@ public class SqlLicenseIT extends AbstractLicensesIntegrationTestCase {
     // TODO test SqlGetIndicesAction. Skipping for now because of lack of serialization support.
 
     private void setupTestIndex() {
-        ElasticsearchAssertions.assertAcked(indicesAdmin().prepareCreate("test").get());
+        ElasticsearchAssertions.assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").get());
         client().prepareBulk()
             .add(new IndexRequest("test").id("1").source("data", "bar", "count", 42))
             .add(new IndexRequest("test").id("2").source("data", "baz", "count", 43))

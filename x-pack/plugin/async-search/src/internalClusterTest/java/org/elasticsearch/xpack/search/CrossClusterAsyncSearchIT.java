@@ -1718,7 +1718,7 @@ public class CrossClusterAsyncSearchIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client(LOCAL_CLUSTER).admin()
                 .indices()
-                .prepareCreate(localIndex)
+                .prepareCreate(masterNodeTimeout, localIndex)
                 .setSettings(localSettings)
                 .setMapping("@timestamp", "type=date", "f", "type=text")
         );
@@ -1735,7 +1735,7 @@ public class CrossClusterAsyncSearchIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client(REMOTE_CLUSTER).admin()
                 .indices()
-                .prepareCreate(remoteIndex)
+                .prepareCreate(masterNodeTimeout, remoteIndex)
                 .setSettings(Settings.builder().put(remoteSettings.build()))
                 .setMapping("@timestamp", "type=date", "f", "type=text")
         );

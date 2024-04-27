@@ -327,7 +327,7 @@ public class GeoIpDownloaderIT extends AbstractGeoIpIT {
 
         // Creating an index which does not reference the pipeline should not trigger the database download.
         String indexIdentifier = randomIdentifier();
-        assertAcked(indicesAdmin().prepareCreate(indexIdentifier).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, indexIdentifier).get());
         assertNull(getTask().getState());
 
         // Set the pipeline as default_pipeline or final_pipeline for the index.
@@ -344,7 +344,7 @@ public class GeoIpDownloaderIT extends AbstractGeoIpIT {
         }, 2, TimeUnit.MINUTES);
 
         // Remove the created index.
-        assertAcked(indicesAdmin().prepareDelete(indexIdentifier).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexIdentifier).get());
     }
 
     @TestLogging(value = "org.elasticsearch.ingest.geoip:TRACE", reason = "https://github.com/elastic/elasticsearch/issues/69972")

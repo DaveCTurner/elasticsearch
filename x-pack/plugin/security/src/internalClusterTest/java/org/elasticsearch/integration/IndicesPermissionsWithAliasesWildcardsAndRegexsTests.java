@@ -93,7 +93,7 @@ public class IndicesPermissionsWithAliasesWildcardsAndRegexsTests extends Securi
 
     public void testGetResolveWildcardsRegexs() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("field1", "type=text", "field2", "type=text")
                 .addAlias(new Alias("my_alias"))
                 .addAlias(new Alias("an_alias"))
@@ -124,7 +124,7 @@ public class IndicesPermissionsWithAliasesWildcardsAndRegexsTests extends Securi
 
     public void testSearchResolveWildcardsRegexs() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("field1", "type=text", "field2", "type=text")
                 .addAlias(new Alias("my_alias"))
                 .addAlias(new Alias("an_alias"))

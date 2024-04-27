@@ -75,7 +75,7 @@ public class RareClusterStateIT extends ESIntegTestCase {
         ensureGreen(index);
 
         // close to have some unassigned started shards shards..
-        indicesAdmin().prepareClose(index).get();
+        indicesAdmin().prepareClose(masterNodeTimeout, index).get();
 
         final String masterName = internalCluster().getMasterName();
         final ClusterService clusterService = internalCluster().clusterService(masterName);
@@ -159,7 +159,7 @@ public class RareClusterStateIT extends ESIntegTestCase {
         );
 
         logger.info("--> delete index");
-        assertFalse(indicesAdmin().prepareDelete("test").setTimeout(TimeValue.ZERO).get().isAcknowledged());
+        assertFalse(indicesAdmin().prepareDelete(masterNodeTimeout, "test").setTimeout(TimeValue.ZERO).get().isAcknowledged());
         logger.info("--> and recreate it");
         assertFalse(
             prepareCreate("test").setSettings(
@@ -220,7 +220,9 @@ public class RareClusterStateIT extends ESIntegTestCase {
         final ActionFuture<DocWriteResponse> docIndexResponseFuture;
         try {
             // Add a new mapping...
-            assertFalse(indicesAdmin().preparePutMapping("index").setSource("field", "type=long").get().isAcknowledged());
+            assertFalse(
+                indicesAdmin().preparePutMapping(masterNodeTimeout, "index").setSource("field", "type=long").get().isAcknowledged()
+            );
 
             // ...and check mappings are available on master
             {
@@ -294,7 +296,9 @@ public class RareClusterStateIT extends ESIntegTestCase {
         final ActionFuture<DocWriteResponse> docIndexResponseFuture, dynamicMappingsFuture;
         try {
             // Add a new mapping...
-            assertFalse(indicesAdmin().preparePutMapping("index").setSource("field", "type=long").get().isAcknowledged());
+            assertFalse(
+                indicesAdmin().preparePutMapping(masterNodeTimeout, "index").setSource("field", "type=long").get().isAcknowledged()
+            );
 
             // ...and check mappings are available on the primary
             {

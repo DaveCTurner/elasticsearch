@@ -179,7 +179,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
                 .endObject()
         );
 
-        indicesAdmin().preparePutMapping().setSource(mapping, XContentType.JSON).get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout).setSource(mapping, XContentType.JSON).get();
 
         prepareIndex("test").setId("1")
             .setSource(
@@ -272,7 +272,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
                 .endObject()
         );
 
-        indicesAdmin().preparePutMapping().setSource(mapping, XContentType.JSON).get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout).setSource(mapping, XContentType.JSON).get();
 
         prepareIndex("test").setId("1")
             .setSource(
@@ -374,7 +374,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
                 .endObject()
         );
 
-        indicesAdmin().preparePutMapping().setSource(mapping, XContentType.JSON).get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout).setSource(mapping, XContentType.JSON).get();
         String date = "2019-01-31T10:00:00.123456789Z";
         indexRandom(
             true,
@@ -604,7 +604,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
                 .endObject()
         );
 
-        indicesAdmin().preparePutMapping().setSource(mapping, XContentType.JSON).get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout).setSource(mapping, XContentType.JSON).get();
 
         ZonedDateTime date = ZonedDateTime.of(2012, 3, 22, 0, 0, 0, 0, ZoneOffset.UTC);
         prepareIndex("test").setId("1")
@@ -687,7 +687,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
     }
 
     public void testGetFieldsComplexField() throws Exception {
-        indicesAdmin().prepareCreate("my-index")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "my-index")
             .setSettings(Settings.builder().put("index.refresh_interval", -1))
             .setMapping(
                 jsonBuilder().startObject()
@@ -757,7 +757,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
 
     // see #8203
     public void testSingleValueFieldDatatField() throws ExecutionException, InterruptedException {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("test_field", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("test_field", "type=keyword").get());
         indexRandom(true, prepareIndex("test").setId("1").setSource("test_field", "foobar"));
         refresh();
         assertResponse(
@@ -824,7 +824,7 @@ public class SearchFieldsIT extends ESIntegTestCase {
                 .endObject()
         );
 
-        indicesAdmin().preparePutMapping().setSource(mapping, XContentType.JSON).get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout).setSource(mapping, XContentType.JSON).get();
 
         ZonedDateTime date = ZonedDateTime.of(2012, 3, 22, 0, 0, 0, 0, ZoneOffset.UTC);
         prepareIndex("test").setId("1")

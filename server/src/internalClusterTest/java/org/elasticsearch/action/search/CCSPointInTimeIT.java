@@ -77,13 +77,19 @@ public class CCSPointInTimeIT extends AbstractMultiClustersTestCase {
         final Client remoteClient = client(REMOTE_CLUSTER);
         int localNumDocs = randomIntBetween(10, 50);
         assertAcked(
-            localClient.admin().indices().prepareCreate("local_test").setSettings(Settings.builder().put("index.number_of_shards", 3))
+            localClient.admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "local_test")
+                .setSettings(Settings.builder().put("index.number_of_shards", 3))
         );
         indexDocs(localClient, "local_test", localNumDocs);
 
         int remoteNumDocs = randomIntBetween(10, 50);
         assertAcked(
-            remoteClient.admin().indices().prepareCreate("remote_test").setSettings(Settings.builder().put("index.number_of_shards", 3))
+            remoteClient.admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "remote_test")
+                .setSettings(Settings.builder().put("index.number_of_shards", 3))
         );
         indexDocs(remoteClient, "remote_test", remoteNumDocs);
         boolean includeLocalIndex = randomBoolean();
@@ -141,14 +147,20 @@ public class CCSPointInTimeIT extends AbstractMultiClustersTestCase {
         final Client remoteClient = client(REMOTE_CLUSTER);
 
         assertAcked(
-            localClient.admin().indices().prepareCreate("local_test").setSettings(Settings.builder().put("index.number_of_shards", 3))
+            localClient.admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "local_test")
+                .setSettings(Settings.builder().put("index.number_of_shards", 3))
         );
         localClient.prepareIndex("local_test").setId("1").setSource("value", "1", "@timestamp", "2024-03-01").get();
         localClient.prepareIndex("local_test").setId("2").setSource("value", "2", "@timestamp", "2023-12-01").get();
         localClient.admin().indices().prepareRefresh("local_test").get();
 
         assertAcked(
-            remoteClient.admin().indices().prepareCreate("remote_test").setSettings(Settings.builder().put("index.number_of_shards", 3))
+            remoteClient.admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "remote_test")
+                .setSettings(Settings.builder().put("index.number_of_shards", 3))
         );
         remoteClient.prepareIndex("remote_test").setId("1").setSource("value", "1", "@timestamp", "2024-01-01").get();
         remoteClient.prepareIndex("remote_test").setId("2").setSource("value", "2", "@timestamp", "2023-12-01").get();
@@ -240,11 +252,11 @@ public class CCSPointInTimeIT extends AbstractMultiClustersTestCase {
         int localNumDocs = randomIntBetween(10, 50);
         int numShards = randomIntBetween(2, 4);
         Settings clusterSettings = indexSettings(numShards, randomIntBetween(0, 1)).build();
-        assertAcked(localClient.admin().indices().prepareCreate("local_test").setSettings(clusterSettings));
+        assertAcked(localClient.admin().indices().prepareCreate(masterNodeTimeout, "local_test").setSettings(clusterSettings));
         indexDocs(localClient, "local_test", localNumDocs);
 
         int remoteNumDocs = randomIntBetween(10, 50);
-        assertAcked(remoteClient.admin().indices().prepareCreate("remote_test").setSettings(clusterSettings));
+        assertAcked(remoteClient.admin().indices().prepareCreate(masterNodeTimeout, "remote_test").setSettings(clusterSettings));
         indexDocs(remoteClient, "remote_test", remoteNumDocs);
         boolean includeLocalIndex = randomBoolean();
         List<String> indices = new ArrayList<>();

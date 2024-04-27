@@ -217,7 +217,8 @@ public class CreateIndexIT extends ESIntegTestCase {
         synchronized (indexVersionLock) { // not necessarily needed here but for completeness we lock here too
             indexVersion.incrementAndGet();
         }
-        indicesAdmin().prepareDelete("test").execute(new ActionListener<AcknowledgedResponse>() { // this happens async!!!
+        indicesAdmin().prepareDelete(masterNodeTimeout, "test").execute(new ActionListener<AcknowledgedResponse>() { // this happens
+                                                                                                                     // async!!!
             @Override
             public void onResponse(AcknowledgedResponse deleteIndexResponse) {
                 Thread thread = new Thread() {
@@ -233,7 +234,7 @@ public class CreateIndexIT extends ESIntegTestCase {
                                 indexVersion.incrementAndGet();
                             }
                             // from here on all docs with index_version == 0|1 must be gone!!!! only 2 are ok;
-                            assertAcked(indicesAdmin().prepareDelete("test").get());
+                            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test").get());
                         } finally {
                             latch.countDown();
                         }
@@ -279,7 +280,10 @@ public class CreateIndexIT extends ESIntegTestCase {
         clusterAdmin().prepareUpdateSettings()
             .setTransientSettings(Settings.builder().put("cluster.routing.allocation.enable", "none"))
             .get();
-        indicesAdmin().prepareCreate("test").setWaitForActiveShards(ActiveShardCount.NONE).setSettings(indexSettings()).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+            .setWaitForActiveShards(ActiveShardCount.NONE)
+            .setSettings(indexSettings())
+            .get();
         internalCluster().fullRestart();
         ensureGreen("test");
     }
@@ -290,9 +294,14 @@ public class CreateIndexIT extends ESIntegTestCase {
             .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
             .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), numReplicas)
             .build();
-        assertAcked(indicesAdmin().prepareCreate("test-idx-1").setSettings(settings).addAlias(new Alias("alias1").writeIndex(true)).get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx-1")
+                .setSettings(settings)
+                .addAlias(new Alias("alias1").writeIndex(true))
+                .get()
+        );
 
-        ActionRequestBuilder<?, ?> builder = indicesAdmin().prepareCreate("test-idx-2")
+        ActionRequestBuilder<?, ?> builder = indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx-2")
             .setSettings(settings)
             .addAlias(new Alias("alias1").writeIndex(true));
         expectThrows(IllegalStateException.class, builder);
@@ -313,12 +322,12 @@ public class CreateIndexIT extends ESIntegTestCase {
             .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
             .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), numReplicas)
             .build();
-        assertAcked(indicesAdmin().prepareCreate("test-idx-1").setSettings(settings).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx-1").setSettings(settings).get());
 
         // all should fail
         settings = Settings.builder().put(settings).put(SETTING_WAIT_FOR_ACTIVE_SHARDS.getKey(), "all").build();
         assertFalse(
-            indicesAdmin().prepareCreate("test-idx-2")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx-2")
                 .setSettings(settings)
                 .setTimeout(TimeValue.timeValueMillis(100))
                 .get()
@@ -328,7 +337,7 @@ public class CreateIndexIT extends ESIntegTestCase {
         // the numeric equivalent of all should also fail
         settings = Settings.builder().put(settings).put(SETTING_WAIT_FOR_ACTIVE_SHARDS.getKey(), Integer.toString(numReplicas + 1)).build();
         assertFalse(
-            indicesAdmin().prepareCreate("test-idx-3")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test-idx-3")
                 .setSettings(settings)
                 .setTimeout(TimeValue.timeValueMillis(100))
                 .get()

@@ -71,11 +71,11 @@ public abstract class SystemIndexThreadPoolTestCase extends ESIntegTestCase {
 
     @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/107625")
     public void testUserThreadPoolsAreBlocked() {
-        assertAcked(client().admin().indices().prepareCreate(USER_INDEX));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, USER_INDEX));
 
         runWithBlockedThreadPools(this::assertThreadPoolsBlocked);
 
-        assertAcked(client().admin().indices().prepareDelete(USER_INDEX));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, USER_INDEX));
     }
 
     private void assertThreadPoolsBlocked() {

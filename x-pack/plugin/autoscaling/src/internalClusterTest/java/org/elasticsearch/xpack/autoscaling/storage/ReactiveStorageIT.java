@@ -388,7 +388,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         assertAcked(clusterAdmin().prepareReroute());
         ensureGreen();
 
-        indicesAdmin().prepareDelete(indexName).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get();
         response = capacity();
         assertThat(
             response.results().get(policyName).requiredCapacity().total().storage(),
@@ -498,7 +498,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         assertAcked(clusterAdmin().prepareReroute());
         ensureGreen();
 
-        indicesAdmin().prepareDelete(indexName).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get();
         response = capacity();
         assertThat(
             response.results().get(policyName).requiredCapacity().total().storage().getBytes(),

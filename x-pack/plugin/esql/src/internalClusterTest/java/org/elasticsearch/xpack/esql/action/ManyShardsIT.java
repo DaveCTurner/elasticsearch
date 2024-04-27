@@ -48,7 +48,7 @@ public class ManyShardsIT extends AbstractEsqlIntegTestCase {
             String index = "test-" + i;
             client().admin()
                 .indices()
-                .prepareCreate(index)
+                .prepareCreate(masterNodeTimeout, index)
                 .setSettings(
                     Settings.builder()
                         .put("index.shard.check_on_startup", "false")

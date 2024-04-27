@@ -41,7 +41,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testProcessRelationSupport() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         Rectangle rectangle = new Rectangle(-35, -25, -25, -35);
@@ -64,7 +64,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testQueryLine() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         Line line = new Line(new double[] { -25, -25 }, new double[] { -35, -35 });
@@ -78,7 +78,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testQueryLinearRing() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         LinearRing linearRing = new LinearRing(new double[] { -25, -35, -25 }, new double[] { -25, -35, -25 });
@@ -98,7 +98,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testQueryMultiLine() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         Line lsb1 = new Line(new double[] { -35, -25 }, new double[] { -35, -25 });
@@ -117,7 +117,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testQueryMultiPoint() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         MultiPoint multiPoint = new MultiPoint(List.of(new Point(-35, -25), new Point(-15, -5)));
@@ -131,7 +131,7 @@ public class ShapeQueryOverPointTests extends ShapeQueryTestCase {
 
     public void testQueryPoint() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate("test").setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         ensureGreen();
 
         Point point = new Point(-35, -2);

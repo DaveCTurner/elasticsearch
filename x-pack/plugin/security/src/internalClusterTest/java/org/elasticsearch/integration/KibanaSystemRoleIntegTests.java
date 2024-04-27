@@ -41,7 +41,7 @@ public class KibanaSystemRoleIntegTests extends SecurityIntegTestCase {
         if (randomBoolean()) {
             CreateIndexResponse createIndexResponse = client().filterWithHeader(
                 singletonMap("Authorization", UsernamePasswordToken.basicAuthHeaderValue("my_kibana_system", USERS_PASSWD))
-            ).admin().indices().prepareCreate(index).get();
+            ).admin().indices().prepareCreate(masterNodeTimeout, index).get();
             assertThat(createIndexResponse.isAcknowledged(), is(true));
         }
 

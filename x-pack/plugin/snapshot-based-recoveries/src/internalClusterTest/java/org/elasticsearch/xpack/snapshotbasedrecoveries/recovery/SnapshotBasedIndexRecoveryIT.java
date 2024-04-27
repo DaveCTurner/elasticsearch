@@ -641,7 +641,7 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
                     )
                 );
 
-                assertAcked(indicesAdmin().prepareDelete(indexName).get());
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
 
                 assertBusy(mockLogAppender::assertAllExpectationsMatched);
             } finally {
@@ -758,7 +758,7 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
             updateIndexSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 1), indexName);
             safeAwait(readFromBlobCalledLatch);
 
-            assertAcked(indicesAdmin().prepareDelete(indexName).get());
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
             // cancellation flag is set when applying the cluster state that deletes the index, so no further waiting is necessary
             isCancelled.set(true);
             readFromBlobRespondLatch.countDown();
@@ -789,7 +789,7 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
         createRepo(repoName, TestRepositoryPlugin.INSTRUMENTED_TYPE);
         createSnapshot(repoName, "snap", Collections.singletonList(indexName));
 
-        assertAcked(indicesAdmin().prepareDelete(indexName).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
 
         List<String> restoredIndexDataNodes = internalCluster().startDataOnlyNodes(2);
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(repoName, "snap")
@@ -1132,7 +1132,7 @@ public class SnapshotBasedIndexRecoveryIT extends AbstractSnapshotIntegTestCase 
 
                 boolean cancelRecovery = randomBoolean();
                 if (cancelRecovery) {
-                    assertAcked(indicesAdmin().prepareDelete(indexRecoveredFromSnapshot1).get());
+                    assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexRecoveredFromSnapshot1).get());
 
                     respondToRecoverSnapshotFile.run();
 

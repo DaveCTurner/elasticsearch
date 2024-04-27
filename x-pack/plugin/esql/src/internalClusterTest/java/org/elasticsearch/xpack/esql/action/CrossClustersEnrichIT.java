@@ -113,14 +113,14 @@ public class CrossClustersEnrichIT extends AbstractMultiClustersTestCase {
         );
         for (String cluster : allClusters()) {
             Client client = client(cluster);
-            client.admin().indices().prepareCreate("hosts").setMapping("ip", "type=ip", "os", "type=keyword").get();
+            client.admin().indices().prepareCreate(masterNodeTimeout, "hosts").setMapping("ip", "type=ip", "os", "type=keyword").get();
             for (Map.Entry<String, String> h : allHosts.entrySet()) {
                 client.prepareIndex("hosts").setSource("ip", h.getKey(), "os", h.getValue()).get();
             }
             client.admin().indices().prepareRefresh("hosts").get();
             client.execute(PutEnrichPolicyAction.INSTANCE, new PutEnrichPolicyAction.Request("hosts", hostPolicy)).actionGet();
             client.execute(ExecuteEnrichPolicyAction.INSTANCE, new ExecuteEnrichPolicyAction.Request("hosts")).actionGet();
-            assertAcked(client.admin().indices().prepareDelete("hosts"));
+            assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, "hosts"));
         }
     }
 
@@ -132,14 +132,18 @@ public class CrossClustersEnrichIT extends AbstractMultiClustersTestCase {
         var vendors = Map.of(LOCAL_CLUSTER, localVendors, "c1", c1Vendors, "c2", c2Vendors);
         for (Map.Entry<String, Map<String, String>> e : vendors.entrySet()) {
             Client client = client(e.getKey());
-            client.admin().indices().prepareCreate("vendors").setMapping("os", "type=keyword", "vendor", "type=keyword").get();
+            client.admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "vendors")
+                .setMapping("os", "type=keyword", "vendor", "type=keyword")
+                .get();
             for (Map.Entry<String, String> v : e.getValue().entrySet()) {
                 client.prepareIndex("vendors").setSource("os", v.getKey(), "vendor", v.getValue()).get();
             }
             client.admin().indices().prepareRefresh("vendors").get();
             client.execute(PutEnrichPolicyAction.INSTANCE, new PutEnrichPolicyAction.Request("vendors", vendorPolicy)).actionGet();
             client.execute(ExecuteEnrichPolicyAction.INSTANCE, new ExecuteEnrichPolicyAction.Request("vendors")).actionGet();
-            assertAcked(client.admin().indices().prepareDelete("vendors"));
+            assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, "vendors"));
         }
     }
 
@@ -180,7 +184,7 @@ public class CrossClustersEnrichIT extends AbstractMultiClustersTestCase {
             Client client = client(c.getKey());
             client.admin()
                 .indices()
-                .prepareCreate("events")
+                .prepareCreate(masterNodeTimeout, "events")
                 .setMapping("timestamp", "type=long", "user", "type=keyword", "host", "type=ip")
                 .get();
             for (var e : c.getValue()) {

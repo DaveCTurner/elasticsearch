@@ -66,6 +66,6 @@ public class SyntheticSourceIT extends ESIntegTestCase {
         }
         mapping.endObject();
 
-        assertAcked(client().admin().indices().prepareCreate("test").setMapping(mapping).get());
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get());
     }
 }

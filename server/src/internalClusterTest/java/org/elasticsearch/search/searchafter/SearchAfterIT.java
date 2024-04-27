@@ -64,7 +64,9 @@ public class SearchAfterIT extends ESIntegTestCase {
     private static final int NUM_DOCS = 100;
 
     public void testsShouldFail() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=long", "field2", "type=keyword").get());
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=long", "field2", "type=keyword").get()
+        );
         ensureGreen();
         indexRandom(true, prepareIndex("test").setId("0").setSource("field1", 0, "field2", "toto"));
         {
@@ -135,7 +137,7 @@ public class SearchAfterIT extends ESIntegTestCase {
     }
 
     public void testWithNullStrings() throws InterruptedException {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field2", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field2", "type=keyword").get());
         ensureGreen();
         indexRandom(
             true,
@@ -203,7 +205,7 @@ public class SearchAfterIT extends ESIntegTestCase {
         }
         mappings.endObject().endObject();
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 3)))
                 .setMapping(mappings)
         );
@@ -338,7 +340,7 @@ public class SearchAfterIT extends ESIntegTestCase {
     }
 
     private void createIndexMappingsFromObjectType(String indexName, List<Object> types) {
-        CreateIndexRequestBuilder indexRequestBuilder = indicesAdmin().prepareCreate(indexName);
+        CreateIndexRequestBuilder indexRequestBuilder = indicesAdmin().prepareCreate(masterNodeTimeout, indexName);
         List<String> mappings = new ArrayList<>();
         int numFields = types.size();
         for (int i = 0; i < numFields; i++) {
@@ -415,7 +417,7 @@ public class SearchAfterIT extends ESIntegTestCase {
         if (randomBoolean()) {
             indexSettings.put("sort.field", "timestamp").put("sort.order", randomFrom("desc", "asc"));
         }
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(indexSettings).setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings).setMapping("""
             {"properties":{"timestamp":{"type": "date", "format": "epoch_millis"}}}"""));
         Randomness.shuffle(timestamps);
         final BulkRequestBuilder bulk = client().prepareBulk();

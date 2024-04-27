@@ -227,7 +227,7 @@ public class WaitForRolloverReadyStep extends AsyncWaitStep {
      */
     // visible for testing
     RolloverRequest createRolloverRequest(String rolloverTarget, TimeValue masterTimeout, boolean rolloverOnlyIfHasDocuments) {
-        RolloverRequest rolloverRequest = new RolloverRequest(rolloverTarget, null).masterNodeTimeout(masterTimeout);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, rolloverTarget, null).masterNodeTimeout(masterTimeout);
         rolloverRequest.dryRun(true);
         rolloverRequest.setConditions(applyDefaultConditions(conditions, rolloverOnlyIfHasDocuments));
         return rolloverRequest;

@@ -148,7 +148,7 @@ public class SearchableSnapshotsBlobStoreCacheIntegTests extends BaseFrozenSearc
         createRepository(repositoryName, "fs", repositoryLocation);
 
         final SnapshotId snapshot = createSnapshot(repositoryName, "test-snapshot", List.of(indexName)).snapshotId();
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         expectThrows(
             IndexNotFoundException.class,
@@ -323,7 +323,7 @@ public class SearchableSnapshotsBlobStoreCacheIntegTests extends BaseFrozenSearc
         assertHitCount(prepareSearch(restoredAgainIndex).setSize(0).setTrackTotalHits(true), numberOfDocs);
 
         logger.info("--> deleting indices, maintenance service should clean up [{}] docs in system index", numberOfCachedBlobs);
-        assertAcked(indicesAdmin().prepareDelete("restored-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "restored-*"));
 
         assertBusy(() -> {
             refreshSystemIndex();

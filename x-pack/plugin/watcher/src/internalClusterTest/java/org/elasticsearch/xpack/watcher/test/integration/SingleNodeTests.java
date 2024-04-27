@@ -49,7 +49,7 @@ public class SingleNodeTests extends AbstractWatcherIntegrationTestCase {
         ClusterStateResponse clusterStateResponse = clusterAdmin().prepareState().get();
         IndexMetadata metadata = WatchStoreUtils.getConcreteIndex(Watch.INDEX, clusterStateResponse.getState().metadata());
         String watchIndexName = metadata.getIndex().getName();
-        assertAcked(indicesAdmin().prepareDelete(watchIndexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, watchIndexName));
         startWatcher();
 
         String watchId = randomAlphaOfLength(20);

@@ -26,6 +26,7 @@ import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -92,14 +93,14 @@ public class PutIndexTemplateRequest extends MasterNodeRequest<PutIndexTemplateR
         version = in.readOptionalVInt();
     }
 
-    public PutIndexTemplateRequest() {
+    public PutIndexTemplateRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
     /**
      * Constructs a new put index template request with the provided name.
      */
-    public PutIndexTemplateRequest(String name) {
+    public PutIndexTemplateRequest(TimeValue masterNodeTimeout, String name) {
         super(masterNodeTimeout);
         this.name = name;
     }

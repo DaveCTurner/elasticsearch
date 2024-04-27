@@ -245,7 +245,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
             .endObject();
 
         mapping.endObject().endObject().endObject();
-        assertAcked(indicesAdmin().prepareCreate(sourceIndex).setSettings(settings.build()).setMapping(mapping).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, sourceIndex).setSettings(settings.build()).setMapping(mapping).get());
     }
 
     public void testDownsampleIndex() throws Exception {
@@ -456,7 +456,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         prepareSourceIndex(sourceIndex, true);
 
         // Create an empty index with the same name as the downsample index
-        assertAcked(indicesAdmin().prepareCreate(downsampleIndex).setSettings(indexSettings(1, 0)).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, downsampleIndex).setSettings(indexSettings(1, 0)).get());
         ResourceAlreadyExistsException exception = expectThrows(
             ResourceAlreadyExistsException.class,
             () -> downsample(sourceIndex, downsampleIndex, config)
@@ -475,7 +475,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
     public void testDownsampleIndexWithNoMetrics() throws Exception {
         // Create a source index that contains no metric fields in its mapping
         String sourceIndex = "no-metrics-idx-" + randomAlphaOfLength(5).toLowerCase(Locale.ROOT);
-        indicesAdmin().prepareCreate(sourceIndex)
+        indicesAdmin().prepareCreate(masterNodeTimeout, sourceIndex)
             .setSettings(
                 indexSettings(numOfShards, numOfReplicas).put(IndexSettings.MODE.getKey(), IndexMode.TIME_SERIES)
                     .putList(IndexMetadata.INDEX_ROUTING_PATH.getKey(), List.of(FIELD_DIMENSION_1))
@@ -1092,7 +1092,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
     }
 
     private RolloverResponse rollover(String dataStreamName) throws ExecutionException, InterruptedException {
-        RolloverResponse response = indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get();
+        RolloverResponse response = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).get();
         assertAcked(response);
         return response;
     }

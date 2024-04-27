@@ -106,7 +106,7 @@ public abstract class AbstractIndexRecoveryIntegTestCase extends ESIntegTestCase
         ClusterHealthResponse response = clusterAdmin().prepareHealth().setWaitForNodes(">=3").get();
         assertThat(response.isTimedOut(), is(false));
 
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(
                 Settings.builder()
                     .put(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING.getKey() + "color", "blue")
@@ -212,7 +212,7 @@ public abstract class AbstractIndexRecoveryIntegTestCase extends ESIntegTestCase
         ClusterHealthResponse response = clusterAdmin().prepareHealth().setWaitForNodes(">=3").get();
         assertThat(response.isTimedOut(), is(false));
 
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(
                 Settings.builder()
                     .put(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING.getKey() + "color", "blue")
@@ -313,7 +313,7 @@ public abstract class AbstractIndexRecoveryIntegTestCase extends ESIntegTestCase
         );
         final String redNodeName = internalCluster().startNode(Settings.builder().put("node.attr.color", "red").put(nodeSettings).build());
 
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(
                 Settings.builder()
                     .put(IndexMetadata.INDEX_ROUTING_INCLUDE_GROUP_SETTING.getKey() + "color", "blue")

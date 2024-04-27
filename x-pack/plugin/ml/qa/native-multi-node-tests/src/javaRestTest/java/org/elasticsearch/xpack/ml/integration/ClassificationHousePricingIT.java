@@ -1670,7 +1670,7 @@ public class ClassificationHousePricingIT extends MlNativeDataFrameAnalyticsInte
              }
             }""";
 
-        client().admin().indices().prepareCreate(index).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, index).setMapping(mapping).get();
     }
 
     @Override

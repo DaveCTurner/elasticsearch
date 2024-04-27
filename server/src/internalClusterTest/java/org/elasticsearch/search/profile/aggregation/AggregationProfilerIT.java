@@ -92,7 +92,7 @@ public class AggregationProfilerIT extends ESIntegTestCase {
     @Override
     protected void setupSuiteScopeCluster() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "idx")
                 .setSettings(Map.of("number_of_shards", 1, "number_of_replicas", 0))
                 .setMapping(STRING_FIELD, "type=keyword", NUMBER_FIELD, "type=integer", TAG_FIELD, "type=keyword")
         );
@@ -635,7 +635,7 @@ public class AggregationProfilerIT extends ESIntegTestCase {
      */
     public void testFilterByFilter() throws InterruptedException, IOException {
         assertAcked(
-            indicesAdmin().prepareCreate("dateidx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "dateidx")
                 .setSettings(Map.of("number_of_shards", 1, "number_of_replicas", 0))
                 .setMapping("date", "type=date")
         );
@@ -712,7 +712,7 @@ public class AggregationProfilerIT extends ESIntegTestCase {
         updateClusterSettings(Settings.builder().put(SearchService.ENABLE_REWRITE_AGGS_TO_FILTER_BY_FILTER.getKey(), false));
         try {
             assertAcked(
-                indicesAdmin().prepareCreate("date_filter_by_filter_disabled")
+                indicesAdmin().prepareCreate(masterNodeTimeout, "date_filter_by_filter_disabled")
                     .setSettings(Map.of("number_of_shards", 1, "number_of_replicas", 0))
                     .setMapping("date", "type=date", "keyword", "type=keyword")
             );

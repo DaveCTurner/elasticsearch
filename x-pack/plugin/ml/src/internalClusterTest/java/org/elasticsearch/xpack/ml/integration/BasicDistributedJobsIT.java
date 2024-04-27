@@ -173,7 +173,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         internalCluster().startNode(removeRoles(Set.of(DiscoveryNodeRole.ML_ROLE)));
         internalCluster().startNode(addRoles(Set.of(DiscoveryNodeRole.ML_ROLE)));
 
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
 
         IndexRequest indexRequest = new IndexRequest("data");
         indexRequest.source("time", 1407081600L);
@@ -368,7 +368,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
 
         // Create the indices (using installed templates) and set the routing to specific nodes
         // State and results go on the state-and-results node, config goes on the config node
-        indicesAdmin().prepareCreate(".ml-anomalies-shared")
+        indicesAdmin().prepareCreate(masterNodeTimeout, ".ml-anomalies-shared")
             .setSettings(
                 Settings.builder()
                     .put("index.routing.allocation.include.ml-indices", "state-and-results")
@@ -376,7 +376,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
                     .build()
             )
             .get();
-        indicesAdmin().prepareCreate(".ml-state")
+        indicesAdmin().prepareCreate(masterNodeTimeout, ".ml-state")
             .setSettings(
                 Settings.builder()
                     .put("index.routing.allocation.include.ml-indices", "state-and-results")
@@ -384,7 +384,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
                     .build()
             )
             .get();
-        indicesAdmin().prepareCreate(".ml-config")
+        indicesAdmin().prepareCreate(masterNodeTimeout, ".ml-config")
             .setSettings(
                 Settings.builder()
                     .put("index.routing.allocation.exclude.ml-indices", "state-and-results")
@@ -458,7 +458,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         PutJobAction.Request putJobRequest = new PutJobAction.Request(job);
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
-        client().admin().indices().prepareCreate("data").setMapping("time", "type=date").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
 
         DatafeedConfig config = createDatafeed(datafeedId, jobId, Collections.singletonList("data"));
         PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);

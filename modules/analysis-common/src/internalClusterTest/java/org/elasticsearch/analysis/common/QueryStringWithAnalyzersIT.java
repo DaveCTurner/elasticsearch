@@ -31,7 +31,7 @@ public class QueryStringWithAnalyzersIT extends ESIntegTestCase {
      */
     public void testCustomWordDelimiterQueryString() {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(
                     Settings.builder()
                         .put("analysis.analyzer.my_analyzer.type", "custom")

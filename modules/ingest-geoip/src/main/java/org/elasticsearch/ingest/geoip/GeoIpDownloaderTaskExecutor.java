@@ -373,12 +373,15 @@ public final class GeoIpDownloaderTaskExecutor extends PersistentTasksExecutor<G
             if (databasesAbstraction != null) {
                 // regardless of whether DATABASES_INDEX is an alias, resolve it to a concrete index
                 Index databasesIndex = databasesAbstraction.getWriteIndex();
-                client.admin().indices().prepareDelete(databasesIndex.getName()).execute(ActionListener.wrap(rr -> {}, e -> {
-                    Throwable t = e instanceof RemoteTransportException ? ExceptionsHelper.unwrapCause(e) : e;
-                    if (t instanceof ResourceNotFoundException == false) {
-                        logger.warn("failed to remove " + databasesIndex, e);
-                    }
-                }));
+                client.admin()
+                    .indices()
+                    .prepareDelete(masterNodeTimeout, databasesIndex.getName())
+                    .execute(ActionListener.wrap(rr -> {}, e -> {
+                        Throwable t = e instanceof RemoteTransportException ? ExceptionsHelper.unwrapCause(e) : e;
+                        if (t instanceof ResourceNotFoundException == false) {
+                            logger.warn("failed to remove " + databasesIndex, e);
+                        }
+                    }));
             }
         }));
     }

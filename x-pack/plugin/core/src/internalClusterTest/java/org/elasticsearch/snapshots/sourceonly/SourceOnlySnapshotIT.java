@@ -347,7 +347,7 @@ public class SourceOnlySnapshotIT extends AbstractSnapshotIntegTestCase {
         createSnapshot(repo, snapshot, Collections.singletonList(sourceIdx));
 
         logger.info("--> delete index and stop the data node");
-        assertAcked(client().admin().indices().prepareDelete(sourceIdx).get());
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, sourceIdx).get());
         internalCluster().stopRandomDataNode();
         assertFalse(clusterAdmin().prepareHealth().setTimeout(TimeValue.timeValueSeconds(30)).setWaitForNodes("1").get().isTimedOut());
 

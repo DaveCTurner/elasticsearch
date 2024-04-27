@@ -82,7 +82,7 @@ public class SimpleGetFieldMappingsIT extends ESIntegTestCase {
     public void testGetFieldMappings() throws Exception {
 
         assertAcked(prepareCreate("indexa").setMapping(getMappingForType()));
-        assertAcked(indicesAdmin().prepareCreate("indexb").setMapping(getMappingForType()));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "indexb").setMapping(getMappingForType()));
 
         // Get mappings by full name
         GetFieldMappingsResponse response = indicesAdmin().prepareGetFieldMappings("indexa").setFields("field1", "obj.subfield").get();
@@ -110,8 +110,8 @@ public class SimpleGetFieldMappingsIT extends ESIntegTestCase {
     @SuppressWarnings("unchecked")
     public void testSimpleGetFieldMappingsWithDefaults() throws Exception {
         assertAcked(prepareCreate("test").setMapping(getMappingForType()));
-        indicesAdmin().preparePutMapping("test").setSource("num", "type=long").get();
-        indicesAdmin().preparePutMapping("test").setSource("field2", "type=text,index=false").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("num", "type=long").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("field2", "type=text,index=false").get();
 
         GetFieldMappingsResponse response = indicesAdmin().prepareGetFieldMappings()
             .setFields("num", "field1", "field2", "obj.subfield")

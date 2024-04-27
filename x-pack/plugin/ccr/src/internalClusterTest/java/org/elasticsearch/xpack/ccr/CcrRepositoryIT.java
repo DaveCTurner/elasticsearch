@@ -145,7 +145,9 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         final int numberOfPrimaryShards = randomIntBetween(1, 3);
         final String leaderIndexSettings = getIndexSettings(numberOfPrimaryShards, between(0, 1));
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         final RestoreService restoreService = getFollowerCluster().getCurrentMasterNodeInstance(RestoreService.class);
@@ -207,7 +209,9 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         final int numberOfPrimaryShards = randomIntBetween(1, 3);
         final String leaderIndexSettings = getIndexSettings(numberOfPrimaryShards, between(0, 1));
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         final RestoreService restoreService = getFollowerCluster().getCurrentMasterNodeInstance(RestoreService.class);
@@ -264,7 +268,9 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         final int numberOfPrimaryShards = randomIntBetween(1, 3);
         final String leaderIndexSettings = getIndexSettings(numberOfPrimaryShards, between(0, 1));
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         final RestoreService restoreService = getFollowerCluster().getCurrentMasterNodeInstance(RestoreService.class);
@@ -330,7 +336,9 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         final int numberOfPrimaryShards = randomIntBetween(1, 3);
         final String leaderIndexSettings = getIndexSettings(numberOfPrimaryShards, between(0, 1));
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         List<MockTransportService> transportServices = new ArrayList<>();
@@ -411,7 +419,9 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
 
         final int numberOfPrimaryShards = randomIntBetween(1, 3);
         final String leaderIndexSettings = getIndexSettings(numberOfPrimaryShards, between(0, 1));
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         final RestoreService restoreService = getFollowerCluster().getCurrentMasterNodeInstance(RestoreService.class);
@@ -433,7 +443,7 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
         AtomicBoolean updateSent = new AtomicBoolean(false);
         Runnable updateMappings = () -> {
             if (updateSent.compareAndSet(false, true)) {
-                leaderClient().admin().indices().preparePutMapping(leaderIndex).setSource("""
+                leaderClient().admin().indices().preparePutMapping(masterNodeTimeout, leaderIndex).setSource("""
                     {"properties":{"k":{"type":"long"}}}""", XContentType.JSON).execute(ActionListener.running(latch::countDown));
             }
             try {
@@ -486,7 +496,7 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate(leaderIndex)
+                .prepareCreate(masterNodeTimeout, leaderIndex)
                 .setSource(
                     getIndexSettings(
                         numberOfShards,
@@ -599,14 +609,18 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
         }
 
         assertHitCount(followerClient().prepareSearch(followerIndex).setSize(0), numDocs);
-        assertAcked(followerClient().admin().indices().prepareDelete(followerIndex).setMasterNodeTimeout(TimeValue.MAX_VALUE));
+        assertAcked(
+            followerClient().admin().indices().prepareDelete(masterNodeTimeout, followerIndex).setMasterNodeTimeout(TimeValue.MAX_VALUE)
+        );
     }
 
     public void testCcrRepositoryFailsToFetchSnapshotShardSizes() throws Exception {
         final String leaderIndex = "leader";
         final int numberOfShards = randomIntBetween(1, 4);
         final String leaderIndexSettings = getIndexSettings(numberOfShards, 0);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen(leaderIndex);
 
         final AtomicInteger simulatedFailures = new AtomicInteger();
@@ -682,13 +696,20 @@ public class CcrRepositoryIT extends CcrIntegTestCase {
             if (randomBoolean()) {
                 logger.debug("--> create a random index to generate more cluster state updates");
                 final String randomIndex = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
-                assertAcked(followerClient().admin().indices().prepareCreate(randomIndex).setMasterNodeTimeout(TimeValue.MAX_VALUE));
+                assertAcked(
+                    followerClient().admin()
+                        .indices()
+                        .prepareCreate(masterNodeTimeout, randomIndex)
+                        .setMasterNodeTimeout(TimeValue.MAX_VALUE)
+                );
             }
 
             logger.debug("--> follower index [{}] should be assigned even if fetching snapshot shard sizes failed", followerIndex);
             ensureFollowerGreen(followerIndex);
 
-            assertAcked(followerClient().admin().indices().prepareDelete(followerIndex).setMasterNodeTimeout(TimeValue.MAX_VALUE));
+            assertAcked(
+                followerClient().admin().indices().prepareDelete(masterNodeTimeout, followerIndex).setMasterNodeTimeout(TimeValue.MAX_VALUE)
+            );
         } finally {
             transportServices.forEach(MockTransportService::clearAllRules);
         }

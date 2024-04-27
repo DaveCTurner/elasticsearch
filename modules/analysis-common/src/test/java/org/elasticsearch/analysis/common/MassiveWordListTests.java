@@ -27,7 +27,7 @@ public class MassiveWordListTests extends ESSingleNodeTestCase {
         for (int i = 0; i < wordList.length; i++) {
             wordList[i] = "hello world";
         }
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setSettings(
                 Settings.builder()
                     .put("index.number_of_shards", 1)

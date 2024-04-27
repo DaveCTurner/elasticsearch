@@ -47,9 +47,9 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
 
     @Before
     public void putMappings() {
-        assertAcked(indicesAdmin().prepareCreate("index1"));
-        assertAcked(indicesAdmin().prepareCreate("filtered"));
-        assertAcked(indicesAdmin().preparePutMapping("index1", "filtered").setSource(TEST_ITEM, XContentType.JSON));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "index1"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "filtered"));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "index1", "filtered").setSource(TEST_ITEM, XContentType.JSON));
     }
 
     public void testGetMappings() {
@@ -72,7 +72,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
         // as the one coming from a filtered index with same mappings
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("filtered").get();
         MappingMetadata filtered = getMappingsResponse.getMappings().get("filtered");
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(filtered.getSourceAsMap()));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(filtered.getSourceAsMap()));
         GetFieldMappingsResponse response = indicesAdmin().prepareGetFieldMappings("test").setFields("*").get();
         assertEquals(1, response.mappings().size());
         assertFieldMappings(response.mappings().get("test"), FILTERED_FLAT_FIELDS);
@@ -99,7 +99,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
         // as the one coming from a filtered index with same mappings
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("filtered").get();
         MappingMetadata filteredMapping = getMappingsResponse.getMappings().get("filtered");
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(filteredMapping.getSourceAsMap()));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(filteredMapping.getSourceAsMap()));
         FieldCapabilitiesResponse test = client().fieldCaps(new FieldCapabilitiesRequest().fields("*").indices("test")).actionGet();
         // properties.value is an object field in the new mapping
         filteredFields.add("properties.value");
@@ -153,7 +153,7 @@ public class FieldFilterMapperPluginTests extends ESSingleNodeTestCase {
 
     private void assertMappingsAreValid(Map<String, Object> sourceAsMap) {
         // check that the returned filtered mappings are still valid mappings by submitting them and retrieving them back
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(sourceAsMap));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(sourceAsMap));
         GetMappingsResponse testMappingsResponse = indicesAdmin().prepareGetMappings("test").get();
         assertEquals(1, testMappingsResponse.getMappings().size());
         // the mappings are returned unfiltered for this index, yet they are the same as the previous ones that were returned filtered

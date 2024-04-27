@@ -17,7 +17,7 @@ public class DeleteIndexTemplateRequestBuilder extends MasterNodeOperationReques
     DeleteIndexTemplateRequestBuilder> {
 
     public DeleteIndexTemplateRequestBuilder(ElasticsearchClient client, String name) {
-        super(client, TransportDeleteIndexTemplateAction.TYPE, new DeleteIndexTemplateRequest(name));
+        super(client, TransportDeleteIndexTemplateAction.TYPE, new DeleteIndexTemplateRequest(masterNodeTimeout, name));
     }
 
     /**

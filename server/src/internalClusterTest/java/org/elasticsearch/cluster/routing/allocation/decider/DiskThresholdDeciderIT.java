@@ -136,7 +136,7 @@ public class DiskThresholdDeciderIT extends DiskUsageIntegTestCase {
         assertThat(snapshotInfo.successfulShards(), is(snapshotInfo.totalShards()));
         assertThat(snapshotInfo.state(), is(SnapshotState.SUCCESS));
 
-        assertAcked(indicesAdmin().prepareDelete(indexName).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
         updateClusterSettings(Settings.builder().put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), Rebalance.NONE.toString()));
         allowRelocations.set(false);
 
@@ -209,7 +209,7 @@ public class DiskThresholdDeciderIT extends DiskUsageIntegTestCase {
         assertThat(snapshotInfo.successfulShards(), is(snapshotInfo.totalShards()));
         assertThat(snapshotInfo.state(), is(SnapshotState.SUCCESS));
 
-        assertAcked(indicesAdmin().prepareDelete(indexName).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
         updateClusterSettings(Settings.builder().put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), Rebalance.NONE.toString()));
         allowRelocations.set(false);
 

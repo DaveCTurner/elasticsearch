@@ -143,7 +143,7 @@ public abstract class TestCluster {
                 assertAcked(
                     client().admin()
                         .indices()
-                        .prepareDelete(indices)
+                        .prepareDelete(masterNodeTimeout, indices)
                         .setIndicesOptions(IndicesOptions.fromOptions(false, true, true, true, true, false, false, true, false))
                 );
             } catch (IndexNotFoundException e) {
@@ -158,7 +158,7 @@ public abstract class TestCluster {
                         concreteIndices.add(indexMetadata.getIndex().getName());
                     }
                     if (concreteIndices.isEmpty() == false) {
-                        assertAcked(client().admin().indices().prepareDelete(concreteIndices.toArray(new String[0])));
+                        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, concreteIndices.toArray(new String[0])));
                     }
                 }
             }

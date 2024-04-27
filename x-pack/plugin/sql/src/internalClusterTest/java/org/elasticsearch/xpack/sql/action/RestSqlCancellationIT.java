@@ -73,7 +73,8 @@ public class RestSqlCancellationIT extends AbstractSqlBlockingIntegTestCase {
     @TestLogging(value = "org.elasticsearch.xpack.sql:TRACE", reason = "debug")
     public void testRestCancellation() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test").setMapping("val", "type=integer", "event_type", "type=keyword", "@timestamp", "type=date")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("val", "type=integer", "event_type", "type=keyword", "@timestamp", "type=date")
         );
         createIndex("idx_unmapped");
 

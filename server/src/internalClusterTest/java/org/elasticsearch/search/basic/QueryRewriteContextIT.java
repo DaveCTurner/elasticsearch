@@ -141,7 +141,7 @@ public class QueryRewriteContextIT extends ESIntegTestCase {
             final PointInTimeBuilder pointInTimeBuilder = new PointInTimeBuilder(pointInTimeId);
             assertResolvedIndices(prepareSearch().setPointInTime(pointInTimeBuilder), Set.of(indices), Set.of(indices), r -> {});
 
-            assertAcked(indicesAdmin().prepareDelete("test2"));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test2"));
             assertResolvedIndices(prepareSearch().setPointInTime(pointInTimeBuilder), Set.of(indices), Set.of("test1"), r -> {});
         } finally {
             closePointInTime(pointInTimeId);

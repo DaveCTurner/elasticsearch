@@ -568,7 +568,7 @@ public class RegressionIT extends MlNativeDataFrameAnalyticsIntegTestCase {
                     }
                 }
             }""";
-        client().admin().indices().prepareCreate(sourceIndex).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, sourceIndex).setMapping(mapping).get();
 
         int totalDocCount = 300;
         BulkRequestBuilder bulkRequestBuilder = client().prepareBulk().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
@@ -911,7 +911,7 @@ public class RegressionIT extends MlNativeDataFrameAnalyticsIntegTestCase {
                 throw new ElasticsearchException(ex);
             }
         } else {
-            client().admin().indices().prepareCreate(sourceIndex).setMapping(mapping).get();
+            client().admin().indices().prepareCreate(masterNodeTimeout, sourceIndex).setMapping(mapping).get();
         }
 
         BulkRequestBuilder bulkRequestBuilder = client().prepareBulk().setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);

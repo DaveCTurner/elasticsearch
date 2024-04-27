@@ -169,7 +169,7 @@ public class SearchableSnapshotsPrewarmingIntegTests extends ESSingleNodeTestCas
         ensureGreen("index-*");
 
         logger.debug("--> deleting indices");
-        assertAcked(indicesAdmin().prepareDelete("index-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*"));
 
         logger.debug("--> deleting repository");
         assertAcked(clusterAdmin().prepareDeleteRepository("repository"));
@@ -291,7 +291,7 @@ public class SearchableSnapshotsPrewarmingIntegTests extends ESSingleNodeTestCas
         if (deletedIndicesDuringPrewarming.isEmpty() == false) {
             Set<Index> deletedIndices = deletedIndicesDuringPrewarming.stream().map(this::resolveIndex).collect(Collectors.toSet());
             logger.debug("--> deleting indices [{}] before prewarming", deletedIndices);
-            assertAcked(indicesAdmin().prepareDelete(deletedIndicesDuringPrewarming.toArray(String[]::new)));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, deletedIndicesDuringPrewarming.toArray(String[]::new)));
 
             var indicesService = getInstanceFromNode(IndicesService.class);
             assertBusy(() -> deletedIndices.forEach(deletedIndex -> assertThat(indicesService.hasIndex(deletedIndex), is(false))));

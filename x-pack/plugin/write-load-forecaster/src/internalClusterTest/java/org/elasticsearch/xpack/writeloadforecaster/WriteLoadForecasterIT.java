@@ -185,7 +185,7 @@ public class WriteLoadForecasterIT extends ESIntegTestCase {
                 }
             });
 
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
         }
     }
 

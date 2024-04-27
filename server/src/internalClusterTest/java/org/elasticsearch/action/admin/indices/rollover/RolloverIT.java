@@ -401,10 +401,10 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate(dateMathExp).addAlias(new Alias("test_alias")).get());
         ensureGreen(index);
         // now we modify the provided name such that we can test that the pattern is carried on
-        indicesAdmin().prepareClose(index).get();
+        indicesAdmin().prepareClose(masterNodeTimeout, index).get();
         updateIndexSettings(Settings.builder().put(IndexMetadata.SETTING_INDEX_PROVIDED_NAME, "<test-{now/M{yyyy.MM}}-1>"), index);
 
-        indicesAdmin().prepareOpen(index).get();
+        indicesAdmin().prepareOpen(masterNodeTimeout, index).get();
         ensureGreen(index);
         RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").get();
         assertThat(response.getOldIndex(), equalTo(index));
@@ -623,7 +623,7 @@ public class RolloverIT extends ESIntegTestCase {
 
     public void testRejectIfAliasFoundInTemplate() throws Exception {
         indicesAdmin().preparePutTemplate("logs").setPatterns(Collections.singletonList("logs-*")).addAlias(new Alias("logs-write")).get();
-        assertAcked(indicesAdmin().prepareCreate("logs-000001").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "logs-000001").get());
         ensureYellow("logs-write");
         final IllegalArgumentException error = expectThrows(
             IllegalArgumentException.class,
@@ -652,7 +652,7 @@ public class RolloverIT extends ESIntegTestCase {
         index(aliasName, null, "{\"foo\": \"bar\"}");
         refresh(aliasName);
 
-        assertAcked(indicesAdmin().prepareClose(closedIndex).setTimeout(TimeValue.timeValueSeconds(60)).get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, closedIndex).setTimeout(TimeValue.timeValueSeconds(60)).get());
 
         RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(aliasName)
             .setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1L))
@@ -676,8 +676,8 @@ public class RolloverIT extends ESIntegTestCase {
         index(aliasName, null, "{\"foo\": \"bar\"}");
         refresh(aliasName);
 
-        assertAcked(indicesAdmin().prepareClose(closedIndex).get());
-        assertAcked(indicesAdmin().prepareClose(writeIndexPrefix + "000001").get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, closedIndex).get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, writeIndexPrefix + "000001").get());
         ensureGreen(aliasName);
 
         RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(aliasName)

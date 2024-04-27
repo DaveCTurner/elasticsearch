@@ -351,7 +351,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         Settings node1DataPathSettings = internalCluster().dataPathSettings(nodes.get(0));
         Settings node2DataPathSettings = internalCluster().dataPathSettings(nodes.get(1));
 
-        assertAcked(indicesAdmin().prepareCreate("test"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test"));
         prepareIndex("test").setId("1").setSource(jsonBuilder().startObject().field("field", "value1").endObject()).get();
         indicesAdmin().prepareFlush().get();
         prepareIndex("test").setId("2").setSource(jsonBuilder().startObject().field("field", "value2").endObject()).get();
@@ -439,7 +439,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         // create the index with our mapping
         client(primaryNode).admin()
             .indices()
-            .prepareCreate("test")
+            .prepareCreate(masterNodeTimeout, "test")
             .setSettings(
                 Settings.builder()
                     .put("number_of_shards", 1)

@@ -188,7 +188,7 @@ public class SearchProgressActionListenerIT extends ESSingleNodeTestCase {
         int numIndices = randomIntBetween(3, 20);
         for (int i = 0; i < numIndices; i++) {
             String indexName = Strings.format("index-%03d", i);
-            assertAcked(client.admin().indices().prepareCreate(indexName).get());
+            assertAcked(client.admin().indices().prepareCreate(masterNodeTimeout, indexName).get());
             client.prepareIndex(indexName).setSource("number", i, "foo", "bar").get();
         }
         client.admin().indices().prepareRefresh("index-*").get();

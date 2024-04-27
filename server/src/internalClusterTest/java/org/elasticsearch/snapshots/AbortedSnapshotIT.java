@@ -93,7 +93,7 @@ public class AbortedSnapshotIT extends AbstractSnapshotIntegTestCase {
         }
 
         assertTrue(store.hasReferences());
-        assertAcked(indicesAdmin().prepareDelete(indexName).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName).get());
 
         // this is the key assertion: we must release the store without needing any SNAPSHOT threads to make further progress
         assertBusy(() -> assertFalse(store.hasReferences()));

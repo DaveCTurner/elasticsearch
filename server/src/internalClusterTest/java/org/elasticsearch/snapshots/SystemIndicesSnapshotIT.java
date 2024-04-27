@@ -182,7 +182,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertSnapshotSuccess(createSnapshotResponse);
 
         // Delete the regular index so we can restore it
-        assertAcked(cluster().client().admin().indices().prepareDelete(regularIndex));
+        assertAcked(cluster().client().admin().indices().prepareDelete(masterNodeTimeout, regularIndex));
 
         RestoreSnapshotResponse restoreResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
             .setWaitForCompletion(true)
@@ -222,7 +222,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(getDocCount(AnotherSystemIndexTestPlugin.SYSTEM_INDEX_NAME), equalTo(2L));
 
         // Delete the regular index so we can restore it
-        assertAcked(cluster().client().admin().indices().prepareDelete(regularIndex));
+        assertAcked(cluster().client().admin().indices().prepareDelete(masterNodeTimeout, regularIndex));
 
         // restore indices by feature
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
@@ -279,7 +279,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(getDocCount(AssociatedIndicesTestPlugin.SYSTEM_INDEX_NAME), equalTo(2L));
 
         // And delete the associated index so we can restore it
-        assertAcked(indicesAdmin().prepareDelete(AssociatedIndicesTestPlugin.ASSOCIATED_INDEX_NAME).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, AssociatedIndicesTestPlugin.ASSOCIATED_INDEX_NAME).get());
 
         // restore the feature state and its associated index
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
@@ -404,7 +404,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
             .get();
         assertSnapshotSuccess(createSnapshotResponse);
 
-        assertAcked(indicesAdmin().prepareDelete(SystemIndexTestPlugin.SYSTEM_INDEX_NAME, nonSystemIndex).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, SystemIndexTestPlugin.SYSTEM_INDEX_NAME, nonSystemIndex).get());
 
         // Restore using a rename pattern that matches both the regular and the system index
         clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
@@ -478,7 +478,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         indexDoc(SystemIndexTestPlugin.SYSTEM_INDEX_NAME, "2", "purpose", "post-snapshot doc");
         refresh(SystemIndexTestPlugin.SYSTEM_INDEX_NAME);
 
-        assertAcked(indicesAdmin().prepareDelete(regularIndex).get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, regularIndex).get());
         assertThat(getDocCount(SystemIndexTestPlugin.SYSTEM_INDEX_NAME), equalTo(2L));
 
         // restore with global state and all indices but explicitly no feature states.
@@ -532,7 +532,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         refresh(systemIndexInSnapshot, systemIndexNotInSnapshot, AnotherSystemIndexTestPlugin.SYSTEM_INDEX_NAME);
 
         // Delete the regular index so we can restore it
-        assertAcked(cluster().client().admin().indices().prepareDelete(regularIndex));
+        assertAcked(cluster().client().admin().indices().prepareDelete(masterNodeTimeout, regularIndex));
 
         // restore the snapshot
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
@@ -579,7 +579,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertSnapshotSuccess(createSnapshotResponse);
 
         // And delete both the indices
-        assertAcked(cluster().client().admin().indices().prepareDelete(regularIndex, systemIndexName));
+        assertAcked(cluster().client().admin().indices().prepareDelete(masterNodeTimeout, regularIndex, systemIndexName));
 
         // Now restore the snapshot with no aliases
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, "test-snap")
@@ -776,7 +776,7 @@ public class SystemIndicesSnapshotIT extends AbstractSnapshotIntegTestCase {
         waitForBlock(dataNodes.get(1), REPO_NAME);
 
         logger.info("--> Repo hit block, deleting the index...");
-        assertAcked(cluster().client().admin().indices().prepareDelete(indexToBeDeleted));
+        assertAcked(cluster().client().admin().indices().prepareDelete(masterNodeTimeout, indexToBeDeleted));
 
         logger.info("--> Index deleted, unblocking repo...");
         unblockNode(REPO_NAME, dataNodes.get(1));

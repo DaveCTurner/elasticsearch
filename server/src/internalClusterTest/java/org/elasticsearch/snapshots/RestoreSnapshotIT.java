@@ -229,8 +229,8 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         if (randomBoolean()) {
             // open and close the index to increase the primary terms
             for (int i = 0; i < randomInt(3); i++) {
-                assertAcked(indicesAdmin().prepareClose(indexName));
-                assertAcked(indicesAdmin().prepareOpen(indexName));
+                assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
+                assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, indexName));
             }
         }
 
@@ -251,7 +251,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         createRepository("test-repo", "fs");
         createSnapshot("test-repo", "test-snap", Collections.singletonList(indexName));
 
-        assertAcked(indicesAdmin().prepareClose(indexName));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName));
 
         final RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
             .setWaitForCompletion(true)
@@ -290,7 +290,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         NumShards numShards = getNumShards("test-idx");
 
-        assertAcked(indicesAdmin().preparePutMapping("test-idx").setSource("baz", "type=text"));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test-idx").setSource("baz", "type=text"));
         ensureGreen();
 
         createSnapshot("test-repo", "test-snap", Collections.singletonList("test-idx"));
@@ -300,11 +300,11 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertAcked(
             prepareCreate("test-idx", 2, indexSettings(numShards.numPrimaries, between(0, 1)).put("refresh_interval", 5, TimeUnit.SECONDS))
         );
-        assertAcked(indicesAdmin().preparePutMapping("test-idx").setSource("foo", "type=text"));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test-idx").setSource("foo", "type=text"));
         ensureGreen();
 
         logger.info("--> close index");
-        indicesAdmin().prepareClose("test-idx").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test-idx").get();
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
@@ -368,7 +368,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("-->  delete and close indices");
         cluster().wipeIndices("test-idx-1", "test-idx-2");
-        assertAcked(indicesAdmin().prepareClose("test-idx-3"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test-idx-3"));
         assertTrue(indicesAdmin().prepareGetAliases("alias-123").get().getAliases().isEmpty());
         assertTrue(indicesAdmin().prepareGetAliases("alias-1").get().getAliases().isEmpty());
 
@@ -473,7 +473,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertDocCount("test-idx-2-copy", 100L);
 
         logger.info("--> close just restored indices");
-        client.admin().indices().prepareClose("test-idx-1-copy", "test-idx-2-copy").get();
+        client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-1-copy", "test-idx-2-copy").get();
 
         logger.info("--> and try to restore these indices again");
         restoreSnapshotResponse = client.admin()
@@ -489,7 +489,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertDocCount("test-idx-2-copy", 100L);
 
         logger.info("--> close indices");
-        assertAcked(client.admin().indices().prepareClose("test-idx-1", "test-idx-2-copy"));
+        assertAcked(client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-1", "test-idx-2-copy"));
 
         logger.info("--> restore indices with different names");
         restoreSnapshotResponse = client.admin()
@@ -664,7 +664,8 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         int numberOfShards = getNumShards("test-idx").numPrimaries;
         assertAcked(
-            indicesAdmin().preparePutMapping("test-idx").setSource("field1", "type=text,analyzer=standard,search_analyzer=my_analyzer")
+            indicesAdmin().preparePutMapping(masterNodeTimeout, "test-idx")
+                .setSource("field1", "type=text,analyzer=standard,search_analyzer=my_analyzer")
         );
         final int numdocs = randomIntBetween(10, 100);
         IndexRequestBuilder[] builders = new IndexRequestBuilder[numdocs];
@@ -906,7 +907,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         final String snapshotName = "test-snapshot";
         createSnapshot(repoName, snapshotName, List.of(indexName));
         index(indexName, "some_id", Map.of("foo", "bar"));
-        assertAcked(indicesAdmin().prepareClose(indexName).get());
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, indexName).get());
         final MockLogAppender mockAppender = new MockLogAppender();
         mockAppender.addExpectation(
             new MockLogAppender.UnseenEventExpectation("no warnings", FileRestoreContext.class.getCanonicalName(), Level.WARN, "*")

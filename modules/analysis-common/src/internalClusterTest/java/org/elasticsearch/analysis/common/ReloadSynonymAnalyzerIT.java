@@ -59,7 +59,7 @@ public class ReloadSynonymAnalyzerIT extends ESIntegTestCase {
             out.println("foo, baz");
         }
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(
                     indexSettings(cluster().numDataNodes() * 2, 1).put("analysis.analyzer.my_synonym_analyzer.tokenizer", "standard")
                         .put("analysis.analyzer.my_synonym_analyzer.filter", "my_synonym_filter")

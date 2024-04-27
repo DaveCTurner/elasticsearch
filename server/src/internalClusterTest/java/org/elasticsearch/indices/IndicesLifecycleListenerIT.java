@@ -91,7 +91,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
         assertThat("beforeIndexCreated called on each data node", allCreatedCount.get(), greaterThanOrEqualTo(3));
 
         try {
-            indicesAdmin().prepareCreate("failed").setSettings(Settings.builder().put("index.fail", true)).get();
+            indicesAdmin().prepareCreate(masterNodeTimeout, "failed").setSettings(Settings.builder().put("index.fail", true)).get();
             fail("should have thrown an exception during creation");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("failing on purpose"));
@@ -159,7 +159,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
 
         // create an index that should fail
         try {
-            indicesAdmin().prepareCreate("failed")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "failed")
                 .setSettings(Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 1).put("index.fail", true))
                 .get();
             fail("should have thrown an exception");
@@ -205,7 +205,7 @@ public class IndicesLifecycleListenerIT extends ESIntegTestCase {
         assertShardStatesMatch(stateChangeListenerNode2, 3, CREATED, RECOVERING, POST_RECOVERY, STARTED);
 
         // close the index
-        assertAcked(indicesAdmin().prepareClose("test"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
 
         assertThat(stateChangeListenerNode1.afterCloseSettings.getAsInt(SETTING_NUMBER_OF_SHARDS, -1), equalTo(6));
         assertThat(stateChangeListenerNode1.afterCloseSettings.getAsInt(SETTING_NUMBER_OF_REPLICAS, -1), equalTo(1));

@@ -140,7 +140,9 @@ public class CrossClusterPainlessExecuteIT extends AbstractMultiClustersTestCase
     }
 
     private void setupTwoClusters() throws Exception {
-        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(LOCAL_INDEX).setMapping(KEYWORD_FIELD, "type=keyword"));
+        assertAcked(
+            client(LOCAL_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, LOCAL_INDEX).setMapping(KEYWORD_FIELD, "type=keyword")
+        );
         indexDocs(client(LOCAL_CLUSTER), LOCAL_INDEX);
         final InternalTestCluster remoteCluster = cluster(REMOTE_CLUSTER);
         remoteCluster.ensureAtLeastNumDataNodes(1);
@@ -168,7 +170,7 @@ public class CrossClusterPainlessExecuteIT extends AbstractMultiClustersTestCase
         assertAcked(
             client(REMOTE_CLUSTER).admin()
                 .indices()
-                .prepareCreate(REMOTE_INDEX)
+                .prepareCreate(masterNodeTimeout, REMOTE_INDEX)
                 .setMapping(KEYWORD_FIELD, "type=keyword")
                 .setSettings(Settings.builder().put(allocationFilter.build()).put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
         );

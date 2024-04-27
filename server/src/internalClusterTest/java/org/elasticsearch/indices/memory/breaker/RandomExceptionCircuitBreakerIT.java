@@ -108,7 +108,10 @@ public class RandomExceptionCircuitBreakerIT extends ESIntegTestCase {
             .put(EXCEPTION_LOW_LEVEL_RATIO_KEY, lowLevelRate)
             .put(MockEngineSupport.WRAP_READER_RATIO.getKey(), 1.0d);
         logger.info("creating index: [test] using settings: [{}]", settings.build());
-        CreateIndexResponse response = indicesAdmin().prepareCreate("test").setSettings(settings).setMapping(mapping).get();
+        CreateIndexResponse response = indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+            .setSettings(settings)
+            .setMapping(mapping)
+            .get();
         final int numDocs;
         if (response.isShardsAcknowledged() == false) {
             /* some seeds just won't let you create the index at all and we enter a ping-pong mode

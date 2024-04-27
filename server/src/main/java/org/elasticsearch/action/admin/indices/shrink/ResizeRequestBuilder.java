@@ -17,7 +17,7 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 
 public class ResizeRequestBuilder extends AcknowledgedRequestBuilder<ResizeRequest, CreateIndexResponse, ResizeRequestBuilder> {
     public ResizeRequestBuilder(ElasticsearchClient client) {
-        super(client, ResizeAction.INSTANCE, new ResizeRequest());
+        super(client, ResizeAction.INSTANCE, new ResizeRequest(masterNodeTimeout));
     }
 
     public ResizeRequestBuilder setTargetIndex(CreateIndexRequest request) {

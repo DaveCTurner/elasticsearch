@@ -595,7 +595,7 @@ public class FieldCapabilitiesIT extends ESIntegTestCase {
             """;
         String[] indices = IntStream.range(0, between(1, 9)).mapToObj(n -> "test_many_index_" + n).toArray(String[]::new);
         for (String index : indices) {
-            assertAcked(indicesAdmin().prepareCreate(index).setMapping(mapping).get());
+            assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, index).setMapping(mapping).get());
         }
         FieldCapabilitiesRequest request = new FieldCapabilitiesRequest();
         request.indices("test_many_index_*");
@@ -631,7 +631,9 @@ public class FieldCapabilitiesIT extends ESIntegTestCase {
         // add an extra field for some indices
         String[] indicesWithExtraField = randomSubsetOf(between(1, indices.length), indices).stream().sorted().toArray(String[]::new);
         ensureGreen(indices);
-        assertAcked(indicesAdmin().preparePutMapping(indicesWithExtraField).setSource("extra_field", "type=integer").get());
+        assertAcked(
+            indicesAdmin().preparePutMapping(masterNodeTimeout, indicesWithExtraField).setSource("extra_field", "type=integer").get()
+        );
         for (String index : indicesWithExtraField) {
             prepareIndex(index).setSource("extra_field", randomIntBetween(1, 1000)).get();
         }

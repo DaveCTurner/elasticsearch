@@ -219,7 +219,10 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
     }
 
     public void testSimpleQuery() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
+        );
         prepareIndex("test").setId("1").setSource("field1", "value1").setRefreshPolicy(IMMEDIATE).get();
         prepareIndex("test").setId("2").setSource("field2", "value2").setRefreshPolicy(IMMEDIATE).get();
         prepareIndex("test").setId("3").setSource("field3", "value3").setRefreshPolicy(IMMEDIATE).get();
@@ -250,7 +253,10 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
     }
 
     public void testGetApi() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
+        );
 
         prepareIndex("test").setId("1").setSource("field1", "value1").get();
         prepareIndex("test").setId("2").setSource("field2", "value2").get();
@@ -311,7 +317,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testRealtimeGetApi() {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
                 .setSettings(Settings.builder().put("refresh_interval", "-1").build())
         );
@@ -381,7 +387,10 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
     }
 
     public void testMGetApi() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
+        );
 
         prepareIndex("test").setId("1").setSource("field1", "value1").get();
         prepareIndex("test").setId("2").setSource("field2", "value2").get();
@@ -449,11 +458,11 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testMSearch() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test1")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test1")
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text", "id", "type=integer")
         );
         assertAcked(
-            indicesAdmin().prepareCreate("test2")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test2")
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text", "id", "type=integer")
         );
 
@@ -544,10 +553,10 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testPercolateQueryWithIndexedDocWithDLS() {
         assertAcked(
-            indicesAdmin().prepareCreate("query_index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "query_index")
                 .setMapping("message", "type=text", "query", "type=percolator", "field1", "type=text", "field2", "type=text")
         );
-        assertAcked(indicesAdmin().prepareCreate("doc_index").setMapping("message", "type=text", "field1", "type=text"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "doc_index").setMapping("message", "type=text", "field1", "type=text"));
         prepareIndex("query_index").setId("1")
             .setSource("""
                 {"field1": "value1", "field2": "value2", "query": {"match": {"message": "bonsai tree"}}}""", XContentType.JSON)
@@ -584,11 +593,11 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testGeoQueryWithIndexedShapeWithDLS() {
         assertAcked(
-            indicesAdmin().prepareCreate("search_index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "search_index")
                 .setMapping("search_field", "type=shape", "field1", "type=text", "field2", "type=text")
         );
         assertAcked(
-            indicesAdmin().prepareCreate("shape_index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "shape_index")
                 .setMapping("shape_field", "type=shape", "field1", "type=text", "field2", "type=text")
         );
         prepareIndex("search_index").setId("1")
@@ -645,11 +654,11 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testTermsLookupOnIndexWithDLS() {
         assertAcked(
-            indicesAdmin().prepareCreate("search_index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "search_index")
                 .setMapping("search_field", "type=keyword", "field1", "type=text", "field2", "type=text")
         );
         assertAcked(
-            indicesAdmin().prepareCreate("lookup_index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "lookup_index")
                 .setMapping("lookup_field", "type=keyword", "field1", "type=text", "field2", "type=text")
         );
         prepareIndex("search_index").setId("1")
@@ -732,7 +741,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testTVApi() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping(
                     "field1",
                     "type=text,term_vector=with_positions_offsets_payloads",
@@ -795,7 +804,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testMTVApi() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping(
                     "field1",
                     "type=text,term_vector=with_positions_offsets_payloads",
@@ -871,7 +880,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(indexSettings).setMapping(builder));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(indexSettings).setMapping(builder));
 
         for (int i = 0; i < 5; i++) {
             prepareIndex("test").setSource("field1", "value1", "other", "valueA", "vector", new float[] { i, i, i }).get();
@@ -936,7 +945,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testGlobalAggregation() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("field1", "type=text", "field2", "type=text,fielddata=true", "field3", "type=text")
         );
         prepareIndex("test").setId("1").setSource("field1", "value1").setRefreshPolicy(IMMEDIATE).get();
@@ -1004,7 +1013,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testZeroMinDocAggregation() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("color", "type=keyword", "fruit", "type=keyword", "count", "type=integer")
                 .setSettings(Map.of("index.number_of_shards", 1))
         );
@@ -1233,7 +1242,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testScroll() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
         );
@@ -1286,7 +1295,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testReaderId() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
         );
@@ -1332,7 +1341,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testRequestCache() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING.getKey(), true))
                 .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
         );
@@ -1372,7 +1381,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
     }
 
     public void testUpdateApiIsBlocked() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=text", "field2", "type=text"));
         prepareIndex("test").setId("1").setSource("field1", "value1").setRefreshPolicy(IMMEDIATE).get();
 
         // With document level security enabled the update is not allowed:
@@ -1414,7 +1423,9 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
     }
 
     public void testNestedInnerHits() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "nested_field", "type=nested"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=text", "nested_field", "type=nested")
+        );
         prepareIndex("test").setId("1")
             .setSource(
                 jsonBuilder().startObject()
@@ -1477,7 +1488,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testSuggesters() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(indexSettings(1, 0))
                 .setMapping("field1", "type=text", "suggest_field1", "type=text", "suggest_field2", "type=completion")
         );
@@ -1500,7 +1511,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
         refresh("test");
 
         assertAcked(
-            indicesAdmin().prepareCreate("fls-index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "fls-index")
                 .setSettings(indexSettings(1, 0))
                 .setMapping(
                     "field1",
@@ -1593,7 +1604,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
 
     public void testProfile() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(indexSettings(1, 0))
                 .setMapping("field1", "type=text", "other_field", "type=text")
         );
@@ -1608,7 +1619,7 @@ public class DocumentLevelSecurityTests extends SecurityIntegTestCase {
         refresh("test");
 
         assertAcked(
-            indicesAdmin().prepareCreate("fls-index")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "fls-index")
                 .setSettings(indexSettings(1, 0))
                 .setMapping("field1", "type=text", "other_field", "type=text", "yet_another", "type=text")
         );

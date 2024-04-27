@@ -76,7 +76,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorQuery() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("id", "type=keyword", "field1", "type=keyword", "field2", "type=keyword", "query", "type=percolator")
         );
 
@@ -162,7 +162,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorRangeQueries() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping(
                     "field1",
                     "type=long",
@@ -287,7 +287,8 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorGeoQueries() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test").setMapping("id", "type=keyword", "field1", "type=geo_point", "query", "type=percolator")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("id", "type=keyword", "field1", "type=geo_point", "query", "type=percolator")
         );
 
         prepareIndex("test").setId("1")
@@ -340,7 +341,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorQueryExistingDocument() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("id", "type=keyword", "field1", "type=keyword", "field2", "type=keyword", "query", "type=percolator")
         );
 
@@ -394,7 +395,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorQueryExistingDocumentSourceDisabled() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("_source", "enabled=false", "field1", "type=keyword", "query", "type=percolator")
         );
 
@@ -412,7 +413,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testPercolatorSpecificQueries() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("id", "type=keyword", "field1", "type=text", "field2", "type=text", "query", "type=percolator")
         );
 
@@ -507,7 +508,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
             fieldMapping.append(",index_options=offsets");
         }
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping("id", "type=keyword", "field1", fieldMapping.toString(), "query", "type=percolator")
         );
         prepareIndex("test").setId("1")
@@ -754,7 +755,8 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testTakePositionOffsetGapIntoAccount() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test").setMapping("field", "type=text,position_increment_gap=5", "query", "type=percolator")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("field", "type=text,position_increment_gap=5", "query", "type=percolator")
         );
         prepareIndex("test").setId("1")
             .setSource(jsonBuilder().startObject().field("query", new MatchPhraseQueryBuilder("field", "brown fox").slop(4)).endObject())
@@ -777,13 +779,15 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testManyPercolatorFields() throws Exception {
         String queryFieldName = randomAlphaOfLength(8);
-        assertAcked(indicesAdmin().prepareCreate("test1").setMapping(queryFieldName, "type=percolator", "field", "type=keyword"));
         assertAcked(
-            indicesAdmin().prepareCreate("test2")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test1").setMapping(queryFieldName, "type=percolator", "field", "type=keyword")
+        );
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test2")
                 .setMapping(queryFieldName, "type=percolator", "second_query_field", "type=percolator", "field", "type=keyword")
         );
         assertAcked(
-            indicesAdmin().prepareCreate("test3")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test3")
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("_doc")
@@ -808,9 +812,11 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testWithMultiplePercolatorFields() throws Exception {
         String queryFieldName = randomAlphaOfLength(8);
-        assertAcked(indicesAdmin().prepareCreate("test1").setMapping(queryFieldName, "type=percolator", "field", "type=keyword"));
         assertAcked(
-            indicesAdmin().prepareCreate("test2")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test1").setMapping(queryFieldName, "type=percolator", "field", "type=keyword")
+        );
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test2")
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("_doc")
@@ -911,7 +917,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
             .endObject()
             .endObject()
             .endObject();
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(mapping));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mapping));
         prepareIndex("test").setId("q1")
             .setSource(
                 jsonBuilder().startObject()
@@ -1077,7 +1083,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
     }
 
     public void testPercolatorQueryViaMultiSearch() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "query", "type=percolator"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=text", "query", "type=percolator"));
 
         prepareIndex("test").setId("1")
             .setSource(jsonBuilder().startObject().field("query", matchQuery("field1", "b")).field("a", "b").endObject())
@@ -1174,7 +1180,8 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
     public void testDisallowExpensiveQueries() throws IOException {
         try {
             assertAcked(
-                indicesAdmin().prepareCreate("test").setMapping("id", "type=keyword", "field1", "type=keyword", "query", "type=percolator")
+                indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                    .setMapping("id", "type=keyword", "field1", "type=keyword", "query", "type=percolator")
             );
 
             prepareIndex("test").setId("1")
@@ -1217,7 +1224,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testWrappedWithConstantScore() throws Exception {
 
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("d", "type=date", "q", "type=percolator"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("d", "type=date", "q", "type=percolator"));
 
         prepareIndex("test").setId("1")
             .setSource(jsonBuilder().startObject().field("q", boolQuery().must(rangeQuery("d").gt("now"))).endObject())
@@ -1267,7 +1274,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
 
     public void testWithWildcardFieldNames() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setMapping(
                     "text_1",
                     "type=text",
@@ -1356,7 +1363,7 @@ public class PercolatorQuerySearchIT extends ESIntegTestCase {
               }
             }
             """);
-        indicesAdmin().prepareCreate("index1").setMapping(mappings).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index1").setMapping(mappings).get();
         ensureGreen();
         QueryBuilder knnVectorQueryBuilder = new KnnVectorQueryBuilder("my_vector", new float[] { 1, 1, 1, 1, 1 }, 10, null);
 

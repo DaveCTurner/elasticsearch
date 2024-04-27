@@ -44,7 +44,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
               }
             }
             """;
-        var resp = client().admin().indices().prepareCreate("test").setMapping(mapping).get();
+        var resp = client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         assertTrue(resp.isAcknowledged());
         var mappingsResp = client().admin().indices().prepareGetMappings("test").get();
         var mappingMetadata = mappingsResp.getMappings().get("test");
@@ -69,7 +69,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
                 }
             }
             """;
-        CreateIndexRequestBuilder req = client().admin().indices().prepareCreate("test").setMapping(mapping);
+        CreateIndexRequestBuilder req = client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping);
         Exception exc = expectThrows(Exception.class, () -> req.get());
         assertThat(exc.getCause(), instanceOf(IllegalArgumentException.class));
         assertThat(exc.getCause().getCause(), instanceOf(MapperParsingException.class));
@@ -77,7 +77,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
     }
 
     public void testUpdateDynamicMappingFails() throws Exception {
-        var resp = client().admin().indices().prepareCreate("test").get();
+        var resp = client().admin().indices().prepareCreate(masterNodeTimeout, "test").get();
         assertTrue(resp.isAcknowledged());
         String mapping = """
             {
@@ -95,7 +95,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
                 }
             }
             """;
-        var req = client().admin().indices().preparePutMapping("test").setSource(mapping, XContentType.JSON);
+        var req = client().admin().indices().preparePutMapping(masterNodeTimeout, "test").setSource(mapping, XContentType.JSON);
         Exception exc = expectThrows(Exception.class, () -> req.get());
         assertThat(exc.getCause(), instanceOf(IllegalArgumentException.class));
         assertThat(exc.getCause().getCause(), instanceOf(MapperParsingException.class));

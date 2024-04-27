@@ -178,7 +178,7 @@ public class DatafeedCcsIT extends AbstractMultiClustersTestCase {
      * @return The epoch millisecond timestamp of the most recent document.
      */
     private long indexRemoteDocs(long numDocs) {
-        client(REMOTE_CLUSTER).admin().indices().prepareCreate(DATA_INDEX).setMapping("time", "type=date").get();
+        client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, DATA_INDEX).setMapping("time", "type=date").get();
         long now = System.currentTimeMillis();
         long weekAgo = now - 604800000;
         long twoWeeksAgo = weekAgo - 604800000;

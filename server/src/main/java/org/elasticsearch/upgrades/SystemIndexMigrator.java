@@ -234,7 +234,7 @@ public class SystemIndexMigrator extends AllocatedPersistentTask {
             migrationInfo.createClient(baseClient)
                 .admin()
                 .indices()
-                .prepareDelete(newIndexName)
+                .prepareDelete(masterNodeTimeout, newIndexName)
                 .execute(ActionListener.wrap(ackedResponse -> {
                     if (ackedResponse.isAcknowledged()) {
                         logger.debug("successfully removed index [{}]", newIndexName);

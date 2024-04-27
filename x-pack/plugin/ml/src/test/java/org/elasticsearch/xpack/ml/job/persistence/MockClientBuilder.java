@@ -101,7 +101,7 @@ public class MockClientBuilder {
         when(createIndexRequestBuilder.setSettings(any(Settings.Builder.class))).thenReturn(createIndexRequestBuilder);
         when(createIndexRequestBuilder.setMapping(any(XContentBuilder.class))).thenReturn(createIndexRequestBuilder);
         when(createIndexRequestBuilder.get()).thenReturn(response);
-        when(indicesAdminClient.prepareCreate(eq(index))).thenReturn(createIndexRequestBuilder);
+        when(indicesAdminClient.prepareCreate(masterNodeTimeout, eq(index))).thenReturn(createIndexRequestBuilder);
         return this;
     }
 

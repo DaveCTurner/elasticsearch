@@ -53,7 +53,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testNullShape() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("aNullshape")
@@ -66,7 +66,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsFilterRectangle() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("1")
@@ -105,7 +105,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsCircle() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("1")
@@ -133,7 +133,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsPolygon() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("1")
@@ -161,7 +161,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsMultiPolygon() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("1")
@@ -202,7 +202,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsRectangle() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("1")
@@ -230,7 +230,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
 
     public void testIndexPointsIndexedRectangle() throws Exception {
         String mapping = Strings.toString(createDefaultMapping());
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         prepareIndex(defaultIndexName).setId("point1")
@@ -255,7 +255,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
                 .endObject()
                 .endObject()
         );
-        indicesAdmin().prepareCreate(indexedShapeIndex).setMapping(queryShapesMapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexedShapeIndex).setMapping(queryShapesMapping).get();
         ensureGreen();
 
         prepareIndex(indexedShapeIndex).setId("shape1")
@@ -294,7 +294,7 @@ public abstract class ShapeQueryTestCase extends ESSingleNodeTestCase {
     }
 
     public void testDistanceQuery() throws Exception {
-        indicesAdmin().prepareCreate("test_distance").setMapping("location", "type=shape").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test_distance").setMapping("location", "type=shape").get();
         ensureGreen();
 
         Circle circle = new Circle(1, 0, 10);

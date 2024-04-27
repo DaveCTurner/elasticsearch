@@ -149,7 +149,7 @@ public class CrossClustersCancellationIT extends AbstractMultiClustersTestCase {
         }
         mapping.endObject();
         mapping.endObject();
-        client(REMOTE_CLUSTER).admin().indices().prepareCreate("test").setMapping(mapping).get();
+        client(REMOTE_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping(mapping).get();
         BulkRequestBuilder bulk = client(REMOTE_CLUSTER).prepareBulk("test").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         for (int i = 0; i < numDocs; i++) {
             bulk.add(new IndexRequest().source("foo", i));

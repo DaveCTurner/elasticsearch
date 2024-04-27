@@ -34,7 +34,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class MultiFieldsIntegrationIT extends ESIntegTestCase {
     @SuppressWarnings("unchecked")
     public void testMultiFields() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("my-index").setMapping(createTypeSource()));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createTypeSource()));
 
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
@@ -50,7 +50,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
         assertHitCount(prepareSearch("my-index").setQuery(matchQuery("title", "multi")), 1);
         assertHitCount(prepareSearch("my-index").setQuery(matchQuery("title.not_analyzed", "Multi fields")), 1);
 
-        assertAcked(indicesAdmin().preparePutMapping("my-index").setSource(createPutMappingSource()));
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "my-index").setSource(createPutMappingSource()));
 
         getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
         mappingMetadata = getMappingsResponse.mappings().get("my-index");
@@ -71,7 +71,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
 
     @SuppressWarnings("unchecked")
     public void testGeoPointMultiField() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("my-index").setMapping(createMappingSource("geo_point")));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("geo_point")));
 
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
@@ -99,7 +99,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
 
     @SuppressWarnings("unchecked")
     public void testCompletionMultiField() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("my-index").setMapping(createMappingSource("completion")));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("completion")));
 
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");
@@ -120,7 +120,7 @@ public class MultiFieldsIntegrationIT extends ESIntegTestCase {
 
     @SuppressWarnings("unchecked")
     public void testIpMultiField() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("my-index").setMapping(createMappingSource("ip")));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "my-index").setMapping(createMappingSource("ip")));
 
         GetMappingsResponse getMappingsResponse = indicesAdmin().prepareGetMappings("my-index").get();
         MappingMetadata mappingMetadata = getMappingsResponse.mappings().get("my-index");

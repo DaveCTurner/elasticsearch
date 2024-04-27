@@ -53,8 +53,8 @@ public class RestTemplatesAction extends AbstractCatAction {
         final String matchPattern = request.hasParam("name") ? request.param("name") : null;
 
         final GetIndexTemplatesRequest getIndexTemplatesRequest = matchPattern == null
-            ? new GetIndexTemplatesRequest()
-            : new GetIndexTemplatesRequest(matchPattern);
+            ? new GetIndexTemplatesRequest(masterNodeTimeout)
+            : new GetIndexTemplatesRequest(masterNodeTimeout, matchPattern);
         getIndexTemplatesRequest.local(request.paramAsBoolean("local", getIndexTemplatesRequest.local()));
         getIndexTemplatesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getIndexTemplatesRequest.masterNodeTimeout()));
 

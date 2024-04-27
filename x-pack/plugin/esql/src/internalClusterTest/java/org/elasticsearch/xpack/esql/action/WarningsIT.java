@@ -38,7 +38,7 @@ public class WarningsIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("index-1")
+                .prepareCreate(masterNodeTimeout, "index-1")
                 .setSettings(
                     Settings.builder()
                         .put("index.routing.allocation.require._name", node1)
@@ -53,7 +53,7 @@ public class WarningsIT extends AbstractEsqlIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("index-2")
+                .prepareCreate(masterNodeTimeout, "index-2")
                 .setSettings(
                     Settings.builder()
                         .put("index.routing.allocation.require._name", node2)

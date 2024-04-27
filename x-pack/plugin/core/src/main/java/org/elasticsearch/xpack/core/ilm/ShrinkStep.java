@@ -89,9 +89,8 @@ public class ShrinkStep extends AsyncActionStep {
         }
         Settings relevantTargetSettings = builder.build();
 
-        ResizeRequest resizeRequest = new ResizeRequest(shrunkenIndexName, indexMetadata.getIndex().getName()).masterNodeTimeout(
-            TimeValue.MAX_VALUE
-        );
+        ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, shrunkenIndexName, indexMetadata.getIndex().getName())
+            .masterNodeTimeout(TimeValue.MAX_VALUE);
         resizeRequest.setMaxPrimaryShardSize(maxPrimaryShardSize);
         resizeRequest.getTargetIndexRequest().settings(relevantTargetSettings);
 

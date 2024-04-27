@@ -84,7 +84,10 @@ public class DocumentLevelSecurityFeatureUsageTests extends AbstractDocumentAndF
     }
 
     public void testDlsFeatureUsageTracking() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("field1", "type=text", "field2", "type=text", "field3", "type=text")
+        );
         prepareIndex("test").setId("1").setSource("field1", "value1").setRefreshPolicy(IMMEDIATE).get();
         prepareIndex("test").setId("2").setSource("field2", "value2").setRefreshPolicy(IMMEDIATE).get();
         prepareIndex("test").setId("3").setSource("field3", "value3").setRefreshPolicy(IMMEDIATE).get();
@@ -107,7 +110,10 @@ public class DocumentLevelSecurityFeatureUsageTests extends AbstractDocumentAndF
     }
 
     public void testDlsFlsFeatureUsageNotTracked() {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("id", "type=keyword", "field1", "type=text", "field2", "type=text"));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setMapping("id", "type=keyword", "field1", "type=text", "field2", "type=text")
+        );
         prepareIndex("test").setId("1").setSource("id", "1", "field1", "value1").setRefreshPolicy(IMMEDIATE).get();
         prepareIndex("test").setId("2").setSource("id", "2", "field2", "value2").setRefreshPolicy(IMMEDIATE).get();
 

@@ -153,7 +153,7 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
             Settings.builder().put(CLUSTER_ROUTING_REBALANCE_ENABLE_SETTING.getKey(), EnableAllocationDecider.Rebalance.NONE)
         );
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(
                     indexSettings(1, 1)
                         // expire PRRLs quickly
@@ -198,7 +198,7 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
         recoveryStarted.await();
         nodeWithReplica = internalCluster().startDataOnlyNode(nodeWithReplicaSettings);
         // AllocationService only calls GatewayAllocator if there are unassigned shards
-        assertAcked(indicesAdmin().prepareCreate("dummy-index").setWaitForActiveShards(0));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "dummy-index").setWaitForActiveShards(0));
         ensureGreen(indexName);
         assertThat(internalCluster().nodesInclude(indexName), containsInAnyOrder(nodeWithPrimary, nodeWithReplica));
         assertNoOpRecoveries(indexName);
@@ -211,7 +211,7 @@ public class ReplicaShardAllocatorSyncIdIT extends ESIntegTestCase {
         internalCluster().ensureAtLeastNumDataNodes(numOfReplicas + 2);
         String indexName = "test";
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(
                     indexSettings(1, numOfReplicas).put(
                         IndexSettings.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE_SETTING.getKey(),

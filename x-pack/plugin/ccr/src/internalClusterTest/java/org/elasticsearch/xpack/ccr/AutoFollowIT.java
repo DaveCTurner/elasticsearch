@@ -464,9 +464,9 @@ public class AutoFollowIT extends CcrIntegTestCase {
             final String indexName = "test-index-" + randomAlphaOfLength(5).toLowerCase(Locale.ROOT);
             createLeaderIndex(indexName, leaderIndexSettings);
             if (randomBoolean()) {
-                assertAcked(leaderClient().admin().indices().prepareClose(indexName));
+                assertAcked(leaderClient().admin().indices().prepareClose(masterNodeTimeout, indexName));
             } else {
-                assertAcked(leaderClient().admin().indices().prepareDelete(indexName));
+                assertAcked(leaderClient().admin().indices().prepareDelete(masterNodeTimeout, indexName));
             }
         }
 
@@ -682,14 +682,20 @@ public class AutoFollowIT extends CcrIntegTestCase {
         final String indexInDatastream = rolloverResponse.getOldIndex();
 
         logger.info("--> closing [{}] on follower so it will be re-opened by crr", indexInDatastream);
-        assertAcked(followerClient().admin().indices().prepareClose(indexInDatastream).setMasterNodeTimeout(TimeValue.MAX_VALUE).get());
+        assertAcked(
+            followerClient().admin()
+                .indices()
+                .prepareClose(masterNodeTimeout, indexInDatastream)
+                .setMasterNodeTimeout(TimeValue.MAX_VALUE)
+                .get()
+        );
 
         logger.info("--> deleting and recreating index [{}] on leader to change index uuid on leader", indexInDatastream);
-        assertAcked(leaderClient().admin().indices().prepareDelete(indexInDatastream).get());
+        assertAcked(leaderClient().admin().indices().prepareDelete(masterNodeTimeout, indexInDatastream).get());
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate(indexInDatastream)
+                .prepareCreate(masterNodeTimeout, indexInDatastream)
                 .setMapping(MetadataIndexTemplateService.DEFAULT_TIMESTAMP_MAPPING_WITHOUT_ROUTING.toString())
         );
         leaderClient().prepareIndex(indexInDatastream)
@@ -714,8 +720,14 @@ public class AutoFollowIT extends CcrIntegTestCase {
         final IndicesStatsResponse stats = followerClient().admin().indices().prepareStats(datastream).get();
         assertThat(stats.getIndices(), aMapWithSize(2));
 
-        assertAcked(leaderClient().admin().indices().prepareDelete(indexInDatastream).get());
-        assertAcked(followerClient().admin().indices().prepareDelete(indexInDatastream).setMasterNodeTimeout(TimeValue.MAX_VALUE).get());
+        assertAcked(leaderClient().admin().indices().prepareDelete(masterNodeTimeout, indexInDatastream).get());
+        assertAcked(
+            followerClient().admin()
+                .indices()
+                .prepareDelete(masterNodeTimeout, indexInDatastream)
+                .setMasterNodeTimeout(TimeValue.MAX_VALUE)
+                .get()
+        );
         ensureFollowerGreen("*");
         final IndicesStatsResponse statsAfterDelete = followerClient().admin().indices().prepareStats(datastream).get();
         assertThat(statsAfterDelete.getIndices(), aMapWithSize(1));

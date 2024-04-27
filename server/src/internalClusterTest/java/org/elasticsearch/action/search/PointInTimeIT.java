@@ -309,7 +309,7 @@ public class PointInTimeIT extends ESIntegTestCase {
                 prepareSearch().setPointInTime(new PointInTimeBuilder(pit)),
                 resp -> assertHitCount(resp, index1 + index2)
             );
-            indicesAdmin().prepareDelete("index-1").get();
+            indicesAdmin().prepareDelete(masterNodeTimeout, "index-1").get();
             if (randomBoolean()) {
                 assertNoFailuresAndResponse(prepareSearch("index-*"), resp -> assertHitCount(resp, index2));
             }
@@ -432,7 +432,7 @@ public class PointInTimeIT extends ESIntegTestCase {
     }
 
     public void testPITTiebreak() throws Exception {
-        assertAcked(indicesAdmin().prepareDelete("index-*").get());
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index-*").get());
         int numIndex = randomIntBetween(2, 10);
         int expectedNumDocs = 0;
         for (int i = 0; i < numIndex; i++) {
@@ -488,7 +488,7 @@ public class PointInTimeIT extends ESIntegTestCase {
         assertAcked(
             client().admin()
                 .indices()
-                .prepareCreate("test")
+                .prepareCreate(masterNodeTimeout, "test")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numShards)

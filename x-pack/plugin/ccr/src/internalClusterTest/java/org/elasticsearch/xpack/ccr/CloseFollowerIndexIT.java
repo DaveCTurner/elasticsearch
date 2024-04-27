@@ -71,7 +71,9 @@ public class CloseFollowerIndexIT extends CcrIntegTestCase {
 
     public void testCloseAndReopenFollowerIndex() throws Exception {
         final String leaderIndexSettings = getIndexSettings(1, 1);
-        assertAcked(leaderClient().admin().indices().prepareCreate("index1").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "index1").setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderYellow("index1");
 
         PutFollowAction.Request followRequest = new PutFollowAction.Request();

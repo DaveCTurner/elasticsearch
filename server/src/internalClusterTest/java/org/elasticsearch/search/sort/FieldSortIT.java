@@ -212,7 +212,7 @@ public class FieldSortIT extends ESIntegTestCase {
     }
 
     public void testTrackScores() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("svalue", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("svalue", "type=keyword").get());
         ensureGreen();
         index(
             "test",
@@ -322,7 +322,7 @@ public class FieldSortIT extends ESIntegTestCase {
     }
 
     public void test3078() {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field", "type=keyword").get());
         ensureGreen();
 
         for (int i = 1; i < 101; i++) {
@@ -470,7 +470,7 @@ public class FieldSortIT extends ESIntegTestCase {
     }
 
     public void testIssue2986() {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("field1", "type=keyword").get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("field1", "type=keyword").get());
 
         prepareIndex("test").setId("1").setSource("{\"field1\":\"value1\"}", XContentType.JSON).get();
         prepareIndex("test").setId("2").setSource("{\"field1\":\"value2\"}", XContentType.JSON).get();
@@ -486,11 +486,11 @@ public class FieldSortIT extends ESIntegTestCase {
     public void testIssue2991() {
         for (int i = 1; i < 4; i++) {
             try {
-                indicesAdmin().prepareDelete("test").get();
+                indicesAdmin().prepareDelete(masterNodeTimeout, "test").get();
             } catch (Exception e) {
                 // ignore
             }
-            assertAcked(indicesAdmin().prepareCreate("test").setMapping("tag", "type=keyword").get());
+            assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("tag", "type=keyword").get());
             ensureGreen();
             prepareIndex("test").setId("1").setSource("tag", "alpha").get();
             refresh();

@@ -62,7 +62,9 @@ public class RestartIndexFollowingIT extends CcrIntegTestCase {
 
     public void testFollowIndex() throws Exception {
         final String leaderIndexSettings = getIndexSettings(randomIntBetween(1, 10), 0);
-        assertAcked(leaderClient().admin().indices().prepareCreate("index1").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "index1").setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen("index1");
         setupRemoteCluster();
 
@@ -110,7 +112,7 @@ public class RestartIndexFollowingIT extends CcrIntegTestCase {
                     assertAcked(followerClient().execute(ResumeFollowAction.INSTANCE, resumeFollow("index2")).actionGet());
                 } else {
                     logger.info("shard follow task has been stopped because of remote cluster disconnection, recreating");
-                    assertAcked(followerClient().admin().indices().prepareDelete("index2"));
+                    assertAcked(followerClient().admin().indices().prepareDelete(masterNodeTimeout, "index2"));
                     followerClient().execute(PutFollowAction.INSTANCE, putFollow("index1", "index2", ActiveShardCount.ALL)).actionGet();
                 }
             }
@@ -119,7 +121,7 @@ public class RestartIndexFollowingIT extends CcrIntegTestCase {
 
         cleanRemoteCluster();
         assertAcked(followerClient().execute(PauseFollowAction.INSTANCE, new PauseFollowAction.Request("index2")).actionGet());
-        assertAcked(followerClient().admin().indices().prepareClose("index2"));
+        assertAcked(followerClient().admin().indices().prepareClose(masterNodeTimeout, "index2"));
 
         final ActionFuture<AcknowledgedResponse> unfollowFuture = followerClient().execute(
             UnfollowAction.INSTANCE,

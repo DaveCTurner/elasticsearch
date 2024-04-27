@@ -149,7 +149,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
         final boolean snapshotClosed = randomBoolean();
         if (snapshotClosed) {
-            assertAcked(indicesAdmin().prepareClose(indicesToSnapshot).setWaitForActiveShards(ActiveShardCount.ALL).get());
+            assertAcked(
+                indicesAdmin().prepareClose(masterNodeTimeout, indicesToSnapshot).setWaitForActiveShards(ActiveShardCount.ALL).get()
+            );
         }
 
         createSnapshot("test-repo", "test-snap", Arrays.asList(indicesToSnapshot));
@@ -164,7 +166,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshotInfo.version(), equalTo(IndexVersion.current()));
 
         if (snapshotClosed) {
-            assertAcked(indicesAdmin().prepareOpen(indicesToSnapshot).setWaitForActiveShards(ActiveShardCount.ALL).get());
+            assertAcked(
+                indicesAdmin().prepareOpen(masterNodeTimeout, indicesToSnapshot).setWaitForActiveShards(ActiveShardCount.ALL).get()
+            );
         }
 
         logger.info("--> delete some data");
@@ -183,7 +187,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertDocCount("test-idx-3", 50L);
 
         logger.info("--> close indices");
-        indicesAdmin().prepareClose("test-idx-1", "test-idx-2").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test-idx-1", "test-idx-2").get();
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
@@ -289,7 +293,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertFalse(newIndexUUID, newIndexUUID.equals(IndexMetadata.INDEX_UUID_NA_VALUE));
         assertFalse(newIndexUUID, newIndexUUID.equals(originalIndexUUID));
         logger.info("--> close index");
-        indicesAdmin().prepareClose("test").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test").get();
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap")
@@ -633,7 +637,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshotInfo.successfulShards(), equalTo(numShards.numPrimaries));
 
         // delete the test index
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         // update the test repository
         assertAcked(
@@ -680,7 +684,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         fixUpAction.run();
 
         // delete the index and restore again
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         restoreResponse = clusterAdmin().prepareRestoreSnapshot("test-repo", "test-snap").setWaitForCompletion(true).get();
         assertThat(restoreResponse.getRestoreInfo().totalShards(), equalTo(numShards.numPrimaries));
@@ -851,7 +855,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         createIndex("test-idx", "test-idx-closed");
         ensureGreen();
         logger.info("-->  closing index test-idx-closed");
-        assertAcked(client.admin().indices().prepareClose("test-idx-closed"));
+        assertAcked(client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-closed"));
         ClusterStateResponse stateResponse = client.admin().cluster().prepareState().get();
         assertThat(stateResponse.getState().metadata().index("test-idx-closed").getState(), equalTo(IndexMetadata.State.CLOSE));
         assertThat(stateResponse.getState().routingTable().index("test-idx-closed"), notNullValue());
@@ -1329,7 +1333,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             if (randomBoolean()) {
                 try {
                     logger.info("--> delete index while non-partial snapshot is running");
-                    indicesAdmin().prepareDelete("test-idx-1").get();
+                    indicesAdmin().prepareDelete(masterNodeTimeout, "test-idx-1").get();
                     fail("Expected deleting index to fail during snapshot");
                 } catch (SnapshotInProgressException e) {
                     assertThat(e.getMessage(), containsString("Cannot delete indices that are being snapshotted: [[test-idx-1/"));
@@ -1337,7 +1341,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             } else {
                 try {
                     logger.info("--> close index while non-partial snapshot is running");
-                    indicesAdmin().prepareClose("test-idx-1").get();
+                    indicesAdmin().prepareClose(masterNodeTimeout, "test-idx-1").get();
                     fail("Expected closing index to fail during snapshot");
                 } catch (SnapshotInProgressException e) {
                     assertThat(e.getMessage(), containsString("Cannot close indices that are being snapshotted: [[test-idx-1/"));
@@ -1365,7 +1369,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         createSnapshot("test-repo", "test-snap", Collections.singletonList("test-idx-*"));
 
         logger.info("--> deleting indices before restoring");
-        assertAcked(client.admin().indices().prepareDelete("test-idx-*").get());
+        assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, "test-idx-*").get());
 
         blockAllDataNodes("test-repo");
         logger.info("--> execution will be blocked on all data nodes");
@@ -1380,7 +1384,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
 
             logger.info("--> close index while restore is running");
             try {
-                client.admin().indices().prepareClose("test-idx-1").get();
+                client.admin().indices().prepareClose(masterNodeTimeout, "test-idx-1").get();
                 fail("Expected closing index to fail during restore");
             } catch (IllegalArgumentException e) {
                 assertThat(e.getMessage(), containsString("Cannot close indices that are being restored: [[test-idx-1/"));
@@ -1437,7 +1441,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         );
 
         logger.info("--> delete index before restoring");
-        assertAcked(client.admin().indices().prepareDelete(indexName).get());
+        assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, indexName).get());
 
         logger.info("--> execution will be blocked on all data nodes");
         blockAllDataNodes(repoName);
@@ -1570,7 +1574,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshotStatusResponse.getSnapshots(), hasSize(1));
         assertThat(snapshotStatusResponse.getSnapshots().get(0).getSnapshot().getSnapshotId().getName(), equalTo(snapshotName));
 
-        assertAcked(indicesAdmin().prepareDelete("test-idx-1", "test-idx-2"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test-idx-1", "test-idx-2"));
 
         SnapshotException ex = expectThrows(
             SnapshotException.class,
@@ -1643,7 +1647,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshotInfos.get(0).state(), equalTo(SnapshotState.SUCCESS));
         assertThat(snapshotInfos.get(0).snapshotId().getName(), equalTo("test-snap"));
 
-        assertAcked(indicesAdmin().prepareDelete(nbDocsPerIndex.keySet().toArray(new String[nbDocsPerIndex.size()])));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, nbDocsPerIndex.keySet().toArray(new String[nbDocsPerIndex.size()])));
 
         Predicate<String> isRestorableIndex = index -> corruptedIndex.getName().equals(index) == false;
 
@@ -1913,7 +1917,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         createSnapshot(repositoryName, snapshotName, Collections.singletonList(indexName));
 
         logger.info("--> delete indices");
-        assertAcked(client.admin().indices().prepareDelete(indexName));
+        assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, indexName));
 
         logger.info("--> restore all indices from the snapshot");
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
@@ -1963,7 +1967,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(snapshot1.successfulShards(), is(initialShardCount));
 
         logger.info("--> delete index");
-        assertAcked(indicesAdmin().prepareDelete(indexName));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, indexName));
 
         final int newShardCount = randomIntBetween(1, 10);
         createIndex(indexName, Settings.builder().put("index.number_of_shards", newShardCount).build());

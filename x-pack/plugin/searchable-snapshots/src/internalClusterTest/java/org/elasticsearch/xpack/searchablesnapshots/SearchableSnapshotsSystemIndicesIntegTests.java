@@ -70,9 +70,9 @@ public class SearchableSnapshotsSystemIndicesIntegTests extends BaseFrozenSearch
         assertThat(snapshotInfo.failedShards(), equalTo(0));
 
         if (randomBoolean()) {
-            assertAcked(client.admin().indices().prepareClose(indexName));
+            assertAcked(client.admin().indices().prepareClose(masterNodeTimeout, indexName));
         } else {
-            assertAcked(client.admin().indices().prepareDelete(indexName));
+            assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, indexName));
         }
 
         final MountSearchableSnapshotRequest mountRequest = new MountSearchableSnapshotRequest(

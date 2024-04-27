@@ -65,7 +65,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
         final Settings finalSetting;
         MapperParsingException ex = expectThrows(
             MapperParsingException.class,
-            () -> indicesAdmin().prepareCreate(indexName).setMapping(xcb).setSettings(settings).get()
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, indexName).setMapping(xcb).setSettings(settings).get()
         );
         assertThat(
             ex.getMessage(),
@@ -73,7 +73,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
         );
         IndexVersion version = IndexVersionUtils.randomPreviousCompatibleVersion(random(), IndexVersions.V_8_0_0);
         finalSetting = settings(version).put(settings).build();
-        indicesAdmin().prepareCreate(indexName).setMapping(xcb).setSettings(finalSetting).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName).setMapping(xcb).setSettings(finalSetting).get();
     }
 
     @Override
@@ -99,7 +99,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         MapperParsingException ex = expectThrows(
             MapperParsingException.class,
-            () -> indicesAdmin().prepareCreate("geo_points_only").setMapping(mapping).get()
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, "geo_points_only").setMapping(mapping).get()
         );
         assertThat(
             ex.getMessage(),
@@ -111,7 +111,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         IndexVersion version = IndexVersionUtils.randomPreviousCompatibleVersion(random(), IndexVersions.V_8_0_0);
         Settings settings = settings(version).build();
-        indicesAdmin().prepareCreate("geo_points_only").setMapping(mapping).setSettings(settings).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "geo_points_only").setMapping(mapping).setSettings(settings).get();
         ensureGreen();
 
         // MULTIPOINT
@@ -150,7 +150,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         MapperParsingException ex = expectThrows(
             MapperParsingException.class,
-            () -> indicesAdmin().prepareCreate("geo_points_only").setMapping(mapping).get()
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, "geo_points_only").setMapping(mapping).get()
         );
         assertThat(
             ex.getMessage(),
@@ -162,7 +162,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         IndexVersion version = IndexVersionUtils.randomPreviousCompatibleVersion(random(), IndexVersions.V_8_0_0);
         Settings settings = settings(version).build();
-        indicesAdmin().prepareCreate("geo_points_only").setMapping(mapping).setSettings(settings).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "geo_points_only").setMapping(mapping).setSettings(settings).get();
         ensureGreen();
 
         Geometry geometry = GeometryTestUtils.randomGeometry(false);
@@ -200,7 +200,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         MapperParsingException ex = expectThrows(
             MapperParsingException.class,
-            () -> indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).get()
+            () -> indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get()
         );
         assertThat(
             ex.getMessage(),
@@ -209,7 +209,7 @@ public class LegacyGeoShapeWithDocValuesQueryTests extends GeoShapeQueryTestCase
 
         IndexVersion version = IndexVersionUtils.randomPreviousCompatibleVersion(random(), IndexVersions.V_8_0_0);
         Settings settings = settings(version).build();
-        indicesAdmin().prepareCreate(defaultIndexName).setMapping(mapping).setSettings(settings).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).setSettings(settings).get();
         ensureGreen();
 
         MultiPoint multiPoint = GeometryTestUtils.randomMultiPoint(false);

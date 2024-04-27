@@ -95,7 +95,7 @@ public class DataStreamLifecycleDownsampleIT extends ESIntegTestCase {
         // testing so DSL doesn't have to wait for the end_time to lapse)
         putTSDBIndexTemplate(client(), dataStreamName, null, null, lifecycle);
 
-        client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+        client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
         assertBusy(() -> {
             // first downsampling round
@@ -164,7 +164,7 @@ public class DataStreamLifecycleDownsampleIT extends ESIntegTestCase {
         // before we rollover we update the index template to remove the start/end time boundaries (they're there just to ease with
         // testing so DSL doesn't have to wait for the end_time to lapse)
         putTSDBIndexTemplate(client(), dataStreamName, null, null, lifecycle);
-        client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+        client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
         assertBusy(() -> {
             assertThat(witnessedDownsamplingIndices.size(), is(1));
@@ -229,7 +229,7 @@ public class DataStreamLifecycleDownsampleIT extends ESIntegTestCase {
         // before we rollover we update the index template to remove the start/end time boundaries (they're there just to ease with
         // testing so DSL doesn't have to wait for the end_time to lapse)
         putTSDBIndexTemplate(client(), dataStreamName, null, null, lifecycle);
-        client().execute(RolloverAction.INSTANCE, new RolloverRequest(dataStreamName, null)).actionGet();
+        client().execute(RolloverAction.INSTANCE, new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet();
 
         assertBusy(() -> {
             assertThat(witnessedDownsamplingIndices.size(), is(1));

@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Map;
@@ -25,7 +26,7 @@ public class UpdateSettingsRequestBuilder extends AcknowledgedRequestBuilder<
     AcknowledgedResponse,
     UpdateSettingsRequestBuilder> {
 
-    public UpdateSettingsRequestBuilder(ElasticsearchClient client, String... indices) {
+    public UpdateSettingsRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... indices) {
         super(client, TransportUpdateSettingsAction.TYPE, new UpdateSettingsRequest(masterNodeTimeout, indices));
     }
 

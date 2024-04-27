@@ -723,7 +723,9 @@ public class ContextCompletionSuggestSearchIT extends ESIntegTestCase {
         mapping.endObject().endObject().endObject();
 
         assertAcked(
-            indicesAdmin().prepareCreate(INDEX).setSettings(Settings.builder().put(indexSettings()).put(settings)).setMapping(mapping)
+            indicesAdmin().prepareCreate(masterNodeTimeout, INDEX)
+                .setSettings(Settings.builder().put(indexSettings()).put(settings))
+                .setMapping(mapping)
         );
     }
 }

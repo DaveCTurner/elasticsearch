@@ -79,7 +79,7 @@ public abstract class ProfilingTestCase extends ESIntegTestCase {
     protected final void createIndex(String name, String bodyFileName) throws Exception {
         CreateIndexResponse response = client().admin()
             .indices()
-            .prepareCreate(name)
+            .prepareCreate(masterNodeTimeout, name)
             .setSource(read(bodyFileName), XContentType.JSON)
             .execute()
             .get();

@@ -88,7 +88,7 @@ public class JobStorageDeletionTaskIT extends BaseMlIntegTestCase {
         internalCluster().ensureAtLeastNumDataNodes(1);
         ensureStableCluster(1);
 
-        client().admin().indices().prepareCreate(UNRELATED_INDEX).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, UNRELATED_INDEX).get();
 
         enableIndexBlock(UNRELATED_INDEX, IndexMetadata.SETTING_READ_ONLY);
 

@@ -69,7 +69,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     }
 
     public void testSimpleScrollQueryThenFetch() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
@@ -118,7 +118,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     }
 
     public void testSimpleScrollQueryThenFetchSmallSizeUnevenDistribution() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
@@ -188,7 +188,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     }
 
     public void testScrollAndUpdateIndex() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("index.number_of_shards", 5)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("index.number_of_shards", 5)).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         for (int i = 0; i < 500; i++) {
@@ -240,7 +240,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     }
 
     public void testSimpleScrollQueryThenFetch_clearScrollIds() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
@@ -359,7 +359,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     }
 
     public void testSimpleScrollQueryThenFetchClearAllScrollIds() throws Exception {
-        indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().put("index.number_of_shards", 3)).get();
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
 
         clusterAdmin().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().get();
@@ -542,11 +542,11 @@ public class SearchScrollIT extends ESIntegTestCase {
             }
         );
         if (randomBoolean()) {
-            assertAcked(indicesAdmin().prepareClose("test"));
-            assertAcked(indicesAdmin().prepareOpen("test"));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "test"));
+            assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "test"));
             ensureGreen("test");
         } else {
-            assertAcked(indicesAdmin().prepareDelete("test"));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test"));
         }
     }
 
@@ -617,7 +617,7 @@ public class SearchScrollIT extends ESIntegTestCase {
     public void testScrollRewrittenToMatchNoDocs() {
         final int numShards = randomIntBetween(3, 5);
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numShards))
                 .setMapping("""
                     {"properties":{"created_date":{"type": "date", "format": "yyyy-MM-dd"}}}

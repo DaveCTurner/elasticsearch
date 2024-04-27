@@ -34,7 +34,7 @@ public class AliasResolveRoutingIT extends ESIntegTestCase {
         createIndex("test-1");
         ensureGreen();
         indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("test-0", "alias-0").addAlias("test-1", "alias-1").get();
-        indicesAdmin().prepareClose("test-1").get();
+        indicesAdmin().prepareClose(masterNodeTimeout, "test-1").get();
         indexRandom(
             true,
             prepareIndex("test-0").setId("1").setSource("field1", "the quick brown fox jumps"),

@@ -103,9 +103,9 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
     }
 
     public void testRemoteClusterClientRole() throws Exception {
-        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate("demo"));
+        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "demo"));
         final int demoDocs = indexDocs(client(LOCAL_CLUSTER), "demo");
-        assertAcked(client("cluster_a").admin().indices().prepareCreate("prod"));
+        assertAcked(client("cluster_a").admin().indices().prepareCreate(masterNodeTimeout, "prod"));
         final int prodDocs = indexDocs(client("cluster_a"), "prod");
         final InternalTestCluster localCluster = cluster(LOCAL_CLUSTER);
         final String pureDataNode = randomBoolean() ? localCluster.startDataOnlyNode() : null;
@@ -144,13 +144,13 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
     }
 
     public void testProxyConnectionDisconnect() throws Exception {
-        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate("demo"));
+        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "demo"));
         indexDocs(client(LOCAL_CLUSTER), "demo");
         final String remoteNode = cluster("cluster_a").startDataOnlyNode();
         assertAcked(
             client("cluster_a").admin()
                 .indices()
-                .prepareCreate("prod")
+                .prepareCreate(masterNodeTimeout, "prod")
                 .setSettings(
                     Settings.builder()
                         .put("index.routing.allocation.require._name", remoteNode)
@@ -189,7 +189,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
     }
 
     public void testCancel() throws Exception {
-        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate("demo"));
+        assertAcked(client(LOCAL_CLUSTER).admin().indices().prepareCreate(masterNodeTimeout, "demo"));
         indexDocs(client(LOCAL_CLUSTER), "demo");
         final InternalTestCluster remoteCluster = cluster("cluster_a");
         remoteCluster.ensureAtLeastNumDataNodes(1);
@@ -217,7 +217,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client("cluster_a").admin()
                 .indices()
-                .prepareCreate("prod")
+                .prepareCreate(masterNodeTimeout, "prod")
                 .setSettings(Settings.builder().put(allocationFilter.build()).put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
         );
         assertFalse(
@@ -319,7 +319,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         cluster("cluster_a").client()
             .admin()
             .indices()
-            .prepareCreate("users")
+            .prepareCreate(masterNodeTimeout, "users")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .get();
         cluster("cluster_a").client()
@@ -332,7 +332,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
 
         client().admin()
             .indices()
-            .prepareCreate("users")
+            .prepareCreate(masterNodeTimeout, "users")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .get();
         client().prepareBulk("users")
@@ -345,7 +345,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         // Setup calls on the local cluster
         client().admin()
             .indices()
-            .prepareCreate("local_calls")
+            .prepareCreate(masterNodeTimeout, "local_calls")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .setMapping("from_user", "type=keyword", "to_user", "type=keyword")
             .get();
@@ -359,7 +359,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         cluster("cluster_a").client()
             .admin()
             .indices()
-            .prepareCreate("remote_calls")
+            .prepareCreate(masterNodeTimeout, "remote_calls")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, between(1, 5)))
             .setMapping("from_user", "type=keyword", "to_user", "type=keyword")
             .get();
@@ -575,7 +575,7 @@ public class CrossClusterIT extends AbstractMultiClustersTestCase {
         Client remoteClient = client("cluster_a");
         remoteClient.admin()
             .indices()
-            .prepareCreate("my_index")
+            .prepareCreate(masterNodeTimeout, "my_index")
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numShards))
             .get();
         int numDocs = randomIntBetween(100, 500);

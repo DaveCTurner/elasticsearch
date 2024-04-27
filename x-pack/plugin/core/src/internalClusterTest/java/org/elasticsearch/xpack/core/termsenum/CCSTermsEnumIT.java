@@ -49,13 +49,13 @@ public class CCSTermsEnumIT extends AbstractMultiClustersTestCase {
         final Client localClient = client(LOCAL_CLUSTER);
         final Client remoteClient = client("remote_cluster");
         String localIndex = "local_test";
-        assertAcked(localClient.admin().indices().prepareCreate(localIndex).setSettings(indexSettings));
+        assertAcked(localClient.admin().indices().prepareCreate(masterNodeTimeout, localIndex).setSettings(indexSettings));
         localClient.prepareIndex(localIndex).setSource("foo", "foo").get();
         localClient.prepareIndex(localIndex).setSource("foo", "foobar").get();
         localClient.admin().indices().prepareRefresh(localIndex).get();
 
         String remoteIndex = "remote_test";
-        assertAcked(remoteClient.admin().indices().prepareCreate(remoteIndex).setSettings(indexSettings));
+        assertAcked(remoteClient.admin().indices().prepareCreate(masterNodeTimeout, remoteIndex).setSettings(indexSettings));
         remoteClient.prepareIndex(remoteIndex).setSource("foo", "bar").get();
         remoteClient.prepareIndex(remoteIndex).setSource("foo", "foobar").get();
         remoteClient.prepareIndex(remoteIndex).setSource("foo", "zar").get();

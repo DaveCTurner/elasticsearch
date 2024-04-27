@@ -26,7 +26,7 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareDelete("*").get()
+                () -> indicesAdmin().prepareDelete(masterNodeTimeout, "*").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
             String[] indices = indicesAdmin().prepareGetIndex().setIndices("index1").get().getIndices();
@@ -36,7 +36,7 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareDelete("*", "-index1").get()
+                () -> indicesAdmin().prepareDelete(masterNodeTimeout, "*", "-index1").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
             String[] indices = indicesAdmin().prepareGetIndex().setIndices("index1").get().getIndices();
@@ -46,7 +46,7 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareDelete("_all").get()
+                () -> indicesAdmin().prepareDelete(masterNodeTimeout, "_all").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
             String[] indices = indicesAdmin().prepareGetIndex().setIndices("index1").get().getIndices();
@@ -55,8 +55,8 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
         }
 
         // the "*,-*" pattern is specially handled because it makes a destructive action non-destructive
-        assertAcked(indicesAdmin().prepareDelete("*", "-*"));
-        assertAcked(indicesAdmin().prepareDelete("index1"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "*", "-*"));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "index1"));
     }
 
     public void testDestructiveOperationsDefaultBehaviour() {
@@ -67,19 +67,19 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
 
         switch (randomIntBetween(0, 2)) {
             case 0 -> {
-                assertAcked(indicesAdmin().prepareClose("*"));
-                assertAcked(indicesAdmin().prepareOpen("*"));
-                assertAcked(indicesAdmin().prepareDelete("*"));
+                assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "*"));
+                assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "*"));
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "*"));
             }
             case 1 -> {
-                assertAcked(indicesAdmin().prepareClose("_all"));
-                assertAcked(indicesAdmin().prepareOpen("_all"));
-                assertAcked(indicesAdmin().prepareDelete("_all"));
+                assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "_all"));
+                assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "_all"));
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "_all"));
             }
             case 2 -> {
-                assertAcked(indicesAdmin().prepareClose("*", "-index1"));
-                assertAcked(indicesAdmin().prepareOpen("*", "-index1"));
-                assertAcked(indicesAdmin().prepareDelete("*", "-index1"));
+                assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "*", "-index1"));
+                assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "*", "-index1"));
+                assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "*", "-index1"));
             }
             default -> throw new UnsupportedOperationException();
         }
@@ -90,52 +90,52 @@ public class DestructiveOperationsTests extends SecurityIntegTestCase {
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareClose("*").get()
+                () -> indicesAdmin().prepareClose(masterNodeTimeout, "*").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareClose("*", "-index1").get()
+                () -> indicesAdmin().prepareClose(masterNodeTimeout, "*", "-index1").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareClose("_all").get()
+                () -> indicesAdmin().prepareClose(masterNodeTimeout, "_all").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareOpen("*").get()
+                () -> indicesAdmin().prepareOpen(masterNodeTimeout, "*").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareOpen("*", "-index1").get()
+                () -> indicesAdmin().prepareOpen(masterNodeTimeout, "*", "-index1").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
         {
             IllegalArgumentException illegalArgumentException = expectThrows(
                 IllegalArgumentException.class,
-                () -> indicesAdmin().prepareOpen("_all").get()
+                () -> indicesAdmin().prepareOpen(masterNodeTimeout, "_all").get()
             );
             assertEquals("Wildcard expressions or all indices are not allowed", illegalArgumentException.getMessage());
         }
 
         // the "*,-*" pattern is specially handled because it makes a destructive action non-destructive
-        assertAcked(indicesAdmin().prepareClose("*", "-*"));
-        assertAcked(indicesAdmin().prepareOpen("*", "-*"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "*", "-*"));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "*", "-*"));
 
         createIndex("index1");
-        assertAcked(indicesAdmin().prepareClose("index1"));
-        assertAcked(indicesAdmin().prepareOpen("index1"));
+        assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, "index1"));
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, "index1"));
     }
 }

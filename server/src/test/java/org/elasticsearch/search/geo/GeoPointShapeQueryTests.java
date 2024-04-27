@@ -50,7 +50,7 @@ public class GeoPointShapeQueryTests extends BasePointShapeQueryTestCase<GeoShap
             .endObject()
             .endObject()
             .endObject();
-        client().admin().indices().prepareCreate(indexName).setMapping(xcb).setSettings(settings).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, indexName).setMapping(xcb).setSettings(settings).get();
     }
 
     public void testFieldAlias() throws IOException {
@@ -69,7 +69,7 @@ public class GeoPointShapeQueryTests extends BasePointShapeQueryTestCase<GeoShap
                 .endObject()
         );
 
-        client().admin().indices().prepareCreate(defaultIndexName).setMapping(mapping).get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, defaultIndexName).setMapping(mapping).get();
         ensureGreen();
 
         Point point = GeometryTestUtils.randomPoint(false);

@@ -31,7 +31,7 @@ public class HistoryTemplateTransformMappingsTests extends AbstractWatcherIntegr
 
     public void testTransformFields() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "idx")
                 .setMapping(
                     jsonBuilder().startObject()
                         .startObject("properties")

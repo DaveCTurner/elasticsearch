@@ -57,7 +57,9 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
         getFollowerCluster().startMasterOnlyNode();
         getFollowerCluster().ensureAtLeastNumDataNodes(numberOfReplicas + between(1, 2));
         String leaderIndexSettings = getIndexSettings(1, numberOfReplicas);
-        assertAcked(leaderClient().admin().indices().prepareCreate(leaderIndex).setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, leaderIndex).setSource(leaderIndexSettings, XContentType.JSON)
+        );
         AtomicBoolean stopped = new AtomicBoolean();
         Thread[] threads = new Thread[between(1, 8)];
         AtomicInteger docID = new AtomicInteger();
@@ -124,7 +126,9 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
     public void testFollowIndexAndCloseNode() throws Exception {
         getFollowerCluster().ensureAtLeastNumDataNodes(3);
         String leaderIndexSettings = getIndexSettings(3, 1);
-        assertAcked(leaderClient().admin().indices().prepareCreate("index1").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin().indices().prepareCreate(masterNodeTimeout, "index1").setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureLeaderGreen("index1");
 
         AtomicBoolean run = new AtomicBoolean(true);
@@ -179,7 +183,12 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
     public void testAddNewReplicasOnFollower() throws Exception {
         int numberOfReplicas = between(0, 1);
         String leaderIndexSettings = getIndexSettings(1, numberOfReplicas);
-        assertAcked(leaderClient().admin().indices().prepareCreate("leader-index").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            leaderClient().admin()
+                .indices()
+                .prepareCreate(masterNodeTimeout, "leader-index")
+                .setSource(leaderIndexSettings, XContentType.JSON)
+        );
         PutFollowAction.Request follow = putFollow("leader-index", "follower-index");
         followerClient().execute(PutFollowAction.INSTANCE, follow).get();
         getFollowerCluster().ensureAtLeastNumDataNodes(numberOfReplicas + between(2, 3));
@@ -247,7 +256,7 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
         assertAcked(
             leaderClient().admin()
                 .indices()
-                .prepareCreate("leader-index")
+                .prepareCreate(masterNodeTimeout, "leader-index")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
@@ -280,7 +289,13 @@ public class FollowerFailOverIT extends CcrIntegTestCase {
                 }
             }
         });
-        leaderCluster.client().admin().indices().preparePutMapping().setSource("balance", "type=long").setTimeout(TimeValue.ZERO).get();
+        leaderCluster.client()
+            .admin()
+            .indices()
+            .preparePutMapping(masterNodeTimeout)
+            .setSource("balance", "type=long")
+            .setTimeout(TimeValue.ZERO)
+            .get();
         try {
             // Make sure the mapping is ready on the shard before we execute the index request; otherwise the index request
             // will perform a dynamic mapping update which however will be blocked because the latch is remained closed.

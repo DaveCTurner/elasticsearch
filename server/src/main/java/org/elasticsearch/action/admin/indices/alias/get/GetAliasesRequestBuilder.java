@@ -9,10 +9,11 @@
 package org.elasticsearch.action.admin.indices.alias.get;
 
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class GetAliasesRequestBuilder extends BaseAliasesRequestBuilder<GetAliasesResponse, GetAliasesRequestBuilder> {
 
-    public GetAliasesRequestBuilder(ElasticsearchClient client, String... aliases) {
+    public GetAliasesRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... aliases) {
         super(masterNodeTimeout, client, GetAliasesAction.INSTANCE, aliases);
     }
 }

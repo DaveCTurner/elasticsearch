@@ -77,7 +77,7 @@ public class CrossClustersQueryIT extends AbstractMultiClustersTestCase {
         assertAcked(
             localClient.admin()
                 .indices()
-                .prepareCreate("logs-1")
+                .prepareCreate(masterNodeTimeout, "logs-1")
                 .setSettings(Settings.builder().put("index.number_of_shards", randomIntBetween(1, 5)))
                 .setMapping("id", "type=keyword", "tag", "type=keyword", "v", "type=long")
         );
@@ -93,7 +93,7 @@ public class CrossClustersQueryIT extends AbstractMultiClustersTestCase {
         assertAcked(
             remoteClient.admin()
                 .indices()
-                .prepareCreate("logs-2")
+                .prepareCreate(masterNodeTimeout, "logs-2")
                 .setSettings(Settings.builder().put("index.number_of_shards", randomIntBetween(1, 5)))
                 .setMapping("id", "type=keyword", "tag", "type=keyword", "v", "type=long")
         );

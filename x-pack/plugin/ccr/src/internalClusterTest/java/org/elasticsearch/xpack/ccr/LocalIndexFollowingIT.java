@@ -43,7 +43,9 @@ public class LocalIndexFollowingIT extends CcrSingleNodeTestCase {
 
     public void testFollowIndex() throws Exception {
         final String leaderIndexSettings = getIndexSettings(2, 0, Collections.emptyMap());
-        assertAcked(client().admin().indices().prepareCreate("leader").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            client().admin().indices().prepareCreate(masterNodeTimeout, "leader").setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureGreen("leader");
 
         final long firstBatchNumDocs = randomIntBetween(2, 64);
@@ -78,7 +80,9 @@ public class LocalIndexFollowingIT extends CcrSingleNodeTestCase {
 
     public void testIndexingMetricsIncremented() throws Exception {
         final String leaderIndexSettings = getIndexSettings(1, 0, Collections.emptyMap());
-        assertAcked(client().admin().indices().prepareCreate("leader").setSource(leaderIndexSettings, XContentType.JSON));
+        assertAcked(
+            client().admin().indices().prepareCreate(masterNodeTimeout, "leader").setSource(leaderIndexSettings, XContentType.JSON)
+        );
         ensureGreen("leader");
 
         // Use a sufficiently small number of docs to ensure that they are well below the number of docs that
@@ -190,7 +194,7 @@ public class LocalIndexFollowingIT extends CcrSingleNodeTestCase {
         final String settings = getIndexSettings(1, 0, Collections.emptyMap());
 
         // First, let index-1 is writable and index-2 follows index-1
-        assertAcked(client().admin().indices().prepareCreate("index-1").setSource(settings, XContentType.JSON));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "index-1").setSource(settings, XContentType.JSON));
         ensureGreen("index-1");
         int numDocs = between(1, 100);
         for (int i = 0; i < numDocs; i++) {
@@ -200,7 +204,7 @@ public class LocalIndexFollowingIT extends CcrSingleNodeTestCase {
         assertBusy(() -> assertHitCount(client().prepareSearch("index-2"), numDocs));
 
         // Then switch index-1 to be a follower of index-0
-        assertAcked(client().admin().indices().prepareCreate("index-0").setSource(settings, XContentType.JSON));
+        assertAcked(client().admin().indices().prepareCreate(masterNodeTimeout, "index-0").setSource(settings, XContentType.JSON));
         final int newDocs;
         if (randomBoolean()) {
             newDocs = randomIntBetween(0, numDocs);
@@ -213,7 +217,7 @@ public class LocalIndexFollowingIT extends CcrSingleNodeTestCase {
         if (randomBoolean()) {
             client().admin().indices().prepareFlush("index-0").get();
         }
-        assertAcked(client().admin().indices().prepareClose("index-1"));
+        assertAcked(client().admin().indices().prepareClose(masterNodeTimeout, "index-1"));
         client().execute(PutFollowAction.INSTANCE, getPutFollowRequest("index-0", "index-1")).get();
 
         // index-2 should detect that the leader index has changed

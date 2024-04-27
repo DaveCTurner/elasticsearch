@@ -115,7 +115,7 @@ public class SystemIndexMappingUpdateServiceIT extends ESIntegTestCase {
      */
     private void triggerClusterStateUpdates() {
         final String name = randomAlphaOfLength(5).toLowerCase(Locale.ROOT);
-        indicesAdmin().putTemplate(new PutIndexTemplateRequest(name).patterns(List.of(name))).actionGet();
+        indicesAdmin().putTemplate(new PutIndexTemplateRequest(masterNodeTimeout, name).patterns(List.of(name))).actionGet();
     }
 
     /**
@@ -136,8 +136,9 @@ public class SystemIndexMappingUpdateServiceIT extends ESIntegTestCase {
 
         assertThat(sourceAsMap, equalTo(XContentHelper.convertToMap(XContentType.JSON.xContent(), expectedMappings, false)));
 
-        final GetSettingsResponse getSettingsResponse = indicesAdmin().getSettings(new GetSettingsRequest().indices(INDEX_NAME))
-            .actionGet();
+        final GetSettingsResponse getSettingsResponse = indicesAdmin().getSettings(
+            new GetSettingsRequest(masterNodeTimeout).indices(INDEX_NAME)
+        ).actionGet();
 
         final Settings actual = getSettingsResponse.getIndexToSettings().get(PRIMARY_INDEX_NAME);
 

@@ -50,7 +50,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
     public void testGetGlobalCheckpoints() throws Exception {
         int shards = between(1, 5);
         String indexName = "test_index";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(
                 indexSettings(shards, 1)
                     // ESIntegTestCase randomizes durability settings. The global checkpoint only advances after a fsync, hence we
@@ -100,7 +100,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
 
     public void testPollGlobalCheckpointAdvancement() throws Exception {
         String indexName = "test_index";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(1, 1).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
 
@@ -140,7 +140,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
 
     public void testPollGlobalCheckpointAdvancementTimeout() {
         String indexName = "test_index";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
 
@@ -166,7 +166,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
 
     public void testMustProvideCorrectNumberOfShards() {
         String indexName = "test_index";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
 
@@ -191,7 +191,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
 
     public void testWaitForAdvanceOnlySupportsOneShard() {
         String indexName = "test_index";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(3, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
 
@@ -248,7 +248,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
         long start = System.nanoTime();
         ActionFuture<GetGlobalCheckpointsAction.Response> future = client().execute(GetGlobalCheckpointsAction.INSTANCE, request);
         Thread.sleep(randomIntBetween(10, 100));
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();
         prepareIndex(indexName).setId(Integer.toString(0)).setSource("{}", XContentType.JSON).get();
@@ -268,7 +268,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
             EMPTY_ARRAY,
             TEN_SECONDS
         );
-        indicesAdmin().prepareCreate("not-assigned")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "not-assigned")
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(
                 indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST)
@@ -292,7 +292,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
             EMPTY_ARRAY,
             timeout
         );
-        indicesAdmin().prepareCreate("not-assigned")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "not-assigned")
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(
                 indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST)
@@ -316,7 +316,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
             EMPTY_ARRAY,
             TEN_SECONDS
         );
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(
                 indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST)
@@ -341,7 +341,7 @@ public class GetGlobalCheckpointsActionIT extends ESIntegTestCase {
         updateClusterSettings(Settings.builder().put(CLUSTER_ROUTING_ALLOCATION_NODE_INITIAL_PRIMARIES_RECOVERIES_SETTING.getKey(), 0));
 
         String indexName = "throttled";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(indexSettings(1, 0).put(IndexSettings.INDEX_TRANSLOG_DURABILITY_SETTING.getKey(), Translog.Durability.REQUEST))
             .get();

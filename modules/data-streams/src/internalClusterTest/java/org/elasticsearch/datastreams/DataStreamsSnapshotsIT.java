@@ -259,7 +259,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
 
         // A rollover after taking snapshot. The new backing index should be a standalone index after restoring
         // and not part of the data stream:
-        RolloverRequest rolloverRequest = new RolloverRequest("ds", null);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "ds", null);
         RolloverResponse rolloverResponse = client.admin().indices().rolloverIndex(rolloverRequest).actionGet();
         assertThat(rolloverResponse.isRolledOver(), is(true));
         String backingIndexAfterSnapshot = DataStream.getDefaultBackingIndexName("ds", 2);
@@ -299,7 +299,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         // The backing index created as part of rollover should still exist (but just not part of the data stream)
         assertThat(indexExists(backingIndexAfterSnapshot), is(true));
         // An additional rollover should create a new backing index (3th generation) and leave .ds-ds-...-2 index as is:
-        rolloverRequest = new RolloverRequest("ds", null);
+        rolloverRequest = new RolloverRequest(masterNodeTimeout, "ds", null);
         rolloverResponse = client.admin().indices().rolloverIndex(rolloverRequest).actionGet();
         assertThat(rolloverResponse.isRolledOver(), is(true));
         assertThat(rolloverResponse.getNewIndex(), equalTo(DataStream.getDefaultBackingIndexName("ds", 3)));
@@ -345,7 +345,12 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         }
 
         assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
-        assertAcked(client.admin().indices().prepareDelete("*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN));
+        assertAcked(
+            client.admin()
+                .indices()
+                .prepareDelete(masterNodeTimeout, "*")
+                .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
+        );
 
         RestoreSnapshotRequest restoreSnapshotRequest = new RestoreSnapshotRequest(REPO, SNAPSHOT);
         restoreSnapshotRequest.waitForCompletion(true);
@@ -404,7 +409,12 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
         assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
-        assertAcked(client.admin().indices().prepareDelete("*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN));
+        assertAcked(
+            client.admin()
+                .indices()
+                .prepareDelete(masterNodeTimeout, "*")
+                .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
+        );
 
         var restoreSnapshotRequest = new RestoreSnapshotRequest(REPO, SNAPSHOT).waitForCompletion(true).includeGlobalState(false);
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin().cluster().restoreSnapshot(restoreSnapshotRequest).actionGet();
@@ -463,7 +473,12 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
         assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
-        assertAcked(client.admin().indices().prepareDelete("*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN));
+        assertAcked(
+            client.admin()
+                .indices()
+                .prepareDelete(masterNodeTimeout, "*")
+                .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
+        );
 
         var restoreSnapshotRequest = new RestoreSnapshotRequest(REPO, SNAPSHOT).waitForCompletion(true).includeGlobalState(false);
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin().cluster().restoreSnapshot(restoreSnapshotRequest).actionGet();
@@ -522,7 +537,12 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         assertThat(getSnapshot(REPO, SNAPSHOT).indices(), containsInAnyOrder(dsBackingIndexName, otherDsBackingIndexName));
 
         assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
-        assertAcked(client.admin().indices().prepareDelete("*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN));
+        assertAcked(
+            client.admin()
+                .indices()
+                .prepareDelete(masterNodeTimeout, "*")
+                .setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
+        );
 
         var restoreSnapshotRequest = new RestoreSnapshotRequest(REPO, SNAPSHOT).waitForCompletion(true)
             .includeGlobalState(false)
@@ -945,7 +965,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         final String indexWithoutDataStream = "test-idx-no-ds";
         createIndexWithContent(indexWithoutDataStream);
         createFullSnapshot(REPO, snapshot);
-        assertAcked(client.admin().indices().prepareDelete(indexWithoutDataStream));
+        assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, indexWithoutDataStream));
         RestoreInfo restoreInfo = client.admin()
             .cluster()
             .prepareRestoreSnapshot(REPO, snapshot)
@@ -973,7 +993,9 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             .execute();
         waitForBlockOnAnyDataNode(repoName);
         awaitNumberOfSnapshotsInProgress(1);
-        final ActionFuture<RolloverResponse> rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("ds", null));
+        final ActionFuture<RolloverResponse> rolloverResponse = indicesAdmin().rolloverIndex(
+            new RolloverRequest(masterNodeTimeout, "ds", null)
+        );
 
         if (partial) {
             assertTrue(rolloverResponse.get().isRolledOver());
@@ -1011,11 +1033,11 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             .execute();
         waitForBlockOnAnyDataNode(repoName);
         awaitNumberOfSnapshotsInProgress(1);
-        final RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("ds", null)).get();
+        final RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "ds", null)).get();
         assertTrue(rolloverResponse.isRolledOver());
 
         logger.info("--> deleting former write index");
-        assertAcked(indicesAdmin().prepareDelete(rolloverResponse.getOldIndex()));
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, rolloverResponse.getOldIndex()));
 
         unblockAllDataNodes(repoName);
         final SnapshotInfo snapshotInfo = assertSuccessful(snapshotFuture);
@@ -1043,7 +1065,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         createIndexWithContent(indexWithoutDataStream);
         final SnapshotInfo snapshotInfo = createSnapshot(REPO, snapshot, List.of("*", "-.*"));
         assertThat(snapshotInfo.dataStreams(), empty());
-        assertAcked(client.admin().indices().prepareDelete(indexWithoutDataStream));
+        assertAcked(client.admin().indices().prepareDelete(masterNodeTimeout, indexWithoutDataStream));
         RestoreInfo restoreInfo = client.admin()
             .cluster()
             .prepareRestoreSnapshot(REPO, snapshot)
@@ -1062,7 +1084,9 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
         createFullSnapshot(REPO, snapshotName);
 
         assertAcked(client.execute(DeleteDataStreamAction.INSTANCE, new DeleteDataStreamAction.Request(new String[] { "*" })).get());
-        assertAcked(client.admin().indices().prepareDelete("*").setIndicesOptions(IndicesOptions.lenientExpandOpenHidden()).get());
+        assertAcked(
+            client.admin().indices().prepareDelete(masterNodeTimeout, "*").setIndicesOptions(IndicesOptions.lenientExpandOpenHidden()).get()
+        );
 
         RestoreSnapshotResponse restoreSnapshotResponse = client.admin()
             .cluster()

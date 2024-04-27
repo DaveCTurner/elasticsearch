@@ -197,11 +197,13 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyDocs("metrics-bar", numDocsBar, 1, 1);
         verifyDocs("metrics-foo", numDocsFoo, 1, 1);
 
-        RolloverResponse fooRolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("metrics-foo", null)).get();
+        RolloverResponse fooRolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "metrics-foo", null))
+            .get();
         assertThat(fooRolloverResponse.getNewIndex(), backingIndexEqualTo("metrics-foo", 2));
         assertTrue(fooRolloverResponse.isRolledOver());
 
-        RolloverResponse barRolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("metrics-bar", null)).get();
+        RolloverResponse barRolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "metrics-bar", null))
+            .get();
         assertThat(barRolloverResponse.getNewIndex(), backingIndexEqualTo("metrics-bar", 2));
         assertTrue(barRolloverResponse.isRolledOver());
 
@@ -470,7 +472,8 @@ public class DataStreamIT extends ESIntegTestCase {
             equalTo("keyword")
         );
 
-        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).get();
+        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null))
+            .get();
         backingIndex = rolloverResponse.getNewIndex();
         assertThat(backingIndex, backingIndexEqualTo(dataStreamName, 2));
         assertTrue(rolloverResponse.isRolledOver());
@@ -569,7 +572,7 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(dataStreamName, indicesAdmin().prepareRecoveries(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetAliases("dummy").addIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetFieldMappings(dataStreamName), false);
-        verifyResolvability(dataStreamName, indicesAdmin().preparePutMapping(dataStreamName).setSource("""
+        verifyResolvability(dataStreamName, indicesAdmin().preparePutMapping(masterNodeTimeout, dataStreamName).setSource("""
             {"_doc":{"properties": {"my_field":{"type":"keyword"}}}}""", XContentType.JSON), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetMappings(dataStreamName), false);
         verifyResolvability(
@@ -582,9 +585,9 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(dataStreamName, clusterAdmin().prepareState().setIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, client().prepareFieldCaps(dataStreamName).setFields("*"), false);
         verifyResolvability(dataStreamName, indicesAdmin().prepareGetIndex().addIndices(dataStreamName), false);
-        verifyResolvability(dataStreamName, indicesAdmin().prepareOpen(dataStreamName), false);
-        verifyResolvability(dataStreamName, indicesAdmin().prepareClose(dataStreamName), true);
-        verifyResolvability(aliasToDataStream, indicesAdmin().prepareClose(aliasToDataStream), true);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareOpen(masterNodeTimeout, dataStreamName), false);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareClose(masterNodeTimeout, dataStreamName), true);
+        verifyResolvability(aliasToDataStream, indicesAdmin().prepareClose(masterNodeTimeout, aliasToDataStream), true);
         verifyResolvability(dataStreamName, clusterAdmin().prepareSearchShards(dataStreamName), false);
         verifyResolvability(client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(dataStreamName)));
 
@@ -614,7 +617,7 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, indicesAdmin().prepareRecoveries(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetAliases(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetFieldMappings(wildcardExpression), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().preparePutMapping(wildcardExpression).setSource("""
+        verifyResolvability(wildcardExpression, indicesAdmin().preparePutMapping(masterNodeTimeout, wildcardExpression).setSource("""
             {"_doc":{"properties": {"my_field":{"type":"keyword"}}}}""", XContentType.JSON), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetMappings(wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetSettings(wildcardExpression), false);
@@ -627,8 +630,8 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, clusterAdmin().prepareState().setIndices(wildcardExpression), false);
         verifyResolvability(wildcardExpression, client().prepareFieldCaps(wildcardExpression).setFields("*"), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetIndex().addIndices(wildcardExpression), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(wildcardExpression), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareClose(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(masterNodeTimeout, wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareClose(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, clusterAdmin().prepareSearchShards(wildcardExpression), false);
         verifyResolvability(client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(wildcardExpression)));
     }
@@ -1086,7 +1089,7 @@ public class DataStreamIT extends ESIntegTestCase {
         String backingIndex1 = getDataStreamResponse.getDataStreams().get(0).getDataStream().getIndices().get(0).getName();
         assertThat(backingIndex1, backingIndexEqualTo("logs-foobar", 1));
 
-        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("logs-foobar", null)).get();
+        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "logs-foobar", null)).get();
         String backingIndex2 = rolloverResponse.getNewIndex();
         assertThat(backingIndex2, backingIndexEqualTo("logs-foobar", 2));
         assertTrue(rolloverResponse.isRolledOver());
@@ -1108,7 +1111,7 @@ public class DataStreamIT extends ESIntegTestCase {
             DataStreamTimestampFieldMapper.NAME,
             Map.of("enabled", true)
         );
-        indicesAdmin().preparePutMapping("logs-foobar")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "logs-foobar")
             .setSource("{\"properties\":{\"my_field\":{\"type\":\"keyword\"}}}", XContentType.JSON)
             .get();
         // The mappings of all backing indices should be updated:
@@ -1132,7 +1135,7 @@ public class DataStreamIT extends ESIntegTestCase {
         String backingIndex1 = getDataStreamResponse.getDataStreams().get(0).getDataStream().getIndices().get(0).getName();
         assertThat(backingIndex1, backingIndexEqualTo("logs-foobar", 1));
 
-        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("logs-foobar", null)).get();
+        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "logs-foobar", null)).get();
         String backingIndex2 = rolloverResponse.getNewIndex();
         assertThat(backingIndex2, backingIndexEqualTo("logs-foobar", 2));
         assertTrue(rolloverResponse.isRolledOver());
@@ -1269,7 +1272,7 @@ public class DataStreamIT extends ESIntegTestCase {
         int numDocsFoo = randomIntBetween(2, 16);
         indexDocs("metrics-foo", numDocsFoo);
 
-        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest("metrics-foo", null)).get();
+        RolloverResponse rolloverResponse = indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, "metrics-foo", null)).get();
         assertThat(rolloverResponse.getNewIndex(), backingIndexEqualTo("metrics-foo", 2));
 
         // ingest some more data in the rolled data stream
@@ -1405,7 +1408,7 @@ public class DataStreamIT extends ESIntegTestCase {
     public void testAutoCreateV1TemplateNoDataStream() {
         Settings settings = Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).build();
 
-        PutIndexTemplateRequest v1Request = new PutIndexTemplateRequest("logs-foo");
+        PutIndexTemplateRequest v1Request = new PutIndexTemplateRequest(masterNodeTimeout, "logs-foo");
         v1Request.patterns(List.of("logs-foo*"));
         v1Request.settings(settings);
         v1Request.order(Integer.MAX_VALUE); // in order to avoid number_of_replicas being overwritten by random_template
@@ -1770,7 +1773,7 @@ public class DataStreamIT extends ESIntegTestCase {
         DataStreamIT.putComposableIndexTemplate("my-template", List.of("logs-*"));
         var request = new CreateDataStreamAction.Request(dataStreamName);
         assertAcked(client().execute(CreateDataStreamAction.INSTANCE, request).actionGet());
-        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
         var indicesStatsResponse = indicesAdmin().stats(new IndicesStatsRequest()).actionGet();
         assertThat(indicesStatsResponse.getIndices().size(), equalTo(2));
         ClusterState before = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
@@ -2050,7 +2053,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         indexDocsAndEnsureThereIsCapturedWriteLoad(dataStreamName);
 
-        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
         final ClusterState clusterState = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
         final DataStream dataStream = clusterState.getMetadata().dataStreams().get(dataStreamName);
 
@@ -2127,7 +2130,7 @@ public class DataStreamIT extends ESIntegTestCase {
             currentDataStreamWriteIndexRoutingTable.shard(1).replicaShards().get(0)
         );
 
-        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
         final ClusterState clusterState = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
         final DataStream dataStream = clusterState.getMetadata().dataStreams().get(dataStreamName);
 
@@ -2186,7 +2189,7 @@ public class DataStreamIT extends ESIntegTestCase {
                 (handler, request, channel, task) -> channel.sendResponse(new RuntimeException("Unable to get stats"))
             );
 
-        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+        assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
 
         final ClusterState clusterState = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();
         final DataStream dataStream = clusterState.getMetadata().dataStreams().get(dataStreamName);
@@ -2216,7 +2219,7 @@ public class DataStreamIT extends ESIntegTestCase {
                 is(greaterThanOrEqualTo(numberOfShards))
             );
 
-            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(dataStreamName, null)).actionGet());
+            assertAcked(indicesAdmin().rolloverIndex(new RolloverRequest(masterNodeTimeout, dataStreamName, null)).actionGet());
         }
 
         final ClusterState clusterState = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();

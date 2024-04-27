@@ -159,7 +159,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     private Map<String, Object> indexConcurrently(int numberOfFieldsToCreate, Settings.Builder settings) throws Throwable {
-        indicesAdmin().prepareCreate("index").setSettings(settings).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index").setSettings(settings).get();
         ensureGreen("index");
         final Thread[] indexThreads = new Thread[numberOfFieldsToCreate];
         final CountDownLatch startLatch = new CountDownLatch(1);
@@ -207,7 +207,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
         // checked at parse time, see testTotalFieldsLimitForDynamicMappingsUpdateCheckedAtDocumentParseTime
         createIndex("index", Settings.builder().put(INDEX_MAPPING_NESTED_FIELDS_LIMIT_SETTING.getKey(), 2).build());
         ensureGreen("index");
-        indicesAdmin().preparePutMapping("index")
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "index")
             .setSource(
                 Strings.toString(
                     XContentFactory.jsonBuilder()
@@ -365,7 +365,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
 
     public void testFieldLimitRuntimeAndDynamic() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(
                     Settings.builder()
                         .put(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), 5)
@@ -421,7 +421,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     ) {
         client().admin()
             .indices()
-            .prepareCreate("index")
+            .prepareCreate(masterNodeTimeout, "index")
             .setSettings(
                 Settings.builder()
                     .put(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), fieldLimit)
@@ -463,7 +463,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
                 }
             """;
 
-        indicesAdmin().prepareCreate("index1").setSettings(indexSettings).setMapping(mapping).get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, "index1").setSettings(indexSettings).setMapping(mapping).get();
         ensureGreen("index1");
 
         {
@@ -488,7 +488,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
 
         {
             // remove 2 runtime field mappings
-            assertAcked(indicesAdmin().preparePutMapping("index1").setSource("""
+            assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "index1").setSource("""
                     {
                       "runtime": {
                         "my_object.rfield1": null,
@@ -538,7 +538,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
             mappings.endArray();
         }
         mappings.endObject();
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping(mappings));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping(mappings));
         List<IndexRequest> requests = new ArrayList<>();
         requests.add(
             new IndexRequest("test").id("1").source("location", "41.12,-71.34").setDynamicTemplates(Map.of("location", "location"))
@@ -591,7 +591,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     public void testBulkRequestWithNotFoundDynamicTemplate() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test"));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test"));
         final XContentBuilder mappings = XContentFactory.jsonBuilder();
         mappings.startObject();
         {
@@ -645,7 +645,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     public void testDynamicRuntimeNoConflicts() {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {"_doc":{"dynamic":"runtime"}}""").get());
 
         List<IndexRequest> docs = new ArrayList<>();
@@ -670,7 +670,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     public void testDynamicRuntimeObjectFields() {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {
               "_doc": {
                 "properties": {
@@ -714,7 +714,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
             containsString("object mapping for [obj.runtime] tried to parse field [runtime] as object, but found a concrete value")
         );
 
-        assertAcked(indicesAdmin().preparePutMapping("test").setSource("""
+        assertAcked(indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("""
             {
               "_doc": {
                 "properties": {
@@ -763,7 +763,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     public void testSubobjectsFalseAtRoot() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {
               "_doc": {
                 "subobjects" : false,
@@ -795,7 +795,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
 
     @SuppressWarnings("unchecked")
     public void testSubobjectsFalse() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {
               "_doc": {
                 "properties": {
@@ -841,7 +841,7 @@ public class DynamicMappingIT extends ESIntegTestCase {
     }
 
     public void testKnnSubObject() throws Exception {
-        assertAcked(indicesAdmin().prepareCreate("test").setMapping("""
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setMapping("""
             {
               "properties": {
                 "obj": {

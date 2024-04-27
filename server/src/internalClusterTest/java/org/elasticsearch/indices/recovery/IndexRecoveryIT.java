@@ -395,7 +395,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
 
         final boolean closedIndex = randomBoolean();
         if (closedIndex) {
-            assertAcked(indicesAdmin().prepareClose(INDEX_NAME));
+            assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, INDEX_NAME));
             ensureGreen(INDEX_NAME);
         }
 
@@ -434,7 +434,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         internalCluster().stopNode(nodeA);
 
         if (closedIndex) {
-            assertAcked(indicesAdmin().prepareOpen(INDEX_NAME));
+            assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, INDEX_NAME));
         }
         assertHitCount(prepareSearch(INDEX_NAME).setSize(0), numOfDocs);
     }
@@ -859,7 +859,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         logger.info("--> snapshot");
         CreateSnapshotResponse createSnapshotResponse = createSnapshot(INDEX_NAME);
 
-        indicesAdmin().prepareClose(INDEX_NAME).get();
+        indicesAdmin().prepareClose(masterNodeTimeout, INDEX_NAME).get();
 
         logger.info("--> restore");
         RestoreSnapshotResponse restoreSnapshotResponse = clusterAdmin().prepareRestoreSnapshot(REPO_NAME, SNAP_NAME)
@@ -988,7 +988,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         internalCluster().startNodes(3);
 
         final String indexName = "test";
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setSettings(indexSettings(1, 2).put(IndexSettings.FILE_BASED_RECOVERY_THRESHOLD_SETTING.getKey(), 1.0))
             .get();
         ensureGreen(indexName);
@@ -1049,7 +1049,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
                 .putList("index.analysis.analyzer.test_analyzer.filter", "test_token_filter")
                 .build()
         );
-        indicesAdmin().preparePutMapping("test").setSource("test_field", "type=text,analyzer=test_analyzer").get();
+        indicesAdmin().preparePutMapping(masterNodeTimeout, "test").setSource("test_field", "type=text,analyzer=test_analyzer").get();
         int numDocs = between(1, 10);
         for (int i = 0; i < numDocs; i++) {
             prepareIndex("test").setId("u" + i).setSource(singletonMap("test_field", Integer.toString(i)), XContentType.JSON).get();
@@ -1089,7 +1089,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         internalCluster().startNodes(2);
         String nodeWithPrimary = internalCluster().startDataOnlyNode();
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(indexSettings(1, 0).put("index.routing.allocation.include._name", nodeWithPrimary))
         );
         CountDownLatch phase1ReadyBlocked = new CountDownLatch(1);
@@ -1632,7 +1632,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
         final Settings randomNodeDataPathSettings = internalCluster().dataPathSettings(randomFrom(dataNodes));
         final String indexName = "test";
         assertAcked(
-            indicesAdmin().prepareCreate(indexName)
+            indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
                 .setSettings(indexSettings(1, 1).put(MockEngineSupport.DISABLE_FLUSH_ON_CLOSE.getKey(), randomBoolean()))
         );
         final List<IndexRequestBuilder> indexRequests = IntStream.range(0, between(10, 500))
@@ -1706,14 +1706,14 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
     public void testCancelRecoveryWithAutoExpandReplicas() throws Exception {
         internalCluster().startMasterOnlyNode();
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(Settings.builder().put(IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS, "0-all"))
                 .setWaitForActiveShards(ActiveShardCount.NONE)
         );
         internalCluster().startNode();
         internalCluster().startNode();
         clusterAdmin().prepareReroute().setRetryFailed(true).get();
-        assertAcked(indicesAdmin().prepareDelete("test")); // cancel recoveries
+        assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "test")); // cancel recoveries
         assertBusy(() -> {
             for (PeerRecoverySourceService recoveryService : internalCluster().getDataNodeInstances(PeerRecoverySourceService.class)) {
                 assertThat(recoveryService.numberOfOngoingRecoveries(), equalTo(0));
@@ -1921,7 +1921,7 @@ public class IndexRecoveryIT extends AbstractIndexRecoveryIntegTestCase {
 
                                 // Wait a short while for finalization to block on advancing the replica's GCP and then delete the index
                                 threadPool.schedule(
-                                    () -> client().admin().indices().prepareDelete(indexName).execute(deleteListener),
+                                    () -> client().admin().indices().prepareDelete(masterNodeTimeout, indexName).execute(deleteListener),
                                     TimeValue.timeValueMillis(100),
                                     EsExecutors.DIRECT_EXECUTOR_SERVICE
                                 );

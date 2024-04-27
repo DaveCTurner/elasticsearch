@@ -124,7 +124,7 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
             .endObject();
 
         mapping.endObject().endObject().endObject();
-        assertAcked(indicesAdmin().prepareCreate(sourceIndex).setSettings(settings.build()).setMapping(mapping).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, sourceIndex).setSettings(settings.build()).setMapping(mapping).get());
 
         Map<String, Phase> phases = new HashMap<>();
         phases.put(
@@ -226,7 +226,10 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
         }, 1, TimeUnit.MINUTES);
         assertBusy(() -> {
             assertTrue("target index [" + targetIndex + "] does not exist", indexExists(targetIndex));
-            var getSettingsResponse = client().admin().indices().getSettings(new GetSettingsRequest().indices(targetIndex)).actionGet();
+            var getSettingsResponse = client().admin()
+                .indices()
+                .getSettings(new GetSettingsRequest(masterNodeTimeout).indices(targetIndex))
+                .actionGet();
             assertThat(getSettingsResponse.getSetting(targetIndex, IndexMetadata.INDEX_DOWNSAMPLE_STATUS.getKey()), equalTo("success"));
         }, 60, TimeUnit.SECONDS);
         disruptionEnd.await();

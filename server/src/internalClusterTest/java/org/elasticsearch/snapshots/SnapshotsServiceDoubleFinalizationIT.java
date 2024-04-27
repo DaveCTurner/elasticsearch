@@ -124,7 +124,7 @@ public class SnapshotsServiceDoubleFinalizationIT extends AbstractSnapshotIntegT
             .setWaitForCompletion(false)
             .get();
         // Delete index-3 so that it becomes MISSING for snapshot
-        indicesAdmin().prepareDelete("index-3").get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, "index-3").get();
         future.actionGet();
 
         // 5 - Start deleting snap-2, itself should be WAITING. But changes InProgress snap-2 to SUCCESS

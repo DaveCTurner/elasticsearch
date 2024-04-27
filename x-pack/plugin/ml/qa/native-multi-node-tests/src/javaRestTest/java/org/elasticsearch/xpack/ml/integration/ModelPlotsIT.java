@@ -40,7 +40,9 @@ public class ModelPlotsIT extends MlNativeAutodetectIntegTestCase {
 
     @Before
     public void setUpData() {
-        indicesAdmin().prepareCreate(DATA_INDEX).setMapping("time", "type=date,format=epoch_millis", "user", "type=keyword").get();
+        indicesAdmin().prepareCreate(masterNodeTimeout, DATA_INDEX)
+            .setMapping("time", "type=date,format=epoch_millis", "user", "type=keyword")
+            .get();
 
         List<String> users = Arrays.asList("user_1", "user_2", "user_3");
 
@@ -63,7 +65,7 @@ public class ModelPlotsIT extends MlNativeAutodetectIntegTestCase {
 
     @After
     public void tearDownData() {
-        client().admin().indices().prepareDelete(DATA_INDEX).get();
+        client().admin().indices().prepareDelete(masterNodeTimeout, DATA_INDEX).get();
         cleanUp();
     }
 

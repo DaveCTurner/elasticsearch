@@ -34,7 +34,10 @@ public class MetadataMappingServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testMappingClusterStateUpdateDoesntChangeExistingIndices() throws Exception {
-        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate("test").setMapping());
+        final IndexService indexService = createIndex(
+            "test",
+            client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping()
+        );
         final CompressedXContent currentMapping = indexService.mapperService().documentMapper().mappingSource();
 
         final MetadataMappingService mappingService = getInstanceFromNode(MetadataMappingService.class);
@@ -59,7 +62,7 @@ public class MetadataMappingServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testClusterStateIsNotChangedWithIdenticalMappings() throws Exception {
-        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate("test"));
+        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate(masterNodeTimeout, "test"));
 
         final MetadataMappingService mappingService = getInstanceFromNode(MetadataMappingService.class);
         final MetadataMappingService.PutMappingExecutor putMappingExecutor = mappingService.new PutMappingExecutor();
@@ -80,7 +83,7 @@ public class MetadataMappingServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testMappingVersion() throws Exception {
-        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate("test"));
+        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate(masterNodeTimeout, "test"));
         final long previousVersion = indexService.getMetadata().getMappingVersion();
         final MetadataMappingService mappingService = getInstanceFromNode(MetadataMappingService.class);
         final MetadataMappingService.PutMappingExecutor putMappingExecutor = mappingService.new PutMappingExecutor();
@@ -97,7 +100,10 @@ public class MetadataMappingServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testMappingVersionUnchanged() throws Exception {
-        final IndexService indexService = createIndex("test", client().admin().indices().prepareCreate("test").setMapping());
+        final IndexService indexService = createIndex(
+            "test",
+            client().admin().indices().prepareCreate(masterNodeTimeout, "test").setMapping()
+        );
         final long previousVersion = indexService.getMetadata().getMappingVersion();
         final MetadataMappingService mappingService = getInstanceFromNode(MetadataMappingService.class);
         final MetadataMappingService.PutMappingExecutor putMappingExecutor = mappingService.new PutMappingExecutor();

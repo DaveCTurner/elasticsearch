@@ -586,7 +586,7 @@ public class TransportBulkAction extends HandledTransportAction<BulkRequest, Bul
     }
 
     void lazyRolloverDataStream(String dataStream, TimeValue timeout, ActionListener<RolloverResponse> listener) {
-        RolloverRequest rolloverRequest = new RolloverRequest(dataStream, null);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, dataStream, null);
         rolloverRequest.masterNodeTimeout(timeout);
         // We are executing a lazy rollover because it is an action specialised for this situation, when we want an
         // unconditional and performant rollover.

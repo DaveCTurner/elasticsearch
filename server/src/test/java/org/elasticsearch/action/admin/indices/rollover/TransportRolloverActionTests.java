@@ -394,7 +394,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         // For given alias, verify that condition evaluation fails when the condition doc count is greater than the primaries doc count
         // (primaries from only write index is considered)
         PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-        RolloverRequest rolloverRequest = new RolloverRequest("logs-alias", "logs-index-000003");
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-alias", "logs-index-000003");
         rolloverRequest.setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(500L).build());
         rolloverRequest.dryRun(true);
         transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
@@ -410,7 +410,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         // For given alias, verify that the condition evaluation is successful when condition doc count is less than the primaries doc count
         // (primaries from only write index is considered)
         future = new PlainActionFuture<>();
-        rolloverRequest = new RolloverRequest("logs-alias", "logs-index-000003");
+        rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-alias", "logs-index-000003");
         rolloverRequest.setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(300L).build());
         rolloverRequest.dryRun(true);
         transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
@@ -460,7 +460,7 @@ public class TransportRolloverActionTests extends ESTestCase {
             dataStreamAutoShardingService
         );
         final PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-        RolloverRequest rolloverRequest = new RolloverRequest("logs-ds", null);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-ds", null);
         rolloverRequest.lazy(true);
         transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
         RolloverResponse rolloverResponse = future.actionGet();
@@ -510,7 +510,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         // Lazy rollover fails on a concrete index
         {
             final PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-            RolloverRequest rolloverRequest = new RolloverRequest("logs-alias", null);
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-alias", null);
             rolloverRequest.lazy(true);
             transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
             IllegalArgumentException illegalArgumentException = expectThrows(IllegalArgumentException.class, future::actionGet);
@@ -520,7 +520,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         // Lazy rollover fails when used with conditions
         {
             final PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-            RolloverRequest rolloverRequest = new RolloverRequest("logs-ds", null);
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-ds", null);
             rolloverRequest.setConditions(RolloverConditions.newBuilder().addMaxIndexAgeCondition(TimeValue.timeValueDays(1)).build());
             rolloverRequest.lazy(true);
             transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
@@ -531,7 +531,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         // Lazy rollover fails on concrete index with conditions
         {
             final PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-            RolloverRequest rolloverRequest = new RolloverRequest("logs-alias", null);
+            RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "logs-alias", null);
             rolloverRequest.setConditions(RolloverConditions.newBuilder().addMaxIndexAgeCondition(TimeValue.timeValueDays(1)).build());
             rolloverRequest.lazy(true);
             transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
@@ -572,7 +572,7 @@ public class TransportRolloverActionTests extends ESTestCase {
         );
 
         final PlainActionFuture<RolloverResponse> future = new PlainActionFuture<>();
-        RolloverRequest rolloverRequest = new RolloverRequest("ds-alias", null);
+        RolloverRequest rolloverRequest = new RolloverRequest(masterNodeTimeout, "ds-alias", null);
         transportRolloverAction.masterOperation(mock(CancellableTask.class), rolloverRequest, stateBefore, future);
         IllegalStateException illegalStateException = expectThrows(IllegalStateException.class, future::actionGet);
         assertThat(illegalStateException.getMessage(), containsString("Aliases to data streams cannot be rolled over."));

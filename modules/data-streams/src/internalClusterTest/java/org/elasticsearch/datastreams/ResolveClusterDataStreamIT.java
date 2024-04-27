@@ -396,7 +396,7 @@ public class ResolveClusterDataStreamIT extends AbstractMultiClustersTestCase {
         assertAcked(
             client(REMOTE_CLUSTER_2).admin()
                 .indices()
-                .prepareCreate(remoteIndex2)
+                .prepareCreate(masterNodeTimeout, remoteIndex2)
                 .setSettings(Settings.builder().put(remoteSettings2.build()).put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
                 .setMapping("@timestamp", "type=date", "f", "type=text")
         );

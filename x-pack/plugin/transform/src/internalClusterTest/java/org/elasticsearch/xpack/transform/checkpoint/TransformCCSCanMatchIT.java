@@ -142,7 +142,7 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
         ElasticsearchAssertions.assertAcked(
             client.admin()
                 .indices()
-                .prepareCreate(index)
+                .prepareCreate(masterNodeTimeout, index)
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numberOfShards)
@@ -155,13 +155,13 @@ public class TransformCCSCanMatchIT extends AbstractMultiClustersTestCase {
             client.prepareIndex(index).setSource("position", i, "@timestamp", timestamp + i).get();
         }
         if (exposeTimestamp) {
-            client.admin().indices().prepareClose(index).get();
+            client.admin().indices().prepareClose(masterNodeTimeout, index).get();
             client.admin()
                 .indices()
                 .prepareUpdateSettings(index)
                 .setSettings(Settings.builder().put(IndexMetadata.INDEX_BLOCKS_WRITE_SETTING.getKey(), true).build())
                 .get();
-            client.admin().indices().prepareOpen(index).get();
+            client.admin().indices().prepareOpen(masterNodeTimeout, index).get();
             assertBusy(() -> {
                 IndexLongFieldRange timestampRange = cluster(cluster).clusterService().state().metadata().index(index).getTimestampRange();
                 assertTrue(Strings.toString(timestampRange), timestampRange.containsAllShardRanges());

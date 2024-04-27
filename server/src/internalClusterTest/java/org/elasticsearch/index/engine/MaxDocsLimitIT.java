@@ -88,7 +88,7 @@ public class MaxDocsLimitIT extends ESIntegTestCase {
     public void testMaxDocsLimit() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(1);
         assertAcked(
-            indicesAdmin().prepareCreate("test")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
@@ -123,7 +123,10 @@ public class MaxDocsLimitIT extends ESIntegTestCase {
 
     public void testMaxDocsLimitConcurrently() throws Exception {
         internalCluster().ensureAtLeastNumDataNodes(1);
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)));
+        assertAcked(
+            indicesAdmin().prepareCreate(masterNodeTimeout, "test")
+                .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1))
+        );
         IndexingResult indexingResult = indexDocs(between(maxDocs.get() + 1, maxDocs.get() * 2), between(2, 8));
         assertThat(indexingResult.numFailures, greaterThan(0));
         assertThat(indexingResult.numSuccess, both(greaterThan(0)).and(lessThanOrEqualTo(maxDocs.get())));

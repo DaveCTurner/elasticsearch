@@ -92,7 +92,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         when(threadPool.getThreadContext()).thenReturn(new ThreadContext(Settings.EMPTY));
 
         indicesAdminClient = mock(IndicesAdminClient.class);
-        when(indicesAdminClient.prepareCreate(FIRST_CONCRETE_INDEX)).thenReturn(
+        when(indicesAdminClient.prepareCreate(masterNodeTimeout, FIRST_CONCRETE_INDEX)).thenReturn(
             new CreateIndexRequestBuilder(masterNodeTimeout, client, FIRST_CONCRETE_INDEX)
         );
         doAnswer(withResponse(new CreateIndexResponse(true, true, FIRST_CONCRETE_INDEX))).when(indicesAdminClient).create(any(), any());
@@ -249,7 +249,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         createIndexAndAliasIfNecessary(clusterState);
 
         InOrder inOrder = inOrder(indicesAdminClient, listener);
-        inOrder.verify(indicesAdminClient).prepareCreate(FIRST_CONCRETE_INDEX);
+        inOrder.verify(indicesAdminClient).prepareCreate(masterNodeTimeout, FIRST_CONCRETE_INDEX);
         inOrder.verify(indicesAdminClient).create(createRequestCaptor.capture(), any());
         inOrder.verify(listener).onResponse(true);
 
@@ -284,7 +284,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         createIndexAndAliasIfNecessary(clusterState);
 
         InOrder inOrder = inOrder(indicesAdminClient, listener);
-        inOrder.verify(indicesAdminClient).prepareCreate(FIRST_CONCRETE_INDEX);
+        inOrder.verify(indicesAdminClient).prepareCreate(masterNodeTimeout, FIRST_CONCRETE_INDEX);
         inOrder.verify(indicesAdminClient).create(createRequestCaptor.capture(), any());
         inOrder.verify(indicesAdminClient).prepareAliases(masterNodeTimeout);
         inOrder.verify(indicesAdminClient).aliases(aliasesRequestCaptor.capture(), any());
@@ -344,7 +344,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         createIndexAndAliasIfNecessary(clusterState);
 
         InOrder inOrder = inOrder(indicesAdminClient, listener);
-        inOrder.verify(indicesAdminClient).prepareCreate(FIRST_CONCRETE_INDEX);
+        inOrder.verify(indicesAdminClient).prepareCreate(masterNodeTimeout, FIRST_CONCRETE_INDEX);
         inOrder.verify(indicesAdminClient).create(createRequestCaptor.capture(), any());
         inOrder.verify(listener).onResponse(true);
 

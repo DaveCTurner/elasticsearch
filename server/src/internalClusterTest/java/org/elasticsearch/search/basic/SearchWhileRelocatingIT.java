@@ -39,7 +39,7 @@ public class SearchWhileRelocatingIT extends ESIntegTestCase {
 
     private void testSearchAndRelocateConcurrently(final int numberOfReplicas) throws Exception {
         final int numShards = between(1, 20);
-        indicesAdmin().prepareCreate("test")
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test")
             .setSettings(indexSettings(numShards, numberOfReplicas))
             .setMapping("loc", "type=geo_point", "test", "type=text")
             .get();

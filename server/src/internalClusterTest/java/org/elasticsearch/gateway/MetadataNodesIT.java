@@ -77,7 +77,7 @@ public class MetadataNodesIT extends ESIntegTestCase {
         assertIndexInMetaState(masterNode, index);
         assertIndexDirectoryDeleted(masterNode, resolveIndex);
 
-        indicesAdmin().prepareDelete(index).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, index).get();
         assertIndexDirectoryDeleted(node1, resolveIndex);
         assertIndexDirectoryDeleted(node2, resolveIndex);
     }
@@ -96,13 +96,13 @@ public class MetadataNodesIT extends ESIntegTestCase {
         assertIndexInMetaState(masterNode, index);
 
         logger.info("--> close index");
-        indicesAdmin().prepareClose(index).get();
+        indicesAdmin().prepareClose(masterNodeTimeout, index).get();
         // close the index
         ClusterStateResponse clusterStateResponse = clusterAdmin().prepareState().get();
         assertThat(clusterStateResponse.getState().getMetadata().index(index).getState().name(), equalTo(IndexMetadata.State.CLOSE.name()));
 
         // update the mapping. this should cause the new meta data to be written although index is closed
-        indicesAdmin().preparePutMapping(index)
+        indicesAdmin().preparePutMapping(masterNodeTimeout, index)
             .setSource(
                 jsonBuilder().startObject()
                     .startObject("properties")
@@ -133,7 +133,7 @@ public class MetadataNodesIT extends ESIntegTestCase {
          * what we write. This is why we explicitly test for it.
          */
         internalCluster().restartNode(dataNode, new RestartCallback());
-        indicesAdmin().preparePutMapping(index)
+        indicesAdmin().preparePutMapping(masterNodeTimeout, index)
             .setSource(
                 jsonBuilder().startObject()
                     .startObject("properties")
@@ -156,7 +156,7 @@ public class MetadataNodesIT extends ESIntegTestCase {
         assertThat(indicesMetadata.get(index).getState(), equalTo(IndexMetadata.State.CLOSE));
 
         // finally check that meta data is also written of index opened again
-        assertAcked(indicesAdmin().prepareOpen(index).get());
+        assertAcked(indicesAdmin().prepareOpen(masterNodeTimeout, index).get());
         // make sure index is fully initialized and nothing is changed anymore
         ensureGreen();
         indicesMetadata = getIndicesMetadataOnNode(dataNode);

@@ -130,7 +130,7 @@ public class StringTermsIT extends AbstractTermsTestCase {
     @Override
     public void setupSuiteScopeCluster() throws Exception {
         assertAcked(
-            indicesAdmin().prepareCreate("idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "idx")
                 .setMapping(SINGLE_VALUED_FIELD_NAME, "type=keyword", MULTI_VALUED_FIELD_NAME, "type=keyword", "tag", "type=keyword")
         );
         List<IndexRequestBuilder> builders = new ArrayList<>();
@@ -154,7 +154,7 @@ public class StringTermsIT extends AbstractTermsTestCase {
         getMultiSortDocs(builders);
 
         assertAcked(
-            indicesAdmin().prepareCreate("high_card_idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "high_card_idx")
                 .setMapping(SINGLE_VALUED_FIELD_NAME, "type=keyword", MULTI_VALUED_FIELD_NAME, "type=keyword", "tag", "type=keyword")
         );
         for (int i = 0; i < 100; i++) {
@@ -229,7 +229,7 @@ public class StringTermsIT extends AbstractTermsTestCase {
         expectedMultiSortBuckets.put((String) bucketProps.get("_term"), bucketProps);
 
         assertAcked(
-            indicesAdmin().prepareCreate("sort_idx")
+            indicesAdmin().prepareCreate(masterNodeTimeout, "sort_idx")
                 .setMapping(SINGLE_VALUED_FIELD_NAME, "type=keyword", MULTI_VALUED_FIELD_NAME, "type=keyword", "tag", "type=keyword")
         );
         for (int i = 1; i <= 3; i++) {
@@ -1302,7 +1302,8 @@ public class StringTermsIT extends AbstractTermsTestCase {
         Map<String, long[]> data = new HashMap<>();
         for (int i = 0; i < 5; i++) {
             assertAcked(
-                indicesAdmin().prepareCreate("idx" + i).setMapping(SINGLE_VALUED_FIELD_NAME, "type=keyword", "filter", "type=boolean")
+                indicesAdmin().prepareCreate(masterNodeTimeout, "idx" + i)
+                    .setMapping(SINGLE_VALUED_FIELD_NAME, "type=keyword", "filter", "type=boolean")
             );
             List<IndexRequestBuilder> builders = new ArrayList<>();
             for (int j = 0; j < 100; j++) {
@@ -1342,7 +1343,7 @@ public class StringTermsIT extends AbstractTermsTestCase {
             assertOrderByKeyResponse(keysMinDocCount2, data, false, 2, batchReduceSize);
         }
         for (int i = 0; i < 5; i++) {
-            assertAcked(indicesAdmin().prepareDelete("idx" + i));
+            assertAcked(indicesAdmin().prepareDelete(masterNodeTimeout, "idx" + i));
         }
     }
 

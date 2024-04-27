@@ -116,7 +116,11 @@ public class ClassificationEvaluationIT extends MlNativeDataFrameAnalyticsIntegT
         String indexName = "some-index";
         String actualField = "fieldA";
         String predictedField = "fieldB";
-        client().admin().indices().prepareCreate(indexName).setMapping(actualField, "type=keyword", predictedField, "type=keyword").get();
+        client().admin()
+            .indices()
+            .prepareCreate(masterNodeTimeout, indexName)
+            .setMapping(actualField, "type=keyword", predictedField, "type=keyword")
+            .get();
         prepareIndex(indexName).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
             .setSource(actualField, "crocodile", predictedField, "cRoCoDiLe")
             .get();
@@ -689,7 +693,7 @@ public class ClassificationEvaluationIT extends MlNativeDataFrameAnalyticsIntegT
     }
 
     static void createAnimalsIndex(String indexName) {
-        indicesAdmin().prepareCreate(indexName)
+        indicesAdmin().prepareCreate(masterNodeTimeout, indexName)
             .setMapping(
                 ANIMAL_NAME_KEYWORD_FIELD,
                 "type=keyword",

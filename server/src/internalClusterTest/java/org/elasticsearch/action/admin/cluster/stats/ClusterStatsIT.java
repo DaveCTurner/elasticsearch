@@ -269,9 +269,9 @@ public class ClusterStatsIT extends ESIntegTestCase {
         assertThat(response.getStatus(), Matchers.equalTo(ClusterHealthStatus.GREEN));
         assertTrue(response.getIndicesStats().getMappings().getFieldTypeStats().isEmpty());
 
-        indicesAdmin().prepareCreate("test1").setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test1").setMapping("""
             {"properties":{"foo":{"type": "keyword"}}}""").get();
-        indicesAdmin().prepareCreate("test2").setMapping("""
+        indicesAdmin().prepareCreate(masterNodeTimeout, "test2").setMapping("""
             {
               "properties": {
                 "foo": {

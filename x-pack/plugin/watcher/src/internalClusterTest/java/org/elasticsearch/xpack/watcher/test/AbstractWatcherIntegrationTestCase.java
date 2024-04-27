@@ -225,7 +225,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
             String triggeredWatchIndexName;
             if (randomBoolean()) {
                 // Create an index to get the template
-                CreateIndexResponse response = indicesAdmin().prepareCreate(Watch.INDEX)
+                CreateIndexResponse response = indicesAdmin().prepareCreate(masterNodeTimeout, Watch.INDEX)
                     .setCause("Index to test aliases with .watches index")
                     .get();
                 assertAcked(response);
@@ -241,12 +241,12 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
                 if (randomBoolean()) {
                     builder.put("index.number_of_shards", scaledRandomIntBetween(1, 5));
                 }
-                assertAcked(indicesAdmin().prepareCreate(watchIndexName).setSettings(builder));
+                assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, watchIndexName).setSettings(builder));
             }
 
             // alias for .triggered-watches, ensuring the index template is set appropriately
             if (randomBoolean()) {
-                CreateIndexResponse response = indicesAdmin().prepareCreate(TriggeredWatchStoreField.INDEX_NAME)
+                CreateIndexResponse response = indicesAdmin().prepareCreate(masterNodeTimeout, TriggeredWatchStoreField.INDEX_NAME)
                     .setCause("Index to test aliases with .triggered-watches index")
                     .get();
                 assertAcked(response);
@@ -260,7 +260,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
                 logger.info("set alias for .triggered-watches index to [{}]", triggeredWatchIndexName);
             } else {
                 triggeredWatchIndexName = TriggeredWatchStoreField.INDEX_NAME;
-                assertAcked(indicesAdmin().prepareCreate(triggeredWatchIndexName));
+                assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, triggeredWatchIndexName));
             }
         }
     }
@@ -276,7 +276,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
         newSettings.remove("index.creation_date");
         newSettings.remove("index.version.created");
 
-        assertAcked(indicesAdmin().prepareCreate(to).setMapping(mapping.sourceAsMap()).setSettings(newSettings));
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, to).setMapping(mapping.sourceAsMap()).setSettings(newSettings));
         ensureGreen(to);
 
         AtomicReference<String> originalIndex = new AtomicReference<>(originalIndexOrAlias);
@@ -289,7 +289,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
                 originalIndex.set(aliasRecord.getKey());
             });
         }
-        indicesAdmin().prepareDelete(originalIndex.get()).get();
+        indicesAdmin().prepareDelete(masterNodeTimeout, originalIndex.get()).get();
         indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(to, originalIndexOrAlias).get();
     }
 

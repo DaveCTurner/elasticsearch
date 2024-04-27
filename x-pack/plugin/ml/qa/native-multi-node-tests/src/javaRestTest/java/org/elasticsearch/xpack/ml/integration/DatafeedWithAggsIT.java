@@ -110,7 +110,7 @@ public class DatafeedWithAggsIT extends MlNativeAutodetectIntegTestCase {
         openJob(jobId);
 
         // Now let's index the data
-        client().admin().indices().prepareCreate(dfId).setMapping("time", "type=date", "field", "type=keyword").get();
+        client().admin().indices().prepareCreate(masterNodeTimeout, dfId).setMapping("time", "type=date", "field", "type=keyword").get();
 
         // Index a doc per second from a minute ago to a minute later
         long now = System.currentTimeMillis();

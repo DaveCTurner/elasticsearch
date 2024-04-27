@@ -103,7 +103,7 @@ public class UpdateSettingsStepTests extends ESSingleNodeTestCase {
     }
 
     public void testUpdateSettingsStepRetriesOnError() throws InterruptedException {
-        assertAcked(indicesAdmin().prepareCreate("test").setSettings(Settings.builder().build()).get());
+        assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "test").setSettings(Settings.builder().build()).get());
 
         ClusterService clusterService = getInstanceFromNode(ClusterService.class);
         ClusterState state = clusterService.state();

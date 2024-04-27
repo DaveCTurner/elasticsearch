@@ -362,7 +362,7 @@ public class MonitoringIT extends ESSingleNodeTestCase {
      */
     public void enableMonitoring() throws Exception {
         // delete anything that may happen to already exist
-        assertAcked(client().admin().indices().prepareDelete(".monitoring-*"));
+        assertAcked(client().admin().indices().prepareDelete(masterNodeTimeout, ".monitoring-*"));
 
         assertThat("Must be no enabled exporters before enabling monitoring", getMonitoringUsageExportersDefined(), is(false));
 
