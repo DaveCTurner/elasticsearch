@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 /**
  * Unregisters a repository
@@ -43,9 +44,8 @@ public class RestDeleteRepositoryAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String name = request.param("repository");
-        DeleteRepositoryRequest deleteRepositoryRequest = new DeleteRepositoryRequest(masterNodeTimeout, name);
+        DeleteRepositoryRequest deleteRepositoryRequest = new DeleteRepositoryRequest(getMasterNodeTimeout(request), name);
         deleteRepositoryRequest.ackTimeout(request.paramAsTime("timeout", deleteRepositoryRequest.ackTimeout()));
-        deleteRepositoryRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteRepositoryRequest.masterNodeTimeout()));
         return channel -> client.admin()
             .cluster()
             .deleteRepository(

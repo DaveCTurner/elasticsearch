@@ -24,6 +24,7 @@ import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public abstract class RestResizeHandler extends BaseRestHandler {
     private static final DeprecationLogger deprecationLogger = DeprecationLogger.getLogger(RestResizeHandler.class);
@@ -46,11 +47,14 @@ public abstract class RestResizeHandler extends BaseRestHandler {
                 throw new IllegalArgumentException("parameter [copy_settings] can not be explicitly set to [false]");
             }
         }
-        final ResizeRequest resizeRequest = new ResizeRequest(masterNodeTimeout, request.param("target"), request.param("index"));
+        final ResizeRequest resizeRequest = new ResizeRequest(
+            getMasterNodeTimeout(request),
+            request.param("target"),
+            request.param("index")
+        );
         resizeRequest.setResizeType(getResizeType());
         request.applyContentParser(resizeRequest::fromXContent);
         resizeRequest.ackTimeout(request.paramAsTime("timeout", resizeRequest.ackTimeout()));
-        resizeRequest.masterNodeTimeout(request.paramAsTime("master_timeout", resizeRequest.masterNodeTimeout()));
         resizeRequest.setWaitForActiveShards(ActiveShardCount.parseString(request.param("wait_for_active_shards")));
         return channel -> client.admin().indices().resizeIndex(resizeRequest, new RestToXContentListener<>(channel));
     }

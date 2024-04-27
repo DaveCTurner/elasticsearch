@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestClusterHealthAction extends BaseRestHandler {
@@ -60,10 +61,9 @@ public class RestClusterHealthAction extends BaseRestHandler {
 
     public static ClusterHealthRequest fromRequest(final RestRequest request) {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        final ClusterHealthRequest clusterHealthRequest = new ClusterHealthRequest(masterNodeTimeout, indices);
+        final ClusterHealthRequest clusterHealthRequest = new ClusterHealthRequest(getMasterNodeTimeout(request), indices);
         clusterHealthRequest.indicesOptions(IndicesOptions.fromRequest(request, clusterHealthRequest.indicesOptions()));
         clusterHealthRequest.local(request.paramAsBoolean("local", clusterHealthRequest.local()));
-        clusterHealthRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterHealthRequest.masterNodeTimeout()));
         clusterHealthRequest.timeout(request.paramAsTime("timeout", clusterHealthRequest.timeout()));
         String waitForStatus = request.param("wait_for_status");
         if (waitForStatus != null) {

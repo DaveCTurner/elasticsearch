@@ -9,6 +9,7 @@
 package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -49,10 +50,13 @@ public class RestClusterAllocationExplainAction extends BaseRestHandler {
         ClusterAllocationExplainRequest req;
         if (request.hasContentOrSourceParam() == false) {
             // Empty request signals "explain the first unassigned shard you find"
-            req = new ClusterAllocationExplainRequest(masterNodeTimeout);
+            req = new ClusterAllocationExplainRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */);
         } else {
             try (XContentParser parser = request.contentOrSourceParamParser()) {
-                req = ClusterAllocationExplainRequest.parse(masterNodeTimeout, parser);
+                req = ClusterAllocationExplainRequest.parse(
+                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO configurable timeout here? */,
+                    parser
+                );
             }
         }
 

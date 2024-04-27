@@ -25,6 +25,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.HEAD;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 import static org.elasticsearch.rest.RestStatus.OK;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestGetComponentTemplateAction extends BaseRestHandler {
@@ -47,12 +48,11 @@ public class RestGetComponentTemplateAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
 
         final GetComponentTemplateAction.Request getRequest = new GetComponentTemplateAction.Request(
-            masterNodeTimeout,
+            getMasterNodeTimeout(request),
             request.param("name")
         );
         getRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));
         getRequest.local(request.paramAsBoolean("local", getRequest.local()));
-        getRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRequest.masterNodeTimeout()));
 
         final boolean implicitAll = getRequest.name() == null;
 

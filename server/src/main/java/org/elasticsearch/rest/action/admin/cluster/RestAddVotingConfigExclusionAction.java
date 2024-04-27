@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestAddVotingConfigExclusionAction extends BaseRestHandler {
     private static final TimeValue DEFAULT_TIMEOUT = TimeValue.timeValueSeconds(30L);
@@ -76,14 +77,12 @@ public class RestAddVotingConfigExclusionAction extends BaseRestHandler {
             nodeNames = request.param("node_names");
         }
 
-        final var resolvedRequest = new AddVotingConfigExclusionsRequest(
-            masterNodeTimeout,
+        return new AddVotingConfigExclusionsRequest(
+            getMasterNodeTimeout(request),
             Strings.splitStringByCommaToArray(nodeIds),
             Strings.splitStringByCommaToArray(nodeNames),
             request.paramAsTime("timeout", DEFAULT_TIMEOUT)
         );
-
-        return resolvedRequest.masterNodeTimeout(request.paramAsTime("master_timeout", resolvedRequest.masterNodeTimeout()));
     }
 
 }

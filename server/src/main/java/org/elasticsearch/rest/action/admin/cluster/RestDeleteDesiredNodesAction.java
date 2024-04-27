@@ -18,6 +18,8 @@ import org.elasticsearch.rest.action.RestToXContentListener;
 import java.io.IOException;
 import java.util.List;
 
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
+
 public class RestDeleteDesiredNodesAction extends BaseRestHandler {
     @Override
     public String getName() {
@@ -31,8 +33,7 @@ public class RestDeleteDesiredNodesAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain(masterNodeTimeout);
-        deleteDesiredNodesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteDesiredNodesRequest.masterNodeTimeout()));
+        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain(getMasterNodeTimeout(request));
         return restChannel -> client.execute(
             TransportDeleteDesiredNodesAction.TYPE,
             deleteDesiredNodesRequest,

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestSimulateTemplateAction extends BaseRestHandler {
@@ -37,6 +38,7 @@ public class RestSimulateTemplateAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        final var masterNodeTimeout = getMasterNodeTimeout(request);
         SimulateTemplateAction.Request simulateRequest = new SimulateTemplateAction.Request(masterNodeTimeout);
         simulateRequest.templateName(request.param("name"));
         simulateRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));

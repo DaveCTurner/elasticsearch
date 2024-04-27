@@ -25,6 +25,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.HEAD;
 import static org.elasticsearch.rest.RestStatus.NOT_FOUND;
 import static org.elasticsearch.rest.RestStatus.OK;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestGetComposableIndexTemplateAction extends BaseRestHandler {
@@ -46,12 +47,11 @@ public class RestGetComposableIndexTemplateAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final GetComposableIndexTemplateAction.Request getRequest = new GetComposableIndexTemplateAction.Request(
-            masterNodeTimeout,
+            getMasterNodeTimeout(request),
             request.param("name")
         );
 
         getRequest.local(request.paramAsBoolean("local", getRequest.local()));
-        getRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRequest.masterNodeTimeout()));
         getRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));
         final boolean implicitAll = getRequest.name() == null;
 

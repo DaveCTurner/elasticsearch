@@ -10,11 +10,13 @@ package org.elasticsearch.rest;
 
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.core.Booleans;
+import org.elasticsearch.core.TimeValue;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -256,4 +258,13 @@ public class RestUtils {
         return traceparent != null && traceparent.length() >= 55 ? Optional.of(traceparent.substring(3, 35)) : Optional.empty();
     }
 
+    private static final TimeValue DEFAULT_MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(30);
+
+    /**
+     * Parser for the common {@code ?master_timeout} option, ensuring consistent behaviour across all relevant APIs.
+     */
+    public static TimeValue getMasterNodeTimeout(RestRequest restRequest) {
+        assert restRequest != null : "restRequest may not be null";
+        return Objects.requireNonNull(restRequest).paramAsTime("master_timeout", DEFAULT_MASTER_NODE_TIMEOUT);
+    }
 }

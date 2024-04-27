@@ -31,6 +31,7 @@ import java.util.Map;
 
 import static java.util.Collections.singletonMap;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestCreateIndexAction extends BaseRestHandler {
@@ -62,7 +63,7 @@ public class RestCreateIndexAction extends BaseRestHandler {
 
     // default scope for testing types in mapping
     static CreateIndexRequest prepareRequestV7(RestRequest request) {
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, request.param("index"));
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(getMasterNodeTimeout(request), request.param("index"));
         if (request.hasParam(INCLUDE_TYPE_NAME_PARAMETER)) {
             request.param(INCLUDE_TYPE_NAME_PARAMETER);// just consume, it is always replaced with _doc
             deprecationLogger.compatibleCritical("create_index_with_types", TYPES_DEPRECATION_MESSAGE);
@@ -77,7 +78,6 @@ public class RestCreateIndexAction extends BaseRestHandler {
         }
 
         createIndexRequest.ackTimeout(request.paramAsTime("timeout", createIndexRequest.ackTimeout()));
-        createIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", createIndexRequest.masterNodeTimeout()));
         createIndexRequest.waitForActiveShards(ActiveShardCount.parseString(request.param("wait_for_active_shards")));
         return createIndexRequest;
     }

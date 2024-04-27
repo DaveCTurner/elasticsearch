@@ -31,6 +31,7 @@ import java.util.Set;
 
 import static org.elasticsearch.common.util.set.Sets.addToCopy;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestClusterRerouteAction extends BaseRestHandler {
@@ -93,12 +94,11 @@ public class RestClusterRerouteAction extends BaseRestHandler {
     }
 
     public static ClusterRerouteRequest createRequest(RestRequest request) throws IOException {
-        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest(masterNodeTimeout);
+        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest(getMasterNodeTimeout(request));
         clusterRerouteRequest.dryRun(request.paramAsBoolean("dry_run", clusterRerouteRequest.dryRun()));
         clusterRerouteRequest.explain(request.paramAsBoolean("explain", clusterRerouteRequest.explain()));
         clusterRerouteRequest.ackTimeout(request.paramAsTime("timeout", clusterRerouteRequest.ackTimeout()));
         clusterRerouteRequest.setRetryFailed(request.paramAsBoolean("retry_failed", clusterRerouteRequest.isRetryFailed()));
-        clusterRerouteRequest.masterNodeTimeout(request.paramAsTime("master_timeout", clusterRerouteRequest.masterNodeTimeout()));
         request.applyContentParser(parser -> PARSER.parse(parser, clusterRerouteRequest, null));
         return clusterRerouteRequest;
     }

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 /**
  * Returns status of currently running snapshot
@@ -50,10 +51,10 @@ public class RestSnapshotsStatusAction extends BaseRestHandler {
         if (snapshots.length == 1 && "_all".equalsIgnoreCase(snapshots[0])) {
             snapshots = Strings.EMPTY_ARRAY;
         }
-        SnapshotsStatusRequest snapshotsStatusRequest = new SnapshotsStatusRequest(masterNodeTimeout, repository).snapshots(snapshots);
+        SnapshotsStatusRequest snapshotsStatusRequest = new SnapshotsStatusRequest(getMasterNodeTimeout(request), repository).snapshots(
+            snapshots
+        );
         snapshotsStatusRequest.ignoreUnavailable(request.paramAsBoolean("ignore_unavailable", snapshotsStatusRequest.ignoreUnavailable()));
-
-        snapshotsStatusRequest.masterNodeTimeout(request.paramAsTime("master_timeout", snapshotsStatusRequest.masterNodeTimeout()));
         return channel -> new RestCancellableNodeClient(client, request.getHttpChannel()).admin()
             .cluster()
             .snapshotsStatus(snapshotsStatusRequest, new RestRefCountedChunkedToXContentListener<>(channel));

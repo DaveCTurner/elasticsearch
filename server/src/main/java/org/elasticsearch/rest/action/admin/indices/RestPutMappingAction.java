@@ -29,6 +29,7 @@ import java.util.Map;
 import static org.elasticsearch.index.mapper.MapperService.isMappingSourceTyped;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestPutMappingAction extends BaseRestHandler {
@@ -66,7 +67,7 @@ public class RestPutMappingAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        PutMappingRequest putMappingRequest = new PutMappingRequest(masterNodeTimeout, indices);
+        PutMappingRequest putMappingRequest = new PutMappingRequest(getMasterNodeTimeout(request), indices);
 
         Map<String, Object> sourceAsMap = XContentHelper.convertToMap(request.requiredContent(), false, request.getXContentType()).v2();
         if (request.getRestApiVersion() == RestApiVersion.V_7) {
@@ -91,7 +92,6 @@ public class RestPutMappingAction extends BaseRestHandler {
         }
 
         putMappingRequest.ackTimeout(request.paramAsTime("timeout", putMappingRequest.ackTimeout()));
-        putMappingRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putMappingRequest.masterNodeTimeout()));
         putMappingRequest.indicesOptions(IndicesOptions.fromRequest(request, putMappingRequest.indicesOptions()));
         putMappingRequest.writeIndexOnly(request.paramAsBoolean("write_index_only", false));
         return channel -> client.admin().indices().putMapping(putMappingRequest, new RestToXContentListener<>(channel));

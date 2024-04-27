@@ -26,6 +26,7 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestPutIndexTemplateAction extends BaseRestHandler {
 
@@ -51,7 +52,7 @@ public class RestPutIndexTemplateAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        PutIndexTemplateRequest putRequest = new PutIndexTemplateRequest(masterNodeTimeout, request.param("name"));
+        PutIndexTemplateRequest putRequest = new PutIndexTemplateRequest(getMasterNodeTimeout(request), request.param("name"));
         if (request.getRestApiVersion() == RestApiVersion.V_7 && request.hasParam("template")) {
             deprecationLogger.compatibleCritical(
                 "template_parameter_deprecation",
@@ -62,7 +63,6 @@ public class RestPutIndexTemplateAction extends BaseRestHandler {
             putRequest.patterns(asList(request.paramAsStringArray("index_patterns", Strings.EMPTY_ARRAY)));
         }
         putRequest.order(request.paramAsInt("order", putRequest.order()));
-        putRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putRequest.masterNodeTimeout()));
         putRequest.create(request.paramAsBoolean("create", false));
         putRequest.cause(request.param("cause", ""));
 

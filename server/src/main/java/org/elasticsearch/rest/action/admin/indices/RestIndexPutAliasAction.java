@@ -24,6 +24,7 @@ import java.util.Map;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestIndexPutAliasAction extends BaseRestHandler {
@@ -97,9 +98,8 @@ public class RestIndexPutAliasAction extends BaseRestHandler {
             }
         }
 
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(masterNodeTimeout);
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(getMasterNodeTimeout(request));
         indicesAliasesRequest.ackTimeout(request.paramAsTime("timeout", indicesAliasesRequest.ackTimeout()));
-        indicesAliasesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", indicesAliasesRequest.masterNodeTimeout()));
 
         IndicesAliasesRequest.AliasActions aliasAction = AliasActions.add().indices(indices).alias(alias);
         if (routing != null) {

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestGetStoredScriptAction extends BaseRestHandler {
@@ -37,8 +38,7 @@ public class RestGetStoredScriptAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         String id = request.param("id");
-        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(masterNodeTimeout, id);
-        getRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRequest.masterNodeTimeout()));
+        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(getMasterNodeTimeout(request), id);
         return channel -> client.admin()
             .cluster()
             .getStoredScript(getRequest, new RestToXContentListener<>(channel, GetStoredScriptResponse::status));

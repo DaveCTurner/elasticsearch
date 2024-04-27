@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestRolloverIndexAction extends BaseRestHandler {
@@ -47,12 +48,15 @@ public class RestRolloverIndexAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         final boolean includeTypeName = includeTypeName(request);
-        RolloverRequest rolloverIndexRequest = new RolloverRequest(masterNodeTimeout, request.param("index"), request.param("new_index"));
+        RolloverRequest rolloverIndexRequest = new RolloverRequest(
+            getMasterNodeTimeout(request),
+            request.param("index"),
+            request.param("new_index")
+        );
         request.applyContentParser(parser -> rolloverIndexRequest.fromXContent(includeTypeName, parser));
         rolloverIndexRequest.dryRun(request.paramAsBoolean("dry_run", false));
         rolloverIndexRequest.lazy(request.paramAsBoolean("lazy", false));
         rolloverIndexRequest.ackTimeout(request.paramAsTime("timeout", rolloverIndexRequest.ackTimeout()));
-        rolloverIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", rolloverIndexRequest.masterNodeTimeout()));
         if (DataStream.isFailureStoreFeatureFlagEnabled()) {
             boolean failureStore = request.paramAsBoolean("target_failure_store", false);
             if (failureStore) {

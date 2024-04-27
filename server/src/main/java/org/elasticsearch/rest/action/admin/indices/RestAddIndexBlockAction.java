@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 import static org.elasticsearch.rest.Scope.PUBLIC;
 
 @ServerlessScope(PUBLIC)
@@ -40,11 +41,10 @@ public class RestAddIndexBlockAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(
-            masterNodeTimeout,
+            getMasterNodeTimeout(request),
             IndexMetadata.APIBlock.fromName(request.param("block")),
             Strings.splitStringByCommaToArray(request.param("index"))
         );
-        addIndexBlockRequest.masterNodeTimeout(request.paramAsTime("master_timeout", addIndexBlockRequest.masterNodeTimeout()));
         addIndexBlockRequest.ackTimeout(request.paramAsTime("timeout", addIndexBlockRequest.ackTimeout()));
         addIndexBlockRequest.indicesOptions(IndicesOptions.fromRequest(request, addIndexBlockRequest.indicesOptions()));
         return channel -> client.admin().indices().addBlock(addIndexBlockRequest, new RestToXContentListener<>(channel));
