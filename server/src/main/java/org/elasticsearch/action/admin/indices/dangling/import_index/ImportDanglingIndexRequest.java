@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.indices.dangling.import_index;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -31,7 +32,7 @@ public class ImportDanglingIndexRequest extends AcknowledgedRequest<ImportDangli
         this.acceptDataLoss = in.readBoolean();
     }
 
-    public ImportDanglingIndexRequest(String indexUUID, boolean acceptDataLoss) {
+    public ImportDanglingIndexRequest(TimeValue masterNodeTimeout, String indexUUID, boolean acceptDataLoss) {
         super(masterNodeTimeout);
         this.indexUUID = Objects.requireNonNull(indexUUID, "indexUUID cannot be null");
         this.acceptDataLoss = acceptDataLoss;

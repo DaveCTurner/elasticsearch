@@ -35,6 +35,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         final var pendingDesiredNodes = randomList(0, 5, DesiredNodesTestCase::randomDesiredNode);
 
         final var updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             1,
             concatLists(actualizedDesiredNodes, pendingDesiredNodes),
@@ -48,6 +49,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         }
 
         final var newVersionUpdateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             updateDesiredNodesRequest.getHistoryID(),
             updateDesiredNodesRequest.getVersion() + 1,
             updateDesiredNodesRequest.getNodes(),
@@ -70,6 +72,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         final var pendingDesiredNodes = randomList(0, 5, DesiredNodesTestCase::randomDesiredNode);
 
         final var updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             1,
             concatLists(actualizedDesiredNodes, pendingDesiredNodes),
@@ -99,6 +102,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         final var pendingDesiredNodes = randomList(0, 5, DesiredNodesTestCase::randomDesiredNode);
 
         final var updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             1,
             concatLists(actualizedDesiredNodes, pendingDesiredNodes),
@@ -132,6 +136,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         final var pendingDesiredNodes = randomList(0, 5, DesiredNodesTestCase::randomDesiredNode);
 
         final var updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             1,
             concatLists(actualizedDesiredNodes, pendingDesiredNodes),
@@ -149,6 +154,7 @@ public class DesiredNodesStatusIT extends ESIntegTestCase {
         }
 
         final var updateDesiredNodesWithNewHistoryRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             1,
             updateDesiredNodesRequest.getNodes(),

@@ -113,7 +113,7 @@ public class TransportClusterRerouteAction extends TransportMasterNodeAction<Clu
         transportService.sendRequest(
             transportService.getLocalNode(),
             TransportIndicesShardStoresAction.TYPE.name(),
-            new IndicesShardStoresRequest().indices(stalePrimaryAllocations.keySet().toArray(Strings.EMPTY_ARRAY)),
+            new IndicesShardStoresRequest(masterNodeTimeout).indices(stalePrimaryAllocations.keySet().toArray(Strings.EMPTY_ARRAY)),
             new ActionListenerResponseHandler<>(listener.delegateFailureAndWrap((delegate, response) -> {
                 Map<String, Map<Integer, List<IndicesShardStoresResponse.StoreStatus>>> status = response.getStoreStatuses();
                 Exception e = null;

@@ -69,7 +69,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
-                new TransportDeleteComposableIndexTemplateAction.Request("*")
+                new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "*")
             )
         );
     }
@@ -216,7 +216,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
         assertAcked(
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("test-composable-template").indexTemplate(cit)
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "test-composable-template").indexTemplate(cit)
             )
         );
 
@@ -235,7 +235,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
-                new TransportDeleteComposableIndexTemplateAction.Request("test-composable-template")
+                new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "test-composable-template")
             )
         );
     }
@@ -262,7 +262,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
-                new TransportDeleteComposableIndexTemplateAction.Request("test-composable-template")
+                new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "test-composable-template")
             )
         );
     }

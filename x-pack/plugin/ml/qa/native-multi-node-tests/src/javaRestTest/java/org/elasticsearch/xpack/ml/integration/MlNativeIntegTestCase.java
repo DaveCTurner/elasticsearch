@@ -459,7 +459,7 @@ abstract class MlNativeIntegTestCase extends ESIntegTestCase {
     protected static void createDataStreamAndTemplate(String dataStreamName, String mapping) throws IOException {
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request(dataStreamName + "_template").indexTemplate(
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, dataStreamName + "_template").indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(Collections.singletonList(dataStreamName))
                     .template(new Template(null, new CompressedXContent(mapping), null))

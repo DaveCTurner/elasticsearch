@@ -58,7 +58,7 @@ public class DataStreamSecurityIT extends SecurityIntegTestCase {
         );
         final var client = client().filterWithHeader(headers);
 
-        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request("id");
+        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         putTemplateRequest.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("logs-*"))

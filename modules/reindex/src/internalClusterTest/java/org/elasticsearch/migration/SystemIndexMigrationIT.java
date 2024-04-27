@@ -85,7 +85,7 @@ public class SystemIndexMigrationIT extends AbstractFeatureMigrationIntegTest {
         clusterService.addListener(clusterStateListener);
 
         // create task by calling API
-        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest();
+        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest(masterNodeTimeout);
         client().execute(PostFeatureUpgradeAction.INSTANCE, req);
         logger.info("migrate feature api called");
 
@@ -106,7 +106,7 @@ public class SystemIndexMigrationIT extends AbstractFeatureMigrationIntegTest {
 
             GetFeatureUpgradeStatusResponse statusResponse = client().execute(
                 GetFeatureUpgradeStatusAction.INSTANCE,
-                new GetFeatureUpgradeStatusRequest()
+                new GetFeatureUpgradeStatusRequest(masterNodeTimeout)
             ).get();
             assertThat(
                 "expected migration to fail due to restarting only data node",

@@ -281,7 +281,10 @@ public class IndicesPermissionsWithAliasesWildcardsAndRegexsTests extends Securi
     }
 
     private void putComposableIndexTemplate(String id, List<String> patterns) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

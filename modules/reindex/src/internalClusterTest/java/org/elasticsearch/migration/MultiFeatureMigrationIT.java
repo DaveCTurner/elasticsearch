@@ -176,7 +176,7 @@ public class MultiFeatureMigrationIT extends AbstractFeatureMigrationIntegTest {
             hooksCalled.countDown();
         });
 
-        PostFeatureUpgradeRequest migrationRequest = new PostFeatureUpgradeRequest();
+        PostFeatureUpgradeRequest migrationRequest = new PostFeatureUpgradeRequest(masterNodeTimeout);
         PostFeatureUpgradeResponse migrationResponse = client().execute(PostFeatureUpgradeAction.INSTANCE, migrationRequest).get();
         assertThat(migrationResponse.getReason(), nullValue());
         assertThat(migrationResponse.getElasticsearchException(), nullValue());
@@ -189,7 +189,7 @@ public class MultiFeatureMigrationIT extends AbstractFeatureMigrationIntegTest {
         // wait for all the plugin methods to have been called before assertBusy since that will exponentially backoff
         assertThat(hooksCalled.await(30, TimeUnit.SECONDS), is(true));
 
-        GetFeatureUpgradeStatusRequest getStatusRequest = new GetFeatureUpgradeStatusRequest();
+        GetFeatureUpgradeStatusRequest getStatusRequest = new GetFeatureUpgradeStatusRequest(masterNodeTimeout);
         assertBusy(() -> {
             GetFeatureUpgradeStatusResponse statusResponse = client().execute(GetFeatureUpgradeStatusAction.INSTANCE, getStatusRequest)
                 .get();

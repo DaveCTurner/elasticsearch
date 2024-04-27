@@ -635,7 +635,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
 
         final IndicesShardStoresResponse stores = client().execute(
             TransportIndicesShardStoresAction.TYPE,
-            new IndicesShardStoresRequest(index.getName())
+            new IndicesShardStoresRequest(masterNodeTimeout, index.getName())
         ).get();
 
         for (Map.Entry<Integer, List<IndicesShardStoresResponse.StoreStatus>> shards : stores.getStoreStatuses()

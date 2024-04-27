@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.notNullValue;
 public class UpdateDesiredNodesRequestTests extends ESTestCase {
     public void testValidation() {
         final UpdateDesiredNodesRequest updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomBoolean() ? "" : "     ",
             -1,
             randomBoolean() ? Collections.emptyList() : List.of(hotDesiredNode()),

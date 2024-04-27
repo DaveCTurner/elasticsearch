@@ -129,7 +129,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
 
         final String danglingIndexUUID = findDanglingIndexForNode(stoppedNodeName, INDEX_NAME);
 
-        importDanglingIndex(new ImportDanglingIndexRequest(danglingIndexUUID, true));
+        importDanglingIndex(new ImportDanglingIndexRequest(masterNodeTimeout, danglingIndexUUID, true));
 
         assertTrue("Expected dangling index " + INDEX_NAME + " to be recovered", indexExists(INDEX_NAME));
     }
@@ -140,7 +140,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
     public void testDanglingIndicesMustExistToBeImported() {
         internalCluster().startNodes(1, buildSettings(0, true));
 
-        final ImportDanglingIndexRequest request = new ImportDanglingIndexRequest("NonExistentUUID", true);
+        final ImportDanglingIndexRequest request = new ImportDanglingIndexRequest(masterNodeTimeout, "NonExistentUUID", true);
         assertThat(
             expectThrows(ExecutionException.class, IllegalArgumentException.class, () -> importDanglingIndex(request)).getMessage(),
             containsString("No dangling index found for UUID [NonExistentUUID]")
@@ -156,7 +156,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
         final String stoppedNodeName = createDanglingIndices(INDEX_NAME);
         final String danglingIndexUUID = findDanglingIndexForNode(stoppedNodeName, INDEX_NAME);
 
-        final ImportDanglingIndexRequest request = new ImportDanglingIndexRequest(danglingIndexUUID, false);
+        final ImportDanglingIndexRequest request = new ImportDanglingIndexRequest(masterNodeTimeout, danglingIndexUUID, false);
 
         assertThat(
             expectThrows(Exception.class, () -> importDanglingIndex(request)).getMessage(),
@@ -182,7 +182,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
         final String stoppedNodeName = createDanglingIndices(INDEX_NAME, OTHER_INDEX_NAME);
         final String danglingIndexUUID = findDanglingIndexForNode(stoppedNodeName, INDEX_NAME);
 
-        deleteDanglingIndex(new DeleteDanglingIndexRequest(danglingIndexUUID, true));
+        deleteDanglingIndex(new DeleteDanglingIndexRequest(masterNodeTimeout, danglingIndexUUID, true));
 
         // The dangling index that we deleted ought to have been removed from disk. Check by
         // creating and deleting another index, which creates a new tombstone entry, which should
@@ -233,7 +233,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
         danglingIndices.set(results);
 
         // Try to delete the index - this request should succeed
-        deleteDanglingIndex(new DeleteDanglingIndexRequest(danglingIndices.get().get(0).getIndexUUID(), true));
+        deleteDanglingIndex(new DeleteDanglingIndexRequest(masterNodeTimeout, danglingIndices.get().get(0).getIndexUUID(), true));
 
         // The dangling index that we deleted ought to have been removed from disk. Check by
         // creating and deleting another index, which creates a new tombstone entry, which should
@@ -259,7 +259,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
                 expectThrows(
                     ExecutionException.class,
                     Exception.class,
-                    () -> deleteDanglingIndex(new DeleteDanglingIndexRequest(danglingIndexUUID, false))
+                    () -> deleteDanglingIndex(new DeleteDanglingIndexRequest(masterNodeTimeout, danglingIndexUUID, false))
                 )
             ).getMessage(),
             containsString("accept_data_loss must be set to true")
@@ -285,7 +285,7 @@ public class DanglingIndicesIT extends ESIntegTestCase {
                 safeAwait(startLatch);
                 while (isImporting.get()) {
                     try {
-                        importDanglingIndex(new ImportDanglingIndexRequest(danglingIndexUUID, true));
+                        importDanglingIndex(new ImportDanglingIndexRequest(masterNodeTimeout, danglingIndexUUID, true));
                     } catch (Exception e) {
                         // failures are expected
                     }

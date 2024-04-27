@@ -16,6 +16,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -29,7 +30,7 @@ public class SimulateIndexTemplateRequest extends MasterNodeReadRequest<Simulate
 
     private boolean includeDefaults = false;
 
-    public SimulateIndexTemplateRequest(String indexName) {
+    public SimulateIndexTemplateRequest(TimeValue masterNodeTimeout, String indexName) {
         super(masterNodeTimeout);
         if (Strings.isNullOrEmpty(indexName)) {
             throw new IllegalArgumentException("index name cannot be null or empty");

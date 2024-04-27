@@ -67,7 +67,7 @@ public class PrevalidateNodeRemovalWithSearchableSnapshotIntegTests extends Base
             case 2 -> req.setExternalIds(internalCluster().clusterService(node2).localNode().getExternalId());
             default -> throw new IllegalStateException("Unexpected value");
         }
-        PrevalidateNodeRemovalResponse resp = client().execute(PrevalidateNodeRemovalAction.INSTANCE, req.build()).get();
+        PrevalidateNodeRemovalResponse resp = client().execute(PrevalidateNodeRemovalAction.INSTANCE, req.build(masterNodeTimeout)).get();
         assertTrue(resp.getPrevalidation().isSafe());
         assertThat(resp.getPrevalidation().message(), equalTo("all red indices are searchable snapshot indices"));
         assertThat(resp.getPrevalidation().nodes().size(), equalTo(1));

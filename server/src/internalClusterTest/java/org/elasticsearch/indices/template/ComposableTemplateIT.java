@@ -31,7 +31,10 @@ public class ComposableTemplateIT extends ESIntegTestCase {
                 }
               }
             }"""), null), 3L, Collections.singletonMap("eggplant", "potato"));
-        client().execute(PutComponentTemplateAction.INSTANCE, new PutComponentTemplateAction.Request("my-ct").componentTemplate(ct)).get();
+        client().execute(
+            PutComponentTemplateAction.INSTANCE,
+            new PutComponentTemplateAction.Request(masterNodeTimeout, "my-ct").componentTemplate(ct)
+        ).get();
 
         ComposableIndexTemplate cit = ComposableIndexTemplate.builder()
             .indexPatterns(Collections.singletonList("coleslaw"))
@@ -51,7 +54,7 @@ public class ComposableTemplateIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(cit)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(cit)
         ).get();
 
         internalCluster().fullRestart();
@@ -66,7 +69,10 @@ public class ComposableTemplateIT extends ESIntegTestCase {
                 }
               }
             }"""), null), 3L, Collections.singletonMap("eggplant", "potato"));
-        client().execute(PutComponentTemplateAction.INSTANCE, new PutComponentTemplateAction.Request("my-ct").componentTemplate(ct2)).get();
+        client().execute(
+            PutComponentTemplateAction.INSTANCE,
+            new PutComponentTemplateAction.Request(masterNodeTimeout, "my-ct").componentTemplate(ct2)
+        ).get();
 
         ComposableIndexTemplate cit2 = ComposableIndexTemplate.builder()
             .indexPatterns(Collections.singletonList("coleslaw"))
@@ -86,7 +92,7 @@ public class ComposableTemplateIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(cit2)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(cit2)
         ).get();
     }
 }

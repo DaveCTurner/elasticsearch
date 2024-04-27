@@ -55,11 +55,14 @@ public class DesiredNodesSnapshotsIT extends AbstractSnapshotIntegTestCase {
     }
 
     private DesiredNodes getLatestDesiredNodes() {
-        return client().execute(GetDesiredNodesAction.INSTANCE, new GetDesiredNodesAction.Request()).actionGet().getDesiredNodes();
+        return client().execute(GetDesiredNodesAction.INSTANCE, new GetDesiredNodesAction.Request(masterNodeTimeout))
+            .actionGet()
+            .getDesiredNodes();
     }
 
     private UpdateDesiredNodesRequest randomUpdateDesiredNodesRequest() {
         return new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             randomAlphaOfLength(10),
             randomIntBetween(1, 10),
             randomList(

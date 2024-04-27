@@ -16,6 +16,7 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -39,12 +40,12 @@ public class IndicesShardStoresRequest extends MasterNodeReadRequest<IndicesShar
     /**
      * Create a request for shard stores info for <code>indices</code>
      */
-    public IndicesShardStoresRequest(String... indices) {
+    public IndicesShardStoresRequest(TimeValue masterNodeTimeout, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
     }
 
-    public IndicesShardStoresRequest() {
+    public IndicesShardStoresRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 

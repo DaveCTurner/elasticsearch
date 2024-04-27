@@ -17,6 +17,7 @@ import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -43,11 +44,11 @@ public class SimulateTemplateAction extends ActionType<SimulateIndexTemplateResp
         private TransportPutComposableIndexTemplateAction.Request indexTemplateRequest;
         private boolean includeDefaults = false;
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
-        public Request(String templateName) {
+        public Request(TimeValue masterNodeTimeout, String templateName) {
             super(masterNodeTimeout);
             if (templateName == null) {
                 throw new IllegalArgumentException("template name cannot be null");
@@ -55,7 +56,7 @@ public class SimulateTemplateAction extends ActionType<SimulateIndexTemplateResp
             this.templateName = templateName;
         }
 
-        public Request(TransportPutComposableIndexTemplateAction.Request indexTemplateRequest) {
+        public Request(TimeValue masterNodeTimeout, TransportPutComposableIndexTemplateAction.Request indexTemplateRequest) {
             super(masterNodeTimeout);
             if (indexTemplateRequest == null) {
                 throw new IllegalArgumentException("index template body must be present");

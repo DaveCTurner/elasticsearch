@@ -32,8 +32,9 @@ public class SimulateTemplateRequestTests extends AbstractWireSerializingTestCas
 
     @Override
     protected SimulateTemplateAction.Request createTestInstance() {
-        SimulateTemplateAction.Request req = new SimulateTemplateAction.Request(randomAlphaOfLength(10));
+        SimulateTemplateAction.Request req = new SimulateTemplateAction.Request(masterNodeTimeout, randomAlphaOfLength(10));
         TransportPutComposableIndexTemplateAction.Request newTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             randomAlphaOfLength(4)
         );
         newTemplateRequest.indexTemplate(ComposableIndexTemplateTests.randomInstance());
@@ -48,10 +49,10 @@ public class SimulateTemplateRequestTests extends AbstractWireSerializingTestCas
     }
 
     public void testIndexNameCannotBeNullOrEmpty() {
-        expectThrows(IllegalArgumentException.class, () -> new SimulateTemplateAction.Request((String) null));
+        expectThrows(IllegalArgumentException.class, () -> new SimulateTemplateAction.Request(masterNodeTimeout, (String) null));
         expectThrows(
             IllegalArgumentException.class,
-            () -> new SimulateTemplateAction.Request((TransportPutComposableIndexTemplateAction.Request) null)
+            () -> new SimulateTemplateAction.Request(masterNodeTimeout, (TransportPutComposableIndexTemplateAction.Request) null)
         );
     }
 
@@ -59,10 +60,13 @@ public class SimulateTemplateRequestTests extends AbstractWireSerializingTestCas
         Template template = new Template(Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, true).build(), null, null);
         ComposableIndexTemplate globalTemplate = ComposableIndexTemplate.builder().indexPatterns(List.of("*")).template(template).build();
 
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("test");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "test"
+        );
         request.indexTemplate(globalTemplate);
 
-        SimulateTemplateAction.Request simulateRequest = new SimulateTemplateAction.Request("testing");
+        SimulateTemplateAction.Request simulateRequest = new SimulateTemplateAction.Request(masterNodeTimeout, "testing");
         simulateRequest.indexTemplateRequest(request);
 
         ActionRequestValidationException validationException = simulateRequest.validate();

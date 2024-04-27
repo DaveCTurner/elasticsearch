@@ -121,7 +121,7 @@ public class ProactiveStorageIT extends AutoscalingStorageIntegTestCase {
     private static void createDataStreamAndTemplate(String dataStreamName) throws IOException {
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request(dataStreamName + "_template").indexTemplate(
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, dataStreamName + "_template").indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(Collections.singletonList(dataStreamName))
                     .template(new Template(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0).build(), null, null))

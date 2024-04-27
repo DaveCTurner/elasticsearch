@@ -144,7 +144,7 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
             .put("index.number_of_shards", randomIntBetween(2, 10))
             .put("index.number_of_replicas", 0);
 
-        var request = new TransportPutComposableIndexTemplateAction.Request("id");
+        var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("k8s*"))
@@ -231,7 +231,7 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
             .put("index.number_of_shards", 8)
             .put("index.number_of_replicas", 0);
 
-        var request = new TransportPutComposableIndexTemplateAction.Request("id");
+        var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("k8s*"))

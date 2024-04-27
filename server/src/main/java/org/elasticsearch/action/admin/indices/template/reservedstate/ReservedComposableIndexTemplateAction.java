@@ -209,7 +209,7 @@ public class ReservedComposableIndexTemplateAction
                 @SuppressWarnings("unchecked")
                 Map<String, ?> content = (Map<String, ?>) entry.getValue();
                 try (XContentParser componentParser = mapToXContentParser(XContentParserConfiguration.EMPTY, content)) {
-                    var componentTemplate = new PutComponentTemplateAction.Request(entry.getKey());
+                    var componentTemplate = new PutComponentTemplateAction.Request(masterNodeTimeout, entry.getKey());
                     componentTemplate.componentTemplate(ComponentTemplate.parse(componentParser));
                     componentTemplates.add(componentTemplate);
                 }
@@ -224,7 +224,7 @@ public class ReservedComposableIndexTemplateAction
                 @SuppressWarnings("unchecked")
                 Map<String, ?> content = (Map<String, ?>) entry.getValue();
                 try (XContentParser componentParser = mapToXContentParser(XContentParserConfiguration.EMPTY, content)) {
-                    var composableTemplate = new TransportPutComposableIndexTemplateAction.Request(entry.getKey());
+                    var composableTemplate = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, entry.getKey());
                     composableTemplate.indexTemplate(ComposableIndexTemplate.parse(componentParser));
                     composableTemplates.add(composableTemplate);
                 }

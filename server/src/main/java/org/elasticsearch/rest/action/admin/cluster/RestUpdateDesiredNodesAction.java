@@ -53,7 +53,7 @@ public class RestUpdateDesiredNodesAction extends BaseRestHandler {
 
         final UpdateDesiredNodesRequest updateDesiredNodesRequest;
         try (XContentParser parser = request.contentParser()) {
-            updateDesiredNodesRequest = UpdateDesiredNodesRequest.fromXContent(historyId, version, dryRun, parser);
+            updateDesiredNodesRequest = UpdateDesiredNodesRequest.fromXContent(masterNodeTimeout, historyId, version, dryRun, parser);
         }
 
         if (clusterSupportsFeature.test(DesiredNode.DESIRED_NODE_VERSION_DEPRECATED)) {

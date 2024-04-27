@@ -832,7 +832,7 @@ public class RolloverIT extends ESIntegTestCase {
         int numOfThreads = 5;
         int numberOfRolloversPerThread = 20;
 
-        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request("my-template");
+        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-template");
         var template = new Template(
             Settings.builder()
                 // Avoid index check, which gets randomly inserted by test framework. This slows down the test a bit.

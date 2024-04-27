@@ -472,7 +472,7 @@ public class ComponentTemplatesFileSettingsIT extends ESIntegTestCase {
 
         final var componentResponse = client().execute(
             GetComponentTemplateAction.INSTANCE,
-            new GetComponentTemplateAction.Request("other*")
+            new GetComponentTemplateAction.Request(masterNodeTimeout, "other*")
         ).get();
 
         assertTrue(componentResponse.getComponentTemplates().isEmpty());
@@ -644,7 +644,7 @@ public class ComponentTemplatesFileSettingsIT extends ESIntegTestCase {
             var bis = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
             var parser = JSON.xContent().createParser(XContentParserConfiguration.EMPTY, bis)
         ) {
-            return new PutComponentTemplateAction.Request(name).componentTemplate(ComponentTemplate.parse(parser));
+            return new PutComponentTemplateAction.Request(masterNodeTimeout, name).componentTemplate(ComponentTemplate.parse(parser));
         }
     }
 
@@ -686,7 +686,9 @@ public class ComponentTemplatesFileSettingsIT extends ESIntegTestCase {
             var bis = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
             var parser = JSON.xContent().createParser(XContentParserConfiguration.EMPTY, bis)
         ) {
-            return new TransportPutComposableIndexTemplateAction.Request(name).indexTemplate(ComposableIndexTemplate.parse(parser));
+            return new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, name).indexTemplate(
+                ComposableIndexTemplate.parse(parser)
+            );
         }
     }
 
@@ -727,7 +729,9 @@ public class ComponentTemplatesFileSettingsIT extends ESIntegTestCase {
             var bis = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
             var parser = JSON.xContent().createParser(XContentParserConfiguration.EMPTY, bis)
         ) {
-            return new TransportPutComposableIndexTemplateAction.Request(name).indexTemplate(ComposableIndexTemplate.parse(parser));
+            return new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, name).indexTemplate(
+                ComposableIndexTemplate.parse(parser)
+            );
         }
     }
 

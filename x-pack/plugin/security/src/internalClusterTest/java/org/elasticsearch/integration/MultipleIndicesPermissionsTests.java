@@ -212,7 +212,7 @@ public class MultipleIndicesPermissionsTests extends SecurityIntegTestCase {
 
         final IndicesShardStoresResponse indicesShardsStoresResponse = client.execute(
             TransportIndicesShardStoresAction.TYPE,
-            new IndicesShardStoresRequest(randomFrom("*", "_all", "foo*")).shardStatuses("all")
+            new IndicesShardStoresRequest(masterNodeTimeout, randomFrom("*", "_all", "foo*")).shardStatuses("all")
         ).actionGet(10, TimeUnit.SECONDS);
         assertThat(indicesShardsStoresResponse.getStoreStatuses().size(), is(3));
         assertThat(indicesShardsStoresResponse.getStoreStatuses().containsKey("foo"), is(true));

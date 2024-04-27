@@ -240,7 +240,9 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
         assertAcked(
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request(dataStreamName + "_template").indexTemplate(template)
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, dataStreamName + "_template").indexTemplate(
+                    template
+                )
             )
         );
         assertAcked(client().execute(CreateDataStreamAction.INSTANCE, new CreateDataStreamAction.Request(dataStreamName)));
@@ -288,7 +290,7 @@ public class DataStreamsStatsTests extends ESSingleNodeTestCase {
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
-                new TransportDeleteComposableIndexTemplateAction.Request(dataStreamName + "_template")
+                new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, dataStreamName + "_template")
             )
         );
     }

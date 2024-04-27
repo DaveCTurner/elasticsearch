@@ -446,7 +446,10 @@ public class ResolveClusterDataStreamIT extends AbstractMultiClustersTestCase {
 
     void putComposableIndexTemplate(Client client, String id, List<String> patterns, @Nullable Map<String, AliasMetadata> aliases)
         throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

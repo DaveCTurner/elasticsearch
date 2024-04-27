@@ -37,11 +37,12 @@ public class RestSimulateTemplateAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        SimulateTemplateAction.Request simulateRequest = new SimulateTemplateAction.Request();
+        SimulateTemplateAction.Request simulateRequest = new SimulateTemplateAction.Request(masterNodeTimeout);
         simulateRequest.templateName(request.param("name"));
         simulateRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));
         if (request.hasContent()) {
             TransportPutComposableIndexTemplateAction.Request indexTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(
+                masterNodeTimeout,
                 "simulating_template"
             );
             try (var parser = request.contentParser()) {

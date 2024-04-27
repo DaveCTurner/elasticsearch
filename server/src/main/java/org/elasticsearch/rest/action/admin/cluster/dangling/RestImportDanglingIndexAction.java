@@ -35,6 +35,7 @@ public class RestImportDanglingIndexAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         final ImportDanglingIndexRequest importRequest = new ImportDanglingIndexRequest(
+            masterNodeTimeout,
             request.param("index_uuid"),
             request.paramAsBoolean("accept_data_loss", false)
         );

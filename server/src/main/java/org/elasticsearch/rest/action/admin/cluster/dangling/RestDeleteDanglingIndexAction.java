@@ -36,6 +36,7 @@ public class RestDeleteDanglingIndexAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         final DeleteDanglingIndexRequest deleteRequest = new DeleteDanglingIndexRequest(
+            masterNodeTimeout,
             request.param("index_uuid"),
             request.paramAsBoolean("accept_data_loss", false)
         );

@@ -39,7 +39,10 @@ public class RestDeleteComposableIndexTemplateAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
 
         String[] names = Strings.splitStringByCommaToArray(request.param("name"));
-        TransportDeleteComposableIndexTemplateAction.Request deleteReq = new TransportDeleteComposableIndexTemplateAction.Request(names);
+        TransportDeleteComposableIndexTemplateAction.Request deleteReq = new TransportDeleteComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            names
+        );
         deleteReq.masterNodeTimeout(request.paramAsTime("master_timeout", deleteReq.masterNodeTimeout()));
 
         return channel -> client.execute(

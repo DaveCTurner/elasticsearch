@@ -2124,7 +2124,7 @@ public class AuthorizationServiceTests extends ESTestCase {
         requests.add(
             new Tuple<>(
                 TransportIndicesShardStoresAction.TYPE.name(),
-                new IndicesShardStoresRequest().indices(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7))
+                new IndicesShardStoresRequest(masterNodeTimeout).indices(randomFrom(SECURITY_MAIN_ALIAS, INTERNAL_SECURITY_MAIN_INDEX_7))
             )
         );
 
@@ -2210,7 +2210,10 @@ public class AuthorizationServiceTests extends ESTestCase {
         requests.add(new Tuple<>(IndicesSegmentsAction.NAME, new IndicesSegmentsRequest().indices(SECURITY_MAIN_ALIAS)));
         requests.add(new Tuple<>(GetSettingsAction.NAME, new GetSettingsRequest(masterNodeTimeout).indices(SECURITY_MAIN_ALIAS)));
         requests.add(
-            new Tuple<>(TransportIndicesShardStoresAction.TYPE.name(), new IndicesShardStoresRequest().indices(SECURITY_MAIN_ALIAS))
+            new Tuple<>(
+                TransportIndicesShardStoresAction.TYPE.name(),
+                new IndicesShardStoresRequest(masterNodeTimeout).indices(SECURITY_MAIN_ALIAS)
+            )
         );
 
         for (final Tuple<String, ? extends TransportRequest> requestTuple : requests) {

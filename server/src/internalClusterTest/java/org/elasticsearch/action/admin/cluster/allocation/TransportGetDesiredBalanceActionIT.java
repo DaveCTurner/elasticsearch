@@ -42,8 +42,10 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         ).get();
         assertEquals(RestStatus.OK, clusterHealthResponse.status());
 
-        DesiredBalanceResponse desiredBalanceResponse = client().execute(TransportGetDesiredBalanceAction.TYPE, new DesiredBalanceRequest())
-            .get();
+        DesiredBalanceResponse desiredBalanceResponse = client().execute(
+            TransportGetDesiredBalanceAction.TYPE,
+            new DesiredBalanceRequest(masterNodeTimeout)
+        ).get();
 
         assertEquals(1, desiredBalanceResponse.getRoutingTable().size());
         Map<Integer, DesiredBalanceResponse.DesiredShards> shardsMap = desiredBalanceResponse.getRoutingTable().get(index);
@@ -79,8 +81,10 @@ public class TransportGetDesiredBalanceActionIT extends ESIntegTestCase {
         ).get();
         assertEquals(RestStatus.OK, clusterHealthResponse.status());
 
-        DesiredBalanceResponse desiredBalanceResponse = client().execute(TransportGetDesiredBalanceAction.TYPE, new DesiredBalanceRequest())
-            .get();
+        DesiredBalanceResponse desiredBalanceResponse = client().execute(
+            TransportGetDesiredBalanceAction.TYPE,
+            new DesiredBalanceRequest(masterNodeTimeout)
+        ).get();
 
         assertEquals(1, desiredBalanceResponse.getRoutingTable().size());
         Map<Integer, DesiredBalanceResponse.DesiredShards> shardsMap = desiredBalanceResponse.getRoutingTable().get(index);

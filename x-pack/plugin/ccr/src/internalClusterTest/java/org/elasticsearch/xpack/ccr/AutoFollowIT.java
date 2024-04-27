@@ -641,7 +641,10 @@ public class AutoFollowIT extends CcrIntegTestCase {
 
     public void testAutoFollowDatastreamWithClosingFollowerIndex() throws Exception {
         final String datastream = "logs-1";
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("template-id");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "template-id"
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("logs-*"))

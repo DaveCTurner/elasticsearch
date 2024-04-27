@@ -68,9 +68,9 @@ public abstract class AbstractAuditor<T extends AbstractAuditMessage> {
 
         this(client, auditIndex, templateConfig.getTemplateName(), () -> {
             try (var parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY, templateConfig.loadBytes())) {
-                return new TransportPutComposableIndexTemplateAction.Request(templateConfig.getTemplateName()).indexTemplate(
-                    ComposableIndexTemplate.parse(parser)
-                ).masterNodeTimeout(MASTER_TIMEOUT);
+                return new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, templateConfig.getTemplateName())
+                    .indexTemplate(ComposableIndexTemplate.parse(parser))
+                    .masterNodeTimeout(MASTER_TIMEOUT);
             } catch (IOException e) {
                 throw new ElasticsearchParseException("unable to parse composable template " + templateConfig.getTemplateName(), e);
             }

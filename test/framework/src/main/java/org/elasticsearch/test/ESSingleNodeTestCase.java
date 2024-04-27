@@ -142,9 +142,9 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
                 throw e;
             }
         }
-        var deleteComposableIndexTemplateRequest = new TransportDeleteComposableIndexTemplateAction.Request("*");
+        var deleteComposableIndexTemplateRequest = new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "*");
         assertAcked(client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, deleteComposableIndexTemplateRequest).actionGet());
-        var deleteComponentTemplateRequest = new TransportDeleteComponentTemplateAction.Request("*");
+        var deleteComponentTemplateRequest = new TransportDeleteComponentTemplateAction.Request(masterNodeTimeout, "*");
         assertAcked(client().execute(TransportDeleteComponentTemplateAction.TYPE, deleteComponentTemplateRequest).actionGet());
         assertAcked(
             indicesAdmin().prepareDelete(masterNodeTimeout, "*").setIndicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN).get()

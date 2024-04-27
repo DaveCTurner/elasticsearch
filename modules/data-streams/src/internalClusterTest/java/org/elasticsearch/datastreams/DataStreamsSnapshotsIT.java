@@ -1128,7 +1128,7 @@ public class DataStreamsSnapshotsIT extends AbstractSnapshotIntegTestCase {
             // Need to remove template, because base class doesn't remove composable index templates after each test (only legacy templates)
             client.execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
-                new TransportDeleteComposableIndexTemplateAction.Request("my-template")
+                new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "my-template")
             ).actionGet();
         }
     }

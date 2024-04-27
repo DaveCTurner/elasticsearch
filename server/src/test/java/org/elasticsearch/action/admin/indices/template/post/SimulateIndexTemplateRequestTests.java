@@ -32,8 +32,9 @@ public class SimulateIndexTemplateRequestTests extends AbstractWireSerializingTe
 
     @Override
     protected SimulateIndexTemplateRequest createTestInstance() {
-        SimulateIndexTemplateRequest req = new SimulateIndexTemplateRequest(randomAlphaOfLength(10));
+        SimulateIndexTemplateRequest req = new SimulateIndexTemplateRequest(masterNodeTimeout, randomAlphaOfLength(10));
         TransportPutComposableIndexTemplateAction.Request newTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             randomAlphaOfLength(4)
         );
         newTemplateRequest.indexTemplate(ComposableIndexTemplateTests.randomInstance());
@@ -48,18 +49,21 @@ public class SimulateIndexTemplateRequestTests extends AbstractWireSerializingTe
     }
 
     public void testIndexNameCannotBeNullOrEmpty() {
-        expectThrows(IllegalArgumentException.class, () -> new SimulateIndexTemplateRequest((String) null));
-        expectThrows(IllegalArgumentException.class, () -> new SimulateIndexTemplateRequest(""));
+        expectThrows(IllegalArgumentException.class, () -> new SimulateIndexTemplateRequest(masterNodeTimeout, (String) null));
+        expectThrows(IllegalArgumentException.class, () -> new SimulateIndexTemplateRequest(masterNodeTimeout, ""));
     }
 
     public void testAddingGlobalTemplateWithHiddenIndexSettingIsIllegal() {
         Template template = new Template(Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, true).build(), null, null);
         ComposableIndexTemplate globalTemplate = ComposableIndexTemplate.builder().indexPatterns(List.of("*")).template(template).build();
 
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("test");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "test"
+        );
         request.indexTemplate(globalTemplate);
 
-        SimulateIndexTemplateRequest simulateRequest = new SimulateIndexTemplateRequest("testing");
+        SimulateIndexTemplateRequest simulateRequest = new SimulateIndexTemplateRequest(masterNodeTimeout, "testing");
         simulateRequest.indexTemplateRequest(request);
 
         ActionRequestValidationException validationException = simulateRequest.validate();

@@ -27,6 +27,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -108,7 +109,7 @@ public class TransportDeleteComponentTemplateAction extends AcknowledgedTranspor
         /**
          * Constructs a new delete index request for the specified name.
          */
-        public Request(String... names) {
+        public Request(TimeValue masterNodeTimeout, String... names) {
             super(masterNodeTimeout);
             this.names = Objects.requireNonNull(names, "component templates to delete must not be null");
         }

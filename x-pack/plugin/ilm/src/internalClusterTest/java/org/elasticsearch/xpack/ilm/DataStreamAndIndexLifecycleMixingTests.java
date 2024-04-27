@@ -959,7 +959,10 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         @Nullable Map<String, Object> metadata,
         @Nullable DataStreamLifecycle lifecycle
     ) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(name);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            name
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

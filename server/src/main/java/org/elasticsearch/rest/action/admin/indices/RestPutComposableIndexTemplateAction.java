@@ -40,6 +40,7 @@ public class RestPutComposableIndexTemplateAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
 
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             request.param("name")
         );
         putRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putRequest.masterNodeTimeout()));

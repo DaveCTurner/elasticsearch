@@ -197,7 +197,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
                     }
                 }
             }""";
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("id2");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "id2"
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("index_*"))
@@ -869,7 +872,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         @Nullable Map<String, Object> metadata,
         @Nullable DataStreamLifecycle lifecycle
     ) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.metadata.DataStreamGlobalRetention;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -48,11 +49,11 @@ public class GetComponentTemplateAction extends ActionType<GetComponentTemplateA
         private String name;
         private boolean includeDefaults;
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
-        public Request(String name) {
+        public Request(TimeValue masterNodeTimeout, String name) {
             super(masterNodeTimeout);
             this.name = name;
             this.includeDefaults = false;

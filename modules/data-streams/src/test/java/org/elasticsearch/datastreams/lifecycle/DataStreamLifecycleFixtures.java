@@ -81,7 +81,10 @@ public class DataStreamLifecycleFixtures {
         @Nullable Map<String, Object> metadata,
         @Nullable DataStreamLifecycle lifecycle
     ) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

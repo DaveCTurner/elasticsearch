@@ -34,6 +34,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -155,7 +156,7 @@ public class TransportPutComposableIndexTemplateAction extends AcknowledgedTrans
         /**
          * Constructs a new put index template request with the provided name.
          */
-        public Request(String name) {
+        public Request(TimeValue masterNodeTimeout, String name) {
             super(masterNodeTimeout);
             this.name = name;
         }

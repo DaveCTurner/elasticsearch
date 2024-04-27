@@ -114,7 +114,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
         var mapping = new CompressedXContent(randomBoolean() ? MAPPING_TEMPLATE : MAPPING_TEMPLATE.replace("date", "date_nanos"));
 
         if (randomBoolean()) {
-            var request = new TransportPutComposableIndexTemplateAction.Request("id");
+            var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
             request.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("k8s*"))
@@ -124,11 +124,11 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
             );
             client().execute(TransportPutComposableIndexTemplateAction.TYPE, request).actionGet();
         } else {
-            var putComponentTemplateRequest = new PutComponentTemplateAction.Request("1");
+            var putComponentTemplateRequest = new PutComponentTemplateAction.Request(masterNodeTimeout, "1");
             putComponentTemplateRequest.componentTemplate(new ComponentTemplate(new Template(null, mapping, null), null, null));
             client().execute(PutComponentTemplateAction.INSTANCE, putComponentTemplateRequest).actionGet();
 
-            var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request("id");
+            var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
             putTemplateRequest.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("k8s*"))
@@ -239,7 +239,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
               }
             }""";
         {
-            var request = new TransportPutComposableIndexTemplateAction.Request("id");
+            var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
             request.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("k8s*"))
@@ -267,7 +267,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
             );
         }
         {
-            var request = new TransportPutComposableIndexTemplateAction.Request("id");
+            var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
             request.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("k8s*"))
@@ -301,7 +301,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
                 }
               }
             }""";
-        var request = new TransportPutComposableIndexTemplateAction.Request("id");
+        var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("k8s*"))
@@ -330,7 +330,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
                 }
               }
             }""";
-        var request = new TransportPutComposableIndexTemplateAction.Request("id");
+        var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("k8s*"))
@@ -356,7 +356,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
         var mapping = new CompressedXContent(randomBoolean() ? MAPPING_TEMPLATE : MAPPING_TEMPLATE.replace("date", "date_nanos"));
         {
             var templateSettings = Settings.builder().put("index.mode", "time_series").put("index.routing_path", "metricset").build();
-            var request = new TransportPutComposableIndexTemplateAction.Request("id1");
+            var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id1");
             request.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("pattern-1"))
@@ -370,7 +370,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
             client().index(indexRequest).actionGet();
         }
         {
-            var request = new TransportPutComposableIndexTemplateAction.Request("id2");
+            var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id2");
             request.indexTemplate(
                 ComposableIndexTemplate.builder()
                     .indexPatterns(List.of("pattern-2"))
@@ -416,7 +416,7 @@ public class TSDBIndexingIT extends ESSingleNodeTestCase {
 
     public void testTrimId() throws Exception {
         String dataStreamName = "k8s";
-        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request("id");
+        var putTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         putTemplateRequest.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of(dataStreamName + "*"))

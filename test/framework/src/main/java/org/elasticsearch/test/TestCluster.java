@@ -271,7 +271,7 @@ public abstract class TestCluster {
                 .toArray(String[]::new);
 
             if (templates.length != 0) {
-                var request = new TransportDeleteComposableIndexTemplateAction.Request(templates);
+                var request = new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, templates);
                 assertAcked(client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, request).actionGet());
             }
         }
@@ -279,7 +279,10 @@ public abstract class TestCluster {
 
     public void wipeAllComponentTemplates(Set<String> excludeTemplates) {
         if (size() > 0) {
-            var templates = client().execute(GetComponentTemplateAction.INSTANCE, new GetComponentTemplateAction.Request("*"))
+            var templates = client().execute(
+                GetComponentTemplateAction.INSTANCE,
+                new GetComponentTemplateAction.Request(masterNodeTimeout, "*")
+            )
                 .actionGet()
                 .getComponentTemplates()
                 .keySet()
@@ -288,7 +291,7 @@ public abstract class TestCluster {
                 .toArray(String[]::new);
 
             if (templates.length != 0) {
-                var request = new TransportDeleteComponentTemplateAction.Request(templates);
+                var request = new TransportDeleteComponentTemplateAction.Request(masterNodeTimeout, templates);
                 assertAcked(client().execute(TransportDeleteComponentTemplateAction.TYPE, request).actionGet());
             }
         }

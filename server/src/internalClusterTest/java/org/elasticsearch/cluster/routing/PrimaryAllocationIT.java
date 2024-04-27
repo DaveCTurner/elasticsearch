@@ -255,7 +255,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         final String idxName = "test";
         Map<Integer, List<IndicesShardStoresResponse.StoreStatus>> storeStatuses = client().execute(
             TransportIndicesShardStoresAction.TYPE,
-            new IndicesShardStoresRequest(idxName)
+            new IndicesShardStoresRequest(masterNodeTimeout, idxName)
         ).get().getStoreStatuses().get(idxName);
         ClusterRerouteRequestBuilder rerouteBuilder = clusterAdmin().prepareReroute(masterNodeTimeout);
         for (Map.Entry<Integer, List<IndicesShardStoresResponse.StoreStatus>> shardStoreStatuses : storeStatuses.entrySet()) {
@@ -340,7 +340,7 @@ public class PrimaryAllocationIT extends ESIntegTestCase {
         final int shardId = 0;
         final List<String> nodeNames = new ArrayList<>(Arrays.asList(internalCluster().getNodeNames()));
         nodeNames.remove(master);
-        client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(idxName))
+        client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(masterNodeTimeout, idxName))
             .get()
             .getStoreStatuses()
             .get(idxName)

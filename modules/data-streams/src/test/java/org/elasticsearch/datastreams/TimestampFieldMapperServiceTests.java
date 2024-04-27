@@ -94,7 +94,7 @@ public class TimestampFieldMapperServiceTests extends ESSingleNodeTestCase {
               }
             }""";
         var templateSettings = Settings.builder().put("index.mode", tsdb ? "time_series" : "standard");
-        var request = new TransportPutComposableIndexTemplateAction.Request("id");
+        var request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id");
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(List.of("k8s*"))

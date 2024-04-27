@@ -688,7 +688,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         );
         assertEquals(ReservedComposableIndexTemplateAction.NAME, putIndexAction.reservedStateHandlerName().get());
         assertThat(
-            putIndexAction.modifiedKeys(new TransportPutComposableIndexTemplateAction.Request("aaa")),
+            putIndexAction.modifiedKeys(new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "aaa")),
             containsInAnyOrder(reservedComposableIndexName("aaa"))
         );
         var delIndexAction = new TransportDeleteComposableIndexTemplateAction(
@@ -701,7 +701,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         );
         assertEquals(ReservedComposableIndexTemplateAction.NAME, delIndexAction.reservedStateHandlerName().get());
         assertThat(
-            delIndexAction.modifiedKeys(new TransportDeleteComposableIndexTemplateAction.Request("a", "b")),
+            delIndexAction.modifiedKeys(new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "a", "b")),
             containsInAnyOrder(reservedComposableIndexName("a"), reservedComposableIndexName("b"))
         );
 
@@ -716,7 +716,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         );
         assertEquals(ReservedComposableIndexTemplateAction.NAME, putComponentAction.reservedStateHandlerName().get());
         assertThat(
-            putComponentAction.modifiedKeys(new PutComponentTemplateAction.Request("aaa")),
+            putComponentAction.modifiedKeys(new PutComponentTemplateAction.Request(masterNodeTimeout, "aaa")),
             containsInAnyOrder(reservedComponentName("aaa"))
         );
 
@@ -730,7 +730,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         );
         assertEquals(ReservedComposableIndexTemplateAction.NAME, delComponentAction.reservedStateHandlerName().get());
         assertThat(
-            delComponentAction.modifiedKeys(new TransportDeleteComponentTemplateAction.Request("a", "b")),
+            delComponentAction.modifiedKeys(new TransportDeleteComponentTemplateAction.Request(masterNodeTimeout, "a", "b")),
             containsInAnyOrder(reservedComponentName("a"), reservedComponentName("b"))
         );
     }
@@ -932,6 +932,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         ClusterState withReservedState = new ClusterState.Builder(updatedState.state()).metadata(withReservedMetadata).build();
 
         TransportPutComposableIndexTemplateAction.Request pr = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             conflictingTemplateName
         );
 
@@ -969,7 +970,10 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         // Try fake REST modification request with the weird prefixed composable_index_template:validate_template, this will work, since
         // the reserved keys for that name would be composable_index_template:composable_index_template:validate_template and it will not
         // match our reserved state.
-        var prOK = new TransportPutComposableIndexTemplateAction.Request(reservedComposableIndexName(conflictingTemplateName));
+        var prOK = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            reservedComposableIndexName(conflictingTemplateName)
+        );
         var modifiedKeysOK = putTemplateAction.modifiedKeys(prOK);
         assertEquals(1, modifiedKeysOK.size());
 

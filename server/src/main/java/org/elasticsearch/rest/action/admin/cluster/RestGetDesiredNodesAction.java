@@ -30,7 +30,7 @@ public class RestGetDesiredNodesAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final GetDesiredNodesAction.Request getDesiredNodesRequest = new GetDesiredNodesAction.Request();
+        final GetDesiredNodesAction.Request getDesiredNodesRequest = new GetDesiredNodesAction.Request(masterNodeTimeout);
         getDesiredNodesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getDesiredNodesRequest.masterNodeTimeout()));
         return restChannel -> client.execute(
             GetDesiredNodesAction.INSTANCE,

@@ -500,7 +500,8 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
     private void putComponentTemplate(final String templateName, final ComponentTemplate template, final AtomicBoolean creationCheck) {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            PutComponentTemplateAction.Request request = new PutComponentTemplateAction.Request(templateName).componentTemplate(template);
+            PutComponentTemplateAction.Request request = new PutComponentTemplateAction.Request(masterNodeTimeout, templateName)
+                .componentTemplate(template);
             request.masterNodeTimeout(TimeValue.MAX_VALUE);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),
@@ -539,8 +540,10 @@ public abstract class IndexTemplateRegistry implements ClusterStateListener {
     ) {
         final Executor executor = threadPool.generic();
         executor.execute(() -> {
-            TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(templateName)
-                .indexTemplate(indexTemplate);
+            TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+                masterNodeTimeout,
+                templateName
+            ).indexTemplate(indexTemplate);
             request.masterNodeTimeout(TimeValue.MAX_VALUE);
             executeAsyncWithOrigin(
                 client.threadPool().getThreadContext(),

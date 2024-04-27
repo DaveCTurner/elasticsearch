@@ -38,7 +38,7 @@ public class PrevalidateNodeRemovalRequestSerializationTests extends AbstractWir
                 )
                 .setIds(request.getIds())
                 .setExternalIds(request.getExternalIds())
-                .build();
+                .build(masterNodeTimeout);
 
             case 1 -> PrevalidateNodeRemovalRequest.builder()
                 .setNames(request.getNames())
@@ -49,7 +49,7 @@ public class PrevalidateNodeRemovalRequestSerializationTests extends AbstractWir
                     )
                 )
                 .setExternalIds(request.getExternalIds())
-                .build();
+                .build(masterNodeTimeout);
 
             case 2 -> PrevalidateNodeRemovalRequest.builder()
                 .setNames(request.getNames())
@@ -60,7 +60,7 @@ public class PrevalidateNodeRemovalRequestSerializationTests extends AbstractWir
                         PrevalidateNodeRemovalRequestSerializationTests::randomStringArray
                     )
                 )
-                .build();
+                .build(masterNodeTimeout);
             default -> throw new IllegalStateException("unexpected value: " + i);
         };
     }
@@ -74,6 +74,6 @@ public class PrevalidateNodeRemovalRequestSerializationTests extends AbstractWir
             .setNames(randomStringArray())
             .setIds(randomStringArray())
             .setExternalIds(randomStringArray())
-            .build();
+            .build(masterNodeTimeout);
     }
 }

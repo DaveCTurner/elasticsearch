@@ -331,9 +331,9 @@ public final class MlIndexAndAlias {
 
         TransportPutComposableIndexTemplateAction.Request request;
         try (var parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY, templateConfig.loadBytes())) {
-            request = new TransportPutComposableIndexTemplateAction.Request(templateConfig.getTemplateName()).indexTemplate(
-                ComposableIndexTemplate.parse(parser)
-            ).masterNodeTimeout(masterTimeout);
+            request = new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, templateConfig.getTemplateName())
+                .indexTemplate(ComposableIndexTemplate.parse(parser))
+                .masterNodeTimeout(masterTimeout);
         } catch (IOException e) {
             throw new ElasticsearchParseException("unable to parse composable template " + templateConfig.getTemplateName(), e);
         }

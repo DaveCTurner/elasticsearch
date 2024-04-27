@@ -144,9 +144,10 @@ public class SecurityIndexManagerIntegTests extends SecurityIntegTestCase {
         assertAcked(
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("composable-template-covering-the-main-security-index").indexTemplate(
-                    cit
-                )
+                new TransportPutComposableIndexTemplateAction.Request(
+                    masterNodeTimeout,
+                    "composable-template-covering-the-main-security-index"
+                ).indexTemplate(cit)
             )
         );
         // trigger index auto-creation

@@ -38,7 +38,10 @@ public class RestDeleteComponentTemplateAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] names = Strings.splitStringByCommaToArray(request.param("name"));
-        TransportDeleteComponentTemplateAction.Request deleteReq = new TransportDeleteComponentTemplateAction.Request(names);
+        TransportDeleteComponentTemplateAction.Request deleteReq = new TransportDeleteComponentTemplateAction.Request(
+            masterNodeTimeout,
+            names
+        );
         deleteReq.masterNodeTimeout(request.paramAsTime("master_timeout", deleteReq.masterNodeTimeout()));
 
         return channel -> client.execute(TransportDeleteComponentTemplateAction.TYPE, deleteReq, new RestToXContentListener<>(channel));

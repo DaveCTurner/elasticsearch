@@ -20,7 +20,7 @@ public class DeleteComposableIndexTemplateRequestTests extends AbstractWireSeria
 
     @Override
     protected TransportDeleteComposableIndexTemplateAction.Request createTestInstance() {
-        return new TransportDeleteComposableIndexTemplateAction.Request(randomAlphaOfLength(5));
+        return new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, randomAlphaOfLength(5));
     }
 
     @Override

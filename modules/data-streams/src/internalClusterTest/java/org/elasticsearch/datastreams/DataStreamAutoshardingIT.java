@@ -510,7 +510,10 @@ public class DataStreamAutoshardingIT extends ESIntegTestCase {
     }
 
     static void putComposableIndexTemplate(String id, List<String> patterns, @Nullable Settings settings) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

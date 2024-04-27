@@ -350,7 +350,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
         ComposableIndexTemplate ct = ComposableIndexTemplate.builder().indexPatterns(Collections.singletonList(index)).template(t).build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("template").indexTemplate(ct)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "template").indexTemplate(ct)
         ).actionGet();
 
         indicesAdmin().prepareCreate(masterNodeTimeout, index).setWaitForActiveShards(0).get();
@@ -523,7 +523,7 @@ public class DataTierAllocationDeciderIT extends ESIntegTestCase {
     private void updateDesiredNodes(List<DesiredNode> desiredNodes) {
         assertThat(desiredNodes.size(), is(greaterThan(0)));
 
-        final var request = new UpdateDesiredNodesRequest(randomAlphaOfLength(10), 1, desiredNodes, false);
+        final var request = new UpdateDesiredNodesRequest(masterNodeTimeout, randomAlphaOfLength(10), 1, desiredNodes, false);
         internalCluster().client().execute(UpdateDesiredNodesAction.INSTANCE, request).actionGet();
     }
 

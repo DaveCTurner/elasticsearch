@@ -152,7 +152,7 @@ public class WriteLoadForecasterIT extends ESIntegTestCase {
         assertAcked(
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("my-template").indexTemplate(
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-template").indexTemplate(
                     ComposableIndexTemplate.builder()
                         .indexPatterns(List.of("logs-*"))
                         .template(new Template(indexSettings, null, null))

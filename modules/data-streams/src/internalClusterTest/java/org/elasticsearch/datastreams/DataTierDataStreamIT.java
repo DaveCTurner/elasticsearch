@@ -40,7 +40,7 @@ public class DataTierDataStreamIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("template").indexTemplate(template)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "template").indexTemplate(template)
         ).actionGet();
 
         var dsIndexName = prepareIndex(index).setCreate(true)

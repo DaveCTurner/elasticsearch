@@ -439,7 +439,10 @@ public class DataStreamIT extends ESIntegTestCase {
                     }
                   }
                 }""";
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("id_1");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "id_1"
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 // use no wildcard, so that backing indices don't match just by name
@@ -520,6 +523,7 @@ public class DataStreamIT extends ESIntegTestCase {
                   }
                 }""";
         TransportPutComposableIndexTemplateAction.Request createTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             "logs-foo"
         );
         createTemplateRequest.indexTemplate(
@@ -590,7 +594,9 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(dataStreamName, indicesAdmin().prepareClose(masterNodeTimeout, dataStreamName), true);
         verifyResolvability(aliasToDataStream, indicesAdmin().prepareClose(masterNodeTimeout, aliasToDataStream), true);
         verifyResolvability(dataStreamName, clusterAdmin().prepareSearchShards(dataStreamName), false);
-        verifyResolvability(client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(dataStreamName)));
+        verifyResolvability(
+            client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(masterNodeTimeout, dataStreamName))
+        );
 
         request = new CreateDataStreamAction.Request("logs-barbaz");
         client().execute(CreateDataStreamAction.INSTANCE, request).actionGet();
@@ -635,7 +641,9 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, indicesAdmin().prepareOpen(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareClose(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(wildcardExpression, clusterAdmin().prepareSearchShards(wildcardExpression), false);
-        verifyResolvability(client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(wildcardExpression)));
+        verifyResolvability(
+            client().execute(TransportIndicesShardStoresAction.TYPE, new IndicesShardStoresRequest(masterNodeTimeout, wildcardExpression))
+        );
     }
 
     public void testCannotDeleteComposableTemplateUsedByDataStream() throws Exception {
@@ -646,7 +654,10 @@ public class DataStreamIT extends ESIntegTestCase {
         createDataStreamRequest = new CreateDataStreamAction.Request(dataStreamName + "-eggplant");
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
 
-        TransportDeleteComposableIndexTemplateAction.Request req = new TransportDeleteComposableIndexTemplateAction.Request("id");
+        TransportDeleteComposableIndexTemplateAction.Request req = new TransportDeleteComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "id"
+        );
         Exception e = expectThrows(Exception.class, client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, req));
         Optional<Exception> maybeE = ExceptionsHelper.unwrapCausesAndSuppressed(
             e,
@@ -658,7 +669,10 @@ public class DataStreamIT extends ESIntegTestCase {
         );
         assertTrue(maybeE.isPresent());
 
-        TransportDeleteComposableIndexTemplateAction.Request req2 = new TransportDeleteComposableIndexTemplateAction.Request("i*");
+        TransportDeleteComposableIndexTemplateAction.Request req2 = new TransportDeleteComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "i*"
+        );
         Exception e2 = expectThrows(Exception.class, client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, req2));
         maybeE = ExceptionsHelper.unwrapCausesAndSuppressed(
             e2,
@@ -671,7 +685,10 @@ public class DataStreamIT extends ESIntegTestCase {
         assertTrue(maybeE.isPresent());
 
         // Now replace it with a higher-priority template and delete the old one
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request("id2");
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "id2"
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 // Match the other data stream with a slightly different pattern
@@ -684,7 +701,10 @@ public class DataStreamIT extends ESIntegTestCase {
         );
         client().execute(TransportPutComposableIndexTemplateAction.TYPE, request).actionGet();
 
-        TransportDeleteComposableIndexTemplateAction.Request deleteRequest = new TransportDeleteComposableIndexTemplateAction.Request("id");
+        TransportDeleteComposableIndexTemplateAction.Request deleteRequest = new TransportDeleteComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            "id"
+        );
         client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, deleteRequest).get();
 
         GetComposableIndexTemplateAction.Request getReq = new GetComposableIndexTemplateAction.Request("id");
@@ -1210,7 +1230,7 @@ public class DataStreamIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("id1").indexTemplate(template)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "id1").indexTemplate(template)
         ).actionGet();
         // Index doc that triggers creation of a data stream
         String dataStream = "logs-foobar";
@@ -1345,6 +1365,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
     public void testMixedAutoCreate() throws Exception {
         TransportPutComposableIndexTemplateAction.Request createTemplateRequest = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
             "logs-foo"
         );
         createTemplateRequest.indexTemplate(
@@ -1403,7 +1424,7 @@ public class DataStreamIT extends ESIntegTestCase {
         DeleteDataStreamAction.Request deleteDSReq = new DeleteDataStreamAction.Request(new String[] { "*" });
         client().execute(DeleteDataStreamAction.INSTANCE, deleteDSReq).actionGet();
         TransportDeleteComposableIndexTemplateAction.Request deleteTemplateRequest =
-            new TransportDeleteComposableIndexTemplateAction.Request("*");
+            new TransportDeleteComposableIndexTemplateAction.Request(masterNodeTimeout, "*");
         client().execute(TransportDeleteComposableIndexTemplateAction.TYPE, deleteTemplateRequest).actionGet();
     }
 
@@ -1929,7 +1950,7 @@ public class DataStreamIT extends ESIntegTestCase {
         ComposableIndexTemplate finalTemplate = template;
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(finalTemplate)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(finalTemplate)
         ).actionGet();
         /**
          * partition size with routing required
@@ -1952,7 +1973,7 @@ public class DataStreamIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(template)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(template)
         ).actionGet();
 
         /**
@@ -1974,7 +1995,7 @@ public class DataStreamIT extends ESIntegTestCase {
             IllegalArgumentException.class,
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(finalTemplate1)
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(finalTemplate1)
             )
         );
         Exception actualException = (Exception) e.getCause();
@@ -2006,7 +2027,7 @@ public class DataStreamIT extends ESIntegTestCase {
             IllegalArgumentException.class,
             client().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(template)
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(template)
             )
         );
         Exception actualException = (Exception) e.getCause();
@@ -2039,7 +2060,7 @@ public class DataStreamIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(template)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(template)
         ).actionGet();
         CreateDataStreamAction.Request createDataStreamRequest = new CreateDataStreamAction.Request("my-logs");
         client().execute(CreateDataStreamAction.INSTANCE, createDataStreamRequest).get();
@@ -2295,7 +2316,10 @@ public class DataStreamIT extends ESIntegTestCase {
         @Nullable Map<String, AliasMetadata> aliases,
         @Nullable DataStreamLifecycle lifecycle
     ) throws IOException {
-        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(id);
+        TransportPutComposableIndexTemplateAction.Request request = new TransportPutComposableIndexTemplateAction.Request(
+            masterNodeTimeout,
+            id
+        );
         request.indexTemplate(
             ComposableIndexTemplate.builder()
                 .indexPatterns(patterns)

@@ -87,6 +87,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
         }
 
         final var equivalentUpdateRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             updateDesiredNodesRequest.getHistoryID(),
             updateDesiredNodesRequest.getVersion(),
             desiredNodesList,
@@ -105,6 +106,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
         updateDesiredNodes(updateDesiredNodesRequest);
 
         final var backwardsUpdateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             updateDesiredNodesRequest.getHistoryID(),
             updateDesiredNodesRequest.getVersion() - 1,
             updateDesiredNodesRequest.getNodes(),
@@ -123,6 +125,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
         updateDesiredNodes(updateDesiredNodesRequest);
 
         final var updateDesiredNodesRequestWithSameHistoryIdAndVersionAndDifferentSpecs = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             updateDesiredNodesRequest.getHistoryID(),
             updateDesiredNodesRequest.getVersion(),
             randomList(1, 10, DesiredNodesTestCase::randomDesiredNode),
@@ -192,6 +195,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
         // This test verifies that the validation doesn't throw on desired nodes
         // with a higher number of available processors than the node running the tests.
         final var updateDesiredNodesRequest = new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             UUIDs.randomBase64UUID(),
             randomIntBetween(1, 20),
             randomList(
@@ -306,6 +310,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
 
     private UpdateDesiredNodesRequest randomUpdateDesiredNodesRequest(Settings settings) {
         return new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             UUIDs.randomBase64UUID(),
             randomIntBetween(2, 20),
             randomList(2, 10, () -> randomDesiredNode(settings)),
@@ -315,6 +320,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
 
     private UpdateDesiredNodesRequest randomDryRunUpdateDesiredNodesRequest(Settings settings) {
         return new UpdateDesiredNodesRequest(
+            masterNodeTimeout,
             UUIDs.randomBase64UUID(),
             randomIntBetween(2, 20),
             randomList(2, 10, () -> randomDesiredNode(settings)),
@@ -327,7 +333,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
     }
 
     private DesiredNodes getLatestDesiredNodes() {
-        final GetDesiredNodesAction.Request request = new GetDesiredNodesAction.Request();
+        final GetDesiredNodesAction.Request request = new GetDesiredNodesAction.Request(masterNodeTimeout);
         final GetDesiredNodesAction.Response response = client().execute(GetDesiredNodesAction.INSTANCE, request).actionGet();
         return response.getDesiredNodes();
     }

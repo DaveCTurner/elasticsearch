@@ -37,7 +37,7 @@ public class RestGetDesiredBalanceAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return restChannel -> client.execute(
             TransportGetDesiredBalanceAction.TYPE,
-            new DesiredBalanceRequest(),
+            new DesiredBalanceRequest(masterNodeTimeout),
             new RestRefCountedChunkedToXContentListener<>(restChannel)
         );
     }

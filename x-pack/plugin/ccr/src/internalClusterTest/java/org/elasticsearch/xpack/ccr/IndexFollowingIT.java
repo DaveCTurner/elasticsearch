@@ -1848,7 +1848,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         assertAcked(
             followerClient().execute(
                 TransportPutComposableIndexTemplateAction.TYPE,
-                new TransportPutComposableIndexTemplateAction.Request("my-it").indexTemplate(cit)
+                new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "my-it").indexTemplate(cit)
             )
         );
     }

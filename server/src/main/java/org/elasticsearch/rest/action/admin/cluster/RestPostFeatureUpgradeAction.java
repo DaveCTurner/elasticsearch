@@ -40,7 +40,7 @@ public class RestPostFeatureUpgradeAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest();
+        final PostFeatureUpgradeRequest req = new PostFeatureUpgradeRequest(masterNodeTimeout);
         req.masterNodeTimeout(request.paramAsTime("master_timeout", req.masterNodeTimeout()));
 
         return restChannel -> { client.execute(PostFeatureUpgradeAction.INSTANCE, req, new RestToXContentListener<>(restChannel)); };

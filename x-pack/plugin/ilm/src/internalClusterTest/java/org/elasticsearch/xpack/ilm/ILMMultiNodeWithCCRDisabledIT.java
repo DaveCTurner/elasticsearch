@@ -95,7 +95,7 @@ public class ILMMultiNodeWithCCRDisabledIT extends ESIntegTestCase {
             .build();
         client().execute(
             TransportPutComposableIndexTemplateAction.TYPE,
-            new TransportPutComposableIndexTemplateAction.Request("template").indexTemplate(template)
+            new TransportPutComposableIndexTemplateAction.Request(masterNodeTimeout, "template").indexTemplate(template)
         ).actionGet();
         prepareIndex(index).setCreate(true).setId("1").setSource("@timestamp", "2020-09-09").get();
 
