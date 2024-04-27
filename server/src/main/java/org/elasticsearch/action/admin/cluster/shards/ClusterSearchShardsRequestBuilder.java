@@ -18,7 +18,7 @@ public class ClusterSearchShardsRequestBuilder extends MasterNodeReadOperationRe
     ClusterSearchShardsRequestBuilder> {
 
     public ClusterSearchShardsRequestBuilder(ElasticsearchClient client) {
-        super(client, TransportClusterSearchShardsAction.TYPE, new ClusterSearchShardsRequest());
+        super(client, TransportClusterSearchShardsAction.TYPE, new ClusterSearchShardsRequest(masterNodeTimeout));
     }
 
     /**

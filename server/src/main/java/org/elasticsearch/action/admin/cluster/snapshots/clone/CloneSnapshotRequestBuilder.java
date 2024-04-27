@@ -13,13 +13,20 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.core.TimeValue;
 
 public class CloneSnapshotRequestBuilder extends MasterNodeOperationRequestBuilder<
     CloneSnapshotRequest,
     AcknowledgedResponse,
     CloneSnapshotRequestBuilder> {
 
-    public CloneSnapshotRequestBuilder(ElasticsearchClient client, String repository, String source, String target) {
+    public CloneSnapshotRequestBuilder(
+        TimeValue masterNodeTimeout,
+        ElasticsearchClient client,
+        String repository,
+        String source,
+        String target
+    ) {
         super(
             client,
             TransportCloneSnapshotAction.TYPE,

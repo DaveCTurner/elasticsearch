@@ -17,6 +17,7 @@ import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.MetadataIndexTemplateService;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.util.set.Sets;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
 import org.elasticsearch.xcontent.XContentParser;
@@ -195,7 +196,7 @@ public class ReservedComposableIndexTemplateAction
     }
 
     @Override
-    public ComponentsAndComposables fromXContent(XContentParser parser) throws IOException {
+    public ComponentsAndComposables fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<PutComponentTemplateAction.Request> componentTemplates = new ArrayList<>();
         List<TransportPutComposableIndexTemplateAction.Request> composableTemplates = new ArrayList<>();
         Map<String, ?> source = parser.map();

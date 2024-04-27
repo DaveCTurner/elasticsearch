@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.hasSize;
 public class IndexTemplateBlocksIT extends ESIntegTestCase {
     public void testIndexTemplatesWithBlocks() throws IOException {
         // creates a simple index template
-        indicesAdmin().preparePutTemplate("template_blocks")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "template_blocks")
             .setPatterns(Collections.singletonList("te*"))
             .setOrder(0)
             .setMapping(
@@ -49,17 +49,17 @@ public class IndexTemplateBlocksIT extends ESIntegTestCase {
         try {
             setClusterReadOnly(true);
 
-            GetIndexTemplatesResponse response = indicesAdmin().prepareGetTemplates("template_blocks").get();
+            GetIndexTemplatesResponse response = indicesAdmin().prepareGetTemplates(masterNodeTimeout, "template_blocks").get();
             assertThat(response.getIndexTemplates(), hasSize(1));
 
             assertBlocked(
-                indicesAdmin().preparePutTemplate("template_blocks_2")
+                indicesAdmin().preparePutTemplate(masterNodeTimeout, "template_blocks_2")
                     .setPatterns(Collections.singletonList("block*"))
                     .setOrder(0)
                     .addAlias(new Alias("alias_1"))
             );
 
-            assertBlocked(indicesAdmin().prepareDeleteTemplate("template_blocks"));
+            assertBlocked(indicesAdmin().prepareDeleteTemplate(masterNodeTimeout, "template_blocks"));
 
         } finally {
             setClusterReadOnly(false);

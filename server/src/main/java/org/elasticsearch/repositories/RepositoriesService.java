@@ -15,6 +15,7 @@ import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.AckedClusterStateUpdateTask;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -466,7 +467,7 @@ public class RepositoriesService extends AbstractLifecycleComponent implements C
          * @param name the repository name
          */
         public UnregisterRepositoryTask(String name) {
-            this(new DeleteRepositoryRequest(masterNodeTimeout, name), null);
+            this(new DeleteRepositoryRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, name), null);
         }
 
         @Override

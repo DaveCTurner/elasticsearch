@@ -342,7 +342,7 @@ public class SearchableSnapshotsBlobStoreCacheMaintenanceIntegTests extends Base
     }
 
     private Settings getIndexSettings(String indexName) {
-        return indicesAdmin().prepareGetSettings(indexName).get().getIndexToSettings().get(indexName);
+        return indicesAdmin().prepareGetSettings(masterNodeTimeout, indexName).get().getIndexToSettings().get(indexName);
     }
 
     private Map<String, Tuple<Settings, Long>> mountRandomIndicesWithCache(String repositoryName, int min, int max) throws Exception {

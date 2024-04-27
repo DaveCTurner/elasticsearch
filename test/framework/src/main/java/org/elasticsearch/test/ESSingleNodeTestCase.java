@@ -90,12 +90,12 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
         // SERVICE_UNAVAILABLE/1/state not recovered / initialized block
         ClusterHealthResponse clusterHealthResponse = clusterAdmin().prepareHealth().setWaitForGreenStatus().get();
         assertFalse(clusterHealthResponse.isTimedOut());
-        indicesAdmin().preparePutTemplate("one_shard_index_template")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "one_shard_index_template")
             .setPatterns(Collections.singletonList("*"))
             .setOrder(0)
             .setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1).put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, 0))
             .get();
-        indicesAdmin().preparePutTemplate("random-soft-deletes-template")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "random-soft-deletes-template")
             .setPatterns(Collections.singletonList("*"))
             .setOrder(0)
             .setSettings(Settings.builder().put(IndexSettings.INDEX_SOFT_DELETES_RETENTION_OPERATIONS_SETTING.getKey(), between(0, 1000)))

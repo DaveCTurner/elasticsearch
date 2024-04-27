@@ -11,6 +11,7 @@ package org.elasticsearch.action.ingest;
 import org.elasticsearch.ElasticsearchGenerationException;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.ingest.IngestMetadata;
 import org.elasticsearch.ingest.IngestService;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
@@ -108,7 +109,7 @@ public class ReservedPipelineAction implements ReservedClusterStateHandler<List<
     }
 
     @Override
-    public List<PutPipelineRequest> fromXContent(XContentParser parser) throws IOException {
+    public List<PutPipelineRequest> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<PutPipelineRequest> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

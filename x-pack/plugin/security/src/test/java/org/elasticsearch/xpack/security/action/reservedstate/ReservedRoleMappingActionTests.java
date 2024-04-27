@@ -42,7 +42,7 @@ import static org.mockito.Mockito.spy;
 public class ReservedRoleMappingActionTests extends ESTestCase {
     private TransformState processJSON(ReservedRoleMappingAction action, TransformState prevState, String json) throws Exception {
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
-            var content = action.fromXContent(parser);
+            var content = action.fromXContent(masterNodeTimeout, parser);
             var state = action.transform(content, prevState);
 
             CountDownLatch latch = new CountDownLatch(1);

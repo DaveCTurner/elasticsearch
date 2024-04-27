@@ -111,7 +111,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
         String json
     ) throws Exception {
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
-            return action.transform(action.fromXContent(parser), prevState);
+            return action.transform(action.fromXContent(masterNodeTimeout, parser), prevState);
         }
     }
 
@@ -811,7 +811,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
             XContentParser parser = XContentType.JSON.xContent()
                 .createParser(XContentParserConfiguration.EMPTY, Strings.format(composableTemplate, "template_1"))
         ) {
-            var request = action.fromXContent(parser).composableTemplates().get(0);
+            var request = action.fromXContent(masterNodeTimeout, parser).composableTemplates().get(0);
             assertTrue(
                 expectThrows(
                     IllegalArgumentException.class,
@@ -824,7 +824,7 @@ public class ReservedComposableIndexTemplateActionTests extends ESTestCase {
             XContentParser parser = XContentType.JSON.xContent()
                 .createParser(XContentParserConfiguration.EMPTY, Strings.format(composableTemplate, "template_2"))
         ) {
-            var request = action.fromXContent(parser).composableTemplates().get(0);
+            var request = action.fromXContent(masterNodeTimeout, parser).composableTemplates().get(0);
             // this should just work, no failure
             TransportPutComposableIndexTemplateAction.verifyIfUsingReservedComponentTemplates(request, withReservedState);
         }

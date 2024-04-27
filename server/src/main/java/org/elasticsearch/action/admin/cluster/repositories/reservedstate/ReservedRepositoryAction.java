@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.repositories.reservedstate;
 
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -91,7 +92,7 @@ public class ReservedRepositoryAction implements ReservedClusterStateHandler<Lis
     }
 
     @Override
-    public List<PutRepositoryRequest> fromXContent(XContentParser parser) throws IOException {
+    public List<PutRepositoryRequest> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<PutRepositoryRequest> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

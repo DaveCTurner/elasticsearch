@@ -114,7 +114,7 @@ public class SecurityIndexManagerIntegTests extends SecurityIntegTestCase {
         );
         // create an old-style template
         assertAcked(
-            indicesAdmin().preparePutTemplate("template-covering-the-main-security-index")
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, "template-covering-the-main-security-index")
                 .setPatterns(securityIndexNames)
                 .setSettings(
                     Settings.builder()

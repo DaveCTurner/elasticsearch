@@ -103,7 +103,7 @@ public class ReservedClusterStateService {
                 throw new IllegalStateException("Missing handler definition for content key [" + name + "]");
             }
             p.nextToken();
-            return new Tuple<>(name, handlers.get(name).fromXContent(p));
+            return new Tuple<>(name, handlers.get(name).fromXContent(masterNodeTimeout, p));
         }, STATE_FIELD);
         stateChunkParser.declareObject(ConstructingObjectParser.constructorArg(), (p, c) -> ReservedStateVersion.parse(p), METADATA_FIELD);
     }

@@ -67,7 +67,7 @@ public final class ConnectorTestUtils {
 
     public static void registerSimplifiedConnectorIndexTemplates(IndicesAdminClient indicesAdminClient) {
 
-        indicesAdminClient.preparePutTemplate(CONNECTOR_TEMPLATE_NAME)
+        indicesAdminClient.preparePutTemplate(masterNodeTimeout, CONNECTOR_TEMPLATE_NAME)
             .setPatterns(List.of(CONNECTOR_INDEX_NAME_PATTERN))
             .setVersion(0)
             .setMapping(
@@ -82,7 +82,7 @@ public final class ConnectorTestUtils {
             )
             .get();
 
-        indicesAdminClient.preparePutTemplate(CONNECTOR_SYNC_JOBS_TEMPLATE_NAME)
+        indicesAdminClient.preparePutTemplate(masterNodeTimeout, CONNECTOR_SYNC_JOBS_TEMPLATE_NAME)
             .setPatterns(List.of(CONNECTOR_SYNC_JOBS_INDEX_NAME_PATTERN))
             .setVersion(0)
             .setMapping(

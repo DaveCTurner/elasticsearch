@@ -44,9 +44,12 @@ public class IndexSettingsIT extends ESIntegTestCase {
             internalCluster().fullRestart();
 
             final var indicesClient = indicesAdmin();
-            assertThat(indicesClient.prepareGetSettings("test").get().getSetting("test", "archived.index.test_setting"), equalTo("true"));
+            assertThat(
+                indicesClient.prepareGetSettings(masterNodeTimeout, "test").get().getSetting("test", "archived.index.test_setting"),
+                equalTo("true")
+            );
             updateIndexSettings(Settings.builder().putNull("archived.*"), "test");
-            assertNull(indicesClient.prepareGetSettings("test").get().getSetting("test", "archived.index.test_setting"));
+            assertNull(indicesClient.prepareGetSettings(masterNodeTimeout, "test").get().getSetting("test", "archived.index.test_setting"));
         } finally {
             registerSetting = true;
         }

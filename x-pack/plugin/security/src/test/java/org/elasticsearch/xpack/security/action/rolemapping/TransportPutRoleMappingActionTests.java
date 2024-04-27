@@ -127,7 +127,7 @@ public class TransportPutRoleMappingActionTests extends ESTestCase {
 
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
             ReservedRoleMappingAction roleMappingAction = new ReservedRoleMappingAction(store);
-            var parsedResult = roleMappingAction.fromXContent(parser);
+            var parsedResult = roleMappingAction.fromXContent(masterNodeTimeout, parser);
 
             for (var mapping : parsedResult) {
                 assertThat(action.modifiedKeys(PutRoleMappingRequest.fromMapping(mapping)), containsInAnyOrder(mapping.getName()));

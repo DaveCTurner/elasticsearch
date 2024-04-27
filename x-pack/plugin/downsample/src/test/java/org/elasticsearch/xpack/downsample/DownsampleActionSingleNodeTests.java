@@ -696,7 +696,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
 
         // block downsample index
         assertAcked(
-            indicesAdmin().preparePutTemplate(downsampleIndex)
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, downsampleIndex)
                 .setPatterns(List.of(downsampleIndex))
                 .setSettings(Settings.builder().put("index.blocks.write", "true").build())
         );

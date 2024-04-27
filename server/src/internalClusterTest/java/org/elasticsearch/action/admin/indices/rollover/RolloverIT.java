@@ -78,7 +78,7 @@ public class RolloverIT extends ESIntegTestCase {
             testAlias.writeIndex(true);
         }
         assertAcked(prepareCreate("test_index-1").addAlias(testAlias).get());
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
         assertThat(response.getOldIndex(), equalTo("test_index-1"));
         assertThat(response.getNewIndex(), equalTo("test_index-000002"));
         assertThat(response.isDryRun(), equalTo(false));
@@ -101,7 +101,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index-2").addAlias(new Alias("test_alias")).get());
         indexDoc("test_index-2", "1", "field", "value");
         flush("test_index-2");
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
         assertThat(response.getOldIndex(), equalTo("test_index-2"));
         assertThat(response.getNewIndex(), equalTo("test_index-000003"));
         assertThat(response.isDryRun(), equalTo(false));
@@ -125,7 +125,9 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index-2").addAlias(new Alias("test_alias")).get());
         indexDoc("test_index-2", "1", "field", "value");
         flush("test_index-2");
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").setMasterNodeTimeout(TimeValue.MINUS_ONE).get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
+            .setMasterNodeTimeout(TimeValue.MINUS_ONE)
+            .get();
         assertTrue(response.isShardsAcknowledged());
     }
 
@@ -134,7 +136,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index-2").addAlias(new Alias("test_alias").writeIndex(true)).get());
         indexDoc("test_index-2", "1", "field", "value");
         flush("test_index-2");
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
         assertThat(response.getOldIndex(), equalTo("test_index-2"));
         assertThat(response.getNewIndex(), equalTo("test_index-000003"));
         assertThat(response.isDryRun(), equalTo(false));
@@ -164,7 +166,7 @@ public class RolloverIT extends ESIntegTestCase {
         }
         IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().prepareRolloverIndex("alias").dryRun(randomBoolean())
+            indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "alias").dryRun(randomBoolean())
         );
         assertThat(exception.getMessage(), equalTo("rollover target [alias] does not point to a write index"));
     }
@@ -179,7 +181,7 @@ public class RolloverIT extends ESIntegTestCase {
         indexDoc("test_index-2", "1", "field", "value");
         flush("test_index-2");
         final Settings settings = indexSettings(1, 0).build();
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
             .settings(settings)
             .alias(new Alias("extra_alias"))
             .get();
@@ -213,7 +215,7 @@ public class RolloverIT extends ESIntegTestCase {
         indexDoc("test_index-2", "1", "field", "value");
         flush("test_index-2");
         final Settings settings = Settings.builder().put("number_of_shards", 1).put("number_of_replicas", 0).build();
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
             .settings(settings)
             .alias(new Alias("extra_alias"))
             .get();
@@ -239,7 +241,7 @@ public class RolloverIT extends ESIntegTestCase {
 
     public void testRolloverDryRun() throws Exception {
         if (randomBoolean()) {
-            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate("test_index")
+            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate(masterNodeTimeout, "test_index")
                 .setPatterns(List.of("test_index-*"))
                 .setOrder(-1)
                 .setSettings(Settings.builder().put(AutoExpandReplicas.SETTING.getKey(), "0-all"));
@@ -263,7 +265,7 @@ public class RolloverIT extends ESIntegTestCase {
         );
         Loggers.addAppender(allocationServiceLogger, appender);
 
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").dryRun(true).get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").dryRun(true).get();
 
         appender.assertAllExpectationsMatched();
         appender.stop();
@@ -283,7 +285,7 @@ public class RolloverIT extends ESIntegTestCase {
 
     public void testRolloverLazy() throws Exception {
         if (randomBoolean()) {
-            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate("test_index")
+            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate(masterNodeTimeout, "test_index")
                 .setPatterns(List.of("test_index-*"))
                 .setOrder(-1)
                 .setSettings(Settings.builder().put(AutoExpandReplicas.SETTING.getKey(), "0-all"));
@@ -299,7 +301,7 @@ public class RolloverIT extends ESIntegTestCase {
             if (randomBoolean()) {
                 rolloverConditionsBuilder.addMaxIndexDocsCondition(1L);
             }
-            indicesAdmin().prepareRolloverIndex("test_alias")
+            indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .dryRun(randomBoolean())
                 .lazy(true)
                 .setConditions(rolloverConditionsBuilder)
@@ -318,7 +320,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index-0").addAlias(testAlias).get());
         indexDoc("test_index-0", "1", "field", "value");
         flush("test_index-0");
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
             .setConditions(
                 RolloverConditions.newBuilder()
                     .addMaxIndexSizeCondition(new ByteSizeValue(10, ByteSizeUnit.MB))
@@ -361,7 +363,9 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test_index").addAlias(testAlias).get());
         indexDoc("test_index", "1", "field", "value");
         flush("test_index");
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").setNewIndexName("test_new_index").get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
+            .setNewIndexName("test_new_index")
+            .get();
         assertThat(response.getOldIndex(), equalTo("test_index"));
         assertThat(response.getNewIndex(), equalTo("test_new_index"));
         assertThat(response.isDryRun(), equalTo(false));
@@ -386,7 +390,7 @@ public class RolloverIT extends ESIntegTestCase {
         indexDoc("test_index-000001", "1", "field", "value");
         flush("test_index-0", "test_index-000001");
         try {
-            indicesAdmin().prepareRolloverIndex("test_alias").get();
+            indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
             fail("expected failure due to existing rollover index");
         } catch (ResourceAlreadyExistsException e) {
             assertThat(e.getIndex().getName(), equalTo("test_index-000001"));
@@ -406,21 +410,25 @@ public class RolloverIT extends ESIntegTestCase {
 
         indicesAdmin().prepareOpen(masterNodeTimeout, index).get();
         ensureGreen(index);
-        RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias").get();
+        RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
         assertThat(response.getOldIndex(), equalTo(index));
         assertThat(response.getNewIndex(), equalTo("test-" + DateFormatter.forPattern("yyyy.MM").format(now) + "-000002"));
         assertThat(response.isDryRun(), equalTo(false));
         assertThat(response.isRolledOver(), equalTo(true));
         assertThat(response.getConditionStatus().size(), equalTo(0));
 
-        response = indicesAdmin().prepareRolloverIndex("test_alias").get();
+        response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").get();
         assertThat(response.getOldIndex(), equalTo("test-" + DateFormatter.forPattern("yyyy.MM").format(now) + "-000002"));
         assertThat(response.getNewIndex(), equalTo("test-" + DateFormatter.forPattern("yyyy.MM").format(now) + "-000003"));
         assertThat(response.isDryRun(), equalTo(false));
         assertThat(response.isRolledOver(), equalTo(true));
         assertThat(response.getConditionStatus().size(), equalTo(0));
 
-        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(response.getOldIndex(), response.getNewIndex()).get();
+        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(
+            masterNodeTimeout,
+            response.getOldIndex(),
+            response.getNewIndex()
+        ).get();
         assertEquals(
             "<test-{now/M{yyyy.MM}}-000002>",
             getSettingsResponse.getSetting(response.getOldIndex(), IndexMetadata.SETTING_INDEX_PROVIDED_NAME)
@@ -430,7 +438,7 @@ public class RolloverIT extends ESIntegTestCase {
             getSettingsResponse.getSetting(response.getNewIndex(), IndexMetadata.SETTING_INDEX_PROVIDED_NAME)
         );
 
-        response = indicesAdmin().prepareRolloverIndex("test_alias").setNewIndexName("<test-{now/d}-000004>").get();
+        response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias").setNewIndexName("<test-{now/d}-000004>").get();
         assertThat(response.getOldIndex(), equalTo("test-" + DateFormatter.forPattern("yyyy.MM").format(now) + "-000003"));
         assertThat(response.getNewIndex(), equalTo("test-" + DateFormatter.forPattern("yyyy.MM.dd").format(now) + "-000004"));
         assertThat(response.isDryRun(), equalTo(false));
@@ -449,7 +457,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // A large max_size
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(
                     RolloverConditions.newBuilder()
                         .addMaxIndexSizeCondition(new ByteSizeValue(randomIntBetween(100, 50 * 1024), ByteSizeUnit.MB))
@@ -466,7 +474,7 @@ public class RolloverIT extends ESIntegTestCase {
         {
             ByteSizeValue maxSizeValue = new ByteSizeValue(randomIntBetween(1, 20), ByteSizeUnit.BYTES);
             long beforeTime = client().threadPool().absoluteTimeInMillis() - 1000L;
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(RolloverConditions.newBuilder().addMaxIndexSizeCondition(maxSizeValue))
                 .get();
             assertThat(response.getOldIndex(), equalTo("test-1"));
@@ -484,7 +492,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // An empty index
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(
                     RolloverConditions.newBuilder()
                         .addMaxIndexSizeCondition(new ByteSizeValue(randomNonNegativeLong(), ByteSizeUnit.BYTES))
@@ -510,7 +518,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // A large max_primary_shard_size
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(
                     RolloverConditions.newBuilder()
                         .addMaxPrimaryShardSizeCondition(new ByteSizeValue(randomIntBetween(100, 50 * 1024), ByteSizeUnit.MB))
@@ -527,7 +535,7 @@ public class RolloverIT extends ESIntegTestCase {
         {
             ByteSizeValue maxPrimaryShardSizeCondition = new ByteSizeValue(randomIntBetween(1, 20), ByteSizeUnit.BYTES);
             long beforeTime = client().threadPool().absoluteTimeInMillis() - 1000L;
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(RolloverConditions.newBuilder().addMaxPrimaryShardSizeCondition(maxPrimaryShardSizeCondition))
                 .get();
             assertThat(response.getOldIndex(), equalTo("test-1"));
@@ -545,7 +553,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // An empty index
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(
                     RolloverConditions.newBuilder()
                         .addMaxPrimaryShardSizeCondition(new ByteSizeValue(randomNonNegativeLong(), ByteSizeUnit.BYTES))
@@ -573,7 +581,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // A large max_primary_shard_docs
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(RolloverConditions.newBuilder().addMaxPrimaryShardDocsCondition(randomLongBetween(21, 30)))
                 .get();
             assertThat(response.getOldIndex(), equalTo("test-1"));
@@ -587,7 +595,7 @@ public class RolloverIT extends ESIntegTestCase {
         {
             MaxPrimaryShardDocsCondition maxPrimaryShardDocsCondition = new MaxPrimaryShardDocsCondition(randomLongBetween(1, 9));
             long beforeTime = client().threadPool().absoluteTimeInMillis() - 1000L;
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(RolloverConditions.newBuilder().addMaxPrimaryShardDocsCondition(maxPrimaryShardDocsCondition.value))
                 .get();
             assertThat(response.getOldIndex(), equalTo("test-1"));
@@ -608,7 +616,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         // An empty index
         {
-            final RolloverResponse response = indicesAdmin().prepareRolloverIndex("test_alias")
+            final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "test_alias")
                 .setConditions(
                     RolloverConditions.newBuilder().addMaxPrimaryShardDocsCondition(randomNonNegativeLong()).addMinIndexDocsCondition(1L)
                 )
@@ -622,12 +630,15 @@ public class RolloverIT extends ESIntegTestCase {
     }
 
     public void testRejectIfAliasFoundInTemplate() throws Exception {
-        indicesAdmin().preparePutTemplate("logs").setPatterns(Collections.singletonList("logs-*")).addAlias(new Alias("logs-write")).get();
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "logs")
+            .setPatterns(Collections.singletonList("logs-*"))
+            .addAlias(new Alias("logs-write"))
+            .get();
         assertAcked(indicesAdmin().prepareCreate(masterNodeTimeout, "logs-000001").get());
         ensureYellow("logs-write");
         final IllegalArgumentException error = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().prepareRolloverIndex("logs-write")
+            indicesAdmin().prepareRolloverIndex(masterNodeTimeout, "logs-write")
         );
         assertThat(
             error.getMessage(),
@@ -654,7 +665,7 @@ public class RolloverIT extends ESIntegTestCase {
 
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, closedIndex).setTimeout(TimeValue.timeValueSeconds(60)).get());
 
-        RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(aliasName)
+        RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName)
             .setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1L))
             .get();
         assertTrue(rolloverResponse.isRolledOver());
@@ -680,7 +691,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(indicesAdmin().prepareClose(masterNodeTimeout, writeIndexPrefix + "000001").get());
         ensureGreen(aliasName);
 
-        RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(aliasName)
+        RolloverResponse rolloverResponse = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName)
             .setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1L))
             .get();
         assertTrue(rolloverResponse.isRolledOver());
@@ -698,7 +709,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate(firstIndexName).addAlias(new Alias(aliasName).writeIndex(true).isHidden(true)).get());
         indexDoc(aliasName, "1", "field", "value");
         refresh();
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(aliasName).get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName).get();
         assertThat(response.getOldIndex(), equalTo(firstIndexName));
         assertThat(response.getNewIndex(), equalTo(secondIndexName));
         assertThat(response.isDryRun(), equalTo(false));
@@ -732,7 +743,7 @@ public class RolloverIT extends ESIntegTestCase {
         assertAcked(prepareCreate(firstIndexName).addAlias(new Alias(aliasName).isHidden(true)).get());
         indexDoc(aliasName, "1", "field", "value");
         refresh();
-        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(aliasName).get();
+        final RolloverResponse response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName).get();
         assertThat(response.getOldIndex(), equalTo(firstIndexName));
         assertThat(response.getNewIndex(), equalTo(secondIndexName));
         assertThat(response.isDryRun(), equalTo(false));
@@ -771,7 +782,7 @@ public class RolloverIT extends ESIntegTestCase {
                 logger.info("--> [{}] waiting for all the other threads before starting", i);
                 barrier.await();
                 while (running.get()) {
-                    RolloverResponse resp = indicesAdmin().prepareRolloverIndex(aliasName)
+                    RolloverResponse resp = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName)
                         .setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(1L))
                         .get();
                     if (resp.isRolledOver()) {
@@ -848,7 +859,9 @@ public class RolloverIT extends ESIntegTestCase {
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                    var response = indicesAdmin().prepareRolloverIndex(aliasName).waitForActiveShards(ActiveShardCount.NONE).get();
+                    var response = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, aliasName)
+                        .waitForActiveShards(ActiveShardCount.NONE)
+                        .get();
                     assertThat(response.getOldIndex(), equalTo(aliasName + Strings.format("-%06d", j)));
                     assertThat(response.getNewIndex(), equalTo(aliasName + Strings.format("-%06d", j + 1)));
                     assertThat(response.isDryRun(), equalTo(false));

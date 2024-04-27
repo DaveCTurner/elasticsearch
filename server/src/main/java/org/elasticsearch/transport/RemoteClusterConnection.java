@@ -14,6 +14,7 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.support.ContextPreservingActionListener;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -148,7 +149,9 @@ final class RemoteClusterConnection implements Closeable {
                         }), RemoteClusterNodesAction.Response::new, TransportResponseHandler.TRANSPORT_WORKER)
                     );
                 } else {
-                    final ClusterStateRequest request = new ClusterStateRequest(masterNodeTimeout);
+                    final ClusterStateRequest request = new ClusterStateRequest(
+                        MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */
+                    );
                     request.clear();
                     request.nodes(true);
                     request.local(true); // run this on the node that gets the request it's as good as any other

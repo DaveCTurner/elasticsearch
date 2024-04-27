@@ -114,7 +114,7 @@ class BulkByScrollParallelizationHelper {
     ) {
         int configuredSlices = request.getSlices();
         if (configuredSlices == AbstractBulkByScrollRequest.AUTO_SLICES) {
-            ClusterSearchShardsRequest shardsRequest = new ClusterSearchShardsRequest();
+            ClusterSearchShardsRequest shardsRequest = new ClusterSearchShardsRequest(masterNodeTimeout);
             shardsRequest.indices(request.getSearchRequest().indices());
             client.admin().cluster().searchShards(shardsRequest, listener.safeMap(response -> {
                 setWorkerCount(request, task, countSlicesBasedOnShards(response));

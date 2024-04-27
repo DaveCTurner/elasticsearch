@@ -42,7 +42,7 @@ public class RestClusterSearchShardsAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        final ClusterSearchShardsRequest clusterSearchShardsRequest = new ClusterSearchShardsRequest(indices);
+        final ClusterSearchShardsRequest clusterSearchShardsRequest = new ClusterSearchShardsRequest(masterNodeTimeout, indices);
         clusterSearchShardsRequest.local(request.paramAsBoolean("local", clusterSearchShardsRequest.local()));
         clusterSearchShardsRequest.routing(request.param("routing"));
         clusterSearchShardsRequest.preference(request.param("preference"));

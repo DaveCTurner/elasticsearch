@@ -10,6 +10,7 @@ package org.elasticsearch.reservedstate;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.indices.settings.InternalOrPrivateSettingsPlugin;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xcontent.XContentParser;
@@ -30,7 +31,7 @@ public class ReservedClusterStateHandlerTests extends ESTestCase {
             }
 
             @Override
-            public ValidRequest fromXContent(XContentParser parser) throws IOException {
+            public ValidRequest fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return new ValidRequest();
             }
         };

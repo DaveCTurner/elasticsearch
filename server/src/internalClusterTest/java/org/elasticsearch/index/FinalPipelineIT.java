@@ -335,13 +335,13 @@ public class FinalPipelineIT extends ESIntegTestCase {
         final Settings defaultPipelineSettings = Settings.builder()
             .put(IndexSettings.DEFAULT_PIPELINE.getKey(), "default_pipeline")
             .build();
-        indicesAdmin().preparePutTemplate("default")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "default")
             .setPatterns(List.of("index*"))
             .setOrder(defaultPipelineOrder)
             .setSettings(defaultPipelineSettings)
             .get();
         final Settings finalPipelineSettings = Settings.builder().put(IndexSettings.FINAL_PIPELINE.getKey(), "final_pipeline").build();
-        indicesAdmin().preparePutTemplate("final")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "final")
             .setPatterns(List.of("index*"))
             .setOrder(finalPipelineOrder)
             .setSettings(finalPipelineSettings)
@@ -367,7 +367,7 @@ public class FinalPipelineIT extends ESIntegTestCase {
         final Settings lowOrderFinalPipelineSettings = Settings.builder()
             .put(IndexSettings.FINAL_PIPELINE.getKey(), "low_order_final_pipeline")
             .build();
-        indicesAdmin().preparePutTemplate("low_order")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "low_order")
             .setPatterns(List.of("index*"))
             .setOrder(lowOrder)
             .setSettings(lowOrderFinalPipelineSettings)
@@ -375,7 +375,7 @@ public class FinalPipelineIT extends ESIntegTestCase {
         final Settings highOrderFinalPipelineSettings = Settings.builder()
             .put(IndexSettings.FINAL_PIPELINE.getKey(), "high_order_final_pipeline")
             .build();
-        indicesAdmin().preparePutTemplate("high_order")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "high_order")
             .setPatterns(List.of("index*"))
             .setOrder(highOrder)
             .setSettings(highOrderFinalPipelineSettings)

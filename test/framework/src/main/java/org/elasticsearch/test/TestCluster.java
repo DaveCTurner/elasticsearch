@@ -170,13 +170,13 @@ public abstract class TestCluster {
      */
     public void wipeAllTemplates(Set<String> exclude) {
         if (size() > 0) {
-            GetIndexTemplatesResponse response = client().admin().indices().prepareGetTemplates().get();
+            GetIndexTemplatesResponse response = client().admin().indices().prepareGetTemplates(masterNodeTimeout).get();
             for (IndexTemplateMetadata indexTemplate : response.getIndexTemplates()) {
                 if (exclude.contains(indexTemplate.getName())) {
                     continue;
                 }
                 try {
-                    client().admin().indices().prepareDeleteTemplate(indexTemplate.getName()).get();
+                    client().admin().indices().prepareDeleteTemplate(masterNodeTimeout, indexTemplate.getName()).get();
                 } catch (IndexTemplateMissingException e) {
                     // ignore
                 }
@@ -196,7 +196,7 @@ public abstract class TestCluster {
             }
             for (String template : templates) {
                 try {
-                    client().admin().indices().prepareDeleteTemplate(template).get();
+                    client().admin().indices().prepareDeleteTemplate(masterNodeTimeout, template).get();
                 } catch (IndexTemplateMissingException e) {
                     // ignore
                 }

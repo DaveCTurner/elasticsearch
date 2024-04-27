@@ -65,7 +65,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
 
     @After
     public void afterEach() throws Exception {
-        assertAcked(indicesAdmin().prepareDeleteTemplate("*").get());
+        assertAcked(indicesAdmin().prepareDeleteTemplate(masterNodeTimeout, "*").get());
         assertAcked(
             client().execute(
                 TransportDeleteComposableIndexTemplateAction.TYPE,
@@ -160,7 +160,7 @@ public class CreateSystemIndicesIT extends ESIntegTestCase {
 
     private void createSystemAliasViaV1Template(String indexName, String primaryIndexName) throws Exception {
         assertAcked(
-            indicesAdmin().preparePutTemplate("test-template")
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, "test-template")
                 .setPatterns(List.of(indexName + "*"))
                 .addAlias(new Alias(indexName + "-legacy-alias"))
         );

@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.ilm.action;
 
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.license.XPackLicenseState;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -102,7 +103,7 @@ public class ReservedLifecycleAction implements ReservedClusterStateHandler<List
     }
 
     @Override
-    public List<LifecyclePolicy> fromXContent(XContentParser parser) throws IOException {
+    public List<LifecyclePolicy> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<LifecyclePolicy> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

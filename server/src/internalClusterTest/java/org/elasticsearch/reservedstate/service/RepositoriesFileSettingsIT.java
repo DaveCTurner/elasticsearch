@@ -137,7 +137,7 @@ public class RepositoriesFileSettingsIT extends ESIntegTestCase {
 
         final var reposResponse = client().execute(
             GetRepositoriesAction.INSTANCE,
-            new GetRepositoriesRequest(new String[] { "repo", "repo1" })
+            new GetRepositoriesRequest(masterNodeTimeout, new String[] { "repo", "repo1" })
         ).get();
 
         assertThat(
@@ -204,7 +204,7 @@ public class RepositoriesFileSettingsIT extends ESIntegTestCase {
             "[err-repo] missing",
             expectThrows(
                 RepositoryMissingException.class,
-                client().execute(GetRepositoriesAction.INSTANCE, new GetRepositoriesRequest(new String[] { "err-repo" }))
+                client().execute(GetRepositoriesAction.INSTANCE, new GetRepositoriesRequest(masterNodeTimeout, new String[] { "err-repo" }))
             ).getMessage()
         );
 

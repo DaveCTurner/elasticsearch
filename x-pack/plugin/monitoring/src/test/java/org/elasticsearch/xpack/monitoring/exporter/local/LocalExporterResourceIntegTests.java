@@ -188,7 +188,9 @@ public class LocalExporterResourceIntegTests extends LocalExporterIntegTestCase 
         final String templateName = MonitoringTemplateRegistry.getTemplateConfigForMonitoredSystem(system).getTemplateName();
         final BytesReference source = generateTemplateSource(templateName, version);
 
-        assertAcked(client().admin().indices().preparePutTemplate(templateName).setSource(source, XContentType.JSON).get());
+        assertAcked(
+            client().admin().indices().preparePutTemplate(masterNodeTimeout, templateName).setSource(source, XContentType.JSON).get()
+        );
     }
 
     /**
@@ -317,7 +319,11 @@ public class LocalExporterResourceIntegTests extends LocalExporterIntegTestCase 
     private void assertTemplateNotUpdated() {
         final String name = MonitoringTemplateRegistry.getTemplateConfigForMonitoredSystem(system).getTemplateName();
 
-        for (IndexTemplateMetadata template : client().admin().indices().prepareGetTemplates(name).get().getIndexTemplates()) {
+        for (IndexTemplateMetadata template : client().admin()
+            .indices()
+            .prepareGetTemplates(masterNodeTimeout, name)
+            .get()
+            .getIndexTemplates()) {
             final String docMapping = template.getMappings().toString();
 
             assertThat(docMapping, notNullValue());

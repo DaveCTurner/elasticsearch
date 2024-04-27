@@ -117,7 +117,7 @@ public class ClusterShardLimitIT extends ESIntegTestCase {
         }
 
         assertAcked(
-            indicesAdmin().preparePutTemplate("should-fail")
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, "should-fail")
                 .setPatterns(Collections.singletonList("should-fail"))
                 .setOrder(1)
                 .setSettings(indexSettings(counts.getFailingIndexShards(), counts.getFailingIndexReplicas()))

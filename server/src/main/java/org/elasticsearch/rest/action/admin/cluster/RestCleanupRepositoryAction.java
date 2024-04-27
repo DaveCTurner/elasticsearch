@@ -40,7 +40,7 @@ public class RestCleanupRepositoryAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String name = request.param("repository");
-        CleanupRepositoryRequest cleanupRepositoryRequest = new CleanupRepositoryRequest(name);
+        CleanupRepositoryRequest cleanupRepositoryRequest = new CleanupRepositoryRequest(masterNodeTimeout, name);
         cleanupRepositoryRequest.ackTimeout(request.paramAsTime("timeout", cleanupRepositoryRequest.ackTimeout()));
         cleanupRepositoryRequest.masterNodeTimeout(request.paramAsTime("master_timeout", cleanupRepositoryRequest.masterNodeTimeout()));
         return channel -> client.admin().cluster().cleanupRepository(cleanupRepositoryRequest, new RestToXContentListener<>(channel));

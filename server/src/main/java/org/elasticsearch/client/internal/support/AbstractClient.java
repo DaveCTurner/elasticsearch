@@ -671,7 +671,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterHealthRequestBuilder prepareHealth(String... indices) {
-            return new ClusterHealthRequestBuilder(this).setIndices(indices);
+            return new ClusterHealthRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
         @Override
@@ -686,7 +686,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterStateRequestBuilder prepareState() {
-            return new ClusterStateRequestBuilder(this);
+            return new ClusterStateRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -701,7 +701,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterRerouteRequestBuilder prepareReroute() {
-            return new ClusterRerouteRequestBuilder(this);
+            return new ClusterRerouteRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -719,7 +719,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterUpdateSettingsRequestBuilder prepareUpdateSettings() {
-            return new ClusterUpdateSettingsRequestBuilder(this);
+            return new ClusterUpdateSettingsRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -834,7 +834,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public PutRepositoryRequestBuilder preparePutRepository(String name) {
-            return new PutRepositoryRequestBuilder(this, name);
+            return new PutRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
@@ -849,12 +849,12 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public CreateSnapshotRequestBuilder prepareCreateSnapshot(String repository, String name) {
-            return new CreateSnapshotRequestBuilder(this, repository, name);
+            return new CreateSnapshotRequestBuilder(masterNodeTimeout, this, repository, name);
         }
 
         @Override
         public CloneSnapshotRequestBuilder prepareCloneSnapshot(String repository, String source, String target) {
-            return new CloneSnapshotRequestBuilder(this, repository, source, target);
+            return new CloneSnapshotRequestBuilder(masterNodeTimeout, this, repository, source, target);
         }
 
         @Override
@@ -879,7 +879,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public DeleteSnapshotRequestBuilder prepareDeleteSnapshot(String repository, String... names) {
-            return new DeleteSnapshotRequestBuilder(this, repository, names);
+            return new DeleteSnapshotRequestBuilder(masterNodeTimeout, this, repository, names);
         }
 
         @Override
@@ -889,7 +889,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public DeleteRepositoryRequestBuilder prepareDeleteRepository(String name) {
-            return new DeleteRepositoryRequestBuilder(this, name);
+            return new DeleteRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
@@ -934,7 +934,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public RestoreSnapshotRequestBuilder prepareRestoreSnapshot(String repository, String snapshot) {
-            return new RestoreSnapshotRequestBuilder(this, repository, snapshot);
+            return new RestoreSnapshotRequestBuilder(masterNodeTimeout, this, repository, snapshot);
         }
 
         @Override
@@ -1400,7 +1400,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public PutIndexTemplateRequestBuilder preparePutTemplate(String name) {
+        public PutIndexTemplateRequestBuilder preparePutTemplate(TimeValue masterNodeTimeout, String name) {
             return new PutIndexTemplateRequestBuilder(masterNodeTimeout, this, name);
         }
 
@@ -1410,7 +1410,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetIndexTemplatesRequestBuilder prepareGetTemplates(String... names) {
+        public GetIndexTemplatesRequestBuilder prepareGetTemplates(TimeValue masterNodeTimeout, String... names) {
             return new GetIndexTemplatesRequestBuilder(masterNodeTimeout, this, names);
         }
 
@@ -1420,7 +1420,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public DeleteIndexTemplateRequestBuilder prepareDeleteTemplate(String name) {
+        public DeleteIndexTemplateRequestBuilder prepareDeleteTemplate(TimeValue masterNodeTimeout, String name) {
             return new DeleteIndexTemplateRequestBuilder(masterNodeTimeout, this, name);
         }
 
@@ -1440,7 +1440,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public GetSettingsRequestBuilder prepareGetSettings(String... indices) {
+        public GetSettingsRequestBuilder prepareGetSettings(TimeValue masterNodeTimeout, String... indices) {
             return new GetSettingsRequestBuilder(masterNodeTimeout, this, indices);
         }
 
@@ -1457,7 +1457,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public RolloverRequestBuilder prepareRolloverIndex(String alias) {
+        public RolloverRequestBuilder prepareRolloverIndex(TimeValue masterNodeTimeout, String alias) {
             return new RolloverRequestBuilder(masterNodeTimeout, this).setRolloverTarget(alias);
         }
 

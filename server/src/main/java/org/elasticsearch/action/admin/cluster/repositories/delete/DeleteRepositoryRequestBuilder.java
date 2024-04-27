@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.cluster.repositories.delete;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for unregister repository request
@@ -23,7 +24,7 @@ public class DeleteRepositoryRequestBuilder extends AcknowledgedRequestBuilder<
     /**
      * Constructs unregister repository request builder with specified repository name
      */
-    public DeleteRepositoryRequestBuilder(ElasticsearchClient client, String name) {
+    public DeleteRepositoryRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String name) {
         super(client, TransportDeleteRepositoryAction.TYPE, new DeleteRepositoryRequest(masterNodeTimeout, name));
     }
 

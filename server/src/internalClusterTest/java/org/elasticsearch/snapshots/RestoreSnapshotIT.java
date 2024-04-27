@@ -318,7 +318,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(mappings.sourceAsMap().toString(), not(containsString("foo")));
 
         logger.info("--> assert that old settings are restored");
-        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings("test-idx").get();
+        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "test-idx").get();
         assertThat(getSettingsResponse.getSetting("test-idx", "index.refresh_interval"), equalTo("10s"));
     }
 
@@ -395,7 +395,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("-->  creating test template");
         assertAcked(
-            indicesAdmin().preparePutTemplate("test-template")
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, "test-template")
                 .setPatterns(Collections.singletonList("te*"))
                 .setMapping(
                     XContentFactory.jsonBuilder()
@@ -420,8 +420,8 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(getSnapshot("test-repo", "test-snap").state(), equalTo(SnapshotState.SUCCESS));
 
         logger.info("-->  delete test template");
-        assertThat(indicesAdmin().prepareDeleteTemplate("test-template").get().isAcknowledged(), equalTo(true));
-        GetIndexTemplatesResponse getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates().get();
+        assertThat(indicesAdmin().prepareDeleteTemplate(masterNodeTimeout, "test-template").get().isAcknowledged(), equalTo(true));
+        GetIndexTemplatesResponse getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates(masterNodeTimeout).get();
         assertIndexTemplateMissing(getIndexTemplatesResponse, "test-template");
 
         logger.info("--> restore cluster state");
@@ -433,7 +433,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), equalTo(0));
 
         logger.info("--> check that template is restored");
-        getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates().get();
+        getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates(masterNodeTimeout).get();
         assertIndexTemplateExists(getIndexTemplatesResponse, "test-template");
     }
 
@@ -727,7 +727,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
         logger.info("--> assert that correct settings are restored");
-        GetSettingsResponse getSettingsResponse = client.admin().indices().prepareGetSettings("test-idx").get();
+        GetSettingsResponse getSettingsResponse = client.admin().indices().prepareGetSettings(masterNodeTimeout, "test-idx").get();
         assertThat(getSettingsResponse.getSetting("test-idx", INDEX_REFRESH_INTERVAL_SETTING.getKey()), equalTo("5s"));
         // Make sure that number of shards didn't change
         assertThat(getSettingsResponse.getSetting("test-idx", SETTING_NUMBER_OF_SHARDS), equalTo("" + numberOfShards));
@@ -750,7 +750,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
         logger.info("--> assert that correct settings are restored and index is still functional");
-        getSettingsResponse = client.admin().indices().prepareGetSettings("test-idx").get();
+        getSettingsResponse = client.admin().indices().prepareGetSettings(masterNodeTimeout, "test-idx").get();
         assertThat(getSettingsResponse.getSetting("test-idx", INDEX_REFRESH_INTERVAL_SETTING.getKey()), equalTo("5s"));
         // Make sure that number of shards didn't change
         assertThat(getSettingsResponse.getSetting("test-idx", SETTING_NUMBER_OF_SHARDS), equalTo("" + numberOfShards));

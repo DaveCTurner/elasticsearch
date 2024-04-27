@@ -57,7 +57,7 @@ public class RestGetSnapshotsAction extends BaseRestHandler {
         String[] repositories = request.paramAsStringArray("repository", Strings.EMPTY_ARRAY);
         String[] snapshots = request.paramAsStringArray("snapshot", Strings.EMPTY_ARRAY);
 
-        GetSnapshotsRequest getSnapshotsRequest = new GetSnapshotsRequest(repositories).snapshots(snapshots);
+        GetSnapshotsRequest getSnapshotsRequest = new GetSnapshotsRequest(masterNodeTimeout, repositories).snapshots(snapshots);
         getSnapshotsRequest.ignoreUnavailable(request.paramAsBoolean("ignore_unavailable", getSnapshotsRequest.ignoreUnavailable()));
         getSnapshotsRequest.verbose(request.paramAsBoolean("verbose", getSnapshotsRequest.verbose()));
         final SnapshotSortKey sort = SnapshotSortKey.of(request.param("sort", getSnapshotsRequest.sort().toString()));

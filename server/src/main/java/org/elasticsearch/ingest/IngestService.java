@@ -24,6 +24,7 @@ import org.elasticsearch.action.ingest.DeletePipelineRequest;
 import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
@@ -319,7 +320,7 @@ public class IngestService implements ClusterStateApplier, ReportingService<Inge
          * Used by the {@link org.elasticsearch.action.ingest.ReservedPipelineAction}
          */
         public DeletePipelineClusterStateUpdateTask(String id) {
-            this(null, new DeletePipelineRequest(masterNodeTimeout, id));
+            this(null, new DeletePipelineRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, id));
         }
 
         @Override

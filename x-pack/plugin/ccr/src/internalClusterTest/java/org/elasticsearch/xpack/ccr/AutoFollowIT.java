@@ -670,7 +670,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
         assertTrue(followerClient().execute(PutAutoFollowPatternAction.INSTANCE, followRequest).get().isAcknowledged());
 
         logger.info("--> roll over once and wait for the auto-follow to pick up the new index");
-        leaderClient().admin().indices().prepareRolloverIndex("logs-1").get();
+        leaderClient().admin().indices().prepareRolloverIndex(masterNodeTimeout, "logs-1").get();
         assertLongBusy(() -> {
             AutoFollowStats autoFollowStats = getAutoFollowStats();
             assertThat(autoFollowStats.getNumberOfSuccessfulFollowIndices(), equalTo(1L));
@@ -678,7 +678,10 @@ public class AutoFollowIT extends CcrIntegTestCase {
 
         ensureFollowerGreen("*");
 
-        final RolloverResponse rolloverResponse = leaderClient().admin().indices().prepareRolloverIndex(datastream).get();
+        final RolloverResponse rolloverResponse = leaderClient().admin()
+            .indices()
+            .prepareRolloverIndex(masterNodeTimeout, datastream)
+            .get();
         final String indexInDatastream = rolloverResponse.getOldIndex();
 
         logger.info("--> closing [{}] on follower so it will be re-opened by crr", indexInDatastream);

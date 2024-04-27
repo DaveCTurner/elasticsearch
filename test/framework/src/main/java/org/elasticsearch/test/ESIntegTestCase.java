@@ -430,7 +430,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             if (randomBoolean()) {
                 randomSettingsBuilder.put(IndexModule.INDEX_QUERY_CACHE_ENABLED_SETTING.getKey(), randomBoolean());
             }
-            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate("random_index_template")
+            PutIndexTemplateRequestBuilder putTemplate = indicesAdmin().preparePutTemplate(masterNodeTimeout, "random_index_template")
                 .setPatterns(Collections.singletonList("*"))
                 .setOrder(0)
                 .setSettings(randomSettingsBuilder);

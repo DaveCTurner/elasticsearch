@@ -62,7 +62,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
 
     @After
     public void afterEach() {
-        assertAcked(indicesAdmin().prepareDeleteTemplate("*").get());
+        assertAcked(indicesAdmin().prepareDeleteTemplate(masterNodeTimeout, "*").get());
         indicesAdmin().prepareDelete(masterNodeTimeout, PRIMARY_INDEX_NAME);
     }
 
@@ -163,7 +163,7 @@ public class AutoCreateSystemIndexIT extends ESIntegTestCase {
 
     private String autoCreateSystemAliasViaV1Template(String indexName) throws Exception {
         assertAcked(
-            indicesAdmin().preparePutTemplate("test-template")
+            indicesAdmin().preparePutTemplate(masterNodeTimeout, "test-template")
                 .setPatterns(List.of(indexName + "*"))
                 .addAlias(new Alias(indexName + "-legacy-alias"))
         );

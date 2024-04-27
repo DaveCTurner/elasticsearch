@@ -130,7 +130,7 @@ public class SimpleClusterStateIT extends ESIntegTestCase {
     }
 
     public void testIndexTemplates() throws Exception {
-        indicesAdmin().preparePutTemplate("foo_template")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "foo_template")
             .setPatterns(Collections.singletonList("te*"))
             .setOrder(0)
             .setMapping(
@@ -152,7 +152,7 @@ public class SimpleClusterStateIT extends ESIntegTestCase {
             )
             .get();
 
-        indicesAdmin().preparePutTemplate("fuu_template")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "fuu_template")
             .setPatterns(Collections.singletonList("test*"))
             .setOrder(1)
             .setMapping(
@@ -173,7 +173,7 @@ public class SimpleClusterStateIT extends ESIntegTestCase {
         ClusterStateResponse clusterStateResponseUnfiltered = clusterAdmin().prepareState().get();
         assertThat(clusterStateResponseUnfiltered.getState().metadata().templates().size(), is(greaterThanOrEqualTo(2)));
 
-        GetIndexTemplatesResponse getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates("foo_template").get();
+        GetIndexTemplatesResponse getIndexTemplatesResponse = indicesAdmin().prepareGetTemplates(masterNodeTimeout, "foo_template").get();
         assertIndexTemplateExists(getIndexTemplatesResponse, "foo_template");
     }
 

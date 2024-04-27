@@ -274,7 +274,7 @@ public class SnapshotResiliencyTests extends ESTestCase {
                 assertThat(snapshotInfo.state(), either(is(SnapshotState.SUCCESS)).or(is(SnapshotState.PARTIAL)));
                 assertThat(snapshotInfo.shardFailures(), iterableWithSize(snapshotInfo.failedShards()));
                 assertThat(snapshotInfo.successfulShards(), is(snapshotInfo.totalShards() - snapshotInfo.failedShards()));
-                client().admin().cluster().cleanupRepository(new CleanupRepositoryRequest("repo"), cleanupResponse);
+                client().admin().cluster().cleanupRepository(new CleanupRepositoryRequest(masterNodeTimeout, "repo"), cleanupResponse);
             });
             final AtomicBoolean cleanedUp = new AtomicBoolean(false);
             continueOrDie(cleanupResponse, r -> cleanedUp.set(true));

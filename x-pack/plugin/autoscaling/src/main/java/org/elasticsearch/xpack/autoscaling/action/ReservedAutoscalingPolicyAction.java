@@ -8,6 +8,7 @@
 package org.elasticsearch.xpack.autoscaling.action;
 
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
 import org.elasticsearch.xcontent.XContentParser;
@@ -82,7 +83,7 @@ public class ReservedAutoscalingPolicyAction implements ReservedClusterStateHand
     }
 
     @Override
-    public List<PutAutoscalingPolicyAction.Request> fromXContent(XContentParser parser) throws IOException {
+    public List<PutAutoscalingPolicyAction.Request> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<PutAutoscalingPolicyAction.Request> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

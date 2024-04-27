@@ -19,7 +19,7 @@ public class ClusterStateRequestBuilder extends MasterNodeReadOperationRequestBu
     ClusterStateResponse,
     ClusterStateRequestBuilder> {
 
-    public ClusterStateRequestBuilder(ElasticsearchClient client) {
+    public ClusterStateRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, ClusterStateAction.INSTANCE, new ClusterStateRequest(masterNodeTimeout));
     }
 

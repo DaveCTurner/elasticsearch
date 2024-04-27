@@ -261,7 +261,7 @@ public class MetadataIndexTemplateServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testFindTemplates() throws Exception {
-        client().admin().indices().prepareDeleteTemplate("*").get(); // Delete all existing templates
+        client().admin().indices().prepareDeleteTemplate(masterNodeTimeout, "*").get(); // Delete all existing templates
         putTemplateDetail(new PutRequest("test", "foo-1").patterns(singletonList("foo-*")).order(1));
         putTemplateDetail(new PutRequest("test", "foo-2").patterns(singletonList("foo-*")).order(2));
         putTemplateDetail(new PutRequest("test", "bar").patterns(singletonList("bar-*")).order(between(0, 100)));
@@ -284,7 +284,7 @@ public class MetadataIndexTemplateServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testFindTemplatesWithHiddenIndices() throws Exception {
-        client().admin().indices().prepareDeleteTemplate("*").get(); // Delete all existing templates
+        client().admin().indices().prepareDeleteTemplate(masterNodeTimeout, "*").get(); // Delete all existing templates
         putTemplateDetail(new PutRequest("testFindTemplatesWithHiddenIndices", "foo-1").patterns(singletonList("foo-*")).order(1));
         putTemplateDetail(new PutRequest("testFindTemplatesWithHiddenIndices", "foo-2").patterns(singletonList("foo-*")).order(2));
         putTemplateDetail(
@@ -377,7 +377,7 @@ public class MetadataIndexTemplateServiceTests extends ESSingleNodeTestCase {
     }
 
     public void testFindTemplatesWithDateMathIndex() throws Exception {
-        client().admin().indices().prepareDeleteTemplate("*").get(); // Delete all existing templates
+        client().admin().indices().prepareDeleteTemplate(masterNodeTimeout, "*").get(); // Delete all existing templates
         putTemplateDetail(new PutRequest("testFindTemplatesWithDateMathIndex", "foo-1").patterns(singletonList("test-*")).order(1));
         final ClusterState state = clusterAdmin().prepareState().get().getState();
 

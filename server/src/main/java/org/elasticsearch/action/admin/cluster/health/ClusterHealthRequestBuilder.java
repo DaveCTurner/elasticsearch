@@ -21,7 +21,7 @@ public class ClusterHealthRequestBuilder extends MasterNodeReadOperationRequestB
     ClusterHealthResponse,
     ClusterHealthRequestBuilder> {
 
-    public ClusterHealthRequestBuilder(ElasticsearchClient client) {
+    public ClusterHealthRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportClusterHealthAction.TYPE, new ClusterHealthRequest(masterNodeTimeout));
     }
 

@@ -9,8 +9,10 @@ package org.elasticsearch.action.admin.cluster.repositories.cleanup;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -20,13 +22,13 @@ public class CleanupRepositoryRequest extends AcknowledgedRequest<CleanupReposit
 
     private String repository;
 
-    public CleanupRepositoryRequest(String repository) {
+    public CleanupRepositoryRequest(TimeValue masterNodeTimeout, String repository) {
         super(masterNodeTimeout);
         this.repository = repository;
     }
 
     public CleanupRepositoryRequest(StreamInput in) throws IOException {
-        super(masterNodeTimeout);
+        super(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO bug!! should read this from the wire */);
         repository = in.readString();
     }
 

@@ -10,6 +10,7 @@ package org.elasticsearch.xpack.security.action.rolemapping;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.GroupedActionListener;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.NonStateTransformResult;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -137,7 +138,7 @@ public class ReservedRoleMappingAction implements ReservedClusterStateHandler<Li
     }
 
     @Override
-    public List<ExpressionRoleMapping> fromXContent(XContentParser parser) throws IOException {
+    public List<ExpressionRoleMapping> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<ExpressionRoleMapping> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

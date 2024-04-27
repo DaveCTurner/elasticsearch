@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.service.MasterServiceTaskQueue;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Releasable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.NonStateTransformResult;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
@@ -296,7 +297,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
             }
 
             @Override
-            public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+            public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return parser.map();
             }
         };
@@ -313,7 +314,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
             }
 
             @Override
-            public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+            public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return parser.map();
             }
         };
@@ -430,7 +431,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
             }
 
             @Override
-            public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+            public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return parser.map();
             }
         };
@@ -525,7 +526,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
             }
 
             @Override
-            public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+            public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return parser.map();
             }
         };
@@ -546,7 +547,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
             }
 
             @Override
-            public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+            public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                 return parser.map();
             }
         };
@@ -618,7 +619,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
                 }
 
                 @Override
-                public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+                public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
                     return parser.map();
                 }
             };
@@ -686,7 +687,7 @@ public class ReservedClusterStateServiceTests extends ESTestCase {
         }
 
         @Override
-        public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+        public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
             return parser.map();
         }
     }

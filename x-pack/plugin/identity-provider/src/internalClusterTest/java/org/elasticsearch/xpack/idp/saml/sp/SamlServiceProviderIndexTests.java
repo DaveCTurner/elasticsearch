@@ -74,7 +74,7 @@ public class SamlServiceProviderIndexTests extends ESSingleNodeTestCase {
     @After
     public void deleteTemplateAndIndex() {
         indicesAdmin().delete(new DeleteIndexRequest(SamlServiceProviderIndex.INDEX_NAME + "*", masterNodeTimeout)).actionGet();
-        indicesAdmin().prepareDeleteTemplate(SamlServiceProviderIndex.TEMPLATE_NAME).get();
+        indicesAdmin().prepareDeleteTemplate(masterNodeTimeout, SamlServiceProviderIndex.TEMPLATE_NAME).get();
         serviceProviderIndex.close();
     }
 

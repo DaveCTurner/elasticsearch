@@ -8,6 +8,7 @@
 package org.elasticsearch.xpack.slm.action;
 
 import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
 import org.elasticsearch.xcontent.XContentParser;
@@ -99,7 +100,7 @@ public class ReservedSnapshotAction implements ReservedClusterStateHandler<List<
     }
 
     @Override
-    public List<SnapshotLifecyclePolicy> fromXContent(XContentParser parser) throws IOException {
+    public List<SnapshotLifecyclePolicy> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         List<SnapshotLifecyclePolicy> result = new ArrayList<>();
 
         Map<String, ?> source = parser.map();

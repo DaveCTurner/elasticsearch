@@ -56,7 +56,7 @@ public class DataTierDataStreamIT extends ESIntegTestCase {
         ensureYellow(index);
 
         // Roll over index and ensure the second index also went to the "hot" tier
-        var rolledOverIndexName = indicesAdmin().prepareRolloverIndex(index).get().getNewIndex();
+        var rolledOverIndexName = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, index).get().getNewIndex();
 
         // new index name should have the rolled over name
         assertNotEquals(dsIndexName, rolledOverIndexName);

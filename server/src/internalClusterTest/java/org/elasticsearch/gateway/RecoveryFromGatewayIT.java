@@ -384,7 +384,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         }
 
         logger.info("--> add some metadata and additional template");
-        indicesAdmin().preparePutTemplate("template_1")
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "template_1")
             .setPatterns(Collections.singletonList("te*"))
             .setOrder(0)
             .setMapping(
@@ -585,7 +585,7 @@ public class RecoveryFromGatewayIT extends ESIntegTestCase {
         final String nodeName = internalCluster().startNode();
         createIndex("test", Settings.builder().put(SETTING_NUMBER_OF_SHARDS, 1).build());
         final String customDataPath = IndexMetadata.INDEX_DATA_PATH_SETTING.get(
-            indicesAdmin().prepareGetSettings("test").get().getIndexToSettings().get("test")
+            indicesAdmin().prepareGetSettings(masterNodeTimeout, "test").get().getIndexToSettings().get("test")
         );
         final Index index = resolveIndex("test");
         final ShardId shardId = new ShardId(index, 0);

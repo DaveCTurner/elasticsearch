@@ -11,6 +11,7 @@ package org.elasticsearch.action.admin.cluster.settings;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Map;
@@ -23,7 +24,7 @@ public class ClusterUpdateSettingsRequestBuilder extends AcknowledgedRequestBuil
     ClusterUpdateSettingsResponse,
     ClusterUpdateSettingsRequestBuilder> {
 
-    public ClusterUpdateSettingsRequestBuilder(ElasticsearchClient client) {
+    public ClusterUpdateSettingsRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, ClusterUpdateSettingsAction.INSTANCE, new ClusterUpdateSettingsRequest(masterNodeTimeout));
     }
 

@@ -412,7 +412,7 @@ public class SearchableSnapshotsRepositoryIntegTests extends BaseFrozenSearchabl
 
     @Nullable
     private static String getDeleteSnapshotIndexSetting(String indexName) {
-        final GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(indexName).get();
+        final GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, indexName).get();
         return getSettingsResponse.getSetting(indexName, SEARCHABLE_SNAPSHOTS_DELETE_SNAPSHOT_ON_INDEX_DELETION);
     }
 }

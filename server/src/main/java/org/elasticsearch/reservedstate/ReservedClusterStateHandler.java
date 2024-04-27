@@ -10,6 +10,7 @@ package org.elasticsearch.reservedstate;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentParser;
 
 import java.io.IOException;
@@ -116,9 +117,10 @@ public interface ReservedClusterStateHandler<T> {
      * to implement a method to convert an XContent to an object it can consume later in
      * transform
      *
-     * @param parser the XContent parser we are parsing from
+     * @param masterNodeTimeout
+     * @param parser            the XContent parser we are parsing from
      * @return
      * @throws IOException
      */
-    T fromXContent(XContentParser parser) throws IOException;
+    T fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException;
 }

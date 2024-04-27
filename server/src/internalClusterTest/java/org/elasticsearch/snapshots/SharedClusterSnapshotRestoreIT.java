@@ -201,7 +201,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertDocCount("test-idx-3", 50L);
 
         assertNull(
-            indicesAdmin().prepareGetSettings("test-idx-1")
+            indicesAdmin().prepareGetSettings(masterNodeTimeout, "test-idx-1")
                 .get()
                 .getSetting("test-idx-1", MetadataIndexStateService.VERIFIED_BEFORE_CLOSE_SETTING.getKey())
         );
@@ -230,7 +230,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(clusterState.getMetadata().hasIndex("test-idx-2"), equalTo(false));
 
         assertNull(
-            indicesAdmin().prepareGetSettings("test-idx-1")
+            indicesAdmin().prepareGetSettings(masterNodeTimeout, "test-idx-1")
                 .get()
                 .getSetting("test-idx-1", MetadataIndexStateService.VERIFIED_BEFORE_CLOSE_SETTING.getKey())
         );
@@ -278,7 +278,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         createRepository("test-repo", "fs");
 
         createIndex("test");
-        String originalIndexUUID = indicesAdmin().prepareGetSettings("test").get().getSetting("test", IndexMetadata.SETTING_INDEX_UUID);
+        String originalIndexUUID = indicesAdmin().prepareGetSettings(masterNodeTimeout, "test")
+            .get()
+            .getSetting("test", IndexMetadata.SETTING_INDEX_UUID);
         assertTrue(originalIndexUUID, originalIndexUUID != null);
         assertFalse(originalIndexUUID, originalIndexUUID.equals(IndexMetadata.INDEX_UUID_NA_VALUE));
         ensureGreen();
@@ -288,7 +290,9 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         cluster().wipeIndices("test");
         assertAcked(prepareCreate("test").setSettings(Settings.builder().put(SETTING_NUMBER_OF_SHARDS, numShards.numPrimaries)));
         ensureGreen();
-        String newIndexUUID = indicesAdmin().prepareGetSettings("test").get().getSetting("test", IndexMetadata.SETTING_INDEX_UUID);
+        String newIndexUUID = indicesAdmin().prepareGetSettings(masterNodeTimeout, "test")
+            .get()
+            .getSetting("test", IndexMetadata.SETTING_INDEX_UUID);
         assertTrue(newIndexUUID, newIndexUUID != null);
         assertFalse(newIndexUUID, newIndexUUID.equals(IndexMetadata.INDEX_UUID_NA_VALUE));
         assertFalse(newIndexUUID, newIndexUUID.equals(originalIndexUUID));
@@ -302,7 +306,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
         ensureGreen();
-        String newAfterRestoreIndexUUID = indicesAdmin().prepareGetSettings("test")
+        String newAfterRestoreIndexUUID = indicesAdmin().prepareGetSettings(masterNodeTimeout, "test")
             .get()
             .getSetting("test", IndexMetadata.SETTING_INDEX_UUID);
         assertTrue(
@@ -318,7 +322,7 @@ public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCas
             .get();
         assertThat(restoreSnapshotResponse.getRestoreInfo().totalShards(), greaterThan(0));
 
-        String copyRestoreUUID = indicesAdmin().prepareGetSettings("test-copy")
+        String copyRestoreUUID = indicesAdmin().prepareGetSettings(masterNodeTimeout, "test-copy")
             .get()
             .getSetting("test-copy", IndexMetadata.SETTING_INDEX_UUID);
         assertFalse(

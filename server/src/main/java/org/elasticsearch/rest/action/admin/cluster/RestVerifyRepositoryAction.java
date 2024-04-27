@@ -37,7 +37,7 @@ public class RestVerifyRepositoryAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String name = request.param("repository");
-        VerifyRepositoryRequest verifyRepositoryRequest = new VerifyRepositoryRequest(name);
+        VerifyRepositoryRequest verifyRepositoryRequest = new VerifyRepositoryRequest(masterNodeTimeout, name);
         verifyRepositoryRequest.masterNodeTimeout(request.paramAsTime("master_timeout", verifyRepositoryRequest.masterNodeTimeout()));
         verifyRepositoryRequest.ackTimeout(request.paramAsTime("timeout", verifyRepositoryRequest.ackTimeout()));
         return channel -> client.admin().cluster().verifyRepository(verifyRepositoryRequest, new RestToXContentListener<>(channel));

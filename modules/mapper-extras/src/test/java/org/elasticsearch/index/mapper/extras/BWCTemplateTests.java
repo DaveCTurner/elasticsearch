@@ -30,9 +30,9 @@ public class BWCTemplateTests extends ESSingleNodeTestCase {
         byte[] metricBeat = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/extras/metricbeat-6.0.template.json");
         byte[] packetBeat = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/extras/packetbeat-6.0.template.json");
         byte[] fileBeat = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/extras/filebeat-6.0.template.json");
-        indicesAdmin().preparePutTemplate("metricbeat").setSource(metricBeat, XContentType.JSON).get();
-        indicesAdmin().preparePutTemplate("packetbeat").setSource(packetBeat, XContentType.JSON).get();
-        indicesAdmin().preparePutTemplate("filebeat").setSource(fileBeat, XContentType.JSON).get();
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "metricbeat").setSource(metricBeat, XContentType.JSON).get();
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "packetbeat").setSource(packetBeat, XContentType.JSON).get();
+        indicesAdmin().preparePutTemplate(masterNodeTimeout, "filebeat").setSource(fileBeat, XContentType.JSON).get();
 
         prepareIndex("metricbeat-foo").setId("1").setSource("message", "foo").get();
         prepareIndex("packetbeat-foo").setId("1").setSource("message", "foo").get();

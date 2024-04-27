@@ -519,9 +519,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Puts an index template.
      *
-     * @param name The name of the template.
+     * @param masterNodeTimeout
+     * @param name              The name of the template.
      */
-    PutIndexTemplateRequestBuilder preparePutTemplate(String name);
+    PutIndexTemplateRequestBuilder preparePutTemplate(TimeValue masterNodeTimeout, String name);
 
     /**
      * Deletes an index template.
@@ -531,9 +532,10 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Deletes an index template.
      *
-     * @param name The name of the template.
+     * @param masterNodeTimeout
+     * @param name              The name of the template.
      */
-    DeleteIndexTemplateRequestBuilder prepareDeleteTemplate(String name);
+    DeleteIndexTemplateRequestBuilder prepareDeleteTemplate(TimeValue masterNodeTimeout, String name);
 
     /**
      * Gets an index template.
@@ -543,7 +545,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Gets an index template (optional).
      */
-    GetIndexTemplatesRequestBuilder prepareGetTemplates(String... name);
+    GetIndexTemplatesRequestBuilder prepareGetTemplates(TimeValue masterNodeTimeout, String... name);
 
     /**
      * Validate a query for correctness.
@@ -581,10 +583,12 @@ public interface IndicesAdminClient extends ElasticsearchClient {
 
     /**
      * Returns a builder for a per index settings get request.
-     * @param indices the indices to fetch the setting for.
+     *
+     * @param masterNodeTimeout
+     * @param indices           the indices to fetch the setting for.
      * @see #getSettings(org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest)
      */
-    GetSettingsRequestBuilder prepareGetSettings(String... indices);
+    GetSettingsRequestBuilder prepareGetSettings(TimeValue masterNodeTimeout, String... indices);
 
     /**
      * Resize an index using an explicit request allowing to specify the settings, mappings and aliases of the target index of the index.
@@ -599,7 +603,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Swaps the index pointed to by an alias given all provided conditions are satisfied
      */
-    RolloverRequestBuilder prepareRolloverIndex(String sourceAlias);
+    RolloverRequestBuilder prepareRolloverIndex(TimeValue masterNodeTimeout, String sourceAlias);
 
     /**
      * Swaps the index pointed to by an alias given all provided conditions are satisfied

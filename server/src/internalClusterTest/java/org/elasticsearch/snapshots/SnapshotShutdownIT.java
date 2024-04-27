@@ -222,7 +222,7 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         // and succeeds
         final var snapshots = safeAwait(
             SubscribableListener.<GetSnapshotsResponse>newForked(
-                l -> client().admin().cluster().getSnapshots(new GetSnapshotsRequest(repoName), l)
+                l -> client().admin().cluster().getSnapshots(new GetSnapshotsRequest(masterNodeTimeout, repoName), l)
             )
         ).getSnapshots();
         assertThat(snapshots, hasSize(1));

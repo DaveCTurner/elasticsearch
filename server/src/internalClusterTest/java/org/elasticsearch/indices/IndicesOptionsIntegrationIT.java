@@ -579,12 +579,12 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
         verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "bar*").setSettings(Settings.builder().put("a", "b")), false);
         verify(indicesAdmin().prepareUpdateSettings(masterNodeTimeout, "_all").setSettings(Settings.builder().put("c", "d")), false);
 
-        GetSettingsResponse settingsResponse = indicesAdmin().prepareGetSettings("foo").get();
+        GetSettingsResponse settingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "foo").get();
         assertThat(settingsResponse.getSetting("foo", "index.a"), equalTo("b"));
-        settingsResponse = indicesAdmin().prepareGetSettings("bar*").get();
+        settingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "bar*").get();
         assertThat(settingsResponse.getSetting("bar", "index.a"), equalTo("b"));
         assertThat(settingsResponse.getSetting("barbaz", "index.a"), equalTo("b"));
-        settingsResponse = indicesAdmin().prepareGetSettings("_all").get();
+        settingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "_all").get();
         assertThat(settingsResponse.getSetting("foo", "index.c"), equalTo("d"));
         assertThat(settingsResponse.getSetting("foobar", "index.c"), equalTo("d"));
         assertThat(settingsResponse.getSetting("bar", "index.c"), equalTo("d"));
@@ -652,7 +652,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     }
 
     static GetSettingsRequestBuilder getSettings(String... indices) {
-        return indicesAdmin().prepareGetSettings(indices);
+        return indicesAdmin().prepareGetSettings(masterNodeTimeout, indices);
     }
 
     private static CreateSnapshotRequestBuilder snapshot(String name, String... indices) {

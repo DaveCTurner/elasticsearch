@@ -100,7 +100,7 @@ public class LifecycleOperationSnapshotTests extends ESSingleNodeTestCase {
             try {
                 GetSnapshotsResponse getResp = client().execute(
                     TransportGetSnapshotsAction.TYPE,
-                    new GetSnapshotsRequest(new String[] { "repo" }, new String[] { snapshotName })
+                    new GetSnapshotsRequest(masterNodeTimeout, new String[] { "repo" }, new String[] { snapshotName })
                 ).get();
                 assertThat(getResp.getSnapshots().size(), equalTo(1));
                 assertThat(getResp.getSnapshots().get(0).state(), equalTo(SnapshotState.SUCCESS));

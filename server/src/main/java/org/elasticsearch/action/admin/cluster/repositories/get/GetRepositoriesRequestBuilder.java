@@ -24,7 +24,7 @@ public class GetRepositoriesRequestBuilder extends MasterNodeReadOperationReques
      * Creates new get repository request builder
      */
     public GetRepositoriesRequestBuilder(ElasticsearchClient client, String... repositories) {
-        super(client, GetRepositoriesAction.INSTANCE, new GetRepositoriesRequest(repositories));
+        super(client, GetRepositoriesAction.INSTANCE, new GetRepositoriesRequest(masterNodeTimeout, repositories));
     }
 
     /**

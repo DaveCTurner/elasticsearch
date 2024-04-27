@@ -33,7 +33,7 @@ import static org.mockito.Mockito.mock;
 public class ReservedAutoscalingPolicyTests extends ESTestCase {
     private TransformState processJSON(ReservedAutoscalingPolicyAction action, TransformState prevState, String json) throws Exception {
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
-            return action.transform(action.fromXContent(parser), prevState);
+            return action.transform(action.fromXContent(masterNodeTimeout, parser), prevState);
         }
     }
 

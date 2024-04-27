@@ -14,6 +14,7 @@ import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequ
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsUpdater;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.reservedstate.ReservedClusterStateHandler;
 import org.elasticsearch.reservedstate.TransformState;
 import org.elasticsearch.xcontent.XContentParser;
@@ -89,7 +90,7 @@ public class ReservedClusterSettingsAction implements ReservedClusterStateHandle
     }
 
     @Override
-    public Map<String, Object> fromXContent(XContentParser parser) throws IOException {
+    public Map<String, Object> fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         return parser.map();
     }
 }

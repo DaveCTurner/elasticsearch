@@ -86,10 +86,10 @@ public class PermissionPrecedenceTests extends SecurityIntegTestCase {
                 UsernamePasswordToken.BASIC_AUTH_HEADER,
                 basicAuthHeaderValue(nodeClientUsername(), nodeClientPassword())
             )
-        ).admin().indices().preparePutTemplate("template1").setPatterns(Collections.singletonList("test_*")).get();
+        ).admin().indices().preparePutTemplate(masterNodeTimeout, "template1").setPatterns(Collections.singletonList("test_*")).get();
         assertAcked(putResponse);
 
-        GetIndexTemplatesResponse getResponse = client.admin().indices().prepareGetTemplates("template1").get();
+        GetIndexTemplatesResponse getResponse = client.admin().indices().prepareGetTemplates(masterNodeTimeout, "template1").get();
         List<IndexTemplateMetadata> templates = getResponse.getIndexTemplates();
         assertThat(templates, hasSize(1));
 
@@ -103,7 +103,7 @@ public class PermissionPrecedenceTests extends SecurityIntegTestCase {
             client.filterWithHeader(auth)
                 .admin()
                 .indices()
-                .preparePutTemplate("template1")
+                .preparePutTemplate(masterNodeTimeout, "template1")
                 .setPatterns(Collections.singletonList("test_*"))::get,
             TransportPutIndexTemplateAction.TYPE.name(),
             "user"
@@ -114,7 +114,7 @@ public class PermissionPrecedenceTests extends SecurityIntegTestCase {
             basicAuthHeaderValue("user", SecuritySettingsSourceField.TEST_PASSWORD_SECURE_STRING)
         );
         assertThrowsAuthorizationException(
-            client.filterWithHeader(headers).admin().indices().prepareGetTemplates("template1")::get,
+            client.filterWithHeader(headers).admin().indices().prepareGetTemplates(masterNodeTimeout, "template1")::get,
             GetIndexTemplatesAction.NAME,
             "user"
         );

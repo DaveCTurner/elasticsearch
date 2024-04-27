@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 
 import java.util.Map;
 
@@ -26,7 +27,7 @@ public class CreateSnapshotRequestBuilder extends MasterNodeOperationRequestBuil
     /**
      * Constructs a new create snapshot request builder with specified repository and snapshot names
      */
-    public CreateSnapshotRequestBuilder(ElasticsearchClient client, String repository, String snapshot) {
+    public CreateSnapshotRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String repository, String snapshot) {
         super(client, TransportCreateSnapshotAction.TYPE, new CreateSnapshotRequest(masterNodeTimeout, repository, snapshot));
     }
 

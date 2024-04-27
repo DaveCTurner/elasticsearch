@@ -58,7 +58,7 @@ public class ReservedLifecycleActionTests extends ESTestCase {
             );
             List<LifecyclePolicy> policies;
             try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
-                policies = action.fromXContent(parser);
+                policies = action.fromXContent(masterNodeTimeout, parser);
             }
             assertThat(policies.get(0).getPhases().get("warm").getActions().get("readonly"), instanceOf(ReadOnlyAction.class));
         }
@@ -76,7 +76,7 @@ public class ReservedLifecycleActionTests extends ESTestCase {
             );
 
             try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY, json)) {
-                var exception = expectThrows(XContentParseException.class, () -> action.fromXContent(parser));
+                var exception = expectThrows(XContentParseException.class, () -> action.fromXContent(masterNodeTimeout, parser));
                 assertThat(exception.getMessage(), containsString("[lifecycle_policy] failed to parse field [phases]"));
             }
         }

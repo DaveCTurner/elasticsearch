@@ -121,7 +121,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
             """;
         PutIndexTemplateRequestBuilder req = client().admin()
             .indices()
-            .preparePutTemplate("template1")
+            .preparePutTemplate(masterNodeTimeout, "template1")
             .setMapping(mapping, XContentType.JSON)
             .setPatterns(List.of("test*"));
         Exception exc = expectThrows(Exception.class, () -> req.get());
@@ -144,7 +144,7 @@ public class DynamicFieldMapperTests extends ESSingleNodeTestCase {
             """;
         PutIndexTemplateRequestBuilder req = client().admin()
             .indices()
-            .preparePutTemplate("template1")
+            .preparePutTemplate(masterNodeTimeout, "template1")
             .setMapping(mapping, XContentType.JSON)
             .setPatterns(List.of("test*"));
         assertTrue(req.get().isAcknowledged());

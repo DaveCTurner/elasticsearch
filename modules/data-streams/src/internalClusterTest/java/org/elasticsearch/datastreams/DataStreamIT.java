@@ -581,7 +581,7 @@ public class DataStreamIT extends ESIntegTestCase {
                 .setSettings(Settings.builder().put("index.number_of_replicas", 0)),
             false
         );
-        verifyResolvability(dataStreamName, indicesAdmin().prepareGetSettings(dataStreamName), false);
+        verifyResolvability(dataStreamName, indicesAdmin().prepareGetSettings(masterNodeTimeout, dataStreamName), false);
         verifyResolvability(dataStreamName, clusterAdmin().prepareHealth(dataStreamName), false);
         verifyResolvability(dataStreamName, clusterAdmin().prepareState().setIndices(dataStreamName), false);
         verifyResolvability(dataStreamName, client().prepareFieldCaps(dataStreamName).setFields("*"), false);
@@ -621,7 +621,7 @@ public class DataStreamIT extends ESIntegTestCase {
         verifyResolvability(wildcardExpression, indicesAdmin().preparePutMapping(masterNodeTimeout, wildcardExpression).setSource("""
             {"_doc":{"properties": {"my_field":{"type":"keyword"}}}}""", XContentType.JSON), false);
         verifyResolvability(wildcardExpression, indicesAdmin().prepareGetMappings(masterNodeTimeout, wildcardExpression), false);
-        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetSettings(wildcardExpression), false);
+        verifyResolvability(wildcardExpression, indicesAdmin().prepareGetSettings(masterNodeTimeout, wildcardExpression), false);
         verifyResolvability(
             wildcardExpression,
             indicesAdmin().prepareUpdateSettings(masterNodeTimeout, wildcardExpression)
@@ -1143,13 +1143,13 @@ public class DataStreamIT extends ESIntegTestCase {
         assertTrue(rolloverResponse.isRolledOver());
 
         // The index settings of all backing indices should be updated:
-        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings("logs-foobar").get();
+        GetSettingsResponse getSettingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "logs-foobar").get();
         assertThat(getSettingsResponse.getIndexToSettings().size(), equalTo(2));
         assertThat(getSettingsResponse.getSetting(backingIndex1, "index.number_of_replicas"), equalTo("1"));
         assertThat(getSettingsResponse.getSetting(backingIndex2, "index.number_of_replicas"), equalTo("1"));
 
         setReplicaCount(0, "logs-foobar");
-        getSettingsResponse = indicesAdmin().prepareGetSettings("logs-foobar").get();
+        getSettingsResponse = indicesAdmin().prepareGetSettings(masterNodeTimeout, "logs-foobar").get();
         assertThat(getSettingsResponse.getIndexToSettings().size(), equalTo(2));
         assertThat(getSettingsResponse.getSetting(backingIndex1, "index.number_of_replicas"), equalTo("0"));
         assertThat(getSettingsResponse.getSetting(backingIndex2, "index.number_of_replicas"), equalTo("0"));
@@ -1512,7 +1512,7 @@ public class DataStreamIT extends ESIntegTestCase {
                 logger.info("--> [{}] waiting for all the other threads before starting", i);
                 barrier.await();
                 while (running.get()) {
-                    RolloverResponse resp = indicesAdmin().prepareRolloverIndex(dsName)
+                    RolloverResponse resp = indicesAdmin().prepareRolloverIndex(masterNodeTimeout, dsName)
                         .setConditions(RolloverConditions.newBuilder().addMaxIndexDocsCondition(2L))
                         .get();
                     if (resp.isRolledOver()) {
