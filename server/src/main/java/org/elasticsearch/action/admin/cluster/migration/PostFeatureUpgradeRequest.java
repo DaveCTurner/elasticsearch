@@ -20,7 +20,7 @@ import java.io.IOException;
 public class PostFeatureUpgradeRequest extends MasterNodeRequest<PostFeatureUpgradeRequest> {
 
     public PostFeatureUpgradeRequest() {
-        super();
+        super(masterNodeTimeout);
     }
 
     public PostFeatureUpgradeRequest(StreamInput in) throws IOException {

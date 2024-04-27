@@ -18,7 +18,9 @@ import java.util.Map;
 
 public class XPackUsageRequest extends MasterNodeRequest<XPackUsageRequest> {
 
-    public XPackUsageRequest() {}
+    public XPackUsageRequest() {
+        super(masterNodeTimeout);
+    }
 
     public XPackUsageRequest(StreamInput in) throws IOException {
         super(in);

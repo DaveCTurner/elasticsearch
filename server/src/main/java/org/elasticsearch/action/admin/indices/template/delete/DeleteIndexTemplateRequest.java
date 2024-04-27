@@ -28,12 +28,15 @@ public class DeleteIndexTemplateRequest extends MasterNodeRequest<DeleteIndexTem
         name = in.readString();
     }
 
-    public DeleteIndexTemplateRequest() {}
+    public DeleteIndexTemplateRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new delete index request for the specified name.
      */
     public DeleteIndexTemplateRequest(String name) {
+        super(masterNodeTimeout);
         this.name = name;
     }
 

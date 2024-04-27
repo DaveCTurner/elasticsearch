@@ -156,6 +156,7 @@ public class TransportPutComposableIndexTemplateAction extends AcknowledgedTrans
          * Constructs a new put index template request with the provided name.
          */
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = name;
         }
 

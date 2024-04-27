@@ -34,6 +34,7 @@ public class ExecuteEnrichPolicyAction extends ActionType<ExecuteEnrichPolicyAct
         private boolean waitForCompletion;
 
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = Objects.requireNonNull(name, "name cannot be null");
             this.waitForCompletion = true;
         }

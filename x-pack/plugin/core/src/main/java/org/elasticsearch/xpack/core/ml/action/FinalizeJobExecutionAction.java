@@ -29,6 +29,7 @@ public class FinalizeJobExecutionAction extends ActionType<AcknowledgedResponse>
         private String[] jobIds;
 
         public Request(String[] jobIds) {
+            super(masterNodeTimeout);
             this.jobIds = jobIds;
         }
 

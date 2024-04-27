@@ -45,6 +45,7 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
      *                   elected master.
      */
     protected AcknowledgedRequest(TimeValue ackTimeout) {
+        super(masterNodeTimeout);
         this.ackTimeout = Objects.requireNonNull(ackTimeout);
     }
 

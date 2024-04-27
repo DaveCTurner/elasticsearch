@@ -35,6 +35,7 @@ public class PromoteDataStreamAction extends ActionType<AcknowledgedResponse> {
         private final String name;
 
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = Objects.requireNonNull(name);
         }
 

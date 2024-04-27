@@ -92,12 +92,15 @@ public class PutIndexTemplateRequest extends MasterNodeRequest<PutIndexTemplateR
         version = in.readOptionalVInt();
     }
 
-    public PutIndexTemplateRequest() {}
+    public PutIndexTemplateRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new put index template request with the provided name.
      */
     public PutIndexTemplateRequest(String name) {
+        super(masterNodeTimeout);
         this.name = name;
     }
 

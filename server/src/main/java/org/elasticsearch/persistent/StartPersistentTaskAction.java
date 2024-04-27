@@ -51,7 +51,9 @@ public class StartPersistentTaskAction extends ActionType<PersistentTaskResponse
 
         private PersistentTaskParams params;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);
@@ -61,6 +63,7 @@ public class StartPersistentTaskAction extends ActionType<PersistentTaskResponse
         }
 
         public Request(String taskId, String taskName, PersistentTaskParams params) {
+            super(masterNodeTimeout);
             this.taskId = taskId;
             this.taskName = taskName;
             this.params = params;

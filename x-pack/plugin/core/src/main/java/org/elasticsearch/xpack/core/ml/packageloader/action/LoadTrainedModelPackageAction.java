@@ -39,6 +39,7 @@ public class LoadTrainedModelPackageAction extends ActionType<AcknowledgedRespon
         private final boolean waitForCompletion;
 
         public Request(String modelId, ModelPackageConfig modelPackageConfig, boolean waitForCompletion) {
+            super(masterNodeTimeout);
             this.modelId = modelId;
             this.modelPackageConfig = modelPackageConfig;
             this.waitForCompletion = waitForCompletion;

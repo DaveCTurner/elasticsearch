@@ -76,7 +76,9 @@ public class GetSnapshotsRequest extends MasterNodeRequest<GetSnapshotsRequest> 
 
     private boolean includeIndexNames = true;
 
-    public GetSnapshotsRequest() {}
+    public GetSnapshotsRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new get snapshots request with given repository names and list of snapshots
@@ -85,6 +87,7 @@ public class GetSnapshotsRequest extends MasterNodeRequest<GetSnapshotsRequest> 
      * @param snapshots  list of snapshots
      */
     public GetSnapshotsRequest(String[] repositories, String[] snapshots) {
+        super(masterNodeTimeout);
         this.repositories = repositories;
         this.snapshots = snapshots;
     }
@@ -95,6 +98,7 @@ public class GetSnapshotsRequest extends MasterNodeRequest<GetSnapshotsRequest> 
      * @param repositories repository names
      */
     public GetSnapshotsRequest(String... repositories) {
+        super(masterNodeTimeout);
         this.repositories = repositories;
     }
 

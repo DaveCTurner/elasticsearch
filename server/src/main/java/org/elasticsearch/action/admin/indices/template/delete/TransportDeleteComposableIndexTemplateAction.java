@@ -108,6 +108,7 @@ public class TransportDeleteComposableIndexTemplateAction extends AcknowledgedTr
          * Constructs a new delete template request for the specified name.
          */
         public Request(String... names) {
+            super(masterNodeTimeout);
             this.names = Objects.requireNonNull(names, "templates to delete must not be null");
         }
 

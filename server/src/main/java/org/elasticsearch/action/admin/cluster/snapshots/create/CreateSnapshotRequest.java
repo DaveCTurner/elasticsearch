@@ -78,7 +78,9 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
     @Nullable
     private Map<String, Object> userMetadata;
 
-    public CreateSnapshotRequest() {}
+    public CreateSnapshotRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new put repository request with the provided snapshot and repository names
@@ -87,6 +89,7 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
      * @param snapshot   snapshot name
      */
     public CreateSnapshotRequest(String repository, String snapshot) {
+        super(masterNodeTimeout);
         this.snapshot = snapshot;
         this.repository = repository;
     }
@@ -476,28 +479,28 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
     @Override
     public String toString() {
         return "CreateSnapshotRequest{"
-               + "snapshot='"
-               + snapshot
-               + '\''
-               + ", repository='"
-               + repository
-               + '\''
-               + ", indices="
-               + (indices == null ? null : Arrays.asList(indices))
-               + ", indicesOptions="
-               + indicesOptions
-               + ", featureStates="
-               + Arrays.asList(featureStates)
-               + ", partial="
-               + partial
-               + ", includeGlobalState="
-               + includeGlobalState
-               + ", waitForCompletion="
-               + waitForCompletion
-               + ", masterNodeTimeout="
-               + masterNodeTimeout0
-               + ", metadata="
-               + userMetadata
-               + '}';
+            + "snapshot='"
+            + snapshot
+            + '\''
+            + ", repository='"
+            + repository
+            + '\''
+            + ", indices="
+            + (indices == null ? null : Arrays.asList(indices))
+            + ", indicesOptions="
+            + indicesOptions
+            + ", featureStates="
+            + Arrays.asList(featureStates)
+            + ", partial="
+            + partial
+            + ", includeGlobalState="
+            + includeGlobalState
+            + ", waitForCompletion="
+            + waitForCompletion
+            + ", masterNodeTimeout="
+            + masterNodeTimeout0
+            + ", metadata="
+            + userMetadata
+            + '}';
     }
 }

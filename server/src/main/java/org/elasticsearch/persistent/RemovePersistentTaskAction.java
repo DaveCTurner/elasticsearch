@@ -41,7 +41,9 @@ public class RemovePersistentTaskAction extends ActionType<PersistentTaskRespons
 
         private String taskId;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);
@@ -49,6 +51,7 @@ public class RemovePersistentTaskAction extends ActionType<PersistentTaskRespons
         }
 
         public Request(String taskId) {
+            super(masterNodeTimeout);
             this.taskId = taskId;
         }
 

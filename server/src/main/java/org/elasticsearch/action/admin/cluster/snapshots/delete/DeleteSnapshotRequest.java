@@ -38,6 +38,7 @@ public class DeleteSnapshotRequest extends MasterNodeRequest<DeleteSnapshotReque
      * @param snapshots  snapshot names
      */
     public DeleteSnapshotRequest(String repository, String... snapshots) {
+        super(masterNodeTimeout);
         this.repository = repository;
         this.snapshots = snapshots;
     }

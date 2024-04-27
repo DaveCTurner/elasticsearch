@@ -20,7 +20,7 @@ import java.io.IOException;
 public class GetFeatureUpgradeStatusRequest extends MasterNodeRequest<GetFeatureUpgradeStatusRequest> {
 
     public GetFeatureUpgradeStatusRequest() {
-        super();
+        super(masterNodeTimeout);
     }
 
     public GetFeatureUpgradeStatusRequest(StreamInput in) throws IOException {

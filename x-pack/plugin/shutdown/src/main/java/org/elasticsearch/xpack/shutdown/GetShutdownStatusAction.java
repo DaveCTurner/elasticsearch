@@ -43,6 +43,7 @@ public class GetShutdownStatusAction extends ActionType<GetShutdownStatusAction.
         private final String[] nodeIds;
 
         public Request(String... nodeIds) {
+            super(masterNodeTimeout);
             this.nodeIds = nodeIds;
         }
 

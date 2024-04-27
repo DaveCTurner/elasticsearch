@@ -53,7 +53,9 @@ public class CompletionPersistentTaskAction extends ActionType<PersistentTaskRes
 
         private String localAbortReason;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);
@@ -64,6 +66,7 @@ public class CompletionPersistentTaskAction extends ActionType<PersistentTaskRes
         }
 
         public Request(String taskId, long allocationId, Exception exception, String localAbortReason) {
+            super(masterNodeTimeout);
             this.taskId = taskId;
             this.exception = exception;
             this.allocationId = allocationId;

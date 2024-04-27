@@ -43,6 +43,7 @@ public class PutAnalyticsCollectionAction {
         }
 
         public Request(String name) {
+            super(masterNodeTimeout);
             this.name = name;
         }
 

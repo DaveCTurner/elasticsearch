@@ -69,7 +69,9 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
             private String key;
             private String value;
 
-            Request() {}
+            Request() {
+                super(masterNodeTimeout);
+            }
 
             Request(StreamInput in) throws IOException {
                 super(in);
@@ -79,6 +81,7 @@ public class InternalOrPrivateSettingsPlugin extends Plugin implements ActionPlu
             }
 
             public Request(final String index, final String key, final String value) {
+                super(masterNodeTimeout);
                 this.index = index;
                 this.key = key;
                 this.value = value;

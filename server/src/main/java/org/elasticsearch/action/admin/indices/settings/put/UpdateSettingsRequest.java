@@ -255,12 +255,12 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
         }
         UpdateSettingsRequest that = (UpdateSettingsRequest) o;
         return masterNodeTimeout0.equals(that.masterNodeTimeout0)
-               && ackTimeout().equals(that.ackTimeout())
-               && Objects.equals(settings, that.settings)
-               && Objects.equals(indicesOptions, that.indicesOptions)
-               && Objects.equals(preserveExisting, that.preserveExisting)
-               && Objects.equals(reopen, that.reopen)
-               && Arrays.equals(indices, that.indices);
+            && ackTimeout().equals(that.ackTimeout())
+            && Objects.equals(settings, that.settings)
+            && Objects.equals(indicesOptions, that.indicesOptions)
+            && Objects.equals(preserveExisting, that.preserveExisting)
+            && Objects.equals(reopen, that.reopen)
+            && Arrays.equals(indices, that.indices);
     }
 
     @Override

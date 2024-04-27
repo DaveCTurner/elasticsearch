@@ -60,7 +60,9 @@ public class RestoreSnapshotRequest extends MasterNodeRequest<RestoreSnapshotReq
     @Nullable // if any snapshot UUID will do
     private String snapshotUuid;
 
-    public RestoreSnapshotRequest() {}
+    public RestoreSnapshotRequest() {
+        super(masterNodeTimeout);
+    }
 
     /**
      * Constructs a new put repository request with the provided repository and snapshot names.
@@ -69,6 +71,7 @@ public class RestoreSnapshotRequest extends MasterNodeRequest<RestoreSnapshotReq
      * @param snapshot   snapshot name
      */
     public RestoreSnapshotRequest(String repository, String snapshot) {
+        super(masterNodeTimeout);
         this.snapshot = snapshot;
         this.repository = repository;
     }

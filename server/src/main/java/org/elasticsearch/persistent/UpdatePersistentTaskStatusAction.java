@@ -45,7 +45,9 @@ public class UpdatePersistentTaskStatusAction extends ActionType<PersistentTaskR
         private long allocationId = -1L;
         private PersistentTaskState state;
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);
@@ -55,6 +57,7 @@ public class UpdatePersistentTaskStatusAction extends ActionType<PersistentTaskR
         }
 
         public Request(String taskId, long allocationId, PersistentTaskState state) {
+            super(masterNodeTimeout);
             this.taskId = taskId;
             this.allocationId = allocationId;
             this.state = state;

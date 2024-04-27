@@ -24,7 +24,9 @@ public abstract class MasterNodeRequest<Request extends MasterNodeRequest<Reques
 
     protected TimeValue masterNodeTimeout0 = DEFAULT_MASTER_NODE_TIMEOUT;
 
-    protected MasterNodeRequest() {}
+    protected MasterNodeRequest(TimeValue masterNodeTimeout) {
+        this.masterNodeTimeout0 = masterNodeTimeout;
+    }
 
     protected MasterNodeRequest(StreamInput in) throws IOException {
         super(in);

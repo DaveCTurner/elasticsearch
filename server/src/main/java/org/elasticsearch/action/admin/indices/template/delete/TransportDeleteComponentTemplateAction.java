@@ -109,6 +109,7 @@ public class TransportDeleteComponentTemplateAction extends AcknowledgedTranspor
          * Constructs a new delete index request for the specified name.
          */
         public Request(String... names) {
+            super(masterNodeTimeout);
             this.names = Objects.requireNonNull(names, "component templates to delete must not be null");
         }
 
