@@ -66,14 +66,17 @@ public class StartDatafeedAction extends ActionType<NodeAcknowledgedResponse> {
         private DatafeedParams params;
 
         public Request(String datafeedId, long startTime) {
+            super(masterNodeTimeout);
             this.params = new DatafeedParams(datafeedId, startTime);
         }
 
         public Request(String datafeedId, String startTime) {
+            super(masterNodeTimeout);
             this.params = new DatafeedParams(datafeedId, startTime);
         }
 
         public Request(DatafeedParams params) {
+            super(masterNodeTimeout);
             this.params = params;
         }
 

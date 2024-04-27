@@ -64,7 +64,9 @@ public class DeleteDataStreamGlobalRetentionAction {
             out.writeBoolean(dryRun);
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public boolean dryRun() {
             return dryRun;

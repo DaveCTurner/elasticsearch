@@ -30,6 +30,7 @@ public class DeleteTrainedModelAssignmentAction extends ActionType<AcknowledgedR
         private final String modelId;
 
         public Request(String modelId) {
+            super(masterNodeTimeout);
             this.modelId = ExceptionsHelper.requireNonNull(modelId, "model_id");
         }
 

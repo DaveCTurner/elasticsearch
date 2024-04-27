@@ -55,10 +55,12 @@ public class OpenJobAction extends ActionType<NodeAcknowledgedResponse> {
         private JobParams jobParams;
 
         public Request(JobParams jobParams) {
+            super(masterNodeTimeout);
             this.jobParams = Objects.requireNonNull(jobParams);
         }
 
         public Request(String jobId) {
+            super(masterNodeTimeout);
             this.jobParams = new JobParams(jobId);
         }
 

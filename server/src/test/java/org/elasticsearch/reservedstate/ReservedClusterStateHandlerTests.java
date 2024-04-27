@@ -42,6 +42,10 @@ public class ReservedClusterStateHandlerTests extends ESTestCase {
     }
 
     static class ValidRequest extends MasterNodeRequest {
+        ValidRequest() {
+            super(masterNodeTimeout);
+        }
+
         @Override
         public ActionRequestValidationException validate() {
             return null;

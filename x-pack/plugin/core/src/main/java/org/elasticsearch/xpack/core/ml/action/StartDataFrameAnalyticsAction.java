@@ -72,6 +72,7 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
         private TimeValue timeout = DEFAULT_TIMEOUT;
 
         public Request(String id) {
+            super(masterNodeTimeout);
             setId(id);
         }
 
@@ -81,7 +82,9 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
             timeout = in.readTimeValue();
         }
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public final void setId(String id) {
             this.id = ExceptionsHelper.requireNonNull(id, DataFrameAnalyticsConfig.ID);

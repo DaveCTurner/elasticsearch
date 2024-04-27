@@ -108,6 +108,7 @@ public class PutDataStreamGlobalRetentionAction {
         }
 
         public Request(@Nullable TimeValue defaultRetention, @Nullable TimeValue maxRetention) {
+            super(masterNodeTimeout);
             this.globalRetention = new DataStreamGlobalRetention(defaultRetention, maxRetention);
         }
 

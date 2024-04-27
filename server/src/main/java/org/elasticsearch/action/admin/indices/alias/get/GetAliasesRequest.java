@@ -15,6 +15,7 @@ import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.UpdateForV9;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
@@ -33,12 +34,15 @@ public class GetAliasesRequest extends MasterNodeReadRequest<GetAliasesRequest> 
     private IndicesOptions indicesOptions = DEFAULT_INDICES_OPTIONS;
     private String[] originalAliases = Strings.EMPTY_ARRAY;
 
-    public GetAliasesRequest(String... aliases) {
+    public GetAliasesRequest(TimeValue masterNodeTimeout, String... aliases) {
+        super(masterNodeTimeout);
         this.aliases = aliases;
         this.originalAliases = aliases;
     }
 
-    public GetAliasesRequest() {}
+    public GetAliasesRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     /**
      * NB prior to 8.12 get-aliases was a TransportMasterNodeReadAction so for BwC we must remain able to read these requests until we no

@@ -44,6 +44,7 @@ public class DeleteAnalyticsCollectionAction {
         }
 
         public Request(String collectionName) {
+            super(masterNodeTimeout);
             this.collectionName = collectionName;
         }
 

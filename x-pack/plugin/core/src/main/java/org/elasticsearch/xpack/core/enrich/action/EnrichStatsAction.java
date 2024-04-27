@@ -35,7 +35,9 @@ public class EnrichStatsAction extends ActionType<EnrichStatsAction.Response> {
 
     public static class Request extends MasterNodeRequest {
 
-        public Request() {}
+        public Request() {
+            super(masterNodeTimeout);
+        }
 
         public Request(StreamInput in) throws IOException {
             super(in);

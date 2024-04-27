@@ -15,6 +15,7 @@ import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 
@@ -26,7 +27,9 @@ public abstract class ClusterInfoRequest<Request extends ClusterInfoRequest<Requ
 
     private IndicesOptions indicesOptions = IndicesOptions.strictExpandOpen();
 
-    public ClusterInfoRequest() {}
+    public ClusterInfoRequest(TimeValue masterNodeTimeout) {
+        super(masterNodeTimeout);
+    }
 
     // So subclasses can override the default indices options, if needed
     protected ClusterInfoRequest(IndicesOptions indicesOptions) {

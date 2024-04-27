@@ -101,6 +101,7 @@ public class MountSearchableSnapshotRequest extends MasterNodeRequest {
         boolean waitForCompletion,
         Storage storage
     ) {
+        super(masterNodeTimeout);
         this.mountedIndexName = Objects.requireNonNull(mountedIndexName);
         this.repositoryName = Objects.requireNonNull(repositoryName);
         this.snapshotName = Objects.requireNonNull(snapshotName);

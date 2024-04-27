@@ -31,6 +31,7 @@ public class PauseFollowAction extends ActionType<AcknowledgedResponse> {
         private final String followIndex;
 
         public Request(String followIndex) {
+            super(masterNodeTimeout);
             this.followIndex = Objects.requireNonNull(followIndex, "followIndex");
         }
 
