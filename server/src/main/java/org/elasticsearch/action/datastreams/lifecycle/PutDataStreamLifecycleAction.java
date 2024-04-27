@@ -13,7 +13,6 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -35,6 +34,7 @@ import static org.elasticsearch.cluster.metadata.DataStreamLifecycle.DATA_RETENT
 import static org.elasticsearch.cluster.metadata.DataStreamLifecycle.DOWNSAMPLING_FIELD;
 import static org.elasticsearch.cluster.metadata.DataStreamLifecycle.Downsampling;
 import static org.elasticsearch.cluster.metadata.DataStreamLifecycle.ENABLED_FIELD;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 /**
  * Sets the data stream lifecycle that was provided in the request to the requested data streams.
@@ -51,9 +51,7 @@ public class PutDataStreamLifecycleAction {
             "put_data_stream_lifecycle_request",
             false,
             (args, restRequest) -> new Request(
-                restRequest == null
-                    ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT
-                    : restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+                getMasterNodeTimeout(restRequest),
                 null,
                 ((TimeValue) args[0]),
                 (Boolean) args[1],

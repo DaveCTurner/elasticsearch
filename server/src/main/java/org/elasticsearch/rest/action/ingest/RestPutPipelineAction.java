@@ -9,7 +9,6 @@
 package org.elasticsearch.rest.action.ingest;
 
 import org.elasticsearch.action.ingest.PutPipelineRequest;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.core.Tuple;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestPutPipelineAction extends BaseRestHandler {
@@ -55,7 +55,7 @@ public class RestPutPipelineAction extends BaseRestHandler {
 
         Tuple<XContentType, BytesReference> sourceTuple = restRequest.contentOrSourceParam();
         PutPipelineRequest request = new PutPipelineRequest(
-            restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+            getMasterNodeTimeout(restRequest),
             restRequest.param("id"),
             sourceTuple.v2(),
             sourceTuple.v1(),

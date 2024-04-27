@@ -10,7 +10,6 @@ package org.elasticsearch.rest.action.ingest;
 
 import org.elasticsearch.action.ingest.GetPipelineRequest;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -23,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestGetPipelineAction extends BaseRestHandler {
@@ -40,7 +40,7 @@ public class RestGetPipelineAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         GetPipelineRequest request = new GetPipelineRequest(
-            restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+            getMasterNodeTimeout(restRequest),
             restRequest.paramAsBoolean("summary", false),
             Strings.splitStringByCommaToArray(restRequest.param("id"))
         );

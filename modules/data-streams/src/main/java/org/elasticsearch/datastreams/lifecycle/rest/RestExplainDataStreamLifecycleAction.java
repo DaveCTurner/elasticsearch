@@ -21,6 +21,7 @@ import org.elasticsearch.rest.action.RestRefCountedChunkedToXContentListener;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.PUBLIC)
 public class RestExplainDataStreamLifecycleAction extends BaseRestHandler {
@@ -38,10 +39,12 @@ public class RestExplainDataStreamLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) {
         String[] indices = Strings.splitStringByCommaToArray(restRequest.param("index"));
-        ExplainDataStreamLifecycleAction.Request explainRequest = new ExplainDataStreamLifecycleAction.Request(masterNodeTimeout, indices);
+        ExplainDataStreamLifecycleAction.Request explainRequest = new ExplainDataStreamLifecycleAction.Request(
+            getMasterNodeTimeout(restRequest),
+            indices
+        );
         explainRequest.includeDefaults(restRequest.paramAsBoolean("include_defaults", false));
         explainRequest.indicesOptions(IndicesOptions.fromRequest(restRequest, IndicesOptions.strictExpandOpen()));
-        explainRequest.masterNodeTimeout(restRequest.paramAsTime("master_timeout", explainRequest.masterNodeTimeout()));
         return channel -> client.execute(
             ExplainDataStreamLifecycleAction.INSTANCE,
             explainRequest,

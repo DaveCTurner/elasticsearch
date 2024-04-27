@@ -11,7 +11,6 @@ package org.elasticsearch.rest.action.cat;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.cluster.tasks.TransportPendingClusterTasksAction;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.PendingClusterTask;
 import org.elasticsearch.common.Table;
@@ -24,6 +23,7 @@ import org.elasticsearch.rest.action.RestResponseListener;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestPendingClusterTasksAction extends AbstractCatAction {
@@ -45,9 +45,7 @@ public class RestPendingClusterTasksAction extends AbstractCatAction {
 
     @Override
     public RestChannelConsumer doCatRequest(final RestRequest request, final NodeClient client) {
-        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
-        );
+        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest(getMasterNodeTimeout(request));
         pendingClusterTasksRequest.local(request.paramAsBoolean("local", pendingClusterTasksRequest.local()));
         return channel -> client.execute(
             TransportPendingClusterTasksAction.TYPE,

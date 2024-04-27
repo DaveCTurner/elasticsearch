@@ -10,7 +10,6 @@ package org.elasticsearch.rest.action.admin.cluster.dangling;
 
 import org.elasticsearch.action.admin.indices.dangling.import_index.ImportDanglingIndexRequest;
 import org.elasticsearch.action.admin.indices.dangling.import_index.TransportImportDanglingIndexAction;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -21,6 +20,7 @@ import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 import static org.elasticsearch.rest.RestStatus.ACCEPTED;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestImportDanglingIndexAction extends BaseRestHandler {
     @Override
@@ -36,7 +36,7 @@ public class RestImportDanglingIndexAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         final ImportDanglingIndexRequest importRequest = new ImportDanglingIndexRequest(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+            getMasterNodeTimeout(request),
             request.param("index_uuid"),
             request.paramAsBoolean("accept_data_loss", false)
         );

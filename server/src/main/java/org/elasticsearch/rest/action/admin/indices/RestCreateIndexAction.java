@@ -107,7 +107,7 @@ public class RestCreateIndexAction extends BaseRestHandler {
     }
 
     static CreateIndexRequest prepareRequest(RestRequest request) {
-        CreateIndexRequest createIndexRequest = new CreateIndexRequest(masterNodeTimeout, request.param("index"));
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(getMasterNodeTimeout(request), request.param("index"));
 
         if (request.hasContent()) {
             Map<String, Object> sourceAsMap = XContentHelper.convertToMap(request.requiredContent(), false, request.getXContentType()).v2();
@@ -116,7 +116,6 @@ public class RestCreateIndexAction extends BaseRestHandler {
         }
 
         createIndexRequest.ackTimeout(request.paramAsTime("timeout", createIndexRequest.ackTimeout()));
-        createIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", createIndexRequest.masterNodeTimeout()));
         createIndexRequest.waitForActiveShards(ActiveShardCount.parseString(request.param("wait_for_active_shards")));
 
         return createIndexRequest;

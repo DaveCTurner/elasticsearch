@@ -10,7 +10,6 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.node.shutdown.PrevalidateNodeRemovalAction;
 import org.elasticsearch.action.admin.cluster.node.shutdown.PrevalidateNodeRemovalRequest;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -21,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestPrevalidateNodeRemovalAction extends BaseRestHandler {
 
@@ -43,7 +43,7 @@ public class RestPrevalidateNodeRemovalAction extends BaseRestHandler {
             .setNames(names)
             .setIds(ids)
             .setExternalIds(externalIds)
-            .build(request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT));
+            .build(getMasterNodeTimeout(request));
         prevalidationRequest.timeout(request.paramAsTime("timeout", prevalidationRequest.timeout()));
         return channel -> client.execute(
             PrevalidateNodeRemovalAction.INSTANCE,

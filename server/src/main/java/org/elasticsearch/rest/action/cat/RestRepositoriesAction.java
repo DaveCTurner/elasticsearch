@@ -10,7 +10,6 @@ package org.elasticsearch.rest.action.cat;
 
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequest;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.metadata.RepositoryMetadata;
 import org.elasticsearch.common.Table;
@@ -23,6 +22,7 @@ import org.elasticsearch.rest.action.RestResponseListener;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 /**
  * Cat API class to display information about snapshot repositories
@@ -37,9 +37,7 @@ public class RestRepositoriesAction extends AbstractCatAction {
 
     @Override
     protected RestChannelConsumer doCatRequest(RestRequest request, NodeClient client) {
-        GetRepositoriesRequest getRepositoriesRequest = new GetRepositoriesRequest(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
-        );
+        GetRepositoriesRequest getRepositoriesRequest = new GetRepositoriesRequest(getMasterNodeTimeout(request));
         getRepositoriesRequest.local(request.paramAsBoolean("local", getRepositoriesRequest.local()));
 
         return channel -> client.admin()

@@ -12,7 +12,6 @@ import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.RestClusterGetSettingsResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -30,6 +29,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 @ServerlessScope(Scope.INTERNAL)
 public class RestClusterGetSettingsAction extends BaseRestHandler {
@@ -75,9 +75,7 @@ public class RestClusterGetSettingsAction extends BaseRestHandler {
             return prepareLegacyRequest(request, client, renderDefaults);
         }
 
-        ClusterGetSettingsAction.Request clusterSettingsRequest = new ClusterGetSettingsAction.Request(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
-        );
+        ClusterGetSettingsAction.Request clusterSettingsRequest = new ClusterGetSettingsAction.Request(getMasterNodeTimeout(request));
 
         setUpRequestParams(clusterSettingsRequest, request);
 
@@ -91,9 +89,7 @@ public class RestClusterGetSettingsAction extends BaseRestHandler {
     }
 
     private RestChannelConsumer prepareLegacyRequest(final RestRequest request, final NodeClient client, final boolean renderDefaults) {
-        ClusterStateRequest clusterStateRequest = new ClusterStateRequest(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
-        ).routingTable(false).nodes(false);
+        ClusterStateRequest clusterStateRequest = new ClusterStateRequest(getMasterNodeTimeout(request)).routingTable(false).nodes(false);
         setUpRequestParams(clusterStateRequest, request);
         return channel -> client.admin()
             .cluster()

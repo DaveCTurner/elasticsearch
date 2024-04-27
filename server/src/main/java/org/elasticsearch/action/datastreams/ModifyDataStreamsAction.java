@@ -14,7 +14,6 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.DataStreamAction;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.elasticsearch.action.ValidateActions.addValidationError;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
 
@@ -105,12 +105,7 @@ public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
         public static final ConstructingObjectParser<Request, RestRequest> PARSER = new ConstructingObjectParser<>(
             "data_stream_actions",
             false,
-            (args, restRequest) -> new Request(
-                restRequest == null
-                    ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT
-                    : restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
-                ((List<DataStreamAction>) args[0])
-            )
+            (args, restRequest) -> new Request(getMasterNodeTimeout(restRequest), ((List<DataStreamAction>) args[0]))
         );
         static {
             PARSER.declareObjectArray(ConstructingObjectParser.constructorArg(), DataStreamAction.PARSER, new ParseField("actions"));

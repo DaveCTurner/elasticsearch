@@ -10,7 +10,6 @@ package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.migration.GetFeatureUpgradeStatusAction;
 import org.elasticsearch.action.admin.cluster.migration.GetFeatureUpgradeStatusRequest;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -18,6 +17,8 @@ import org.elasticsearch.rest.action.RestToXContentListener;
 
 import java.io.IOException;
 import java.util.List;
+
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 /**
  * Endpoint for getting the system feature upgrade status
@@ -40,9 +41,7 @@ public class RestGetFeatureUpgradeStatusAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final GetFeatureUpgradeStatusRequest req = new GetFeatureUpgradeStatusRequest(
-            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
-        );
+        final GetFeatureUpgradeStatusRequest req = new GetFeatureUpgradeStatusRequest(getMasterNodeTimeout(request));
         return restChannel -> client.execute(GetFeatureUpgradeStatusAction.INSTANCE, req, new RestToXContentListener<>(restChannel));
     }
 }
