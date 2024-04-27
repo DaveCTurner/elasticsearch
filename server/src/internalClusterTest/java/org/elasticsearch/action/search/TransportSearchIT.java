@@ -308,8 +308,8 @@ public class TransportSearchIT extends ESIntegTestCase {
         assertAcked(prepareCreate("test1").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numberOfShards)));
         assertAcked(prepareCreate("test2").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numberOfShards)));
         assertAcked(prepareCreate("test3").setSettings(Settings.builder().put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numberOfShards)));
-        indicesAdmin().prepareAliases().addAlias("test1", "testAlias").get();
-        indicesAdmin().prepareAliases().addAlias(new String[] { "test2", "test3" }, "testFailedAlias").get();
+        indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("test1", "testAlias").get();
+        indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(new String[] { "test2", "test3" }, "testFailedAlias").get();
 
         long[] validCheckpoints = new long[numberOfShards];
         Arrays.fill(validCheckpoints, SequenceNumbers.UNASSIGNED_SEQ_NO);

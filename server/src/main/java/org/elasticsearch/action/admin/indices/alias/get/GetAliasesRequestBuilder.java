@@ -13,6 +13,6 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 public class GetAliasesRequestBuilder extends BaseAliasesRequestBuilder<GetAliasesResponse, GetAliasesRequestBuilder> {
 
     public GetAliasesRequestBuilder(ElasticsearchClient client, String... aliases) {
-        super(client, GetAliasesAction.INSTANCE, aliases);
+        super(masterNodeTimeout, client, GetAliasesAction.INSTANCE, aliases);
     }
 }

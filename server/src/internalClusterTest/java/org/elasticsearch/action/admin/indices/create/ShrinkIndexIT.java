@@ -99,7 +99,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         ensureGreen();
         // now merge source into a 4 shard index
         assertAcked(
-            indicesAdmin().prepareResizeIndex("source", "first_shrink")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "first_shrink")
                 .setSettings(indexSettings(shardSplits[1], 0).putNull("index.blocks.write").build())
         );
         ensureGreen();
@@ -122,7 +122,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         ensureGreen();
         // now merge source into a 2 shard index
         assertAcked(
-            indicesAdmin().prepareResizeIndex("first_shrink", "second_shrink")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "first_shrink", "second_shrink")
                 .setSettings(
                     indexSettings(shardSplits[2], 0).putNull("index.blocks.write").putNull("index.routing.allocation.require._name").build()
                 )
@@ -209,7 +209,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
 
         // now merge source into target
         final Settings shrinkSettings = indexSettings(numberOfTargetShards, 0).build();
-        assertAcked(indicesAdmin().prepareResizeIndex("source", "target").setSettings(shrinkSettings).get());
+        assertAcked(indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target").setSettings(shrinkSettings).get());
 
         ensureGreen(TimeValue.timeValueSeconds(120));
 
@@ -257,7 +257,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         // now merge source into a single shard index
         final boolean createWithReplicas = randomBoolean();
         assertAcked(
-            indicesAdmin().prepareResizeIndex("source", "target")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                 .setSettings(
                     Settings.builder()
                         .put("index.number_of_replicas", createWithReplicas ? 1 : 0)
@@ -358,7 +358,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         ensureGreen();
 
         // now merge source into a single shard index
-        indicesAdmin().prepareResizeIndex("source", "target")
+        indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
             .setWaitForActiveShards(ActiveShardCount.NONE)
             .setSettings(
                 Settings.builder()
@@ -443,13 +443,15 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         // check that index sort cannot be set on the target index
         IllegalArgumentException exc = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().prepareResizeIndex("source", "target").setSettings(indexSettings(2, 0).put("index.sort.field", "foo").build())
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
+                .setSettings(indexSettings(2, 0).put("index.sort.field", "foo").build())
         );
         assertThat(exc.getMessage(), containsString("can't override index sort when resizing an index"));
 
         // check that the index sort order of `source` is correctly applied to the `target`
         assertAcked(
-            indicesAdmin().prepareResizeIndex("source", "target").setSettings(indexSettings(2, 0).putNull("index.blocks.write").build())
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
+                .setSettings(indexSettings(2, 0).putNull("index.blocks.write").build())
         );
         ensureGreen();
         assertNoResizeSourceIndexSettings("target");
@@ -496,7 +498,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         try {
             // now merge source into a single shard index
             assertAcked(
-                indicesAdmin().prepareResizeIndex("source", "target")
+                indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                     .setSettings(Settings.builder().put("index.number_of_replicas", 0).build())
             );
             ensureGreen();
@@ -563,7 +565,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
         ensureGreen();
 
         assertAcked(
-            indicesAdmin().prepareResizeIndex("original", "shrunk")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "original", "shrunk")
                 .setSettings(
                     indexSettings(1, 1).putNull(
                         IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_SETTING.getConcreteSettingForNamespace("_name").getKey()
@@ -582,7 +584,7 @@ public class ShrinkIndexIT extends ESIntegTestCase {
 
         logger.info("--> executing split");
         assertAcked(
-            indicesAdmin().prepareResizeIndex("shrunk", "splitagain")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "shrunk", "splitagain")
                 .setSettings(
                     indexSettings(shardCount, 0).putNull(
                         IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_SETTING.getConcreteSettingForNamespace("_name").getKey()

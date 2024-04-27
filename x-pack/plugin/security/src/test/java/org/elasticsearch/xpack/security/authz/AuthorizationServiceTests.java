@@ -1390,7 +1390,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testAuthorizeIndicesFailures() {
-        TransportRequest request = new GetIndexRequest().indices("b");
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("b");
         ClusterState state = mockEmptyMetadata();
         RoleDescriptor role = new RoleDescriptor(
             "a_all",
@@ -1725,7 +1725,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testDenialForAnonymousUser() {
-        TransportRequest request = new GetIndexRequest().indices("b");
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("b");
         ClusterState state = mockEmptyMetadata();
         Settings settings = Settings.builder().put(AnonymousUser.ROLES_SETTING.getKey(), "a_all").build();
         final AnonymousUser anonymousUser = new AnonymousUser(settings);
@@ -1771,7 +1771,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testDenialForAnonymousUserAuthorizationExceptionDisabled() {
-        TransportRequest request = new GetIndexRequest().indices("b");
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("b");
         ClusterState state = mockEmptyMetadata();
         Settings settings = Settings.builder()
             .put(AnonymousUser.ROLES_SETTING.getKey(), "a_all")
@@ -1824,7 +1824,7 @@ public class AuthorizationServiceTests extends ESTestCase {
 
     public void testAuditTrailIsRecordedWhenIndexWildcardThrowsError() {
         IndicesOptions options = IndicesOptions.fromOptions(false, false, true, true);
-        TransportRequest request = new GetIndexRequest().indices("not-an-index-*").indicesOptions(options);
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("not-an-index-*").indicesOptions(options);
         ClusterState state = mockEmptyMetadata();
         RoleDescriptor role = new RoleDescriptor(
             "a_all",
@@ -1928,7 +1928,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testRunAsRequestWithRunAsUserWithoutPermission() {
-        TransportRequest request = new GetIndexRequest().indices("a");
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("a");
         User authenticatedUser = new User("test user", "can run as");
         final Authentication authentication = createAuthentication(new User("run as me", "b"), authenticatedUser);
         final RoleDescriptor runAsRole = new RoleDescriptor(
@@ -1988,7 +1988,7 @@ public class AuthorizationServiceTests extends ESTestCase {
     }
 
     public void testRunAsRequestWithValidPermissions() {
-        TransportRequest request = new GetIndexRequest().indices("b");
+        TransportRequest request = new GetIndexRequest(masterNodeTimeout).indices("b");
         User authenticatedUser = new User("test user", "can run as");
         final Authentication authentication = createAuthentication(new User("run as me", "b"), authenticatedUser);
         final RoleDescriptor runAsRole = new RoleDescriptor(

@@ -139,7 +139,7 @@ public class SearchSliceIT extends ESIntegTestCase {
         });
 
         assertAcked(
-            indicesAdmin().prepareAliases()
+            indicesAdmin().prepareAliases(masterNodeTimeout)
                 .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("test").alias("alias1").routing("foo"))
                 .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("test").alias("alias2").routing("bar"))
                 .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("test").alias("alias3").routing("baz"))

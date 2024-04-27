@@ -140,7 +140,7 @@ public class CanMatchIT extends AbstractEsqlIntegTestCase {
         ElasticsearchAssertions.assertAcked(
             client().admin()
                 .indices()
-                .prepareAliases()
+                .prepareAliases(masterNodeTimeout)
                 .addAlias("employees", "engineers", new MatchQueryBuilder("dept", "engineering"))
                 .addAlias("employees", "sales", new MatchQueryBuilder("dept", "sales"))
         );

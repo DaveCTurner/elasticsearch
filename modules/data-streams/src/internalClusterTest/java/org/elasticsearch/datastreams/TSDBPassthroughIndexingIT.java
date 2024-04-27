@@ -182,7 +182,7 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
         }
 
         // validate index:
-        var getIndexResponse = client().admin().indices().getIndex(new GetIndexRequest().indices(index)).actionGet();
+        var getIndexResponse = client().admin().indices().getIndex(new GetIndexRequest(masterNodeTimeout).indices(index)).actionGet();
         assertThat(getIndexResponse.getSettings().get(index).get("index.routing_path"), equalTo("[attributes.*]"));
         // validate mapping
         var mapping = getIndexResponse.mappings().get(index).getSourceAsMap();
@@ -280,7 +280,7 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
         String shrunkenTarget = "k8s-shrunken";
         var shrinkIndexResponse = client().admin()
             .indices()
-            .prepareResizeIndex(sourceIndex, shrunkenTarget)
+            .prepareResizeIndex(masterNodeTimeout, sourceIndex, shrunkenTarget)
             .setResizeType(ResizeType.SHRINK)
             .setSettings(indexSettings(2, 0).build())
             .get();

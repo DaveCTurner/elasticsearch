@@ -490,7 +490,7 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
 
     public void testPutAlias() throws Exception {
         createIndex("foobar");
-        verify(indicesAdmin().prepareAliases().addAlias("foobar", "foobar_alias"), false);
+        verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("foobar", "foobar_alias"), false);
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
 
     }
@@ -498,13 +498,13 @@ public class IndicesOptionsIntegrationIT extends ESIntegTestCase {
     public void testPutAliasWildcard() throws Exception {
         createIndex("foo", "foobar", "bar", "barbaz");
 
-        verify(indicesAdmin().prepareAliases().addAlias("foo*", "foobar_alias"), false);
+        verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("foo*", "foobar_alias"), false);
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foo").get().getAliases().isEmpty());
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
         assertTrue(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("bar").get().getAliases().isEmpty());
         assertTrue(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("barbaz").get().getAliases().isEmpty());
 
-        verify(indicesAdmin().prepareAliases().addAlias("*", "foobar_alias"), false);
+        verify(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("*", "foobar_alias"), false);
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foo").get().getAliases().isEmpty());
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("foobar").get().getAliases().isEmpty());
         assertFalse(indicesAdmin().prepareGetAliases("foobar_alias").setIndices("bar").get().getAliases().isEmpty());

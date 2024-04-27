@@ -94,7 +94,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
 
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(
                 IndicesAliasesRequest.AliasActions.add().index(reindexedIndexName).alias(AnnotationIndex.READ_ALIAS_NAME).isHidden(true)
             )
@@ -134,7 +134,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
 
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(
                 IndicesAliasesRequest.AliasActions.add().index(reindexedIndexName).alias(AnnotationIndex.READ_ALIAS_NAME).isHidden(true)
             )
@@ -174,7 +174,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
 
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             // The difference compared to the standard reindexing test is that the read and write aliases are not correctly set up.
             // The annotations index maintenance code should add them back.
             .addAliasAction(IndicesAliasesRequest.AliasActions.removeIndex().index(AnnotationIndex.LATEST_INDEX_NAME))
@@ -209,7 +209,7 @@ public class AnnotationIndexIT extends MlSingleNodeTestCase {
         String reindexedIndexName = ".reindexed-v7-ml-annotations-6";
         createReindexedIndex(reindexedIndexName);
 
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             // The difference compared to the standard reindexing test is that the read and write aliases are not correctly set up.
             // The annotations index maintenance code should add them back.
             .addAliasAction(IndicesAliasesRequest.AliasActions.removeIndex().index(AnnotationIndex.LATEST_INDEX_NAME))

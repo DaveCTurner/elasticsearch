@@ -85,6 +85,7 @@ import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata.APIBlock;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Administrative actions/operations against indices.
@@ -385,7 +386,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Allows to add/remove aliases from indices.
      */
-    IndicesAliasesRequestBuilder prepareAliases();
+    IndicesAliasesRequestBuilder prepareAliases(TimeValue masterNodeTimeout);
 
     /**
      * Get specific index aliases that exists in particular indices and / or by name.
@@ -583,7 +584,7 @@ public interface IndicesAdminClient extends ElasticsearchClient {
     /**
      * Resize an index using an explicit request allowing to specify the settings, mappings and aliases of the target index of the index.
      */
-    ResizeRequestBuilder prepareResizeIndex(String sourceIndex, String targetIndex);
+    ResizeRequestBuilder prepareResizeIndex(TimeValue masterNodeTimeout, String sourceIndex, String targetIndex);
 
     /**
      * Shrinks an index using an explicit request allowing to specify the settings, mappings and aliases of the target index of the index.

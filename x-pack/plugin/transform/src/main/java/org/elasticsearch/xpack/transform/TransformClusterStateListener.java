@@ -90,7 +90,7 @@ class TransformClusterStateListener implements ClusterStateListener, Supplier<Op
 
         final IndicesAliasesRequest request = client.admin()
             .indices()
-            .prepareAliases()
+            .prepareAliases(masterNodeTimeout)
             .addAliasAction(
                 IndicesAliasesRequest.AliasActions.add()
                     .index(TransformInternalIndexConstants.AUDIT_INDEX_DEPRECATED)

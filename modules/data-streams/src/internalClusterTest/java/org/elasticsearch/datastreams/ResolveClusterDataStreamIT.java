@@ -336,7 +336,10 @@ public class ResolveClusterDataStreamIT extends AbstractMultiClustersTestCase {
             DataStream fooDataStream = getDataStreamResponse.getDataStreams().get(0).getDataStream();
             String backingIndex = fooDataStream.getIndices().get(0).getName();
             backingIndices.add(backingIndex);
-            GetIndexResponse getIndexResponse = client.admin().indices().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+            GetIndexResponse getIndexResponse = client.admin()
+                .indices()
+                .getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex))
+                .actionGet();
             assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
             assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
             Map<?, ?> mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -368,7 +371,10 @@ public class ResolveClusterDataStreamIT extends AbstractMultiClustersTestCase {
             DataStream barDataStream = getDataStreamResponse.getDataStreams().get(0).getDataStream();
             String backingIndex = barDataStream.getIndices().get(0).getName();
             backingIndices.add(backingIndex);
-            GetIndexResponse getIndexResponse = client.admin().indices().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+            GetIndexResponse getIndexResponse = client.admin()
+                .indices()
+                .getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex))
+                .actionGet();
             assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
             assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
             Map<?, ?> mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();

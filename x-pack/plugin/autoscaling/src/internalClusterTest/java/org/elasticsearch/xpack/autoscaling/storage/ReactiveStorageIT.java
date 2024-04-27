@@ -345,7 +345,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
 
         String shrinkName = "shrink-" + indexName;
         assertAcked(
-            indicesAdmin().prepareResizeIndex(indexName, shrinkName)
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, indexName, shrinkName)
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
@@ -460,7 +460,7 @@ public class ReactiveStorageIT extends AutoscalingStorageIntegTestCase {
         String cloneName = "clone-" + indexName;
         int resizedShardCount = resizeType == ResizeType.CLONE ? 1 : between(2, 10);
         assertAcked(
-            indicesAdmin().prepareResizeIndex(indexName, cloneName)
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, indexName, cloneName)
                 .setSettings(
                     Settings.builder()
                         .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, resizedShardCount)

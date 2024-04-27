@@ -111,7 +111,7 @@ public class PartitionedRoutingIT extends ESIntegTestCase {
             index = "index_" + currentShards;
 
             logger.info("--> shrinking index [" + previousIndex + "] to [" + index + "]");
-            indicesAdmin().prepareResizeIndex(previousIndex, index)
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, previousIndex, index)
                 .setSettings(indexSettings(currentShards, numberOfReplicas()).putNull("index.routing.allocation.require._name").build())
                 .get();
             ensureGreen();

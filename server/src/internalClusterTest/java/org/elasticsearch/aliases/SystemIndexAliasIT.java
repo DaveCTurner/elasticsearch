@@ -37,7 +37,7 @@ public class SystemIndexAliasIT extends ESIntegTestCase {
     public void testCreateAliasForSystemIndex() throws Exception {
         createIndex(PRIMARY_INDEX_NAME);
         ensureGreen();
-        assertAcked(indicesAdmin().prepareAliases().addAlias(PRIMARY_INDEX_NAME, INDEX_NAME + "-system-alias"));
+        assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(PRIMARY_INDEX_NAME, INDEX_NAME + "-system-alias"));
 
         final GetAliasesResponse getAliasesResponse = indicesAdmin().getAliases(
             new GetAliasesRequest(masterNodeTimeout).indicesOptions(IndicesOptions.strictExpandHidden())

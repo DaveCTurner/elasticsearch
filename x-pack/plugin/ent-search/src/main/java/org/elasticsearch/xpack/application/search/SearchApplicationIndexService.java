@@ -254,7 +254,7 @@ public class SearchApplicationIndexService {
             requestBuilder = updateAliasIndices(currentAliases, targetAliases, searchAliasName);
 
         } else {
-            requestBuilder = client.admin().indices().prepareAliases().addAlias(app.indices(), searchAliasName);
+            requestBuilder = client.admin().indices().prepareAliases(masterNodeTimeout).addAlias(app.indices(), searchAliasName);
         }
 
         requestBuilder.execute(listener);
@@ -265,7 +265,7 @@ public class SearchApplicationIndexService {
         Set<String> deleteIndices = new HashSet<>(currentAliases);
         deleteIndices.removeAll(targetAliases);
 
-        IndicesAliasesRequestBuilder aliasesRequestBuilder = client.admin().indices().prepareAliases();
+        IndicesAliasesRequestBuilder aliasesRequestBuilder = client.admin().indices().prepareAliases(masterNodeTimeout);
 
         // Always re-add aliases, as an index could have been removed manually and it must be restored
         for (String newIndex : targetAliases) {

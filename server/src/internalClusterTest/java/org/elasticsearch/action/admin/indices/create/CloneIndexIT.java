@@ -59,7 +59,7 @@ public class CloneIndexIT extends ESIntegTestCase {
 
             final boolean createWithReplicas = randomBoolean();
             assertAcked(
-                indicesAdmin().prepareResizeIndex("source", "target")
+                indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                     .setResizeType(ResizeType.CLONE)
                     .setSettings(
                         Settings.builder().put("index.number_of_replicas", createWithReplicas ? 1 : 0).putNull("index.blocks.write").build()

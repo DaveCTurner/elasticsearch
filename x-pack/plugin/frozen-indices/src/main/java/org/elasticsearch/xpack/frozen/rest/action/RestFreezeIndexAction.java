@@ -47,7 +47,7 @@ public final class RestFreezeIndexAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         if (request.getRestApiVersion() == RestApiVersion.V_7 && request.path().endsWith("/_freeze")) {
             // translate to a get indices request, so that we'll 404 on non-existent indices
-            final GetIndexRequest getIndexRequest = new GetIndexRequest();
+            final GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout);
             getIndexRequest.indices(Strings.splitStringByCommaToArray(request.param("index")));
             getIndexRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getIndexRequest.masterNodeTimeout()));
             getIndexRequest.indicesOptions(IndicesOptions.fromRequest(request, getIndexRequest.indicesOptions()));

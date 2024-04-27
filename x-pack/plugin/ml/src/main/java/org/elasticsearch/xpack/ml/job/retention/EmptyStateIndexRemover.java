@@ -82,7 +82,7 @@ public class EmptyStateIndexRemover implements MlDataRemover {
     }
 
     private void getCurrentStateIndices(ActionListener<Set<String>> listener) {
-        GetIndexRequest getIndexRequest = new GetIndexRequest().indices(AnomalyDetectorsIndex.jobStateIndexWriteAlias());
+        GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout).indices(AnomalyDetectorsIndex.jobStateIndexWriteAlias());
         getIndexRequest.setParentTask(parentTaskId);
         client.admin()
             .indices()

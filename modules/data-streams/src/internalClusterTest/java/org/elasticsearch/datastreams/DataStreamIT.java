@@ -174,7 +174,8 @@ public class DataStreamIT extends ESIntegTestCase {
 
         String backingIndex = barDataStream.getIndices().get(0).getName();
         backingIndices.add(backingIndex);
-        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex))
+            .actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         Map<?, ?> mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -182,7 +183,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         backingIndex = fooDataStream.getIndices().get(0).getName();
         backingIndices.add(backingIndex);
-        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex)).actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -206,7 +207,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         backingIndex = fooRolloverResponse.getNewIndex();
         backingIndices.add(backingIndex);
-        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex)).actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -214,7 +215,7 @@ public class DataStreamIT extends ESIntegTestCase {
 
         backingIndex = barRolloverResponse.getNewIndex();
         backingIndices.add(backingIndex);
-        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex)).actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -237,7 +238,7 @@ public class DataStreamIT extends ESIntegTestCase {
             expectThrows(
                 IndexNotFoundException.class,
                 "Backing index '" + index + "' should have been deleted.",
-                () -> indicesAdmin().getIndex(new GetIndexRequest().indices(index)).actionGet()
+                () -> indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(index)).actionGet()
             );
         }
     }
@@ -460,7 +461,8 @@ public class DataStreamIT extends ESIntegTestCase {
         String backingIndex = getDataStreamResponse.getDataStreams().get(0).getDataStream().getIndices().get(0).getName();
         assertThat(backingIndex, backingIndexEqualTo(dataStreamName, 1));
 
-        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(dataStreamName)).actionGet();
+        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(dataStreamName))
+            .actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         assertThat(
@@ -473,7 +475,7 @@ public class DataStreamIT extends ESIntegTestCase {
         assertThat(backingIndex, backingIndexEqualTo(dataStreamName, 2));
         assertTrue(rolloverResponse.isRolledOver());
 
-        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex)).actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         assertThat(
@@ -499,7 +501,7 @@ public class DataStreamIT extends ESIntegTestCase {
             expectThrows(
                 IndexNotFoundException.class,
                 "Backing index '" + index.getName() + "' should have been deleted.",
-                () -> indicesAdmin().getIndex(new GetIndexRequest().indices(index.getName())).actionGet()
+                () -> indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(index.getName())).actionGet()
             );
         }
     }
@@ -1305,7 +1307,8 @@ public class DataStreamIT extends ESIntegTestCase {
     }
 
     private static void assertBackingIndex(String backingIndex, String timestampFieldPathInMapping, Map<?, ?> expectedMapping) {
-        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices(backingIndex)).actionGet();
+        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices(backingIndex))
+            .actionGet();
         assertThat(getIndexResponse.getSettings().get(backingIndex), notNullValue());
         assertThat(getIndexResponse.getSettings().get(backingIndex).getAsBoolean("index.hidden", null), is(true));
         Map<?, ?> mappings = getIndexResponse.getMappings().get(backingIndex).getSourceAsMap();
@@ -1384,7 +1387,8 @@ public class DataStreamIT extends ESIntegTestCase {
         assertThat(getDataStreamsResponse.getDataStreams().get(2).getDataStream().getName(), equalTo("logs-foobaz2"));
         assertThat(getDataStreamsResponse.getDataStreams().get(3).getDataStream().getName(), equalTo("logs-foobaz3"));
 
-        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices("logs-bar*")).actionGet();
+        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices("logs-bar*"))
+            .actionGet();
         assertThat(getIndexResponse.getIndices(), arrayWithSize(4));
         assertThat(getIndexResponse.getIndices(), hasItemInArray("logs-barbaz"));
         assertThat(getIndexResponse.getIndices(), hasItemInArray("logs-barfoo"));
@@ -1417,7 +1421,8 @@ public class DataStreamIT extends ESIntegTestCase {
             .actionGet();
         assertThat(getDataStreamsResponse.getDataStreams(), hasSize(0));
 
-        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest().indices("logs-foobar")).actionGet();
+        GetIndexResponse getIndexResponse = indicesAdmin().getIndex(new GetIndexRequest(masterNodeTimeout).indices("logs-foobar"))
+            .actionGet();
         assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
         assertThat(getIndexResponse.getIndices(), hasItemInArray("logs-foobar"));
         assertThat(getIndexResponse.getSettings().get("logs-foobar").get(IndexMetadata.SETTING_NUMBER_OF_REPLICAS), equalTo("0"));

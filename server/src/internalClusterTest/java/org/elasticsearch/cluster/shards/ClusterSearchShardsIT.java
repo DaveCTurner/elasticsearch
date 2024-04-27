@@ -80,7 +80,7 @@ public class ClusterSearchShardsIT extends ESIntegTestCase {
     public void testMultipleIndicesAllocation() throws Exception {
         createIndex("test1", 4, 1);
         createIndex("test2", 4, 1);
-        indicesAdmin().prepareAliases()
+        indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(AliasActions.add().index("test1").alias("routing_alias").routing("ABC"))
             .addAliasAction(AliasActions.add().index("test2").alias("routing_alias").routing("EFG"))
             .get();

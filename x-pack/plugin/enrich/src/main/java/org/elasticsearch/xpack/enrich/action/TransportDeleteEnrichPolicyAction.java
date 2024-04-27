@@ -123,7 +123,7 @@ public class TransportDeleteEnrichPolicyAction extends AcknowledgedTransportMast
         }
 
         try {
-            final GetIndexRequest indices = new GetIndexRequest().indices(EnrichPolicy.getBaseName(policyName) + "-*")
+            final GetIndexRequest indices = new GetIndexRequest(masterNodeTimeout).indices(EnrichPolicy.getBaseName(policyName) + "-*")
                 .indicesOptions(IndicesOptions.lenientExpand());
 
             String[] concreteIndices = indexNameExpressionResolver.concreteIndexNamesWithSystemIndexAccess(state, indices);

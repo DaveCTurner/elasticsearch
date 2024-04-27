@@ -63,7 +63,7 @@ public class SearchableSnapshotsResizeIntegTests extends BaseFrozenSearchableSna
     public void testShrinkSearchableSnapshotIndex() {
         final IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareResizeIndex("mounted-index", "shrunk-index")
+            () -> indicesAdmin().prepareResizeIndex(masterNodeTimeout, "mounted-index", "shrunk-index")
                 .setResizeType(ResizeType.SHRINK)
                 .setSettings(indexSettingsNoReplicas(1).build())
                 .get()
@@ -74,7 +74,7 @@ public class SearchableSnapshotsResizeIntegTests extends BaseFrozenSearchableSna
     public void testSplitSearchableSnapshotIndex() {
         final IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareResizeIndex("mounted-index", "split-index")
+            () -> indicesAdmin().prepareResizeIndex(masterNodeTimeout, "mounted-index", "split-index")
                 .setResizeType(ResizeType.SPLIT)
                 .setSettings(indexSettingsNoReplicas(4).build())
                 .get()
@@ -85,7 +85,9 @@ public class SearchableSnapshotsResizeIntegTests extends BaseFrozenSearchableSna
     public void testCloneSearchableSnapshotIndex() {
         IllegalArgumentException exception = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareResizeIndex("mounted-index", "cloned-index").setResizeType(ResizeType.CLONE).get()
+            () -> indicesAdmin().prepareResizeIndex(masterNodeTimeout, "mounted-index", "cloned-index")
+                .setResizeType(ResizeType.CLONE)
+                .get()
         );
         assertThat(
             exception.getMessage(),
@@ -94,7 +96,7 @@ public class SearchableSnapshotsResizeIntegTests extends BaseFrozenSearchableSna
 
         exception = expectThrows(
             IllegalArgumentException.class,
-            () -> indicesAdmin().prepareResizeIndex("mounted-index", "cloned-index")
+            () -> indicesAdmin().prepareResizeIndex(masterNodeTimeout, "mounted-index", "cloned-index")
                 .setResizeType(ResizeType.CLONE)
                 .setSettings(Settings.builder().putNull(IndexModule.INDEX_STORE_TYPE_SETTING.getKey()).build())
                 .get()
@@ -105,7 +107,7 @@ public class SearchableSnapshotsResizeIntegTests extends BaseFrozenSearchableSna
         );
 
         assertAcked(
-            indicesAdmin().prepareResizeIndex("mounted-index", "cloned-index")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "mounted-index", "cloned-index")
                 .setResizeType(ResizeType.CLONE)
                 .setSettings(
                     Settings.builder()

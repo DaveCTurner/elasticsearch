@@ -72,7 +72,7 @@ public class ReservedRealmElasticAutoconfigIntegTests extends SecuritySingleNode
             assertAcked(clusterAdmin().updateSettings(updateSettingsRequest).actionGet());
 
             // delete the security index, if it exist
-            GetIndexRequest getIndexRequest = new GetIndexRequest();
+            GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout);
             getIndexRequest.indices(SECURITY_MAIN_ALIAS);
             getIndexRequest.indicesOptions(IndicesOptions.lenientExpandOpen());
             GetIndexResponse getIndexResponse = client().admin().indices().getIndex(getIndexRequest).actionGet();

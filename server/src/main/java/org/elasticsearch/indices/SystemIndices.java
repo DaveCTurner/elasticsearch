@@ -21,6 +21,7 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.TransportDeleteIndexAction;
 import org.elasticsearch.action.support.RefCountingListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.cluster.metadata.Metadata;
@@ -895,7 +896,9 @@ public class SystemIndices {
             String[] indexNames,
             final ActionListener<ResetFeatureStateStatus> listener
         ) {
-            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(masterNodeTimeout);
+            DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout? */
+            );
             deleteIndexRequest.indices(indexNames);
             client.execute(TransportDeleteIndexAction.TYPE, deleteIndexRequest, new ActionListener<>() {
                 @Override

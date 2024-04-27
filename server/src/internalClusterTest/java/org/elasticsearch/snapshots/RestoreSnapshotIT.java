@@ -331,7 +331,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
 
         logger.info("--> create aliases");
         assertAcked(
-            indicesAdmin().prepareAliases()
+            indicesAdmin().prepareAliases(masterNodeTimeout)
                 .addAlias("test-idx-1", "alias-123")
                 .addAlias("test-idx-2", "alias-123")
                 .addAlias("test-idx-3", "alias-123")
@@ -363,8 +363,8 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertFalse(indicesAdmin().prepareGetAliases("alias-1").get().getAliases().isEmpty());
 
         logger.info("-->  update aliases");
-        assertAcked(indicesAdmin().prepareAliases().removeAlias("test-idx-3", "alias-123"));
-        assertAcked(indicesAdmin().prepareAliases().addAlias("test-idx-3", "alias-3"));
+        assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).removeAlias("test-idx-3", "alias-123"));
+        assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias("test-idx-3", "alias-3"));
 
         logger.info("-->  delete and close indices");
         cluster().wipeIndices("test-idx-1", "test-idx-2");
@@ -448,7 +448,7 @@ public class RestoreSnapshotIT extends AbstractSnapshotIntegTestCase {
         assertAcked(
             client.admin()
                 .indices()
-                .prepareAliases()
+                .prepareAliases(masterNodeTimeout)
                 .addAlias("test-idx-1", "alias-1", false)
                 .addAlias("test-idx-2", "alias-2", false)
                 .addAlias("test-idx-3", "alias-3", false)

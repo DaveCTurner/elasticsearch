@@ -262,7 +262,7 @@ public class IndexResolver {
     ) {
         if (retrieveIndices || retrieveFrozenIndices) {
             if (clusterIsLocal(clusterWildcard)) { // resolve local indices
-                GetIndexRequest indexRequest = new GetIndexRequest().local(true)
+                GetIndexRequest indexRequest = new GetIndexRequest(masterNodeTimeout).local(true)
                     .indices(indexWildcards)
                     .features(Feature.SETTINGS)
                     .includeDefaults(false)

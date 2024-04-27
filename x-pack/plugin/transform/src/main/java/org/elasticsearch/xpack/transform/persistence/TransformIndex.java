@@ -65,7 +65,7 @@ public final class TransformIndex {
      *                 Returns {@code true} if the given index was created by the transform and {@code false} otherwise.
      */
     public static void isDestinationIndexCreatedByTransform(Client client, String destIndex, ActionListener<Boolean> listener) {
-        GetIndexRequest getIndexRequest = new GetIndexRequest().indices(destIndex)
+        GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout).indices(destIndex)
             // We only need mappings, more specifically its "_meta" part
             .features(GetIndexRequest.Feature.MAPPINGS);
         executeAsyncWithOrigin(client, TRANSFORM_ORIGIN, GetIndexAction.INSTANCE, getIndexRequest, ActionListener.wrap(getIndexResponse -> {

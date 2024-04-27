@@ -285,7 +285,7 @@ public final class MlIndexAndAlias {
         logger.info("About to move write alias [{}] from index [{}] to index [{}]", alias, currentIndex, newIndex);
         IndicesAliasesRequestBuilder requestBuilder = client.admin()
             .indices()
-            .prepareAliases()
+            .prepareAliases(masterNodeTimeout)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index(newIndex).alias(alias).isHidden(true));
         if (currentIndex != null) {
             requestBuilder.removeAlias(currentIndex, alias);

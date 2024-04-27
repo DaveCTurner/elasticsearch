@@ -61,7 +61,9 @@ public class RankEvalRequestIT extends ESIntegTestCase {
         refresh();
 
         // set up an alias that can also be used in tests
-        assertAcked(indicesAdmin().prepareAliases().addAliasAction(AliasActions.add().index(TEST_INDEX).alias(INDEX_ALIAS)));
+        assertAcked(
+            indicesAdmin().prepareAliases(masterNodeTimeout).addAliasAction(AliasActions.add().index(TEST_INDEX).alias(INDEX_ALIAS))
+        );
     }
 
     /**

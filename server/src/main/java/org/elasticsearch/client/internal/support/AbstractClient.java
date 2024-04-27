@@ -296,6 +296,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.RefCounted;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
@@ -1094,7 +1095,7 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public IndicesAliasesRequestBuilder prepareAliases() {
+        public IndicesAliasesRequestBuilder prepareAliases(TimeValue masterNodeTimeout) {
             return new IndicesAliasesRequestBuilder(masterNodeTimeout, this);
         }
 
@@ -1444,9 +1445,10 @@ public abstract class AbstractClient implements Client {
         }
 
         @Override
-        public ResizeRequestBuilder prepareResizeIndex(String sourceIndex, String targetIndex) {
+        public ResizeRequestBuilder prepareResizeIndex(TimeValue masterNodeTimeout, String sourceIndex, String targetIndex) {
             return new ResizeRequestBuilder(this).setSourceIndex(sourceIndex)
-                .setTargetIndex(new CreateIndexRequest(masterNodeTimeout, targetIndex));
+                .setTargetIndex(new CreateIndexRequest(masterNodeTimeout, targetIndex))
+                .setMasterNodeTimeout(masterNodeTimeout);
         }
 
         @Override

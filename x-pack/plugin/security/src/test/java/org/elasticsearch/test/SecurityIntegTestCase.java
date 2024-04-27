@@ -342,7 +342,7 @@ public abstract class SecurityIntegTestCase extends ESIntegTestCase {
 
         if (frequently()) {
             boolean aliasAdded = false;
-            IndicesAliasesRequestBuilder builder = indicesAdmin().prepareAliases();
+            IndicesAliasesRequestBuilder builder = indicesAdmin().prepareAliases(masterNodeTimeout);
             for (String index : indices) {
                 if (frequently()) {
                     // one alias per index with prefix "alias-"
@@ -410,7 +410,7 @@ public abstract class SecurityIntegTestCase extends ESIntegTestCase {
                 )
             )
         );
-        GetIndexRequest getIndexRequest = new GetIndexRequest();
+        GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout);
         getIndexRequest.indices(SECURITY_MAIN_ALIAS);
         getIndexRequest.indicesOptions(IndicesOptions.lenientExpandOpen());
         GetIndexResponse getIndexResponse = client.admin().indices().getIndex(getIndexRequest).actionGet();

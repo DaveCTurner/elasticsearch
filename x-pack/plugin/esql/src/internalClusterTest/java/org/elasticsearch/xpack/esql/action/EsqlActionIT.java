@@ -1409,7 +1409,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     public void testQueryOnEmptyMappingIndex() {
         createIndex("empty-test", Settings.EMPTY);
         createIndex("empty-test2", Settings.EMPTY);
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty-test").alias("alias-test"))
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty-test2").alias("alias-test"));
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();
@@ -1433,7 +1433,7 @@ public class EsqlActionIT extends AbstractEsqlIntegTestCase {
     public void testQueryOnEmptyDataIndex() {
         createIndex("empty_data-test", Settings.EMPTY);
         assertAcked(client().admin().indices().prepareCreate("empty_data-test2").setMapping("name", "type=text"));
-        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases()
+        IndicesAliasesRequestBuilder indicesAliasesRequestBuilder = indicesAdmin().prepareAliases(masterNodeTimeout)
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty_data-test").alias("alias-empty_data-test"))
             .addAliasAction(IndicesAliasesRequest.AliasActions.add().index("empty_data-test2").alias("alias-empty_data-test"));
         indicesAdmin().aliases(indicesAliasesRequestBuilder.request()).actionGet();

@@ -114,7 +114,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
             originalIndexSettings.put(IndexSettings.INDEX_CHECK_ON_STARTUP.getKey(), "false");
         }
         assertAcked(prepareCreate(indexName, originalIndexSettings));
-        assertAcked(indicesAdmin().prepareAliases().addAlias(indexName, aliasName));
+        assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(indexName, aliasName));
 
         populateIndex(indexName, 10_000);
 
@@ -255,11 +255,11 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         if (deletedBeforeMount) {
             assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
-            assertAcked(indicesAdmin().prepareAliases().addAlias(restoredIndexName, aliasName));
+            assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(restoredIndexName, aliasName));
         } else if (indexName.equals(restoredIndexName) == false) {
             assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(1));
             assertAcked(
-                indicesAdmin().prepareAliases()
+                indicesAdmin().prepareAliases(masterNodeTimeout)
                     .addAliasAction(IndicesAliasesRequest.AliasActions.remove().index(indexName).alias(aliasName).mustExist(true))
                     .addAlias(restoredIndexName, aliasName)
             );
@@ -311,7 +311,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         final String clonedIndexName = randomAlphaOfLength(10).toLowerCase(Locale.ROOT);
         assertAcked(
-            indicesAdmin().prepareResizeIndex(restoredIndexName, clonedIndexName)
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, restoredIndexName, clonedIndexName)
                 .setResizeType(ResizeType.CLONE)
                 .setSettings(
                     Settings.builder()
@@ -336,7 +336,7 @@ public class SearchableSnapshotsIntegTests extends BaseSearchableSnapshotsIntegT
 
         assertAcked(indicesAdmin().prepareDelete(restoredIndexName));
         assertThat(indicesAdmin().prepareGetAliases(aliasName).get().getAliases().size(), equalTo(0));
-        assertAcked(indicesAdmin().prepareAliases().addAlias(clonedIndexName, aliasName));
+        assertAcked(indicesAdmin().prepareAliases(masterNodeTimeout).addAlias(clonedIndexName, aliasName));
         assertTotalHits(aliasName, originalAllHits, originalBarHits);
     }
 

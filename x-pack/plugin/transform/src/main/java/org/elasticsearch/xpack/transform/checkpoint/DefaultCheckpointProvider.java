@@ -281,7 +281,7 @@ class DefaultCheckpointProvider implements CheckpointProvider {
         ActionListener<Map<String, long[]>> listener
     ) {
         // 1st get index to see the indexes the user has access to
-        GetIndexRequest getIndexRequest = new GetIndexRequest().indices(indices)
+        GetIndexRequest getIndexRequest = new GetIndexRequest(masterNodeTimeout).indices(indices)
             .features(new GetIndexRequest.Feature[0])
             .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN);
 

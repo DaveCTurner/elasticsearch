@@ -32,7 +32,7 @@ public abstract class ClusterInfoRequest<Request extends ClusterInfoRequest<Requ
     }
 
     // So subclasses can override the default indices options, if needed
-    protected ClusterInfoRequest(IndicesOptions indicesOptions, TimeValue masterNodeTimeout) {
+    protected ClusterInfoRequest(TimeValue masterNodeTimeout, IndicesOptions indicesOptions) {
         super(masterNodeTimeout);
         this.indicesOptions = indicesOptions;
     }

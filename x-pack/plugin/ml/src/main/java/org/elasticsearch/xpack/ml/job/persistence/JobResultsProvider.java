@@ -331,7 +331,7 @@ public class JobResultsProvider {
         ActionListener<Boolean> indexAndMappingsListener = ActionListener.wrap(success -> {
             final IndicesAliasesRequest request = client.admin()
                 .indices()
-                .prepareAliases()
+                .prepareAliases(masterNodeTimeout)
                 .addAliasAction(
                     IndicesAliasesRequest.AliasActions.add()
                         .index(indexName)

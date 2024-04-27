@@ -228,7 +228,7 @@ public class ReindexingStep extends AbstractDataFrameAnalyticsStep {
             ML_ORIGIN,
             parentTaskClient,
             GetIndexAction.INSTANCE,
-            new GetIndexRequest().indices(config.getDest().getIndex()),
+            new GetIndexRequest(masterNodeTimeout).indices(config.getDest().getIndex()),
             destIndexListener
         );
     }

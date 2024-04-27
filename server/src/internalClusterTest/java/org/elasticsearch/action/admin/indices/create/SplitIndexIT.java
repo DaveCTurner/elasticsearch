@@ -183,7 +183,7 @@ public class SplitIndexIT extends ESIntegTestCase {
             firstSplitSettingsBuilder.put("index.number_of_routing_shards", secondSplitShards);
         }
         assertAcked(
-            indicesAdmin().prepareResizeIndex("source", "first_split")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "first_split")
                 .setResizeType(ResizeType.SPLIT)
                 .setSettings(firstSplitSettingsBuilder.build())
         );
@@ -210,7 +210,7 @@ public class SplitIndexIT extends ESIntegTestCase {
         ensureGreen();
         // now split source into a new index
         assertAcked(
-            indicesAdmin().prepareResizeIndex("first_split", "second_split")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "first_split", "second_split")
                 .setResizeType(ResizeType.SPLIT)
                 .setSettings(indexSettings(secondSplitShards, 0).putNull("index.blocks.write").build())
         );
@@ -320,7 +320,12 @@ public class SplitIndexIT extends ESIntegTestCase {
 
         // now split source into target
         final Settings splitSettings = indexSettings(numberOfTargetShards, 0).putNull("index.blocks.write").build();
-        assertAcked(indicesAdmin().prepareResizeIndex("source", "target").setResizeType(ResizeType.SPLIT).setSettings(splitSettings).get());
+        assertAcked(
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
+                .setResizeType(ResizeType.SPLIT)
+                .setSettings(splitSettings)
+                .get()
+        );
 
         ensureGreen(TimeValue.timeValueSeconds(120)); // needs more than the default to relocate many shards
 
@@ -363,7 +368,7 @@ public class SplitIndexIT extends ESIntegTestCase {
 
             final boolean createWithReplicas = randomBoolean();
             assertAcked(
-                indicesAdmin().prepareResizeIndex("source", "target")
+                indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                     .setResizeType(ResizeType.SPLIT)
                     .setSettings(indexSettings(2, createWithReplicas ? 1 : 0).putNull("index.blocks.write").build())
             );
@@ -461,7 +466,7 @@ public class SplitIndexIT extends ESIntegTestCase {
         // check that index sort cannot be set on the target index
         IllegalArgumentException exc = expectThrows(
             IllegalArgumentException.class,
-            indicesAdmin().prepareResizeIndex("source", "target")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                 .setResizeType(ResizeType.SPLIT)
                 .setSettings(indexSettings(4, 0).put("index.sort.field", "foo").build())
         );
@@ -469,7 +474,7 @@ public class SplitIndexIT extends ESIntegTestCase {
 
         // check that the index sort order of `source` is correctly applied to the `target`
         assertAcked(
-            indicesAdmin().prepareResizeIndex("source", "target")
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, "source", "target")
                 .setResizeType(ResizeType.SPLIT)
                 .setSettings(indexSettings(4, 0).putNull("index.blocks.write").build())
         );

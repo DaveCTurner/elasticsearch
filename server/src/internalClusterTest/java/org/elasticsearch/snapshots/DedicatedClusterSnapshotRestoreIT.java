@@ -646,7 +646,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
 
         logger.info("--> shrink the index");
         updateIndexSettings(Settings.builder().put("index.blocks.write", true), sourceIdx);
-        assertAcked(indicesAdmin().prepareResizeIndex(sourceIdx, shrunkIdx).get());
+        assertAcked(indicesAdmin().prepareResizeIndex(masterNodeTimeout, sourceIdx, shrunkIdx).get());
 
         logger.info("--> snapshot the shrunk index");
         createSnapshot(repo, snapshot, Collections.singletonList(shrunkIdx));

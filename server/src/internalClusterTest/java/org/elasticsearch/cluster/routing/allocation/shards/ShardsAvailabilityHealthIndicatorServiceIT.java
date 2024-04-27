@@ -100,7 +100,7 @@ public class ShardsAvailabilityHealthIndicatorServiceIT extends ESIntegTestCase 
         updateIndexSettings(Settings.builder().put("index.blocks.write", true), sourceIndex);
 
         assertHealthDuring(equalTo(GREEN), () -> {
-            indicesAdmin().prepareResizeIndex(sourceIndex, targetIndex).setResizeType(ResizeType.CLONE).get();
+            indicesAdmin().prepareResizeIndex(masterNodeTimeout, sourceIndex, targetIndex).setResizeType(ResizeType.CLONE).get();
             ensureGreen(targetIndex);
         });
     }

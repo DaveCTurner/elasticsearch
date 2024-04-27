@@ -14,6 +14,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.util.ArrayUtils;
+import org.elasticsearch.core.TimeValue;
 
 public abstract class BaseAliasesRequestBuilder<
     Response extends ActionResponse,
@@ -22,7 +23,12 @@ public abstract class BaseAliasesRequestBuilder<
         Response,
         Builder> {
 
-    public BaseAliasesRequestBuilder(ElasticsearchClient client, ActionType<Response> action, String... aliases) {
+    public BaseAliasesRequestBuilder(
+        TimeValue masterNodeTimeout,
+        ElasticsearchClient client,
+        ActionType<Response> action,
+        String... aliases
+    ) {
         super(client, action, new GetAliasesRequest(masterNodeTimeout, aliases));
     }
 

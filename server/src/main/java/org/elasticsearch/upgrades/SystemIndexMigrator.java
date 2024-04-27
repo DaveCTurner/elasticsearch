@@ -506,7 +506,10 @@ public class SystemIndexMigrator extends AllocatedPersistentTask {
         SystemIndexMigrationInfo migrationInfo,
         BulkByScrollResponse bulkByScrollResponse
     ) {
-        final IndicesAliasesRequestBuilder aliasesRequest = migrationInfo.createClient(baseClient).admin().indices().prepareAliases();
+        final IndicesAliasesRequestBuilder aliasesRequest = migrationInfo.createClient(baseClient)
+            .admin()
+            .indices()
+            .prepareAliases(masterNodeTimeout);
         aliasesRequest.removeIndex(migrationInfo.getCurrentIndexName());
         aliasesRequest.addAlias(migrationInfo.getNextIndexName(), migrationInfo.getCurrentIndexName());
 

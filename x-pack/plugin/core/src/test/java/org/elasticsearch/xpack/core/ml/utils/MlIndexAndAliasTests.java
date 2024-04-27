@@ -96,7 +96,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
             new CreateIndexRequestBuilder(client, FIRST_CONCRETE_INDEX)
         );
         doAnswer(withResponse(new CreateIndexResponse(true, true, FIRST_CONCRETE_INDEX))).when(indicesAdminClient).create(any(), any());
-        when(indicesAdminClient.prepareAliases()).thenReturn(new IndicesAliasesRequestBuilder(masterNodeTimeout, client));
+        when(indicesAdminClient.prepareAliases(masterNodeTimeout)).thenReturn(new IndicesAliasesRequestBuilder(masterNodeTimeout, client));
         doAnswer(withResponse(IndicesAliasesResponse.ACKNOWLEDGED_NO_ERRORS)).when(indicesAdminClient).aliases(any(), any());
         doAnswer(withResponse(IndicesAliasesResponse.ACKNOWLEDGED_NO_ERRORS)).when(indicesAdminClient).putTemplate(any(), any());
 
@@ -286,7 +286,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         InOrder inOrder = inOrder(indicesAdminClient, listener);
         inOrder.verify(indicesAdminClient).prepareCreate(FIRST_CONCRETE_INDEX);
         inOrder.verify(indicesAdminClient).create(createRequestCaptor.capture(), any());
-        inOrder.verify(indicesAdminClient).prepareAliases();
+        inOrder.verify(indicesAdminClient).prepareAliases(masterNodeTimeout);
         inOrder.verify(indicesAdminClient).aliases(aliasesRequestCaptor.capture(), any());
         inOrder.verify(listener).onResponse(true);
 
@@ -311,7 +311,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
         createIndexAndAliasIfNecessary(clusterState);
 
         InOrder inOrder = inOrder(indicesAdminClient, listener);
-        inOrder.verify(indicesAdminClient).prepareAliases();
+        inOrder.verify(indicesAdminClient).prepareAliases(masterNodeTimeout);
         inOrder.verify(indicesAdminClient).aliases(aliasesRequestCaptor.capture(), any());
         inOrder.verify(listener).onResponse(true);
 
