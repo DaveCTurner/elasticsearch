@@ -19,7 +19,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 
 public class GetStoredScriptRequestTests extends ESTestCase {
     public void testGetIndexedScriptRequestSerialization() throws IOException {
-        GetStoredScriptRequest request = new GetStoredScriptRequest("id");
+        GetStoredScriptRequest request = new GetStoredScriptRequest(masterNodeTimeout, "id");
 
         BytesStreamOutput out = new BytesStreamOutput();
         out.setTransportVersion(randomVersion(random()));

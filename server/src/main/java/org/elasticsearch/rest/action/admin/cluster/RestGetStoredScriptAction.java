@@ -37,7 +37,7 @@ public class RestGetStoredScriptAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient client) throws IOException {
         String id = request.param("id");
-        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(id);
+        GetStoredScriptRequest getRequest = new GetStoredScriptRequest(masterNodeTimeout, id);
         getRequest.masterNodeTimeout(request.paramAsTime("master_timeout", getRequest.masterNodeTimeout()));
         return channel -> client.admin()
             .cluster()

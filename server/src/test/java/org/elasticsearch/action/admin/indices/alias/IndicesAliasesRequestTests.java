@@ -30,7 +30,7 @@ public class IndicesAliasesRequestTests extends ESTestCase {
 
         IndicesAliasesRequest parsedIndicesAliasesRequest;
         try (XContentParser parser = createParser(xContentType.xContent(), shuffled)) {
-            parsedIndicesAliasesRequest = IndicesAliasesRequest.fromXContent(parser);
+            parsedIndicesAliasesRequest = IndicesAliasesRequest.fromXContent(masterNodeTimeout, parser);
             assertNull(parser.nextToken());
         }
 
