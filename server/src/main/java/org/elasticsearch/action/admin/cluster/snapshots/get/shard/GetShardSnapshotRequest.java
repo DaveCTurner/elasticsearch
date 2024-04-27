@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
     private final List<String> repositories;
     private final ShardId shardId;
 
-    GetShardSnapshotRequest(List<String> repositories, ShardId shardId) {
+    GetShardSnapshotRequest(TimeValue masterNodeTimeout, List<String> repositories, ShardId shardId) {
         super(masterNodeTimeout);
         assert repositories.isEmpty() == false;
         assert repositories.stream().noneMatch(Objects::isNull);
@@ -50,8 +51,8 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
         shardId.writeTo(out);
     }
 
-    public static GetShardSnapshotRequest latestSnapshotInAllRepositories(ShardId shardId) {
-        return new GetShardSnapshotRequest(Collections.singletonList(ALL_REPOSITORIES), shardId);
+    public static GetShardSnapshotRequest latestSnapshotInAllRepositories(TimeValue masterNodeTimeout, ShardId shardId) {
+        return new GetShardSnapshotRequest(masterNodeTimeout, Collections.singletonList(ALL_REPOSITORIES), shardId);
     }
 
     public static GetShardSnapshotRequest latestSnapshotInRepositories(ShardId shardId, List<String> repositories) {
@@ -62,7 +63,11 @@ public class GetShardSnapshotRequest extends MasterNodeRequest<GetShardSnapshotR
         if (repositories.stream().anyMatch(Objects::isNull)) {
             throw new NullPointerException("null values are not allowed in the repository list");
         }
-        return new GetShardSnapshotRequest(repositories, shardId);
+        return new GetShardSnapshotRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+            repositories,
+            shardId
+        );
     }
 
     @Override

@@ -75,7 +75,7 @@ public class RestClusterGetSettingsAction extends BaseRestHandler {
             return prepareLegacyRequest(request, client, renderDefaults);
         }
 
-        ClusterGetSettingsAction.Request clusterSettingsRequest = new ClusterGetSettingsAction.Request();
+        ClusterGetSettingsAction.Request clusterSettingsRequest = new ClusterGetSettingsAction.Request(masterNodeTimeout);
 
         setUpRequestParams(clusterSettingsRequest, request);
 

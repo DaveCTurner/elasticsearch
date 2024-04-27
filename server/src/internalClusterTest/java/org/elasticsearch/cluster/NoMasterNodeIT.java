@@ -321,7 +321,7 @@ public class NoMasterNodeIT extends ESIntegTestCase {
 
         client().execute(
             TransportAddVotingConfigExclusionsAction.TYPE,
-            new AddVotingConfigExclusionsRequest(nodesWithShards.toArray(new String[0]))
+            new AddVotingConfigExclusionsRequest(masterNodeTimeout, nodesWithShards.toArray(new String[0]))
         ).get();
         ensureGreen("test1");
 

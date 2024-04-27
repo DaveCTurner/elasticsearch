@@ -97,7 +97,7 @@ public class SecurityFeatureResetTests extends SecurityIntegTestCase {
     }
 
     public void testFeatureResetNoManageRole() {
-        final ResetFeatureStateRequest req = new ResetFeatureStateRequest();
+        final ResetFeatureStateRequest req = new ResetFeatureStateRequest(masterNodeTimeout);
 
         client().filterWithHeader(Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue("usr", SUPER_USER_PASSWD)))
             .admin()
@@ -124,7 +124,7 @@ public class SecurityFeatureResetTests extends SecurityIntegTestCase {
     }
 
     private void assertResetSuccessful(String user, SecureString password) {
-        final ResetFeatureStateRequest req = new ResetFeatureStateRequest();
+        final ResetFeatureStateRequest req = new ResetFeatureStateRequest(masterNodeTimeout);
 
         client().filterWithHeader(Collections.singletonMap(BASIC_AUTH_HEADER, basicAuthHeaderValue(user, password)))
             .admin()

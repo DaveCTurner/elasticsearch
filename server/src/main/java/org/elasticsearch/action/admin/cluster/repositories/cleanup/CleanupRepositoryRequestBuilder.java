@@ -9,13 +9,14 @@ package org.elasticsearch.action.admin.cluster.repositories.cleanup;
 
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class CleanupRepositoryRequestBuilder extends MasterNodeOperationRequestBuilder<
     CleanupRepositoryRequest,
     CleanupRepositoryResponse,
     CleanupRepositoryRequestBuilder> {
 
-    public CleanupRepositoryRequestBuilder(ElasticsearchClient client, String repository) {
+    public CleanupRepositoryRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String repository) {
         super(client, TransportCleanupRepositoryAction.TYPE, new CleanupRepositoryRequest(masterNodeTimeout, repository));
     }
 

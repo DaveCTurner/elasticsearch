@@ -37,7 +37,7 @@ public class RestPendingClusterTasksAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest();
+        PendingClusterTasksRequest pendingClusterTasksRequest = new PendingClusterTasksRequest(masterNodeTimeout);
         pendingClusterTasksRequest.masterNodeTimeout(request.paramAsTime("master_timeout", pendingClusterTasksRequest.masterNodeTimeout()));
         pendingClusterTasksRequest.local(request.paramAsBoolean("local", pendingClusterTasksRequest.local()));
         return channel -> client.execute(

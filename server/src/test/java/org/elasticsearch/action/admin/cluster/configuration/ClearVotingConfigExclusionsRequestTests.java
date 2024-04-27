@@ -16,7 +16,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 public class ClearVotingConfigExclusionsRequestTests extends ESTestCase {
     public void testSerialization() throws IOException {
-        final ClearVotingConfigExclusionsRequest originalRequest = new ClearVotingConfigExclusionsRequest();
+        final ClearVotingConfigExclusionsRequest originalRequest = new ClearVotingConfigExclusionsRequest(masterNodeTimeout);
         if (randomBoolean()) {
             originalRequest.setWaitForRemoval(randomBoolean());
         }

@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.allocation;
 
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for requests to explain the allocation of a shard in the cluster
@@ -19,7 +20,7 @@ public class ClusterAllocationExplainRequestBuilder extends MasterNodeOperationR
     ClusterAllocationExplainResponse,
     ClusterAllocationExplainRequestBuilder> {
 
-    public ClusterAllocationExplainRequestBuilder(ElasticsearchClient client) {
+    public ClusterAllocationExplainRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportClusterAllocationExplainAction.TYPE, new ClusterAllocationExplainRequest(masterNodeTimeout));
     }
 

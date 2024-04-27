@@ -10,13 +10,14 @@ package org.elasticsearch.action.ingest;
 
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class GetPipelineRequestBuilder extends MasterNodeReadOperationRequestBuilder<
     GetPipelineRequest,
     GetPipelineResponse,
     GetPipelineRequestBuilder> {
 
-    public GetPipelineRequestBuilder(ElasticsearchClient client, String[] ids) {
+    public GetPipelineRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String[] ids) {
         super(client, GetPipelineAction.INSTANCE, new GetPipelineRequest(masterNodeTimeout, ids));
     }
 

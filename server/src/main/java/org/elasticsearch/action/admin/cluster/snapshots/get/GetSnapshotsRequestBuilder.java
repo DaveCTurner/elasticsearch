@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder
 import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.util.ArrayUtils;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.sort.SortOrder;
 
 /**
@@ -25,7 +26,7 @@ public class GetSnapshotsRequestBuilder extends MasterNodeOperationRequestBuilde
     /**
      * Constructs the new get snapshot request with specified repositories
      */
-    public GetSnapshotsRequestBuilder(ElasticsearchClient client, String... repositories) {
+    public GetSnapshotsRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... repositories) {
         super(client, TransportGetSnapshotsAction.TYPE, new GetSnapshotsRequest(masterNodeTimeout, repositories));
     }
 

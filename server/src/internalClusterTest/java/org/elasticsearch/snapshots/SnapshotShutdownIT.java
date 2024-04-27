@@ -180,7 +180,12 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
             SubscribableListener.<ActionResponse.Empty>newForked(
                 l -> client().execute(
                     TransportAddVotingConfigExclusionsAction.TYPE,
-                    new AddVotingConfigExclusionsRequest(Strings.EMPTY_ARRAY, new String[] { masterName }, TimeValue.timeValueSeconds(10)),
+                    new AddVotingConfigExclusionsRequest(
+                        masterNodeTimeout,
+                        Strings.EMPTY_ARRAY,
+                        new String[] { masterName },
+                        TimeValue.timeValueSeconds(10)
+                    ),
                     l
                 )
             )
@@ -233,7 +238,7 @@ public class SnapshotShutdownIT extends AbstractSnapshotIntegTestCase {
         }
 
         safeAwait(SubscribableListener.<ActionResponse.Empty>newForked(l -> {
-            final var clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest();
+            final var clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest(masterNodeTimeout);
             clearVotingConfigExclusionsRequest.setWaitForRemoval(false);
             client().execute(TransportClearVotingConfigExclusionsAction.TYPE, clearVotingConfigExclusionsRequest, l);
         }));

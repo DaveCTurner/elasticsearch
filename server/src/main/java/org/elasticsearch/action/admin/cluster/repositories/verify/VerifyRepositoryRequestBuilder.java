@@ -10,6 +10,7 @@ package org.elasticsearch.action.admin.cluster.repositories.verify;
 
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for verify repository request
@@ -22,7 +23,7 @@ public class VerifyRepositoryRequestBuilder extends MasterNodeOperationRequestBu
     /**
      * Constructs unregister repository request builder with specified repository name
      */
-    public VerifyRepositoryRequestBuilder(ElasticsearchClient client, String name) {
+    public VerifyRepositoryRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String name) {
         super(client, VerifyRepositoryAction.INSTANCE, new VerifyRepositoryRequest(masterNodeTimeout, name));
     }
 

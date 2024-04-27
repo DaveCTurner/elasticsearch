@@ -52,7 +52,7 @@ public class RestClusterAllocationExplainAction extends BaseRestHandler {
             req = new ClusterAllocationExplainRequest(masterNodeTimeout);
         } else {
             try (XContentParser parser = request.contentOrSourceParamParser()) {
-                req = ClusterAllocationExplainRequest.parse(parser);
+                req = ClusterAllocationExplainRequest.parse(masterNodeTimeout, parser);
             }
         }
 

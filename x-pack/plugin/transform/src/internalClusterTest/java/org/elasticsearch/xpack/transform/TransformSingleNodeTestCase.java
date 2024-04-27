@@ -40,7 +40,7 @@ public abstract class TransformSingleNodeTestCase extends ESSingleNodeTestCase {
 
     @After
     public void cleanup() {
-        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
+        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest(masterNodeTimeout)).actionGet();
     }
 
     protected <T> void assertAsync(

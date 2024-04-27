@@ -66,7 +66,9 @@ public class OperatorPrivilegesSingleNodeTests extends SecuritySingleNodeTestCas
     }
 
     public void testNormalSuperuserWillFailToCallOperatorOnlyAction() {
-        final ClearVotingConfigExclusionsRequest clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest();
+        final ClearVotingConfigExclusionsRequest clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest(
+            masterNodeTimeout
+        );
         final ElasticsearchSecurityException e = expectThrows(
             ElasticsearchSecurityException.class,
             () -> client().execute(TransportClearVotingConfigExclusionsAction.TYPE, clearVotingConfigExclusionsRequest).actionGet()
@@ -91,7 +93,9 @@ public class OperatorPrivilegesSingleNodeTests extends SecuritySingleNodeTestCas
 
     public void testOperatorUserWillSucceedToCallOperatorOnlyAction() {
         final Client client = createOperatorClient();
-        final ClearVotingConfigExclusionsRequest clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest();
+        final ClearVotingConfigExclusionsRequest clearVotingConfigExclusionsRequest = new ClearVotingConfigExclusionsRequest(
+            masterNodeTimeout
+        );
         client.execute(TransportClearVotingConfigExclusionsAction.TYPE, clearVotingConfigExclusionsRequest).actionGet();
     }
 

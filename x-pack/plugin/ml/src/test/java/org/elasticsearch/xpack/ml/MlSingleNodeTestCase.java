@@ -112,7 +112,7 @@ public abstract class MlSingleNodeTestCase extends ESSingleNodeTestCase {
     public void tearDown() throws Exception {
         try {
             logger.trace("[{}#{}]: ML-specific after test cleanup", getTestClass().getSimpleName(), getTestName());
-            client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
+            client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest(masterNodeTimeout)).actionGet();
         } finally {
             super.tearDown();
         }

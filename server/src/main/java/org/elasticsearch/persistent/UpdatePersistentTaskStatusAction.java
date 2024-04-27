@@ -21,6 +21,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -45,7 +46,7 @@ public class UpdatePersistentTaskStatusAction extends ActionType<PersistentTaskR
         private long allocationId = -1L;
         private PersistentTaskState state;
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 
@@ -56,7 +57,7 @@ public class UpdatePersistentTaskStatusAction extends ActionType<PersistentTaskR
             state = in.readOptionalNamedWriteable(PersistentTaskState.class);
         }
 
-        public Request(String taskId, long allocationId, PersistentTaskState state) {
+        public Request(TimeValue masterNodeTimeout, String taskId, long allocationId, PersistentTaskState state) {
             super(masterNodeTimeout);
             this.taskId = taskId;
             this.allocationId = allocationId;

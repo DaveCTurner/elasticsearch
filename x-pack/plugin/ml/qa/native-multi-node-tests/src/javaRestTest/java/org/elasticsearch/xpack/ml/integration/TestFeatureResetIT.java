@@ -137,7 +137,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         createdPipelines.remove("feature_reset_inference_pipeline");
 
         assertBusy(() -> assertThat(countInferenceProcessors(clusterAdmin().prepareState(masterNodeTimeout).get().getState()), equalTo(0)));
-        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
+        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest(masterNodeTimeout)).actionGet();
         assertBusy(() -> {
             List<String> indices = Arrays.asList(
                 client().admin().indices().prepareGetIndex(masterNodeTimeout).addIndices(".ml*").get().indices()
@@ -155,7 +155,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         createdPipelines.add("feature_reset_failure_inference_pipeline");
         Exception ex = expectThrows(
             Exception.class,
-            () -> client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet()
+            () -> client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest(masterNodeTimeout)).actionGet()
         );
         assertThat(
             ex.getMessage(),
@@ -173,7 +173,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
 
     public void testMLFeatureResetWithModelDeployment() throws Exception {
         createModelDeployment();
-        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).actionGet();
+        client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest(masterNodeTimeout)).actionGet();
         assertBusy(() -> {
             List<String> indices = Arrays.asList(
                 client().admin().indices().prepareGetIndex(masterNodeTimeout).addIndices(".ml*").get().indices()

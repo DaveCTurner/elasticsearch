@@ -110,6 +110,7 @@ public final class ShardFollowTaskCleaner implements ClusterStateListener {
                 client.execute(
                     CompletionPersistentTaskAction.INSTANCE,
                     new CompletionPersistentTaskAction.Request(
+                        masterNodeTimeout,
                         persistentTask.getId(),
                         persistentTask.getAllocationId(),
                         new IndexNotFoundException(followerIndex),

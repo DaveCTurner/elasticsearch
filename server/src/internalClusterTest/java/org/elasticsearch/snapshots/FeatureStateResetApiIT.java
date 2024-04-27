@@ -70,7 +70,10 @@ public class FeatureStateResetApiIT extends ESIntegTestCase {
         refresh("my_index");
 
         // call the reset API
-        ResetFeatureStateResponse apiResponse = client().execute(ResetFeatureStateAction.INSTANCE, new ResetFeatureStateRequest()).get();
+        ResetFeatureStateResponse apiResponse = client().execute(
+            ResetFeatureStateAction.INSTANCE,
+            new ResetFeatureStateRequest(masterNodeTimeout)
+        ).get();
         assertThat(
             apiResponse.getFeatureStateResetStatuses(),
             containsInAnyOrder(
@@ -114,7 +117,7 @@ public class FeatureStateResetApiIT extends ESIntegTestCase {
             EvilSystemIndexTestPlugin.setBeEvil(true);
             ResetFeatureStateResponse resetFeatureStateResponse = client().execute(
                 ResetFeatureStateAction.INSTANCE,
-                new ResetFeatureStateRequest()
+                new ResetFeatureStateRequest(masterNodeTimeout)
             ).get();
 
             List<String> failedFeatures = resetFeatureStateResponse.getFeatureStateResetStatuses()

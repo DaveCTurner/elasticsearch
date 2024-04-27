@@ -29,7 +29,7 @@ public class StartPersistentActionRequestTests extends AbstractWireSerializingTe
         if (randomBoolean()) {
             testParams.setExecutorNodeAttr(randomAlphaOfLengthBetween(1, 20));
         }
-        return new Request(UUIDs.base64UUID(), randomAlphaOfLengthBetween(1, 20), testParams);
+        return new Request(masterNodeTimeout, UUIDs.base64UUID(), randomAlphaOfLengthBetween(1, 20), testParams);
     }
 
     @Override

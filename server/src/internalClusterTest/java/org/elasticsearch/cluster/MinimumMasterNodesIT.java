@@ -114,7 +114,8 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         String masterNode = internalCluster().getMasterName();
         String otherNode = node1Name.equals(masterNode) ? node2Name : node1Name;
         logger.info("--> add voting config exclusion for non-master node, to be sure it's not elected");
-        client().execute(TransportAddVotingConfigExclusionsAction.TYPE, new AddVotingConfigExclusionsRequest(otherNode)).get();
+        client().execute(TransportAddVotingConfigExclusionsAction.TYPE, new AddVotingConfigExclusionsRequest(masterNodeTimeout, otherNode))
+            .get();
         logger.info("--> stop master node, no master block should appear");
         Settings masterDataPathSettings = internalCluster().dataPathSettings(masterNode);
         internalCluster().stopNode(masterNode);
@@ -157,14 +158,15 @@ public class MinimumMasterNodesIT extends ESIntegTestCase {
         }
 
         logger.info("--> clearing voting config exclusions");
-        ClearVotingConfigExclusionsRequest clearRequest = new ClearVotingConfigExclusionsRequest();
+        ClearVotingConfigExclusionsRequest clearRequest = new ClearVotingConfigExclusionsRequest(masterNodeTimeout);
         clearRequest.setWaitForRemoval(false);
         client().execute(TransportClearVotingConfigExclusionsAction.TYPE, clearRequest).get();
 
         masterNode = internalCluster().getMasterName();
         otherNode = node1Name.equals(masterNode) ? node2Name : node1Name;
         logger.info("--> add voting config exclusion for master node, to be sure it's not elected");
-        client().execute(TransportAddVotingConfigExclusionsAction.TYPE, new AddVotingConfigExclusionsRequest(masterNode)).get();
+        client().execute(TransportAddVotingConfigExclusionsAction.TYPE, new AddVotingConfigExclusionsRequest(masterNodeTimeout, masterNode))
+            .get();
         logger.info("--> stop non-master node, no master block should appear");
         Settings otherNodeDataPathSettings = internalCluster().dataPathSettings(otherNode);
         internalCluster().stopNode(otherNode);

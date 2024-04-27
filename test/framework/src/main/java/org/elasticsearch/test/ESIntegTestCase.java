@@ -865,7 +865,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 assertThat("client " + client + " still has in flight fetch", clusterHealth.getNumberOfInFlightFetch(), equalTo(0));
                 PendingClusterTasksResponse pendingTasks = client.execute(
                     TransportPendingClusterTasksAction.TYPE,
-                    new PendingClusterTasksRequest().local(true)
+                    new PendingClusterTasksRequest(masterNodeTimeout).local(true)
                 ).get();
                 assertThat(
                     "client " + client + " still has pending tasks " + pendingTasks,
@@ -995,7 +995,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
                 clusterAdmin().prepareState(masterNodeTimeout).execute(listeners.acquire(clusterStateRef::set));
                 client().execute(
                     TransportPendingClusterTasksAction.TYPE,
-                    new PendingClusterTasksRequest(),
+                    new PendingClusterTasksRequest(masterNodeTimeout),
                     listeners.acquire(pendingTasksRef::set)
                 );
                 try (var writer = new StringWriter()) {
@@ -1075,7 +1075,8 @@ public abstract class ESIntegTestCase extends ESTestCase {
 
     public static PendingClusterTasksResponse getClusterPendingTasks(Client client) {
         try {
-            return client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest()).get(10, TimeUnit.SECONDS);
+            return client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest(masterNodeTimeout))
+                .get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             return fail(e);
         }

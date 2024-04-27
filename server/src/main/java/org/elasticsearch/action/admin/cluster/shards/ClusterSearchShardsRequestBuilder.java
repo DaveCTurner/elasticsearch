@@ -11,13 +11,14 @@ package org.elasticsearch.action.admin.cluster.shards;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.MasterNodeReadOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class ClusterSearchShardsRequestBuilder extends MasterNodeReadOperationRequestBuilder<
     ClusterSearchShardsRequest,
     ClusterSearchShardsResponse,
     ClusterSearchShardsRequestBuilder> {
 
-    public ClusterSearchShardsRequestBuilder(ElasticsearchClient client) {
+    public ClusterSearchShardsRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportClusterSearchShardsAction.TYPE, new ClusterSearchShardsRequest(masterNodeTimeout));
     }
 

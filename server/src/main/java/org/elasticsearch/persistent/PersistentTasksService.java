@@ -61,7 +61,7 @@ public class PersistentTasksService {
     ) {
         @SuppressWarnings("unchecked")
         final ActionListener<PersistentTask<?>> wrappedListener = listener.map(t -> (PersistentTask<Params>) t);
-        StartPersistentTaskAction.Request request = new StartPersistentTaskAction.Request(taskId, taskName, taskParams);
+        StartPersistentTaskAction.Request request = new StartPersistentTaskAction.Request(masterNodeTimeout, taskId, taskName, taskParams);
         if (timeout != null) {
             request.masterNodeTimeout(timeout);
         }
@@ -85,6 +85,7 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         CompletionPersistentTaskAction.Request request = new CompletionPersistentTaskAction.Request(
+            masterNodeTimeout,
             taskId,
             taskAllocationId,
             taskFailure,
@@ -133,6 +134,7 @@ public class PersistentTasksService {
         final ActionListener<PersistentTask<?>> listener
     ) {
         UpdatePersistentTaskStatusAction.Request request = new UpdatePersistentTaskStatusAction.Request(
+            masterNodeTimeout,
             taskId,
             taskAllocationID,
             taskState
@@ -151,7 +153,7 @@ public class PersistentTasksService {
         final @Nullable TimeValue timeout,
         final ActionListener<PersistentTask<?>> listener
     ) {
-        RemovePersistentTaskAction.Request request = new RemovePersistentTaskAction.Request(taskId);
+        RemovePersistentTaskAction.Request request = new RemovePersistentTaskAction.Request(masterNodeTimeout, taskId);
         if (timeout != null) {
             request.masterNodeTimeout(timeout);
         }

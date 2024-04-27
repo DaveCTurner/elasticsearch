@@ -232,7 +232,7 @@ public class ClusterAllocationExplainRequest extends MasterNodeRequest<ClusterAl
         return sb.toString();
     }
 
-    public static ClusterAllocationExplainRequest parse(XContentParser parser) throws IOException {
+    public static ClusterAllocationExplainRequest parse(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
         return PARSER.parse(parser, new ClusterAllocationExplainRequest(masterNodeTimeout), null);
     }
 }

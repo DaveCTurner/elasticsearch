@@ -30,7 +30,7 @@ public class GetShardSnapshotRequestSerializationTests extends AbstractWireSeria
     protected GetShardSnapshotRequest createTestInstance() {
         ShardId shardId = randomShardId();
         if (randomBoolean()) {
-            return GetShardSnapshotRequest.latestSnapshotInAllRepositories(shardId);
+            return GetShardSnapshotRequest.latestSnapshotInAllRepositories(masterNodeTimeout, shardId);
         } else {
             List<String> repositories = randomList(1, randomIntBetween(1, 100), () -> randomAlphaOfLength(randomIntBetween(1, 100)));
             return GetShardSnapshotRequest.latestSnapshotInRepositories(shardId, repositories);
@@ -41,7 +41,7 @@ public class GetShardSnapshotRequestSerializationTests extends AbstractWireSeria
     protected GetShardSnapshotRequest mutateInstance(GetShardSnapshotRequest instance) {
         ShardId shardId = randomShardId();
         if (instance.getFromAllRepositories()) {
-            return GetShardSnapshotRequest.latestSnapshotInAllRepositories(shardId);
+            return GetShardSnapshotRequest.latestSnapshotInAllRepositories(masterNodeTimeout, shardId);
         } else {
             return GetShardSnapshotRequest.latestSnapshotInRepositories(shardId, instance.getRepositories());
         }
@@ -52,7 +52,11 @@ public class GetShardSnapshotRequestSerializationTests extends AbstractWireSeria
     }
 
     public void testGetDescription() {
-        final GetShardSnapshotRequest request = new GetShardSnapshotRequest(Arrays.asList("repo1", "repo2"), new ShardId("idx", "uuid", 0));
+        final GetShardSnapshotRequest request = new GetShardSnapshotRequest(
+            masterNodeTimeout,
+            Arrays.asList("repo1", "repo2"),
+            new ShardId("idx", "uuid", 0)
+        );
         assertThat(request.getDescription(), equalTo("shard[idx][0], repositories[repo1,repo2]"));
 
         final GetShardSnapshotRequest randomRequest = createTestInstance();

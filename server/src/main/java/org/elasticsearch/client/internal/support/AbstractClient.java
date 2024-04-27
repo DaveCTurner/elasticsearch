@@ -824,7 +824,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterSearchShardsRequestBuilder prepareSearchShards(String... indices) {
-            return new ClusterSearchShardsRequestBuilder(this).setIndices(indices);
+            return new ClusterSearchShardsRequestBuilder(masterNodeTimeout, this).setIndices(indices);
         }
 
         @Override
@@ -874,7 +874,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetSnapshotsRequestBuilder prepareGetSnapshots(String... repositories) {
-            return new GetSnapshotsRequestBuilder(this, repositories);
+            return new GetSnapshotsRequestBuilder(masterNodeTimeout, this, repositories);
         }
 
         @Override
@@ -904,7 +904,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public VerifyRepositoryRequestBuilder prepareVerifyRepository(String name) {
-            return new VerifyRepositoryRequestBuilder(this, name);
+            return new VerifyRepositoryRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
@@ -914,12 +914,12 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetRepositoriesRequestBuilder prepareGetRepositories(String... name) {
-            return new GetRepositoriesRequestBuilder(this, name);
+            return new GetRepositoriesRequestBuilder(masterNodeTimeout, this, name);
         }
 
         @Override
         public CleanupRepositoryRequestBuilder prepareCleanupRepository(String repository) {
-            return new CleanupRepositoryRequestBuilder(this, repository);
+            return new CleanupRepositoryRequestBuilder(masterNodeTimeout, this, repository);
         }
 
         @Override
@@ -949,12 +949,12 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public SnapshotsStatusRequestBuilder prepareSnapshotStatus(String repository) {
-            return new SnapshotsStatusRequestBuilder(this, repository);
+            return new SnapshotsStatusRequestBuilder(masterNodeTimeout, this, repository);
         }
 
         @Override
         public SnapshotsStatusRequestBuilder prepareSnapshotStatus() {
-            return new SnapshotsStatusRequestBuilder(this);
+            return new SnapshotsStatusRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override
@@ -999,7 +999,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public GetPipelineRequestBuilder prepareGetPipeline(String... ids) {
-            return new GetPipelineRequestBuilder(this, ids);
+            return new GetPipelineRequestBuilder(masterNodeTimeout, this, ids);
         }
 
         @Override
@@ -1029,7 +1029,7 @@ public abstract class AbstractClient implements Client {
 
         @Override
         public ClusterAllocationExplainRequestBuilder prepareAllocationExplain() {
-            return new ClusterAllocationExplainRequestBuilder(this);
+            return new ClusterAllocationExplainRequestBuilder(masterNodeTimeout, this);
         }
 
         @Override

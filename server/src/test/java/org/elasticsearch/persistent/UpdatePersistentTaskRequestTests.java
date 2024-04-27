@@ -21,7 +21,7 @@ public class UpdatePersistentTaskRequestTests extends AbstractWireSerializingTes
 
     @Override
     protected Request createTestInstance() {
-        return new Request(UUIDs.base64UUID(), randomLong(), new State(randomAlphaOfLength(10)));
+        return new Request(masterNodeTimeout, UUIDs.base64UUID(), randomLong(), new State(randomAlphaOfLength(10)));
     }
 
     @Override

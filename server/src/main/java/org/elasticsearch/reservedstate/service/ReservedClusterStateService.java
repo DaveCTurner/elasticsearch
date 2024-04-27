@@ -14,6 +14,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.RefCountingListener;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.ReservedStateErrorMetadata;
 import org.elasticsearch.cluster.metadata.ReservedStateMetadata;
@@ -103,7 +104,10 @@ public class ReservedClusterStateService {
                 throw new IllegalStateException("Missing handler definition for content key [" + name + "]");
             }
             p.nextToken();
-            return new Tuple<>(name, handlers.get(name).fromXContent(masterNodeTimeout, p));
+            return new Tuple<>(
+                name,
+                handlers.get(name).fromXContent(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, p)
+            );
         }, STATE_FIELD);
         stateChunkParser.declareObject(ConstructingObjectParser.constructorArg(), (p, c) -> ReservedStateVersion.parse(p), METADATA_FIELD);
     }

@@ -26,7 +26,7 @@ public class ClearVotingConfigExclusionsRequest extends MasterNodeRequest<ClearV
     /**
      * Construct a request to remove all the voting config exclusions from the cluster state.
      */
-    public ClearVotingConfigExclusionsRequest() {
+    public ClearVotingConfigExclusionsRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 

@@ -1936,7 +1936,7 @@ public final class InternalTestCluster extends TestCluster {
                 try {
                     client().execute(
                         TransportAddVotingConfigExclusionsAction.TYPE,
-                        new AddVotingConfigExclusionsRequest(excludedNodeNames.toArray(Strings.EMPTY_ARRAY))
+                        new AddVotingConfigExclusionsRequest(masterNodeTimeout, excludedNodeNames.toArray(Strings.EMPTY_ARRAY))
                     ).get();
                 } catch (InterruptedException | ExecutionException e) {
                     ESTestCase.fail(e);
@@ -1952,7 +1952,8 @@ public final class InternalTestCluster extends TestCluster {
             logger.info("removing voting config exclusions for {} after restart/shutdown", excludedNodeIds);
             try {
                 Client client = getRandomNodeAndClient(node -> excludedNodeIds.contains(node.name) == false).client();
-                client.execute(TransportClearVotingConfigExclusionsAction.TYPE, new ClearVotingConfigExclusionsRequest()).get();
+                client.execute(TransportClearVotingConfigExclusionsAction.TYPE, new ClearVotingConfigExclusionsRequest(masterNodeTimeout))
+                    .get();
             } catch (InterruptedException | ExecutionException e) {
                 ESTestCase.fail(e);
             }

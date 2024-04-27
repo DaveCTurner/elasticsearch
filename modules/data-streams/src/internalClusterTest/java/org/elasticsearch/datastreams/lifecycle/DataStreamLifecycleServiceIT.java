@@ -726,7 +726,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         String firstGenerationIndex = getBackingIndices(dataStreamName).get(0);
         ClusterGetSettingsAction.Response response = client().execute(
             ClusterGetSettingsAction.INSTANCE,
-            new ClusterGetSettingsAction.Request()
+            new ClusterGetSettingsAction.Request(masterNodeTimeout)
         ).get();
         Settings clusterSettings = response.persistentSettings();
 
