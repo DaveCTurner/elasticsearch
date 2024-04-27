@@ -16,6 +16,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata.APIBlock;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.CollectionUtils;
+import org.elasticsearch.core.TimeValue;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -42,7 +43,7 @@ public class AddIndexBlockRequest extends AcknowledgedRequest<AddIndexBlockReque
     /**
      * Constructs a new request for the specified block and indices
      */
-    public AddIndexBlockRequest(APIBlock block, String... indices) {
+    public AddIndexBlockRequest(TimeValue masterNodeTimeout, APIBlock block, String... indices) {
         super(masterNodeTimeout);
         this.block = Objects.requireNonNull(block);
         this.indices = Objects.requireNonNull(indices);

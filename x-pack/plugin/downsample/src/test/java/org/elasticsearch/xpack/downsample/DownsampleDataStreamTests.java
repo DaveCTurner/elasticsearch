@@ -88,7 +88,7 @@ public class DownsampleDataStreamTests extends ESSingleNodeTestCase {
             .getSetting(rolloverResponse.getNewIndex(), IndexSettings.TIME_SERIES_START_TIME.getKey());
         indexDocs(dataStreamName, 10, Instant.parse(newIndexStartTime).toEpochMilli());
         indicesAdmin().updateSettings(
-            new UpdateSettingsRequest().indices(rolloverResponse.getOldIndex())
+            new UpdateSettingsRequest(masterNodeTimeout).indices(rolloverResponse.getOldIndex())
                 .settings(Settings.builder().put(IndexMetadata.SETTING_BLOCKS_WRITE, true).build())
         ).actionGet();
 
@@ -108,7 +108,7 @@ public class DownsampleDataStreamTests extends ESSingleNodeTestCase {
          * See {@link IndexSettings#updateIndexMetadata}.
          */
         indicesAdmin().updateSettings(
-            new UpdateSettingsRequest().indices(downsampleTargetIndex)
+            new UpdateSettingsRequest(masterNodeTimeout).indices(downsampleTargetIndex)
                 .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, false).build())
         ).actionGet();
 

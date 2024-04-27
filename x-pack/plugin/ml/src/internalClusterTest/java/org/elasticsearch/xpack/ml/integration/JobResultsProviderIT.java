@@ -256,7 +256,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
 
         // Assert that the mappings contain all the additional fields: field1, field2, field3, etc.
         String sharedResultsIndex = AnomalyDetectorsIndexFields.RESULTS_INDEX_PREFIX + AnomalyDetectorsIndexFields.RESULTS_INDEX_DEFAULT;
-        GetMappingsRequest request = new GetMappingsRequest().indices(sharedResultsIndex);
+        GetMappingsRequest request = new GetMappingsRequest(masterNodeTimeout).indices(sharedResultsIndex);
         GetMappingsResponse response = client().execute(GetMappingsAction.INSTANCE, request).actionGet();
         Map<String, MappingMetadata> indexMappings = response.getMappings();
         assertNotNull(indexMappings);
@@ -507,7 +507,7 @@ public class JobResultsProviderIT extends MlSingleNodeTestCase {
     }
 
     private Map<String, Object> getIndexMappingProperties(String index) {
-        GetMappingsRequest request = new GetMappingsRequest().indices(index);
+        GetMappingsRequest request = new GetMappingsRequest(masterNodeTimeout).indices(index);
         GetMappingsResponse response = client().execute(GetMappingsAction.INSTANCE, request).actionGet();
         Map<String, MappingMetadata> indexMappings = response.getMappings();
         assertNotNull(indexMappings);

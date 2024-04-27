@@ -152,7 +152,7 @@ public interface Migration {
         }
 
         public void apply(String index, Consumer<PutMappingRequest> mappingConsumer, Consumer<UpdateSettingsRequest> settingsConsumer) {
-            settingsConsumer.accept(new UpdateSettingsRequest(settings, index));
+            settingsConsumer.accept(new UpdateSettingsRequest(masterNodeTimeout, settings, index));
         }
 
         @Override

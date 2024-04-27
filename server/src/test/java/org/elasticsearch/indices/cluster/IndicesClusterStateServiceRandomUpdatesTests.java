@@ -434,6 +434,7 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
         }
         if (indicesToUpdate.isEmpty() == false) {
             UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(
+                masterNodeTimeout,
                 indicesToUpdate.toArray(new String[indicesToUpdate.size()])
             );
             Settings.Builder settings = Settings.builder();

@@ -12,13 +12,14 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for close index request
  */
 public class CloseIndexRequestBuilder extends AcknowledgedRequestBuilder<CloseIndexRequest, CloseIndexResponse, CloseIndexRequestBuilder> {
 
-    public CloseIndexRequestBuilder(ElasticsearchClient client, String... indices) {
+    public CloseIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... indices) {
         super(client, TransportCloseIndexAction.TYPE, new CloseIndexRequest(masterNodeTimeout, indices));
     }
 

@@ -545,7 +545,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
         originSettingClient.admin()
             .indices()
             .updateSettings(
-                new UpdateSettingsRequest(".ml-*").origin(ClientHelper.ML_ORIGIN)
+                new UpdateSettingsRequest(masterNodeTimeout, ".ml-*").origin(ClientHelper.ML_ORIGIN)
                     .settings(Settings.builder().put(UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), 0).build())
             )
             .actionGet();

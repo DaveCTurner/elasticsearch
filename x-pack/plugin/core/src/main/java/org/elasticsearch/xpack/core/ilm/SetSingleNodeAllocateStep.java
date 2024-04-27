@@ -109,8 +109,9 @@ public class SetSingleNodeAllocateStep extends AsyncActionStep {
                     .put(IndexMetadata.INDEX_ROUTING_REQUIRE_GROUP_SETTING.getKey() + "_id", nodeId.get())
                     .putNull(ShardsLimitAllocationDecider.INDEX_TOTAL_SHARDS_PER_NODE_SETTING.getKey())
                     .build();
-                UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(indexName).masterNodeTimeout(TimeValue.MAX_VALUE)
-                    .settings(settings);
+                UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, indexName).masterNodeTimeout(
+                    TimeValue.MAX_VALUE
+                ).settings(settings);
                 getClient().admin()
                     .indices()
                     .updateSettings(updateSettingsRequest, listener.delegateFailureAndWrap((l, response) -> l.onResponse(null)));

@@ -275,7 +275,7 @@ public class TransportPutRollupJobAction extends AcknowledgedTransportMasterNode
             );
         };
 
-        GetMappingsRequest request = new GetMappingsRequest();
+        GetMappingsRequest request = new GetMappingsRequest(masterNodeTimeout);
         client.execute(GetMappingsAction.INSTANCE, request, ActionListener.wrap(getMappingResponseHandler, e -> {
             String msg = "Could not update mappings for rollup job [" + job.getConfig().getId() + "]";
             logger.error(msg);

@@ -42,9 +42,9 @@ public class UpdateSettingsStep extends AsyncActionStep {
         ClusterStateObserver observer,
         ActionListener<Void> listener
     ) {
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(indexMetadata.getIndex().getName()).masterNodeTimeout(
-            TimeValue.MAX_VALUE
-        ).settings(settings);
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, indexMetadata.getIndex().getName())
+            .masterNodeTimeout(TimeValue.MAX_VALUE)
+            .settings(settings);
         getClient().admin().indices().updateSettings(updateSettingsRequest, listener.delegateFailureAndWrap((l, r) -> l.onResponse(null)));
     }
 

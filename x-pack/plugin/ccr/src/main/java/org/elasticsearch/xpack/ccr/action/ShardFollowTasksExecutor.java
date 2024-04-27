@@ -230,9 +230,10 @@ public final class ShardFollowTasksExecutor extends PersistentTasksExecutor<Shar
                         // if so just update the follower index's settings:
                         if (updatedSettings.keySet().stream().allMatch(indexScopedSettings::isDynamicSetting)) {
                             // If only dynamic settings have been updated then just update these settings in follower index:
-                            final UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(followIndex.getName())
-                                .masterNodeTimeout(TimeValue.MAX_VALUE)
-                                .settings(updatedSettings);
+                            final UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(
+                                masterNodeTimeout,
+                                followIndex.getName()
+                            ).masterNodeTimeout(TimeValue.MAX_VALUE).settings(updatedSettings);
                             followerClient.admin()
                                 .indices()
                                 .updateSettings(
@@ -408,9 +409,8 @@ public final class ShardFollowTasksExecutor extends PersistentTasksExecutor<Shar
                 Runnable handler,
                 Consumer<Exception> onFailure
             ) {
-                final UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(followIndex).masterNodeTimeout(
-                    TimeValue.MAX_VALUE
-                );
+                final UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, followIndex)
+                    .masterNodeTimeout(TimeValue.MAX_VALUE);
                 updateSettingsRequest.settings(updatedSettings);
                 CheckedConsumer<AcknowledgedResponse, Exception> onResponse = response -> openIndex(followIndex, handler, onFailure);
                 followerClient.admin().indices().updateSettings(updateSettingsRequest, ActionListener.wrap(onResponse, onFailure));

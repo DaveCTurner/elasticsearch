@@ -207,7 +207,7 @@ public class ILMDownsampleDisruptionIT extends ESIntegTestCase {
         CountDownLatch disruptionEnd
     ) throws Exception {
         disruptionStart.await();
-        var request = new UpdateSettingsRequest(sourceIndex).settings(
+        var request = new UpdateSettingsRequest(masterNodeTimeout, sourceIndex).settings(
             Settings.builder().put(LifecycleSettings.LIFECYCLE_NAME, POLICY_NAME)
         );
         // Updating index.lifecycle.name setting may fail due to the rolling restart itself,

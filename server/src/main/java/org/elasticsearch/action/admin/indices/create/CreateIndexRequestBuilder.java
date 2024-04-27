@@ -15,6 +15,7 @@ import org.elasticsearch.client.internal.ElasticsearchClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -28,11 +29,11 @@ public class CreateIndexRequestBuilder extends AcknowledgedRequestBuilder<
     CreateIndexResponse,
     CreateIndexRequestBuilder> {
 
-    public CreateIndexRequestBuilder(ElasticsearchClient client) {
+    public CreateIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest(masterNodeTimeout));
     }
 
-    public CreateIndexRequestBuilder(ElasticsearchClient client, String index) {
+    public CreateIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String index) {
         super(client, TransportCreateIndexAction.TYPE, new CreateIndexRequest(masterNodeTimeout, index));
     }
 

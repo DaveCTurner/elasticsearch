@@ -171,10 +171,10 @@ public class SecurityIndexManagerIntegTests extends SecurityIntegTestCase {
             .put("index.priority", "8765")
             .put("index.number_of_replicas", "4")
             .build();
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(SECURITY_MAIN_ALIAS);
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, SECURITY_MAIN_ALIAS);
         updateSettingsRequest.settings(someSettings);
         expectThrows(IllegalStateException.class, () -> client().admin().indices().updateSettings(updateSettingsRequest).actionGet());
-        UpdateSettingsRequest updateSettingsRequest2 = new UpdateSettingsRequest(".security-7");
+        UpdateSettingsRequest updateSettingsRequest2 = new UpdateSettingsRequest(masterNodeTimeout, ".security-7");
         updateSettingsRequest2.settings(someSettings);
         expectThrows(IllegalStateException.class, () -> client().admin().indices().updateSettings(updateSettingsRequest2).actionGet());
     }

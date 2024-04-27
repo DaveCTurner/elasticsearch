@@ -40,6 +40,7 @@ public class RestAddIndexBlockAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(
+            masterNodeTimeout,
             IndexMetadata.APIBlock.fromName(request.param("block")),
             Strings.splitStringByCommaToArray(request.param("index"))
         );

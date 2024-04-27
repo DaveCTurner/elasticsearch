@@ -284,7 +284,7 @@ public class TransportDownsampleAction extends AcknowledgedTransportMasterNodeAc
         // At any point if there is an issue, delete the downsample index
 
         // 1. Extract source index mappings
-        final GetMappingsRequest getMappingsRequest = new GetMappingsRequest().indices(sourceIndexName);
+        final GetMappingsRequest getMappingsRequest = new GetMappingsRequest(masterNodeTimeout).indices(sourceIndexName);
         getMappingsRequest.setParentTask(parentTask);
         client.admin().indices().getMappings(getMappingsRequest, listener.delegateFailureAndWrap((delegate, getMappingsResponse) -> {
             final Map<String, Object> sourceIndexMappings = getMappingsResponse.mappings()
@@ -573,7 +573,7 @@ public class TransportDownsampleAction extends AcknowledgedTransportMasterNodeAc
                 settings.putNull(IndexMetadata.SETTING_INDEX_HIDDEN);
             }
         }
-        UpdateSettingsRequest updateSettingsReq = new UpdateSettingsRequest(settings.build(), downsampleIndexName);
+        UpdateSettingsRequest updateSettingsReq = new UpdateSettingsRequest(masterNodeTimeout, settings.build(), downsampleIndexName);
         updateSettingsReq.setParentTask(parentTask);
         client.admin()
             .indices()

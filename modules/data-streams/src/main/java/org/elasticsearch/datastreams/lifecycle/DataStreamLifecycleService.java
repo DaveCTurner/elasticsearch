@@ -718,7 +718,9 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
      * Issues a request to add a WRITE index block for the provided index through the transport action deduplicator.
      */
     private void addIndexBlockOnce(String indexName) {
-        AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(WRITE, indexName).masterNodeTimeout(TimeValue.MAX_VALUE);
+        AddIndexBlockRequest addIndexBlockRequest = new AddIndexBlockRequest(masterNodeTimeout, WRITE, indexName).masterNodeTimeout(
+            TimeValue.MAX_VALUE
+        );
         transportActionsDeduplicator.executeOnce(
             addIndexBlockRequest,
             new ErrorRecordingActionListener(
@@ -895,7 +897,7 @@ public class DataStreamLifecycleService implements ClusterStateListener, Closeab
             Integer configuredMergeFactor = MergePolicyConfig.INDEX_MERGE_POLICY_MERGE_FACTOR_SETTING.get(backingIndex.getSettings());
             if ((configuredFloorSegmentMerge == null || configuredFloorSegmentMerge.equals(targetMergePolicyFloorSegment) == false)
                 || (configuredMergeFactor == null || configuredMergeFactor.equals(targetMergePolicyFactor) == false)) {
-                UpdateSettingsRequest updateMergePolicySettingsRequest = new UpdateSettingsRequest();
+                UpdateSettingsRequest updateMergePolicySettingsRequest = new UpdateSettingsRequest(masterNodeTimeout);
                 updateMergePolicySettingsRequest.indices(indexName);
                 updateMergePolicySettingsRequest.settings(
                     Settings.builder()

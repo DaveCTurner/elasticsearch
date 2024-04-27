@@ -214,7 +214,7 @@ public class DownsampleTransportFailureIT extends ESIntegTestCase {
 
     public void blockIndexWrites(final String indexName) {
         final Settings blockWritesSetting = Settings.builder().put(IndexMetadata.SETTING_BLOCKS_WRITE, true).build();
-        assertAcked(client().admin().indices().updateSettings(new UpdateSettingsRequest(blockWritesSetting, indexName)));
+        assertAcked(client().admin().indices().updateSettings(new UpdateSettingsRequest(masterNodeTimeout, blockWritesSetting, indexName)));
     }
 
     private void createTimeSeriesIndex(final String indexName) throws IOException {

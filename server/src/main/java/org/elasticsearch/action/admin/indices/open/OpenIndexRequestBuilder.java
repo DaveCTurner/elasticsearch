@@ -12,13 +12,14 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 /**
  * Builder for for open index request
  */
 public class OpenIndexRequestBuilder extends AcknowledgedRequestBuilder<OpenIndexRequest, OpenIndexResponse, OpenIndexRequestBuilder> {
 
-    public OpenIndexRequestBuilder(ElasticsearchClient client, String... indices) {
+    public OpenIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... indices) {
         super(client, OpenIndexAction.INSTANCE, new OpenIndexRequest(masterNodeTimeout, indices));
     }
 

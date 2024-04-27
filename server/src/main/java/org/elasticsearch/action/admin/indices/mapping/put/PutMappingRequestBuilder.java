@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -26,7 +27,7 @@ public class PutMappingRequestBuilder extends AcknowledgedRequestBuilder<
     AcknowledgedResponse,
     PutMappingRequestBuilder> {
 
-    public PutMappingRequestBuilder(ElasticsearchClient client) {
+    public PutMappingRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
         super(client, TransportPutMappingAction.TYPE, new PutMappingRequest(masterNodeTimeout));
     }
 

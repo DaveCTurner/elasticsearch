@@ -376,7 +376,7 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
         final Settings settings = settingsBuilder.build();
         logger.info("Updating index [{}] with settings [{}]", sourceIndex, settings);
 
-        var updateSettingsReq = new UpdateSettingsRequest(settings, sourceIndex);
+        var updateSettingsReq = new UpdateSettingsRequest(masterNodeTimeout, settings, sourceIndex);
         assertAcked(indicesAdmin().updateSettings(updateSettingsReq).actionGet());
 
         DownsampleConfig config = new DownsampleConfig(randomInterval());
@@ -1147,8 +1147,9 @@ public class DownsampleActionSingleNodeTests extends ESSingleNodeTestCase {
 
         assertFieldMappings(config, metricFields, mappings);
 
-        GetMappingsResponse indexMappings = indicesAdmin().getMappings(new GetMappingsRequest().indices(downsampleIndex, sourceIndex))
-            .actionGet();
+        GetMappingsResponse indexMappings = indicesAdmin().getMappings(
+            new GetMappingsRequest(masterNodeTimeout).indices(downsampleIndex, sourceIndex)
+        ).actionGet();
         Map<String, String> downsampleIndexProperties = (Map<String, String>) indexMappings.mappings()
             .get(downsampleIndex)
             .sourceAsMap()

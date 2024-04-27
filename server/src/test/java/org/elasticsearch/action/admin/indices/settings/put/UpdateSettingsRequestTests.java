@@ -69,7 +69,7 @@ public class UpdateSettingsRequestTests extends AbstractXContentTestCase<UpdateS
             testRequest.reopen(true);
         }
         if (enclosedSettings) {
-            UpdateSettingsRequest requestWithEnclosingSettings = new UpdateSettingsRequest(testRequest.settings()) {
+            UpdateSettingsRequest requestWithEnclosingSettings = new UpdateSettingsRequest(masterNodeTimeout, testRequest.settings()) {
                 public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
                     builder.startObject();
                     builder.startObject("settings");
@@ -88,11 +88,11 @@ public class UpdateSettingsRequestTests extends AbstractXContentTestCase<UpdateS
     @Override
     protected UpdateSettingsRequest doParseInstance(XContentParser parser) throws IOException {
         if (mixedRequest() == false) {
-            return new UpdateSettingsRequest().fromXContent(parser);
+            return new UpdateSettingsRequest(masterNodeTimeout).fromXContent(parser);
         } else {
             ElasticsearchParseException e = expectThrows(
                 ElasticsearchParseException.class,
-                () -> (new UpdateSettingsRequest()).fromXContent(parser)
+                () -> (new UpdateSettingsRequest(masterNodeTimeout)).fromXContent(parser)
             );
             assertThat(e.getMessage(), equalTo("mix of settings map and top-level properties"));
             return null;
@@ -120,8 +120,8 @@ public class UpdateSettingsRequestTests extends AbstractXContentTestCase<UpdateS
         // the rest of the request fields are tested by the SerializingTests
         if (mixedRequest() == false) {
             super.assertEqualInstances(
-                new UpdateSettingsRequest(expectedInstance.settings()),
-                new UpdateSettingsRequest(newInstance.settings())
+                new UpdateSettingsRequest(masterNodeTimeout, expectedInstance.settings()),
+                new UpdateSettingsRequest(masterNodeTimeout, newInstance.settings())
             );
         } else {
             assertThat(newInstance, nullValue()); // sanity
@@ -181,7 +181,7 @@ public class UpdateSettingsRequestTests extends AbstractXContentTestCase<UpdateS
         XContentParser parser = test.createParser(XContentFactory.xContent(xContentType), updatedXContent);
         ElasticsearchParseException e = expectThrows(
             ElasticsearchParseException.class,
-            () -> (new UpdateSettingsRequest()).fromXContent(parser)
+            () -> (new UpdateSettingsRequest(masterNodeTimeout)).fromXContent(parser)
         );
         assertThat(e.getMessage(), equalTo("mix of settings map and top-level properties"));
     }

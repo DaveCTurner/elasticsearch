@@ -18,6 +18,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -61,14 +62,14 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
         }
     }
 
-    public UpdateSettingsRequest() {
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout) {
         super(masterNodeTimeout);
     }
 
     /**
      * Constructs a new request to update settings for one or more indices
      */
-    public UpdateSettingsRequest(String... indices) {
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
     }
@@ -76,7 +77,7 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
     /**
      * Constructs a new request to update settings for one or more indices
      */
-    public UpdateSettingsRequest(Settings settings, String... indices) {
+    public UpdateSettingsRequest(TimeValue masterNodeTimeout, Settings settings, String... indices) {
         super(masterNodeTimeout);
         this.indices = indices;
         this.settings = settings;

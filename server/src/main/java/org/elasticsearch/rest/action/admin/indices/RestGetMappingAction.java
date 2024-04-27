@@ -81,7 +81,7 @@ public class RestGetMappingAction extends BaseRestHandler {
         }
         final String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
 
-        final GetMappingsRequest getMappingsRequest = new GetMappingsRequest();
+        final GetMappingsRequest getMappingsRequest = new GetMappingsRequest(masterNodeTimeout);
         getMappingsRequest.indices(indices);
         getMappingsRequest.indicesOptions(IndicesOptions.fromRequest(request, getMappingsRequest.indicesOptions()));
         final TimeValue timeout = request.paramAsTime("master_timeout", getMappingsRequest.masterNodeTimeout());

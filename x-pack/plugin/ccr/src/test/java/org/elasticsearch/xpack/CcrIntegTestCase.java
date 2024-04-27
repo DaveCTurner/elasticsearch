@@ -260,7 +260,9 @@ public abstract class CcrIntegTestCase extends ESTestCase {
      * is not replicated and if tests kill nodes, we have to wait 60s by default...
      */
     protected void disableDelayedAllocation(String index) {
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(index).masterNodeTimeout(TimeValue.MAX_VALUE);
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, index).masterNodeTimeout(
+            TimeValue.MAX_VALUE
+        );
         Settings.Builder settingsBuilder = Settings.builder();
         settingsBuilder.put(UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING.getKey(), 0);
         updateSettingsRequest.settings(settingsBuilder);

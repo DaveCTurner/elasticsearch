@@ -61,8 +61,8 @@ public class UpdateSettingsRequestSerializationTests extends AbstractWireSeriali
 
     public static UpdateSettingsRequest createTestItem() {
         UpdateSettingsRequest request = randomBoolean()
-            ? new UpdateSettingsRequest(randomSettings(0, 2))
-            : new UpdateSettingsRequest(randomSettings(0, 2), randomIndicesNames(0, 2));
+            ? new UpdateSettingsRequest(masterNodeTimeout, randomSettings(0, 2))
+            : new UpdateSettingsRequest(masterNodeTimeout, randomSettings(0, 2), randomIndicesNames(0, 2));
         request.masterNodeTimeout(randomTimeValue());
         request.ackTimeout(randomTimeValue());
         request.indicesOptions(IndicesOptions.fromOptions(randomBoolean(), randomBoolean(), randomBoolean(), randomBoolean()));
@@ -72,7 +72,7 @@ public class UpdateSettingsRequestSerializationTests extends AbstractWireSeriali
     }
 
     private static UpdateSettingsRequest copyRequest(UpdateSettingsRequest request) {
-        UpdateSettingsRequest result = new UpdateSettingsRequest(request.settings(), request.indices());
+        UpdateSettingsRequest result = new UpdateSettingsRequest(masterNodeTimeout, request.settings(), request.indices());
         result.masterNodeTimeout(request.masterNodeTimeout());
         result.ackTimeout(request.ackTimeout());
         result.indicesOptions(request.indicesOptions());

@@ -41,7 +41,7 @@ public class RestUpdateSettingsAction extends BaseRestHandler {
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
         String[] indices = Strings.splitStringByCommaToArray(request.param("index"));
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(indices);
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, indices);
         updateSettingsRequest.ackTimeout(request.paramAsTime("timeout", updateSettingsRequest.ackTimeout()));
         updateSettingsRequest.setPreserveExisting(request.paramAsBoolean("preserve_existing", updateSettingsRequest.isPreserveExisting()));
         updateSettingsRequest.masterNodeTimeout(request.paramAsTime("master_timeout", updateSettingsRequest.masterNodeTimeout()));

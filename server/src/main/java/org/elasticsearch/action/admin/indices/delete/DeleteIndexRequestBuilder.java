@@ -12,13 +12,14 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequestBuilder;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 
 public class DeleteIndexRequestBuilder extends AcknowledgedRequestBuilder<
     DeleteIndexRequest,
     AcknowledgedResponse,
     DeleteIndexRequestBuilder> {
 
-    public DeleteIndexRequestBuilder(ElasticsearchClient client, String... indices) {
+    public DeleteIndexRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, String... indices) {
         super(client, TransportDeleteIndexAction.TYPE, new DeleteIndexRequest(masterNodeTimeout, indices));
     }
 

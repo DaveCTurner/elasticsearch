@@ -618,7 +618,7 @@ public class EnrichPolicyRunner implements Runnable {
 
     private void setIndexReadOnly(final String destinationIndexName) {
         logger.debug("Policy [{}]: Setting new enrich index [{}] to be read only", policyName, destinationIndexName);
-        UpdateSettingsRequest request = new UpdateSettingsRequest(destinationIndexName).setPreserveExisting(true)
+        UpdateSettingsRequest request = new UpdateSettingsRequest(masterNodeTimeout, destinationIndexName).setPreserveExisting(true)
             .settings(Settings.builder().put("index.auto_expand_replicas", "0-all").put("index.blocks.write", "true"));
         enrichOriginClient().admin()
             .indices()

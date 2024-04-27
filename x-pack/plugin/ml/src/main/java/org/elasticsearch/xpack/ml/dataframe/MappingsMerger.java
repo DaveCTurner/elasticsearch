@@ -43,7 +43,7 @@ public final class MappingsMerger {
             listener::onFailure
         );
 
-        GetMappingsRequest getMappingsRequest = new GetMappingsRequest();
+        GetMappingsRequest getMappingsRequest = new GetMappingsRequest(masterNodeTimeout);
         getMappingsRequest.indices(source.getIndex());
         ClientHelper.executeWithHeadersAsync(headers, ML_ORIGIN, client, GetMappingsAction.INSTANCE, getMappingsRequest, mappingsListener);
     }

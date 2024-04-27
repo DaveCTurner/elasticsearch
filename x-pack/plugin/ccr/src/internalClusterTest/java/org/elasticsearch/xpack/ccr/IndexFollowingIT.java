@@ -685,7 +685,9 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             .close(new CloseIndexRequest(masterNodeTimeout, "index2").masterNodeTimeout(TimeValue.MAX_VALUE))
             .actionGet();
 
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("index2").masterNodeTimeout(TimeValue.MAX_VALUE);
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, "index2").masterNodeTimeout(
+            TimeValue.MAX_VALUE
+        );
         updateSettingsRequest.settings(Settings.builder().put(CcrSettings.CCR_FOLLOWING_INDEX_SETTING.getKey(), false).build());
         Exception e = expectThrows(
             IllegalArgumentException.class,
@@ -1052,7 +1054,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(getSettingsResponse.getSetting("follower", "index.max_ngram_diff"), nullValue());
         }
         assertThat(getFollowTaskSettingsVersion("follower"), equalTo(1L));
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("leader");
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, "leader");
         updateSettingsRequest.settings(Settings.builder().put("index.max_ngram_diff", 2));
         assertAcked(leaderClient().admin().indices().updateSettings(updateSettingsRequest).actionGet());
 
@@ -1103,7 +1105,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(getSettingsResponse.getSetting("follower", "index.number_of_replicas"), equalTo("0"));
         }
         assertThat(getFollowTaskSettingsVersion("follower"), equalTo(1L));
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("leader");
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, "leader");
         updateSettingsRequest.settings(Settings.builder().put("index.number_of_replicas", 1));
         assertAcked(leaderClient().admin().indices().updateSettings(updateSettingsRequest).actionGet());
 
@@ -1148,7 +1150,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
         CloseIndexRequest closeIndexRequest = new CloseIndexRequest(masterNodeTimeout, "leader");
         assertAcked(leaderClient().admin().indices().close(closeIndexRequest).actionGet());
 
-        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest("leader");
+        UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout, "leader");
         updateSettingsRequest.settings(
             Settings.builder()
                 .put("index.analysis.analyzer.my_analyzer.type", "custom")
@@ -1180,7 +1182,7 @@ public class IndexFollowingIT extends CcrIntegTestCase {
             assertThat(getSettingsResponse.getSetting("follower", "index.analysis.analyzer.my_analyzer.type"), equalTo("custom"));
             assertThat(getSettingsResponse.getSetting("follower", "index.analysis.analyzer.my_analyzer.tokenizer"), equalTo("keyword"));
 
-            GetMappingsRequest getMappingsRequest = new GetMappingsRequest();
+            GetMappingsRequest getMappingsRequest = new GetMappingsRequest(masterNodeTimeout);
             getMappingsRequest.indices("follower");
             GetMappingsResponse getMappingsResponse = followerClient().admin().indices().getMappings(getMappingsRequest).actionGet();
             MappingMetadata mappingMetadata = getMappingsResponse.getMappings().get("follower");

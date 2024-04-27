@@ -273,7 +273,9 @@ public class TSDBPassthroughIndexingIT extends ESSingleNodeTestCase {
 
         var updateSettingsResponse = client().admin()
             .indices()
-            .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true)))
+            .updateSettings(
+                new UpdateSettingsRequest(masterNodeTimeout, sourceIndex).settings(Settings.builder().put("index.blocks.write", true))
+            )
             .actionGet();
         assertThat(updateSettingsResponse.isAcknowledged(), is(true));
 

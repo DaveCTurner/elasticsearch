@@ -39,7 +39,9 @@ public class ReadOnlyStep extends AsyncActionStep {
             .indices()
             .execute(
                 TransportAddIndexBlockAction.TYPE,
-                new AddIndexBlockRequest(WRITE, indexMetadata.getIndex().getName()).masterNodeTimeout(TimeValue.MAX_VALUE),
+                new AddIndexBlockRequest(masterNodeTimeout, WRITE, indexMetadata.getIndex().getName()).masterNodeTimeout(
+                    TimeValue.MAX_VALUE
+                ),
                 listener.delegateFailureAndWrap((l, response) -> {
                     if (response.isAcknowledged() == false) {
                         throw new ElasticsearchException("read only add block index request failed to be acknowledged");

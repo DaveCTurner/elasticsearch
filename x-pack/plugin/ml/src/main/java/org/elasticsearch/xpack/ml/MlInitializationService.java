@@ -232,7 +232,7 @@ public final class MlInitializationService implements ClusterStateListener {
             }
             String nonHiddenIndicesString = String.join(", ", nonHiddenIndices);
             logger.debug("The following ML internal indices will now be made hidden: [{}]", nonHiddenIndicesString);
-            UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest().indices(nonHiddenIndices)
+            UpdateSettingsRequest updateSettingsRequest = new UpdateSettingsRequest(masterNodeTimeout).indices(nonHiddenIndices)
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN)
                 .settings(Collections.singletonMap(SETTING_INDEX_HIDDEN, true));
             executeAsyncWithOrigin(client, ML_ORIGIN, TransportUpdateSettingsAction.TYPE, updateSettingsRequest, updateSettingsListener);

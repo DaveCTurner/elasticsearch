@@ -93,7 +93,7 @@ public class MlIndexAndAliasTests extends ESTestCase {
 
         indicesAdminClient = mock(IndicesAdminClient.class);
         when(indicesAdminClient.prepareCreate(FIRST_CONCRETE_INDEX)).thenReturn(
-            new CreateIndexRequestBuilder(client, FIRST_CONCRETE_INDEX)
+            new CreateIndexRequestBuilder(masterNodeTimeout, client, FIRST_CONCRETE_INDEX)
         );
         doAnswer(withResponse(new CreateIndexResponse(true, true, FIRST_CONCRETE_INDEX))).when(indicesAdminClient).create(any(), any());
         when(indicesAdminClient.prepareAliases(masterNodeTimeout)).thenReturn(new IndicesAliasesRequestBuilder(masterNodeTimeout, client));
