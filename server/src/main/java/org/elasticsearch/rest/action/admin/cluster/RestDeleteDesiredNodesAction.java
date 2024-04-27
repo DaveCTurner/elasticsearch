@@ -31,7 +31,7 @@ public class RestDeleteDesiredNodesAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain();
+        final AcknowledgedRequest.Plain deleteDesiredNodesRequest = new AcknowledgedRequest.Plain(masterNodeTimeout);
         deleteDesiredNodesRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteDesiredNodesRequest.masterNodeTimeout()));
         return restChannel -> client.execute(
             TransportDeleteDesiredNodesAction.TYPE,

@@ -35,7 +35,7 @@ public class RestDeleteLicenseAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        AcknowledgedRequest.Plain deleteLicenseRequest = new AcknowledgedRequest.Plain();
+        AcknowledgedRequest.Plain deleteLicenseRequest = new AcknowledgedRequest.Plain(masterNodeTimeout);
         deleteLicenseRequest.ackTimeout(request.paramAsTime("timeout", deleteLicenseRequest.ackTimeout()));
         deleteLicenseRequest.masterNodeTimeout(request.paramAsTime("master_timeout", deleteLicenseRequest.masterNodeTimeout()));
 

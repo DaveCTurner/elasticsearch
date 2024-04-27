@@ -432,7 +432,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
 
         assertAcked(client().execute(ILMActions.STOP, new StopILMRequest()).get());
         assertBusy(() -> {
-            OperationMode mode = client().execute(GetStatusAction.INSTANCE, new AcknowledgedRequest.Plain()).get().getMode();
+            OperationMode mode = client().execute(GetStatusAction.INSTANCE, new AcknowledgedRequest.Plain(masterNodeTimeout)).get().getMode();
             logger.info("--> waiting for STOPPED, currently: {}", mode);
             assertThat(mode, equalTo(OperationMode.STOPPED));
         });
@@ -456,7 +456,7 @@ public class IndexLifecycleInitialisationTests extends ESIntegTestCase {
             is(both(greaterThanOrEqualTo(lowerBoundModifiedDate)).and(lessThanOrEqualTo(upperBoundModifiedDate)))
         );
         // assert ILM is still stopped
-        GetStatusAction.Response statusResponse = client().execute(GetStatusAction.INSTANCE, new AcknowledgedRequest.Plain()).get();
+        GetStatusAction.Response statusResponse = client().execute(GetStatusAction.INSTANCE, new AcknowledgedRequest.Plain(masterNodeTimeout)).get();
         assertThat(statusResponse.getMode(), equalTo(OperationMode.STOPPED));
     }
 

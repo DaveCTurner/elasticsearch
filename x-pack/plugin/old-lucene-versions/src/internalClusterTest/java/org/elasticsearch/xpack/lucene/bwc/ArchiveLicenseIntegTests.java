@@ -57,7 +57,7 @@ public class ArchiveLicenseIntegTests extends AbstractArchiveTestCase {
     }
 
     public void testFailRestoreOnInvalidLicense() throws Exception {
-        assertAcked(client().execute(TransportDeleteLicenseAction.TYPE, new AcknowledgedRequest.Plain()).get());
+        assertAcked(client().execute(TransportDeleteLicenseAction.TYPE, new AcknowledgedRequest.Plain(masterNodeTimeout)).get());
         assertAcked(client().execute(PostStartBasicAction.INSTANCE, new PostStartBasicRequest()).get());
 
         ensureClusterSizeConsistency();
@@ -93,7 +93,7 @@ public class ArchiveLicenseIntegTests extends AbstractArchiveTestCase {
         assertThat(restoreSnapshotResponse.getRestoreInfo().failedShards(), equalTo(0));
         ensureGreen(indexName);
 
-        assertAcked(client().execute(TransportDeleteLicenseAction.TYPE, new AcknowledgedRequest.Plain()).get());
+        assertAcked(client().execute(TransportDeleteLicenseAction.TYPE, new AcknowledgedRequest.Plain(masterNodeTimeout)).get());
         assertAcked(client().execute(PostStartBasicAction.INSTANCE, new PostStartBasicRequest()).get());
 
         ensureClusterSizeConsistency();

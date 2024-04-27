@@ -249,7 +249,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
 
         final List<ActionFuture<ActionResponse.Empty>> deleteDesiredNodesFutures = new ArrayList<>(15);
         for (int i = 0; i < 15; i++) {
-            deleteDesiredNodesFutures.add(client().execute(TransportDeleteDesiredNodesAction.TYPE, new AcknowledgedRequest.Plain()));
+            deleteDesiredNodesFutures.add(client().execute(TransportDeleteDesiredNodesAction.TYPE, new AcknowledgedRequest.Plain(masterNodeTimeout)));
         }
 
         for (ActionFuture<ActionResponse.Empty> future : deleteDesiredNodesFutures) {
@@ -321,7 +321,7 @@ public class TransportDesiredNodesActionsIT extends ESIntegTestCase {
     }
 
     private void deleteDesiredNodes() {
-        client().execute(TransportDeleteDesiredNodesAction.TYPE, new AcknowledgedRequest.Plain()).actionGet();
+        client().execute(TransportDeleteDesiredNodesAction.TYPE, new AcknowledgedRequest.Plain(masterNodeTimeout)).actionGet();
     }
 
     private DesiredNodes getLatestDesiredNodes() {

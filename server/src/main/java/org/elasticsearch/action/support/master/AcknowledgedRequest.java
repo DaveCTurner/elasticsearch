@@ -41,8 +41,8 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
     }
 
     /**
-     * @param ackTimeout        specifies how long to wait for all relevant nodes to apply a cluster state update and acknowledge this to the
-     *                          elected master.
+     * @param ackTimeout specifies how long to wait for all relevant nodes to apply a cluster state update and acknowledge this to the
+     *                   elected master.
      */
     protected AcknowledgedRequest(TimeValue masterNodeTimeout, TimeValue ackTimeout) {
         super(masterNodeTimeout);
@@ -95,7 +95,7 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
             super(in);
         }
 
-        public Plain() {
+        public Plain(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
     }
