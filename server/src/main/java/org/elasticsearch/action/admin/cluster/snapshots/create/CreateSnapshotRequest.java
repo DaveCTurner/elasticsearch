@@ -461,7 +461,7 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
             && Arrays.equals(indices, that.indices)
             && Objects.equals(indicesOptions, that.indicesOptions)
             && Arrays.equals(featureStates, that.featureStates)
-            && Objects.equals(masterNodeTimeout, that.masterNodeTimeout)
+            && Objects.equals(masterNodeTimeout0, that.masterNodeTimeout0)
             && Objects.equals(userMetadata, that.userMetadata);
     }
 
@@ -476,28 +476,28 @@ public class CreateSnapshotRequest extends MasterNodeRequest<CreateSnapshotReque
     @Override
     public String toString() {
         return "CreateSnapshotRequest{"
-            + "snapshot='"
-            + snapshot
-            + '\''
-            + ", repository='"
-            + repository
-            + '\''
-            + ", indices="
-            + (indices == null ? null : Arrays.asList(indices))
-            + ", indicesOptions="
-            + indicesOptions
-            + ", featureStates="
-            + Arrays.asList(featureStates)
-            + ", partial="
-            + partial
-            + ", includeGlobalState="
-            + includeGlobalState
-            + ", waitForCompletion="
-            + waitForCompletion
-            + ", masterNodeTimeout="
-            + masterNodeTimeout
-            + ", metadata="
-            + userMetadata
-            + '}';
+               + "snapshot='"
+               + snapshot
+               + '\''
+               + ", repository='"
+               + repository
+               + '\''
+               + ", indices="
+               + (indices == null ? null : Arrays.asList(indices))
+               + ", indicesOptions="
+               + indicesOptions
+               + ", featureStates="
+               + Arrays.asList(featureStates)
+               + ", partial="
+               + partial
+               + ", includeGlobalState="
+               + includeGlobalState
+               + ", waitForCompletion="
+               + waitForCompletion
+               + ", masterNodeTimeout="
+               + masterNodeTimeout0
+               + ", metadata="
+               + userMetadata
+               + '}';
     }
 }

@@ -254,18 +254,18 @@ public class UpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsReq
             return false;
         }
         UpdateSettingsRequest that = (UpdateSettingsRequest) o;
-        return masterNodeTimeout.equals(that.masterNodeTimeout)
-            && ackTimeout().equals(that.ackTimeout())
-            && Objects.equals(settings, that.settings)
-            && Objects.equals(indicesOptions, that.indicesOptions)
-            && Objects.equals(preserveExisting, that.preserveExisting)
-            && Objects.equals(reopen, that.reopen)
-            && Arrays.equals(indices, that.indices);
+        return masterNodeTimeout0.equals(that.masterNodeTimeout0)
+               && ackTimeout().equals(that.ackTimeout())
+               && Objects.equals(settings, that.settings)
+               && Objects.equals(indicesOptions, that.indicesOptions)
+               && Objects.equals(preserveExisting, that.preserveExisting)
+               && Objects.equals(reopen, that.reopen)
+               && Arrays.equals(indices, that.indices);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(masterNodeTimeout, ackTimeout(), settings, indicesOptions, preserveExisting, reopen, Arrays.hashCode(indices));
+        return Objects.hash(masterNodeTimeout0, ackTimeout(), settings, indicesOptions, preserveExisting, reopen, Arrays.hashCode(indices));
     }
 
 }

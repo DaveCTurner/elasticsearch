@@ -94,8 +94,8 @@ public class PrevalidateNodeRemovalRequest extends MasterNodeReadRequest<Prevali
 
     public PrevalidateNodeRemovalRequest timeout(TimeValue timeout) {
         this.timeout = timeout;
-        if (masterNodeTimeout == DEFAULT_MASTER_NODE_TIMEOUT) {
-            masterNodeTimeout = timeout;
+        if (masterNodeTimeout0 == DEFAULT_MASTER_NODE_TIMEOUT) {
+            masterNodeTimeout0 = timeout;
         }
         return this;
     }
