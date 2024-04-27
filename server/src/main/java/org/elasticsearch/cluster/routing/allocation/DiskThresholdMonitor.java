@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterInfo;
 import org.elasticsearch.cluster.ClusterState;
@@ -457,7 +458,10 @@ public class DiskThresholdMonitor {
         Settings readOnlySettings = readOnly ? READ_ONLY_ALLOW_DELETE_SETTINGS : NOT_READ_ONLY_ALLOW_DELETE_SETTINGS;
         client.admin()
             .indices()
-            .prepareUpdateSettings(masterNodeTimeout, indicesToUpdate.toArray(Strings.EMPTY_ARRAY))
+            .prepareUpdateSettings(
+                MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+                indicesToUpdate.toArray(Strings.EMPTY_ARRAY)
+            )
             .setSettings(readOnlySettings)
             .origin("disk-threshold-monitor")
             .execute(
@@ -495,7 +499,10 @@ public class DiskThresholdMonitor {
         if (indicesToRelease.isEmpty() == false) {
             client.admin()
                 .indices()
-                .prepareUpdateSettings(masterNodeTimeout, indicesToRelease.toArray(Strings.EMPTY_ARRAY))
+                .prepareUpdateSettings(
+                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+                    indicesToRelease.toArray(Strings.EMPTY_ARRAY)
+                )
                 .setSettings(NOT_READ_ONLY_ALLOW_DELETE_SETTINGS)
                 .origin("disk-threshold-monitor")
                 .execute(wrappedListener.map(r -> null));

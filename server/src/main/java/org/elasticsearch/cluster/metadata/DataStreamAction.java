@@ -13,6 +13,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ObjectParser;
 import org.elasticsearch.xcontent.ParseField;
@@ -164,11 +165,11 @@ public class DataStreamAction implements Writeable, ToXContentObject {
         return PARSER.apply(parser, null);
     }
 
-    private static final ObjectParser<DataStreamAction, Void> ADD_BACKING_INDEX_PARSER = parser(
+    private static final ObjectParser<DataStreamAction, RestRequest> ADD_BACKING_INDEX_PARSER = parser(
         ADD_BACKING_INDEX.getPreferredName(),
         () -> new DataStreamAction(Type.ADD_BACKING_INDEX)
     );
-    private static final ObjectParser<DataStreamAction, Void> REMOVE_BACKING_INDEX_PARSER = parser(
+    private static final ObjectParser<DataStreamAction, RestRequest> REMOVE_BACKING_INDEX_PARSER = parser(
         REMOVE_BACKING_INDEX.getPreferredName(),
         () -> new DataStreamAction(Type.REMOVE_BACKING_INDEX)
     );
@@ -205,12 +206,12 @@ public class DataStreamAction implements Writeable, ToXContentObject {
         }
     }
 
-    private static ObjectParser<DataStreamAction, Void> parser(String name, Supplier<DataStreamAction> supplier) {
-        ObjectParser<DataStreamAction, Void> parser = new ObjectParser<>(name, supplier);
+    private static ObjectParser<DataStreamAction, RestRequest> parser(String name, Supplier<DataStreamAction> supplier) {
+        ObjectParser<DataStreamAction, RestRequest> parser = new ObjectParser<>(name, supplier);
         return parser;
     }
 
-    public static final ConstructingObjectParser<DataStreamAction, Void> PARSER = new ConstructingObjectParser<>(
+    public static final ConstructingObjectParser<DataStreamAction, RestRequest> PARSER = new ConstructingObjectParser<>(
         "data_stream_action",
         a -> {
             // Take the first action and error if there is more than one action

@@ -211,7 +211,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         createIndex(indexWithOldOriginationDate, Settings.builder().put(LIFECYCLE_ORIGINATION_DATE, originTimeMillis).build());
         client().execute(
             ModifyDataStreamsAction.INSTANCE,
-            new ModifyDataStreamsAction.Request(List.of(DataStreamAction.addBackingIndex(dataStreamName, indexWithOldOriginationDate)))
+            new ModifyDataStreamsAction.Request(
+                masterNodeTimeout,
+                List.of(DataStreamAction.addBackingIndex(dataStreamName, indexWithOldOriginationDate))
+            )
         ).get();
 
         String indexWithNewOriginationDate = "index_new";
@@ -219,7 +222,10 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
         createIndex(indexWithNewOriginationDate, Settings.builder().put(LIFECYCLE_ORIGINATION_DATE, originTimeMillis).build());
         client().execute(
             ModifyDataStreamsAction.INSTANCE,
-            new ModifyDataStreamsAction.Request(List.of(DataStreamAction.addBackingIndex(dataStreamName, indexWithNewOriginationDate)))
+            new ModifyDataStreamsAction.Request(
+                masterNodeTimeout,
+                List.of(DataStreamAction.addBackingIndex(dataStreamName, indexWithNewOriginationDate))
+            )
         ).get();
 
         assertBusy(() -> {

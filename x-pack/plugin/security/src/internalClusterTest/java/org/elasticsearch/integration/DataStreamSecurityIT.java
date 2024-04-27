@@ -120,7 +120,10 @@ public class DataStreamSecurityIT extends SecurityIntegTestCase {
         assertAcked(
             client.execute(
                 ModifyDataStreamsAction.INSTANCE,
-                new ModifyDataStreamsAction.Request(List.of(DataStreamAction.removeBackingIndex(dataStreamName, ghostReference.getName())))
+                new ModifyDataStreamsAction.Request(
+                    masterNodeTimeout,
+                    List.of(DataStreamAction.removeBackingIndex(dataStreamName, ghostReference.getName()))
+                )
             )
         );
         ClusterState after = internalCluster().getCurrentMasterNodeInstance(ClusterService.class).state();

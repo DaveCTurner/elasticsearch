@@ -16,6 +16,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.support.RefCountingRunnable;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.OriginSettingClient;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -196,7 +197,10 @@ public class SystemIndexMappingUpdateService implements ClusterStateListener {
     private void upgradeIndexMappings(SystemIndexDescriptor descriptor, ActionListener<AcknowledgedResponse> listener) {
         final String indexName = descriptor.getPrimaryIndex();
 
-        PutMappingRequest request = new PutMappingRequest(masterNodeTimeout, indexName).source(descriptor.getMappings(), XContentType.JSON);
+        PutMappingRequest request = new PutMappingRequest(
+            MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */,
+            indexName
+        ).source(descriptor.getMappings(), XContentType.JSON);
 
         final OriginSettingClient originSettingClient = new OriginSettingClient(this.client, descriptor.getOrigin());
 

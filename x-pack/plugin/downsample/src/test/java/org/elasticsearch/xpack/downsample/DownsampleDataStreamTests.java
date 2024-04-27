@@ -114,6 +114,7 @@ public class DownsampleDataStreamTests extends ESSingleNodeTestCase {
         ).actionGet();
 
         final ModifyDataStreamsAction.Request modifyDataStreamRequest = new ModifyDataStreamsAction.Request(
+            masterNodeTimeout,
             List.of(
                 DataStreamAction.removeBackingIndex(dataStreamName, rolloverResponse.getOldIndex()),
                 DataStreamAction.addBackingIndex(dataStreamName, downsampleTargetIndex)

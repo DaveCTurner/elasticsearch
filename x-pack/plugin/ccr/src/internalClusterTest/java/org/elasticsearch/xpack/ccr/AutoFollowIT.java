@@ -707,7 +707,7 @@ public class AutoFollowIT extends CcrIntegTestCase {
             .get();
         leaderClient().execute(
             ModifyDataStreamsAction.INSTANCE,
-            new ModifyDataStreamsAction.Request(List.of(DataStreamAction.addBackingIndex(datastream, indexInDatastream)))
+            new ModifyDataStreamsAction.Request(masterNodeTimeout, List.of(DataStreamAction.addBackingIndex(datastream, indexInDatastream)))
         ).get();
 
         assertLongBusy(() -> {

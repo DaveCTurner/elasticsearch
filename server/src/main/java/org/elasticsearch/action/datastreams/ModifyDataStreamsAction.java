@@ -14,9 +14,12 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.DataStreamAction;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -69,7 +72,7 @@ public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
             out.writeCollection(actions);
         }
 
-        public Request(List<DataStreamAction> actions) {
+        public Request(TimeValue masterNodeTimeout, List<DataStreamAction> actions) {
             super(masterNodeTimeout);
             this.actions = Collections.unmodifiableList(actions);
         }
@@ -99,9 +102,15 @@ public class ModifyDataStreamsAction extends ActionType<AcknowledgedResponse> {
         }
 
         @SuppressWarnings("unchecked")
-        public static final ConstructingObjectParser<Request, Void> PARSER = new ConstructingObjectParser<>(
+        public static final ConstructingObjectParser<Request, RestRequest> PARSER = new ConstructingObjectParser<>(
             "data_stream_actions",
-            args -> new Request(((List<DataStreamAction>) args[0]))
+            false,
+            (args, restRequest) -> new Request(
+                restRequest == null
+                    ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT
+                    : restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+                ((List<DataStreamAction>) args[0])
+            )
         );
         static {
             PARSER.declareObjectArray(ConstructingObjectParser.constructorArg(), DataStreamAction.PARSER, new ParseField("actions"));
