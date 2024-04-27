@@ -122,7 +122,7 @@ public class IndexLayoutIT extends BaseMlIntegTestCase {
         indexDocs(logger, "data", 100, weekAgo, now);
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(jobId + "-datafeed", jobId, Collections.singletonList("data")))
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(jobId + "-datafeed", jobId, Collections.singletonList("data")))
         ).get();
 
         client().execute(StartDatafeedAction.INSTANCE, new StartDatafeedAction.Request(jobId + "-datafeed", 0)).get();

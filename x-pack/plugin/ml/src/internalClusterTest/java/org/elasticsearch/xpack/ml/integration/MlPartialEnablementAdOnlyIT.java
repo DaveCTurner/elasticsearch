@@ -50,10 +50,10 @@ public class MlPartialEnablementAdOnlyIT extends MlSingleNodeTestCase {
      */
     public void testBasicInfoCalls() {
         client().execute(MlInfoAction.INSTANCE, new MlInfoAction.Request()).actionGet();
-        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request("*")).actionGet();
+        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request(masterNodeTimeout, "*")).actionGet();
         client().execute(GetJobsAction.INSTANCE, new GetJobsAction.Request("*")).actionGet();
         client().execute(GetJobsStatsAction.INSTANCE, new GetJobsStatsAction.Request("*")).actionGet();
-        client().execute(GetDatafeedsAction.INSTANCE, new GetDatafeedsAction.Request("*")).actionGet();
+        client().execute(GetDatafeedsAction.INSTANCE, new GetDatafeedsAction.Request(masterNodeTimeout, "*")).actionGet();
         client().execute(GetDatafeedsStatsAction.INSTANCE, new GetDatafeedsStatsAction.Request(masterNodeTimeout, "*")).actionGet();
     }
 }

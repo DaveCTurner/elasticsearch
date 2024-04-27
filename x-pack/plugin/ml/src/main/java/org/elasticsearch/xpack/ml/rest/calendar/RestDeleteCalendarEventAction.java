@@ -49,7 +49,7 @@ public class RestDeleteCalendarEventAction extends BaseRestHandler {
     protected BaseRestHandler.RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         String eventId = restRequest.param(ScheduledEvent.EVENT_ID.getPreferredName());
         String calendarId = restRequest.param(Calendar.ID.getPreferredName());
-        DeleteCalendarEventAction.Request request = new DeleteCalendarEventAction.Request(calendarId, eventId);
+        DeleteCalendarEventAction.Request request = new DeleteCalendarEventAction.Request(masterNodeTimeout, calendarId, eventId);
         return channel -> client.execute(DeleteCalendarEventAction.INSTANCE, request, new RestToXContentListener<>(channel));
     }
 }

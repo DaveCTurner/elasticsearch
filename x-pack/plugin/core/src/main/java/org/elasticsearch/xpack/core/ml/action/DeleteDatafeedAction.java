@@ -11,6 +11,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContentFragment;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -36,7 +37,7 @@ public class DeleteDatafeedAction extends ActionType<AcknowledgedResponse> {
         private String datafeedId;
         private boolean force;
 
-        public Request(String datafeedId) {
+        public Request(TimeValue masterNodeTimeout, String datafeedId) {
             super(masterNodeTimeout);
             this.datafeedId = ExceptionsHelper.requireNonNull(datafeedId, DatafeedConfig.ID.getPreferredName());
         }

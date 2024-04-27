@@ -178,7 +178,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
             PlainActionFuture<PutDatafeedAction.Response> listener = new PlainActionFuture<>();
             client().execute(
                 PutDatafeedAction.INSTANCE,
-                new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
+                new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
                 listener
             );
             listener.actionGet();
@@ -195,7 +195,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         PlainActionFuture<PutDatafeedAction.Response> listener = new PlainActionFuture<>();
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
             listener
         );
         PutDatafeedAction.Response response = listener.actionGet();
@@ -219,7 +219,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
             putDatafeedListener
         );
         PutDatafeedAction.Response putDatafeedResponse = putDatafeedListener.actionGet();
@@ -317,7 +317,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
             putDatafeedListener
         );
         PutDatafeedAction.Response putDatafeedResponse = putDatafeedListener.actionGet();
@@ -383,7 +383,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(datafeedIndex))),
             putDatafeedListener
         );
         PutDatafeedAction.Response putDatafeedResponse = putDatafeedListener.actionGet();
@@ -495,7 +495,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         PlainActionFuture<PutDatafeedAction.Response> putDatafeedListener = new PlainActionFuture<>();
         client().execute(
             PutDatafeedAction.INSTANCE,
-            new PutDatafeedAction.Request(createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
+            new PutDatafeedAction.Request(masterNodeTimeout, createDatafeed(datafeedId, jobId, Collections.singletonList(jobId))),
             putDatafeedListener
         );
         PutDatafeedAction.Response putDatafeedResponse = putDatafeedListener.actionGet();
@@ -506,7 +506,7 @@ public class MachineLearningLicensingIT extends BaseMlIntegTestCase {
         enableLicensing(mode);
 
         PlainActionFuture<AcknowledgedResponse> listener = new PlainActionFuture<>();
-        client().execute(DeleteDatafeedAction.INSTANCE, new DeleteDatafeedAction.Request(datafeedId), listener);
+        client().execute(DeleteDatafeedAction.INSTANCE, new DeleteDatafeedAction.Request(masterNodeTimeout, datafeedId), listener);
         listener.actionGet();
     }
 

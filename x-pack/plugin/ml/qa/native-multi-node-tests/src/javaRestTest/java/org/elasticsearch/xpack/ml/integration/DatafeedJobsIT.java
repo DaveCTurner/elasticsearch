@@ -633,7 +633,7 @@ public class DatafeedJobsIT extends MlNativeAutodetectIntegTestCase {
         // the code is robust to it.
         Thread deleteDatafeedThread = new Thread(() -> {
             try {
-                DeleteDatafeedAction.Request request = new DeleteDatafeedAction.Request(datafeedId);
+                DeleteDatafeedAction.Request request = new DeleteDatafeedAction.Request(masterNodeTimeout, datafeedId);
                 request.setForce(true);
                 AcknowledgedResponse response = client().execute(DeleteDatafeedAction.INSTANCE, request).actionGet();
                 if (response.isAcknowledged()) {

@@ -428,7 +428,7 @@ public class MonitoringIT extends ESSingleNodeTestCase {
     }
 
     private boolean getMonitoringUsageExportersDefined() throws Exception {
-        final XPackUsageResponse usageResponse = new XPackUsageRequestBuilder(client()).execute().get();
+        final XPackUsageResponse usageResponse = new XPackUsageRequestBuilder(masterNodeTimeout, client()).execute().get();
         final Optional<MonitoringFeatureSetUsage> monitoringUsage = usageResponse.getUsages()
             .stream()
             .filter(usage -> usage instanceof MonitoringFeatureSetUsage)

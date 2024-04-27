@@ -138,7 +138,7 @@ public class MlDeprecationChecker implements DeprecationChecker {
         components.client()
             .execute(
                 GetDatafeedsAction.INSTANCE,
-                new GetDatafeedsAction.Request(GetDatafeedsAction.ALL),
+                new GetDatafeedsAction.Request(masterNodeTimeout, GetDatafeedsAction.ALL),
                 getModelSnaphots.delegateFailureAndWrap((delegate, datafeedsResponse) -> {
                     for (DatafeedConfig df : datafeedsResponse.getResponse().results()) {
                         checkDataFeedAggregations(df, components.xContentRegistry()).ifPresent(issues::add);

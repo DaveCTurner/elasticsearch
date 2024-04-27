@@ -14,7 +14,7 @@ public class DeleteCalendarEventActionRequestTests extends AbstractWireSerializi
 
     @Override
     protected Request createTestInstance() {
-        return new Request(randomAlphaOfLengthBetween(1, 20), randomAlphaOfLengthBetween(1, 20));
+        return new Request(masterNodeTimeout, randomAlphaOfLengthBetween(1, 20), randomAlphaOfLengthBetween(1, 20));
     }
 
     @Override

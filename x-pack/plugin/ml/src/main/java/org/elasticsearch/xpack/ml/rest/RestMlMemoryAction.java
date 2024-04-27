@@ -46,7 +46,7 @@ public class RestMlMemoryAction extends BaseRestHandler {
         if (Strings.isNullOrEmpty(nodeId)) {
             nodeId = Metadata.ALL;
         }
-        MlMemoryAction.Request request = new MlMemoryAction.Request(nodeId);
+        MlMemoryAction.Request request = new MlMemoryAction.Request(masterNodeTimeout, nodeId);
         request.masterNodeTimeout(restRequest.paramAsTime(MASTER_TIMEOUT, request.masterNodeTimeout()));
         request.ackTimeout(restRequest.paramAsTime(TIMEOUT, request.ackTimeout()));
         return channel -> client.execute(MlMemoryAction.INSTANCE, request, new NodesResponseRestListener<>(channel));

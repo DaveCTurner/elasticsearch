@@ -66,7 +66,11 @@ public class RetryableUpdateModelSnapshotActionTests extends ESTestCase {
 
         AtomicReference<PutJobAction.Response> storedResponse = new AtomicReference<>();
 
-        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(JOB_ID, new JobUpdate.Builder(JOB_ID).build());
+        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(
+            masterNodeTimeout,
+            JOB_ID,
+            new JobUpdate.Builder(JOB_ID).build()
+        );
         RetryableUpdateModelSnapshotAction updateModelSnapshotAction = new RetryableUpdateModelSnapshotAction(
             client,
             updateRequest,
@@ -107,7 +111,11 @@ public class RetryableUpdateModelSnapshotActionTests extends ESTestCase {
 
         AtomicReference<PutJobAction.Response> storedResponse = new AtomicReference<>();
 
-        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(JOB_ID, new JobUpdate.Builder(JOB_ID).build());
+        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(
+            masterNodeTimeout,
+            JOB_ID,
+            new JobUpdate.Builder(JOB_ID).build()
+        );
         RetryableUpdateModelSnapshotAction updateModelSnapshotAction = new RetryableUpdateModelSnapshotAction(
             client,
             updateRequest,
@@ -148,7 +156,11 @@ public class RetryableUpdateModelSnapshotActionTests extends ESTestCase {
 
         AtomicReference<Exception> storedFailure = new AtomicReference<>();
 
-        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(JOB_ID, new JobUpdate.Builder(JOB_ID).build());
+        UpdateJobAction.Request updateRequest = new UpdateJobAction.Request(
+            masterNodeTimeout,
+            JOB_ID,
+            new JobUpdate.Builder(JOB_ID).build()
+        );
         RetryableUpdateModelSnapshotAction updateModelSnapshotAction = new RetryableUpdateModelSnapshotAction(
             client,
             updateRequest,

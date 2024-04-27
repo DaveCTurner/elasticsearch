@@ -45,7 +45,7 @@ public class RestPostJobUpdateAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         String jobId = restRequest.param(Job.ID.getPreferredName());
         XContentParser parser = restRequest.contentParser();
-        UpdateJobAction.Request updateJobRequest = UpdateJobAction.Request.parseRequest(jobId, parser);
+        UpdateJobAction.Request updateJobRequest = UpdateJobAction.Request.parseRequest(masterNodeTimeout, jobId, parser);
         updateJobRequest.ackTimeout(restRequest.paramAsTime("timeout", updateJobRequest.ackTimeout()));
         updateJobRequest.masterNodeTimeout(restRequest.paramAsTime("master_timeout", updateJobRequest.masterNodeTimeout()));
 

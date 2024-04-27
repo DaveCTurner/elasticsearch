@@ -19,7 +19,7 @@ public class MlMemoryActionRequestTests extends AbstractWireSerializingTestCase<
 
     @Override
     protected MlMemoryAction.Request createTestInstance() {
-        return new MlMemoryAction.Request(randomAlphaOfLength(20));
+        return new MlMemoryAction.Request(masterNodeTimeout, randomAlphaOfLength(20));
     }
 
     @Override

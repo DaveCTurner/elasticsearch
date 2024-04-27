@@ -926,7 +926,7 @@ public class NativeRealmIntegTests extends NativeRealmIntegTestCase {
             preparePutUser("joe" + i, "s3krit-password", hasher, "superuser").get();
         }
 
-        XPackUsageResponse response = new XPackUsageRequestBuilder(client()).get();
+        XPackUsageResponse response = new XPackUsageRequestBuilder(masterNodeTimeout, client()).get();
         Optional<XPackFeatureSet.Usage> securityUsage = response.getUsages()
             .stream()
             .filter(usage -> usage instanceof SecurityFeatureSetUsage)

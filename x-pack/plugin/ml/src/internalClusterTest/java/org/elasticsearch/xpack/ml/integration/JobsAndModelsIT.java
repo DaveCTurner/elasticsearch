@@ -75,7 +75,10 @@ public class JobsAndModelsIT extends BaseMlIntegTestCase {
         internalCluster().startNode(onlyRoles(Set.of(DiscoveryNodeRole.ML_ROLE)));
         ensureStableCluster();
 
-        MlMemoryAction.Response memoryStats = client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request("ml:true")).actionGet();
+        MlMemoryAction.Response memoryStats = client().execute(
+            MlMemoryAction.INSTANCE,
+            new MlMemoryAction.Request(masterNodeTimeout, "ml:true")
+        ).actionGet();
 
         long maxNativeBytesPerNode = 0;
         for (MlMemoryAction.Response.MlMemoryStats stats : memoryStats.getNodes()) {

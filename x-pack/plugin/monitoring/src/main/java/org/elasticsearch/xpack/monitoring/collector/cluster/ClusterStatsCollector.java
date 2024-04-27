@@ -85,7 +85,8 @@ public class ClusterStatsCollector extends Collector {
 
     @Override
     protected Collection<MonitoringDoc> doCollect(final MonitoringDoc.Node node, final long interval, final ClusterState clusterState) {
-        final Supplier<List<XPackFeatureSet.Usage>> usageSupplier = () -> new XPackUsageRequestBuilder(client).get().getUsages();
+        final Supplier<List<XPackFeatureSet.Usage>> usageSupplier = () -> new XPackUsageRequestBuilder(masterNodeTimeout, client).get()
+            .getUsages();
 
         final ClusterStatsResponse clusterStats = client.admin().cluster().prepareClusterStats().setTimeout(getCollectionTimeout()).get();
         ensureNoTimeouts(getCollectionTimeout(), clusterStats);

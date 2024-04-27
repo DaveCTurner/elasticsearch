@@ -45,18 +45,18 @@ public class RestXPackUsageAction extends BaseRestHandler {
     public RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         final TimeValue masterTimeout = request.paramAsTime("master_timeout", MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT);
         final HttpChannel httpChannel = request.getHttpChannel();
-        return channel -> new XPackUsageRequestBuilder(new RestCancellableNodeClient(client, httpChannel)).setMasterNodeTimeout(
-            masterTimeout
-        ).execute(new RestBuilderListener<>(channel) {
-            @Override
-            public RestResponse buildResponse(XPackUsageResponse response, XContentBuilder builder) throws Exception {
-                builder.startObject();
-                for (XPackFeatureSet.Usage usage : response.getUsages()) {
-                    builder.field(usage.name(), usage);
+        return channel -> new XPackUsageRequestBuilder(masterNodeTimeout, new RestCancellableNodeClient(client, httpChannel))
+            .setMasterNodeTimeout(masterTimeout)
+            .execute(new RestBuilderListener<>(channel) {
+                @Override
+                public RestResponse buildResponse(XPackUsageResponse response, XContentBuilder builder) throws Exception {
+                    builder.startObject();
+                    for (XPackFeatureSet.Usage usage : response.getUsages()) {
+                        builder.field(usage.name(), usage);
+                    }
+                    builder.endObject();
+                    return new RestResponse(OK, builder);
                 }
-                builder.endObject();
-                return new RestResponse(OK, builder);
-            }
-        });
+            });
     }
 }

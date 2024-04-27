@@ -242,7 +242,7 @@ public class WatcherScheduleEngineBenchmark {
                         Percentiles percentiles = searchResponse.getAggregations().get("percentile_delay");
                         stats.setDelayPercentiles(percentiles);
                         stats.setAvgJvmUsed(jvmUsedHeapSpace);
-                        new WatcherServiceRequestBuilder(client).stop().get();
+                        new WatcherServiceRequestBuilder(masterNodeTimeout, client).stop().get();
                     }
                 );
             }

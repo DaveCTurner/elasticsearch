@@ -108,7 +108,7 @@ abstract class MlNativeDataFrameAnalyticsIntegTestCase extends MlNativeIntegTest
     }
 
     protected NodeAcknowledgedResponse startAnalytics(String id) {
-        StartDataFrameAnalyticsAction.Request request = new StartDataFrameAnalyticsAction.Request(id);
+        StartDataFrameAnalyticsAction.Request request = new StartDataFrameAnalyticsAction.Request(masterNodeTimeout, id);
         return client().execute(StartDataFrameAnalyticsAction.INSTANCE, request).actionGet();
     }
 

@@ -320,7 +320,10 @@ public class TransportDeleteJobAction extends AcknowledgedTransportMasterNodeAct
                     listener.onResponse(AcknowledgedResponse.TRUE);
                     return;
                 }
-                DeleteDatafeedAction.Request deleteDatafeedRequest = new DeleteDatafeedAction.Request(datafeedIds.iterator().next());
+                DeleteDatafeedAction.Request deleteDatafeedRequest = new DeleteDatafeedAction.Request(
+                    masterNodeTimeout,
+                    datafeedIds.iterator().next()
+                );
                 deleteDatafeedRequest.setForce(deleteJobRequest.isForce());
                 deleteDatafeedRequest.ackTimeout(deleteJobRequest.ackTimeout());
                 ClientHelper.executeAsyncWithOrigin(

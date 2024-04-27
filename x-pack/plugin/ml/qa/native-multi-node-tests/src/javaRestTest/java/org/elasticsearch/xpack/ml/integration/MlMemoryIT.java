@@ -64,7 +64,8 @@ public class MlMemoryIT extends MlNativeDataFrameAnalyticsIntegTestCase {
         String dfaJobId = "dfa";
         startDataFrameAnalyticsJob(dfaJobId);
 
-        MlMemoryAction.Response response = client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request("_all")).actionGet();
+        MlMemoryAction.Response response = client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request(masterNodeTimeout, "_all"))
+            .actionGet();
 
         assertThat(response.failures(), empty());
 

@@ -27,7 +27,7 @@ public class PutTrainedModelAliasActionRequestTests extends AbstractWireSerializ
 
     @Override
     protected Request createTestInstance() {
-        return new Request(modelAlias, randomAlphaOfLength(10), randomBoolean());
+        return new Request(masterNodeTimeout, modelAlias, randomAlphaOfLength(10), randomBoolean());
     }
 
     @Override
@@ -41,20 +41,20 @@ public class PutTrainedModelAliasActionRequestTests extends AbstractWireSerializ
     }
 
     public void testCtor() {
-        expectThrows(Exception.class, () -> new Request(null, randomAlphaOfLength(10), randomBoolean()));
-        expectThrows(Exception.class, () -> new Request(randomAlphaOfLength(10), null, randomBoolean()));
+        expectThrows(Exception.class, () -> new Request(masterNodeTimeout, null, randomAlphaOfLength(10), randomBoolean()));
+        expectThrows(Exception.class, () -> new Request(masterNodeTimeout, randomAlphaOfLength(10), null, randomBoolean()));
     }
 
     public void testValidate() {
 
         { // model_alias equal to model Id
-            ActionRequestValidationException ex = new Request("foo", "foo", randomBoolean()).validate();
+            ActionRequestValidationException ex = new Request(masterNodeTimeout, "foo", "foo", randomBoolean()).validate();
             assertThat(ex, not(nullValue()));
             assertThat(ex.getMessage(), containsString("model_alias [foo] cannot equal model_id [foo]"));
         }
         { // model_alias cannot end in numbers
             modelAlias = randomAlphaOfLength(10) + randomIntBetween(0, Integer.MAX_VALUE);
-            ActionRequestValidationException ex = new Request(modelAlias, "foo", randomBoolean()).validate();
+            ActionRequestValidationException ex = new Request(masterNodeTimeout, modelAlias, "foo", randomBoolean()).validate();
             assertThat(ex, not(nullValue()));
             assertThat(
                 ex.getMessage(),

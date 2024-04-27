@@ -357,7 +357,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
     public static void deleteAllDatafeeds(Logger logger, Client client) throws Exception {
         final QueryPage<DatafeedConfig> datafeeds = client.execute(
             GetDatafeedsAction.INSTANCE,
-            new GetDatafeedsAction.Request(GetDatafeedsAction.ALL)
+            new GetDatafeedsAction.Request(masterNodeTimeout, GetDatafeedsAction.ALL)
         ).actionGet().getResponse();
         try {
             logger.info("Stopping all datafeeds (using _all)");
@@ -388,7 +388,7 @@ public abstract class BaseMlIntegTestCase extends ESIntegTestCase {
             });
             AcknowledgedResponse deleteResponse = client.execute(
                 DeleteDatafeedAction.INSTANCE,
-                new DeleteDatafeedAction.Request(datafeed.getId())
+                new DeleteDatafeedAction.Request(masterNodeTimeout, datafeed.getId())
             ).get();
             assertTrue(deleteResponse.isAcknowledged());
         }

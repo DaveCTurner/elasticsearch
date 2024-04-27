@@ -49,7 +49,7 @@ public class RestPutDatafeedAction extends BaseRestHandler {
         IndicesOptions indicesOptions = IndicesOptions.fromRequest(restRequest, SearchRequest.DEFAULT_INDICES_OPTIONS);
         PutDatafeedAction.Request putDatafeedRequest;
         try (XContentParser parser = restRequest.contentParser()) {
-            putDatafeedRequest = PutDatafeedAction.Request.parseRequest(datafeedId, indicesOptions, parser);
+            putDatafeedRequest = PutDatafeedAction.Request.parseRequest(masterNodeTimeout, datafeedId, indicesOptions, parser);
         }
         putDatafeedRequest.ackTimeout(restRequest.paramAsTime("timeout", putDatafeedRequest.ackTimeout()));
         putDatafeedRequest.masterNodeTimeout(restRequest.paramAsTime("master_timeout", putDatafeedRequest.masterNodeTimeout()));

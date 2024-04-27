@@ -44,7 +44,7 @@ public class RestPutTrainedModelAliasAction extends BaseRestHandler {
         boolean reassign = restRequest.paramAsBoolean(PutTrainedModelAliasAction.Request.REASSIGN, false);
         return channel -> client.execute(
             PutTrainedModelAliasAction.INSTANCE,
-            new PutTrainedModelAliasAction.Request(modelAlias, modelId, reassign),
+            new PutTrainedModelAliasAction.Request(masterNodeTimeout, modelAlias, modelId, reassign),
             new RestToXContentListener<>(channel)
         );
     }

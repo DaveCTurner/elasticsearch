@@ -329,6 +329,7 @@ public class ScheduledEventsIT extends MlNativeAutodetectIntegTestCase {
 
         // Update the job to be a member of the group
         UpdateJobAction.Request jobUpdateRequest = new UpdateJobAction.Request(
+            masterNodeTimeout,
             job.getId(),
             new JobUpdate.Builder(job.getId()).setGroups(Collections.singletonList(groupName)).build()
         );

@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
 
 public class RestMigrateToDataTiersAction extends BaseRestHandler {
 
@@ -36,10 +37,10 @@ public class RestMigrateToDataTiersAction extends BaseRestHandler {
         MigrateToDataTiersRequest migrateRequest;
         if (request.hasContent()) {
             try (var parser = request.contentParser()) {
-                migrateRequest = MigrateToDataTiersRequest.parse(parser);
+                migrateRequest = MigrateToDataTiersRequest.parse(request, parser);
             }
         } else {
-            migrateRequest = new MigrateToDataTiersRequest(masterNodeTimeout);
+            migrateRequest = new MigrateToDataTiersRequest(getMasterNodeTimeout(request));
         }
         migrateRequest.setDryRun(request.paramAsBoolean("dry_run", false));
         return channel -> client.execute(MigrateToDataTiersAction.INSTANCE, migrateRequest, new RestToXContentListener<>(channel));

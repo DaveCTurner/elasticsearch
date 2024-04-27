@@ -50,7 +50,7 @@ public class MlPartialEnablementDfaOnlyIT extends MlSingleNodeTestCase {
      */
     public void testBasicInfoCalls() {
         client().execute(MlInfoAction.INSTANCE, new MlInfoAction.Request()).actionGet();
-        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request("*")).actionGet();
+        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request(masterNodeTimeout, "*")).actionGet();
         client().execute(GetDataFrameAnalyticsAction.INSTANCE, new GetDataFrameAnalyticsAction.Request("*")).actionGet();
         client().execute(GetDataFrameAnalyticsStatsAction.INSTANCE, new GetDataFrameAnalyticsStatsAction.Request("*")).actionGet();
         client().execute(GetTrainedModelsAction.INSTANCE, new GetTrainedModelsAction.Request("*")).actionGet();

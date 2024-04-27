@@ -31,7 +31,10 @@ public class PutDatafeedActionRequestTests extends AbstractXContentSerializingTe
 
     @Override
     protected Request createTestInstance() {
-        return new Request(DatafeedConfigTests.createRandomizedDatafeedConfig(randomAlphaOfLength(10), datafeedId, 3600));
+        return new Request(
+            masterNodeTimeout,
+            DatafeedConfigTests.createRandomizedDatafeedConfig(randomAlphaOfLength(10), datafeedId, 3600)
+        );
     }
 
     @Override
@@ -46,7 +49,7 @@ public class PutDatafeedActionRequestTests extends AbstractXContentSerializingTe
 
     @Override
     protected Request doParseInstance(XContentParser parser) {
-        return Request.parseRequest(datafeedId, SearchRequest.DEFAULT_INDICES_OPTIONS, parser);
+        return Request.parseRequest(masterNodeTimeout, datafeedId, SearchRequest.DEFAULT_INDICES_OPTIONS, parser);
     }
 
     @Override

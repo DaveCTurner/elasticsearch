@@ -1057,7 +1057,7 @@ public class RunDataFrameAnalyticsIT extends MlNativeDataFrameAnalyticsIntegTest
         );
         putAnalytics(config);
 
-        StartDataFrameAnalyticsAction.Request request = new StartDataFrameAnalyticsAction.Request(id);
+        StartDataFrameAnalyticsAction.Request request = new StartDataFrameAnalyticsAction.Request(masterNodeTimeout, id);
         request.setTimeout(TimeValue.timeValueNanos(1L));
         ElasticsearchException e = expectThrows(
             ElasticsearchException.class,

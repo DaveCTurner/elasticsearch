@@ -438,6 +438,7 @@ public class AutodetectResultProcessorTests extends ESTestCase {
             .setEvent(Annotation.Event.MODEL_SNAPSHOT_STORED)
             .build();
         UpdateJobAction.Request expectedJobUpdateRequest = UpdateJobAction.Request.internal(
+            masterNodeTimeout,
             JOB_ID,
             new JobUpdate.Builder(JOB_ID).setModelSnapshotId("a_snapshot_id").build()
         );

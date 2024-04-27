@@ -11,6 +11,7 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeReadRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.tasks.CancellableTask;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -44,12 +45,12 @@ public class GetDatafeedsAction extends ActionType<GetDatafeedsAction.Response> 
         private String datafeedId;
         private boolean allowNoMatch = true;
 
-        public Request(String datafeedId) {
-            this();
+        public Request(TimeValue masterNodeTimeout, String datafeedId) {
+            this(masterNodeTimeout);
             this.datafeedId = ExceptionsHelper.requireNonNull(datafeedId, DatafeedConfig.ID.getPreferredName());
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
             local(true);
         }

@@ -106,7 +106,7 @@ public class ModelSnapshotSearchIT extends MlNativeAutodetectIntegTestCase {
         persistModelStateDocs(jobId, snapshotId, numDocs);
         if (isActive) {
             JobUpdate jobUpdate = new JobUpdate.Builder(jobId).setModelSnapshotId(snapshotId).build();
-            UpdateJobAction.Request updateJobRequest = UpdateJobAction.Request.internal(jobId, jobUpdate);
+            UpdateJobAction.Request updateJobRequest = UpdateJobAction.Request.internal(masterNodeTimeout, jobId, jobUpdate);
             client().execute(UpdateJobAction.INSTANCE, updateJobRequest).actionGet();
         }
     }

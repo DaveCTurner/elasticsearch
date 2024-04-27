@@ -99,7 +99,11 @@ public class AnomalyJobCRUDIT extends MlSingleNodeTestCase {
             ElasticsearchStatusException.class,
             () -> client().execute(
                 UpdateJobAction.INSTANCE,
-                new UpdateJobAction.Request(jobId, new JobUpdate.Builder(jobId).setAnalysisLimits(new AnalysisLimits(5L, 0L)).build())
+                new UpdateJobAction.Request(
+                    masterNodeTimeout,
+                    jobId,
+                    new JobUpdate.Builder(jobId).setAnalysisLimits(new AnalysisLimits(5L, 0L)).build()
+                )
             ).actionGet()
         );
         assertThat(iae.getMessage(), containsString("model_memory_limit cannot be decreased below current usage"));
@@ -107,7 +111,11 @@ public class AnomalyJobCRUDIT extends MlSingleNodeTestCase {
         // Shouldn't throw
         client().execute(
             UpdateJobAction.INSTANCE,
-            new UpdateJobAction.Request(jobId, new JobUpdate.Builder(jobId).setAnalysisLimits(new AnalysisLimits(30L, 0L)).build())
+            new UpdateJobAction.Request(
+                masterNodeTimeout,
+                jobId,
+                new JobUpdate.Builder(jobId).setAnalysisLimits(new AnalysisLimits(30L, 0L)).build()
+            )
         ).actionGet();
 
     }

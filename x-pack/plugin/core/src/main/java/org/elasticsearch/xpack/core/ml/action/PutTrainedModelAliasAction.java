@@ -13,6 +13,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xpack.core.ml.inference.TrainedModelConfig;
 import org.elasticsearch.xpack.core.ml.job.messages.Messages;
 import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
@@ -47,7 +48,7 @@ public class PutTrainedModelAliasAction extends ActionType<AcknowledgedResponse>
         private final String modelId;
         private final boolean reassign;
 
-        public Request(String modelAlias, String modelId, boolean reassign) {
+        public Request(TimeValue masterNodeTimeout, String modelAlias, String modelId, boolean reassign) {
             super(masterNodeTimeout);
             this.modelAlias = ExceptionsHelper.requireNonNull(modelAlias, MODEL_ALIAS);
             this.modelId = ExceptionsHelper.requireNonNull(modelId, TrainedModelConfig.MODEL_ID);

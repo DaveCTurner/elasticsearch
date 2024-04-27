@@ -10,6 +10,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRunnable;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.ClusterState;
@@ -69,7 +70,9 @@ public class TransportXPackUsageAction extends TransportMasterNodeAction<XPackUs
             @Override
             protected void doRun() {
                 if (responses.size() < usageActions().size()) {
-                    final var childRequest = new XPackUsageRequest(masterNodeTimeout);
+                    final var childRequest = new XPackUsageRequest(
+                        MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT /* TODO request.masterNodeTimeout()?  */
+                    );
                     childRequest.setParentTask(request.getParentTask());
                     client.executeLocally(
                         usageActions.get(responses.size()),

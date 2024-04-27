@@ -48,7 +48,7 @@ public class MlPartialEnablementNlpOnlyIT extends MlSingleNodeTestCase {
      */
     public void testBasicInfoCalls() {
         client().execute(MlInfoAction.INSTANCE, new MlInfoAction.Request()).actionGet();
-        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request("*")).actionGet();
+        client().execute(MlMemoryAction.INSTANCE, new MlMemoryAction.Request(masterNodeTimeout, "*")).actionGet();
         client().execute(GetTrainedModelsAction.INSTANCE, new GetTrainedModelsAction.Request("*")).actionGet();
         client().execute(GetTrainedModelsStatsAction.INSTANCE, new GetTrainedModelsStatsAction.Request("*")).actionGet();
     }

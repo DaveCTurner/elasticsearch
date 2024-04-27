@@ -117,7 +117,7 @@ abstract class MlNativeAutodetectIntegTestCase extends MlNativeIntegTestCase {
     }
 
     protected PutJobAction.Response updateJob(String jobId, JobUpdate update) {
-        UpdateJobAction.Request request = new UpdateJobAction.Request(jobId, update);
+        UpdateJobAction.Request request = new UpdateJobAction.Request(masterNodeTimeout, jobId, update);
         return client().execute(UpdateJobAction.INSTANCE, request).actionGet();
     }
 
@@ -132,7 +132,7 @@ abstract class MlNativeAutodetectIntegTestCase extends MlNativeIntegTestCase {
     }
 
     protected PutDatafeedAction.Response putDatafeed(DatafeedConfig datafeed) {
-        PutDatafeedAction.Request request = new PutDatafeedAction.Request(datafeed);
+        PutDatafeedAction.Request request = new PutDatafeedAction.Request(masterNodeTimeout, datafeed);
         return client().execute(PutDatafeedAction.INSTANCE, request).actionGet();
     }
 
@@ -147,7 +147,7 @@ abstract class MlNativeAutodetectIntegTestCase extends MlNativeIntegTestCase {
     }
 
     protected AcknowledgedResponse deleteDatafeed(String datafeedId) {
-        DeleteDatafeedAction.Request request = new DeleteDatafeedAction.Request(datafeedId);
+        DeleteDatafeedAction.Request request = new DeleteDatafeedAction.Request(masterNodeTimeout, datafeedId);
         return client().execute(DeleteDatafeedAction.INSTANCE, request).actionGet();
     }
 

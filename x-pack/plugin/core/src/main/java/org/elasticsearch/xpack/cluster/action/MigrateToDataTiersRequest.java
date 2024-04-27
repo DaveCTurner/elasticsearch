@@ -12,6 +12,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.XContentParser;
@@ -19,16 +20,18 @@ import org.elasticsearch.xcontent.XContentParser;
 import java.io.IOException;
 import java.util.Objects;
 
+import static org.elasticsearch.rest.RestUtils.getMasterNodeTimeout;
+
 public class MigrateToDataTiersRequest extends AcknowledgedRequest<MigrateToDataTiersRequest> {
 
     private static final ParseField LEGACY_TEMPLATE_TO_DELETE = new ParseField("legacy_template_to_delete");
     private static final ParseField NODE_ATTRIBUTE_NAME = new ParseField("node_attribute");
 
     @SuppressWarnings("unchecked")
-    public static final ConstructingObjectParser<MigrateToDataTiersRequest, Void> PARSER = new ConstructingObjectParser<>(
+    public static final ConstructingObjectParser<MigrateToDataTiersRequest, RestRequest> PARSER = new ConstructingObjectParser<>(
         "index_template",
         false,
-        a -> new MigrateToDataTiersRequest(masterNodeTimeout, (String) a[0], (String) a[1])
+        (a, restRequest) -> new MigrateToDataTiersRequest(getMasterNodeTimeout(restRequest), (String) a[0], (String) a[1])
     );
 
     static {
@@ -49,8 +52,8 @@ public class MigrateToDataTiersRequest extends AcknowledgedRequest<MigrateToData
     private final String legacyTemplateToDelete;
     private boolean dryRun = false;
 
-    public static MigrateToDataTiersRequest parse(XContentParser parser) throws IOException {
-        return PARSER.parse(parser, null);
+    public static MigrateToDataTiersRequest parse(RestRequest restRequest, XContentParser parser) throws IOException {
+        return PARSER.parse(parser, restRequest);
     }
 
     public MigrateToDataTiersRequest(

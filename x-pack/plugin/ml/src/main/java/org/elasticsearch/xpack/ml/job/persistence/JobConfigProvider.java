@@ -440,7 +440,13 @@ public class JobConfigProvider {
 
     public void updateJobBlockReason(String jobId, Blocked blocked, ActionListener<PutJobAction.Response> listener) {
         JobUpdate jobUpdate = new JobUpdate.Builder(jobId).setBlocked(blocked).build();
-        executeAsyncWithOrigin(client, ML_ORIGIN, UpdateJobAction.INSTANCE, UpdateJobAction.Request.internal(jobId, jobUpdate), listener);
+        executeAsyncWithOrigin(
+            client,
+            ML_ORIGIN,
+            UpdateJobAction.INSTANCE,
+            UpdateJobAction.Request.internal(masterNodeTimeout, jobId, jobUpdate),
+            listener
+        );
     }
 
     public void updateJobAfterReset(String jobId, ActionListener<PutJobAction.Response> listener) {
@@ -448,7 +454,13 @@ public class JobConfigProvider {
             .setBlocked(Blocked.none())
             .setClearFinishTime(true)
             .build();
-        executeAsyncWithOrigin(client, ML_ORIGIN, UpdateJobAction.INSTANCE, UpdateJobAction.Request.internal(jobId, jobUpdate), listener);
+        executeAsyncWithOrigin(
+            client,
+            ML_ORIGIN,
+            UpdateJobAction.INSTANCE,
+            UpdateJobAction.Request.internal(masterNodeTimeout, jobId, jobUpdate),
+            listener
+        );
     }
 
     /**

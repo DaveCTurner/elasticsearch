@@ -11,6 +11,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xpack.core.ml.calendars.Calendar;
 import org.elasticsearch.xpack.core.ml.calendars.ScheduledEvent;
 import org.elasticsearch.xpack.core.ml.utils.ExceptionsHelper;
@@ -37,7 +38,7 @@ public class DeleteCalendarEventAction extends ActionType<AcknowledgedResponse> 
             eventId = in.readString();
         }
 
-        public Request(String calendarId, String eventId) {
+        public Request(TimeValue masterNodeTimeout, String calendarId, String eventId) {
             super(masterNodeTimeout);
             this.calendarId = ExceptionsHelper.requireNonNull(calendarId, Calendar.ID.getPreferredName());
             this.eventId = ExceptionsHelper.requireNonNull(eventId, ScheduledEvent.EVENT_ID.getPreferredName());

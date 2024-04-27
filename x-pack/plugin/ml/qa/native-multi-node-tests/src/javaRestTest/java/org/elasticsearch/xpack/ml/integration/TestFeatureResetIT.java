@@ -264,7 +264,7 @@ public class TestFeatureResetIT extends MlNativeAutodetectIntegTestCase {
         PutDataFrameAnalyticsAction.Request request = new PutDataFrameAnalyticsAction.Request(config);
         client().execute(PutDataFrameAnalyticsAction.INSTANCE, request).actionGet();
 
-        client().execute(StartDataFrameAnalyticsAction.INSTANCE, new StartDataFrameAnalyticsAction.Request(jobId));
+        client().execute(StartDataFrameAnalyticsAction.INSTANCE, new StartDataFrameAnalyticsAction.Request(masterNodeTimeout, jobId));
     }
 
     private void putAndStartJob(String jobId) throws Exception {

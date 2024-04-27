@@ -11,6 +11,7 @@ import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -30,9 +31,9 @@ public class UpdateJobAction extends ActionType<PutJobAction.Response> {
 
     public static class Request extends AcknowledgedRequest<UpdateJobAction.Request> implements ToXContentObject {
 
-        public static UpdateJobAction.Request parseRequest(String jobId, XContentParser parser) {
+        public static UpdateJobAction.Request parseRequest(TimeValue masterNodeTimeout, String jobId, XContentParser parser) {
             JobUpdate update = JobUpdate.PARSER.apply(parser, null).setJobId(jobId).build();
-            return new UpdateJobAction.Request(jobId, update);
+            return new UpdateJobAction.Request(masterNodeTimeout, jobId, update);
         }
 
         private String jobId;
@@ -41,11 +42,11 @@ public class UpdateJobAction extends ActionType<PutJobAction.Response> {
         /** Indicates an update that was not triggered by a user */
         private boolean isInternal;
 
-        public Request(String jobId, JobUpdate update) {
-            this(jobId, update, false);
+        public Request(TimeValue masterNodeTimeout, String jobId, JobUpdate update) {
+            this(masterNodeTimeout, jobId, update, false);
         }
 
-        private Request(String jobId, JobUpdate update, boolean isInternal) {
+        private Request(TimeValue masterNodeTimeout, String jobId, JobUpdate update, boolean isInternal) {
             super(masterNodeTimeout);
             this.jobId = jobId;
             this.update = update;
@@ -62,8 +63,8 @@ public class UpdateJobAction extends ActionType<PutJobAction.Response> {
             isInternal = in.readBoolean();
         }
 
-        public static Request internal(String jobId, JobUpdate update) {
-            return new Request(jobId, update, true);
+        public static Request internal(TimeValue masterNodeTimeout, String jobId, JobUpdate update) {
+            return new Request(masterNodeTimeout, jobId, update, true);
         }
 
         public String getJobId() {

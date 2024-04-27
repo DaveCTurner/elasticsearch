@@ -49,15 +49,15 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
 
         public static final ParseField TIMEOUT = new ParseField("timeout");
 
-        private static final ObjectParser<Request, Void> PARSER = new ObjectParser<>(NAME, Request::new);
+        private static final ObjectParser<Request, Void> PARSER = new ObjectParser<>(NAME);
 
         static {
             PARSER.declareString((request, id) -> request.id = id, DataFrameAnalyticsConfig.ID);
             PARSER.declareString((request, val) -> request.setTimeout(TimeValue.parseTimeValue(val, TIMEOUT.getPreferredName())), TIMEOUT);
         }
 
-        public static Request parseRequest(String id, XContentParser parser) {
-            Request request = PARSER.apply(parser, null);
+        public static Request parseRequest(TimeValue masterNodeTimeout, String id, XContentParser parser) throws IOException {
+            Request request = PARSER.parse(parser, new Request(masterNodeTimeout), null);
             if (request.getId() == null) {
                 request.setId(id);
             } else if (Strings.isNullOrEmpty(id) == false && id.equals(request.getId()) == false) {
@@ -71,7 +71,7 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
         private String id;
         private TimeValue timeout = DEFAULT_TIMEOUT;
 
-        public Request(String id) {
+        public Request(TimeValue masterNodeTimeout, String id) {
             super(masterNodeTimeout);
             setId(id);
         }
@@ -82,7 +82,7 @@ public class StartDataFrameAnalyticsAction extends ActionType<NodeAcknowledgedRe
             timeout = in.readTimeValue();
         }
 
-        public Request() {
+        public Request(TimeValue masterNodeTimeout) {
             super(masterNodeTimeout);
         }
 

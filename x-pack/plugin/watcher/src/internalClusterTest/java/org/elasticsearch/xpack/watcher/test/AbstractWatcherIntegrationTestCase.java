@@ -543,7 +543,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
 
             boolean isAllStateStopped = states.stream().allMatch(w -> w == WatcherState.STOPPED);
             if (isAllStateStopped) {
-                assertAcked(new WatcherServiceRequestBuilder(client()).start().get());
+                assertAcked(new WatcherServiceRequestBuilder(masterNodeTimeout, client()).start().get());
                 throw new AssertionError("all nodes are stopped, restarting");
             }
 
@@ -585,7 +585,7 @@ public abstract class AbstractWatcherIntegrationTestCase extends ESIntegTestCase
 
             boolean isAllStateStarted = states.stream().allMatch(w -> w == WatcherState.STARTED);
             if (isAllStateStarted) {
-                assertAcked(new WatcherServiceRequestBuilder(client()).stop().get());
+                assertAcked(new WatcherServiceRequestBuilder(masterNodeTimeout, client()).stop().get());
                 throw new AssertionError("all nodes are started, stopping");
             }
 

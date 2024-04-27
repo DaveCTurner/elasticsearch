@@ -225,7 +225,8 @@ public class DatafeedCcsIT extends AbstractMultiClustersTestCase {
         // Setting a small chunk size increases the number of separate searches the datafeed
         // must make, which maximises the chance of a problem being exposed by the test
         config.setChunkingConfig(ChunkingConfig.newManual(TimeValue.timeValueMinutes(10)));
-        client(LOCAL_CLUSTER).execute(PutDatafeedAction.INSTANCE, new PutDatafeedAction.Request(config.build())).actionGet();
+        client(LOCAL_CLUSTER).execute(PutDatafeedAction.INSTANCE, new PutDatafeedAction.Request(masterNodeTimeout, config.build()))
+            .actionGet();
 
         client(LOCAL_CLUSTER).execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId()));
         assertBusy(() -> {

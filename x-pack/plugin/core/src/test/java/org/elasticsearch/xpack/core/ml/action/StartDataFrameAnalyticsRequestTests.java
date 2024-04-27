@@ -22,7 +22,7 @@ public class StartDataFrameAnalyticsRequestTests extends AbstractWireSerializing
 
     @Override
     protected Request createTestInstance() {
-        Request request = new Request(randomAlphaOfLength(20));
+        Request request = new Request(masterNodeTimeout, randomAlphaOfLength(20));
         if (randomBoolean()) {
             request.setTimeout(TimeValue.timeValueMillis(randomNonNegativeLong()));
         }
@@ -41,11 +41,11 @@ public class StartDataFrameAnalyticsRequestTests extends AbstractWireSerializing
 
     public void testDefaultTimeout() throws IOException {
         {
-            Request request = new Request("foo");
+            Request request = new Request(masterNodeTimeout, "foo");
             assertThat(request.getTimeout(), is(notNullValue()));
         }
         try (XContentParser parser = createParser(JsonXContent.jsonXContent, "{}")) {
-            Request request = Request.parseRequest("foo", parser);
+            Request request = Request.parseRequest(masterNodeTimeout, "foo", parser);
             assertThat(request.getTimeout(), is(notNullValue()));
         }
     }

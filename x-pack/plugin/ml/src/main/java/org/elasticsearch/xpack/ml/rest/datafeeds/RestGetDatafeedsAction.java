@@ -55,7 +55,7 @@ public class RestGetDatafeedsAction extends BaseRestHandler {
         if (datafeedId == null) {
             datafeedId = GetDatafeedsAction.ALL;
         }
-        Request request = new Request(datafeedId);
+        Request request = new Request(masterNodeTimeout, datafeedId);
         checkAndSetDeprecatedParam(
             DEPRECATED_ALLOW_NO_DATAFEEDS_PARAM,
             GetDatafeedsStatsAction.Request.ALLOW_NO_MATCH,

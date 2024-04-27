@@ -506,7 +506,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), TimeValue.timeValueHours(1));
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId()));
@@ -574,7 +574,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), TimeValue.timeValueHours(1));
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId()));
@@ -619,6 +619,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         );
         jobResultsPersister.persistModelSnapshot(modelSnapshot, WriteRequest.RefreshPolicy.IMMEDIATE, () -> true);
         UpdateJobAction.Request updateJobRequest = UpdateJobAction.Request.internal(
+            masterNodeTimeout,
             jobId,
             new JobUpdate.Builder(jobId).setModelSnapshotId(snapshotId).build()
         );
@@ -671,7 +672,7 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"), datafeedFrequency);
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId()));
@@ -820,6 +821,6 @@ public class MlDistributedFailureIT extends BaseMlIntegTestCase {
         }
 
         JobUpdate jobUpdate = new JobUpdate.Builder(jobId).setModelSnapshotId(modelSnapshot.getSnapshotId()).build();
-        client().execute(UpdateJobAction.INSTANCE, new UpdateJobAction.Request(jobId, jobUpdate)).actionGet();
+        client().execute(UpdateJobAction.INSTANCE, new UpdateJobAction.Request(masterNodeTimeout, jobId, jobUpdate)).actionGet();
     }
 }

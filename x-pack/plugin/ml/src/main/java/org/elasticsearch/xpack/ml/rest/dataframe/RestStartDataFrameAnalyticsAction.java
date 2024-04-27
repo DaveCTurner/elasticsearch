@@ -6,6 +6,7 @@
  */
 package org.elasticsearch.xpack.ml.rest.dataframe;
 
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -38,11 +39,12 @@ public class RestStartDataFrameAnalyticsAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
         String id = restRequest.param(DataFrameAnalyticsConfig.ID.getPreferredName());
+        final TimeValue masterNodeTimeout = MasterNodeRequest.TRAPPY_DEFAULT_MASTER_NODE_TIMEOUT; // TODO configurable timeout here?
         StartDataFrameAnalyticsAction.Request request;
         if (restRequest.hasContentOrSourceParam()) {
-            request = StartDataFrameAnalyticsAction.Request.parseRequest(id, restRequest.contentOrSourceParamParser());
+            request = StartDataFrameAnalyticsAction.Request.parseRequest(masterNodeTimeout, id, restRequest.contentOrSourceParamParser());
         } else {
-            request = new StartDataFrameAnalyticsAction.Request(id);
+            request = new StartDataFrameAnalyticsAction.Request(masterNodeTimeout, id);
             if (restRequest.hasParam(StartDataFrameAnalyticsAction.Request.TIMEOUT.getPreferredName())) {
                 TimeValue timeout = restRequest.paramAsTime(
                     StartDataFrameAnalyticsAction.Request.TIMEOUT.getPreferredName(),

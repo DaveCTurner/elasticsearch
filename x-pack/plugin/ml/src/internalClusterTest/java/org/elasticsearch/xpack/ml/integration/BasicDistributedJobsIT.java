@@ -119,7 +119,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         configBuilder.setParsedAggregations(AggregatorFactories.builder().addAggregator(histogramAggregation));
         configBuilder.setFrequency(TimeValue.timeValueMinutes(2));
         DatafeedConfig config = configBuilder.build();
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         ensureYellow(); // at least the primary shards of the indices a job uses should be started
@@ -191,7 +191,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         client().execute(PutJobAction.INSTANCE, putJobRequest).actionGet();
 
         DatafeedConfig config = createDatafeed("data_feed_id", job.getId(), Collections.singletonList("data"));
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         ensureYellow(); // at least the primary shards of the indices a job uses should be started
@@ -461,7 +461,7 @@ public class BasicDistributedJobsIT extends BaseMlIntegTestCase {
         client().admin().indices().prepareCreate(masterNodeTimeout, "data").setMapping("time", "type=date").get();
 
         DatafeedConfig config = createDatafeed(datafeedId, jobId, Collections.singletonList("data"));
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         ensureYellow(); // at least the primary shards of the indices a job uses should be started

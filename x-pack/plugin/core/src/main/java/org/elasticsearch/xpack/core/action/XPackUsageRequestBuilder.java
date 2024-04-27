@@ -9,6 +9,7 @@ package org.elasticsearch.xpack.core.action;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.master.MasterNodeOperationRequestBuilder;
 import org.elasticsearch.client.internal.ElasticsearchClient;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.protocol.xpack.XPackUsageRequest;
 
 public class XPackUsageRequestBuilder extends MasterNodeOperationRequestBuilder<
@@ -16,11 +17,11 @@ public class XPackUsageRequestBuilder extends MasterNodeOperationRequestBuilder<
     XPackUsageResponse,
     XPackUsageRequestBuilder> {
 
-    public XPackUsageRequestBuilder(ElasticsearchClient client) {
-        this(client, XPackUsageAction.INSTANCE);
+    public XPackUsageRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client) {
+        this(masterNodeTimeout, client, XPackUsageAction.INSTANCE);
     }
 
-    public XPackUsageRequestBuilder(ElasticsearchClient client, ActionType<XPackUsageResponse> action) {
+    public XPackUsageRequestBuilder(TimeValue masterNodeTimeout, ElasticsearchClient client, ActionType<XPackUsageResponse> action) {
         super(client, action, new XPackUsageRequest(masterNodeTimeout));
     }
 }

@@ -12,6 +12,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
@@ -31,18 +32,23 @@ public class PutDatafeedAction extends ActionType<PutDatafeedAction.Response> {
 
     public static class Request extends AcknowledgedRequest<Request> implements ToXContentObject {
 
-        public static Request parseRequest(String datafeedId, IndicesOptions indicesOptions, XContentParser parser) {
+        public static Request parseRequest(
+            TimeValue masterNodeTimeout,
+            String datafeedId,
+            IndicesOptions indicesOptions,
+            XContentParser parser
+        ) {
             DatafeedConfig.Builder datafeed = DatafeedConfig.STRICT_PARSER.apply(parser, null);
             if (datafeed.getIndicesOptions() == null) {
                 datafeed.setIndicesOptions(indicesOptions);
             }
             datafeed.setId(datafeedId);
-            return new Request(datafeed.build());
+            return new Request(masterNodeTimeout, datafeed.build());
         }
 
         private final DatafeedConfig datafeed;
 
-        public Request(DatafeedConfig datafeed) {
+        public Request(TimeValue masterNodeTimeout, DatafeedConfig datafeed) {
             super(masterNodeTimeout);
             this.datafeed = datafeed;
         }

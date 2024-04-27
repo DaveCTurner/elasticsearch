@@ -242,7 +242,7 @@ public class MlNodeShutdownIT extends BaseMlIntegTestCase {
 
         String datafeedId = jobId;
         DatafeedConfig config = createDatafeed(datafeedId, job.getId(), Collections.singletonList("data"));
-        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(config);
+        PutDatafeedAction.Request putDatafeedRequest = new PutDatafeedAction.Request(masterNodeTimeout, config);
         client().execute(PutDatafeedAction.INSTANCE, putDatafeedRequest).actionGet();
 
         client().execute(OpenJobAction.INSTANCE, new OpenJobAction.Request(job.getId()));
