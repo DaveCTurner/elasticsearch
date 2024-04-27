@@ -9,6 +9,7 @@
 package org.elasticsearch.action.admin.cluster.settings;
 
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.routing.RerouteService;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -63,13 +64,16 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
             );
             XContentParseException iae = expectThrows(XContentParseException.class, () -> {
                 try (var parser = createParser(xContentType.xContent(), mutated)) {
-                    ClusterUpdateSettingsRequest.fromXContent(parser);
+                    ClusterUpdateSettingsRequest.fromXContent(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT, parser);
                 }
             });
             assertThat(iae.getMessage(), containsString("[cluster_update_settings_request] unknown field [" + unsupportedField + "]"));
         } else {
             try (XContentParser parser = createParser(xContentType.xContent(), originalBytes)) {
-                ClusterUpdateSettingsRequest parsedRequest = ClusterUpdateSettingsRequest.fromXContent(parser);
+                ClusterUpdateSettingsRequest parsedRequest = ClusterUpdateSettingsRequest.fromXContent(
+                    MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT,
+                    parser
+                );
 
                 assertNull(parser.nextToken());
                 assertThat(parsedRequest.transientSettings(), equalTo(request.transientSettings()));
@@ -79,7 +83,7 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
     }
 
     private static ClusterUpdateSettingsRequest createTestItem() {
-        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(masterNodeTimeout);
+        ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT);
         request.persistentSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         request.transientSettings(ClusterUpdateSettingsResponseTests.randomClusterSettings(0, 2));
         return request;
@@ -119,7 +123,7 @@ public class ClusterUpdateSettingsRequestTests extends ESTestCase {
             }""";
 
         try (XContentParser parser = createParser(XContentType.JSON.xContent(), oneSettingJSON)) {
-            ClusterUpdateSettingsRequest parsedRequest = ClusterUpdateSettingsRequest.fromXContent(parser);
+            ClusterUpdateSettingsRequest parsedRequest = ClusterUpdateSettingsRequest.fromXContent(masterNodeTimeout, parser);
             assertThat(
                 action.modifiedKeys(parsedRequest),
                 containsInAnyOrder("indices.recovery.max_bytes_per_sec", "cluster.remote.cluster_one.seeds")

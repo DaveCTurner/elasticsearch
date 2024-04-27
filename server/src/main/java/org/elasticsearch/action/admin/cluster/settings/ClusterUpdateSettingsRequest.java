@@ -36,11 +36,8 @@ public class ClusterUpdateSettingsRequest extends AcknowledgedRequest<ClusterUpd
     private static final ParseField PERSISTENT = new ParseField("persistent");
     private static final ParseField TRANSIENT = new ParseField("transient");
 
-    private static final ObjectParser<ClusterUpdateSettingsRequest, Void> PARSER = new ObjectParser<>(
-        "cluster_update_settings_request",
-        false,
-        () -> new ClusterUpdateSettingsRequest(masterNodeTimeout)
-    );
+    // only used in tests - TODO move to test suite
+    private static final ObjectParser<ClusterUpdateSettingsRequest, Void> PARSER = new ObjectParser<>("cluster_update_settings_request");
 
     static {
         PARSER.declareObject((r, p) -> r.persistentSettings = p, (p, c) -> Settings.fromXContent(p), PERSISTENT);
@@ -189,7 +186,7 @@ public class ClusterUpdateSettingsRequest extends AcknowledgedRequest<ClusterUpd
         return builder;
     }
 
-    public static ClusterUpdateSettingsRequest fromXContent(XContentParser parser) {
-        return PARSER.apply(parser, null);
+    public static ClusterUpdateSettingsRequest fromXContent(TimeValue masterNodeTimeout, XContentParser parser) throws IOException {
+        return PARSER.parse(parser, new ClusterUpdateSettingsRequest(masterNodeTimeout), null);
     }
 }

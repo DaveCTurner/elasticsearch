@@ -9,6 +9,7 @@
 package org.elasticsearch.rest.action.admin.cluster;
 
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -43,11 +44,10 @@ public class RestClusterUpdateSettingsAction extends BaseRestHandler {
     @Override
     @SuppressWarnings("unchecked")
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) throws IOException {
-        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(masterNodeTimeout);
-        clusterUpdateSettingsRequest.ackTimeout(request.paramAsTime("timeout", clusterUpdateSettingsRequest.ackTimeout()));
-        clusterUpdateSettingsRequest.masterNodeTimeout(
-            request.paramAsTime("master_timeout", clusterUpdateSettingsRequest.masterNodeTimeout())
+        final ClusterUpdateSettingsRequest clusterUpdateSettingsRequest = new ClusterUpdateSettingsRequest(
+            request.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT)
         );
+        clusterUpdateSettingsRequest.ackTimeout(request.paramAsTime("timeout", clusterUpdateSettingsRequest.ackTimeout()));
         Map<String, Object> source;
         try (XContentParser parser = request.contentParser()) {
             source = parser.map();

@@ -201,7 +201,11 @@ public final class ObjectParser<Value, Context> extends AbstractObjectParser<Val
     }
 
     private static <C, V> Function<C, V> wrapValueSupplier(@Nullable Supplier<V> valueSupplier) {
-        return valueSupplier == null ? c -> { throw new NullPointerException(); } : c -> valueSupplier.get();
+        return valueSupplier == null ? c -> {
+            final var exception = new UnsupportedOperationException("value must be supplied by caller");
+            assert false : exception;
+            throw exception;
+        } : c -> valueSupplier.get();
     }
 
     /**

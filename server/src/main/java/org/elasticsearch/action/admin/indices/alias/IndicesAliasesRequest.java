@@ -671,11 +671,7 @@ public class IndicesAliasesRequest extends AcknowledgedRequest<IndicesAliasesReq
         return builder;
     }
 
-    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>("aliases", () -> {
-        final var exception = new UnsupportedOperationException("cannot construct fresh IndicesAliasesRequest");
-        assert false : exception;
-        throw exception;
-    });
+    public static final ObjectParser<IndicesAliasesRequest, Void> PARSER = new ObjectParser<>("aliases");
     static {
         PARSER.declareObjectArray((request, actions) -> {
             for (AliasActions action : actions) {
