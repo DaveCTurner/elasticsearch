@@ -39,7 +39,7 @@ public class RestPutDataStreamLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         try (XContentParser parser = request.contentParser()) {
-            PutDataStreamLifecycleAction.Request putLifecycleRequest = PutDataStreamLifecycleAction.Request.parseRequest(parser);
+            PutDataStreamLifecycleAction.Request putLifecycleRequest = PutDataStreamLifecycleAction.Request.parseRequest(parser, request);
             putLifecycleRequest.indices(Strings.splitStringByCommaToArray(request.param("name")));
             putLifecycleRequest.masterNodeTimeout(request.paramAsTime("master_timeout", putLifecycleRequest.masterNodeTimeout()));
             putLifecycleRequest.ackTimeout(request.paramAsTime("timeout", putLifecycleRequest.ackTimeout()));

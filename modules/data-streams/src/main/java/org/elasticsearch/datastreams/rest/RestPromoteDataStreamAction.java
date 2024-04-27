@@ -31,7 +31,7 @@ public class RestPromoteDataStreamAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
-        PromoteDataStreamAction.Request request = new PromoteDataStreamAction.Request(restRequest.param("name"));
+        PromoteDataStreamAction.Request request = new PromoteDataStreamAction.Request(masterNodeTimeout, restRequest.param("name"));
         return channel -> client.execute(PromoteDataStreamAction.INSTANCE, request, new RestToXContentListener<>(channel));
     }
 }

@@ -22,6 +22,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.ParseField;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -48,12 +49,12 @@ public class GetDataStreamLifecycleAction {
         private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, true, true, true, false, false, true, false);
         private boolean includeDefaults = false;
 
-        public Request(String[] names) {
+        public Request(TimeValue masterNodeTimeout, String[] names) {
             super(masterNodeTimeout);
             this.names = names;
         }
 
-        public Request(String[] names, boolean includeDefaults) {
+        public Request(TimeValue masterNodeTimeout, String[] names, boolean includeDefaults) {
             super(masterNodeTimeout);
             this.names = names;
             this.includeDefaults = includeDefaults;

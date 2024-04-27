@@ -13,11 +13,13 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.xcontent.AbstractObjectParser;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
 import org.elasticsearch.xcontent.ObjectParser;
@@ -45,9 +47,18 @@ public class PutDataStreamLifecycleAction {
 
     public static final class Request extends AcknowledgedRequest<Request> implements IndicesRequest.Replaceable, ToXContentObject {
 
-        public static final ConstructingObjectParser<Request, Void> PARSER = new ConstructingObjectParser<>(
+        public static final ConstructingObjectParser<Request, RestRequest> PARSER = new ConstructingObjectParser<>(
             "put_data_stream_lifecycle_request",
-            args -> new Request(null, ((TimeValue) args[0]), (Boolean) args[1], (Downsampling) args[2])
+            false,
+            (args, restRequest) -> new Request(
+                restRequest == null
+                    ? MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT
+                    : restRequest.paramAsTime("master_timeout", MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT),
+                null,
+                ((TimeValue) args[0]),
+                (Boolean) args[1],
+                (Downsampling) args[2]
+            )
         );
 
         static {
@@ -67,8 +78,8 @@ public class PutDataStreamLifecycleAction {
             }, DOWNSAMPLING_FIELD, ObjectParser.ValueType.OBJECT_ARRAY_OR_NULL);
         }
 
-        public static Request parseRequest(XContentParser parser) {
-            return PARSER.apply(parser, null);
+        public static Request parseRequest(XContentParser parser, RestRequest restRequest) {
+            return PARSER.apply(parser, restRequest);
         }
 
         private String[] names;
@@ -90,21 +101,27 @@ public class PutDataStreamLifecycleAction {
             out.writeWriteable(lifecycle);
         }
 
-        public Request(String[] names, @Nullable TimeValue dataRetention) {
-            this(names, dataRetention, null, null);
+        public Request(TimeValue masterNodeTimeout, String[] names, @Nullable TimeValue dataRetention) {
+            this(masterNodeTimeout, names, dataRetention, null, null);
         }
 
-        public Request(String[] names, DataStreamLifecycle lifecycle) {
+        public Request(TimeValue masterNodeTimeout, String[] names, DataStreamLifecycle lifecycle) {
             super(masterNodeTimeout);
             this.names = names;
             this.lifecycle = lifecycle;
         }
 
-        public Request(String[] names, @Nullable TimeValue dataRetention, @Nullable Boolean enabled) {
-            this(names, dataRetention, enabled, null);
+        public Request(TimeValue masterNodeTimeout, String[] names, @Nullable TimeValue dataRetention, @Nullable Boolean enabled) {
+            this(masterNodeTimeout, names, dataRetention, enabled, null);
         }
 
-        public Request(String[] names, @Nullable TimeValue dataRetention, @Nullable Boolean enabled, @Nullable Downsampling downsampling) {
+        public Request(
+            TimeValue masterNodeTimeout,
+            String[] names,
+            @Nullable TimeValue dataRetention,
+            @Nullable Boolean enabled,
+            @Nullable Downsampling downsampling
+        ) {
             super(masterNodeTimeout);
             this.names = names;
             this.lifecycle = DataStreamLifecycle.newBuilder()

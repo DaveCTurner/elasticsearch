@@ -258,7 +258,7 @@ public class DataStreamLifecycleDownsampleIT extends ESIntegTestCase {
 
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, updatedLifecycle)
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, updatedLifecycle)
         );
 
         String thirtySecondsDownsampleIndex = "downsample-20m-" + firstGenerationBackingIndex;

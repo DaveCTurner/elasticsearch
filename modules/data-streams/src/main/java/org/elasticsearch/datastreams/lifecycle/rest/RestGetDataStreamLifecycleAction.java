@@ -37,6 +37,7 @@ public class RestGetDataStreamLifecycleAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         GetDataStreamLifecycleAction.Request getDataLifecycleRequest = new GetDataStreamLifecycleAction.Request(
+            masterNodeTimeout,
             Strings.splitStringByCommaToArray(request.param("name"))
         );
         getDataLifecycleRequest.includeDefaults(request.paramAsBoolean("include_defaults", false));

@@ -223,7 +223,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's make the write index of the data stream managed by DSL
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, new DataStreamLifecycle())
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, new DataStreamLifecycle())
         ).actionGet();
 
         // at this point we should be able to rollover the data stream by indexing only one document (as the data stream lifecycle is
@@ -247,7 +247,11 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's migrate this data stream to use the custom data stream lifecycle
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, customLifecycle.getDataStreamRetention())
+            new PutDataStreamLifecycleAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName },
+                customLifecycle.getDataStreamRetention()
+            )
         ).actionGet();
 
         assertBusy(() -> {
@@ -407,7 +411,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's migrate this data stream to use the data stream lifecycle starting with the next generation
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, TimeValue.timeValueDays(90))
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, TimeValue.timeValueDays(90))
         );
 
         putComposableIndexTemplate(
@@ -594,7 +598,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's make the write index of the data stream managed by DSL
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, new DataStreamLifecycle())
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, new DataStreamLifecycle())
         ).actionGet();
 
         // at this point, the write index of the data stream is managed by data stream lifecycle and not by ILM anymore so we can just index
@@ -604,7 +608,11 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's migrate this data stream to use the custom data stream lifecycle
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, customLifecycle.getDataStreamRetention())
+            new PutDataStreamLifecycleAction.Request(
+                masterNodeTimeout,
+                new String[] { dataStreamName },
+                customLifecycle.getDataStreamRetention()
+            )
         ).actionGet();
 
         // data stream was rolled over and has 4 indices, 2 managed by ILM, and 2 managed by the custom data stream lifecycle
@@ -667,7 +675,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // let's migrate this data stream to disable using the data stream lifecycle
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, TimeValue.timeValueDays(90), false)
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, TimeValue.timeValueDays(90), false)
         ).actionGet();
 
         // At this point the data stream is not managed by the data stream lifecycle and all the indices fallback to ILM.
@@ -892,7 +900,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
 
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, TimeValue.timeValueDays(90))
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, TimeValue.timeValueDays(90))
         ).actionGet();
 
         // rollover again - at this point this data stream should have 2 backing indices managed by ILM and the write index managed by
@@ -967,7 +975,7 @@ public class DataStreamAndIndexLifecycleMixingTests extends ESIntegTestCase {
         // disable data stream lifecycle on the data stream. the future generations will be UNMANAGED
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, TimeValue.timeValueDays(90), false)
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, TimeValue.timeValueDays(90), false)
         ).actionGet();
 
         getDataStreamRequest = new GetDataStreamAction.Request(masterNodeTimeout, new String[] { dataStreamName });

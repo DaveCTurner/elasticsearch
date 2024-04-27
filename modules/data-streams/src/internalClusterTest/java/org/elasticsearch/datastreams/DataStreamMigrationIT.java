@@ -71,7 +71,7 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
         assertThat(resolveResponse.getDataStreams().size(), equalTo(0));
         assertThat(resolveResponse.getIndices().size(), equalTo(2));
 
-        client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(alias)).get();
+        client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(masterNodeTimeout, alias)).get();
 
         resolveResponse = indicesAdmin().resolveIndex(resolveRequest).get();
         assertThat(resolveResponse.getAliases().size(), equalTo(0));
@@ -112,7 +112,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
 
         Exception e = expectThrows(
             Exception.class,
-            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(alias)).get()
+            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(masterNodeTimeout, alias))
+                .get()
         );
 
         assertTrue(
@@ -144,7 +145,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
 
         Exception e = expectThrows(
             Exception.class,
-            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(alias)).get()
+            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(masterNodeTimeout, alias))
+                .get()
         );
 
         assertTrue(throwableOrItsCause(e, IllegalArgumentException.class, "must have mappings for a timestamp field"));
@@ -179,7 +181,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
 
         Exception e = expectThrows(
             Exception.class,
-            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(alias)).get()
+            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(masterNodeTimeout, alias))
+                .get()
         );
 
         assertTrue(throwableOrItsCause(e, IllegalArgumentException.class, "data stream timestamp field [@timestamp] does not exist"));
@@ -214,7 +217,8 @@ public class DataStreamMigrationIT extends ESIntegTestCase {
 
         Exception e = expectThrows(
             Exception.class,
-            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(alias)).get()
+            () -> client().execute(MigrateToDataStreamAction.INSTANCE, new MigrateToDataStreamAction.Request(masterNodeTimeout, alias))
+                .get()
         );
 
         assertTrue(throwableOrItsCause(e, IllegalArgumentException.class, "alias [" + alias + "] must specify a write index"));

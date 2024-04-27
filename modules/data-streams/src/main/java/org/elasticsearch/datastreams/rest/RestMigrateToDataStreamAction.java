@@ -35,7 +35,7 @@ public class RestMigrateToDataStreamAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        MigrateToDataStreamAction.Request req = new MigrateToDataStreamAction.Request(request.param("name"));
+        MigrateToDataStreamAction.Request req = new MigrateToDataStreamAction.Request(masterNodeTimeout, request.param("name"));
         return channel -> client.execute(MigrateToDataStreamAction.INSTANCE, req, new RestToXContentListener<>(channel));
     }
 }

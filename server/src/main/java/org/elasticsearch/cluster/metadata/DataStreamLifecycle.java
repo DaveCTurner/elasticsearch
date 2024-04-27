@@ -24,6 +24,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.elasticsearch.xcontent.AbstractObjectParser;
 import org.elasticsearch.xcontent.ConstructingObjectParser;
@@ -94,7 +95,7 @@ public class DataStreamLifecycle implements SimpleDiffable<DataStreamLifecycle>,
     public static final ParseField DOWNSAMPLING_FIELD = new ParseField("downsampling");
     private static final ParseField ROLLOVER_FIELD = new ParseField("rollover");
 
-    public static final ConstructingObjectParser<DataStreamLifecycle, Void> PARSER = new ConstructingObjectParser<>(
+    public static final ConstructingObjectParser<DataStreamLifecycle, RestRequest> PARSER = new ConstructingObjectParser<>(
         "lifecycle",
         false,
         (args, unused) -> new DataStreamLifecycle((Retention) args[0], (Downsampling) args[1], (Boolean) args[2])
@@ -443,7 +444,7 @@ public class DataStreamLifecycle implements SimpleDiffable<DataStreamLifecycle>,
             public static final ParseField AFTER_FIELD = new ParseField("after");
             public static final ParseField FIXED_INTERVAL_FIELD = new ParseField("fixed_interval");
 
-            private static final ConstructingObjectParser<Round, Void> PARSER = new ConstructingObjectParser<>(
+            private static final ConstructingObjectParser<Round, RestRequest> PARSER = new ConstructingObjectParser<>(
                 "downsampling_round",
                 false,
                 (args, unused) -> new Round((TimeValue) args[0], new DownsampleConfig((DateHistogramInterval) args[1]))
@@ -490,7 +491,7 @@ public class DataStreamLifecycle implements SimpleDiffable<DataStreamLifecycle>,
                 return builder;
             }
 
-            public static Round fromXContent(XContentParser parser, Void context) throws IOException {
+            public static Round fromXContent(XContentParser parser, RestRequest context) throws IOException {
                 return PARSER.parse(parser, context);
             }
 

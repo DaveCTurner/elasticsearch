@@ -853,7 +853,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
 
         client().execute(
             PutDataStreamLifecycleAction.INSTANCE,
-            new PutDataStreamLifecycleAction.Request(new String[] { dataStreamName }, null, true)
+            new PutDataStreamLifecycleAction.Request(masterNodeTimeout, new String[] { dataStreamName }, null, true)
         );
 
         assertBusy(() -> {
@@ -923,6 +923,7 @@ public class DataStreamLifecycleServiceIT extends ESIntegTestCase {
 
     static void updateLifecycle(String dataStreamName, TimeValue dataRetention) {
         PutDataStreamLifecycleAction.Request putDataLifecycleRequest = new PutDataStreamLifecycleAction.Request(
+            masterNodeTimeout,
             new String[] { dataStreamName },
             dataRetention
         );

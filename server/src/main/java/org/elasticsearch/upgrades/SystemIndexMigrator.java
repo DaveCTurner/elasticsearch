@@ -18,6 +18,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexClusterStateUpda
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsClusterStateUpdateRequest;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.ShardsAcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.ParentTaskAssigningClient;
@@ -234,7 +235,7 @@ public class SystemIndexMigrator extends AllocatedPersistentTask {
             migrationInfo.createClient(baseClient)
                 .admin()
                 .indices()
-                .prepareDelete(masterNodeTimeout, newIndexName)
+                .prepareDelete(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */, newIndexName)
                 .execute(ActionListener.wrap(ackedResponse -> {
                     if (ackedResponse.isAcknowledged()) {
                         logger.debug("successfully removed index [{}]", newIndexName);
@@ -509,7 +510,7 @@ public class SystemIndexMigrator extends AllocatedPersistentTask {
         final IndicesAliasesRequestBuilder aliasesRequest = migrationInfo.createClient(baseClient)
             .admin()
             .indices()
-            .prepareAliases(masterNodeTimeout);
+            .prepareAliases(MasterNodeRequest.DEFAULT_MASTER_NODE_TIMEOUT /* TODO longer timeout here? */);
         aliasesRequest.removeIndex(migrationInfo.getCurrentIndexName());
         aliasesRequest.addAlias(migrationInfo.getNextIndexName(), migrationInfo.getCurrentIndexName());
 
